@@ -1,0 +1,64 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.toolbarCount {
+  font-size: var(--font-sm);
+  color: var(--color-neutral-500);
+}
+
+.filterSelect {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-sm);
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  color: var(--color-neutral-700);
+  background: var(--color-neutral-0);
+  cursor: pointer;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: var(--color-primary-400);
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2-5) var(--space-4);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  background: var(--gradient-primary);
+  color: var(--color-neutral-0);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  border: none;
+  transition: all var(--duration-normal) var(--ease-default);
+}
+
+.addBtn:hover {
+  filter: brightness(1.05);
+  box-shadow: var(--shadow-md), var(--shadow-glow-primary);
+}
+
+.categoryBadge {
+  display: inline-flex;
+  padding: var(--space-0-5) var(--space-2);
+  font-size: var(--font-xs);
+  font-weight: var(--weight-medium);
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-600);
+  border-radius: var(--radius-full);
+}

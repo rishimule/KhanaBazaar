@@ -19,7 +19,7 @@ The technology stack for Khana Bazaar is engineered to prioritize speed to marke
 - **Caching Layer:** Redis. Used to cache the master product catalog and active user shopping carts to guarantee lightning-fast load times.
 
 ## 4. Payments & Transactions
-- **Payment Gateway:** Razorpay. Selected for its industry-leading UPI integration, enabling intent flows (direct deep-linking to GPay, PhonePe, Paytm) for high conversion rates in the Indian demographic.
+- **Payment Gateway:** Integration skipped for the current phase. Planned for a future release using Razorpay or a similar provider for direct UPI integrations.
 
 ## 5. Deployment & Scalability Strategy (GCP)
 The infrastructure will be exclusively hosted on Google Cloud Platform (GCP).

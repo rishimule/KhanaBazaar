@@ -20,8 +20,8 @@ This flow ensures the user is never blocked from shopping until the exact moment
 - A bottom sheet or modal pops up: "Enter your phone number to continue".
 - The user enters their number, receives an OTP (via Firebase Auth), and is instantly verified.
 
-### Step 5: Payment & Order Tracking
-- The user adds their delivery address, selects UPI via Razorpay, and pays.
+### Step 5: Checkout & Order Tracking
+- The user adds their delivery address and confirms the order (simulated payment flow).
 - The Store A cart is converted into an active "Order". The Store B cart remains in their account for future checkout.
 - The customer is redirected to a live tracking screen.
 
@@ -43,6 +43,6 @@ To make guest carts and multi-store carts work seamlessly, your frontend (Next.j
 - **Data Transfer:** FastAPI looks up all Redis carts associated with `session_id: "xyz-123"`. It updates the ownership of those carts, replacing the anonymous `session_id` with the permanent `user_id`. It then saves these permanent carts into your PostgreSQL database.
 
 ### Phase 3: Order Conversion
-- **Checkout Initialization:** The user selects an address and hits checkout. FastAPI creates a "Pending Order" in Postgres and generates a Razorpay order ID.
-- **Payment Webhook:** The user pays via UPI. Razorpay sends a webhook to your FastAPI server confirming success.
-- **Fulfillment Routing:** FastAPI marks the order as "Paid", clears the specific Store A cart from the database, and triggers the background Celery task to notify Store A's owner that they have a new order to pack.
+- **Checkout Initialization:** The user selects an address and hits checkout. FastAPI creates a "Pending Order" in Postgres (payment gateway integration is skipped for now).
+- **Payment Simulation:** The system automatically simulates payment success.
+- **Fulfillment Routing:** FastAPI marks the order as "Paid" (via simulation), clears the specific Store A cart from the database, and triggers the background Celery task to notify Store A's owner that they have a new order to pack.

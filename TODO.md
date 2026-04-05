@@ -10,28 +10,27 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 - [x] Define project structure (backend/ and frontend/ dirs).
 
 ## Phase 2: Backend Development (FastAPI)
-- [ ] Setup FastAPI project structure and dependency management via `uv` (Ruff, Mypy, Pytest).
-- [ ] Configure PostgreSQL database connection using SQLModel and asyncpg.
-- [ ] Initialize Alembic for database migrations.
-- [ ] Implement user authentication and RBAC (Admin, Seller, Customer roles).
-- [ ] Develop Master Catalog management APIs.
-- [ ] Develop Seller inventory management APIs.
-- [ ] Set up Uvicorn ASGI server and Pydantic-Settings for configuration management.
-- [ ] Set up Redis and Celery (Python Client) for background tasks.
-- [ ] Write integration and unit tests using Pytest and pytest-asyncio.
+- [x] Setup FastAPI project structure and dependency management via `uv` (Ruff, Mypy, Pytest).
+- [x] Configure PostgreSQL database connection using SQLModel and asyncpg.
+- [x] Initialize Alembic for database migrations.
+- [x] Implement user authentication and RBAC (Admin, Seller, Customer roles).
+- [x] Develop Master Catalog management APIs.
+- [x] Develop Seller inventory management APIs.
+- [x] Set up Uvicorn ASGI server and Pydantic-Settings for configuration management.
+- [x] Set up Redis and Celery (Python Client) for background tasks.
+- [x] Write integration and unit tests using Pytest and pytest-asyncio.
 
 ## Phase 3: Frontend Development (Next.js)
-- [ ] Initialize Next.js PWA project.
-- [ ] Configure UI library (e.g., Tailwind CSS or Vanilla CSS) and design system.
-- [ ] Build global UI components (Navbar, Footer, Product Cards).
-- [ ] Develop Customer storefront and shopping cart.
-- [ ] Develop Seller portal dashboard.
-- [ ] Develop Admin dashboard for catalog management.
+- [x] Initialize Next.js PWA project.
+- [x] Configure UI library (e.g., Tailwind CSS or Vanilla CSS) and design system.
+- [x] Build global UI components (Navbar, Footer, Product Cards).
+- [x] Develop Customer storefront and shopping cart.
+- [x] Develop Seller portal dashboard.
+- [x] Develop Admin dashboard for catalog management.
 
-## Phase 4: Integration & Payments
-- [ ] Integrate Razorpay for UPI checkout intent flows.
+## Phase 4: Integration
 - [ ] Connect Frontend interfaces with FastAPI endpoints.
-- [ ] End-to-end testing of the complete order flow.
+- [ ] End-to-end testing of the complete order flow (simulated checkout).
 
 ## Phase 5: Deployment & CI/CD (GCP)
 - [ ] Setup GCP project, configure IAM, and enable necessary APIs (Cloud Run, Cloud SQL, Cloud Storage, Redis).
@@ -39,3 +38,6 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 - [ ] Configure GitHub Actions for CI/CD pipelines.
 - [ ] Deploy databases and services to GCP (Cloud SQL, Cloud Run).
 - [ ] Configure CDN for media assets via GCP Cloud Storage.
+
+## Phase 6: Future Enhancements (Payments)
+- [ ] Integrate Razorpay (or other payment gateways) for UPI checkout intent flows.
