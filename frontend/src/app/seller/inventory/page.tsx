@@ -1,60 +1,93 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal, { modalStyles } from "@/components/Modal";
-import {
-  mockInventories,
-  mockProducts,
-  getCategoryName,
-} from "@/lib/mock-data";
-import { InventoryWithProduct, MasterProduct } from "@/types";
+import { useAuth } from "@/lib/AuthContext";
+import { get, post, put, del } from "@/lib/api";
+import { Store, StoreInventory, MasterProduct, Category } from "@/types";
 
 import styles from "./page.module.css";
 
-const SELLER_STORE_ID = 1;
+/** Enriched inventory with product info */
+interface InventoryWithProduct extends StoreInventory {
+  product: MasterProduct;
+}
 
 export default function SellerInventoryPage() {
-  const [inventory, setInventory] = useState<InventoryWithProduct[]>(
-    () => [...(mockInventories[SELLER_STORE_ID] ?? [])]
-  );
+  const router = useRouter();
+  const { dbUser, token, loading: authLoading } = useAuth();
+
+  const [store, setStore] = useState<Store | null>(null);
+  const [inventory, setInventory] = useState<InventoryWithProduct[]>([]);
+  const [allProducts, setAllProducts] = useState<MasterProduct[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [fetching, setFetching] = useState(true);
+
   const [editItem, setEditItem] = useState<InventoryWithProduct | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-
-  // Form state
   const [formProductId, setFormProductId] = useState<number>(0);
   const [formPrice, setFormPrice] = useState("");
   const [formStock, setFormStock] = useState("");
 
+  // Fetch data
+  useEffect(() => {
+    if (!authLoading && (!dbUser || dbUser.role !== "seller")) {
+      router.push(dbUser ? "/" : "/login");
+      return;
+    }
+    if (!authLoading && dbUser && token) {
+      Promise.all([
+        get<Store[]>("/api/v1/stores/my", token),
+        get<MasterProduct[]>("/api/v1/catalog/products"),
+        get<Category[]>("/api/v1/catalog/categories"),
+      ])
+        .then(async ([myStores, products, cats]) => {
+          setAllProducts(products);
+          setCategories(cats);
+          if (myStores.length > 0) {
+            const s = myStores[0];
+            setStore(s);
+            const inv = await get<StoreInventory[]>(
+              `/api/v1/stores/${s.id}/inventory/all`,
+              token
+            );
+            const productMap = new Map(products.map((p) => [p.id, p]));
+            setInventory(
+              inv
+                .map((i) => ({ ...i, product: productMap.get(i.product_id)! }))
+                .filter((i) => i.product)
+            );
+          }
+        })
+        .catch(() => {})
+        .finally(() => setFetching(false));
+    }
+  }, [authLoading, dbUser, token, router]);
+
+  const getCategoryName = (catId: number) =>
+    categories.find((c) => c.id === catId)?.name ?? "Other";
+
   // Products not yet in inventory
   const availableProducts = useMemo(() => {
     const existingIds = new Set(inventory.map((i) => i.product_id));
-    return mockProducts.filter((p) => !existingIds.has(p.id));
-  }, [inventory]);
+    return allProducts.filter((p) => !existingIds.has(p.id));
+  }, [inventory, allProducts]);
 
   const columns: Column<InventoryWithProduct>[] = [
     {
       key: "product_name",
       label: "Product",
-      render: (row) => (
-        <strong>{row.product.name}</strong>
-      ),
+      render: (row) => <strong>{row.product.name}</strong>,
     },
     {
       key: "category",
       label: "Category",
       render: (row) => getCategoryName(row.product.category_id),
     },
-    {
-      key: "price",
-      label: "Price (₹)",
-      render: (row) => `₹${row.price}`,
-    },
-    {
-      key: "stock",
-      label: "Stock",
-      render: (row) => String(row.stock),
-    },
+    { key: "price", label: "Price (₹)", render: (row) => `₹${row.price}` },
+    { key: "stock", label: "Stock", render: (row) => String(row.stock) },
     {
       key: "is_available",
       label: "Status",
@@ -71,12 +104,20 @@ export default function SellerInventoryPage() {
     },
   ];
 
-  function toggleAvailability(item: InventoryWithProduct) {
-    setInventory((prev) =>
-      prev.map((i) =>
-        i.id === item.id ? { ...i, is_available: !i.is_available } : i
-      )
-    );
+  async function toggleAvailability(item: InventoryWithProduct) {
+    if (!store || !token) return;
+    try {
+      await put(
+        `/api/v1/stores/${store.id}/inventory/${item.id}`,
+        { is_available: !item.is_available, price: item.price, stock: item.stock },
+        token
+      );
+      setInventory((prev) =>
+        prev.map((i) =>
+          i.id === item.id ? { ...i, is_available: !i.is_available } : i
+        )
+      );
+    } catch { /* silent */ }
   }
 
   function handleEdit(item: InventoryWithProduct) {
@@ -85,24 +126,39 @@ export default function SellerInventoryPage() {
     setFormStock(String(item.stock));
   }
 
-  function handleSaveEdit() {
-    if (!editItem) return;
-    setInventory((prev) =>
-      prev.map((i) =>
-        i.id === editItem.id
-          ? {
-              ...i,
-              price: parseFloat(formPrice) || i.price,
-              stock: parseInt(formStock, 10) || i.stock,
-            }
-          : i
-      )
-    );
-    setEditItem(null);
+  async function handleSaveEdit() {
+    if (!editItem || !store || !token) return;
+    try {
+      await put(
+        `/api/v1/stores/${store.id}/inventory/${editItem.id}`,
+        {
+          price: parseFloat(formPrice) || editItem.price,
+          stock: parseInt(formStock, 10) ?? editItem.stock,
+          is_available: editItem.is_available,
+        },
+        token
+      );
+      setInventory((prev) =>
+        prev.map((i) =>
+          i.id === editItem.id
+            ? {
+                ...i,
+                price: parseFloat(formPrice) || i.price,
+                stock: parseInt(formStock, 10) ?? i.stock,
+              }
+            : i
+        )
+      );
+      setEditItem(null);
+    } catch { /* silent */ }
   }
 
-  function handleDelete(item: InventoryWithProduct) {
-    setInventory((prev) => prev.filter((i) => i.id !== item.id));
+  async function handleDelete(item: InventoryWithProduct) {
+    if (!store || !token) return;
+    try {
+      await del(`/api/v1/stores/${store.id}/inventory/${item.id}`, token);
+      setInventory((prev) => prev.filter((i) => i.id !== item.id));
+    } catch { /* silent */ }
   }
 
   function openAdd() {
@@ -112,24 +168,28 @@ export default function SellerInventoryPage() {
     setShowAdd(true);
   }
 
-  function handleAdd() {
-    const product = mockProducts.find(
-      (p) => p.id === formProductId
-    ) as MasterProduct;
+  async function handleAdd() {
+    if (!store || !token) return;
+    const product = allProducts.find((p) => p.id === formProductId);
     if (!product) return;
-    const newItem: InventoryWithProduct = {
-      id: Date.now(),
-      store_id: SELLER_STORE_ID,
-      product_id: product.id,
-      price: parseFloat(formPrice) || product.base_price,
-      stock: parseInt(formStock, 10) || 0,
-      is_available: true,
-      product,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setInventory((prev) => [...prev, newItem]);
-    setShowAdd(false);
+    try {
+      const created = await post<StoreInventory>(
+        `/api/v1/stores/${store.id}/inventory`,
+        {
+          product_id: product.id,
+          price: parseFloat(formPrice) || product.base_price,
+          stock: parseInt(formStock, 10) || 0,
+          is_available: true,
+        },
+        token
+      );
+      setInventory((prev) => [...prev, { ...created, product }]);
+      setShowAdd(false);
+    } catch { /* silent */ }
+  }
+
+  if (authLoading || fetching) {
+    return <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>Loading…</div>;
   }
 
   return (
@@ -161,15 +221,8 @@ export default function SellerInventoryPage() {
           onClose={() => setEditItem(null)}
           footer={
             <>
-              <button
-                className="btn btn-outline"
-                onClick={() => setEditItem(null)}
-              >
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={handleSaveEdit}>
-                Save Changes
-              </button>
+              <button className="btn btn-outline" onClick={() => setEditItem(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSaveEdit}>Save Changes</button>
             </>
           }
         >
@@ -204,15 +257,8 @@ export default function SellerInventoryPage() {
           onClose={() => setShowAdd(false)}
           footer={
             <>
-              <button
-                className="btn btn-outline"
-                onClick={() => setShowAdd(false)}
-              >
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={handleAdd}>
-                Add Product
-              </button>
+              <button className="btn btn-outline" onClick={() => setShowAdd(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleAdd}>Add Product</button>
             </>
           }
         >

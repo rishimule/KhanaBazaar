@@ -1,22 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal, { modalStyles } from "@/components/Modal";
-import { mockCategories, mockProducts } from "@/lib/mock-data";
-import { Category } from "@/types";
+import { useAuth } from "@/lib/AuthContext";
+import { get, post, put, del } from "@/lib/api";
+import { Category, MasterProduct } from "@/types";
 import styles from "../products/page.module.css";
 
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>(() => [
-    ...mockCategories,
-  ]);
+  const router = useRouter();
+  const { dbUser, token, loading: authLoading } = useAuth();
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<MasterProduct[]>([]);
+  const [fetching, setFetching] = useState(true);
   const [editItem, setEditItem] = useState<Category | null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
   // Form state
   const [formName, setFormName] = useState("");
   const [formDesc, setFormDesc] = useState("");
+
+  useEffect(() => {
+    if (!authLoading && (!dbUser || dbUser.role !== "admin")) {
+      router.push(dbUser ? "/" : "/login");
+      return;
+    }
+    if (!authLoading && dbUser && token) {
+      Promise.all([
+        get<Category[]>("/api/v1/catalog/categories", token),
+        get<MasterProduct[]>("/api/v1/catalog/products", token),
+      ])
+        .then(([cats, prods]) => {
+          setCategories(cats);
+          setProducts(prods);
+        })
+        .catch(() => {})
+        .finally(() => setFetching(false));
+    }
+  }, [authLoading, dbUser, token, router]);
 
   const columns: Column<Category>[] = [
     { key: "name", label: "Category Name", render: (row) => <strong>{row.name}</strong> },
@@ -29,9 +53,7 @@ export default function AdminCategoriesPage() {
       key: "products",
       label: "Products",
       render: (row) => {
-        const count = mockProducts.filter(
-          (p) => p.category_id === row.id
-        ).length;
+        const count = products.filter((p) => p.category_id === row.id).length;
         return `${count} products`;
       },
     },
@@ -43,25 +65,27 @@ export default function AdminCategoriesPage() {
     setFormDesc(item.description ?? "");
   }
 
-  function handleSaveEdit() {
-    if (!editItem) return;
-    setCategories((prev) =>
-      prev.map((c) =>
-        c.id === editItem.id
-          ? {
-              ...c,
-              name: formName || c.name,
-              description: formDesc || c.description,
-              updated_at: new Date().toISOString(),
-            }
-          : c
-      )
-    );
-    setEditItem(null);
+  async function handleSaveEdit() {
+    if (!editItem || !token) return;
+    try {
+      const updated = await put<Category>(
+        `/api/v1/catalog/categories/${editItem.id}`,
+        { name: formName || editItem.name, description: formDesc || editItem.description },
+        token
+      );
+      setCategories((prev) =>
+        prev.map((c) => (c.id === editItem.id ? updated : c))
+      );
+      setEditItem(null);
+    } catch { /* silent */ }
   }
 
-  function handleDelete(item: Category) {
-    setCategories((prev) => prev.filter((c) => c.id !== item.id));
+  async function handleDelete(item: Category) {
+    if (!token) return;
+    try {
+      await del(`/api/v1/catalog/categories/${item.id}`, token);
+      setCategories((prev) => prev.filter((c) => c.id !== item.id));
+    } catch { /* silent */ }
   }
 
   function openAdd() {
@@ -70,17 +94,21 @@ export default function AdminCategoriesPage() {
     setShowAdd(true);
   }
 
-  function handleAdd() {
-    if (!formName.trim()) return;
-    const newCat: Category = {
-      id: Date.now(),
-      name: formName.trim(),
-      description: formDesc.trim() || undefined,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setCategories((prev) => [...prev, newCat]);
-    setShowAdd(false);
+  async function handleAdd() {
+    if (!formName.trim() || !token) return;
+    try {
+      const created = await post<Category>(
+        "/api/v1/catalog/categories",
+        { name: formName.trim(), description: formDesc.trim() || undefined },
+        token
+      );
+      setCategories((prev) => [...prev, created]);
+      setShowAdd(false);
+    } catch { /* silent */ }
+  }
+
+  if (authLoading || fetching) {
+    return <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>Loading…</div>;
   }
 
   return (

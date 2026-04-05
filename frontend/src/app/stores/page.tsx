@@ -1,14 +1,44 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { mockStores, getStoreItemCount } from "@/lib/mock-data";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/AuthContext";
+import { get } from "@/lib/api";
+import { Store } from "@/types";
 import styles from "./page.module.css";
 
-export const metadata: Metadata = {
-  title: "Browse Stores",
-  description: "Discover local stores near you on Khana Bazaar.",
-};
-
 export default function StoresPage() {
+  const router = useRouter();
+  const { dbUser, loading } = useAuth();
+  const [stores, setStores] = useState<Store[]>([]);
+  const [fetching, setFetching] = useState(true);
+
+  useEffect(() => {
+    if (!loading && !dbUser) {
+      router.push("/login");
+      return;
+    }
+    if (!loading && dbUser) {
+      get<Store[]>("/api/v1/stores/")
+        .then(setStores)
+        .catch(() => setStores([]))
+        .finally(() => setFetching(false));
+    }
+  }, [loading, dbUser, router]);
+
+  if (loading || fetching) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.pageInner}>
+          <div className={styles.header}>
+            <h1 className={styles.title}>Loading…</h1>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.pageInner}>
@@ -24,7 +54,7 @@ export default function StoresPage() {
 
         {/* Store Grid */}
         <div className={styles.grid}>
-          {mockStores.map((store) => (
+          {stores.map((store) => (
             <Link
               key={store.id}
               href={`/stores/${store.id}`}
@@ -35,9 +65,6 @@ export default function StoresPage() {
               <h2 className={styles.cardName}>{store.name}</h2>
               <p className={styles.cardAddress}>{store.address}</p>
               <div className={styles.cardMeta}>
-                <span className={styles.cardItems}>
-                  📦 {getStoreItemCount(store.id)} items
-                </span>
                 <span className={styles.cardStatus}>● Open</span>
               </div>
               <span className={styles.viewBtn}>

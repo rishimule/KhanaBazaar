@@ -237,3 +237,132 @@
   background: var(--color-primary-50);
   color: var(--color-primary-600);
 }
+
+/* ── Auth Buttons ───────────────────── */
+.loginBtn {
+  display: none;
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-0);
+  background: var(--gradient-primary);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  transition: all var(--duration-fast) var(--ease-default);
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+}
+
+.loginBtn:hover {
+  filter: brightness(1.05);
+  box-shadow: var(--shadow-md), var(--shadow-glow-primary);
+}
+
+@media (min-width: 768px) {
+  .loginBtn {
+    display: inline-flex;
+  }
+}
+
+.authBtn {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-3);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-neutral-600);
+  border-radius: var(--radius-lg);
+  transition: all var(--duration-fast) var(--ease-default);
+  cursor: pointer;
+}
+
+.authBtn:hover {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-900);
+}
+
+@media (min-width: 768px) {
+  .authBtn {
+    display: inline-flex;
+  }
+}
+
+.authAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--gradient-primary);
+  color: var(--color-neutral-0);
+  font-size: var(--font-xs);
+  font-weight: var(--weight-bold);
+}
+
+.authLabel {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .authLabel {
+    display: inline;
+  }
+}
+
+/* ── Drawer User Info ───────────────── */
+.drawerUser {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
+  background: var(--color-neutral-50);
+  border-radius: var(--radius-lg);
+}
+
+.drawerUserAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--gradient-primary);
+  color: var(--color-neutral-0);
+  font-size: var(--font-base);
+  font-weight: var(--weight-bold);
+  flex-shrink: 0;
+}
+
+.drawerUserInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.drawerUserName {
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawerUserRole {
+  font-size: var(--font-xs);
+  color: var(--color-primary-500);
+  text-transform: capitalize;
+  font-weight: var(--weight-medium);
+}
+
+.drawerDivider {
+  height: 1px;
+  background: var(--color-neutral-100);
+  margin: var(--space-2) 0;
+}
+

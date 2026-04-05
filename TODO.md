@@ -29,8 +29,8 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 - [x] Develop Admin dashboard for catalog management.
 
 ## Phase 4: Integration
-- [ ] Connect Frontend interfaces with FastAPI endpoints.
-- [ ] End-to-end testing of the complete order flow (simulated checkout).
+- [x] Connect Frontend interfaces with FastAPI endpoints.
+- [x] End-to-end testing of the complete order flow (simulated checkout).
 
 ## Phase 5: Deployment & CI/CD (GCP)
 - [ ] Setup GCP project, configure IAM, and enable necessary APIs (Cloud Run, Cloud SQL, Cloud Storage, Redis).

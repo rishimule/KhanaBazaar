@@ -3,6 +3,7 @@
  *
  * A thin, typed fetch wrapper configured to talk to the FastAPI backend.
  * Reads the base URL from NEXT_PUBLIC_API_URL env var.
+ * Supports optional auth token for protected endpoints.
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -26,22 +27,30 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** Build a full URL and merge default headers. */
+/** Build a full URL and merge default headers. Optionally attach auth token. */
 function buildRequest(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  token?: string | null
 ): [string, RequestInit] {
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
   return [url, { ...options, headers }];
 }
 
 /** GET request */
-export async function get<T>(path: string, options?: RequestInit): Promise<T> {
-  const [url, init] = buildRequest(path, { ...options, method: "GET" });
+export async function get<T>(
+  path: string,
+  token?: string | null,
+  options?: RequestInit
+): Promise<T> {
+  const [url, init] = buildRequest(path, { ...options, method: "GET" }, token);
   const res = await fetch(url, init);
   return handleResponse<T>(res);
 }
@@ -50,13 +59,18 @@ export async function get<T>(path: string, options?: RequestInit): Promise<T> {
 export async function post<T>(
   path: string,
   body?: unknown,
+  token?: string | null,
   options?: RequestInit
 ): Promise<T> {
-  const [url, init] = buildRequest(path, {
-    ...options,
-    method: "POST",
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const [url, init] = buildRequest(
+    path,
+    {
+      ...options,
+      method: "POST",
+      body: body ? JSON.stringify(body) : undefined,
+    },
+    token
+  );
   const res = await fetch(url, init);
   return handleResponse<T>(res);
 }
@@ -65,13 +79,18 @@ export async function post<T>(
 export async function put<T>(
   path: string,
   body?: unknown,
+  token?: string | null,
   options?: RequestInit
 ): Promise<T> {
-  const [url, init] = buildRequest(path, {
-    ...options,
-    method: "PUT",
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const [url, init] = buildRequest(
+    path,
+    {
+      ...options,
+      method: "PUT",
+      body: body ? JSON.stringify(body) : undefined,
+    },
+    token
+  );
   const res = await fetch(url, init);
   return handleResponse<T>(res);
 }
@@ -79,9 +98,14 @@ export async function put<T>(
 /** DELETE request */
 export async function del<T>(
   path: string,
+  token?: string | null,
   options?: RequestInit
 ): Promise<T> {
-  const [url, init] = buildRequest(path, { ...options, method: "DELETE" });
+  const [url, init] = buildRequest(
+    path,
+    { ...options, method: "DELETE" },
+    token
+  );
   const res = await fetch(url, init);
   return handleResponse<T>(res);
 }

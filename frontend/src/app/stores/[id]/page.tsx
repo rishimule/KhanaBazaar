@@ -1,11 +1,18 @@
 "use client";
 
-import { use, useState, useMemo } from "react";
+import { use, useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { mockStores, mockInventories, mockCategories, getCategoryName } from "@/lib/mock-data";
-import { InventoryWithProduct } from "@/types";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/AuthContext";
+import { get } from "@/lib/api";
+import { Store, StoreInventory, MasterProduct, Category } from "@/types";
 import ProductCard from "@/components/ProductCard";
 import styles from "./page.module.css";
+
+/** Enriched inventory item with product details for display. */
+interface InventoryWithProduct extends StoreInventory {
+  product: MasterProduct;
+}
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -14,27 +21,68 @@ interface Props {
 export default function StoreDetailPage({ params }: Props) {
   const { id } = use(params);
   const storeId = parseInt(id, 10);
-  const store = mockStores.find((s) => s.id === storeId);
+  const router = useRouter();
+  const { dbUser, loading: authLoading } = useAuth();
 
-  // Memoize inventory to stabilize reference
-  const inventory: InventoryWithProduct[] = useMemo(
-    () => mockInventories[storeId] ?? [],
-    [storeId]
-  );
-
+  const [store, setStore] = useState<Store | null>(null);
+  const [inventory, setInventory] = useState<InventoryWithProduct[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [fetching, setFetching] = useState(true);
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !dbUser) {
+      router.push("/login");
+      return;
+    }
+    if (!authLoading && dbUser) {
+      Promise.all([
+        get<Store>(`/api/v1/stores/${storeId}`),
+        get<StoreInventory[]>(`/api/v1/stores/${storeId}/inventory`),
+        get<MasterProduct[]>("/api/v1/catalog/products"),
+        get<Category[]>("/api/v1/catalog/categories"),
+      ])
+        .then(([storeData, invData, products, cats]) => {
+          setStore(storeData);
+          setCategories(cats);
+          // Enrich inventory with product data
+          const productMap = new Map(products.map((p) => [p.id, p]));
+          const enriched = invData
+            .map((inv) => ({
+              ...inv,
+              product: productMap.get(inv.product_id)!,
+            }))
+            .filter((inv) => inv.product);
+          setInventory(enriched);
+        })
+        .catch(() => setStore(null))
+        .finally(() => setFetching(false));
+    }
+  }, [authLoading, dbUser, storeId, router]);
 
   // Get unique categories from this store's inventory
   const storeCategories = useMemo(() => {
     const catIds = [...new Set(inventory.map((i) => i.product.category_id))];
-    return mockCategories.filter((c) => catIds.includes(c.id));
-  }, [inventory]);
+    return categories.filter((c) => catIds.includes(c.id));
+  }, [inventory, categories]);
 
   // Filter inventory by selected category
   const filteredInventory = useMemo(() => {
     if (activeCategory === null) return inventory;
     return inventory.filter((i) => i.product.category_id === activeCategory);
   }, [inventory, activeCategory]);
+
+  if (authLoading || fetching) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.pageInner}>
+          <div style={{ textAlign: "center", padding: "4rem 0", color: "var(--color-neutral-500)" }}>
+            Loading…
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!store) {
     return (
@@ -54,6 +102,9 @@ export default function StoreDetailPage({ params }: Props) {
       </div>
     );
   }
+
+  const getCategoryName = (catId: number) =>
+    categories.find((c) => c.id === catId)?.name ?? "Other";
 
   return (
     <div className={styles.page}>

@@ -1,0 +1,200 @@
+.page {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: linear-gradient(
+    160deg,
+    hsl(24, 95%, 97%) 0%,
+    hsl(152, 76%, 96%) 50%,
+    hsl(220, 20%, 97%) 100%
+  );
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: hsla(0, 0%, 100%, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid hsla(0, 0%, 100%, 0.6);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-10) var(--space-8);
+  box-shadow: var(--shadow-xl);
+  animation: fadeInUp var(--duration-slow) var(--ease-out);
+}
+
+.cardHeader {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.cardLogo {
+  font-size: 3rem;
+  margin-bottom: var(--space-3);
+}
+
+.cardTitle {
+  font-size: var(--font-3xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-neutral-900);
+  margin-bottom: var(--space-2);
+}
+
+.cardTitleAccent {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.cardSubtitle {
+  font-size: var(--font-sm);
+  color: var(--color-neutral-500);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.label {
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-neutral-700);
+}
+
+.input {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-base);
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-800);
+  transition: all var(--duration-fast) var(--ease-default);
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px hsla(18, 90%, 52%, 0.12);
+}
+
+.input::placeholder {
+  color: var(--color-neutral-400);
+}
+
+.submitBtn {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-0);
+  background: var(--gradient-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-default);
+  box-shadow: var(--shadow-md), var(--shadow-glow-primary);
+}
+
+.submitBtn:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-primary);
+  transform: translateY(-1px);
+}
+
+.submitBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  background: hsla(0, 84%, 60%, 0.08);
+  border: 1px solid hsla(0, 84%, 60%, 0.2);
+  color: var(--color-error);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-sm);
+  text-align: center;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-neutral-400);
+  font-size: var(--font-xs);
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-neutral-200);
+}
+
+.testAccounts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.testBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2-5) var(--space-4);
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-700);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-default);
+  text-align: left;
+}
+
+.testBtn:hover {
+  border-color: var(--color-primary-300);
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
+}
+
+.testBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.testBtnIcon {
+  font-size: var(--font-lg);
+  flex-shrink: 0;
+}
+
+.testBtnInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.testBtnRole {
+  font-weight: var(--weight-semibold);
+}
+
+.testBtnEmail {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+}

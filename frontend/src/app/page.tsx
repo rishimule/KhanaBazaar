@@ -1,8 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/AuthContext";
+import { get } from "@/lib/api";
+import { Store } from "@/types";
 import styles from "./page.module.css";
-import { mockStores, getStoreItemCount } from "@/lib/mock-data";
 
 export default function Home() {
+  const { dbUser } = useAuth();
+  const [stores, setStores] = useState<Store[]>([]);
+
+  useEffect(() => {
+    get<Store[]>("/api/v1/stores/")
+      .then(setStores)
+      .catch(() => setStores([]));
+  }, []);
+
   return (
     <>
       {/* Hero section */}
@@ -25,10 +39,16 @@ export default function Home() {
           </p>
 
           <div className={styles.heroCta}>
-            <Link href="/stores" className="btn btn-primary" id="cta-start-shopping">
-              Start Shopping
-            </Link>
-            <Link href="/stores" className="btn btn-outline" id="cta-become-seller">
+            {dbUser ? (
+              <Link href="/stores" className="btn btn-primary" id="cta-start-shopping">
+                Start Shopping
+              </Link>
+            ) : (
+              <Link href="/login" className="btn btn-primary" id="cta-start-shopping">
+                Sign In to Shop
+              </Link>
+            )}
+            <Link href={dbUser ? "/stores" : "/login"} className="btn btn-outline" id="cta-become-seller">
               Browse Stores
             </Link>
           </div>
@@ -77,19 +97,16 @@ export default function Home() {
           </div>
 
           <div className={styles.storesGrid}>
-            {mockStores.map((store) => (
+            {stores.map((store) => (
               <Link
                 key={store.id}
-                href={`/stores/${store.id}`}
+                href={dbUser ? `/stores/${store.id}` : "/login"}
                 className={styles.storeCard}
               >
                 <div className={styles.storeCardIcon}>🏪</div>
                 <h3 className={styles.storeCardName}>{store.name}</h3>
                 <p className={styles.storeCardAddress}>{store.address}</p>
                 <div className={styles.storeCardMeta}>
-                  <span className={styles.storeCardItems}>
-                    {getStoreItemCount(store.id)} items
-                  </span>
                   <span className={styles.storeCardStatus}>● Open</span>
                 </div>
               </Link>
@@ -97,7 +114,7 @@ export default function Home() {
           </div>
 
           <div className={styles.storesSectionCta}>
-            <Link href="/stores" className="btn btn-outline">
+            <Link href={dbUser ? "/stores" : "/login"} className="btn btn-outline">
               View All Stores →
             </Link>
           </div>

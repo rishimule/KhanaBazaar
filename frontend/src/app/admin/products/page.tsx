@@ -1,16 +1,21 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal, { modalStyles } from "@/components/Modal";
-import { mockProducts, mockCategories, getCategoryName } from "@/lib/mock-data";
-import { MasterProduct } from "@/types";
+import { useAuth } from "@/lib/AuthContext";
+import { get, post, put, del } from "@/lib/api";
+import { MasterProduct, Category } from "@/types";
 import styles from "./page.module.css";
 
 export default function AdminProductsPage() {
-  const [products, setProducts] = useState<MasterProduct[]>(() => [
-    ...mockProducts,
-  ]);
+  const router = useRouter();
+  const { dbUser, token, loading: authLoading } = useAuth();
+
+  const [products, setProducts] = useState<MasterProduct[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [fetching, setFetching] = useState(true);
   const [editItem, setEditItem] = useState<MasterProduct | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [filterCat, setFilterCat] = useState<number | null>(null);
@@ -20,6 +25,28 @@ export default function AdminProductsPage() {
   const [formDesc, setFormDesc] = useState("");
   const [formCat, setFormCat] = useState<number>(1);
   const [formPrice, setFormPrice] = useState("");
+
+  useEffect(() => {
+    if (!authLoading && (!dbUser || dbUser.role !== "admin")) {
+      router.push(dbUser ? "/" : "/login");
+      return;
+    }
+    if (!authLoading && dbUser && token) {
+      Promise.all([
+        get<MasterProduct[]>("/api/v1/catalog/products", token),
+        get<Category[]>("/api/v1/catalog/categories", token),
+      ])
+        .then(([prods, cats]) => {
+          setProducts(prods);
+          setCategories(cats);
+        })
+        .catch(() => {})
+        .finally(() => setFetching(false));
+    }
+  }, [authLoading, dbUser, token, router]);
+
+  const getCategoryName = (catId: number) =>
+    categories.find((c) => c.id === catId)?.name ?? "Other";
 
   const filteredProducts = useMemo(() => {
     if (filterCat === null) return products;
@@ -37,11 +64,7 @@ export default function AdminProductsPage() {
         </span>
       ),
     },
-    {
-      key: "base_price",
-      label: "Base Price",
-      render: (row) => `₹${row.base_price}`,
-    },
+    { key: "base_price", label: "Base Price", render: (row) => `₹${row.base_price}` },
     {
       key: "description",
       label: "Description",
@@ -60,51 +83,62 @@ export default function AdminProductsPage() {
     setFormPrice(String(item.base_price));
   }
 
-  function handleSaveEdit() {
-    if (!editItem) return;
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === editItem.id
-          ? {
-              ...p,
-              name: formName || p.name,
-              description: formDesc,
-              category_id: formCat,
-              base_price: parseFloat(formPrice) || p.base_price,
-              updated_at: new Date().toISOString(),
-            }
-          : p
-      )
-    );
-    setEditItem(null);
+  async function handleSaveEdit() {
+    if (!editItem || !token) return;
+    try {
+      const updated = await put<MasterProduct>(
+        `/api/v1/catalog/products/${editItem.id}`,
+        {
+          name: formName || editItem.name,
+          description: formDesc,
+          category_id: formCat,
+          base_price: parseFloat(formPrice) || editItem.base_price,
+        },
+        token
+      );
+      setProducts((prev) =>
+        prev.map((p) => (p.id === editItem.id ? updated : p))
+      );
+      setEditItem(null);
+    } catch { /* silent */ }
   }
 
-  function handleDelete(item: MasterProduct) {
-    setProducts((prev) => prev.filter((p) => p.id !== item.id));
+  async function handleDelete(item: MasterProduct) {
+    if (!token) return;
+    try {
+      await del(`/api/v1/catalog/products/${item.id}`, token);
+      setProducts((prev) => prev.filter((p) => p.id !== item.id));
+    } catch { /* silent */ }
   }
 
   function openAdd() {
     setFormName("");
     setFormDesc("");
-    setFormCat(mockCategories[0]?.id ?? 1);
+    setFormCat(categories[0]?.id ?? 1);
     setFormPrice("");
     setShowAdd(true);
   }
 
-  function handleAdd() {
-    if (!formName.trim()) return;
-    const newProduct: MasterProduct = {
-      id: Date.now(),
-      name: formName.trim(),
-      description: formDesc.trim(),
-      category_id: formCat,
-      base_price: parseFloat(formPrice) || 0,
-      image_url: undefined,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setProducts((prev) => [...prev, newProduct]);
-    setShowAdd(false);
+  async function handleAdd() {
+    if (!formName.trim() || !token) return;
+    try {
+      const created = await post<MasterProduct>(
+        "/api/v1/catalog/products",
+        {
+          name: formName.trim(),
+          description: formDesc.trim(),
+          category_id: formCat,
+          base_price: parseFloat(formPrice) || 0,
+        },
+        token
+      );
+      setProducts((prev) => [...prev, created]);
+      setShowAdd(false);
+    } catch { /* silent */ }
+  }
+
+  if (authLoading || fetching) {
+    return <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>Loading…</div>;
   }
 
   return (
@@ -112,9 +146,7 @@ export default function AdminProductsPage() {
       {/* Toolbar */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <span className={styles.toolbarCount}>
-            {filteredProducts.length} products
-          </span>
+          <span className={styles.toolbarCount}>{filteredProducts.length} products</span>
           <select
             className={styles.filterSelect}
             value={filterCat ?? ""}
@@ -123,16 +155,12 @@ export default function AdminProductsPage() {
             }
           >
             <option value="">All Categories</option>
-            {mockCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
         </div>
-        <button className={styles.addBtn} onClick={openAdd}>
-          + Add Product
-        </button>
+        <button className={styles.addBtn} onClick={openAdd}>+ Add Product</button>
       </div>
 
       {/* Data table */}
@@ -162,6 +190,7 @@ export default function AdminProductsPage() {
             desc={formDesc} setDesc={setFormDesc}
             cat={formCat} setCat={setFormCat}
             price={formPrice} setPrice={setFormPrice}
+            categories={categories}
           />
         </Modal>
       )}
@@ -183,6 +212,7 @@ export default function AdminProductsPage() {
             desc={formDesc} setDesc={setFormDesc}
             cat={formCat} setCat={setFormCat}
             price={formPrice} setPrice={setFormPrice}
+            categories={categories}
           />
         </Modal>
       )}
@@ -196,11 +226,13 @@ function ProductForm({
   desc, setDesc,
   cat, setCat,
   price, setPrice,
+  categories,
 }: {
   name: string; setName: (v: string) => void;
   desc: string; setDesc: (v: string) => void;
   cat: number; setCat: (v: number) => void;
   price: string; setPrice: (v: string) => void;
+  categories: Category[];
 }) {
   return (
     <>
@@ -215,7 +247,7 @@ function ProductForm({
       <div className={modalStyles.formGroup}>
         <label className={modalStyles.label}>Category</label>
         <select className={modalStyles.select} value={cat} onChange={(e) => setCat(parseInt(e.target.value, 10))}>
-          {mockCategories.map((c) => (
+          {categories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>

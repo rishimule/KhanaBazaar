@@ -2,17 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCart } from "@/lib/CartContext";
+import { useAuth } from "@/lib/AuthContext";
 import styles from "./Navbar.module.css";
-
-const NAV_LINKS = [
-  { href: "/", label: "Home", icon: "🏠" },
-  { href: "/stores", label: "Stores", icon: "🏪" },
-  { href: "/seller", label: "Seller", icon: "📊" },
-  { href: "/admin", label: "Admin", icon: "⚙️" },
-];
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -21,8 +15,32 @@ function isActive(pathname: string, href: string) {
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { cartCount } = useCart();
+  const { dbUser, loading, logout } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const role = dbUser?.role ?? null;
+
+  // Build nav links based on role
+  const navLinks = [
+    { href: "/", label: "Home", icon: "🏠" },
+  ];
+
+  if (role === "customer" || role === "seller" || role === "admin") {
+    navLinks.push({ href: "/stores", label: "Stores", icon: "🏪" });
+  }
+  if (role === "seller") {
+    navLinks.push({ href: "/seller", label: "Seller", icon: "📊" });
+  }
+  if (role === "admin") {
+    navLinks.push({ href: "/admin", label: "Admin", icon: "⚙️" });
+  }
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
 
   return (
     <nav className={styles.nav}>
@@ -44,7 +62,7 @@ export default function Navbar() {
 
         {/* Desktop links */}
         <div className={styles.navLinks}>
-          {NAV_LINKS.map((link) => (
+          {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -59,12 +77,37 @@ export default function Navbar() {
 
         {/* Right section */}
         <div className={styles.navActions}>
-          <Link href="/cart" className={styles.cartBtn} aria-label="Shopping cart">
-            🛒
-            {cartCount > 0 && (
-              <span className={styles.cartBadge}>{cartCount}</span>
-            )}
-          </Link>
+          {/* Cart — visible to logged-in users */}
+          {dbUser && (
+            <Link href="/cart" className={styles.cartBtn} aria-label="Shopping cart">
+              🛒
+              {cartCount > 0 && (
+                <span className={styles.cartBadge}>{cartCount}</span>
+              )}
+            </Link>
+          )}
+
+          {/* Auth button */}
+          {!loading && (
+            <>
+              {dbUser ? (
+                <button
+                  className={styles.authBtn}
+                  onClick={handleLogout}
+                  title={`Signed in as ${dbUser.email ?? dbUser.full_name}`}
+                >
+                  <span className={styles.authAvatar}>
+                    {(dbUser.full_name ?? dbUser.email ?? "U").charAt(0).toUpperCase()}
+                  </span>
+                  <span className={styles.authLabel}>Logout</span>
+                </button>
+              ) : (
+                <Link href="/login" className={styles.loginBtn}>
+                  Sign In
+                </Link>
+              )}
+            </>
+          )}
 
           {/* Mobile hamburger */}
           <button
@@ -92,7 +135,21 @@ export default function Navbar() {
             >
               ✕
             </button>
-            {NAV_LINKS.map((link) => (
+
+            {/* User info in drawer */}
+            {dbUser && (
+              <div className={styles.drawerUser}>
+                <span className={styles.drawerUserAvatar}>
+                  {(dbUser.full_name ?? dbUser.email ?? "U").charAt(0).toUpperCase()}
+                </span>
+                <div className={styles.drawerUserInfo}>
+                  <span className={styles.drawerUserName}>{dbUser.full_name ?? "User"}</span>
+                  <span className={styles.drawerUserRole}>{dbUser.role}</span>
+                </div>
+              </div>
+            )}
+
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -102,13 +159,33 @@ export default function Navbar() {
                 {link.icon} {link.label}
               </Link>
             ))}
-            <Link
-              href="/cart"
-              className={styles.drawerLink}
-              onClick={() => setDrawerOpen(false)}
-            >
-              🛒 Cart {cartCount > 0 && `(${cartCount})`}
-            </Link>
+            {dbUser && (
+              <Link
+                href="/cart"
+                className={styles.drawerLink}
+                onClick={() => setDrawerOpen(false)}
+              >
+                🛒 Cart {cartCount > 0 && `(${cartCount})`}
+              </Link>
+            )}
+
+            <div className={styles.drawerDivider} />
+            {dbUser ? (
+              <button
+                className={styles.drawerLink}
+                onClick={() => { handleLogout(); setDrawerOpen(false); }}
+              >
+                🚪 Sign Out
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className={styles.drawerLink}
+                onClick={() => setDrawerOpen(false)}
+              >
+                🔑 Sign In
+              </Link>
+            )}
           </div>
         </>
       )}

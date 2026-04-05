@@ -11,6 +11,8 @@ from app.models.catalog import Category, MasterProduct
 
 router = APIRouter()
 
+# ─── Categories ───────────────────────────────────────────────
+
 @router.get("/categories", response_model=List[Category])
 async def list_categories(session: AsyncSession = Depends(get_db_session)) -> List[Category]:
     result = await session.exec(select(Category))
@@ -28,6 +30,41 @@ async def create_category(
     await session.commit()
     await session.refresh(category)
     return category
+
+@router.put("/categories/{category_id}", response_model=Category)
+async def update_category(
+    category_id: int,
+    payload: Category,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> Category:
+    cat = await session.get(Category, category_id)
+    if not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+    if payload.name:
+        cat.name = payload.name
+    if payload.description is not None:
+        cat.description = payload.description
+    session.add(cat)
+    await session.commit()
+    await session.refresh(cat)
+    return cat
+
+@router.delete("/categories/{category_id}")
+async def delete_category(
+    category_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> dict[str, str]:
+    cat = await session.get(Category, category_id)
+    if not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+    await session.delete(cat)
+    await session.commit()
+    return {"detail": "Category deleted"}
+
+
+# ─── Products ─────────────────────────────────────────────────
 
 @router.get("/products", response_model=List[MasterProduct])
 async def list_products(
@@ -55,3 +92,41 @@ async def create_product(
     await session.commit()
     await session.refresh(product)
     return product
+
+@router.put("/products/{product_id}", response_model=MasterProduct)
+async def update_product(
+    product_id: int,
+    payload: MasterProduct,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> MasterProduct:
+    product = await session.get(MasterProduct, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if payload.name:
+        product.name = payload.name
+    if payload.description:
+        product.description = payload.description
+    if payload.category_id:
+        product.category_id = payload.category_id
+    if payload.base_price:
+        product.base_price = payload.base_price
+    if payload.image_url is not None:
+        product.image_url = payload.image_url
+    session.add(product)
+    await session.commit()
+    await session.refresh(product)
+    return product
+
+@router.delete("/products/{product_id}")
+async def delete_product(
+    product_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> dict[str, str]:
+    product = await session.get(MasterProduct, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    await session.delete(product)
+    await session.commit()
+    return {"detail": "Product deleted"}

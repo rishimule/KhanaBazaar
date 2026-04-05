@@ -1,16 +1,49 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/lib/AuthContext";
+import { get } from "@/lib/api";
 import StatsCard from "@/components/StatsCard";
-import { mockInventories, mockStores } from "@/lib/mock-data";
+import { Store, StoreInventory } from "@/types";
 import styles from "./page.module.css";
 
-// Simulating seller is the owner of store ID 1
-const SELLER_STORE_ID = 1;
-
 export default function SellerDashboardPage() {
-  const store = mockStores.find((s) => s.id === SELLER_STORE_ID)!;
-  const inventory = mockInventories[SELLER_STORE_ID] ?? [];
+  const router = useRouter();
+  const { dbUser, token, loading } = useAuth();
+  const [stores, setStores] = useState<Store[]>([]);
+  const [inventory, setInventory] = useState<StoreInventory[]>([]);
+  const [fetching, setFetching] = useState(true);
+
+  useEffect(() => {
+    if (!loading && (!dbUser || dbUser.role !== "seller")) {
+      router.push(dbUser ? "/" : "/login");
+      return;
+    }
+    if (!loading && dbUser && token) {
+      get<Store[]>("/api/v1/stores/my", token)
+        .then(async (myStores) => {
+          setStores(myStores);
+          // Fetch inventory for first store
+          if (myStores.length > 0) {
+            const inv = await get<StoreInventory[]>(
+              `/api/v1/stores/${myStores[0].id}/inventory/all`,
+              token
+            );
+            setInventory(inv);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setFetching(false));
+    }
+  }, [loading, dbUser, token, router]);
+
+  if (loading || fetching) {
+    return <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>Loading…</div>;
+  }
+
+  const store = stores[0];
   const totalStock = inventory.reduce((sum, i) => sum + i.stock, 0);
   const availableCount = inventory.filter((i) => i.is_available).length;
 
@@ -41,8 +74,8 @@ export default function SellerDashboardPage() {
         <StatsCard
           icon="🏪"
           label="Store Status"
-          value={store.is_active ? "Active" : "Inactive"}
-          variant={store.is_active ? "accent" : "warning"}
+          value={store?.is_active ? "Active" : "Inactive"}
+          variant={store?.is_active ? "accent" : "warning"}
         />
       </div>
 
@@ -61,15 +94,17 @@ export default function SellerDashboardPage() {
               </span>
             </div>
           </Link>
-          <Link href={`/stores/${SELLER_STORE_ID}`} className={styles.actionCard}>
-            <div className={styles.actionIcon}>👁️</div>
-            <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>View Storefront</span>
-              <span className={styles.actionDescription}>
-                See how customers see your store
-              </span>
-            </div>
-          </Link>
+          {store && (
+            <Link href={`/stores/${store.id}`} className={styles.actionCard}>
+              <div className={styles.actionIcon}>👁️</div>
+              <div className={styles.actionInfo}>
+                <span className={styles.actionLabel}>View Storefront</span>
+                <span className={styles.actionDescription}>
+                  See how customers see your store
+                </span>
+              </div>
+            </Link>
+          )}
         </div>
       </div>
     </>

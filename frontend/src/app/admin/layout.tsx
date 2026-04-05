@@ -1,7 +1,9 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useAuth } from "@/lib/AuthContext";
 
 const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
@@ -15,6 +17,18 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { dbUser, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && (!dbUser || dbUser.role !== "admin")) {
+      router.push(dbUser ? "/" : "/login");
+    }
+  }, [loading, dbUser, router]);
+
+  if (loading || !dbUser || dbUser.role !== "admin") {
+    return <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-neutral-500)" }}>Loading…</div>;
+  }
 
   const title =
     pathname === "/admin"
