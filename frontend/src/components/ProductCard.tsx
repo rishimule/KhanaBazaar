@@ -1,6 +1,7 @@
 "use client";
 
 import { useCart } from "@/lib/CartContext";
+import { useAuth } from "@/lib/AuthContext";
 import { InventoryWithProduct } from "@/types";
 import styles from "./ProductCard.module.css";
 
@@ -20,7 +21,10 @@ const CATEGORY_EMOJI: Record<number, string> = {
 
 export default function ProductCard({ item, storeId, storeName }: Props) {
   const { carts, addItem, removeItem, updateQty } = useCart();
+  const { dbUser } = useAuth();
   const { product, price, stock } = item;
+  
+  const role = dbUser?.role;
 
   // Find current qty in cart
   const cart = carts.find((c) => c.store_id === storeId);
@@ -68,7 +72,8 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
       </div>
 
       {/* Actions */}
-      <div className={styles.actions}>
+      {role === "customer" && (
+        <div className={styles.actions}>
         {qty === 0 ? (
           <button
             className={styles.addBtn}
@@ -100,6 +105,7 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

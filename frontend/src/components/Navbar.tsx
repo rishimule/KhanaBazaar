@@ -77,8 +77,8 @@ export default function Navbar() {
 
         {/* Right section */}
         <div className={styles.navActions}>
-          {/* Cart — visible to logged-in users */}
-          {dbUser && (
+          {/* Cart — visible to logged-in customers */}
+          {dbUser && role === "customer" && (
             <Link href="/cart" className={styles.cartBtn} aria-label="Shopping cart">
               🛒
               {cartCount > 0 && (
@@ -159,7 +159,7 @@ export default function Navbar() {
                 {link.icon} {link.label}
               </Link>
             ))}
-            {dbUser && (
+            {dbUser && role === "customer" && (
               <Link
                 href="/cart"
                 className={styles.drawerLink}
