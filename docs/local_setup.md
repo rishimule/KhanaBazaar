@@ -1,19 +1,19 @@
 # Local Development Setup Guide
 
-This guide details how to set up the Khana Bazaar project locally for development. We'll use Docker to emulate our production GCP environment so that when we are ready to deploy, the transition is seamless.
+This guide details how to set up the Khana Bazaar project locally for development. We'll use Docker to emulate our production Azure environment so that when we are ready to deploy, the transition is seamless.
 
-## Architecture Consistency (Local vs. GCP)
+## Architecture Consistency (Local vs. Azure)
 
-To ensure our local environment mirrors our target GCP deployment without incurring unnecessary costs during development, we map services as follows:
+To ensure our local environment mirrors our target Azure deployment without incurring unnecessary costs during development, we map services as follows:
 
-| Component                  | Local Development                        | GCP Deployment          |
-| :------------------------- | :--------------------------------------- | :---------------------- |
-| **Backend API**            | FastAPI running via Uvicorn (Hot Reload) | GCP Cloud Run           |
-| **Frontend**               | Next.js Node server (Hot Reload)         | GCP Cloud Run           |
-| **Database**               | PostgreSQL Docker Container              | GCP Cloud SQL           |
-| **Message Broker / Cache** | Redis Docker Container                   | GCP Memorystore (Redis) |
-| **Background Tasks**       | Celery Worker (Local Process)            | Cloud Run (Background)  |
-| **Media Storage**          | Local File System (`/uploads` dir)       | GCP Cloud Storage       |
+| Component                  | Local Development                        | Azure Deployment                                         |
+| :------------------------- | :--------------------------------------- | :------------------------------------------------------- |
+| **Backend API**            | FastAPI running via Uvicorn (Hot Reload) | Azure Container Apps                                     |
+| **Frontend**               | Next.js Node server (Hot Reload)         | Azure Container Apps                                     |
+| **Database**               | PostgreSQL Docker Container              | Azure Database for PostgreSQL – Flexible Server          |
+| **Message Broker / Cache** | Redis Docker Container                   | Azure Cache for Redis                                    |
+| **Background Tasks**       | Celery Worker (Local Process)            | Azure Container Apps (worker revision, min-replicas ≥ 1) |
+| **Media Storage**          | Local File System (`/uploads` dir)       | Azure Blob Storage                                       |
 
 ## Prerequisites
 
@@ -78,11 +78,11 @@ While we could run the backend in Docker locally, it is often faster to run it d
     npm run dev
     ```
 
-## 4. Preparing for GCP (Code Design Practices)
+## 4. Preparing for Azure (Code Design Practices)
 
-While developing locally, we must adhere to the **Twelve-Factor App** principles to ensure the code is "GCP-Ready" from day one:
+While developing locally, we must adhere to the **Twelve-Factor App** principles to ensure the code is "Azure-Ready" from day one:
 
-1.  **Stateless Compute**: Cloud Run containers can be destroyed or spun up at any time. **Never** store session data or file uploads in the container's memory or local disk.
-    - _Solution:_ Always use Redis for sessions/carts, and abstract file storage so we can swap local disk saving for GCP Cloud Storage later.
-2.  **Strict Configuration Management**: Never hardcode connection strings or API keys. Always read them from `os.environ` (Python) or `process.env` (Node). This allows us to inject GCP Secret Manager secrets during deployment without changing code.
-3.  **Health Checks**: Implement root endpoints (`/health` or `/ping`) in both FastAPI and Next.js. GCP Cloud Run will use these to determine if the container deployed successfully and is ready to receive traffic.
+1.  **Stateless Compute**: Container Apps replicas can be destroyed or spun up at any time. **Never** store session data or file uploads in the container's memory or local disk.
+    - _Solution:_ Always use Redis for sessions/carts, and abstract file storage so we can swap local disk saving for Azure Blob Storage later.
+2.  **Strict Configuration Management**: Never hardcode connection strings or API keys. Always read them from `os.environ` (Python) or `process.env` (Node). This allows us to inject Azure Key Vault secrets during deployment without changing code.
+3.  **Health Checks**: Implement root endpoints (`/health` or `/ping`) in both FastAPI and Next.js. Azure Container Apps will use these to determine if the container deployed successfully and is ready to receive traffic.

@@ -185,7 +185,7 @@ gh run list                       # check CI runs
 Check these files when working in the relevant area:
 
 - [Architectural Patterns](.claude/docs/architectural_patterns.md) — DI patterns, model hierarchy, auth chain, state management conventions
-- [Architecture Overview](docs/architecture.md) — Tech stack rationale, deployment strategy (GCP Cloud Run)
+- [Architecture Overview](docs/architecture.md) — Tech stack rationale, deployment strategy (Azure Container Apps)
 - [User & Data Flows](docs/flows.md) — Guest cart, auth merge, checkout, order fulfillment flows
 - [Local Setup](docs/local_setup.md) — Docker, backend, frontend setup walkthrough
 - [Development Guide](docs/development_guide.md) — Firebase setup, env vars, Alembic workflow, troubleshooting
