@@ -19,12 +19,15 @@ Khana Bazaar relies on Firebase Authentication to securely handle user identitie
    - Save the `.json` file securely (e.g., `firebase-admin-key.json`).
    - **Do NOT commit this file to version control.**
 
-### Google Cloud Platform (GCP)
-If deploying Phase 5, you will need a GCP Project.
-1. Enable the following APIs in your GCP Console:
-   - **Cloud Run API** (For hosting the FastAPI Server and Next.js Frontend).
-   - **Cloud SQL API** (For managed PostgreSQL hosting).
-   - **Memorystore for Redis API** (For the Celery Broker and caching).
+### Microsoft Azure
+If deploying Phase 5, you will need an Azure subscription.
+1. Create a resource group (e.g., `khanabazaar-prod-rg`) in **Central India (Pune)** and provision the following services:
+   - **Azure Container Apps environment** (for hosting the FastAPI backend, Next.js frontend, and Celery worker).
+   - **Azure Database for PostgreSQL – Flexible Server** (for managed PostgreSQL hosting).
+   - **Azure Cache for Redis** (for the Celery broker and caching layer).
+   - **Azure Container Registry (ACR)** (for storing Docker images).
+   - **Azure Key Vault** (for secrets — connection strings, API keys — injected into Container Apps at runtime).
+   - **Log Analytics workspace + Application Insights** (for centralized logging and request tracing).
 
 ## 2. Environment Variables (`.env`)
 
@@ -51,7 +54,7 @@ FIREBASE_PROJECT_ID="khanabazaar-prod"
 
 # REQUIRED for the Firebase Admin SDK to authenticate.
 # Point this to the absolute path of the JSON key you downloaded earlier.
-# In GCP Cloud Run, this is usually mounted via Secret Manager.
+# In Azure Container Apps, this is usually mounted from Azure Key Vault as a secret reference.
 GOOGLE_APPLICATION_CREDENTIALS="/absolute/path/to/firebase-admin-key.json"
 ```
 

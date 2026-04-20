@@ -32,12 +32,12 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 - [x] Connect Frontend interfaces with FastAPI endpoints.
 - [x] End-to-end testing of the complete order flow (simulated checkout).
 
-## Phase 5: Deployment & CI/CD (GCP)
-- [ ] Setup GCP project, configure IAM, and enable necessary APIs (Cloud Run, Cloud SQL, Cloud Storage, Redis).
+## Phase 5: Deployment & CI/CD (Azure)
+- [ ] Provision Azure subscription + resource group, configure RBAC, and create core resources (Azure Container Apps environment, Azure Database for PostgreSQL Flexible Server, Azure Cache for Redis, Azure Container Registry, Azure Key Vault, Log Analytics + Application Insights).
 - [ ] Dockerize backend and frontend applications via `Dockerfile`.
-- [ ] Configure GitHub Actions for CI/CD pipelines.
-- [ ] Deploy databases and services to GCP (Cloud SQL, Cloud Run).
-- [ ] Configure CDN for media assets via GCP Cloud Storage.
+- [ ] Configure GitHub Actions with OIDC federated credentials to Azure for CI/CD pipelines (build → ACR → ACA).
+- [ ] Deploy database and services to Azure (Azure Database for PostgreSQL Flexible Server, Azure Container Apps).
+- [ ] Configure CDN for media assets via Azure Front Door in front of Azure Blob Storage.
 
 ## Phase 6: Future Enhancements (Payments)
 - [ ] Integrate Razorpay (or other payment gateways) for UPI checkout intent flows.

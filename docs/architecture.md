@@ -21,21 +21,21 @@ The technology stack for Khana Bazaar is engineered to prioritize speed to marke
 ## 4. Payments & Transactions
 - **Payment Gateway:** Integration skipped for the current phase. Planned for a future release using Razorpay or a similar provider for direct UPI integrations.
 
-## 5. Deployment & Scalability Strategy (GCP)
-The infrastructure will be exclusively hosted on Google Cloud Platform (GCP).
-- **Application Hosting:** GCP Cloud Run. The FastAPI application and Next.js SSR frontend will be containerized using Docker and deployed to Cloud Run. This allows the backend to automatically scale from zero to thousands of instances in response to traffic spikes.
-- **Database Hosting:** GCP Cloud SQL for PostgreSQL. A fully managed database service that handles backups, replication, and failover automatically.
-- **Media Storage:** GCP Cloud Storage. Provides highly durable, low-cost storage for product images and store assets, served via Google's global CDN for rapid asset delivery to the end user.
+## 5. Deployment & Scalability Strategy (Azure)
+The infrastructure will be exclusively hosted on Microsoft Azure.
+- **Application Hosting:** Azure Container Apps. The FastAPI application and Next.js SSR frontend will be containerized using Docker and deployed to Container Apps (Central India region). This allows the backend to automatically scale from zero to thousands of instances in response to traffic spikes, powered by KEDA-based autoscaling.
+- **Database Hosting:** Azure Database for PostgreSQL – Flexible Server. A fully managed database service that handles backups, replication, and failover automatically.
+- **Media Storage:** Azure Blob Storage + Azure Front Door. Provides highly durable, low-cost storage for product images and store assets, served via Azure's global CDN for rapid asset delivery to the end user.
 
 ## 6. The Developer Toolkit
 
 | Category | Recommended Tool | Why It Fits Your Project |
 | :--- | :--- | :--- |
-| **Authentication** | Firebase Authentication | Native to the Google ecosystem. It offers a generous free tier and is highly reliable for Phone Number/OTP logins, which are essential for Indian consumers. |
+| **Authentication** | Firebase Authentication | Best-in-class phone-OTP support for the Indian market; works across any cloud. Generous free tier and battle-tested reliability for OTP logins. |
 | **Error Tracking** | Sentry | The industry standard for catching application crashes. It integrates seamlessly with both FastAPI and Next.js, showing you the exact line of code that caused a failure. |
-| **Centralized Logging** | GCP Cloud Logging | Since you are deploying to GCP Cloud Run, your application logs are automatically aggregated here without any extra setup. |
+| **Centralized Logging** | Azure Monitor (Application Insights + Log Analytics) | Logs from Azure Container Apps are automatically streamed to a Log Analytics workspace. Application Insights adds request tracing, dependency maps, and live metrics with zero instrumentation for containerized workloads. |
 | **SMS & OTPs** | MSG91 | A heavily relied-upon provider in India. It routes messages much more reliably and affordably to Indian telecom networks compared to international alternatives like Twilio. |
 | **Transactional Email** | Resend | A modern, developer-friendly email API. Perfect for sending highly deliverable order receipts and welcome emails to your customers and sellers. |
 | **WhatsApp Messaging** | Wati or Interakt | WhatsApp is the primary communication channel in India. These APIs allow you to send automated order tracking updates directly to a customer's WhatsApp. |
-| **CI/CD Pipeline** | GitHub Actions | Automates your deployments. Pushing code to your main branch can trigger an automatic build and deployment directly to your GCP environments. |
+| **CI/CD Pipeline** | GitHub Actions | Automates your deployments. Pushing code to your main branch can trigger an automatic build and deployment directly to your Azure environments via OIDC federated credentials (no long-lived secrets). |
 | **Product Analytics** | PostHog | An open-source analytics tool that is excellent for tracking user behavior, such as identifying exactly where customers are dropping off during the checkout process. |
