@@ -41,3 +41,6 @@ htmlcov/
 
 # Mypy
 .mypy_cache/
+
+# Git worktrees
+.worktrees/
