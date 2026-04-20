@@ -23,8 +23,7 @@ class BaseSchema(SQLModel):
     )
 
 class UserBase(SQLModel):
-    firebase_uid: str = Field(index=True, unique=True, nullable=False)
-    email: Optional[str] = Field(default=None, index=True)
+    email: str = Field(index=True, unique=True, nullable=False)
     is_active: bool = Field(default=True)
     role: UserRole = Field(default=UserRole.Customer)
     full_name: Optional[str] = Field(default=None)

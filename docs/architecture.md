@@ -31,7 +31,7 @@ The infrastructure will be exclusively hosted on Microsoft Azure.
 
 | Category | Recommended Tool | Why It Fits Your Project |
 | :--- | :--- | :--- |
-| **Authentication** | Firebase Authentication | Best-in-class phone-OTP support for the Indian market; works across any cloud. Generous free tier and battle-tested reliability for OTP logins. |
+| **Authentication** | Self-hosted email-OTP + stateless JWT (PyJWT HS256, Resend) | No third-party identity dependency. 6-digit codes delivered via Resend (or stdout in dev). JWTs are HS256, 24 h lifetime, verified on every request. |
 | **Error Tracking** | Sentry | The industry standard for catching application crashes. It integrates seamlessly with both FastAPI and Next.js, showing you the exact line of code that caused a failure. |
 | **Centralized Logging** | Azure Monitor (Application Insights + Log Analytics) | Logs from Azure Container Apps are automatically streamed to a Log Analytics workspace. Application Insights adds request tracing, dependency maps, and live metrics with zero instrumentation for containerized workloads. |
 | **SMS & OTPs** | MSG91 | A heavily relied-upon provider in India. It routes messages much more reliably and affordably to Indian telecom networks compared to international alternatives like Twilio. |

@@ -1,36 +1,172 @@
-from typing import Any
+import re
+from collections.abc import AsyncGenerator
 
+import fakeredis.aioredis
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app import app
-from app.core.security import verify_firebase_token
+from app.core.email import EmailSender, get_email_sender
+from app.core.redis import get_redis
 
 
-# Mock the Firebase token verification to return a predefined token payload
-async def mock_verify_firebase_token() -> dict[str, Any]:
-    return {
-        "uid": "mock_firebase_123",
-        "email": "mockeduser@example.com",
-        "phone_number": "+1234567890"
-    }
+class FakeEmailSender:
+    def __init__(self) -> None:
+        self.sent: list[dict] = []
 
-# Override the FastAPI dependency
-app.dependency_overrides[verify_firebase_token] = mock_verify_firebase_token
+    async def send(self, to: str, subject: str, text: str) -> None:
+        self.sent.append({"to": to, "subject": subject, "text": text})
 
-@pytest.mark.asyncio
-async def test_auth_login_creates_new_user() -> None:
-    # 1. Send the login request with a mocked Bearer token
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
-        response = await ac.post("/api/v1/auth/login", headers={"Authorization": "Bearer faked_token"})
 
-    assert response.status_code == 200
-    data = response.json()
+def _extract_code(text: str) -> str:
+    match = re.search(r"\b(\d{6})\b", text)
+    assert match, f"No 6-digit code found in: {text!r}"
+    return match.group(1)
 
-    assert "id" in data
-    assert data["firebase_uid"] == "mock_firebase_123"
-    assert data["email"] == "mockeduser@example.com"
-    assert data["role"] == "customer"
-    assert data["is_active"] is True
+
+@pytest.fixture
+def fake_redis() -> fakeredis.aioredis.FakeRedis:
+    return fakeredis.aioredis.FakeRedis(decode_responses=True)
+
+
+@pytest.fixture
+def fake_sender() -> FakeEmailSender:
+    return FakeEmailSender()
+
+
+@pytest.fixture
+async def auth_client(
+    fake_redis: fakeredis.aioredis.FakeRedis,
+    fake_sender: FakeEmailSender,
+) -> AsyncGenerator[dict, None]:
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+    app.dependency_overrides[get_email_sender] = lambda: fake_sender
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield {"client": client, "redis": fake_redis, "sender": fake_sender}
+    app.dependency_overrides.pop(get_redis, None)
+    app.dependency_overrides.pop(get_email_sender, None)
+
+
+async def test_otp_request_returns_ok(auth_client: dict) -> None:
+    resp = await auth_client["client"].post(
+        "/api/v1/auth/otp/request", json={"email": "user@example.com"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+    assert len(auth_client["sender"].sent) == 1
+
+
+async def test_otp_request_same_response_for_unknown_email(auth_client: dict) -> None:
+    resp = await auth_client["client"].post(
+        "/api/v1/auth/otp/request", json={"email": "brand-new@example.com"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+
+
+async def test_returning_user_gets_token(auth_client: dict, session) -> None:
+    from app.models.base import User, UserRole
+
+    user = User(email="returning@example.com", full_name="Ret", role=UserRole.Customer)
+    session.add(user)
+    await session.commit()
+
+    c = auth_client["client"]
+    sender = auth_client["sender"]
+    await c.post("/api/v1/auth/otp/request", json={"email": "returning@example.com"})
+    code = _extract_code(sender.sent[-1]["text"])
+    resp = await c.post(
+        "/api/v1/auth/otp/verify",
+        json={"email": "returning@example.com", "code": code},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["needs_name"] is False
+    assert data["access_token"] is not None
+    assert data["user"]["email"] == "returning@example.com"
+
+
+async def test_new_user_needs_name_then_gets_token(auth_client: dict) -> None:
+    c = auth_client["client"]
+    sender = auth_client["sender"]
+
+    await c.post("/api/v1/auth/otp/request", json={"email": "new@example.com"})
+    code = _extract_code(sender.sent[-1]["text"])
+
+    resp1 = await c.post(
+        "/api/v1/auth/otp/verify", json={"email": "new@example.com", "code": code}
+    )
+    assert resp1.status_code == 200
+    assert resp1.json()["needs_name"] is True
+    assert resp1.json()["access_token"] is None
+
+    resp2 = await c.post(
+        "/api/v1/auth/otp/verify",
+        json={"email": "new@example.com", "code": code, "full_name": "New User"},
+    )
+    assert resp2.status_code == 200
+    data = resp2.json()
+    assert data["needs_name"] is False
+    assert data["access_token"] is not None
+    assert data["user"]["full_name"] == "New User"
+    assert data["user"]["role"] == "customer"
+
+
+async def test_wrong_code_returns_400(auth_client: dict) -> None:
+    await auth_client["client"].post(
+        "/api/v1/auth/otp/request", json={"email": "user@example.com"}
+    )
+    resp = await auth_client["client"].post(
+        "/api/v1/auth/otp/verify",
+        json={"email": "user@example.com", "code": "000000"},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["error"] == "invalid_code"
+
+
+async def test_five_wrong_codes_returns_429(auth_client: dict) -> None:
+    c = auth_client["client"]
+    await c.post("/api/v1/auth/otp/request", json={"email": "user@example.com"})
+    for _ in range(4):
+        await c.post(
+            "/api/v1/auth/otp/verify",
+            json={"email": "user@example.com", "code": "000000"},
+        )
+    resp = await c.post(
+        "/api/v1/auth/otp/verify",
+        json={"email": "user@example.com", "code": "000000"},
+    )
+    assert resp.status_code == 429
+    assert resp.json()["detail"]["error"] == "too_many_attempts"
+
+
+async def test_missing_key_returns_410(auth_client: dict) -> None:
+    resp = await auth_client["client"].post(
+        "/api/v1/auth/otp/verify",
+        json={"email": "ghost@example.com", "code": "123456"},
+    )
+    assert resp.status_code == 410
+    assert resp.json()["detail"]["error"] == "code_expired_or_used"
+
+
+async def test_rapid_resend_returns_429(auth_client: dict) -> None:
+    c = auth_client["client"]
+    await c.post("/api/v1/auth/otp/request", json={"email": "user@example.com"})
+    resp = await c.post("/api/v1/auth/otp/request", json={"email": "user@example.com"})
+    assert resp.status_code == 429
+    assert resp.json()["detail"]["error"] == "rate_limited"
+
+
+async def test_me_endpoint_returns_authenticated_user(auth_client: dict) -> None:
+    c = auth_client["client"]
+    sender = auth_client["sender"]
+    await c.post("/api/v1/auth/otp/request", json={"email": "me@example.com"})
+    code = _extract_code(sender.sent[-1]["text"])
+    verify = await c.post(
+        "/api/v1/auth/otp/verify",
+        json={"email": "me@example.com", "code": code, "full_name": "Test Me"},
+    )
+    token = verify.json()["access_token"]
+    resp = await c.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json()["email"] == "me@example.com"

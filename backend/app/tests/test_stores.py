@@ -7,9 +7,9 @@ from app.core.security import get_current_admin, get_current_seller, get_current
 from app.models.base import User, UserRole
 
 # Mock Users for dependency overrides
-mock_admin = User(id=1, firebase_uid="admin_123", email="admin@kb.com", full_name="Admin", role=UserRole.Admin, is_active=True)
-mock_seller = User(id=2, firebase_uid="seller_123", email="seller@kb.com", full_name="Seller", role=UserRole.Seller, is_active=True)
-mock_customer = User(id=3, firebase_uid="cust_123", email="cust@kb.com", full_name="Customer", role=UserRole.Customer, is_active=True)
+mock_admin = User(id=1, email="admin@kb.com", full_name="Admin", role=UserRole.Admin, is_active=True)
+mock_seller = User(id=2, email="seller@kb.com", full_name="Seller", role=UserRole.Seller, is_active=True)
+mock_customer = User(id=3, email="cust@kb.com", full_name="Customer", role=UserRole.Customer, is_active=True)
 
 from sqlmodel import select, SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession

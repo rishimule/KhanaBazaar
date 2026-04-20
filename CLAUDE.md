@@ -11,7 +11,7 @@ Admins manage a master product catalog; sellers pick products and manage local i
 | ORM / Migrations | SQLModel + Alembic (asyncpg driver) |
 | Database | PostgreSQL 15 |
 | Cache / Broker | Redis (Celery for background tasks) |
-| Auth | Firebase Admin SDK (phone OTP + email) |
+| Auth | Self-hosted email-OTP + JWT (PyJWT HS256, Resend) |
 | Config | Pydantic-Settings (`.env` files) |
 | Frontend | Next.js 16 (App Router), React 19, TypeScript |
 | Frontend styling | CSS Modules + design tokens (no Tailwind) |
@@ -97,8 +97,8 @@ See `backend/app/tests/conftest.py` for DB setup and `test_stores.py` for the ov
 ## Environment Variables
 
 - Backend: `backend/app/.env` (see `backend/app/.env.example`)
-  - Required: `DATABASE_URL`, `REDIS_URL`, `FIREBASE_PROJECT_ID`
-  - Optional: `GOOGLE_APPLICATION_CREDENTIALS` (path to Firebase service account key)
+  - Required: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `OTP_PEPPER`
+  - Optional: `EMAIL_PROVIDER` (default `console`), `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
 - Frontend: `frontend/.env.local` (see `frontend/.env.example`)
   - `NEXT_PUBLIC_API_URL` — backend base URL (default: `http://localhost:8000`)
 

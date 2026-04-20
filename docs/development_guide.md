@@ -4,20 +4,49 @@ This document supplies detailed step-by-step instructions, essential environment
 
 ## 1. External Accounts & Services Required
 
-Before deploying the Khana Bazaar backend to a live environment (or fully testing authentic authentication locally), you must create and configure the following third-party provider accounts:
+Before deploying the Khana Bazaar backend to a live environment you must configure the following:
 
-### Firebase (Authentication & RBAC)
-Khana Bazaar relies on Firebase Authentication to securely handle user identities, phone numbers (OTPs), and role assignments.
-1. **Create Project:** Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project (e.g., `khanabazaar-prod`).
-2. **Enable Auth Providers:** Navigate to **Authentication > Sign-in method** and enable the following providers:
-   - **Phone Number:** Essential for the primary Indian market user base.
-   - **Email/Password:** Recommended for creating the initial App Admin accounts.
-3. **Generate Admin SDK Key (Crucial for Backend):**
-   - Our FastAPI backend needs admin privileges to verify user tokens securely.
-   - Go to **Project Settings > Service Accounts**.
-   - Click **Generate new private key**.
-   - Save the `.json` file securely (e.g., `firebase-admin-key.json`).
-   - **Do NOT commit this file to version control.**
+### Auth Setup (Email OTP)
+
+No external auth service required. The backend generates 6-digit OTP codes and
+emails them via Resend (or prints to stdout in dev mode).
+
+#### Local dev
+
+In `backend/app/.env`, set:
+
+```ini
+EMAIL_PROVIDER=console
+JWT_SECRET=<any-32-char-string>
+OTP_PEPPER=<any-16-char-string>
+```
+
+With `EMAIL_PROVIDER=console`, every OTP code is printed to the backend's
+stdout — no real email is sent. Copy the code from the terminal when signing in
+at http://localhost:3000/login.
+
+#### Production (Resend)
+
+1. Create a Resend account at https://resend.com, verify your sending domain.
+2. Generate an API key and add to your deployment environment:
+
+```ini
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=noreply@yourdomain.com
+```
+
+#### Test accounts
+
+After running `uv run python scripts/seed_database.py`, sign in with:
+
+| Role     | Email                        |
+|----------|------------------------------|
+| Admin    | admin@khanabazaar.dev        |
+| Seller   | seller@khanabazaar.dev       |
+| Customer | customer@khanabazaar.dev     |
+
+Codes appear in backend stdout (console provider).
 
 ### Microsoft Azure
 If deploying Phase 5, you will need an Azure subscription.
@@ -47,15 +76,18 @@ DATABASE_URL="postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar"
 # Format: redis://host:port/db_index
 REDIS_URL="redis://localhost:6379/0"
 
-# --- Firebase Configuration ---
-# In development, the placeholder "khanabazaar-dev" is used for mocking tests. 
-# Make sure to input your actual Project ID from Step 1.
-FIREBASE_PROJECT_ID="khanabazaar-prod" 
+# --- Auth (JWT + OTP) ---
+# Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+JWT_SECRET="change-me-use-secrets-token-hex-32"
+JWT_EXPIRES_HOURS=24
 
-# REQUIRED for the Firebase Admin SDK to authenticate.
-# Point this to the absolute path of the JSON key you downloaded earlier.
-# In Azure Container Apps, this is usually mounted from Azure Key Vault as a secret reference.
-GOOGLE_APPLICATION_CREDENTIALS="/absolute/path/to/firebase-admin-key.json"
+# Generate with: python -c "import secrets; print(secrets.token_hex(16))"
+OTP_PEPPER="change-me-use-secrets-token-hex-16"
+
+# Email: "console" (prints codes to stdout) or "resend" (production)
+EMAIL_PROVIDER="console"
+RESEND_API_KEY=""
+RESEND_FROM_EMAIL=""
 ```
 
 ## 3. Local Development & Maintenance Guide
@@ -76,7 +108,7 @@ Khana Bazaar utilizes `uv` for lightning-fast dependency resolution.
 cd backend/app
 uv sync
 ```
-*(If dependencies fail, manually inject environments: `uv add fastapi uvicorn sqlmodel asyncpg alembic celery redis pydantic-settings firebase-admin pytest httpx`)*
+*(If dependencies fail, run: `uv add fastapi uvicorn sqlmodel asyncpg alembic celery redis pydantic-settings pyjwt httpx email-validator`)*
 
 ### Step 3: Run Database Migrations (Alembic)
 Whenever the SQLModel schemas in `models/` change, you must auto-generate and apply Alembic migrations.
@@ -105,7 +137,8 @@ uv run celery -A app.core.celery_app worker --loglevel=info
 **TIP:** *If tasks are mysteriously getting stuck in the queue, verify that your `REDIS_URL` is correct and that the `kb-redis` docker container hasn't crashed. You can test the queue manually by hitting `POST /api/v1/tasks/test-celery` via the Swagger docs.*
 
 ### Step 6: Testing Best Practices
-The Khana Bazaar integration tests are engineered to bypass your local Postgres instance completely to prevent destructive teardowns on your development data. They isolate into `sqlite+aiosqlite:///:memory:`.
+Integration tests run against a separate `khanabazaar_test` PostgreSQL database (not in-memory). Unit tests for JWT and OTP use fakeredis and need no DB.
+Ensure `docker-compose up -d` is running before running the full suite.
 
 To execute the test suite:
 ```bash
@@ -116,6 +149,5 @@ uv run pytest -v
 ## 4. Common Troubleshooting Tips
 
 1. **Mypy "Untyped Decorator" Errors:** Python's static type checker (Mypy) struggles with dynamic library injections (like `@celery_app.task`). If the CI pipeline fails on this, add `# type: ignore` to the end of the decorator line to suppress it.
-2. **Firebase Token Verification Failures:** If you are testing requests against real Firebase JWT tokens locally but get a 401 Unauthorized, double-check that `GOOGLE_APPLICATION_CREDENTIALS` is physically exported in your terminal session before launching Uvicorn:
-   `export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json && uv run uvicorn app.main:app`
+2. **OTP / 401 Errors:** If `POST /auth/otp/verify` returns 401, check that `JWT_SECRET` in `.env` is set and that the token hasn't expired (default 24 h). For dev, `EMAIL_PROVIDER=console` prints codes to backend stdout.
 3. **Database Connection Refused:** This almost universally means the Postgres docker container is stopped, or the password specified in `DATABASE_URL` doesn't match the one used during the `docker run` initialization. Check `docker ps` to confirm.

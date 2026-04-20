@@ -16,8 +16,7 @@ export interface BaseSchema {
 
 /** User model matching backend User(BaseSchema, UserBase). */
 export interface User extends BaseSchema {
-  firebase_uid: string;
-  email?: string;
+  email: string;
   is_active: boolean;
   role: UserRole;
   full_name?: string;
