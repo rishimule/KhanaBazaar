@@ -1,12 +1,5 @@
 "use client";
 
-/**
- * Khana Bazaar — Auth Context
- *
- * Provides Firebase authentication state and user role information
- * to the entire application. Handles login, logout, and token management.
- */
-
 import React, {
   createContext,
   useCallback,
@@ -15,108 +8,116 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  type User as FirebaseUser,
-} from "firebase/auth";
-import { firebaseAuth } from "@/lib/firebase";
 import { User, UserRole } from "@/types";
 
 interface AuthContextValue {
-  /** Firebase user object — null when logged out */
-  firebaseUser: FirebaseUser | null;
-  /** Backend user object with role — null when not yet fetched */
   dbUser: User | null;
-  /** Current Firebase ID token for API calls */
   token: string | null;
-  /** True while initial auth state is being resolved */
   loading: boolean;
-  /** Sign in with email + password, returns the backend user */
-  login: (email: string, password: string) => Promise<User>;
-  /** Sign out */
-  logout: () => Promise<void>;
+  requestOtp: (email: string) => Promise<void>;
+  verifyOtp: (
+    email: string,
+    code: string,
+    fullName?: string
+  ) => Promise<{ user: User; needsName: boolean }>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const TOKEN_KEY = "kb_token";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [dbUser, setDbUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch the backend user using a token
-  const fetchDbUser = useCallback(async (idToken: string): Promise<User> => {
-    const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-      },
-    });
-    if (!res.ok) {
-      throw new Error("Failed to fetch user from backend");
+  useEffect(() => {
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (!stored) {
+      setLoading(false);
+      return;
     }
-    return (await res.json()) as User;
+    fetch(`${API_BASE}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${stored}` },
+    })
+      .then((res) => {
+        if (!res.ok) {
+          localStorage.removeItem(TOKEN_KEY);
+          return null;
+        }
+        return res.json() as Promise<User>;
+      })
+      .then((user) => {
+        if (user) {
+          setToken(stored);
+          setDbUser(user);
+        }
+      })
+      .catch(() => localStorage.removeItem(TOKEN_KEY))
+      .finally(() => setLoading(false));
   }, []);
 
-  // Listen for auth state changes
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
-      if (user) {
-        try {
-          const idToken = await user.getIdToken();
-          setFirebaseUser(user);
-          setToken(idToken);
-          const backendUser = await fetchDbUser(idToken);
-          setDbUser(backendUser);
-        } catch (err) {
-          console.error("Auth state error:", err);
-          setFirebaseUser(null);
-          setDbUser(null);
-          setToken(null);
-        }
-      } else {
-        setFirebaseUser(null);
-        setDbUser(null);
-        setToken(null);
-      }
-      setLoading(false);
+  const requestOtp = useCallback(async (email: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/api/v1/auth/otp/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
     });
-    return unsubscribe;
-  }, [fetchDbUser]);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const detail = body?.detail;
+      if (detail?.error === "rate_limited") {
+        throw new Error(
+          `Please wait ${detail.retry_after} seconds before requesting a new code.`
+        );
+      }
+      throw new Error("Failed to send code. Please try again.");
+    }
+  }, []);
 
-  const login = useCallback(
-    async (email: string, password: string): Promise<User> => {
-      const credential = await signInWithEmailAndPassword(
-        firebaseAuth,
-        email,
-        password
-      );
-      const idToken = await credential.user.getIdToken();
-      setFirebaseUser(credential.user);
-      setToken(idToken);
-      const backendUser = await fetchDbUser(idToken);
-      setDbUser(backendUser);
-      return backendUser;
+  const verifyOtp = useCallback(
+    async (
+      email: string,
+      code: string,
+      fullName?: string
+    ): Promise<{ user: User; needsName: boolean }> => {
+      const res = await fetch(`${API_BASE}/api/v1/auth/otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code, full_name: fullName ?? null }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const error = data?.detail?.error;
+        if (error === "invalid_code")
+          throw new Error("Incorrect code. Please try again.");
+        if (error === "too_many_attempts")
+          throw new Error("Too many attempts. Please request a new code.");
+        if (error === "code_expired_or_used")
+          throw new Error("Code expired. Please request a new one.");
+        throw new Error("Verification failed.");
+      }
+      if (data.needs_name) {
+        return { user: null as unknown as User, needsName: true };
+      }
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+      setToken(data.access_token);
+      setDbUser(data.user as User);
+      return { user: data.user as User, needsName: false };
     },
-    [fetchDbUser]
+    []
   );
 
-  const logout = useCallback(async () => {
-    await signOut(firebaseAuth);
-    setFirebaseUser(null);
-    setDbUser(null);
+  const logout = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
     setToken(null);
+    setDbUser(null);
   }, []);
 
   const value = useMemo(
-    () => ({ firebaseUser, dbUser, token, loading, login, logout }),
-    [firebaseUser, dbUser, token, loading, login, logout]
+    () => ({ dbUser, token, loading, requestOtp, verifyOtp, logout }),
+    [dbUser, token, loading, requestOtp, verifyOtp, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
