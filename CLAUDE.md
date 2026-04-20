@@ -102,6 +102,84 @@ See `backend/app/tests/conftest.py` for DB setup and `test_stores.py` for the ov
 - Frontend: `frontend/.env.local` (see `frontend/.env.example`)
   - `NEXT_PUBLIC_API_URL` — backend base URL (default: `http://localhost:8000`)
 
+## Git & GitHub Workflow
+
+### Branch Strategy
+- **Never commit directly to `main`.** All changes go through a feature branch and PR.
+- Always `gh repo clone` or `git checkout -b` a new branch before making any code changes.
+- Branch naming convention:
+  - `feat/<short-description>` — new features
+  - `fix/<short-description>` — bug fixes
+  - `chore/<short-description>` — tooling, deps, config
+  - `docs/<short-description>` — documentation only
+  - `refactor/<short-description>` — refactors with no behavior change
+  - `test/<short-description>` — adding or fixing tests
+
+### Daily Workflow
+```bash
+# Start work on any task
+git checkout main && git pull origin main
+git checkout -b feat/my-feature
+
+# ... make changes, run tests ...
+
+git add <specific-files>          # never `git add .` blindly
+git commit -m "feat: short description"
+
+gh pr create ...                  # only after explicit user approval
+```
+
+### Commit Messages (Conventional Commits)
+Format: `<type>(<optional scope>): <short summary>`
+
+| Type | When to use |
+|------|-------------|
+| `feat` | New feature visible to users |
+| `fix` | Bug fix |
+| `chore` | Build, deps, tooling (no production code) |
+| `docs` | Documentation only |
+| `refactor` | Code change that is not a fix or feature |
+| `test` | Adding or updating tests |
+| `perf` | Performance improvement |
+| `ci` | CI/CD pipeline changes |
+
+- Summary line: ≤72 characters, imperative mood ("add X", not "added X")
+- No period at end of summary
+- Add a blank line + body for non-trivial commits explaining *why*, not *what*
+
+### Pull Requests
+- **Wait for explicit user permission before opening a PR.**
+- Always use `gh pr create` (never raw `git push` + manual PR).
+- PR title must follow the same Conventional Commits format as commit messages.
+- PR body must include: Summary, Test plan, and any migration/env-var notes.
+- Target branch is always `main` unless instructed otherwise.
+- Keep PRs small and focused — one logical change per PR.
+- Never force-push to `main` or any shared branch.
+
+### GitHub CLI — Always Use `gh`
+Use `gh` for all GitHub operations, never raw `git` equivalents:
+```bash
+gh repo view                      # view repo info
+gh pr create                      # open a PR
+gh pr list                        # list open PRs
+gh pr merge                       # merge a PR
+gh issue list / gh issue create   # manage issues
+gh run list                       # check CI runs
+```
+
+### Code Review & Merge Rules
+- All PRs require passing CI (lint + type-check + tests) before merge.
+- Squash merge preferred to keep `main` history linear.
+- Delete the feature branch after merging.
+- Never merge your own PR without review in a team setting.
+
+### What to Never Do
+- `git push --force` on `main` or shared branches
+- `git commit --amend` on already-pushed commits
+- Committing `.env` files, secrets, or large binaries
+- Skipping hooks with `--no-verify`
+- Committing directly to `main`
+
 ## Additional Documentation
 
 Check these files when working in the relevant area:
