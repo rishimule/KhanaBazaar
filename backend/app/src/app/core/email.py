@@ -10,22 +10,22 @@ logger = logging.getLogger(__name__)
 
 
 class EmailSender(Protocol):
-    async def send_otp(self, to: str, code: str) -> None: ...
+    async def send(self, to: str, subject: str, text: str) -> None: ...
 
 
 class ConsoleEmailSender:
-    async def send_otp(self, to: str, code: str) -> None:
-        logger.info("OTP for %s: %s", to, code)
-        print(f"[OTP] {to} → {code}")
+    async def send(self, to: str, subject: str, text: str) -> None:
+        logger.info("[EMAIL] to=%s subject=%r\n%s", to, subject, text)
+        print(f"[EMAIL] to={to}\n{text}")
 
 
 class ResendEmailSender:
-    async def send_otp(self, to: str, code: str) -> None:
+    async def send(self, to: str, subject: str, text: str) -> None:
         payload = {
             "from": settings.RESEND_FROM_EMAIL,
             "to": [to],
-            "subject": "Your Khana Bazaar login code",
-            "text": f"Your login code is: {code}\n\nThis code expires in 10 minutes.",
+            "subject": subject,
+            "text": text,
         }
         async with httpx.AsyncClient() as client:
             response = await client.post(
