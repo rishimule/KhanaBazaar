@@ -3,75 +3,84 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
+import { User } from "@/types";
 import styles from "./page.module.css";
 
-const TEST_ACCOUNTS = [
-  { email: "admin@khanabazaar.dev", password: "Test@12345", role: "Admin", icon: "⚙️" },
-  { email: "seller@khanabazaar.dev", password: "Test@12345", role: "Seller", icon: "🏪" },
-  { email: "customer@khanabazaar.dev", password: "Test@12345", role: "Customer", icon: "🛒" },
-];
+type Step = "email" | "code" | "name";
+
+function getRedirect(user: User): string {
+  if (user.role === "admin") return "/admin";
+  if (user.role === "seller") return "/seller";
+  return "/stores";
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, dbUser } = useAuth();
+  const { requestOtp, verifyOtp, dbUser } = useAuth();
+  const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // If already logged in, redirect
   if (dbUser) {
-    const dest =
-      dbUser.role === "admin" ? "/admin" :
-      dbUser.role === "seller" ? "/seller" :
-      "/stores";
-    router.push(dest);
+    router.push(getRedirect(dbUser));
     return null;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      const user = await login(email, password);
-      const dest =
-        user.role === "admin" ? "/admin" :
-        user.role === "seller" ? "/seller" :
-        "/stores";
-      router.push(dest);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Login failed";
-      if (msg.includes("auth/invalid-credential") || msg.includes("auth/wrong-password")) {
-        setError("Invalid email or password.");
-      } else if (msg.includes("auth/user-not-found")) {
-        setError("No account found with this email.");
-      } else if (msg.includes("auth/invalid-email")) {
-        setError("Invalid email format.");
-      } else {
-        setError(msg);
-      }
+      await requestOtp(email);
+      setStep("code");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send code.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleTestLogin = async (account: typeof TEST_ACCOUNTS[0]) => {
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      const user = await login(account.email, account.password);
-      const dest =
-        user.role === "admin" ? "/admin" :
-        user.role === "seller" ? "/seller" :
-        "/stores";
-      router.push(dest);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      const result = await verifyOtp(email, code);
+      if (result.needsName) {
+        setStep("name");
+      } else {
+        router.push(getRedirect(result.user));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Verification failed.");
     } finally {
       setSubmitting(false);
     }
   };
+
+  const handleSubmitName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const result = await verifyOtp(email, code, fullName);
+      router.push(getRedirect(result.user));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create account.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const subtitle =
+    step === "email"
+      ? "Enter your email to sign in or create an account"
+      : step === "code"
+      ? `Enter the 6-digit code sent to ${email}`
+      : "One last step — what should we call you?";
 
   return (
     <div className={styles.page}>
@@ -79,72 +88,111 @@ export default function LoginPage() {
         <div className={styles.cardHeader}>
           <div className={styles.cardLogo}>🛍️</div>
           <h1 className={styles.cardTitle}>
-            Welcome to <span className={styles.cardTitleAccent}>KhanaBazaar</span>
+            Welcome to{" "}
+            <span className={styles.cardTitleAccent}>KhanaBazaar</span>
           </h1>
-          <p className={styles.cardSubtitle}>
-            Sign in to start shopping from local stores
-          </p>
+          <p className={styles.cardSubtitle}>{subtitle}</p>
         </div>
 
-        <form className={styles.form} onSubmit={handleSubmit}>
-          {error && <div className={styles.error}>{error}</div>}
+        {step === "email" && (
+          <form className={styles.form} onSubmit={handleRequestOtp}>
+            {error && <div className={styles.error}>{error}</div>}
+            <div className={styles.inputGroup}>
+              <label className={styles.label} htmlFor="login-email">
+                Email
+              </label>
+              <input
+                id="login-email"
+                className={styles.input}
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+            </div>
+            <button
+              type="submit"
+              className={styles.submitBtn}
+              disabled={submitting}
+            >
+              {submitting ? "Sending code…" : "Send code"}
+            </button>
+          </form>
+        )}
 
-          <div className={styles.inputGroup}>
-            <label className={styles.label} htmlFor="login-email">Email</label>
-            <input
-              id="login-email"
-              className={styles.input}
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-          </div>
+        {step === "code" && (
+          <form className={styles.form} onSubmit={handleVerifyCode}>
+            {error && <div className={styles.error}>{error}</div>}
+            <div className={styles.inputGroup}>
+              <label className={styles.label} htmlFor="login-code">
+                One-time code
+              </label>
+              <input
+                id="login-code"
+                className={styles.input}
+                type="text"
+                inputMode="numeric"
+                pattern="\d{6}"
+                maxLength={6}
+                placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                required
+                autoComplete="one-time-code"
+                autoFocus
+              />
+            </div>
+            <button
+              type="submit"
+              className={styles.submitBtn}
+              disabled={submitting}
+            >
+              {submitting ? "Verifying…" : "Verify code"}
+            </button>
+            <button
+              type="button"
+              className={styles.testBtn}
+              onClick={() => {
+                setStep("email");
+                setCode("");
+                setError(null);
+              }}
+            >
+              Use a different email
+            </button>
+          </form>
+        )}
 
-          <div className={styles.inputGroup}>
-            <label className={styles.label} htmlFor="login-password">Password</label>
-            <input
-              id="login-password"
-              className={styles.input}
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className={styles.submitBtn}
-            disabled={submitting}
-          >
-            {submitting ? "Signing in…" : "Sign In"}
-          </button>
-
-          <div className={styles.divider}>Quick Login (Test Accounts)</div>
-
-          <div className={styles.testAccounts}>
-            {TEST_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                className={styles.testBtn}
-                onClick={() => handleTestLogin(acc)}
-                disabled={submitting}
-              >
-                <span className={styles.testBtnIcon}>{acc.icon}</span>
-                <span className={styles.testBtnInfo}>
-                  <span className={styles.testBtnRole}>{acc.role}</span>
-                  <span className={styles.testBtnEmail}>{acc.email}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </form>
+        {step === "name" && (
+          <form className={styles.form} onSubmit={handleSubmitName}>
+            {error && <div className={styles.error}>{error}</div>}
+            <div className={styles.inputGroup}>
+              <label className={styles.label} htmlFor="login-name">
+                Your name
+              </label>
+              <input
+                id="login-name"
+                className={styles.input}
+                type="text"
+                placeholder="Priya Verma"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                autoComplete="name"
+                autoFocus
+              />
+            </div>
+            <button
+              type="submit"
+              className={styles.submitBtn}
+              disabled={submitting}
+            >
+              {submitting ? "Creating account…" : "Continue"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
