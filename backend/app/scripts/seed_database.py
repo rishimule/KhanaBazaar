@@ -2,23 +2,19 @@
 """
 Khana Bazaar — Database Seed Script
 ====================================
-Creates Firebase Auth test users and populates PostgreSQL with
-categories, products, stores, and inventory that match the
-frontend mock-data.ts exactly.
+Populates PostgreSQL with categories, products, stores, inventory,
+and test user accounts (no Firebase required).
 
 Usage (from backend/app/):
-    PYTHONPATH=src uv run python scripts/seed_database.py
+    uv run python scripts/seed_database.py
 """
 
 import asyncio
 import os
 import sys
 
-# Ensure src is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-import firebase_admin
-from firebase_admin import auth, credentials
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -29,48 +25,13 @@ from app.models.catalog import Category, MasterProduct
 from app.models.store import Store, StoreInventory
 
 
-# ─── Firebase setup ──────────────────────────────────────────
-
-def init_firebase() -> None:
-    if firebase_admin._apps:
-        return
-    cred_path = settings.GOOGLE_APPLICATION_CREDENTIALS
-    if cred_path and os.path.exists(cred_path):
-        cred = credentials.Certificate(cred_path)
-        firebase_admin.initialize_app(cred, {"projectId": settings.FIREBASE_PROJECT_ID})
-    else:
-        firebase_admin.initialize_app(options={"projectId": settings.FIREBASE_PROJECT_ID})
-
-
-def get_or_create_firebase_user(email: str, password: str, display_name: str) -> str:
-    """Create a Firebase Auth user or return the UID of an existing one."""
-    try:
-        fb_user = auth.get_user_by_email(email)
-        print(f"  ✓ Firebase user already exists: {email} (uid={fb_user.uid})")
-        return fb_user.uid
-    except auth.UserNotFoundError:
-        fb_user = auth.create_user(
-            email=email,
-            password=password,
-            display_name=display_name,
-            email_verified=True,
-        )
-        print(f"  ✓ Created Firebase user: {email} (uid={fb_user.uid})")
-        return fb_user.uid
-
-
-# ─── Test accounts ───────────────────────────────────────────
-
 TEST_USERS = [
-    {"email": "admin@khanabazaar.dev", "password": "Test@12345", "display_name": "Platform Admin", "role": UserRole.Admin},
-    {"email": "seller@khanabazaar.dev", "password": "Test@12345", "display_name": "Ravi Sharma", "role": UserRole.Seller},
-    {"email": "seller2@khanabazaar.dev", "password": "Test@12345", "display_name": "Krishna Patel", "role": UserRole.Seller},
-    {"email": "seller3@khanabazaar.dev", "password": "Test@12345", "display_name": "Balaji Ramaswamy", "role": UserRole.Seller},
-    {"email": "customer@khanabazaar.dev", "password": "Test@12345", "display_name": "Priya Verma", "role": UserRole.Customer},
+    {"email": "admin@khanabazaar.dev", "display_name": "Platform Admin", "role": UserRole.Admin},
+    {"email": "seller@khanabazaar.dev", "display_name": "Ravi Sharma", "role": UserRole.Seller},
+    {"email": "seller2@khanabazaar.dev", "display_name": "Krishna Patel", "role": UserRole.Seller},
+    {"email": "seller3@khanabazaar.dev", "display_name": "Balaji Ramaswamy", "role": UserRole.Seller},
+    {"email": "customer@khanabazaar.dev", "display_name": "Priya Verma", "role": UserRole.Customer},
 ]
-
-
-# ─── Seed data (mirrors mock-data.ts) ────────────────────────
 
 CATEGORIES = [
     {"name": "Fruits & Vegetables", "description": "Fresh produce from local farms"},
@@ -102,53 +63,38 @@ STORES = [
 
 # Inventory: (store_idx, product_idx, price, stock)
 INVENTORIES = [
-    # Sharma General Store — has almost everything
+    # Sharma General Store
     (0, 0, 42, 50), (0, 1, 18, 30), (0, 2, 38, 60),
     (0, 3, 56, 20), (0, 4, 95, 15),
     (0, 6, 165, 25), (0, 7, 460, 10), (0, 8, 285, 12),
     (0, 9, 20, 100), (0, 10, 275, 18), (0, 11, 82, 40),
-    # Krishna Supermart — dairy-heavy
+    # Krishna Supermart
     (1, 0, 45, 40), (1, 3, 54, 35), (1, 4, 92, 20),
     (1, 5, 48, 25), (1, 6, 158, 30),
     (1, 9, 20, 60), (1, 10, 268, 15), (1, 11, 78, 50),
-    # Balaji Fresh Market — produce-focused
+    # Balaji Fresh Market
     (2, 0, 38, 80), (2, 1, 12, 50), (2, 2, 32, 70),
     (2, 3, 55, 15), (2, 7, 440, 8), (2, 8, 278, 10),
     (2, 10, 272, 12),
 ]
 
 
-# ─── Main ────────────────────────────────────────────────────
-
 async def seed() -> None:
-    print("\n🌱 Khana Bazaar — Seeding Database\n")
-
-    # 1. Firebase users
-    print("1️⃣  Creating Firebase Auth users …")
-    init_firebase()
-    firebase_uids: list[str] = []
-    for u in TEST_USERS:
-        uid = get_or_create_firebase_user(u["email"], u["password"], u["display_name"])
-        firebase_uids.append(uid)
-
-    # 2. Database
+    print("\nKhana Bazaar — Seeding Database\n")
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
+
     async with AsyncSession(engine) as session:
 
-        # -- Users --
-        print("\n2️⃣  Inserting database users …")
+        print("1  Inserting users ...")
         db_users: list[User] = []
-        for i, u in enumerate(TEST_USERS):
-            existing = await session.exec(
-                select(User).where(User.firebase_uid == firebase_uids[i])
-            )
+        for u in TEST_USERS:
+            existing = await session.exec(select(User).where(User.email == u["email"]))
             user = existing.first()
             if user:
-                print(f"  ✓ User already exists: {u['email']}")
+                print(f"  already exists: {u['email']}")
                 db_users.append(user)
             else:
                 user = User(
-                    firebase_uid=firebase_uids[i],
                     email=u["email"],
                     full_name=u["display_name"],
                     role=u["role"],
@@ -156,19 +102,15 @@ async def seed() -> None:
                 )
                 session.add(user)
                 await session.flush()
-                print(f"  ✓ Created user: {u['email']} (id={user.id}, role={user.role.value})")
+                print(f"  created: {u['email']} (id={user.id}, role={user.role.value})")
                 db_users.append(user)
 
-        # -- Categories --
-        print("\n3️⃣  Inserting categories …")
+        print("\n2  Inserting categories ...")
         cat_ids: list[int] = []
         for c in CATEGORIES:
-            existing = await session.exec(
-                select(Category).where(Category.name == c["name"])
-            )
+            existing = await session.exec(select(Category).where(Category.name == c["name"]))
             cat = existing.first()
             if cat:
-                print(f"  ✓ Category exists: {c['name']} (id={cat.id})")
                 assert cat.id is not None
                 cat_ids.append(cat.id)
             else:
@@ -176,19 +118,15 @@ async def seed() -> None:
                 session.add(cat)
                 await session.flush()
                 assert cat.id is not None
-                print(f"  ✓ Created: {c['name']} (id={cat.id})")
                 cat_ids.append(cat.id)
+                print(f"  created: {c['name']}")
 
-        # -- Products --
-        print("\n4️⃣  Inserting master products …")
+        print("\n3  Inserting products ...")
         product_ids: list[int] = []
         for p in PRODUCTS:
-            existing = await session.exec(
-                select(MasterProduct).where(MasterProduct.name == p["name"])
-            )
+            existing = await session.exec(select(MasterProduct).where(MasterProduct.name == p["name"]))
             prod = existing.first()
             if prod:
-                print(f"  ✓ Product exists: {p['name']} (id={prod.id})")
                 assert prod.id is not None
                 product_ids.append(prod.id)
             else:
@@ -202,38 +140,28 @@ async def seed() -> None:
                 session.add(prod)
                 await session.flush()
                 assert prod.id is not None
-                print(f"  ✓ Created: {p['name']} (id={prod.id})")
                 product_ids.append(prod.id)
+                print(f"  created: {p['name']}")
 
-        # -- Stores --
-        print("\n5️⃣  Inserting stores …")
+        print("\n4  Inserting stores ...")
         store_ids: list[int] = []
         for s in STORES:
             seller = db_users[s["seller_idx"]]
             assert seller.id is not None
-            existing = await session.exec(
-                select(Store).where(Store.name == s["name"])
-            )
+            existing = await session.exec(select(Store).where(Store.name == s["name"]))
             store = existing.first()
             if store:
-                print(f"  ✓ Store exists: {s['name']} (id={store.id})")
                 assert store.id is not None
                 store_ids.append(store.id)
             else:
-                store = Store(
-                    name=s["name"],
-                    address=s["address"],
-                    seller_id=seller.id,
-                    is_active=True,
-                )
+                store = Store(name=s["name"], address=s["address"], seller_id=seller.id, is_active=True)
                 session.add(store)
                 await session.flush()
                 assert store.id is not None
-                print(f"  ✓ Created: {s['name']} (id={store.id}, seller_id={seller.id})")
                 store_ids.append(store.id)
+                print(f"  created: {s['name']}")
 
-        # -- Inventory --
-        print("\n6️⃣  Inserting store inventories …")
+        print("\n5  Inserting inventory ...")
         for store_idx, prod_idx, price, stock in INVENTORIES:
             sid = store_ids[store_idx]
             pid = product_ids[prod_idx]
@@ -243,32 +171,20 @@ async def seed() -> None:
                     StoreInventory.product_id == pid,
                 )
             )
-            if existing.first():
-                print(f"  ✓ Inventory exists: store={sid}, product={pid}")
-            else:
-                inv = StoreInventory(
-                    store_id=sid,
-                    product_id=pid,
-                    price=price,
-                    stock=stock,
-                    is_available=stock > 0,
-                )
+            if not existing.first():
+                inv = StoreInventory(store_id=sid, product_id=pid, price=price, stock=stock, is_available=stock > 0)
                 session.add(inv)
-                await session.flush()
-                print(f"  ✓ Added: store={sid}, product={pid}, price=₹{price}, stock={stock}")
 
         await session.commit()
 
     await engine.dispose()
 
-    print("\n✅ Seeding complete!\n")
-    print("Test accounts:")
-    print("┌─────────┬──────────────────────────────┬─────────────┐")
-    print("│ Role    │ Email                        │ Password    │")
-    print("├─────────┼──────────────────────────────┼─────────────┤")
+    print("\nSeeding complete!\n")
+    print("Test accounts (login via email OTP):")
+    print(f"{'Role':<10} {'Email':<32}")
+    print("-" * 44)
     for u in TEST_USERS:
-        print(f"│ {u['role'].value:<7} │ {u['email']:<28} │ {u['password']:<11} │")
-    print("└─────────┴──────────────────────────────┴─────────────┘")
+        print(f"{u['role'].value:<10} {u['email']:<32}")
 
 
 if __name__ == "__main__":
