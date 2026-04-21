@@ -1,5 +1,7 @@
 {
-  "enabledPlugins": {
-    "firebase@claude-plugins-official": true
+  "permissions": {
+    "allow": [
+      "Bash(gemini:*)"
+    ]
   }
 }
