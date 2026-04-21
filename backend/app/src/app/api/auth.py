@@ -17,9 +17,15 @@ from app.core.otp import (
     verify_otp,
 )
 from app.core.redis import get_redis
-from app.core.security import create_access_token, get_current_user
+from app.core.security import (
+    create_access_token,
+    create_email_verification_token,
+    decode_email_verification_token,
+    get_current_user,
+)
 from app.db.session import get_db_session
 from app.models.base import User, UserRole
+from app.models.seller import SellerProfile
 
 router = APIRouter()
 
@@ -32,6 +38,24 @@ class OTPVerifyBody(BaseModel):
     email: EmailStr
     code: str
     full_name: str | None = None
+
+
+class SellerOtpVerifyBody(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class SellerRegisterBody(BaseModel):
+    email_token: str
+    full_name: str
+    phone: str
+    business_name: str
+    business_category: str
+    address: str
+    gst_number: str
+    fssai_license: str
+    bank_account_number: str
+    bank_ifsc: str
 
 
 @router.post("/otp/request")
@@ -96,3 +120,61 @@ async def otp_verify(
 @router.get("/me")
 async def me(user: User = Depends(get_current_user)) -> dict:  # type: ignore[type-arg]
     return user.model_dump()
+
+
+@router.post("/seller/otp/verify")
+async def seller_otp_verify(
+    body: SellerOtpVerifyBody,
+    redis: aioredis.Redis = Depends(get_redis),
+) -> dict:  # type: ignore[type-arg]
+    email = normalize_email(str(body.email))
+    try:
+        await verify_otp(email, body.code, redis)
+    except CodeExpired:
+        raise HTTPException(status_code=410, detail={"error": "code_expired_or_used"}) from None
+    except TooManyAttempts:
+        raise HTTPException(status_code=429, detail={"error": "too_many_attempts"}) from None
+    except InvalidCode:
+        raise HTTPException(status_code=400, detail={"error": "invalid_code"}) from None
+
+    await consume_otp_key(email, redis)
+    email_token = create_email_verification_token(email)
+    return {"email_token": email_token}
+
+
+@router.post("/seller/register")
+async def seller_register(
+    body: SellerRegisterBody,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    email = decode_email_verification_token(body.email_token)
+
+    result = await session.exec(select(User).where(User.email == email))
+    if result.first():
+        raise HTTPException(status_code=409, detail={"error": "email_already_registered"})
+
+    user = User(email=email, full_name=body.full_name.strip(), role=UserRole.Seller)
+    session.add(user)
+    await session.flush()
+
+    profile = SellerProfile(
+        user_id=user.id,
+        business_name=body.business_name,
+        business_category=body.business_category,
+        address=body.address,
+        phone=body.phone,
+        gst_number=body.gst_number,
+        fssai_license=body.fssai_license,
+        bank_account_number=body.bank_account_number,
+        bank_ifsc=body.bank_ifsc,
+    )
+    session.add(profile)
+    await session.commit()
+    await session.refresh(user)
+
+    token = create_access_token(user)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user.model_dump(),
+    }
