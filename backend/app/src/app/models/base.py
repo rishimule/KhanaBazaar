@@ -13,13 +13,13 @@ class UserRole(str, enum.Enum):
 class BaseSchema(SQLModel):
     """Base schema for all models to inherit from."""
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(
+    created_at: datetime = Field(  # type: ignore[call-overload]
         default_factory=lambda: datetime.now(timezone.utc),
-        sa_type=DateTime(timezone=True)
+        sa_type=DateTime(timezone=True),
     )
-    updated_at: datetime = Field(
+    updated_at: datetime = Field(  # type: ignore[call-overload]
         default_factory=lambda: datetime.now(timezone.utc),
-        sa_type=DateTime(timezone=True)
+        sa_type=DateTime(timezone=True),
     )
 
 class UserBase(SQLModel):

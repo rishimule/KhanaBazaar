@@ -25,6 +25,6 @@ app.add_middleware(
 async def health_check() -> dict[str, str]:
     return {"status": "ok", "environment": settings.ENVIRONMENT}
 
-from app.api import api_router
+from app.api import api_router  # noqa: E402
 
 app.include_router(api_router, prefix=settings.API_V1_STR)

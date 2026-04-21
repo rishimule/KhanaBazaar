@@ -1,18 +1,19 @@
 import re
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import fakeredis.aioredis
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app import app
-from app.core.email import EmailSender, get_email_sender
+from app.core.email import get_email_sender
 from app.core.redis import get_redis
 
 
 class FakeEmailSender:
     def __init__(self) -> None:
-        self.sent: list[dict] = []
+        self.sent: list[dict[str, str]] = []
 
     async def send(self, to: str, subject: str, text: str) -> None:
         self.sent.append({"to": to, "subject": subject, "text": text})
@@ -38,7 +39,7 @@ def fake_sender() -> FakeEmailSender:
 async def auth_client(
     fake_redis: fakeredis.aioredis.FakeRedis,
     fake_sender: FakeEmailSender,
-) -> AsyncGenerator[dict, None]:
+) -> AsyncGenerator[dict[str, Any], None]:
     app.dependency_overrides[get_redis] = lambda: fake_redis
     app.dependency_overrides[get_email_sender] = lambda: fake_sender
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -47,7 +48,7 @@ async def auth_client(
     app.dependency_overrides.pop(get_email_sender, None)
 
 
-async def test_otp_request_returns_ok(auth_client: dict) -> None:
+async def test_otp_request_returns_ok(auth_client: dict[str, Any]) -> None:
     resp = await auth_client["client"].post(
         "/api/v1/auth/otp/request", json={"email": "user@example.com"}
     )
@@ -56,7 +57,7 @@ async def test_otp_request_returns_ok(auth_client: dict) -> None:
     assert len(auth_client["sender"].sent) == 1
 
 
-async def test_otp_request_same_response_for_unknown_email(auth_client: dict) -> None:
+async def test_otp_request_same_response_for_unknown_email(auth_client: dict[str, Any]) -> None:
     resp = await auth_client["client"].post(
         "/api/v1/auth/otp/request", json={"email": "brand-new@example.com"}
     )
@@ -64,7 +65,7 @@ async def test_otp_request_same_response_for_unknown_email(auth_client: dict) ->
     assert resp.json()["ok"] is True
 
 
-async def test_returning_user_gets_token(auth_client: dict, session) -> None:
+async def test_returning_user_gets_token(auth_client: dict[str, Any], session: Any) -> None:
     from app.models.base import User, UserRole
 
     user = User(email="returning@example.com", full_name="Ret", role=UserRole.Customer)
@@ -86,7 +87,7 @@ async def test_returning_user_gets_token(auth_client: dict, session) -> None:
     assert data["user"]["email"] == "returning@example.com"
 
 
-async def test_new_user_needs_name_then_gets_token(auth_client: dict) -> None:
+async def test_new_user_needs_name_then_gets_token(auth_client: dict[str, Any]) -> None:
     c = auth_client["client"]
     sender = auth_client["sender"]
 
@@ -112,7 +113,7 @@ async def test_new_user_needs_name_then_gets_token(auth_client: dict) -> None:
     assert data["user"]["role"] == "customer"
 
 
-async def test_wrong_code_returns_400(auth_client: dict) -> None:
+async def test_wrong_code_returns_400(auth_client: dict[str, Any]) -> None:
     await auth_client["client"].post(
         "/api/v1/auth/otp/request", json={"email": "user@example.com"}
     )
@@ -124,7 +125,7 @@ async def test_wrong_code_returns_400(auth_client: dict) -> None:
     assert resp.json()["detail"]["error"] == "invalid_code"
 
 
-async def test_five_wrong_codes_returns_429(auth_client: dict) -> None:
+async def test_five_wrong_codes_returns_429(auth_client: dict[str, Any]) -> None:
     c = auth_client["client"]
     await c.post("/api/v1/auth/otp/request", json={"email": "user@example.com"})
     for _ in range(4):
@@ -140,7 +141,7 @@ async def test_five_wrong_codes_returns_429(auth_client: dict) -> None:
     assert resp.json()["detail"]["error"] == "too_many_attempts"
 
 
-async def test_missing_key_returns_410(auth_client: dict) -> None:
+async def test_missing_key_returns_410(auth_client: dict[str, Any]) -> None:
     resp = await auth_client["client"].post(
         "/api/v1/auth/otp/verify",
         json={"email": "ghost@example.com", "code": "123456"},
@@ -149,7 +150,7 @@ async def test_missing_key_returns_410(auth_client: dict) -> None:
     assert resp.json()["detail"]["error"] == "code_expired_or_used"
 
 
-async def test_rapid_resend_returns_429(auth_client: dict) -> None:
+async def test_rapid_resend_returns_429(auth_client: dict[str, Any]) -> None:
     c = auth_client["client"]
     await c.post("/api/v1/auth/otp/request", json={"email": "user@example.com"})
     resp = await c.post("/api/v1/auth/otp/request", json={"email": "user@example.com"})
@@ -157,7 +158,7 @@ async def test_rapid_resend_returns_429(auth_client: dict) -> None:
     assert resp.json()["detail"]["error"] == "rate_limited"
 
 
-async def test_me_endpoint_returns_authenticated_user(auth_client: dict) -> None:
+async def test_me_endpoint_returns_authenticated_user(auth_client: dict[str, Any]) -> None:
     c = auth_client["client"]
     sender = auth_client["sender"]
     await c.post("/api/v1/auth/otp/request", json={"email": "me@example.com"})

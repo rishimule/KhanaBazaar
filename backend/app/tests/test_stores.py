@@ -1,6 +1,8 @@
+from typing import Any, AsyncGenerator, Iterator
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-from typing import Iterator, Any
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
 from app.core.security import get_current_admin, get_current_seller, get_current_user
@@ -11,9 +13,6 @@ mock_admin = User(id=1, email="admin@kb.com", full_name="Admin", role=UserRole.A
 mock_seller = User(id=2, email="seller@kb.com", full_name="Seller", role=UserRole.Seller, is_active=True)
 mock_customer = User(id=3, email="cust@kb.com", full_name="Customer", role=UserRole.Customer, is_active=True)
 
-from sqlmodel import select, SQLModel
-from sqlmodel.ext.asyncio.session import AsyncSession
-from typing import AsyncGenerator
 
 @pytest.fixture(autouse=True)
 async def seed_mock_users(session: AsyncSession) -> AsyncGenerator[None, None]:
@@ -76,7 +75,7 @@ async def test_public_can_fetch_products_and_stores() -> None:
     app.dependency_overrides.pop(get_current_admin, None)
     app.dependency_overrides.pop(get_current_seller, None)
     app.dependency_overrides.pop(get_current_user, None)
-    
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         prod_resp = await ac.get("/api/v1/catalog/products")
         assert prod_resp.status_code == 200

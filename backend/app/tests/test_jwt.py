@@ -1,19 +1,19 @@
 """JWT round-trip, tampered signature, expiry, and role-claim tests."""
-from datetime import datetime, timedelta, timezone
 from collections.abc import AsyncGenerator
+from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
+
+from app.core.config import settings
+from app.core.security import create_access_token, decode_access_token
+from app.models.base import User, UserRole
 
 
 @pytest.fixture(autouse=True)
 async def setup_test_db() -> AsyncGenerator[None, None]:
     """No-op override — JWT tests need no database."""
     yield
-
-from app.core.config import settings
-from app.core.security import create_access_token, decode_access_token
-from app.models.base import User, UserRole
 
 
 def _make_user(role: UserRole = UserRole.Customer) -> User:
@@ -75,7 +75,6 @@ def test_expired_token_rejected() -> None:
 def test_wrong_secret_rejected() -> None:
     from fastapi import HTTPException
 
-    user = _make_user()
     token = jwt.encode(
         {"sub": "42", "role": "customer", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
         "wrong-secret",

@@ -37,7 +37,7 @@ class OTPVerifyBody(BaseModel):
 @router.post("/otp/request")
 async def otp_request(
     body: OTPRequestBody,
-    redis: aioredis.Redis = Depends(get_redis),  # type: ignore[type-arg]
+    redis: aioredis.Redis = Depends(get_redis),
     sender: EmailSender = Depends(get_email_sender),
 ) -> dict:  # type: ignore[type-arg]
     try:
@@ -46,7 +46,7 @@ async def otp_request(
         raise HTTPException(
             status_code=429,
             detail={"error": "rate_limited", "retry_after": exc.retry_after},
-        )
+        ) from exc
     await sender.send(
         to=str(body.email),
         subject="Your Khana Bazaar login code",
@@ -59,18 +59,18 @@ async def otp_request(
 async def otp_verify(
     body: OTPVerifyBody,
     session: AsyncSession = Depends(get_db_session),
-    redis: aioredis.Redis = Depends(get_redis),  # type: ignore[type-arg]
+    redis: aioredis.Redis = Depends(get_redis),
 ) -> dict:  # type: ignore[type-arg]
     email = normalize_email(str(body.email))
 
     try:
         await verify_otp(email, body.code, redis)
     except CodeExpired:
-        raise HTTPException(status_code=410, detail={"error": "code_expired_or_used"})
+        raise HTTPException(status_code=410, detail={"error": "code_expired_or_used"}) from None
     except TooManyAttempts:
-        raise HTTPException(status_code=429, detail={"error": "too_many_attempts"})
+        raise HTTPException(status_code=429, detail={"error": "too_many_attempts"}) from None
     except InvalidCode:
-        raise HTTPException(status_code=400, detail={"error": "invalid_code"})
+        raise HTTPException(status_code=400, detail={"error": "invalid_code"}) from None
 
     result = await session.exec(select(User).where(User.email == email))
     user = result.first()

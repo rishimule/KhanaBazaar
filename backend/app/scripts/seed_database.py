@@ -24,7 +24,6 @@ from app.models.base import User, UserRole
 from app.models.catalog import Category, MasterProduct
 from app.models.store import Store, StoreInventory
 
-
 TEST_USERS = [
     {"email": "admin@khanabazaar.dev", "display_name": "Platform Admin", "role": UserRole.Admin},
     {"email": "seller@khanabazaar.dev", "display_name": "Ravi Sharma", "role": UserRole.Seller},
@@ -79,7 +78,7 @@ INVENTORIES = [
 ]
 
 
-async def seed() -> None:
+async def seed() -> None:  # noqa: C901
     print("\nKhana Bazaar — Seeding Database\n")
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
 

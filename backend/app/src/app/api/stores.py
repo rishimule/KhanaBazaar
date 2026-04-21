@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.security import get_current_seller, get_current_user
+from app.core.security import get_current_seller
 from app.db.session import get_db_session
 from app.models.base import User, UserRole
 from app.models.catalog import MasterProduct
