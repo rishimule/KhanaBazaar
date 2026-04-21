@@ -3,6 +3,27 @@
 Multi-vendor hyperlocal e-commerce platform for the Indian market (Instacart-like model).
 Admins manage a master product catalog; sellers pick products and manage local inventory/pricing; customers shop per-store and pay via UPI.
 
+## Subagent routing (gemini-worker)
+
+This project has a `gemini-worker` subagent that wraps the Gemini CLI. It exists to preserve Claude context for planning, writing code, and reviewing diffs.
+
+**Delegate to `gemini-worker` before:**
+- Reading more than 3 files to answer a question
+- Any codebase-wide search ("find every place we…", "list all usages of…")
+- Summarizing any file longer than ~500 lines
+- Reading generated code, large logs, large JSON/CSV, or vendored dependencies
+- Answering "does this repo already have X?" questions
+
+**Do NOT delegate (do it yourself):**
+- Editing, creating, or deleting files
+- Running tests, linters, or build commands
+- Git operations
+- Brainstorming, plan-writing, or spec refinement (Superpowers `brainstorming`, `writing-plans`) — plan quality depends on you reading the code directly
+- Reviewing a diff against a plan (Superpowers `requesting-code-review`)
+- Small reads (1–3 specific files you already know you need)
+
+**How to invoke:** describe the research task to the subagent in one message. It returns Gemini's raw output. You do the interpretation.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -190,3 +211,4 @@ Check these files when working in the relevant area:
 - [Local Setup](docs/local_setup.md) — Docker, backend, frontend setup walkthrough
 - [Development Guide](docs/development_guide.md) — Firebase setup, env vars, Alembic workflow, troubleshooting
 - [Roadmap](TODO.md) — Phase tracker (Phases 1-3 complete, Phase 4-5 in progress)
+- [Seller Signup & Onboarding](docs/seller_signup.md) — Seller registration flow, OTP/token auth, wizard steps, pending approval, admin verify, layout guard

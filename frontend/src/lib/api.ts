@@ -95,6 +95,26 @@ export async function put<T>(
   return handleResponse<T>(res);
 }
 
+/** PATCH request */
+export async function patch<T>(
+  path: string,
+  body?: unknown,
+  token?: string | null,
+  options?: RequestInit
+): Promise<T> {
+  const [url, init] = buildRequest(
+    path,
+    {
+      ...options,
+      method: "PATCH",
+      body: body ? JSON.stringify(body) : undefined,
+    },
+    token
+  );
+  const res = await fetch(url, init);
+  return handleResponse<T>(res);
+}
+
 /** DELETE request */
 export async function del<T>(
   path: string,

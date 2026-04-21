@@ -1,0 +1,515 @@
+/* ============================================================
+   Seller Signup Wizard — CSS Module
+   6-step wizard following login page glassmorphism pattern.
+   ============================================================ */
+
+/* --------------------------------------------------------
+   Animations
+   -------------------------------------------------------- */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* hsla values mirror --color-primary-500; alpha-variant tokens aren't available in CSS Modules keyframes */
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 hsla(18, 90%, 52%, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px hsla(18, 90%, 52%, 0);
+  }
+}
+
+/* --------------------------------------------------------
+   Layout
+   -------------------------------------------------------- */
+
+.page {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: linear-gradient(
+    160deg,
+    hsl(24, 95%, 97%) 0%,
+    hsl(152, 76%, 96%) 50%,
+    hsl(220, 20%, 97%) 100%
+  );
+}
+
+.card {
+  width: 100%;
+  max-width: var(--container-xs); /* 480px — wider than login for 2-col grids */
+  background: hsla(0, 0%, 100%, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid hsla(0, 0%, 100%, 0.6);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-10) var(--space-8);
+  box-shadow: var(--shadow-xl);
+  animation: fadeInUp var(--duration-slow) var(--ease-out);
+}
+
+/* --------------------------------------------------------
+   Card Header
+   -------------------------------------------------------- */
+
+.cardHeader {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.cardLogo {
+  font-size: var(--font-5xl);
+  margin-bottom: var(--space-3);
+}
+
+.cardTitle {
+  font-size: var(--font-3xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-neutral-900);
+  margin-bottom: var(--space-2);
+}
+
+.cardTitleAccent {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.cardSubtitle {
+  font-size: var(--font-sm);
+  color: var(--color-neutral-500);
+}
+
+/* --------------------------------------------------------
+   Step Indicator
+   -------------------------------------------------------- */
+
+.stepIndicator {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: var(--space-8);
+}
+
+.stepDot {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-neutral-200);
+  background: var(--color-neutral-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-400);
+  flex-shrink: 0;
+  transition: all var(--duration-normal) var(--ease-default);
+  position: relative;
+  z-index: 1;
+}
+
+/* Completed dot — filled gradient */
+.stepDotCompleted {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: var(--color-neutral-0);
+}
+
+/* Active dot — outlined with pulse animation */
+.stepDotActive {
+  border-color: var(--color-primary-400);
+  background: var(--color-primary-50);
+  color: var(--color-primary-600);
+  animation: pulse 2s infinite;
+}
+
+.stepConnector {
+  flex: 1;
+  height: 2px;
+  background: var(--color-neutral-200);
+  transition: background var(--duration-normal) var(--ease-default);
+  min-width: var(--space-4);
+}
+
+.stepConnectorCompleted {
+  background: var(--gradient-primary);
+}
+
+.stepLabel {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+/* --------------------------------------------------------
+   Form Elements
+   -------------------------------------------------------- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.label {
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-neutral-700);
+}
+
+.input {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-base);
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-800);
+  transition: all var(--duration-fast) var(--ease-default);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px hsla(18, 90%, 52%, 0.12);
+}
+
+.input::placeholder {
+  color: var(--color-neutral-400);
+}
+
+/* Error state for input */
+.inputError {
+  border-color: var(--color-error);
+}
+
+.inputError:focus {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px hsla(0, 84%, 60%, 0.12);
+}
+
+.fieldError {
+  font-size: var(--font-xs);
+  color: var(--color-error);
+  margin-top: var(--space-1);
+}
+
+/* Select — same as input but with chevron arrow */
+.select {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-base);
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-0)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")
+    no-repeat right var(--space-3) center;
+  background-size: 16px;
+  color: var(--color-neutral-800);
+  transition: all var(--duration-fast) var(--ease-default);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: var(--space-10);
+  cursor: pointer;
+}
+
+.select:focus {
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px hsla(18, 90%, 52%, 0.12);
+}
+
+/* --------------------------------------------------------
+   2-Column Grid (steps 3-5)
+   -------------------------------------------------------- */
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 480px) {
+  .formGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.formGridFull {
+  grid-column: 1 / -1;
+}
+
+/* --------------------------------------------------------
+   Buttons
+   -------------------------------------------------------- */
+
+.submitBtn {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-0);
+  background: var(--gradient-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-default);
+  box-shadow: var(--shadow-md), var(--shadow-glow-primary);
+  width: 100%;
+}
+
+.submitBtn:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-primary);
+  transform: translateY(-1px);
+}
+
+.submitBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Ghost back button */
+.backBtn {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary-500);
+  background: transparent;
+  border: 1.5px solid var(--color-primary-300);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-default);
+}
+
+.backBtn:hover:not(:disabled) {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary-400);
+}
+
+.backBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.backBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Button row — Back + Next side by side */
+.btnRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.btnRow .backBtn {
+  flex: 1;
+}
+
+.btnRow .submitBtn {
+  flex: 1;
+}
+
+/* Edit link for review step */
+.editLink {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-primary-500);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-default);
+  text-decoration: none;
+}
+
+.editLink:hover {
+  color: var(--color-primary-700);
+  text-decoration: underline;
+}
+
+.editLink:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* --------------------------------------------------------
+   Review Step
+   -------------------------------------------------------- */
+
+.reviewSection {
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.reviewSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-700);
+  margin-bottom: var(--space-3);
+}
+
+.reviewRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: var(--font-sm);
+  padding-top: var(--space-1-5);
+  padding-bottom: var(--space-1-5);
+  border-bottom: 1px solid var(--color-neutral-100);
+  gap: var(--space-4);
+}
+
+.reviewRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.reviewRow:first-child {
+  padding-top: 0;
+}
+
+.reviewLabel {
+  color: var(--color-neutral-500);
+  flex-shrink: 0;
+}
+
+.reviewValue {
+  color: var(--color-neutral-800);
+  font-weight: var(--weight-medium);
+  text-align: right;
+  word-break: break-word;
+}
+
+/* --------------------------------------------------------
+   OTP Input (step 2)
+   -------------------------------------------------------- */
+
+.otpInput {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-2xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.3em;
+  text-align: center;
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-800);
+  transition: all var(--duration-fast) var(--ease-default);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.otpInput:focus {
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px hsla(18, 90%, 52%, 0.12);
+}
+
+.otpInput::placeholder {
+  color: var(--color-neutral-300);
+  letter-spacing: 0.1em;
+}
+
+.resendRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--color-neutral-500);
+  margin-top: var(--space-3);
+}
+
+.resendBtn {
+  padding: 0;
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-primary-500);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-default);
+  text-decoration: none;
+}
+
+.resendBtn:hover:not(:disabled) {
+  color: var(--color-primary-700);
+  text-decoration: underline;
+}
+
+.resendBtn:disabled {
+  color: var(--color-neutral-400);
+  cursor: not-allowed;
+}
+
+.resendBtn:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* --------------------------------------------------------
+   Toast / Error Banner
+   -------------------------------------------------------- */
+
+.toast {
+  background: hsla(0, 84%, 60%, 0.08);
+  border: 1px solid hsla(0, 84%, 60%, 0.2);
+  color: var(--color-error);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-sm);
+  text-align: center;
+  margin-top: var(--space-4);
+}
+
+.toastSuccess {
+  background: hsla(152, 68%, 38%, 0.08);
+  border: 1px solid hsla(152, 68%, 38%, 0.2);
+  color: var(--color-success);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-sm);
+  text-align: center;
+  margin-top: var(--space-4);
+}

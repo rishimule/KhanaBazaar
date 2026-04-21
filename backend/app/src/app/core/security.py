@@ -84,3 +84,36 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
             detail="Not enough privileges. Admin role required.",
         )
     return current_user
+
+
+def create_email_verification_token(email: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": email,
+        "type": "seller_otp",
+        "iat": now,
+        "exp": now + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+
+
+def decode_email_verification_token(token: str) -> str:
+    """Validate seller OTP email token. Returns email on success. Raises HTTPException otherwise."""
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail={"error": "email_token_expired"},
+        ) from None
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "invalid_email_token"},
+        ) from None
+    if payload.get("type") != "seller_otp":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "invalid_email_token"},
+        )
+    return str(payload["sub"])
