@@ -110,7 +110,7 @@ async def admin_verify_seller(
         profile.verification_status = VerificationStatus.Approved
         profile.rejection_reason = None
     elif body.action == "reject":
-        if not body.rejection_reason:
+        if not body.rejection_reason or not body.rejection_reason.strip():
             raise HTTPException(status_code=400, detail="rejection_reason required when rejecting")
         profile.verification_status = VerificationStatus.Rejected
         profile.rejection_reason = body.rejection_reason
