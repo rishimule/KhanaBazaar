@@ -27,6 +27,9 @@ export default function Navbar() {
     { href: "/", label: "Home", icon: "🏠" },
   ];
 
+  if (!loading && (!role || role === "customer")) {
+    navLinks.push({ href: "/sell", label: "Sell", icon: "🛍️" });
+  }
   if (role === "customer" || role === "seller" || role === "admin") {
     navLinks.push({ href: "/stores", label: "Stores", icon: "🏪" });
   }
