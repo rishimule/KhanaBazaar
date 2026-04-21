@@ -128,65 +128,39 @@ function SellerSignupPageInner() {
   /* Handlers                                                          */
   /* ---------------------------------------------------------------- */
 
-  const handleRequestOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setToast(null);
+  const sendOtpRequest = async (): Promise<boolean> => {
     try {
-      await post<{ ok: true; expires_in: number }>(
-        "/api/v1/auth/otp/request",
-        { email }
-      );
-      setCurrentStep(2);
+      await post("/api/v1/auth/otp/request", { email });
+      return true;
     } catch (err: unknown) {
-      const apiErr = err as {
-        detail?: { error?: string; retry_after?: number };
-        status?: number;
-      };
+      const apiErr = err as { detail?: { error?: string; retry_after?: number }; status?: number };
       if (apiErr?.detail?.error === "rate_limited") {
         setToast({
-          message: `Please wait ${apiErr.detail?.retry_after ?? "a few"} seconds before requesting a new code.`,
+          message: `Please wait ${apiErr.detail.retry_after ?? 60} seconds before requesting a new code.`,
           type: "error",
         });
       } else {
-        setToast({
-          message: "Failed to send code. Please try again.",
-          type: "error",
-        });
+        setToast({ message: "Failed to send code. Please try again.", type: "error" });
       }
-    } finally {
-      setSubmitting(false);
+      return false;
     }
   };
 
-  const handleResendOtp = async () => {
-    setSubmitting(true);
+  const handleRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
     setToast(null);
-    try {
-      await post<{ ok: true; expires_in: number }>(
-        "/api/v1/auth/otp/request",
-        { email }
-      );
-      setToast({ message: "A new code has been sent.", type: "success" });
-    } catch (err: unknown) {
-      const apiErr = err as {
-        detail?: { error?: string; retry_after?: number };
-        status?: number;
-      };
-      if (apiErr?.detail?.error === "rate_limited") {
-        setToast({
-          message: `Please wait ${apiErr.detail?.retry_after ?? "a few"} seconds before requesting a new code.`,
-          type: "error",
-        });
-      } else {
-        setToast({
-          message: "Failed to resend code. Please try again.",
-          type: "error",
-        });
-      }
-    } finally {
-      setSubmitting(false);
-    }
+    setSubmitting(true);
+    const ok = await sendOtpRequest();
+    setSubmitting(false);
+    if (ok) setCurrentStep(2);
+  };
+
+  const handleResendOtp = async () => {
+    setToast(null);
+    setSubmitting(true);
+    const ok = await sendOtpRequest();
+    setSubmitting(false);
+    if (ok) setToast({ message: "Code resent! Check your inbox.", type: "success" });
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -232,7 +206,8 @@ function SellerSignupPageInner() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setSubmitting(true);
     setToast(null);
     try {
@@ -853,7 +828,7 @@ function SellerSignupPageInner() {
 
         {/* ---- Step 6: Review & Submit ---- */}
         {currentStep === 6 && (
-          <>
+          <form className={styles.form} onSubmit={handleSubmit}>
             {toast && (
               <div
                 className={
@@ -951,15 +926,14 @@ function SellerSignupPageInner() {
                 Back
               </button>
               <button
-                type="button"
+                type="submit"
                 className={styles.submitBtn}
-                onClick={handleSubmit}
                 disabled={submitting}
               >
                 {submitting ? "Submitting…" : "Submit application"}
               </button>
             </div>
-          </>
+          </form>
         )}
       </div>
     </div>
