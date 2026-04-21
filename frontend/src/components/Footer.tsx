@@ -35,7 +35,9 @@ export default function Footer() {
         <div className={styles.footerColumn}>
           <span className={styles.footerColumnTitle}>Company</span>
           <span className={styles.footerLink}>About Us</span>
-          <span className={styles.footerLink}>For Sellers</span>
+          <Link href="/sell" className={styles.footerLink}>
+            For Sellers
+          </Link>
           <span className={styles.footerLink}>Privacy Policy</span>
           <span className={styles.footerLink}>Terms of Service</span>
         </div>

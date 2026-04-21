@@ -48,8 +48,8 @@ export default function Home() {
                 Sign In to Shop
               </Link>
             )}
-            <Link href={dbUser ? "/stores" : "/login"} className="btn btn-outline" id="cta-become-seller">
-              Browse Stores
+            <Link href="/sell" className="btn btn-outline" id="cta-become-seller">
+              Sell on Khana Bazaar
             </Link>
           </div>
 
