@@ -13,8 +13,6 @@ class VerificationStatus(str, enum.Enum):
 
 
 class SellerProfile(BaseSchema, table=True):
-    __tablename__ = "sellerprofile"
-
     user_id: int = Field(foreign_key="user.id", unique=True, nullable=False)
     business_name: str = Field(nullable=False)
     business_category: str = Field(nullable=False)
@@ -27,4 +25,4 @@ class SellerProfile(BaseSchema, table=True):
     verification_status: VerificationStatus = Field(default=VerificationStatus.Pending)
     rejection_reason: Optional[str] = Field(default=None)
 
-    user: "User" = Relationship()
+    user: User = Relationship()
