@@ -101,7 +101,8 @@ export default function SellPage() {
                 general store while keeping control of your products, prices, and stock.
               </p>
               <p className={styles.reviewNote}>
-                Applications are usually reviewed within 1-2 business days.
+                Seller applications are reviewed before stores go live and are usually
+                completed within 1-2 business days.
               </p>
               <div className={styles.heroActions}>
                 <Link href="/seller/signup" className="btn btn-primary">
