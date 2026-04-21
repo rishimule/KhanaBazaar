@@ -18,6 +18,7 @@
   }
 }
 
+/* hsla values mirror --color-primary-500; alpha-variant tokens aren't available in CSS Modules keyframes */
 @keyframes pulse {
   0%,
   100% {
@@ -69,7 +70,7 @@
 }
 
 .cardLogo {
-  font-size: 3rem;
+  font-size: var(--font-5xl);
   margin-bottom: var(--space-3);
 }
 
@@ -125,41 +126,17 @@
 
 /* Completed dot — filled gradient */
 .stepDotCompleted {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-full);
-  border: 2px solid transparent;
   background: var(--gradient-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-sm);
-  font-weight: var(--weight-semibold);
+  border-color: transparent;
   color: var(--color-neutral-0);
-  flex-shrink: 0;
-  transition: all var(--duration-normal) var(--ease-default);
-  position: relative;
-  z-index: 1;
 }
 
 /* Active dot — outlined with pulse animation */
 .stepDotActive {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-full);
-  border: 2px solid var(--color-primary-400);
+  border-color: var(--color-primary-400);
   background: var(--color-primary-50);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-sm);
-  font-weight: var(--weight-semibold);
   color: var(--color-primary-600);
-  flex-shrink: 0;
-  transition: all var(--duration-normal) var(--ease-default);
-  animation: pulse 2s var(--ease-default) infinite;
-  position: relative;
-  z-index: 1;
+  animation: pulse 2s infinite;
 }
 
 .stepConnector {
@@ -171,11 +148,7 @@
 }
 
 .stepConnectorCompleted {
-  flex: 1;
-  height: 2px;
   background: var(--gradient-primary);
-  transition: background var(--duration-normal) var(--ease-default);
-  min-width: var(--space-4);
 }
 
 .stepLabel {
@@ -231,25 +204,12 @@
 
 /* Error state for input */
 .inputError {
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--font-base);
-  border: 1.5px solid var(--color-error);
-  border-radius: var(--radius-lg);
-  background: var(--color-neutral-0);
-  color: var(--color-neutral-800);
-  transition: all var(--duration-fast) var(--ease-default);
-  outline: none;
-  width: 100%;
-  box-sizing: border-box;
+  border-color: var(--color-error);
 }
 
 .inputError:focus {
   border-color: var(--color-error);
   box-shadow: 0 0 0 3px hsla(0, 84%, 60%, 0.12);
-}
-
-.inputError::placeholder {
-  color: var(--color-neutral-400);
 }
 
 .fieldError {
@@ -401,6 +361,12 @@
   text-decoration: underline;
 }
 
+.editLink:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 /* --------------------------------------------------------
    Review Step
    -------------------------------------------------------- */
@@ -514,6 +480,12 @@
 .resendBtn:disabled {
   color: var(--color-neutral-400);
   cursor: not-allowed;
+}
+
+.resendBtn:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* --------------------------------------------------------
