@@ -17,8 +17,8 @@ This flow ensures the user is never blocked from shopping until the exact moment
 
 ### Step 4: The Checkout Trigger & Authentication
 - The customer goes to their Store A cart and clicks "Proceed to Checkout".
-- A bottom sheet or modal pops up: "Enter your phone number to continue".
-- The user enters their number, receives an OTP (via Firebase Auth), and is instantly verified.
+- A bottom sheet or modal pops up: "Enter your email address to continue".
+- The user enters their email, receives a 6-digit OTP (via the Khana Bazaar email service), and is verified. New users are prompted to enter their full name to complete registration.
 
 ### Step 5: Checkout & Order Tracking
 - The user adds their delivery address and confirms the order (simulated payment flow).
@@ -37,10 +37,10 @@ To make guest carts and multi-store carts work seamlessly, your frontend (Next.j
 - **Redis Storage:** Because carts need to be extremely fast and are temporary, FastAPI saves this cart data in Redis. It creates a record linking the `session_id` and the `store_id` to the selected items.
 
 ### Phase 2: The Merge State (Logging In)
-- **Authentication:** The user logs in via Firebase OTP. Firebase returns a secure `user_id`.
-- **The Merge Request:** Next.js immediately sends a "Merge Cart" request to FastAPI.
-  - **Payload:** `{ session_id: "xyz-123", user_id: "user-789" }`
-- **Data Transfer:** FastAPI looks up all Redis carts associated with `session_id: "xyz-123"`. It updates the ownership of those carts, replacing the anonymous `session_id` with the permanent `user_id`. It then saves these permanent carts into your PostgreSQL database.
+- **Authentication:** The user logs in via the self-hosted email-OTP system. The backend returns a secure JWT `access_token` and the `user` object.
+- **The Merge Request:** Next.js immediately sends a "Merge Cart" request to FastAPI (passing the JWT in the Authorization header).
+  - **Payload:** `{ session_id: "xyz-123" }`
+- **Data Transfer:** FastAPI identifies the user from the JWT and looks up all Redis carts associated with `session_id: "xyz-123"`. It updates the ownership of those carts, replacing the anonymous `session_id` with the permanent database `user_id`. It then saves these permanent carts into your PostgreSQL database.
 
 ### Phase 3: Order Conversion
 - **Checkout Initialization:** The user selects an address and hits checkout. FastAPI creates a "Pending Order" in Postgres (payment gateway integration is skipped for now).
