@@ -12,7 +12,7 @@ async def test_trigger_celery_task() -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         req_data = {"word": "KhanaBazaarBackground"}
         response = await ac.post("/api/v1/tasks/test-celery", json=req_data)
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["message"] == "Task submitted to Celery"

@@ -1,4 +1,3 @@
-import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 

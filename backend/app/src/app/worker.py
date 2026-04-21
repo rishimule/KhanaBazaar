@@ -5,13 +5,13 @@ from typing import Any
 from app.core.celery_app import celery_app
 
 
-@celery_app.task(name="test_celery_task", bind=True)  # type: ignore[misc]
+@celery_app.task(name="test_celery_task", bind=True)  # type: ignore[untyped-decorator]
 def test_celery_task(self: Any, word: str) -> str:
     time.sleep(2)
     return f"Celery processed the word: {word}"
 
 
-@celery_app.task(name="send_otp_email_async")  # type: ignore[misc]
+@celery_app.task(name="send_otp_email_async")  # type: ignore[untyped-decorator]
 def send_otp_email_async(to: str, code: str) -> None:
     """Send an OTP code email via the configured provider (sync wrapper for Celery)."""
     from app.core.config import settings

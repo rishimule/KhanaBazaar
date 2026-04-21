@@ -49,7 +49,7 @@ class TooManyAttempts(Exception):
     pass
 
 
-async def request_otp(email: str, redis: aioredis.Redis) -> str:  # type: ignore[type-arg]
+async def request_otp(email: str, redis: aioredis.Redis) -> str:
     """Store a new OTP in Redis. Returns the plaintext code for the caller to send."""
     email = normalize_email(email)
 
@@ -71,28 +71,28 @@ async def request_otp(email: str, redis: aioredis.Redis) -> str:  # type: ignore
     return code
 
 
-async def verify_otp(email: str, code: str, redis: aioredis.Redis) -> bool:  # type: ignore[type-arg]
+async def verify_otp(email: str, code: str, redis: aioredis.Redis) -> bool:
     """Verify OTP code. Returns True on match; does NOT delete the key.
 
     Raises CodeExpired, InvalidCode, or TooManyAttempts on failure.
     Caller must call consume_otp_key() after successful auth.
     """
     email = normalize_email(email)
-    data: dict[str, str] = await redis.hgetall(_key_code(email))
+    data: dict[str, str] = await redis.hgetall(_key_code(email))  # type: ignore[misc]
     if not data:
         raise CodeExpired()
 
     if hmac.compare_digest(data.get("code_hash", ""), hash_code(code)):
         return True
 
-    attempts = await redis.hincrby(_key_code(email), "attempts", 1)
+    attempts = await redis.hincrby(_key_code(email), "attempts", 1)  # type: ignore[misc]
     if int(attempts) >= settings.OTP_MAX_ATTEMPTS:
         await redis.delete(_key_code(email))
         raise TooManyAttempts()
     raise InvalidCode()
 
 
-async def consume_otp_key(email: str, redis: aioredis.Redis) -> None:  # type: ignore[type-arg]
+async def consume_otp_key(email: str, redis: aioredis.Redis) -> None:
     """Delete OTP code key and rate-limit counters after successful auth."""
     email = normalize_email(email)
     await redis.delete(_key_code(email), _key_cooldown(email), _key_hourly(email))

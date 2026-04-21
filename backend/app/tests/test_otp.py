@@ -46,7 +46,7 @@ async def test_request_otp_stores_hashed_code(
     fake_redis: fakeredis.aioredis.FakeRedis,
 ) -> None:
     code = await request_otp("test@example.com", fake_redis)
-    data = await fake_redis.hgetall("otp:code:test@example.com")
+    data = await fake_redis.hgetall("otp:code:test@example.com")  # type: ignore[misc]
     assert data["code_hash"] == hash_code(code)
     assert data["code_hash"] != code
     assert int(data["attempts"]) == 0
@@ -80,7 +80,7 @@ async def test_verify_wrong_code_increments_attempts(
     await request_otp("user@example.com", fake_redis)
     with pytest.raises(InvalidCode):
         await verify_otp("user@example.com", "000000", fake_redis)
-    data = await fake_redis.hgetall("otp:code:user@example.com")
+    data = await fake_redis.hgetall("otp:code:user@example.com")  # type: ignore[misc]
     assert int(data["attempts"]) == 1
 
 
