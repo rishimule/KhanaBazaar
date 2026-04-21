@@ -4,7 +4,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { get, patch, post } from "@/lib/api";
-import { SellerProfile } from "@/types";
+import { SellerProfile, User } from "@/types";
 import styles from "./seller-signup.module.css";
 
 /* ------------------------------------------------------------------ */
@@ -223,18 +223,22 @@ function SellerSignupPageInner() {
           bank_ifsc: bankIfsc,
         }, token);
       } else {
-        await post("/api/v1/auth/seller/register", {
-          email_token: emailToken,
-          full_name: fullName,
-          phone,
-          business_name: businessName,
-          business_category: businessCategory,
-          address,
-          gst_number: gstNumber,
-          fssai_license: fssaiLicense,
-          bank_account_number: bankAccountNumber,
-          bank_ifsc: bankIfsc,
-        });
+        const data = await post<{ access_token: string; user: User }>(
+          "/api/v1/auth/seller/register",
+          {
+            email_token: emailToken,
+            full_name: fullName,
+            phone,
+            business_name: businessName,
+            business_category: businessCategory,
+            address,
+            gst_number: gstNumber,
+            fssai_license: fssaiLicense,
+            bank_account_number: bankAccountNumber,
+            bank_ifsc: bankIfsc,
+          }
+        );
+        localStorage.setItem("kb_token", data.access_token);
       }
       router.push("/seller/signup/pending");
     } catch (err: unknown) {
