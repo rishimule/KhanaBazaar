@@ -20,19 +20,6 @@ export default function SellerPendingPage() {
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState(false);
 
-  const fetchStatus = async (tok: string) => {
-    try {
-      const data = await get<StatusResponse>("/api/v1/sellers/me/status", tok);
-      setStatus(data.verification_status);
-      setRejectionReason(data.rejection_reason);
-      setFetchError(false);
-      return data.verification_status;
-    } catch {
-      setFetchError(true);
-      return null;
-    }
-  };
-
   useEffect(() => {
     if (authLoading) return;
     if (!token) {
@@ -41,26 +28,30 @@ export default function SellerPendingPage() {
     }
 
     let cancelled = false;
+    const intervalRef = { id: undefined as ReturnType<typeof setInterval> | undefined };
 
-    // Initial fetch
-    async function runInitialFetch() {
-      const s = await fetchStatus(token as string);
-      if (!cancelled && s === "approved") router.push("/seller");
-    }
-    runInitialFetch();
-
-    // Poll every 30 seconds
-    const interval = setInterval(async () => {
-      const s = await fetchStatus(token as string);
-      if (!cancelled && s === "approved") {
-        clearInterval(interval);
-        router.push("/seller");
+    const poll = async () => {
+      try {
+        const data = await get<StatusResponse>("/api/v1/sellers/me/status", token);
+        if (cancelled) return;
+        setStatus(data.verification_status);
+        setRejectionReason(data.rejection_reason);
+        setFetchError(false);
+        if (data.verification_status === "approved") {
+          clearInterval(intervalRef.id);
+          router.push("/seller");
+        }
+      } catch {
+        if (!cancelled) setFetchError(true);
       }
-    }, 30000);
+    };
+
+    poll();
+    intervalRef.id = setInterval(poll, 30000);
 
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      clearInterval(intervalRef.id);
     };
   }, [authLoading, token, router]);
 
@@ -98,12 +89,13 @@ export default function SellerPendingPage() {
               <p className={styles.rejectionReason}>{rejectionReason}</p>
             </div>
           )}
-          <a
-            href="/seller/signup?resubmit=true"
+          <button
+            type="button"
             className={styles.ctaBtn}
+            onClick={() => router.push("/seller/signup?resubmit=true")}
           >
             Edit and resubmit
-          </a>
+          </button>
           <div className={styles.logoutRow}>
             <button
               type="button"
@@ -136,7 +128,7 @@ export default function SellerPendingPage() {
         )}
         <p className={styles.body}>Estimated time: 1&ndash;2 business days.</p>
         {fetchError && (
-          <p className={styles.body} style={{ color: "var(--color-error)", marginTop: "var(--space-4)" }}>
+          <p className={`${styles.body} ${styles.fetchError}`}>
             Could not check status. Will retry automatically.
           </p>
         )}
