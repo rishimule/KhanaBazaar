@@ -57,8 +57,10 @@ async def test_seller_register_invalid_token() -> None:
 
 @pytest.mark.asyncio
 async def test_seller_register_wrong_token_type() -> None:
-    import jwt as pyjwt
     from datetime import datetime, timedelta, timezone
+
+    import jwt as pyjwt
+
     from app.core.config import settings
 
     bad_token = pyjwt.encode(
