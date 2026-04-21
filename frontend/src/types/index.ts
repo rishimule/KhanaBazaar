@@ -74,3 +74,21 @@ export interface Cart {
   store_name: string;
   items: CartItem[];
 }
+
+/** Seller application verification states. */
+export type VerificationStatus = "pending" | "approved" | "rejected";
+
+/** Seller profile with business and compliance details. */
+export interface SellerProfile extends BaseSchema {
+  user_id: number;
+  business_name: string;
+  business_category: string;
+  address: string;
+  phone: string;
+  gst_number: string;
+  fssai_license: string;
+  bank_account_number: string;
+  bank_ifsc: string;
+  verification_status: VerificationStatus;
+  rejection_reason?: string;
+}
