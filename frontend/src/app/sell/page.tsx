@@ -114,7 +114,7 @@ export default function SellPage() {
               </div>
             </div>
 
-            <div className={styles.storefrontVisual} aria-label="Stylized storefront illustration">
+            <div className={styles.storefrontVisual} aria-hidden="true">
               <div className={styles.storefrontRoof} />
               <div className={styles.storefrontBody}>
                 <div className={styles.storefrontSign}>
@@ -221,7 +221,7 @@ export default function SellPage() {
               </p>
             </div>
 
-            <div className={styles.dashboardMockup} aria-label="Dashboard preview mockup">
+            <div className={styles.dashboardMockup} aria-hidden="true">
               <div className={styles.dashboardTopbar}>
                 <span className={styles.dashboardStatusPill}>Store status: Pending review</span>
                 <span className={styles.dashboardMetric}>Total products 24</span>
