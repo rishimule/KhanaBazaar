@@ -92,3 +92,30 @@ export interface SellerProfile extends BaseSchema {
   verification_status: VerificationStatus;
   rejection_reason?: string;
 }
+
+/** A seller application as returned by GET /sellers/admin/applications. */
+export interface SellerApplication {
+  seller_id: number;
+  email: string;
+  full_name: string;
+  business_name: string;
+  business_category: string;
+  address: string;
+  phone: string;
+  gst_number: string;
+  fssai_license: string;
+  bank_account_number: string;
+  bank_ifsc: string;
+  verification_status: VerificationStatus;
+  rejection_reason: string | null;
+  submitted_at: string;
+  updated_at: string;
+}
+
+/** Per-status counts for the admin applications dashboard. */
+export interface ApplicationCounts {
+  pending: number;
+  approved: number;
+  rejected: number;
+  total: number;
+}
