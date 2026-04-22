@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import StatsCard from "@/components/StatsCard";
-import { MasterProduct, Category, Store } from "@/types";
+import { MasterProduct, Category, Store, ApplicationCounts } from "@/types";
 import styles from "../seller/page.module.css";
 
 export default function AdminDashboardPage() {
@@ -15,6 +15,9 @@ export default function AdminDashboardPage() {
   const [products, setProducts] = useState<MasterProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [counts, setCounts] = useState<ApplicationCounts>({
+    pending: 0, approved: 0, rejected: 0, total: 0,
+  });
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
@@ -27,11 +30,13 @@ export default function AdminDashboardPage() {
         get<MasterProduct[]>("/api/v1/catalog/products", token),
         get<Category[]>("/api/v1/catalog/categories", token),
         get<Store[]>("/api/v1/stores/", token),
+        get<ApplicationCounts>("/api/v1/sellers/admin/applications/counts", token),
       ])
-        .then(([prods, cats, strs]) => {
+        .then(([prods, cats, strs, c]) => {
           setProducts(prods);
           setCategories(cats);
           setStores(strs);
+          setCounts(c);
         })
         .catch(() => {})
         .finally(() => setFetching(false));
@@ -50,12 +55,12 @@ export default function AdminDashboardPage() {
         <StatsCard icon="🏷️" label="Categories" value={categories.length} variant="accent" />
         <StatsCard icon="🏪" label="Active Stores" value={stores.filter((s) => s.is_active).length} variant="info" />
         <StatsCard
-          icon="👥"
-          label="Total Sellers"
-          value={stores.length}
-          trend="registered on platform"
-          trendDirection="up"
-          variant="warning"
+          icon="⏳"
+          label="Pending Approvals"
+          value={counts.pending}
+          trend={counts.pending > 0 ? "requires review" : "all caught up"}
+          trendDirection={counts.pending > 0 ? "up" : "down"}
+          variant={counts.pending > 0 ? "warning" : "info"}
         />
       </div>
 
@@ -80,6 +85,17 @@ export default function AdminDashboardPage() {
               <span className={styles.actionLabel}>Manage Categories</span>
               <span className={styles.actionDescription}>
                 Organize products into browsable categories
+              </span>
+            </div>
+          </Link>
+          <Link href="/admin/sellers" className={styles.actionCard}>
+            <div className={styles.actionIcon}>✅</div>
+            <div className={styles.actionInfo}>
+              <span className={styles.actionLabel}>
+                Review Seller Applications{counts.pending > 0 ? ` (${counts.pending})` : ""}
+              </span>
+              <span className={styles.actionDescription}>
+                Approve, reject, or revoke seller accounts
               </span>
             </div>
           </Link>
