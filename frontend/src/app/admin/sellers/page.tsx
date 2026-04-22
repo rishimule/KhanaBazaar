@@ -51,7 +51,7 @@ export default function AdminSellersPage() {
   const [rejectReason, setRejectReason] = useState("");
 
   function closeModal() {
-    closeModal();
+    setReviewing(null);
     setRejectMode(false);
     setRejectReason("");
   }
