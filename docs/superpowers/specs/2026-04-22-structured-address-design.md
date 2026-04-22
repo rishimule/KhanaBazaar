@@ -64,8 +64,8 @@ Validation lives on the `AddressBase` Pydantic model via `@field_validator` / `@
 ### API Changes
 
 - `POST /api/v1/auth/seller/signup` — request body replaces flat `address: str` with `address: AddressPayload`. Response returns nested `address`.
-- `GET /api/v1/sellers/me` — returns `address: AddressPayload` nested.
-- `PATCH /api/v1/sellers/me` — accepts partial `address: AddressPayload`. Partial means: if `address` key is present, all required address fields must be included (no per-field patch in v1).
+- `GET /api/v1/sellers/me/profile` — returns `address: AddressPayload` nested.
+- `PATCH /api/v1/sellers/me/profile` — when the `address` key is present in the request body, it is treated as a full replacement: the entire `AddressPayload` must be supplied and passes all field validators. There is no per-field address patch in v1 (other top-level profile fields outside `address` remain individually patchable as before).
 - `POST /api/v1/stores` — body replaces flat `address` with structured.
 - `GET /api/v1/stores`, `GET /api/v1/stores/{id}` — return nested `address`.
 - Admin seller endpoints — return nested `address` in seller detail.
@@ -143,12 +143,13 @@ Pre-production; no live seller/store data to preserve.
 
 Alembic revision `xxxx_split_address_fields.py`:
 
-1. `op.drop_column("sellerprofile", "address")`.
-2. `op.drop_column("store", "address")`.
-3. Add 9 columns to each table with the nullability specified in the field schema. Required columns use `server_default=""` during the add so the migration does not fail on pre-existing rows, then the server default is removed in a second `alter_column` step.
-4. `downgrade()` re-adds `address: str NOT NULL DEFAULT ''` on both tables.
+1. `op.execute("TRUNCATE sellerprofile, store RESTART IDENTITY CASCADE")` — wipes dev rows so the new NOT NULL columns can be added cleanly without placeholder defaults that would violate app-level validators (`address_line1` min length, pincode regex).
+2. `op.drop_column("sellerprofile", "address")`.
+3. `op.drop_column("store", "address")`.
+4. Add the 9 columns to each table using the nullability specified in the field schema. Required columns are added as plain NOT NULL with no `server_default` — the preceding truncate guarantees no pre-existing rows.
+5. `downgrade()` re-adds `address: str NOT NULL DEFAULT ''` on both tables. Downgrade is lossy: structured fields cannot be recombined into the original free-text address.
 
-Migration docstring warns: this is a breaking schema change. Developers with non-empty dev databases should truncate `sellerprofile` and `store` rows before upgrading, or accept the empty-string defaults and re-enter data.
+Migration docstring warns: this is a breaking schema change that truncates seller and store rows. It is only safe to run in pre-production environments.
 
 Migration ordering: runs after `d6342a56eaf6_add_sellerprofile_table`.
 
@@ -169,7 +170,8 @@ Migration ordering: runs after `d6342a56eaf6_add_sellerprofile_table`.
   - Create store with structured address → 201, response contains nested `address`.
   - Create store missing `address_line1` → 422.
   - `GET /stores/{id}` returns nested `address`.
-- `tests/test_sellers.py` — signup with structured address, PATCH replacing address works, PATCH missing required address subfields → 422.
+- `tests/test_seller_register.py` — extend: signup through `POST /api/v1/auth/seller/signup` with a structured address succeeds and response contains nested `address`; signup missing a required address subfield returns 422.
+- `tests/test_seller_status.py` — extend: `GET /api/v1/sellers/me/profile` returns nested `address`; `PATCH /api/v1/sellers/me/profile` with a full `AddressPayload` replaces the address; `PATCH` with a partial address object (missing a required subfield) returns 422.
 - Fixture `make_address() -> dict` in `tests/conftest.py` returning a valid address dict.
 - `tests/test_meta.py` — `GET /api/v1/meta/indian-states` returns 36 entries, contains "Maharashtra".
 
@@ -182,7 +184,7 @@ Repo has no automated frontend test infra (see `CLAUDE.md`). Manual test plan:
 3. State `<select>` populated from API (36 options).
 4. Admin review modal shows each address field on its own row.
 5. Store listing + detail show formatted single-line address.
-6. `PATCH /sellers/me` from profile-edit path updates city only (via full address replace) and persists.
+6. `PATCH /sellers/me/profile` from profile-edit path updates city only (via full address replace) and persists.
 
 ### Quality Gates
 
@@ -196,7 +198,7 @@ Repo has no automated frontend test infra (see `CLAUDE.md`). Manual test plan:
 
 1. Merge migration + backend changes.
 2. Merge frontend changes in the same PR (the API is breaking — no point staging).
-3. Dev: run migration, truncate seller/store rows if needed, re-signup a test seller.
+3. Dev: run migration (truncate is performed by the migration itself), then re-signup a test seller.
 4. No feature flag needed (pre-prod).
 
 ## Open Questions
