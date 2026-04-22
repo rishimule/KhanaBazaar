@@ -153,7 +153,7 @@ New cases:
 6. `test_public_inventory_hidden_for_unapproved_store` — `GET /stores/{id}/inventory` returns 404 when owner is not Approved.
 7. `test_my_stores_unfiltered_for_pending_seller` — `GET /stores/my` still returns the seller's own stores even when their profile is Pending (regression guard for Q1 decision).
 
-Existing tests that assumed store visibility without a `SellerProfile` are updated to create an Approved profile for their seller fixture first. The existing `test_seller_can_create_store` and friends now seed an Approved `SellerProfile` for `mock_seller` in a fixture override so the store appears publicly.
+Existing test `test_get_store_by_id_returns_nested_address` in `tests/test_stores.py` today creates a store for `mock_seller` and fetches it via `GET /stores/{id}`. Under the new gate that GET would 404 because `mock_seller` has no `SellerProfile`. The fix: add a small fixture that seeds an Approved `SellerProfile` for `mock_seller` before any test that exercises public store visibility. `test_seller_can_create_store` (tests `POST`, not public `GET`) and `test_public_can_fetch_products_and_stores` (only asserts status 200, accepts empty list) continue to pass unchanged.
 
 ## Frontend Manual Verification
 
