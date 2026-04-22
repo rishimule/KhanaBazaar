@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
-import { get } from "@/lib/api";
+import { get, patch } from "@/lib/api";
 import { SellerApplication, ApplicationCounts, VerificationStatus } from "@/types";
 import styles from "./page.module.css";
 
@@ -70,6 +70,21 @@ export default function AdminSellersPage() {
       setFetching(false);
     }
   }, [filter, token]);
+
+  async function handleApprove(sellerId: number) {
+    if (!token) return;
+    try {
+      await patch(
+        `/api/v1/sellers/admin/${sellerId}/verify`,
+        { action: "approve" },
+        token,
+      );
+      setReviewing(null);
+      await fetchAll();
+    } catch {
+      alert("Something went wrong, please try again");
+    }
+  }
 
   useEffect(() => {
     if (!authLoading && (!dbUser || dbUser.role !== "admin")) {
@@ -182,9 +197,20 @@ export default function AdminSellersPage() {
           title={`Review — ${reviewing.business_name}`}
           onClose={() => setReviewing(null)}
           footer={
-            <button className="btn btn-outline" onClick={() => setReviewing(null)}>
-              Close
-            </button>
+            <>
+              <button className="btn btn-outline" onClick={() => setReviewing(null)}>
+                Cancel
+              </button>
+              {(reviewing.verification_status === "pending" ||
+                reviewing.verification_status === "rejected") && (
+                <button
+                  className={styles.successBtn}
+                  onClick={() => handleApprove(reviewing.seller_id)}
+                >
+                  Approve
+                </button>
+              )}
+            </>
           }
         >
           {reviewing.verification_status === "rejected" && reviewing.rejection_reason && (
