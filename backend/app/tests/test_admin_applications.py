@@ -27,7 +27,8 @@ mock_seller_rejected = User(
 )
 
 
-def _profile(user_id: int, status: VerificationStatus, reason: str | None = None) -> SellerProfile:
+def _profile(user_id: int | None, status: VerificationStatus, reason: str | None = None) -> SellerProfile:
+    assert user_id is not None
     return SellerProfile(
         user_id=user_id,
         business_name=f"Biz {user_id}",
@@ -126,3 +127,38 @@ async def test_list_requires_admin() -> None:
         assert resp.status_code == 403
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_counts_returns_grouped_totals(override_as_admin: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/sellers/admin/applications/counts")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == {"pending": 1, "approved": 1, "rejected": 1, "total": 3}
+
+
+@pytest.mark.asyncio
+async def test_counts_requires_admin() -> None:
+    app.dependency_overrides[get_current_user] = lambda: mock_seller_pending
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            resp = await ac.get("/api/v1/sellers/admin/applications/counts")
+        assert resp.status_code == 403
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_counts_zero_when_no_profiles(
+    override_as_admin: Any, session: AsyncSession
+) -> None:
+    from sqlmodel import delete
+    await session.exec(delete(SellerProfile))
+    await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/sellers/admin/applications/counts")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == {"pending": 0, "approved": 0, "rejected": 0, "total": 0}
