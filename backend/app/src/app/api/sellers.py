@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import desc, func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -124,3 +125,68 @@ async def admin_verify_seller(
         "verification_status": profile.verification_status,
         "rejection_reason": profile.rejection_reason,
     }
+
+
+ALLOWED_STATUSES = {"pending", "approved", "rejected", "all"}
+
+
+def _application_payload(profile: SellerProfile, user: User) -> dict:  # type: ignore[type-arg]
+    return {
+        "seller_id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "business_name": profile.business_name,
+        "business_category": profile.business_category,
+        "address": profile.address,
+        "phone": profile.phone,
+        "gst_number": profile.gst_number,
+        "fssai_license": profile.fssai_license,
+        "bank_account_number": profile.bank_account_number,
+        "bank_ifsc": profile.bank_ifsc,
+        "verification_status": profile.verification_status,
+        "rejection_reason": profile.rejection_reason,
+        "submitted_at": profile.created_at.isoformat() if profile.created_at else None,
+        "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
+    }
+
+
+@router.get("/admin/applications")
+async def admin_list_applications(
+    status: str = "pending",
+    _current_user: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> List[dict]:  # type: ignore[type-arg]
+    if status not in ALLOWED_STATUSES:
+        raise HTTPException(status_code=400, detail="invalid status")
+
+    stmt = select(SellerProfile, User).join(
+        User, User.id == SellerProfile.user_id  # type: ignore[arg-type]
+    )
+    if status != "all":
+        stmt = stmt.where(SellerProfile.verification_status == VerificationStatus(status))
+    stmt = stmt.order_by(desc(SellerProfile.created_at))  # type: ignore[arg-type]
+
+    result = await session.exec(stmt)
+    rows = result.all()
+    return [_application_payload(profile, user) for profile, user in rows]
+
+
+@router.get("/admin/applications/counts")
+async def admin_application_counts(
+    _current_user: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    stmt = select(
+        SellerProfile.verification_status,
+        func.count(SellerProfile.id),  # type: ignore[arg-type]
+    ).group_by(SellerProfile.verification_status)
+    result = await session.exec(stmt)
+    rows = result.all()
+
+    counts = {"pending": 0, "approved": 0, "rejected": 0}
+    for status_value, count in rows:
+        key = status_value.value if hasattr(status_value, "value") else str(status_value)
+        if key in counts:
+            counts[key] = count
+    counts["total"] = counts["pending"] + counts["approved"] + counts["rejected"]
+    return counts
