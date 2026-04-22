@@ -47,6 +47,14 @@ export default function AdminSellersPage() {
   });
   const [fetching, setFetching] = useState(true);
   const [reviewing, setReviewing] = useState<SellerApplication | null>(null);
+  const [rejectMode, setRejectMode] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+
+  function closeModal() {
+    closeModal();
+    setRejectMode(false);
+    setRejectReason("");
+  }
 
   const fetchAll = useCallback(async () => {
     if (!token) return;
@@ -79,7 +87,22 @@ export default function AdminSellersPage() {
         { action: "approve" },
         token,
       );
-      setReviewing(null);
+      closeModal();
+      await fetchAll();
+    } catch {
+      alert("Something went wrong, please try again");
+    }
+  }
+
+  async function handleReject(sellerId: number) {
+    if (!token || rejectReason.trim().length < 10) return;
+    try {
+      await patch(
+        `/api/v1/sellers/admin/${sellerId}/verify`,
+        { action: "reject", rejection_reason: rejectReason.trim() },
+        token,
+      );
+      closeModal();
       await fetchAll();
     } catch {
       alert("Something went wrong, please try again");
@@ -195,24 +218,80 @@ export default function AdminSellersPage() {
       {reviewing && (
         <Modal
           title={`Review — ${reviewing.business_name}`}
-          onClose={() => setReviewing(null)}
+          onClose={() => closeModal()}
           footer={
-            <>
-              <button className="btn btn-outline" onClick={() => setReviewing(null)}>
-                Cancel
-              </button>
-              {(reviewing.verification_status === "pending" ||
-                reviewing.verification_status === "rejected") && (
-                <button
-                  className={styles.successBtn}
-                  onClick={() => handleApprove(reviewing.seller_id)}
-                >
-                  Approve
+            !rejectMode ? (
+              <>
+                <button className="btn btn-outline" onClick={() => closeModal()}>
+                  Cancel
                 </button>
-              )}
-            </>
+                {(reviewing.verification_status === "pending" ||
+                  reviewing.verification_status === "rejected") && (
+                  <button
+                    className={styles.successBtn}
+                    onClick={() => handleApprove(reviewing.seller_id)}
+                  >
+                    Approve
+                  </button>
+                )}
+                {(reviewing.verification_status === "pending" ||
+                  reviewing.verification_status === "approved") && (
+                  <button
+                    className={styles.dangerBtn}
+                    onClick={() => setRejectMode(true)}
+                  >
+                    {reviewing.verification_status === "approved" ? "Revoke" : "Reject"}
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  className="btn btn-outline"
+                  onClick={() => {
+                    setRejectMode(false);
+                    setRejectReason("");
+                  }}
+                >
+                  Back
+                </button>
+                <button
+                  className={styles.dangerBtn}
+                  disabled={rejectReason.trim().length < 10}
+                  onClick={() => handleReject(reviewing.seller_id)}
+                >
+                  Confirm Reject
+                </button>
+              </>
+            )
           }
         >
+          {rejectMode ? (
+            <>
+              <div className={styles.detailsGroupTitle}>Rejection Reason</div>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                maxLength={500}
+                rows={4}
+                placeholder="Explain what the seller needs to fix…"
+                style={{
+                  width: "100%",
+                  padding: "0.6rem",
+                  border: "1px solid var(--color-neutral-300)",
+                  borderRadius: "6px",
+                  fontFamily: "inherit",
+                  fontSize: "0.95rem",
+                  resize: "vertical",
+                }}
+              />
+              <div className={styles.rejectionHint}>
+                Common reasons: Invalid GST, Invalid FSSAI, Address mismatch, Bank details unclear.
+                Minimum 10 characters.
+              </div>
+            </>
+          ) : (
+            <>
           {reviewing.verification_status === "rejected" && reviewing.rejection_reason && (
             <div className={styles.rejectionCallout}>
               <strong>Previous rejection:</strong> {reviewing.rejection_reason}
@@ -278,6 +357,8 @@ export default function AdminSellersPage() {
               </div>
             </div>
           </div>
+            </>
+          )}
         </Modal>
       )}
     </>
