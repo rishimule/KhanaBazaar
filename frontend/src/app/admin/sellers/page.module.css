@@ -48,11 +48,6 @@
   color: var(--color-neutral-700);
 }
 
-.total {
-  color: var(--color-neutral-500);
-  font-size: 0.9rem;
-}
-
 .categoryBadge {
   display: inline-block;
   background: var(--color-neutral-100);

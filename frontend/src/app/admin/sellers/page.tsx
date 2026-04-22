@@ -205,7 +205,6 @@ export default function AdminSellersPage() {
             All <span className={badgeClass("all")}>{counts.total}</span>
           </button>
         </div>
-        <span className={styles.total}>total: {counts.total}</span>
       </div>
 
       <DataTable
