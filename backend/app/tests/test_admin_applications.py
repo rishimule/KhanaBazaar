@@ -162,3 +162,17 @@ async def test_counts_zero_when_no_profiles(
     assert resp.status_code == 200
     data = resp.json()
     assert data == {"pending": 0, "approved": 0, "rejected": 0, "total": 0}
+
+
+@pytest.mark.asyncio
+async def test_revoke_approved_seller(override_as_admin: Any) -> None:
+    """Revoking an approved seller = calling reject with a reason."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.patch(
+            f"/api/v1/sellers/admin/{mock_seller_approved.id}/verify",
+            json={"action": "reject", "rejection_reason": "Fraud detected post-approval"},
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["verification_status"] == "rejected"
+    assert data["rejection_reason"] == "Fraud detected post-approval"
