@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
+import { formatAddress } from "@/lib/format-address";
 import { Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -166,7 +167,7 @@ export default function Home() {
                     <span className={styles.storeCardStatus}>Open now</span>
                   </div>
                   <h3>{store.name}</h3>
-                  <p>{store.address}</p>
+                  <p>{formatAddress(store.address)}</p>
                   <span className={styles.storeCardAction}>Browse store</span>
                 </Link>
               ))}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
+import { formatAddress } from "@/lib/format-address";
 import { Store, StoreInventory, MasterProduct, Category } from "@/types";
 import ProductCard from "@/components/ProductCard";
 import styles from "./page.module.css";
@@ -115,7 +116,7 @@ export default function StoreDetailPage({ params }: Props) {
             <div className={styles.storeIcon}>🏪</div>
             <div className={styles.storeInfo}>
               <h1 className={styles.storeName}>{store.name}</h1>
-              <p className={styles.storeAddress}>{store.address}</p>
+              <p className={styles.storeAddress}>{formatAddress(store.address)}</p>
             </div>
           </div>
           <div className={styles.statusBadge}>● Open Now</div>

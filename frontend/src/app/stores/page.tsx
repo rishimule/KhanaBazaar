@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
+import { formatAddress } from "@/lib/format-address";
 import { Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -63,7 +64,7 @@ export default function StoresPage() {
             >
               <div className={styles.cardIcon}>🏪</div>
               <h2 className={styles.cardName}>{store.name}</h2>
-              <p className={styles.cardAddress}>{store.address}</p>
+              <p className={styles.cardAddress}>{formatAddress(store.address)}</p>
               <div className={styles.cardMeta}>
                 <span className={styles.cardStatus}>● Open</span>
               </div>
