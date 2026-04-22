@@ -55,10 +55,59 @@ PRODUCTS = [
 ]
 
 STORES = [
-    {"name": "Sharma General Store", "address": "12, MG Road, Sector 14, Gurugram, Haryana 122001", "seller_idx": 1},
-    {"name": "Krishna Supermart", "address": "45, Nehru Nagar, Andheri West, Mumbai, Maharashtra 400058", "seller_idx": 2},
-    {"name": "Balaji Fresh Market", "address": "78, Rajaji Street, T. Nagar, Chennai, Tamil Nadu 600017", "seller_idx": 3},
+    {
+        "name": "Sharma General Store",
+        "seller_idx": 1,
+        "address_line1": "12, MG Road",
+        "address_line2": "Sector 14",
+        "landmark": "Near HUDA City Centre",
+        "city": "Gurugram",
+        "state": "Haryana",
+        "pincode": "122001",
+        "country": "India",
+        "latitude": 28.4595,
+        "longitude": 77.0266,
+    },
+    {
+        "name": "Krishna Supermart",
+        "seller_idx": 2,
+        "address_line1": "45, Nehru Nagar",
+        "address_line2": "Andheri West",
+        "landmark": "Opposite Lokhandwala Complex",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400058",
+        "country": "India",
+        "latitude": 19.1364,
+        "longitude": 72.8296,
+    },
+    {
+        "name": "Balaji Fresh Market",
+        "seller_idx": 3,
+        "address_line1": "78, Rajaji Street",
+        "address_line2": "T. Nagar",
+        "landmark": "Next to Pothys",
+        "city": "Chennai",
+        "state": "Tamil Nadu",
+        "pincode": "600017",
+        "country": "India",
+        "latitude": 13.0418,
+        "longitude": 80.2341,
+    },
 ]
+
+
+_ADDRESS_KEYS = (
+    "address_line1",
+    "address_line2",
+    "landmark",
+    "city",
+    "state",
+    "pincode",
+    "country",
+    "latitude",
+    "longitude",
+)
 
 # Inventory: (store_idx, product_idx, price, stock)
 INVENTORIES = [
@@ -153,7 +202,12 @@ async def seed() -> None:  # noqa: C901
                 assert store.id is not None
                 store_ids.append(store.id)
             else:
-                store = Store(name=s["name"], address=s["address"], seller_id=seller.id, is_active=True)
+                store = Store(
+                    name=s["name"],
+                    seller_id=seller.id,
+                    is_active=True,
+                    **{k: s[k] for k in _ADDRESS_KEYS},
+                )
                 session.add(store)
                 await session.flush()
                 assert store.id is not None

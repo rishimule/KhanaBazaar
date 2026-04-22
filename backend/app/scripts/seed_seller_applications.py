@@ -35,7 +35,15 @@ APPLICATIONS = [
         "full_name": "Arjun Menon",
         "business_name": "Arjun Fresh Kirana",
         "business_category": "Groceries",
-        "address": "221B, Carter Road, Bandra West, Mumbai, MH 400050",
+        "address_line1": "221B, Carter Road",
+        "address_line2": "Bandra West",
+        "landmark": "Near Bandstand Promenade",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400050",
+        "country": "India",
+        "latitude": None,
+        "longitude": None,
         "phone": "+919812345670",
         "gst_number": "27ABCDE1234F1Z5",
         "fssai_license": "11223344556677",
@@ -49,7 +57,15 @@ APPLICATIONS = [
         "full_name": "Sana Kapoor",
         "business_name": "Sana Organic Mart",
         "business_category": "Organic Produce",
-        "address": "14, Brigade Road, Ashok Nagar, Bengaluru, KA 560001",
+        "address_line1": "14, Brigade Road",
+        "address_line2": "Ashok Nagar",
+        "landmark": "Opposite Cauvery Emporium",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "pincode": "560001",
+        "country": "India",
+        "latitude": None,
+        "longitude": None,
         "phone": "+919812345671",
         "gst_number": "29FGHIJ5678K2Z6",
         "fssai_license": "22334455667788",
@@ -63,7 +79,15 @@ APPLICATIONS = [
         "full_name": "Vikram Singh",
         "business_name": "Vikram Provision Store",
         "business_category": "Groceries",
-        "address": "7, Sector 18, Noida, UP 201301",
+        "address_line1": "7, Sector 18",
+        "address_line2": None,
+        "landmark": "Near Atta Market",
+        "city": "Noida",
+        "state": "Uttar Pradesh",
+        "pincode": "201301",
+        "country": "India",
+        "latitude": None,
+        "longitude": None,
         "phone": "+919812345672",
         "gst_number": "09KLMNO9012P3Z7",
         "fssai_license": "33445566778899",
@@ -73,6 +97,19 @@ APPLICATIONS = [
         "rejection_reason": "GST number does not match business address on record. Please update and resubmit.",
     },
 ]
+
+
+_ADDRESS_KEYS = (
+    "address_line1",
+    "address_line2",
+    "landmark",
+    "city",
+    "state",
+    "pincode",
+    "country",
+    "latitude",
+    "longitude",
+)
 
 
 async def _upsert_user(session: AsyncSession, email: str, full_name: str, role: UserRole) -> User:
@@ -104,7 +141,6 @@ async def _upsert_profile(session: AsyncSession, user: User, data: dict) -> None
         user_id=user.id,
         business_name=data["business_name"],
         business_category=data["business_category"],
-        address=data["address"],
         phone=data["phone"],
         gst_number=data["gst_number"],
         fssai_license=data["fssai_license"],
@@ -112,6 +148,7 @@ async def _upsert_profile(session: AsyncSession, user: User, data: dict) -> None
         bank_ifsc=data["bank_ifsc"],
         verification_status=data["status"],
         rejection_reason=data["rejection_reason"],
+        **{k: data[k] for k in _ADDRESS_KEYS},
     )
     session.add(profile)
     print(f"  profile created: {user.email} -> {data['status'].value}")
