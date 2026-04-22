@@ -4,8 +4,8 @@ from pydantic import ValidationError
 from app.schemas.address import AddressPayload
 
 
-def _valid_dict(**overrides: object) -> dict:
-    base = {
+def _valid_dict(**overrides: object) -> dict[str, object]:
+    base: dict[str, object] = {
         "address_line1": "12 MG Road",
         "address_line2": "Sector 14",
         "landmark": "Near Cyber Hub",

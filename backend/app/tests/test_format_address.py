@@ -3,7 +3,7 @@ from app.utils.address import format_address
 
 
 def _payload(**overrides: object) -> AddressPayload:
-    base = {
+    base: dict[str, object] = {
         "address_line1": "12 MG Road",
         "address_line2": "Sector 14",
         "landmark": "Near Cyber Hub",

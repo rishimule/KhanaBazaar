@@ -23,7 +23,6 @@ from app.core.config import settings
 from app.models.base import User, UserRole
 from app.models.seller import SellerProfile, VerificationStatus
 
-
 ADMIN = {
     "email": "admin@khanabazaar.dev",
     "full_name": "Platform Admin",
