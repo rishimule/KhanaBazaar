@@ -8,6 +8,7 @@ from app import app
 from app.core.security import get_current_seller, get_current_user
 from app.models.base import User, UserRole
 from app.models.seller import SellerProfile, VerificationStatus
+from tests._helpers import make_address
 
 mock_seller = User(
     id=10, email="sellerstatus@kb.com", full_name="Status Seller",
@@ -27,13 +28,13 @@ async def seed_seller_with_profile(session: AsyncSession) -> AsyncGenerator[None
         user_id=mock_seller.id,
         business_name="Status Grocery",
         business_category="grocery",
-        address="123 Test St, Bangalore",
         phone="9876543210",
         gst_number="29ABCDE1234F1Z5",
         fssai_license="10020042000015",
         bank_account_number="123456789012",
         bank_ifsc="SBIN0001234",
         verification_status=VerificationStatus.Pending,
+        **make_address(),
     ))
     await session.commit()
     yield
@@ -74,7 +75,7 @@ async def test_update_profile_resets_status_to_pending(override_as_seller: Any) 
         resp = await ac.patch("/api/v1/sellers/me/profile", json={
             "business_name": "Updated Grocery",
             "business_category": "pharmacy",
-            "address": "456 New St",
+            "address": make_address(city="Mumbai", state="Maharashtra", pincode="400001"),
             "phone": "9876543211",
             "gst_number": "29ABCDE1234F1Z5",
             "fssai_license": "10020042000015",
