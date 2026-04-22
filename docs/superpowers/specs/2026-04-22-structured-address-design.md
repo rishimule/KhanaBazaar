@@ -63,7 +63,7 @@ Validation lives on the `AddressBase` Pydantic model via `@field_validator` / `@
 
 ### API Changes
 
-- `POST /api/v1/auth/seller/signup` — request body replaces flat `address: str` with `address: AddressPayload`. Response returns nested `address`.
+- `POST /api/v1/auth/seller/register` — request body replaces flat `address: str` with `address: AddressPayload`. Response unchanged.
 - `GET /api/v1/sellers/me/profile` — returns `address: AddressPayload` nested.
 - `PATCH /api/v1/sellers/me/profile` — when the `address` key is present in the request body, it is treated as a full replacement: the entire `AddressPayload` must be supplied and passes all field validators. There is no per-field address patch in v1 (other top-level profile fields outside `address` remain individually patchable as before).
 - `POST /api/v1/stores` — body replaces flat `address` with structured.
@@ -170,7 +170,7 @@ Migration ordering: runs after `d6342a56eaf6_add_sellerprofile_table`.
   - Create store with structured address → 201, response contains nested `address`.
   - Create store missing `address_line1` → 422.
   - `GET /stores/{id}` returns nested `address`.
-- `tests/test_seller_register.py` — extend: signup through `POST /api/v1/auth/seller/signup` with a structured address succeeds and response contains nested `address`; signup missing a required address subfield returns 422.
+- `tests/test_seller_register.py` — extend: registration through `POST /api/v1/auth/seller/register` with a structured address succeeds and the resulting `GET /api/v1/sellers/me/profile` returns the nested `address`; registration missing a required address subfield returns 422.
 - `tests/test_seller_status.py` — extend: `GET /api/v1/sellers/me/profile` returns nested `address`; `PATCH /api/v1/sellers/me/profile` with a full `AddressPayload` replaces the address; `PATCH` with a partial address object (missing a required subfield) returns 422.
 - Fixture `make_address() -> dict` in `tests/conftest.py` returning a valid address dict.
 - `tests/test_meta.py` — `GET /api/v1/meta/indian-states` returns 36 entries, contains "Maharashtra".
