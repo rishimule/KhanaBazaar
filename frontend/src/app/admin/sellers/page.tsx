@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import DataTable, { Column } from "@/components/DataTable";
+import Modal from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { SellerApplication, ApplicationCounts, VerificationStatus } from "@/types";
@@ -45,6 +46,7 @@ export default function AdminSellersPage() {
     pending: 0, approved: 0, rejected: 0, total: 0,
   });
   const [fetching, setFetching] = useState(true);
+  const [reviewing, setReviewing] = useState<SellerApplication | null>(null);
 
   const fetchAll = useCallback(async () => {
     if (!token) return;
@@ -118,7 +120,7 @@ export default function AdminSellersPage() {
       render: (row) => (
         <button
           className={styles.reviewBtn}
-          onClick={() => console.log("TODO: open review modal for", row.seller_id)}
+          onClick={() => setReviewing(row)}
         >
           Review
         </button>
@@ -174,6 +176,84 @@ export default function AdminSellersPage() {
         keyField="seller_id"
         emptyMessage={emptyMsgMap[filter]}
       />
+
+      {reviewing && (
+        <Modal
+          title={`Review — ${reviewing.business_name}`}
+          onClose={() => setReviewing(null)}
+          footer={
+            <button className="btn btn-outline" onClick={() => setReviewing(null)}>
+              Close
+            </button>
+          }
+        >
+          {reviewing.verification_status === "rejected" && reviewing.rejection_reason && (
+            <div className={styles.rejectionCallout}>
+              <strong>Previous rejection:</strong> {reviewing.rejection_reason}
+            </div>
+          )}
+          <div className={styles.detailsGrid}>
+            <div className={styles.detailsGroup}>
+              <div className={styles.detailsGroupTitle}>Business</div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>Name</span>
+                <span className={styles.detailsValue}>{reviewing.business_name}</span>
+              </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>Category</span>
+                <span className={styles.detailsValue}>{reviewing.business_category}</span>
+              </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>Address</span>
+                <span className={styles.detailsValue}>{reviewing.address}</span>
+              </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>Phone</span>
+                <span className={styles.detailsValue}>{reviewing.phone}</span>
+              </div>
+            </div>
+            <div className={styles.detailsGroup}>
+              <div className={styles.detailsGroupTitle}>Compliance</div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>GST Number</span>
+                <span className={styles.detailsValue}>{reviewing.gst_number}</span>
+              </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>FSSAI License</span>
+                <span className={styles.detailsValue}>{reviewing.fssai_license}</span>
+              </div>
+            </div>
+            <div className={styles.detailsGroup}>
+              <div className={styles.detailsGroupTitle}>Owner</div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>Full Name</span>
+                <span className={styles.detailsValue}>{reviewing.full_name}</span>
+              </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>Email</span>
+                <span className={styles.detailsValue}>{reviewing.email}</span>
+              </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>Submitted</span>
+                <span className={styles.detailsValue}>
+                  {new Date(reviewing.submitted_at).toLocaleString()}
+                </span>
+              </div>
+            </div>
+            <div className={styles.detailsGroup}>
+              <div className={styles.detailsGroupTitle}>Banking</div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>Account Number</span>
+                <span className={styles.detailsValue}>{reviewing.bank_account_number}</span>
+              </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>IFSC</span>
+                <span className={styles.detailsValue}>{reviewing.bank_ifsc}</span>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }
