@@ -309,8 +309,32 @@ export default function AdminSellersPage() {
                 <span className={styles.detailsValue}>{reviewing.business_category}</span>
               </div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>Address</span>
-                <span className={styles.detailsValue}>{reviewing.address}</span>
+                <span className={styles.detailsLabel}>Address line 1</span>
+                <span className={styles.detailsValue}>{reviewing.address.address_line1}</span>
+              </div>
+              {reviewing.address.address_line2 && (
+                <div className={styles.detailsRow}>
+                  <span className={styles.detailsLabel}>Address line 2</span>
+                  <span className={styles.detailsValue}>{reviewing.address.address_line2}</span>
+                </div>
+              )}
+              {reviewing.address.landmark && (
+                <div className={styles.detailsRow}>
+                  <span className={styles.detailsLabel}>Landmark</span>
+                  <span className={styles.detailsValue}>{reviewing.address.landmark}</span>
+                </div>
+              )}
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>City</span>
+                <span className={styles.detailsValue}>{reviewing.address.city}</span>
+              </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>State</span>
+                <span className={styles.detailsValue}>{reviewing.address.state}</span>
+              </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>Pincode</span>
+                <span className={styles.detailsValue}>{reviewing.address.pincode}</span>
               </div>
               <div className={styles.detailsRow}>
                 <span className={styles.detailsLabel}>Phone</span>
