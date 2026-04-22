@@ -2,19 +2,20 @@ from typing import List
 
 from sqlmodel import Field, Relationship, UniqueConstraint
 
+from app.models.address import AddressBase
 from app.models.base import BaseSchema, User
 from app.models.catalog import MasterProduct
 
 
-class Store(BaseSchema, table=True):
+class Store(BaseSchema, AddressBase, table=True):
     name: str = Field(index=True, nullable=False)
-    address: str = Field(nullable=False)
     is_active: bool = Field(default=True)
     seller_id: int = Field(foreign_key="user.id", nullable=False)
 
     # Relationships
     seller: User = Relationship()
     inventories: List["StoreInventory"] = Relationship(back_populates="store")
+
 
 class StoreInventory(BaseSchema, table=True):
     __table_args__ = (
