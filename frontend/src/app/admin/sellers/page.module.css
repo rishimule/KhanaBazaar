@@ -14,7 +14,7 @@
 }
 
 .tab {
-  background: var(--color-surface);
+  background: var(--color-neutral-0);
   border: 1px solid var(--color-neutral-200);
   color: var(--color-neutral-600);
   padding: 0.5rem 1rem;
@@ -30,9 +30,9 @@
 }
 
 .tabActive {
-  background: var(--color-primary);
+  background: var(--color-primary-500);
   color: white;
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-500);
 }
 
 .tabBadge {
@@ -76,7 +76,7 @@
 .ownerEmail { color: var(--color-neutral-500); font-size: 0.8rem; }
 
 .reviewBtn {
-  background: var(--color-primary);
+  background: var(--color-primary-500);
   color: white;
   border: none;
   padding: 0.4rem 0.9rem;
