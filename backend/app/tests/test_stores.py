@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import app
 from app.core.security import get_current_admin, get_current_seller, get_current_user
 from app.models.base import User, UserRole
+from tests._helpers import make_address
 
 # Mock Users for dependency overrides
 mock_admin = User(id=1, email="admin@kb.com", full_name="Admin", role=UserRole.Admin, is_active=True)
@@ -62,13 +63,32 @@ async def test_admin_can_create_category_and_product(override_as_admin: Any) -> 
 @pytest.mark.asyncio
 async def test_seller_can_create_store(override_as_seller: Any) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        # Create Store
-        store_data = {"name": "Rishi's Supermarket", "address": "123 Main St"}
+        store_data = {"name": "Rishi's Supermarket", "address": make_address()}
         store_resp = await ac.post("/api/v1/stores/", json=store_data)
         assert store_resp.status_code == 200
         store = store_resp.json()
         assert store["name"] == "Rishi's Supermarket"
         assert store["seller_id"] == mock_seller.id
+        assert store["address"] == store_data["address"]
+
+
+@pytest.mark.asyncio
+async def test_create_store_rejects_missing_address_line1(override_as_seller: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        store_data = {"name": "Mini Mart", "address": make_address(address_line1="")}
+        resp = await ac.post("/api/v1/stores/", json=store_data)
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_store_by_id_returns_nested_address(override_as_seller: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        store_data = {"name": "Mini Mart", "address": make_address()}
+        create_resp = await ac.post("/api/v1/stores/", json=store_data)
+        store_id = create_resp.json()["id"]
+        get_resp = await ac.get(f"/api/v1/stores/{store_id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["address"] == store_data["address"]
 
 @pytest.mark.asyncio
 async def test_public_can_fetch_products_and_stores() -> None:

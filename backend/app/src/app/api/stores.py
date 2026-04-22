@@ -9,6 +9,8 @@ from app.db.session import get_db_session
 from app.models.base import User, UserRole
 from app.models.catalog import MasterProduct
 from app.models.store import Store, StoreInventory
+from app.schemas.address import address_from_payload, address_to_payload
+from app.schemas.stores import StoreCreate, StoreRead
 
 router = APIRouter()
 
@@ -16,47 +18,67 @@ router = APIRouter()
 # Stores API
 # -------------------------------------------------------------
 
-@router.get("/", response_model=List[Store])
-async def list_stores(
-    skip: int = 0, limit: int = 100,
-    session: AsyncSession = Depends(get_db_session)
-) -> List[Store]:
-    # Returns all active stores
-    result = await session.exec(select(Store).where(Store.is_active).offset(skip).limit(limit))
-    return list(result.all())
 
-@router.get("/my", response_model=List[Store])
+def _store_read(store: Store) -> StoreRead:
+    assert store.id is not None
+    return StoreRead(
+        id=store.id,
+        name=store.name,
+        address=address_to_payload(store),
+        is_active=store.is_active,
+        seller_id=store.seller_id,
+        created_at=store.created_at.isoformat(),
+        updated_at=store.updated_at.isoformat(),
+    )
+
+
+@router.get("/", response_model=List[StoreRead])
+async def list_stores(
+    skip: int = 0,
+    limit: int = 100,
+    session: AsyncSession = Depends(get_db_session),
+) -> List[StoreRead]:
+    result = await session.exec(
+        select(Store).where(Store.is_active).offset(skip).limit(limit)
+    )
+    return [_store_read(store) for store in result.all()]
+
+
+@router.get("/my", response_model=List[StoreRead])
 async def list_my_stores(
     session: AsyncSession = Depends(get_db_session),
     seller: User = Depends(get_current_seller),
-) -> List[Store]:
-    """Return stores belonging to the authenticated seller."""
-    result = await session.exec(
-        select(Store).where(Store.seller_id == seller.id)
-    )
-    return list(result.all())
+) -> List[StoreRead]:
+    result = await session.exec(select(Store).where(Store.seller_id == seller.id))
+    return [_store_read(store) for store in result.all()]
 
-@router.post("/", response_model=Store)
+
+@router.post("/", response_model=StoreRead)
 async def create_store(
-    store: Store,
+    payload: StoreCreate,
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller)
-) -> Store:
-    store.id = None
+    seller: User = Depends(get_current_seller),
+) -> StoreRead:
     assert seller.id is not None, "Seller ID cannot be None"
-    store.seller_id = seller.id  # Force the store to belong to the authenticated seller
-
+    store = Store(
+        name=payload.name,
+        seller_id=seller.id,
+        **address_from_payload(payload.address),
+    )
     session.add(store)
     await session.commit()
     await session.refresh(store)
-    return store
+    return _store_read(store)
 
-@router.get("/{store_id}", response_model=Store)
-async def get_store(store_id: int, session: AsyncSession = Depends(get_db_session)) -> Store:
+
+@router.get("/{store_id}", response_model=StoreRead)
+async def get_store(
+    store_id: int, session: AsyncSession = Depends(get_db_session)
+) -> StoreRead:
     store = await session.get(Store, store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
-    return store
+    return _store_read(store)
 
 
 # -------------------------------------------------------------
