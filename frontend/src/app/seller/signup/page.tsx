@@ -4,7 +4,9 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { get, patch, post } from "@/lib/api";
-import { SellerProfile, User } from "@/types";
+import { formatAddress } from "@/lib/format-address";
+import { AddressFields, emptyAddress } from "@/components/AddressFields";
+import { Address, SellerProfile, User } from "@/types";
 import styles from "./seller-signup.module.css";
 
 /* ------------------------------------------------------------------ */
@@ -74,7 +76,7 @@ function SellerSignupPageInner() {
   const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [businessCategory, setBusinessCategory] = useState("");
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState<Address>(emptyAddress());
   const [gstNumber, setGstNumber] = useState("");
   const [fssaiLicense, setFssaiLicense] = useState("");
   const [bankAccountNumber, setBankAccountNumber] = useState("");
@@ -589,34 +591,17 @@ function SellerSignupPageInner() {
               <div
                 className={`${styles.inputGroup} ${styles.formGridFull}`}
               >
-                <label className={styles.label} htmlFor="address">
-                  Business address
-                </label>
-                <input
-                  id="address"
-                  type="text"
-                  className={
-                    fieldErrors.address
-                      ? `${styles.input} ${styles.inputError}`
-                      : styles.input
-                  }
+                <label className={styles.label}>Business address</label>
+                <AddressFields
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  onBlur={() => {
-                    if (!address.trim())
-                      setFieldErrors((p) => ({
-                        ...p,
-                        address: "Address is required",
-                      }));
-                    else clearError("address");
+                  onChange={setAddress}
+                  errors={{
+                    address_line1: fieldErrors.address_line1,
+                    city: fieldErrors.city,
+                    state: fieldErrors.state,
+                    pincode: fieldErrors.pincode,
                   }}
-                  placeholder="123, MG Road, Mumbai, Maharashtra 400001"
                 />
-                {fieldErrors.address && (
-                  <span className={styles.fieldError}>
-                    {fieldErrors.address}
-                  </span>
-                )}
               </div>
             </div>
             <div className={styles.btnRow}>
@@ -636,7 +621,12 @@ function SellerSignupPageInner() {
                     errs.businessName = "Business name is required";
                   if (!businessCategory)
                     errs.businessCategory = "Select a category";
-                  if (!address.trim()) errs.address = "Address is required";
+                  if (!address.address_line1.trim())
+                    errs.address_line1 = "Address line 1 is required";
+                  if (!address.city.trim()) errs.city = "City is required";
+                  if (!address.state) errs.state = "State is required";
+                  if (!/^[1-9]\d{5}$/.test(address.pincode))
+                    errs.pincode = "Enter a valid 6-digit pincode";
                   if (Object.keys(errs).length) {
                     setFieldErrors((p) => ({ ...p, ...errs }));
                     return;
@@ -887,7 +877,7 @@ function SellerSignupPageInner() {
               </div>
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}>Address</span>
-                <span className={styles.reviewValue}>{address}</span>
+                <span className={styles.reviewValue}>{formatAddress(address)}</span>
               </div>
             </div>
 

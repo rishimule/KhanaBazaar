@@ -8,6 +8,7 @@ from app import app
 from app.core.security import get_current_admin, get_current_user
 from app.models.base import User, UserRole
 from app.models.seller import SellerProfile, VerificationStatus
+from tests._helpers import make_address
 
 mock_admin = User(
     id=20, email="admin@kb.com", full_name="Admin",
@@ -28,13 +29,13 @@ async def seed_users_and_profile(session: AsyncSession) -> AsyncGenerator[None, 
         user_id=mock_seller.id,
         business_name="Verify Grocery",
         business_category="grocery",
-        address="123 Test St",
         phone="9876543210",
         gst_number="29ABCDE1234F1Z5",
         fssai_license="10020042000015",
         bank_account_number="123456789012",
         bank_ifsc="SBIN0001234",
         verification_status=VerificationStatus.Pending,
+        **make_address(),
     ))
     await session.commit()
     yield

@@ -26,6 +26,8 @@ from app.core.security import (
 from app.db.session import get_db_session
 from app.models.base import User, UserRole
 from app.models.seller import SellerProfile
+from app.schemas.address import address_from_payload
+from app.schemas.sellers import SellerRegisterBody
 
 router = APIRouter()
 
@@ -43,19 +45,6 @@ class OTPVerifyBody(BaseModel):
 class SellerOtpVerifyBody(BaseModel):
     email: EmailStr
     code: str
-
-
-class SellerRegisterBody(BaseModel):
-    email_token: str
-    full_name: str
-    phone: str
-    business_name: str
-    business_category: str
-    address: str
-    gst_number: str
-    fssai_license: str
-    bank_account_number: str
-    bank_ifsc: str
 
 
 @router.post("/otp/request")
@@ -161,12 +150,12 @@ async def seller_register(
         user_id=user.id,
         business_name=body.business_name,
         business_category=body.business_category,
-        address=body.address,
         phone=body.phone,
         gst_number=body.gst_number,
         fssai_license=body.fssai_license,
         bank_account_number=body.bank_account_number,
         bank_ifsc=body.bank_ifsc,
+        **address_from_payload(body.address),
     )
     session.add(profile)
     await session.commit()

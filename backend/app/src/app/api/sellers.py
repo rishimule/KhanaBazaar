@@ -10,6 +10,12 @@ from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
 from app.models.base import User
 from app.models.seller import SellerProfile, VerificationStatus
+from app.schemas.address import address_from_payload, address_to_payload
+from app.schemas.sellers import (
+    SellerApplicationPayload,
+    SellerProfilePayload,
+    SellerProfileUpdateBody,
+)
 
 router = APIRouter()
 
@@ -31,29 +37,31 @@ async def get_seller_status(
     }
 
 
-@router.get("/me/profile")
+@router.get("/me/profile", response_model=SellerProfilePayload)
 async def get_seller_profile(
     current_user: User = Depends(get_current_seller),
     session: AsyncSession = Depends(get_db_session),
-) -> dict:  # type: ignore[type-arg]
+) -> SellerProfilePayload:
     result = await session.exec(
         select(SellerProfile).where(SellerProfile.user_id == current_user.id)
     )
     profile = result.first()
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
-    return profile.model_dump()
-
-
-class SellerProfileUpdateBody(BaseModel):
-    business_name: str
-    business_category: str
-    address: str
-    phone: str
-    gst_number: str
-    fssai_license: str
-    bank_account_number: str
-    bank_ifsc: str
+    return SellerProfilePayload(
+        id=profile.id,
+        user_id=profile.user_id,
+        business_name=profile.business_name,
+        business_category=profile.business_category,
+        address=address_to_payload(profile),
+        phone=profile.phone,
+        gst_number=profile.gst_number,
+        fssai_license=profile.fssai_license,
+        bank_account_number=profile.bank_account_number,
+        bank_ifsc=profile.bank_ifsc,
+        verification_status=profile.verification_status.value,
+        rejection_reason=profile.rejection_reason,
+    )
 
 
 @router.patch("/me/profile")
@@ -71,12 +79,13 @@ async def update_seller_profile(
 
     profile.business_name = body.business_name
     profile.business_category = body.business_category
-    profile.address = body.address
     profile.phone = body.phone
     profile.gst_number = body.gst_number
     profile.fssai_license = body.fssai_license
     profile.bank_account_number = body.bank_account_number
     profile.bank_ifsc = body.bank_ifsc
+    for key, value in address_from_payload(body.address).items():
+        setattr(profile, key, value)
     profile.verification_status = VerificationStatus.Pending
     profile.rejection_reason = None
 
@@ -131,23 +140,23 @@ ALLOWED_STATUSES = {"pending", "approved", "rejected", "all"}
 
 
 def _application_payload(profile: SellerProfile, user: User) -> dict:  # type: ignore[type-arg]
-    return {
-        "seller_id": user.id,
-        "email": user.email,
-        "full_name": user.full_name,
-        "business_name": profile.business_name,
-        "business_category": profile.business_category,
-        "address": profile.address,
-        "phone": profile.phone,
-        "gst_number": profile.gst_number,
-        "fssai_license": profile.fssai_license,
-        "bank_account_number": profile.bank_account_number,
-        "bank_ifsc": profile.bank_ifsc,
-        "verification_status": profile.verification_status,
-        "rejection_reason": profile.rejection_reason,
-        "submitted_at": profile.created_at.isoformat() if profile.created_at else None,
-        "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
-    }
+    return SellerApplicationPayload(
+        seller_id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        business_name=profile.business_name,
+        business_category=profile.business_category,
+        address=address_to_payload(profile),
+        phone=profile.phone,
+        gst_number=profile.gst_number,
+        fssai_license=profile.fssai_license,
+        bank_account_number=profile.bank_account_number,
+        bank_ifsc=profile.bank_ifsc,
+        verification_status=profile.verification_status.value,
+        rejection_reason=profile.rejection_reason,
+        submitted_at=profile.created_at.isoformat() if profile.created_at else None,
+        updated_at=profile.updated_at.isoformat() if profile.updated_at else None,
+    ).model_dump()
 
 
 @router.get("/admin/applications")

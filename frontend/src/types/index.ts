@@ -37,10 +37,23 @@ export interface MasterProduct extends BaseSchema {
   base_price: number;
 }
 
+/** Structured address matching backend AddressPayload. */
+export interface Address {
+  address_line1: string;
+  address_line2: string | null;
+  landmark: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 /** A seller's store on the platform. */
 export interface Store extends BaseSchema {
   name: string;
-  address: string;
+  address: Address;
   is_active: boolean;
   seller_id: number;
 }
@@ -83,7 +96,7 @@ export interface SellerProfile extends BaseSchema {
   user_id: number;
   business_name: string;
   business_category: string;
-  address: string;
+  address: Address;
   phone: string;
   gst_number: string;
   fssai_license: string;
@@ -100,7 +113,7 @@ export interface SellerApplication {
   full_name: string;
   business_name: string;
   business_category: string;
-  address: string;
+  address: Address;
   phone: string;
   gst_number: string;
   fssai_license: string;
