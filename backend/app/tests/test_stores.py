@@ -81,6 +81,16 @@ async def test_create_store_rejects_missing_address_line1(override_as_seller: An
 
 
 @pytest.mark.asyncio
+async def test_store_detail_hidden_for_no_profile_seller(override_as_seller: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        body = {"name": "Ghost Store", "address": make_address()}
+        create_resp = await ac.post("/api/v1/stores/", json=body)
+        store_id = create_resp.json()["id"]
+        get_resp = await ac.get(f"/api/v1/stores/{store_id}")
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_get_store_by_id_returns_nested_address(override_as_seller: Any) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         store_data = {"name": "Mini Mart", "address": make_address()}

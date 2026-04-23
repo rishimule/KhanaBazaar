@@ -96,9 +96,7 @@ async def create_store(
 async def get_store(
     store_id: int, session: AsyncSession = Depends(get_db_session)
 ) -> StoreRead:
-    store = await session.get(Store, store_id)
-    if not store:
-        raise HTTPException(status_code=404, detail="Store not found")
+    store = await _get_approved_store_or_404(store_id, session)
     return _store_read(store)
 
 
