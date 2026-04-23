@@ -8,6 +8,7 @@ from app.core.security import get_current_seller
 from app.db.session import get_db_session
 from app.models.base import User, UserRole
 from app.models.catalog import MasterProduct
+from app.models.seller import SellerProfile, VerificationStatus
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.stores import StoreCreate, StoreRead
@@ -30,6 +31,26 @@ def _store_read(store: Store) -> StoreRead:
         created_at=store.created_at.isoformat(),
         updated_at=store.updated_at.isoformat(),
     )
+
+
+async def _get_approved_store_or_404(
+    store_id: int, session: AsyncSession
+) -> Store:
+    """Return an active store whose owning seller is Approved, or 404."""
+    stmt = (
+        select(Store)
+        .join(SellerProfile, SellerProfile.user_id == Store.seller_id)
+        .where(
+            Store.id == store_id,
+            Store.is_active,
+            SellerProfile.verification_status == VerificationStatus.Approved,
+        )
+    )
+    result = await session.exec(stmt)
+    store = result.first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    return store
 
 
 @router.get("/", response_model=List[StoreRead])
