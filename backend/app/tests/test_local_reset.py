@@ -3,7 +3,7 @@ import pytest
 from app.db.local_reset import validate_local_connection_urls
 
 
-def test_validate_local_connection_urls_accepts_local_targets() -> None:
+def test_validate_local_connection_urls_accepts_canonical_local_targets() -> None:
     validate_local_connection_urls(
         "postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar",
         "redis://127.0.0.1:6379/0",
@@ -27,6 +27,16 @@ def test_validate_local_connection_urls_accepts_local_targets() -> None:
             "postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar",
             "redis://cache.internal:6379/0",
             "REDIS_URL must point to localhost or 127.0.0.1",
+        ),
+        (
+            "postgresql+asyncpg://postgres:password@localhost:15432/khanabazaar",
+            "redis://127.0.0.1:6379/0",
+            "DATABASE_URL must target localhost:5432",
+        ),
+        (
+            "postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar",
+            "redis://127.0.0.1:16379/0",
+            "REDIS_URL must target localhost:6379",
         ),
     ],
 )

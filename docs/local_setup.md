@@ -56,7 +56,7 @@ While we could run the backend in Docker locally, it is often faster to run it d
 2.  **Install Dependencies**:
     - We will use `pip` to install packages like `fastapi`, `uvicorn`, `sqlalchemy`, `asyncpg`, `celery`, and `redis`.
 3.  **Environment Variables (`.env`)**:
-    Create a `.env` file in the `backend/` directory pointing to your local Docker services:
+    Create a `.env` file in the `backend/app/` directory pointing to your local Docker services:
     ```ini
     DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar
     REDIS_URL=redis://localhost:6379/0
