@@ -172,6 +172,15 @@ _ADDRESS_KEYS = (
     "longitude",
 )
 
+_STORES_BY_NAME = {store["name"]: store for store in STORES}
+STORE_ITEMS = [
+    {
+        **store,
+        "seller_email": TEST_USERS[store["seller_idx"]]["email"],
+    }
+    for store in STORES
+]
+
 # Inventory: (store_idx, product_idx, price, stock)
 INVENTORIES = [
     # Sharma General Store
@@ -189,6 +198,17 @@ INVENTORIES = [
     (2, 10, 272, 12),
 ]
 
+INVENTORY_ITEMS = [
+    {
+        "store_name": STORES[store_idx]["name"],
+        "product_name": PRODUCTS[product_idx]["name"],
+        "category_name": CATEGORIES[PRODUCTS[product_idx]["category_idx"]]["name"],
+        "price": price,
+        "stock": stock,
+    }
+    for store_idx, product_idx, price, stock in INVENTORIES
+]
+
 STORE_OWNER_PROFILES = [
     {
         "email": "seller@khanabazaar.dev",
@@ -202,7 +222,7 @@ STORE_OWNER_PROFILES = [
         "bank_ifsc": "HDFC0000001",
         "status": VerificationStatus.Approved,
         "rejection_reason": None,
-        **{key: STORES[0][key] for key in _ADDRESS_KEYS},
+        **{key: _STORES_BY_NAME["Sharma General Store"][key] for key in _ADDRESS_KEYS},
     },
     {
         "email": "seller2@khanabazaar.dev",
@@ -216,7 +236,7 @@ STORE_OWNER_PROFILES = [
         "bank_ifsc": "ICIC0000002",
         "status": VerificationStatus.Approved,
         "rejection_reason": None,
-        **{key: STORES[1][key] for key in _ADDRESS_KEYS},
+        **{key: _STORES_BY_NAME["Krishna Supermart"][key] for key in _ADDRESS_KEYS},
     },
     {
         "email": "seller3@khanabazaar.dev",
@@ -230,7 +250,7 @@ STORE_OWNER_PROFILES = [
         "bank_ifsc": "SBIN0000003",
         "status": VerificationStatus.Approved,
         "rejection_reason": None,
-        **{key: STORES[2][key] for key in _ADDRESS_KEYS},
+        **{key: _STORES_BY_NAME["Balaji Fresh Market"][key] for key in _ADDRESS_KEYS},
     },
 ]
 
@@ -301,7 +321,12 @@ async def _upsert_product(
     data: Mapping[str, Any],
     category_id: int,
 ) -> MasterProduct:
-    existing = await session.exec(select(MasterProduct).where(MasterProduct.name == data["name"]))
+    existing = await session.exec(
+        select(MasterProduct).where(
+            MasterProduct.name == data["name"],
+            MasterProduct.category_id == category_id,
+        )
+    )
     product = existing.first()
     product_fields = {
         "description": data["description"],
@@ -320,7 +345,12 @@ async def _upsert_product(
 
 
 async def _upsert_store(session: AsyncSession, data: Mapping[str, Any], seller_id: int) -> Store:
-    existing = await session.exec(select(Store).where(Store.name == data["name"]))
+    existing = await session.exec(
+        select(Store).where(
+            Store.name == data["name"],
+            Store.seller_id == seller_id,
+        )
+    )
     store = existing.first()
     store_fields = {
         "seller_id": seller_id,
@@ -403,29 +433,39 @@ async def seed_demo_data(session: AsyncSession) -> None:
         users_by_email[user.email] = user
         await _upsert_profile(session, user, application)
 
-    categories: list[Category] = []
+    categories_by_name: dict[str, Category] = {}
     for category_data in CATEGORIES:
-        categories.append(await _upsert_category(session, category_data))
+        category = await _upsert_category(session, category_data)
+        categories_by_name[category.name] = category
 
-    products: list[MasterProduct] = []
+    products_by_key: dict[tuple[str, str], MasterProduct] = {}
     for product_data in PRODUCTS:
-        category = categories[product_data["category_idx"]]
+        category = categories_by_name[CATEGORIES[product_data["category_idx"]]["name"]]
         assert category.id is not None
-        products.append(await _upsert_product(session, product_data, category.id))
+        product = await _upsert_product(session, product_data, category.id)
+        products_by_key[(category.name, product.name)] = product
 
-    stores: list[Store] = []
-    for store_data in STORES:
-        seller = TEST_USERS[store_data["seller_idx"]]
-        user = users_by_email[seller["email"]]
+    stores_by_name: dict[str, Store] = {}
+    for store_data in STORE_ITEMS:
+        user = users_by_email[store_data["seller_email"]]
         assert user.id is not None
-        stores.append(await _upsert_store(session, store_data, user.id))
+        store = await _upsert_store(session, store_data, user.id)
+        stores_by_name[store.name] = store
 
-    for store_idx, product_idx, price, stock in INVENTORIES:
-        store = stores[store_idx]
-        product = products[product_idx]
+    for inventory_item in INVENTORY_ITEMS:
+        store = stores_by_name[inventory_item["store_name"]]
+        product = products_by_key[
+            (inventory_item["category_name"], inventory_item["product_name"])
+        ]
         assert store.id is not None
         assert product.id is not None
-        await _upsert_inventory(session, store.id, product.id, price, stock)
+        await _upsert_inventory(
+            session,
+            store.id,
+            product.id,
+            inventory_item["price"],
+            inventory_item["stock"],
+        )
 
     await verify_expected_counts(session)
 
