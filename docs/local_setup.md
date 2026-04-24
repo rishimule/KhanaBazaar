@@ -68,7 +68,7 @@ While we could run the backend in Docker locally, it is often faster to run it d
       wrapper for the admin-review subset and is not the full development seed.
 5.  **Run the local server**:
     ```bash
-    uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    uv run uvicorn app:app --reload --host 0.0.0.0 --port 8000
     ```
 
 ## 3. Frontend Setup (Next.js)
