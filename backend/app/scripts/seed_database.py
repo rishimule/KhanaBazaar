@@ -17,7 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from app.core.config import settings
-from app.db.dev_seed import TEST_USERS, seed_demo_data, verify_expected_counts
+from app.db.dev_seed import APPLICATIONS, TEST_USERS, seed_demo_data, verify_expected_counts
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,6 +40,8 @@ def print_seeded_emails() -> None:
     print("\nSeeded login emails:")
     for user in TEST_USERS:
         print(f"  {user['role'].value}: {user['email']}")
+    for application in APPLICATIONS:
+        print(f"  seller: {application['email']}")
 
 
 async def main() -> None:
