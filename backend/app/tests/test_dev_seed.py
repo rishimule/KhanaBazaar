@@ -3,7 +3,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.dev_seed import (
-    EXPECTED_COUNTS,
     get_seed_counts,
     seed_demo_data,
     seed_seller_application_subset,
@@ -36,7 +35,6 @@ async def test_seed_demo_data_populates_canonical_counts(session: AsyncSession) 
 
     counts = await get_seed_counts(session)
 
-    assert EXPECTED_COUNTS == CANONICAL_FULL_COUNTS
     assert counts == CANONICAL_FULL_COUNTS
 
 
@@ -47,7 +45,6 @@ async def test_seed_demo_data_is_idempotent(session: AsyncSession) -> None:
 
     counts = await get_seed_counts(session)
 
-    assert EXPECTED_COUNTS == CANONICAL_FULL_COUNTS
     assert counts == CANONICAL_FULL_COUNTS
 
 
