@@ -264,6 +264,16 @@ EXPECTED_FULL_COUNTS = {
 }
 
 
+def get_canonical_login_email_rows() -> list[tuple[str, str]]:
+    rows = [(user["role"].value, user["email"]) for user in TEST_USERS]
+    rows.extend(("seller", application["email"]) for application in APPLICATIONS)
+    return rows
+
+
+def get_seller_application_subset_login_email_rows() -> list[tuple[str, str]]:
+    return [("admin", ADMIN["email"]), *[("seller", application["email"]) for application in APPLICATIONS]]
+
+
 async def _upsert_user(session: AsyncSession, email: str, full_name: str, role: UserRole) -> User:
     existing = await session.exec(select(User).where(User.email == email))
     user = existing.first()

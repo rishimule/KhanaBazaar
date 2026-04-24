@@ -3,6 +3,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.dev_seed import (
+    get_canonical_login_email_rows,
+    get_seller_application_subset_login_email_rows,
     get_seed_counts,
     seed_demo_data,
     seed_seller_application_subset,
@@ -27,6 +29,25 @@ SELLER_APPLICATION_SUBSET_COUNTS = {
     "store": 0,
     "storeinventory": 0,
 }
+
+
+def test_seed_login_email_helpers_expose_stable_rows() -> None:
+    assert get_canonical_login_email_rows() == [
+        ("admin", "admin@khanabazaar.dev"),
+        ("seller", "seller@khanabazaar.dev"),
+        ("seller", "seller2@khanabazaar.dev"),
+        ("seller", "seller3@khanabazaar.dev"),
+        ("customer", "customer@khanabazaar.dev"),
+        ("seller", "pending.seller@khanabazaar.dev"),
+        ("seller", "approved.seller@khanabazaar.dev"),
+        ("seller", "rejected.seller@khanabazaar.dev"),
+    ]
+    assert get_seller_application_subset_login_email_rows() == [
+        ("admin", "admin@khanabazaar.dev"),
+        ("seller", "pending.seller@khanabazaar.dev"),
+        ("seller", "approved.seller@khanabazaar.dev"),
+        ("seller", "rejected.seller@khanabazaar.dev"),
+    ]
 
 
 @pytest.mark.asyncio

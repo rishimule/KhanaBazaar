@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Seed seller application records for the approval workflow walkthrough.
+Seed only the seller-review subset as a compatibility/helper entrypoint.
+
+This is not the canonical full dev seed path. It only creates the admin review
+accounts used for the seller application workflow walkthrough.
 
 Usage (from backend/app/):
     uv run python scripts/seed_seller_applications.py
@@ -16,7 +19,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from app.core.config import settings
-from app.db.dev_seed import ADMIN, APPLICATIONS, seed_seller_application_subset
+from app.db.dev_seed import (
+    get_seller_application_subset_login_email_rows,
+    seed_seller_application_subset,
+)
 
 
 async def main() -> None:
@@ -29,10 +35,10 @@ async def main() -> None:
     finally:
         await engine.dispose()
 
-    print("Seeded seller application login emails:")
-    print(f"  admin: {ADMIN['email']}")
-    for application in APPLICATIONS:
-        print(f"  seller: {application['email']}")
+    print("Seeded seller review subset login emails:")
+    print("  note: this helper does not seed the canonical full dev dataset.")
+    for role, email in get_seller_application_subset_login_email_rows():
+        print(f"  {role}: {email}")
 
 
 if __name__ == "__main__":
