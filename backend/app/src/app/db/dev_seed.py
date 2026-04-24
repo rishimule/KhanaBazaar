@@ -376,7 +376,6 @@ async def seed_seller_application_subset(session: AsyncSession) -> None:
             UserRole.Seller,
         )
         await _upsert_profile(session, user, application)
-    await session.commit()
 
 
 async def seed_demo_data(session: AsyncSession) -> None:
@@ -428,7 +427,6 @@ async def seed_demo_data(session: AsyncSession) -> None:
         assert product.id is not None
         await _upsert_inventory(session, store.id, product.id, price, stock)
 
-    await session.commit()
     await verify_expected_counts(session)
 
 
