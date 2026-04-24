@@ -60,6 +60,13 @@ async def test_seed_seller_application_subset_creates_only_review_rows(
     await seed_seller_application_subset(session)
 
     counts = await get_seed_counts(session)
+    result = await session.exec(select(User, SellerProfile).join(SellerProfile))
+    seller_rows = result.all()
+
+    statuses = {
+        user.email: seller_profile.verification_status
+        for user, seller_profile in seller_rows
+    }
 
     assert counts["users"] == 4
     assert counts["sellerprofile"] == 3
@@ -67,3 +74,8 @@ async def test_seed_seller_application_subset_creates_only_review_rows(
     assert counts["masterproduct"] == 0
     assert counts["store"] == 0
     assert counts["storeinventory"] == 0
+    assert statuses == {
+        "approved.seller@khanabazaar.dev": VerificationStatus.Approved,
+        "pending.seller@khanabazaar.dev": VerificationStatus.Pending,
+        "rejected.seller@khanabazaar.dev": VerificationStatus.Rejected,
+    }
