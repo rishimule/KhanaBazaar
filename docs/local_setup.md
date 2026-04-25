@@ -26,16 +26,22 @@ Before starting, ensure you have the following installed on your local machine:
 
 ## 1. Local Database & Cache Setup (Docker)
 
-We'll use Docker Compose to spin up our stateful services (Postgres and Redis).
+The repository already includes a root-level `docker-compose.yml` for the local
+Postgres and Redis services.
 
-1.  **Create a `docker-compose.yml` file** in the root of the project (we will create this in the next phase). This file will define:
-    - A `postgres:15` service.
-    - A `redis:alpine` service.
-2.  **Start the services**:
+1.  **Start the required services**:
     ```bash
-    docker-compose up -d
+    docker compose up -d postgres redis
     ```
-    _(Note: This keeps your main system clean and ensures the database runs exactly as it would in production)._
+    This uses the checked-in Compose file and starts the `postgres` and `redis`
+    services without touching the backend or frontend processes.
+2.  **Reset local state when you need a clean canonical dataset**:
+    ```bash
+    ./scripts/reset_local_state.sh
+    ```
+    This reset is local-only. It deletes the `postgres_data` and `redis_data`
+    volumes, recreates the database schema via Alembic, reseeds the app with the
+    canonical development dataset, and does not rebuild any Docker images.
 
 ## 2. Backend Setup (FastAPI)
 
@@ -50,15 +56,19 @@ While we could run the backend in Docker locally, it is often faster to run it d
 2.  **Install Dependencies**:
     - We will use `pip` to install packages like `fastapi`, `uvicorn`, `sqlalchemy`, `asyncpg`, `celery`, and `redis`.
 3.  **Environment Variables (`.env`)**:
-    Create a `.env` file in the `backend/` directory pointing to your local Docker services:
+    Create a `.env` file in the `backend/app/` directory pointing to your local Docker services:
     ```ini
     DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar
     REDIS_URL=redis://localhost:6379/0
     ENVIRONMENT=development
     ```
-4.  **Run the local server**:
+4.  **Database seed entrypoints**:
+    - The canonical local dataset entrypoint is `backend/app/scripts/seed_database.py`.
+    - `backend/app/scripts/seed_seller_applications.py` is only a compatibility
+      wrapper for the admin-review subset and is not the full development seed.
+5.  **Run the local server**:
     ```bash
-    uv run uvicorn src.app:app --reload --host 0.0.0.0 --port 8000
+    uv run uvicorn app:app --reload --host 0.0.0.0 --port 8000
     ```
 
 ## 3. Frontend Setup (Next.js)
