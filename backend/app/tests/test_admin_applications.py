@@ -6,43 +6,57 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
 from app.core.security import get_current_admin, get_current_user
+from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.seller import SellerProfile, VerificationStatus
+from app.models.profile import SellerProfile, VerificationStatus
 from tests._helpers import make_address
 
 mock_admin = User(
-    id=50, email="admin-apps@kb.com", full_name="Apps Admin",
+    id=50, email="admin-apps@kb.com",
     role=UserRole.Admin, is_active=True,
 )
 mock_seller_pending = User(
-    id=51, email="pending@kb.com", full_name="Pending Seller",
+    id=51, email="pending@kb.com",
     role=UserRole.Seller, is_active=True,
 )
 mock_seller_approved = User(
-    id=52, email="approved@kb.com", full_name="Approved Seller",
+    id=52, email="approved@kb.com",
     role=UserRole.Seller, is_active=True,
 )
 mock_seller_rejected = User(
-    id=53, email="rejected@kb.com", full_name="Rejected Seller",
+    id=53, email="rejected@kb.com",
     role=UserRole.Seller, is_active=True,
 )
 
 
-def _profile(user_id: int | None, status: VerificationStatus, reason: str | None = None) -> SellerProfile:
+async def _make_profile(
+    session: AsyncSession,
+    user_id: int | None,
+    first_name: str,
+    last_name: str | None,
+    phone: str,
+    status: VerificationStatus,
+    reason: str | None = None,
+) -> None:
     assert user_id is not None
-    return SellerProfile(
+    address = Address(**make_address())
+    session.add(address)
+    await session.flush()
+    session.add(SellerProfile(
         user_id=user_id,
+        first_name=first_name,
+        last_name=last_name,
         business_name=f"Biz {user_id}",
         business_category="grocery",
-        phone="9876543210",
+        phone=phone,
         gst_number="29ABCDE1234F1Z5",
         fssai_license="10020042000015",
         bank_account_number="123456789012",
         bank_ifsc="SBIN0001234",
         verification_status=status,
         rejection_reason=reason,
-        **make_address(),
-    )
+        business_address_id=address.id,
+    ))
 
 
 @pytest.fixture(autouse=True)
@@ -52,9 +66,16 @@ async def seed_users_and_profiles(session: AsyncSession) -> AsyncGenerator[None,
     session.add(User(**mock_seller_approved.model_dump()))
     session.add(User(**mock_seller_rejected.model_dump()))
     await session.flush()
-    session.add(_profile(mock_seller_pending.id, VerificationStatus.Pending))
-    session.add(_profile(mock_seller_approved.id, VerificationStatus.Approved))
-    session.add(_profile(mock_seller_rejected.id, VerificationStatus.Rejected, "Invalid GST"))
+    await _make_profile(
+        session, mock_seller_pending.id, "Pending", "Seller", "9876543210", VerificationStatus.Pending,
+    )
+    await _make_profile(
+        session, mock_seller_approved.id, "Approved", "Seller", "9876543211", VerificationStatus.Approved,
+    )
+    await _make_profile(
+        session, mock_seller_rejected.id, "Rejected", "Seller", "9876543212",
+        VerificationStatus.Rejected, "Invalid GST",
+    )
     await session.commit()
     yield
 

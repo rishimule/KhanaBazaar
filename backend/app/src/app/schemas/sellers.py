@@ -19,19 +19,20 @@ class SellerRegisterBody(BaseModel):
     business_name: str
     business_category: str
     address: AddressPayload
-    gst_number: str
-    fssai_license: str
+    gst_number: Optional[str] = None
+    fssai_license: Optional[str] = None
     bank_account_number: str
     bank_ifsc: str
 
 
 class SellerProfileUpdateBody(BaseModel):
+    full_name: Optional[str] = None
     business_name: str
     business_category: str
     address: AddressPayload
     phone: str
-    gst_number: str
-    fssai_license: str
+    gst_number: Optional[str] = None
+    fssai_license: Optional[str] = None
     bank_account_number: str
     bank_ifsc: str
 
@@ -39,12 +40,13 @@ class SellerProfileUpdateBody(BaseModel):
 class SellerProfilePayload(BaseModel):
     id: int
     user_id: int
+    full_name: str
     business_name: str
     business_category: str
     address: AddressPayload
     phone: str
-    gst_number: str
-    fssai_license: str
+    gst_number: Optional[str] = None
+    fssai_license: Optional[str] = None
     bank_account_number: str
     bank_ifsc: str
     verification_status: str
@@ -59,8 +61,8 @@ class SellerApplicationPayload(BaseModel):
     business_category: str
     address: AddressPayload
     phone: str
-    gst_number: str
-    fssai_license: str
+    gst_number: Optional[str] = None
+    fssai_license: Optional[str] = None
     bank_account_number: str
     bank_ifsc: str
     verification_status: str

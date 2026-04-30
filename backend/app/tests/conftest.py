@@ -27,6 +27,18 @@ async def setup_test_db() -> AsyncGenerator[None, None]:
     async with test_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
+    from app.models.catalog import Language
+
+    async with AsyncSession(test_engine) as session:
+        for code, name, native in (
+            ("en", "English", "English"),
+            ("hi", "Hindi", "हिन्दी"),
+            ("mr", "Marathi", "मराठी"),
+            ("gu", "Gujarati", "ગુજરાતી"),
+            ("pa", "Punjabi", "ਪੰਜਾਬੀ"),
+        ):
+            session.add(Language(code=code, name=name, native_name=native, is_active=True))
+        await session.commit()
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)

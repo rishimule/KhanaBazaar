@@ -24,10 +24,12 @@ from app.core.security import (
     get_current_user,
 )
 from app.db.session import get_db_session
+from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.seller import SellerProfile
+from app.models.profile import CustomerProfile, SellerProfile
 from app.schemas.address import address_from_payload
 from app.schemas.sellers import SellerRegisterBody
+from app.services.profiles import compose_full_name, split_full_name
 
 router = APIRouter()
 
@@ -45,6 +47,32 @@ class OTPVerifyBody(BaseModel):
 class SellerOtpVerifyBody(BaseModel):
     email: EmailStr
     code: str
+
+
+async def _full_name_for_user(session: AsyncSession, user: User) -> str | None:
+    if user.role == UserRole.Customer:
+        result = await session.exec(
+            select(CustomerProfile).where(CustomerProfile.user_id == user.id)
+        )
+        profile = result.first()
+        if profile is None:
+            return None
+        return compose_full_name(profile.first_name, profile.last_name)
+    if user.role == UserRole.Seller:
+        result = await session.exec(
+            select(SellerProfile).where(SellerProfile.user_id == user.id)
+        )
+        seller = result.first()
+        if seller is None:
+            return None
+        return compose_full_name(seller.first_name, seller.last_name)
+    return None
+
+
+def _user_payload(user: User, full_name: str | None) -> dict:  # type: ignore[type-arg]
+    payload = user.model_dump()
+    payload["full_name"] = full_name
+    return payload
 
 
 @router.post("/otp/request")
@@ -91,24 +119,35 @@ async def otp_verify(
     if user is None:
         if not body.full_name:
             return {"access_token": None, "token_type": None, "user": None, "needs_name": True}
-        user = User(email=email, full_name=body.full_name.strip(), role=UserRole.Customer)
+        first_name, last_name = split_full_name(body.full_name)
+        user = User(email=email, role=UserRole.Customer)
         session.add(user)
+        await session.flush()
+        profile = CustomerProfile(user_id=user.id, first_name=first_name, last_name=last_name)
+        session.add(profile)
         await session.commit()
         await session.refresh(user)
+        full_name = compose_full_name(first_name, last_name)
+    else:
+        full_name = await _full_name_for_user(session, user)
 
     await consume_otp_key(email, redis)
     token = create_access_token(user)
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": user.model_dump(),
+        "user": _user_payload(user, full_name),
         "needs_name": False,
     }
 
 
 @router.get("/me")
-async def me(user: User = Depends(get_current_user)) -> dict:  # type: ignore[type-arg]
-    return user.model_dump()
+async def me(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    full_name = await _full_name_for_user(session, user)
+    return _user_payload(user, full_name)
 
 
 @router.post("/seller/otp/verify")
@@ -142,12 +181,19 @@ async def seller_register(
     if result.first():
         raise HTTPException(status_code=409, detail={"error": "email_already_registered"})
 
-    user = User(email=email, full_name=body.full_name.strip(), role=UserRole.Seller)
+    first_name, last_name = split_full_name(body.full_name)
+    user = User(email=email, role=UserRole.Seller)
     session.add(user)
+    await session.flush()
+
+    address = Address(**address_from_payload(body.address))
+    session.add(address)
     await session.flush()
 
     profile = SellerProfile(
         user_id=user.id,
+        first_name=first_name,
+        last_name=last_name,
         business_name=body.business_name,
         business_category=body.business_category,
         phone=body.phone,
@@ -155,15 +201,16 @@ async def seller_register(
         fssai_license=body.fssai_license,
         bank_account_number=body.bank_account_number,
         bank_ifsc=body.bank_ifsc,
-        **address_from_payload(body.address),
+        business_address_id=address.id,
     )
     session.add(profile)
     await session.commit()
     await session.refresh(user)
 
     token = create_access_token(user)
+    full_name = compose_full_name(first_name, last_name)
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": user.model_dump(),
+        "user": _user_payload(user, full_name),
     }

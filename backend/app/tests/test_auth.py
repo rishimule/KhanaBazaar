@@ -67,9 +67,12 @@ async def test_otp_request_same_response_for_unknown_email(auth_client: dict[str
 
 async def test_returning_user_gets_token(auth_client: dict[str, Any], session: Any) -> None:
     from app.models.base import User, UserRole
+    from app.models.profile import CustomerProfile
 
-    user = User(email="returning@example.com", full_name="Ret", role=UserRole.Customer)
+    user = User(email="returning@example.com", role=UserRole.Customer)
     session.add(user)
+    await session.flush()
+    session.add(CustomerProfile(user_id=user.id, first_name="Ret", last_name=None))
     await session.commit()
 
     c = auth_client["client"]
@@ -87,7 +90,9 @@ async def test_returning_user_gets_token(auth_client: dict[str, Any], session: A
     assert data["user"]["email"] == "returning@example.com"
 
 
-async def test_new_user_needs_name_then_gets_token(auth_client: dict[str, Any]) -> None:
+async def test_new_user_needs_name_then_gets_token(
+    auth_client: dict[str, Any], session: Any
+) -> None:
     c = auth_client["client"]
     sender = auth_client["sender"]
 
@@ -111,6 +116,15 @@ async def test_new_user_needs_name_then_gets_token(auth_client: dict[str, Any]) 
     assert data["access_token"] is not None
     assert data["user"]["full_name"] == "New User"
     assert data["user"]["role"] == "customer"
+
+    from sqlmodel import select
+
+    from app.models.profile import CustomerProfile
+
+    result = await session.exec(select(CustomerProfile))
+    profile = result.one()
+    assert profile.first_name == "New"
+    assert profile.last_name == "User"
 
 
 async def test_wrong_code_returns_400(auth_client: dict[str, Any]) -> None:
