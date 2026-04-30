@@ -10,8 +10,8 @@ class UserRole(str, enum.Enum):
     Seller = "seller"
     Admin = "admin"
 
+
 class BaseSchema(SQLModel):
-    """Base schema for all models to inherit from."""
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(  # type: ignore[call-overload]
         default_factory=lambda: datetime.now(timezone.utc),
@@ -22,19 +22,14 @@ class BaseSchema(SQLModel):
         sa_type=DateTime(timezone=True),
     )
 
+
 class UserBase(SQLModel):
     email: str = Field(index=True, unique=True, nullable=False)
-    is_active: bool = Field(default=True)
-    role: UserRole = Field(default=UserRole.Customer)
-    full_name: Optional[str] = Field(default=None)
+    hashed_password: Optional[str] = Field(default=None)
+    is_active: bool = Field(default=True, nullable=False)
+    role: UserRole = Field(default=UserRole.Customer, nullable=False)
+    preferred_language: str = Field(default="en", foreign_key="language.code", nullable=False)
+
 
 class User(BaseSchema, UserBase, table=True):
-    pass
-
-class ItemBase(SQLModel):
-    title: str = Field(index=True, nullable=False)
-    description: Optional[str] = Field(default=None)
-    owner_id: int = Field(foreign_key="user.id", nullable=False)
-
-class Item(BaseSchema, ItemBase, table=True):
     pass
