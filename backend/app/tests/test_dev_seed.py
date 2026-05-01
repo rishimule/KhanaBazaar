@@ -3,6 +3,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.dev_seed import (
+    EXPECTED_FULL_COUNTS,
     get_canonical_login_email_rows,
     get_seller_application_subset_login_email_rows,
     get_seed_counts,
@@ -10,24 +11,17 @@ from app.db.dev_seed import (
     seed_seller_application_subset,
 )
 from app.models.base import User
-from app.models.seller import SellerProfile, VerificationStatus
+from app.models.profile import SellerProfile, VerificationStatus
 
-CANONICAL_FULL_COUNTS = {
-    "users": 8,
-    "sellerprofile": 6,
-    "category": 4,
-    "masterproduct": 12,
-    "store": 3,
-    "storeinventory": 26,
-}
+CANONICAL_FULL_COUNTS = EXPECTED_FULL_COUNTS
 
 SELLER_APPLICATION_SUBSET_COUNTS = {
+    **{key: 0 for key in EXPECTED_FULL_COUNTS},
     "users": 4,
+    "language": 5,
+    "adminprofile": 1,
     "sellerprofile": 3,
-    "category": 0,
-    "masterproduct": 0,
-    "store": 0,
-    "storeinventory": 0,
+    "address": 3,
 }
 
 

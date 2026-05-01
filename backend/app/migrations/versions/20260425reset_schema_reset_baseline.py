@@ -14,6 +14,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 import sqlmodel.sql.sqltypes
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "20260425reset"
@@ -35,12 +36,43 @@ _OLD_TABLES = (
 _OLD_ENUMS = ("userrole", "verificationstatus")
 
 
+_NEW_ENUMS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("userrole", ("Customer", "Seller", "Admin")),
+    ("verificationstatus", ("Pending", "Approved", "Rejected")),
+    (
+        "orderstatus",
+        ("Pending", "Paid", "Packed", "Dispatched", "Delivered", "Cancelled"),
+    ),
+    ("paymentmethod", ("Upi", "Cash")),
+    ("paymentstatus", ("Pending", "Paid", "Failed", "Refunded")),
+    (
+        "deliverystatus",
+        ("Pending", "Packed", "Dispatched", "Delivered", "Cancelled"),
+    ),
+)
+
+
 def upgrade() -> None:
     """Upgrade schema (destructive reset)."""
     for table_name in _OLD_TABLES:
         op.execute(sa.text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE'))
-    for enum_name in _OLD_ENUMS:
-        op.execute(sa.text(f"DROP TYPE IF EXISTS {enum_name} CASCADE"))
+
+    bind = op.get_bind()
+    existing = {
+        row[0]
+        for row in bind.execute(
+            sa.text(
+                "SELECT typname FROM pg_type WHERE typname IN "
+                "('userrole','verificationstatus','orderstatus',"
+                "'paymentmethod','paymentstatus','deliverystatus')"
+            )
+        ).all()
+    }
+    for enum_name, values in _NEW_ENUMS:
+        if enum_name in existing:
+            continue
+        quoted = ", ".join(f"'{value}'" for value in values)
+        op.execute(sa.text(f"CREATE TYPE {enum_name} AS ENUM ({quoted})"))
 
     op.create_table(
         "language",
@@ -61,7 +93,7 @@ def upgrade() -> None:
         sa.Column("is_active", sa.Boolean(), nullable=False),
         sa.Column(
             "role",
-            sa.Enum("Customer", "Seller", "Admin", name="userrole"),
+            postgresql.ENUM("Customer", "Seller", "Admin", name="userrole", create_type=False),
             nullable=False,
         ),
         sa.Column("preferred_language", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
@@ -139,7 +171,13 @@ def upgrade() -> None:
         sa.Column("bank_ifsc", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column(
             "verification_status",
-            sa.Enum("Pending", "Approved", "Rejected", name="verificationstatus"),
+            postgresql.ENUM(
+                "Pending",
+                "Approved",
+                "Rejected",
+                name="verificationstatus",
+                create_type=False,
+            ),
             nullable=False,
         ),
         sa.Column("rejection_reason", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
@@ -377,7 +415,7 @@ def upgrade() -> None:
         sa.Column("delivery_address_id", sa.Integer(), nullable=False),
         sa.Column(
             "status",
-            sa.Enum(
+            postgresql.ENUM(
                 "Pending",
                 "Paid",
                 "Packed",
@@ -385,6 +423,7 @@ def upgrade() -> None:
                 "Delivered",
                 "Cancelled",
                 name="orderstatus",
+                create_type=False,
             ),
             nullable=False,
         ),
@@ -428,10 +467,21 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("order_id", sa.Integer(), nullable=False),
         sa.Column("amount", sa.Float(), nullable=False),
-        sa.Column("method", sa.Enum("Upi", "Cash", name="paymentmethod"), nullable=False),
+        sa.Column(
+            "method",
+            postgresql.ENUM("Upi", "Cash", name="paymentmethod", create_type=False),
+            nullable=False,
+        ),
         sa.Column(
             "status",
-            sa.Enum("Pending", "Paid", "Failed", "Refunded", name="paymentstatus"),
+            postgresql.ENUM(
+                "Pending",
+                "Paid",
+                "Failed",
+                "Refunded",
+                name="paymentstatus",
+                create_type=False,
+            ),
             nullable=False,
         ),
         sa.Column("gateway_txn_id", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
@@ -450,13 +500,14 @@ def upgrade() -> None:
         sa.Column("order_id", sa.Integer(), nullable=False),
         sa.Column(
             "status",
-            sa.Enum(
+            postgresql.ENUM(
                 "Pending",
                 "Packed",
                 "Dispatched",
                 "Delivered",
                 "Cancelled",
                 name="deliverystatus",
+                create_type=False,
             ),
             nullable=False,
         ),
@@ -585,3 +636,5 @@ def downgrade() -> None:
         "userrole",
     ):
         op.execute(sa.text(f"DROP TYPE IF EXISTS {enum_name} CASCADE"))
+
+

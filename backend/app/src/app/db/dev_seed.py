@@ -7,10 +7,39 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.catalog import Category, MasterProduct
-from app.models.seller import SellerProfile, VerificationStatus
+from app.models.catalog import (
+    Category,
+    CategoryTranslation,
+    Language,
+    MasterProduct,
+    MasterProductTranslation,
+    Service,
+    ServiceTranslation,
+    Subcategory,
+    SubcategoryTranslation,
+)
+from app.models.profile import (
+    AdminProfile,
+    CustomerProfile,
+    SellerProfile,
+    VerificationStatus,
+)
 from app.models.store import Store, StoreInventory
+from app.services.profiles import split_full_name
+
+LANGUAGES = [
+    ("en", "English", "English"),
+    ("hi", "Hindi", "हिन्दी"),
+    ("mr", "Marathi", "मराठी"),
+    ("gu", "Gujarati", "ગુજરાતી"),
+    ("pa", "Punjabi", "ਪੰਜਾਬੀ"),
+]
+
+DEFAULT_SERVICE_SLUG = "default"
+DEFAULT_SERVICE_NAME = "Khana Bazaar"
+DEFAULT_SUBCATEGORY_SLUG = "_default"
 
 TEST_USERS = [
     {"email": "admin@khanabazaar.dev", "display_name": "Platform Admin", "role": UserRole.Admin},
@@ -24,6 +53,15 @@ ADMIN = {
     "email": "admin@khanabazaar.dev",
     "full_name": "Platform Admin",
     "role": UserRole.Admin,
+    "phone": "+919811110100",
+    "employee_code": "KB-ADMIN-001",
+    "department": "Platform",
+}
+
+CUSTOMER = {
+    "email": "customer@khanabazaar.dev",
+    "full_name": "Priya Verma",
+    "phone": "+919811110200",
 }
 
 APPLICATIONS = [
@@ -96,25 +134,25 @@ APPLICATIONS = [
 ]
 
 CATEGORIES = [
-    {"name": "Fruits & Vegetables", "description": "Fresh produce from local farms"},
-    {"name": "Dairy & Bakery", "description": "Milk, paneer, bread, and baked goods"},
-    {"name": "Staples & Grains", "description": "Rice, atta, dal, and cooking essentials"},
-    {"name": "Snacks & Beverages", "description": "Chips, biscuits, tea, coffee, and cold drinks"},
+    {"slug": "fruits-vegetables", "name": "Fruits & Vegetables", "description": "Fresh produce from local farms"},
+    {"slug": "dairy-bakery", "name": "Dairy & Bakery", "description": "Milk, paneer, bread, and baked goods"},
+    {"slug": "staples-grains", "name": "Staples & Grains", "description": "Rice, atta, dal, and cooking essentials"},
+    {"slug": "snacks-beverages", "name": "Snacks & Beverages", "description": "Chips, biscuits, tea, coffee, and cold drinks"},
 ]
 
 PRODUCTS = [
-    {"name": "Fresh Tomatoes", "description": "Firm, red tomatoes — perfect for curries and chutneys", "category_idx": 0, "image_url": "/images/products/tomatoes.jpg", "base_price": 40},
-    {"name": "Green Coriander Bunch", "description": "Fresh dhania for garnishing and chutney", "category_idx": 0, "image_url": "/images/products/coriander.jpg", "base_price": 15},
-    {"name": "Onions (Pyaaz)", "description": "Medium-sized onions, a kitchen staple", "category_idx": 0, "image_url": "/images/products/onions.jpg", "base_price": 35},
-    {"name": "Amul Taza Milk (1L)", "description": "Toned milk, pasteurized & homogenized", "category_idx": 1, "image_url": "/images/products/milk.jpg", "base_price": 54},
-    {"name": "Amul Paneer (200g)", "description": "Fresh cottage cheese block for sabzi & tikka", "category_idx": 1, "image_url": "/images/products/paneer.jpg", "base_price": 90},
-    {"name": "Britannia Bread (400g)", "description": "Soft white sandwich bread", "category_idx": 1, "image_url": "/images/products/bread.jpg", "base_price": 45},
-    {"name": "Toor Dal (1kg)", "description": "Premium quality arhar dal for everyday cooking", "category_idx": 2, "image_url": "/images/products/toor-dal.jpg", "base_price": 160},
-    {"name": "Basmati Rice (5kg)", "description": "Long grain aged basmati — perfect for biryani", "category_idx": 2, "image_url": "/images/products/rice.jpg", "base_price": 450},
-    {"name": "Aashirvaad Atta (5kg)", "description": "Whole wheat flour for soft rotis", "category_idx": 2, "image_url": "/images/products/atta.jpg", "base_price": 280},
-    {"name": "Lay's Classic Salted (52g)", "description": "Crispy potato chips, classic flavor", "category_idx": 3, "image_url": "/images/products/lays.jpg", "base_price": 20},
-    {"name": "Tata Tea Gold (500g)", "description": "Premium blend of Assam & Darjeeling tea", "category_idx": 3, "image_url": "/images/products/tea.jpg", "base_price": 270},
-    {"name": "Parle-G Biscuits (800g)", "description": "India's iconic glucose biscuits — since 1939", "category_idx": 3, "image_url": "/images/products/parle-g.jpg", "base_price": 80},
+    {"slug": "fresh-tomatoes", "name": "Fresh Tomatoes", "description": "Firm, red tomatoes — perfect for curries and chutneys", "category_idx": 0, "image_url": "/images/products/tomatoes.jpg", "base_price": 40},
+    {"slug": "green-coriander-bunch", "name": "Green Coriander Bunch", "description": "Fresh dhania for garnishing and chutney", "category_idx": 0, "image_url": "/images/products/coriander.jpg", "base_price": 15},
+    {"slug": "onions-pyaaz", "name": "Onions (Pyaaz)", "description": "Medium-sized onions, a kitchen staple", "category_idx": 0, "image_url": "/images/products/onions.jpg", "base_price": 35},
+    {"slug": "amul-taza-milk-1l", "name": "Amul Taza Milk (1L)", "description": "Toned milk, pasteurized & homogenized", "category_idx": 1, "image_url": "/images/products/milk.jpg", "base_price": 54},
+    {"slug": "amul-paneer-200g", "name": "Amul Paneer (200g)", "description": "Fresh cottage cheese block for sabzi & tikka", "category_idx": 1, "image_url": "/images/products/paneer.jpg", "base_price": 90},
+    {"slug": "britannia-bread-400g", "name": "Britannia Bread (400g)", "description": "Soft white sandwich bread", "category_idx": 1, "image_url": "/images/products/bread.jpg", "base_price": 45},
+    {"slug": "toor-dal-1kg", "name": "Toor Dal (1kg)", "description": "Premium quality arhar dal for everyday cooking", "category_idx": 2, "image_url": "/images/products/toor-dal.jpg", "base_price": 160},
+    {"slug": "basmati-rice-5kg", "name": "Basmati Rice (5kg)", "description": "Long grain aged basmati — perfect for biryani", "category_idx": 2, "image_url": "/images/products/rice.jpg", "base_price": 450},
+    {"slug": "aashirvaad-atta-5kg", "name": "Aashirvaad Atta (5kg)", "description": "Whole wheat flour for soft rotis", "category_idx": 2, "image_url": "/images/products/atta.jpg", "base_price": 280},
+    {"slug": "lays-classic-salted-52g", "name": "Lay's Classic Salted (52g)", "description": "Crispy potato chips, classic flavor", "category_idx": 3, "image_url": "/images/products/lays.jpg", "base_price": 20},
+    {"slug": "tata-tea-gold-500g", "name": "Tata Tea Gold (500g)", "description": "Premium blend of Assam & Darjeeling tea", "category_idx": 3, "image_url": "/images/products/tea.jpg", "base_price": 270},
+    {"slug": "parle-g-biscuits-800g", "name": "Parle-G Biscuits (800g)", "description": "India's iconic glucose biscuits — since 1939", "category_idx": 3, "image_url": "/images/products/parle-g.jpg", "base_price": 80},
 ]
 
 STORES = [
@@ -201,8 +239,7 @@ INVENTORIES = [
 INVENTORY_ITEMS = [
     {
         "store_name": STORES[store_idx]["name"],
-        "product_name": PRODUCTS[product_idx]["name"],
-        "category_name": CATEGORIES[PRODUCTS[product_idx]["category_idx"]]["name"],
+        "product_slug": PRODUCTS[product_idx]["slug"],
         "price": price,
         "stock": stock,
     }
@@ -256,9 +293,19 @@ STORE_OWNER_PROFILES = [
 
 EXPECTED_FULL_COUNTS = {
     "users": 8,
+    "language": 5,
+    "customerprofile": 1,
+    "adminprofile": 1,
     "sellerprofile": 6,
+    "address": 9,
+    "service": 1,
+    "service_translation": 1,
     "category": 4,
+    "category_translation": 4,
+    "subcategory": 4,
+    "subcategory_translation": 4,
     "masterproduct": 12,
+    "masterproduct_translation": 12,
     "store": 3,
     "storeinventory": 26,
 }
@@ -274,13 +321,36 @@ def get_seller_application_subset_login_email_rows() -> list[tuple[str, str]]:
     return [("admin", ADMIN["email"]), *[("seller", application["email"]) for application in APPLICATIONS]]
 
 
-async def _upsert_user(session: AsyncSession, email: str, full_name: str, role: UserRole) -> User:
+async def _upsert_language(
+    session: AsyncSession, code: str, name: str, native_name: str
+) -> Language:
+    existing = await session.get(Language, code)
+    if existing is None:
+        language = Language(code=code, name=name, native_name=native_name, is_active=True)
+        session.add(language)
+        await session.flush()
+        return language
+    existing.name = name
+    existing.native_name = native_name
+    existing.is_active = True
+    session.add(existing)
+    await session.flush()
+    return existing
+
+
+async def _ensure_languages(session: AsyncSession) -> None:
+    for code, name, native in LANGUAGES:
+        await _upsert_language(session, code, name, native)
+
+
+async def _upsert_user(
+    session: AsyncSession, email: str, role: UserRole
+) -> User:
     existing = await session.exec(select(User).where(User.email == email))
     user = existing.first()
     if user is None:
-        user = User(email=email, full_name=full_name, role=role, is_active=True)
+        user = User(email=email, role=role, is_active=True, preferred_language="en")
     else:
-        user.full_name = full_name
         user.role = role
         user.is_active = True
     session.add(user)
@@ -288,90 +358,297 @@ async def _upsert_user(session: AsyncSession, email: str, full_name: str, role: 
     return user
 
 
-async def _upsert_profile(session: AsyncSession, user: User, data: Mapping[str, Any]) -> SellerProfile:
+async def _upsert_address(session: AsyncSession, owner: object | None, data: Mapping[str, Any]) -> Address:
+    """Update existing owner-linked address, or insert a new one."""
+    address_fields = {key: data[key] for key in _ADDRESS_KEYS}
+    if owner is not None:
+        for key, value in address_fields.items():
+            setattr(owner, key, value)
+        session.add(owner)
+        await session.flush()
+        return owner  # type: ignore[return-value]
+    address = Address(**address_fields)
+    session.add(address)
+    await session.flush()
+    return address
+
+
+async def _upsert_seller_profile(
+    session: AsyncSession, user: User, data: Mapping[str, Any]
+) -> SellerProfile:
     assert user.id is not None
-    existing = await session.exec(select(SellerProfile).where(SellerProfile.user_id == user.id))
+    existing = await session.exec(
+        select(SellerProfile).where(SellerProfile.user_id == user.id)
+    )
     profile = existing.first()
-    profile_fields = {
-        "business_name": data["business_name"],
-        "business_category": data["business_category"],
-        "phone": data["phone"],
-        "gst_number": data["gst_number"],
-        "fssai_license": data["fssai_license"],
-        "bank_account_number": data["bank_account_number"],
-        "bank_ifsc": data["bank_ifsc"],
-        "verification_status": data["status"],
-        "rejection_reason": data["rejection_reason"],
-        **{key: data[key] for key in _ADDRESS_KEYS},
-    }
+    first_name, last_name = split_full_name(data["full_name"])
     if profile is None:
-        profile = SellerProfile(user_id=user.id, **profile_fields)
+        address = await _upsert_address(session, None, data)
+        profile = SellerProfile(
+            user_id=user.id,
+            first_name=first_name,
+            last_name=last_name,
+            phone=data["phone"],
+            business_name=data["business_name"],
+            business_category=data["business_category"],
+            gst_number=data["gst_number"],
+            fssai_license=data["fssai_license"],
+            bank_account_number=data["bank_account_number"],
+            bank_ifsc=data["bank_ifsc"],
+            verification_status=data["status"],
+            rejection_reason=data["rejection_reason"],
+            business_address_id=address.id,
+        )
     else:
-        for key, value in profile_fields.items():
-            setattr(profile, key, value)
+        existing_address = await session.get(Address, profile.business_address_id)
+        await _upsert_address(session, existing_address, data)
+        profile.first_name = first_name
+        profile.last_name = last_name
+        profile.phone = data["phone"]
+        profile.business_name = data["business_name"]
+        profile.business_category = data["business_category"]
+        profile.gst_number = data["gst_number"]
+        profile.fssai_license = data["fssai_license"]
+        profile.bank_account_number = data["bank_account_number"]
+        profile.bank_ifsc = data["bank_ifsc"]
+        profile.verification_status = data["status"]
+        profile.rejection_reason = data["rejection_reason"]
     session.add(profile)
     await session.flush()
     return profile
 
 
-async def _upsert_category(session: AsyncSession, data: Mapping[str, Any]) -> Category:
-    existing = await session.exec(select(Category).where(Category.name == data["name"]))
-    category = existing.first()
-    if category is None:
-        category = Category(name=data["name"], description=data["description"])
+async def _upsert_admin_profile(
+    session: AsyncSession, user: User, data: Mapping[str, Any]
+) -> AdminProfile:
+    assert user.id is not None
+    existing = await session.exec(
+        select(AdminProfile).where(AdminProfile.user_id == user.id)
+    )
+    profile = existing.first()
+    first_name, last_name = split_full_name(data["full_name"])
+    if profile is None:
+        profile = AdminProfile(
+            user_id=user.id,
+            first_name=first_name,
+            last_name=last_name,
+            phone=data.get("phone"),
+            employee_code=data.get("employee_code"),
+            department=data.get("department"),
+        )
     else:
-        category.description = data["description"]
+        profile.first_name = first_name
+        profile.last_name = last_name
+        profile.phone = data.get("phone")
+        profile.employee_code = data.get("employee_code")
+        profile.department = data.get("department")
+    session.add(profile)
+    await session.flush()
+    return profile
+
+
+async def _upsert_customer_profile(
+    session: AsyncSession, user: User, data: Mapping[str, Any]
+) -> CustomerProfile:
+    assert user.id is not None
+    existing = await session.exec(
+        select(CustomerProfile).where(CustomerProfile.user_id == user.id)
+    )
+    profile = existing.first()
+    first_name, last_name = split_full_name(data["full_name"])
+    if profile is None:
+        profile = CustomerProfile(
+            user_id=user.id,
+            first_name=first_name,
+            last_name=last_name,
+            phone=data.get("phone"),
+        )
+    else:
+        profile.first_name = first_name
+        profile.last_name = last_name
+        profile.phone = data.get("phone")
+    session.add(profile)
+    await session.flush()
+    return profile
+
+
+async def _ensure_default_service(session: AsyncSession) -> Service:
+    result = await session.exec(select(Service).where(Service.slug == DEFAULT_SERVICE_SLUG))
+    service = result.first()
+    if service is None:
+        service = Service(slug=DEFAULT_SERVICE_SLUG, is_active=True, sort_order=0)
+        session.add(service)
+        await session.flush()
+
+    translation_result = await session.exec(
+        select(ServiceTranslation).where(
+            ServiceTranslation.service_id == service.id,
+            ServiceTranslation.language_code == "en",
+        )
+    )
+    translation = translation_result.first()
+    if translation is None:
+        session.add(
+            ServiceTranslation(
+                service_id=service.id,
+                language_code="en",
+                name=DEFAULT_SERVICE_NAME,
+                description=None,
+            )
+        )
+    else:
+        translation.name = DEFAULT_SERVICE_NAME
+    await session.flush()
+    return service
+
+
+async def _upsert_category(
+    session: AsyncSession, service_id: int, data: Mapping[str, Any], sort_order: int
+) -> Category:
+    result = await session.exec(
+        select(Category).where(
+            Category.service_id == service_id,
+            Category.slug == data["slug"],
+        )
+    )
+    category = result.first()
+    if category is None:
+        category = Category(service_id=service_id, slug=data["slug"], sort_order=sort_order)
+    else:
+        category.sort_order = sort_order
     session.add(category)
+    await session.flush()
+
+    translation_result = await session.exec(
+        select(CategoryTranslation).where(
+            CategoryTranslation.category_id == category.id,
+            CategoryTranslation.language_code == "en",
+        )
+    )
+    translation = translation_result.first()
+    if translation is None:
+        session.add(
+            CategoryTranslation(
+                category_id=category.id,
+                language_code="en",
+                name=data["name"],
+                description=data["description"],
+            )
+        )
+    else:
+        translation.name = data["name"]
+        translation.description = data["description"]
     await session.flush()
     return category
 
 
-async def _upsert_product(
-    session: AsyncSession,
-    data: Mapping[str, Any],
-    category_id: int,
-) -> MasterProduct:
-    existing = await session.exec(
-        select(MasterProduct).where(
-            MasterProduct.name == data["name"],
-            MasterProduct.category_id == category_id,
+async def _upsert_default_subcategory(
+    session: AsyncSession, category: Category, name: str
+) -> Subcategory:
+    assert category.id is not None
+    result = await session.exec(
+        select(Subcategory).where(
+            Subcategory.category_id == category.id,
+            Subcategory.slug == DEFAULT_SUBCATEGORY_SLUG,
         )
     )
-    product = existing.first()
-    product_fields = {
-        "description": data["description"],
-        "category_id": category_id,
-        "image_url": data["image_url"],
-        "base_price": data["base_price"],
-    }
-    if product is None:
-        product = MasterProduct(name=data["name"], **product_fields)
+    sub = result.first()
+    if sub is None:
+        sub = Subcategory(
+            category_id=category.id, slug=DEFAULT_SUBCATEGORY_SLUG, sort_order=0
+        )
+    session.add(sub)
+    await session.flush()
+
+    translation_result = await session.exec(
+        select(SubcategoryTranslation).where(
+            SubcategoryTranslation.subcategory_id == sub.id,
+            SubcategoryTranslation.language_code == "en",
+        )
+    )
+    translation = translation_result.first()
+    if translation is None:
+        session.add(
+            SubcategoryTranslation(
+                subcategory_id=sub.id,
+                language_code="en",
+                name=name,
+                description=None,
+            )
+        )
     else:
-        for key, value in product_fields.items():
-            setattr(product, key, value)
+        translation.name = name
+    await session.flush()
+    return sub
+
+
+async def _upsert_product(
+    session: AsyncSession, subcategory_id: int, data: Mapping[str, Any]
+) -> MasterProduct:
+    result = await session.exec(
+        select(MasterProduct).where(MasterProduct.slug == data["slug"])
+    )
+    product = result.first()
+    if product is None:
+        product = MasterProduct(
+            subcategory_id=subcategory_id,
+            slug=data["slug"],
+            image_url=data["image_url"],
+            base_price=data["base_price"],
+        )
+    else:
+        product.subcategory_id = subcategory_id
+        product.image_url = data["image_url"]
+        product.base_price = data["base_price"]
     session.add(product)
+    await session.flush()
+
+    translation_result = await session.exec(
+        select(MasterProductTranslation).where(
+            MasterProductTranslation.master_product_id == product.id,
+            MasterProductTranslation.language_code == "en",
+        )
+    )
+    translation = translation_result.first()
+    if translation is None:
+        session.add(
+            MasterProductTranslation(
+                master_product_id=product.id,
+                language_code="en",
+                name=data["name"],
+                description=data["description"],
+            )
+        )
+    else:
+        translation.name = data["name"]
+        translation.description = data["description"]
     await session.flush()
     return product
 
 
-async def _upsert_store(session: AsyncSession, data: Mapping[str, Any], seller_id: int) -> Store:
-    existing = await session.exec(
+async def _upsert_store(
+    session: AsyncSession, profile: SellerProfile, data: Mapping[str, Any]
+) -> Store:
+    assert profile.id is not None
+    result = await session.exec(
         select(Store).where(
             Store.name == data["name"],
-            Store.seller_id == seller_id,
+            Store.seller_profile_id == profile.id,
         )
     )
-    store = existing.first()
-    store_fields = {
-        "seller_id": seller_id,
-        "is_active": True,
-        **{key: data[key] for key in _ADDRESS_KEYS},
-    }
+    store = result.first()
     if store is None:
-        store = Store(name=data["name"], **store_fields)
+        address = await _upsert_address(session, None, data)
+        store = Store(
+            name=data["name"],
+            is_active=True,
+            seller_profile_id=profile.id,
+            address_id=address.id,
+        )
     else:
-        for key, value in store_fields.items():
-            setattr(store, key, value)
+        existing_address = await session.get(Address, store.address_id)
+        await _upsert_address(session, existing_address, data)
+        store.is_active = True
     session.add(store)
     await session.flush()
     return store
@@ -384,22 +661,18 @@ async def _upsert_inventory(
     price: float,
     stock: int,
 ) -> StoreInventory:
-    existing = await session.exec(
+    result = await session.exec(
         select(StoreInventory).where(
             StoreInventory.store_id == store_id,
             StoreInventory.product_id == product_id,
         )
     )
-    inventory = existing.first()
-    inventory_fields = {
-        "price": price,
-        "stock": stock,
-        "is_available": stock > 0,
-    }
+    inventory = result.first()
+    fields = {"price": price, "stock": stock, "is_available": stock > 0}
     if inventory is None:
-        inventory = StoreInventory(store_id=store_id, product_id=product_id, **inventory_fields)
+        inventory = StoreInventory(store_id=store_id, product_id=product_id, **fields)
     else:
-        for key, value in inventory_fields.items():
+        for key, value in fields.items():
             setattr(inventory, key, value)
     session.add(inventory)
     await session.flush()
@@ -407,66 +680,67 @@ async def _upsert_inventory(
 
 
 async def seed_seller_application_subset(session: AsyncSession) -> None:
-    await _upsert_user(session, ADMIN["email"], ADMIN["full_name"], ADMIN["role"])
+    await _ensure_languages(session)
+    admin_user = await _upsert_user(session, ADMIN["email"], ADMIN["role"])
+    await _upsert_admin_profile(session, admin_user, ADMIN)
     for application in APPLICATIONS:
-        user = await _upsert_user(
-            session,
-            application["email"],
-            application["full_name"],
-            UserRole.Seller,
-        )
-        await _upsert_profile(session, user, application)
+        user = await _upsert_user(session, application["email"], UserRole.Seller)
+        await _upsert_seller_profile(session, user, application)
 
 
 async def seed_demo_data(session: AsyncSession) -> None:
+    await _ensure_languages(session)
+
     users_by_email: dict[str, User] = {}
     for user_data in TEST_USERS:
-        user = await _upsert_user(
-            session,
-            user_data["email"],
-            user_data["display_name"],
-            user_data["role"],
-        )
+        user = await _upsert_user(session, user_data["email"], user_data["role"])
         users_by_email[user.email] = user
+
+    await _upsert_admin_profile(session, users_by_email[ADMIN["email"]], ADMIN)
+    await _upsert_customer_profile(session, users_by_email[CUSTOMER["email"]], CUSTOMER)
 
     for profile_data in STORE_OWNER_PROFILES:
         user = users_by_email[profile_data["email"]]
-        await _upsert_profile(session, user, profile_data)
+        await _upsert_seller_profile(session, user, profile_data)
 
     for application in APPLICATIONS:
-        user = await _upsert_user(
-            session,
-            application["email"],
-            application["full_name"],
-            UserRole.Seller,
-        )
+        user = await _upsert_user(session, application["email"], UserRole.Seller)
         users_by_email[user.email] = user
-        await _upsert_profile(session, user, application)
+        await _upsert_seller_profile(session, user, application)
 
-    categories_by_name: dict[str, Category] = {}
-    for category_data in CATEGORIES:
-        category = await _upsert_category(session, category_data)
-        categories_by_name[category.name] = category
+    service = await _ensure_default_service(session)
+    assert service.id is not None
 
-    products_by_key: dict[tuple[str, str], MasterProduct] = {}
+    categories_by_slug: dict[str, Category] = {}
+    subcategories_by_category_slug: dict[str, Subcategory] = {}
+    for sort_order, category_data in enumerate(CATEGORIES):
+        category = await _upsert_category(session, service.id, category_data, sort_order)
+        categories_by_slug[category.slug] = category
+        sub = await _upsert_default_subcategory(session, category, category_data["name"])
+        subcategories_by_category_slug[category.slug] = sub
+
+    products_by_slug: dict[str, MasterProduct] = {}
     for product_data in PRODUCTS:
-        category = categories_by_name[CATEGORIES[product_data["category_idx"]]["name"]]
-        assert category.id is not None
-        product = await _upsert_product(session, product_data, category.id)
-        products_by_key[(category.name, product.name)] = product
+        category = categories_by_slug[CATEGORIES[product_data["category_idx"]]["slug"]]
+        sub = subcategories_by_category_slug[category.slug]
+        assert sub.id is not None
+        product = await _upsert_product(session, sub.id, product_data)
+        products_by_slug[product.slug] = product
 
     stores_by_name: dict[str, Store] = {}
     for store_data in STORE_ITEMS:
-        user = users_by_email[store_data["seller_email"]]
-        assert user.id is not None
-        store = await _upsert_store(session, store_data, user.id)
+        owner_user = users_by_email[store_data["seller_email"]]
+        result = await session.exec(
+            select(SellerProfile).where(SellerProfile.user_id == owner_user.id)
+        )
+        profile = result.first()
+        assert profile is not None
+        store = await _upsert_store(session, profile, store_data)
         stores_by_name[store.name] = store
 
     for inventory_item in INVENTORY_ITEMS:
         store = stores_by_name[inventory_item["store_name"]]
-        product = products_by_key[
-            (inventory_item["category_name"], inventory_item["product_name"])
-        ]
+        product = products_by_slug[inventory_item["product_slug"]]
         assert store.id is not None
         assert product.id is not None
         await _upsert_inventory(
@@ -480,17 +754,29 @@ async def seed_demo_data(session: AsyncSession) -> None:
     await verify_expected_counts(session)
 
 
+_COUNT_MODELS = {
+    "users": User,
+    "language": Language,
+    "customerprofile": CustomerProfile,
+    "adminprofile": AdminProfile,
+    "sellerprofile": SellerProfile,
+    "address": Address,
+    "service": Service,
+    "service_translation": ServiceTranslation,
+    "category": Category,
+    "category_translation": CategoryTranslation,
+    "subcategory": Subcategory,
+    "subcategory_translation": SubcategoryTranslation,
+    "masterproduct": MasterProduct,
+    "masterproduct_translation": MasterProductTranslation,
+    "store": Store,
+    "storeinventory": StoreInventory,
+}
+
+
 async def get_seed_counts(session: AsyncSession) -> dict[str, int]:
-    counts = {}
-    models = {
-        "users": User,
-        "sellerprofile": SellerProfile,
-        "category": Category,
-        "masterproduct": MasterProduct,
-        "store": Store,
-        "storeinventory": StoreInventory,
-    }
-    for key, model in models.items():
+    counts: dict[str, int] = {}
+    for key, model in _COUNT_MODELS.items():
         result = await session.exec(select(func.count()).select_from(model))
         counts[key] = int(result.one())
     return counts
