@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import desc
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -40,7 +41,7 @@ async def _customer_addresses(
         select(CustomerAddress)
         .where(CustomerAddress.customer_profile_id == customer_profile_id)
         .options(selectinload(CustomerAddress.address))  # type: ignore[arg-type]
-        .order_by(CustomerAddress.is_default.desc(), CustomerAddress.id.asc())  # type: ignore[union-attr]
+        .order_by(desc(CustomerAddress.is_default), CustomerAddress.id)  # type: ignore[arg-type]
     )
     return list(result.all())
 

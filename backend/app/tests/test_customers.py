@@ -306,10 +306,15 @@ async def test_customer_cannot_edit_another_customers_address(
     override_as_customer: Any,
     session: AsyncSession,
 ) -> None:
+    profile_result = await session.exec(
+        select(CustomerProfile).where(CustomerProfile.user_id == mock_other_customer.id)
+    )
+    other_profile = profile_result.one()
+    assert other_profile.id is not None
     result = await session.exec(
-        select(CustomerAddress)
-        .join(CustomerProfile, CustomerProfile.id == CustomerAddress.customer_profile_id)
-        .where(CustomerProfile.user_id == mock_other_customer.id)
+        select(CustomerAddress).where(
+            CustomerAddress.customer_profile_id == other_profile.id
+        )
     )
     other_address = result.one()
 
@@ -387,10 +392,15 @@ async def test_deleting_non_owned_address_returns_404(
     override_as_customer: Any,
     session: AsyncSession,
 ) -> None:
+    profile_result = await session.exec(
+        select(CustomerProfile).where(CustomerProfile.user_id == mock_other_customer.id)
+    )
+    other_profile = profile_result.one()
+    assert other_profile.id is not None
     result = await session.exec(
-        select(CustomerAddress)
-        .join(CustomerProfile, CustomerProfile.id == CustomerAddress.customer_profile_id)
-        .where(CustomerProfile.user_id == mock_other_customer.id)
+        select(CustomerAddress).where(
+            CustomerAddress.customer_profile_id == other_profile.id
+        )
     )
     other_address = result.one()
 
