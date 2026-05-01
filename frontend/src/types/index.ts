@@ -53,6 +53,24 @@ export interface Address {
   longitude: number | null;
 }
 
+/** A saved delivery address for a customer account. */
+export interface CustomerAddress {
+  id: number;
+  label: string | null;
+  is_default: boolean;
+  address: Address;
+}
+
+/** Customer profile payload returned by GET /customers/me. */
+export interface CustomerProfile {
+  user_id: number;
+  email: string;
+  first_name: string;
+  last_name: string | null;
+  phone: string | null;
+  addresses: CustomerAddress[];
+}
+
 /** A seller's store on the platform. */
 export interface Store extends BaseSchema {
   name: string;

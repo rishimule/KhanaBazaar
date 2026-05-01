@@ -42,10 +42,10 @@ def test_tampered_signature_rejected() -> None:
 
     user = _make_user()
     token = create_access_token(user)
-    # Flip one character in the signature segment
+    # Flip a non-padding signature character so decoded bytes always change.
     parts = token.split(".")
     sig = parts[2]
-    parts[2] = sig[:-1] + ("A" if sig[-1] != "A" else "B")
+    parts[2] = ("A" if sig[0] != "A" else "B") + sig[1:]
     bad_token = ".".join(parts)
 
     with pytest.raises(HTTPException) as exc_info:

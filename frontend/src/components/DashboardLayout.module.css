@@ -58,6 +58,10 @@
   background: hsla(152, 68%, 38%, 0.15);
 }
 
+.roleIconCustomer {
+  background: hsla(199, 89%, 48%, 0.15);
+}
+
 .roleInfo {
   display: flex;
   flex-direction: column;

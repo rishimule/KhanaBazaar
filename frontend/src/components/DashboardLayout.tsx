@@ -11,13 +11,33 @@ interface NavItem {
   icon: string;
 }
 
+type DashboardRole = "seller" | "admin" | "customer";
+
 interface Props {
   children: React.ReactNode;
-  role: "seller" | "admin";
+  role: DashboardRole;
   roleName: string;
   title: string;
   navItems: NavItem[];
 }
+
+const ROLE_LABELS: Record<DashboardRole, string> = {
+  seller: "Seller Portal",
+  admin: "Admin Panel",
+  customer: "Account",
+};
+
+const ROLE_ICONS: Record<DashboardRole, string> = {
+  seller: "🏪",
+  admin: "⚙️",
+  customer: "👤",
+};
+
+const ROLE_ICON_CLASSES: Record<DashboardRole, string> = {
+  seller: styles.roleIconSeller,
+  admin: styles.roleIconAdmin,
+  customer: styles.roleIconCustomer,
+};
 
 export default function DashboardLayout({
   children,
@@ -40,17 +60,13 @@ export default function DashboardLayout({
       >
         <div className={styles.sidebarHeader}>
           <div
-            className={`${styles.roleIcon} ${
-              role === "seller" ? styles.roleIconSeller : styles.roleIconAdmin
-            }`}
+            className={`${styles.roleIcon} ${ROLE_ICON_CLASSES[role]}`}
           >
-            {role === "seller" ? "🏪" : "⚙️"}
+            {ROLE_ICONS[role]}
           </div>
           <div className={styles.roleInfo}>
             <span className={styles.roleName}>{roleName}</span>
-            <span className={styles.roleLabel}>
-              {role === "seller" ? "Seller Portal" : "Admin Panel"}
-            </span>
+            <span className={styles.roleLabel}>{ROLE_LABELS[role]}</span>
           </div>
         </div>
 

@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.db.session import get_db_session
 from app.models.base import User, UserRole
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def create_access_token(user: User) -> str:
@@ -42,8 +42,14 @@ def decode_access_token(token: str) -> dict[str, object]:
 
 
 async def verify_access_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> dict[str, object]:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return decode_access_token(credentials.credentials)
 
 
@@ -66,6 +72,15 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
 
     return user
+
+
+async def get_current_customer(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != UserRole.Customer:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough privileges. Customer role required.",
+        )
+    return current_user
 
 
 async def get_current_seller(current_user: User = Depends(get_current_user)) -> User:
