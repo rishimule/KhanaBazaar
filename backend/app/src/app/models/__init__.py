@@ -1,7 +1,72 @@
-# Import all models here so Alembic can discover them
-from .base import BaseSchema, Item, User
-from .catalog import Category, MasterProduct
-from .seller import SellerProfile, VerificationStatus
+from .address import Address
+from .base import BaseSchema, User, UserRole
+from .catalog import (
+    Category,
+    CategoryTranslation,
+    Language,
+    LanguageCode,
+    MasterProduct,
+    MasterProductTranslation,
+    Service,
+    ServiceTranslation,
+    Subcategory,
+    SubcategoryTranslation,
+)
+from .commerce import (
+    Cart,
+    CartItem,
+    Delivery,
+    DeliveryStatus,
+    Favorite,
+    Order,
+    OrderItem,
+    OrderStatus,
+    Payment,
+    PaymentMethod,
+    PaymentStatus,
+    Review,
+)
+from .profile import (
+    AdminProfile,
+    CustomerAddress,
+    CustomerProfile,
+    SellerProfile,
+    VerificationStatus,
+)
 from .store import Store, StoreInventory
 
-__all__ = ["User", "Item", "BaseSchema", "Category", "MasterProduct", "Store", "StoreInventory", "SellerProfile", "VerificationStatus"]
+__all__ = [
+    "Address",
+    "AdminProfile",
+    "BaseSchema",
+    "Cart",
+    "CartItem",
+    "Category",
+    "CategoryTranslation",
+    "CustomerAddress",
+    "CustomerProfile",
+    "Delivery",
+    "DeliveryStatus",
+    "Favorite",
+    "Language",
+    "LanguageCode",
+    "MasterProduct",
+    "MasterProductTranslation",
+    "Order",
+    "OrderItem",
+    "OrderStatus",
+    "Payment",
+    "PaymentMethod",
+    "PaymentStatus",
+    "Review",
+    "SellerProfile",
+    "Service",
+    "ServiceTranslation",
+    "Store",
+    "StoreInventory",
+    "Subcategory",
+    "SubcategoryTranslation",
+    "User",
+    "UserRole",
+    "VerificationStatus",
+]

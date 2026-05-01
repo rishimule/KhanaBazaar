@@ -1,32 +1,28 @@
-from typing import List
-
 from sqlmodel import Field, Relationship, UniqueConstraint
 
-from app.models.address import AddressBase
-from app.models.base import BaseSchema, User
+from app.models.address import Address
+from app.models.base import BaseSchema
 from app.models.catalog import MasterProduct
+from app.models.profile import SellerProfile
 
 
-class Store(BaseSchema, AddressBase, table=True):
+class Store(BaseSchema, table=True):
     name: str = Field(index=True, nullable=False)
-    is_active: bool = Field(default=True)
-    seller_id: int = Field(foreign_key="user.id", nullable=False)
+    is_active: bool = Field(default=True, nullable=False)
+    seller_profile_id: int = Field(foreign_key="sellerprofile.id", nullable=False, index=True)
+    address_id: int = Field(foreign_key="address.id", nullable=False, index=True)
 
-    # Relationships
-    seller: User = Relationship()
-    inventories: List["StoreInventory"] = Relationship(back_populates="store")
+    seller_profile: SellerProfile = Relationship()
+    address: Address = Relationship()
 
 
 class StoreInventory(BaseSchema, table=True):
-    __table_args__ = (
-        UniqueConstraint("store_id", "product_id", name="uq_store_product"),
-    )
+    __table_args__ = (UniqueConstraint("store_id", "product_id", name="uq_store_product"),)
     store_id: int = Field(foreign_key="store.id", nullable=False)
     product_id: int = Field(foreign_key="masterproduct.id", nullable=False)
     price: float = Field(nullable=False)
     stock: int = Field(default=0, nullable=False)
-    is_available: bool = Field(default=True)
+    is_available: bool = Field(default=True, nullable=False)
 
-    # Relationships
-    store: Store = Relationship(back_populates="inventories")
-    product: MasterProduct = Relationship(back_populates="inventories")
+    store: Store = Relationship()
+    product: MasterProduct = Relationship()

@@ -1,17 +1,11 @@
-"""Shared address columns applied as a mixin on owner tables.
-
-The 9 columns mirror the `AddressPayload` Pydantic schema. Validation
-for incoming wire-format data lives on the schema; this mixin only
-defines DB column nullability. Owner tables inherit this mixin
-alongside `BaseSchema`.
-"""
-
 from typing import Optional
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field
+
+from app.models.base import BaseSchema
 
 
-class AddressBase(SQLModel):
+class Address(BaseSchema, table=True):
     address_line1: str = Field(nullable=False, max_length=120)
     address_line2: Optional[str] = Field(default=None, nullable=True, max_length=120)
     landmark: Optional[str] = Field(default=None, nullable=True, max_length=120)

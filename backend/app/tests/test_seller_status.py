@@ -6,16 +6,17 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
 from app.core.security import get_current_seller, get_current_user
+from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.seller import SellerProfile, VerificationStatus
+from app.models.profile import SellerProfile, VerificationStatus
 from tests._helpers import make_address
 
 mock_seller = User(
-    id=10, email="sellerstatus@kb.com", full_name="Status Seller",
+    id=10, email="sellerstatus@kb.com",
     role=UserRole.Seller, is_active=True,
 )
 mock_customer = User(
-    id=11, email="cust@kb.com", full_name="Customer",
+    id=11, email="cust@kb.com",
     role=UserRole.Customer, is_active=True,
 )
 
@@ -24,8 +25,13 @@ mock_customer = User(
 async def seed_seller_with_profile(session: AsyncSession) -> AsyncGenerator[None, None]:
     session.add(User(**mock_seller.model_dump()))
     await session.flush()
+    address = Address(**make_address())
+    session.add(address)
+    await session.flush()
     session.add(SellerProfile(
         user_id=mock_seller.id,
+        first_name="Status",
+        last_name="Seller",
         business_name="Status Grocery",
         business_category="grocery",
         phone="9876543210",
@@ -34,7 +40,7 @@ async def seed_seller_with_profile(session: AsyncSession) -> AsyncGenerator[None
         bank_account_number="123456789012",
         bank_ifsc="SBIN0001234",
         verification_status=VerificationStatus.Pending,
-        **make_address(),
+        business_address_id=address.id,
     ))
     await session.commit()
     yield
@@ -67,6 +73,7 @@ async def test_get_seller_profile_returns_fields(override_as_seller: Any) -> Non
     assert data["business_name"] == "Status Grocery"
     assert data["business_category"] == "grocery"
     assert data["phone"] == "9876543210"
+    assert data["full_name"] == "Status Seller"
 
 
 @pytest.mark.asyncio

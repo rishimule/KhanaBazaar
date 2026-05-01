@@ -3,21 +3,36 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import desc, func
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
+from app.models.address import Address
 from app.models.base import User
-from app.models.seller import SellerProfile, VerificationStatus
+from app.models.profile import SellerProfile, VerificationStatus
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.sellers import (
     SellerApplicationPayload,
     SellerProfilePayload,
     SellerProfileUpdateBody,
 )
+from app.services.profiles import compose_full_name, split_full_name
 
 router = APIRouter()
+
+
+async def _seller_profile_with_address(
+    session: AsyncSession, user_id: int
+) -> SellerProfile | None:
+    stmt = (
+        select(SellerProfile)
+        .where(SellerProfile.user_id == user_id)
+        .options(selectinload(SellerProfile.business_address))  # type: ignore[arg-type]
+    )
+    result = await session.exec(stmt)
+    return result.first()
 
 
 @router.get("/me/status")
@@ -42,18 +57,17 @@ async def get_seller_profile(
     current_user: User = Depends(get_current_seller),
     session: AsyncSession = Depends(get_db_session),
 ) -> SellerProfilePayload:
-    result = await session.exec(
-        select(SellerProfile).where(SellerProfile.user_id == current_user.id)
-    )
-    profile = result.first()
+    assert current_user.id is not None
+    profile = await _seller_profile_with_address(session, current_user.id)
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
     return SellerProfilePayload(
         id=profile.id,
         user_id=profile.user_id,
+        full_name=compose_full_name(profile.first_name, profile.last_name),
         business_name=profile.business_name,
         business_category=profile.business_category,
-        address=address_to_payload(profile),
+        address=address_to_payload(profile.business_address),
         phone=profile.phone,
         gst_number=profile.gst_number,
         fssai_license=profile.fssai_license,
@@ -70,13 +84,15 @@ async def update_seller_profile(
     current_user: User = Depends(get_current_seller),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:  # type: ignore[type-arg]
-    result = await session.exec(
-        select(SellerProfile).where(SellerProfile.user_id == current_user.id)
-    )
-    profile = result.first()
+    assert current_user.id is not None
+    profile = await _seller_profile_with_address(session, current_user.id)
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
 
+    if body.full_name is not None:
+        first_name, last_name = split_full_name(body.full_name)
+        profile.first_name = first_name
+        profile.last_name = last_name
     profile.business_name = body.business_name
     profile.business_category = body.business_category
     profile.phone = body.phone
@@ -84,8 +100,11 @@ async def update_seller_profile(
     profile.fssai_license = body.fssai_license
     profile.bank_account_number = body.bank_account_number
     profile.bank_ifsc = body.bank_ifsc
+
+    address = profile.business_address
     for key, value in address_from_payload(body.address).items():
-        setattr(profile, key, value)
+        setattr(address, key, value)
+
     profile.verification_status = VerificationStatus.Pending
     profile.rejection_reason = None
 
@@ -139,14 +158,14 @@ async def admin_verify_seller(
 ALLOWED_STATUSES = {"pending", "approved", "rejected", "all"}
 
 
-def _application_payload(profile: SellerProfile, user: User) -> dict:  # type: ignore[type-arg]
+def _application_payload(profile: SellerProfile, user: User, address: Address) -> dict:  # type: ignore[type-arg]
     return SellerApplicationPayload(
         seller_id=user.id,
         email=user.email,
-        full_name=user.full_name,
+        full_name=compose_full_name(profile.first_name, profile.last_name),
         business_name=profile.business_name,
         business_category=profile.business_category,
-        address=address_to_payload(profile),
+        address=address_to_payload(address),
         phone=profile.phone,
         gst_number=profile.gst_number,
         fssai_license=profile.fssai_license,
@@ -168,8 +187,10 @@ async def admin_list_applications(
     if status not in ALLOWED_STATUSES:
         raise HTTPException(status_code=400, detail="invalid status")
 
-    stmt = select(SellerProfile, User).join(
-        User, User.id == SellerProfile.user_id  # type: ignore[arg-type]
+    stmt = (
+        select(SellerProfile, User, Address)
+        .join(User, User.id == SellerProfile.user_id)  # type: ignore[arg-type]
+        .join(Address, Address.id == SellerProfile.business_address_id)  # type: ignore[arg-type]
     )
     if status != "all":
         stmt = stmt.where(SellerProfile.verification_status == VerificationStatus(status))
@@ -177,7 +198,7 @@ async def admin_list_applications(
 
     result = await session.exec(stmt)
     rows = result.all()
-    return [_application_payload(profile, user) for profile, user in rows]
+    return [_application_payload(profile, user, address) for profile, user, address in rows]
 
 
 @router.get("/admin/applications/counts")
