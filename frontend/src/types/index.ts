@@ -1,7 +1,10 @@
 /**
- * Khana Bazaar — Shared TypeScript Types
+ * Khana Bazaar API wire types.
  *
- * These interfaces mirror the backend SQLModel schemas exactly.
+ * These interfaces match the public FastAPI response/request shapes used by
+ * the frontend. They are intentionally not exact database table models because
+ * the backend composes compatibility fields such as full_name, seller_id,
+ * category name, product name, and base_price from the reset baseline schema.
  */
 
 /** User roles matching backend RBAC enum. */
