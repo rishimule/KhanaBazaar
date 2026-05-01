@@ -33,6 +33,9 @@ export default function Navbar() {
   if (role === "customer" || role === "seller" || role === "admin") {
     navLinks.push({ href: "/stores", label: "Stores", icon: "🏪" });
   }
+  if (role === "customer") {
+    navLinks.push({ href: "/account", label: "Account", icon: "👤" });
+  }
   if (role === "seller") {
     navLinks.push({ href: "/seller", label: "Seller", icon: "📊" });
   }

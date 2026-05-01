@@ -98,9 +98,14 @@ async def _clear_default_addresses(
     customer_profile_id: int,
 ) -> None:
     addresses = await _customer_addresses(session, customer_profile_id)
+    cleared = False
     for customer_address in addresses:
-        customer_address.is_default = False
-        session.add(customer_address)
+        if customer_address.is_default:
+            customer_address.is_default = False
+            session.add(customer_address)
+            cleared = True
+    if cleared:
+        await session.flush()
 
 
 @router.get("/me", response_model=CustomerProfileRead)
