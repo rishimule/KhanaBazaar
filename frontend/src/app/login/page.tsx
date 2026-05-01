@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { User } from "@/types";
@@ -24,8 +24,12 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (dbUser) {
+  useEffect(() => {
+    if (!dbUser) return;
     router.push(getRedirect(dbUser));
+  }, [dbUser, router]);
+
+  if (dbUser) {
     return null;
   }
 
