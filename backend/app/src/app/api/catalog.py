@@ -330,10 +330,12 @@ async def update_product(
 
     if payload.category_id is not None:
         subcategory = await _ensure_default_subcategory(session, payload.category_id)
+        assert subcategory.id is not None
         product.subcategory_id = subcategory.id
     else:
-        subcategory = await session.get(Subcategory, product.subcategory_id)
-        assert subcategory is not None
+        sub_lookup = await session.get(Subcategory, product.subcategory_id)
+        assert sub_lookup is not None
+        subcategory = sub_lookup
 
     if payload.base_price is not None:
         product.base_price = payload.base_price

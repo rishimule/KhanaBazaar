@@ -5,8 +5,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.db.dev_seed import (
     EXPECTED_FULL_COUNTS,
     get_canonical_login_email_rows,
-    get_seller_application_subset_login_email_rows,
     get_seed_counts,
+    get_seller_application_subset_login_email_rows,
     seed_demo_data,
     seed_seller_application_subset,
 )
@@ -16,7 +16,7 @@ from app.models.profile import SellerProfile, VerificationStatus
 CANONICAL_FULL_COUNTS = EXPECTED_FULL_COUNTS
 
 SELLER_APPLICATION_SUBSET_COUNTS = {
-    **{key: 0 for key in EXPECTED_FULL_COUNTS},
+    **dict.fromkeys(EXPECTED_FULL_COUNTS, 0),
     "users": 4,
     "language": 5,
     "adminprofile": 1,

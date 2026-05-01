@@ -41,7 +41,7 @@ DEFAULT_SERVICE_SLUG = "default"
 DEFAULT_SERVICE_NAME = "Khana Bazaar"
 DEFAULT_SUBCATEGORY_SLUG = "_default"
 
-TEST_USERS = [
+TEST_USERS: list[dict[str, Any]] = [
     {"email": "admin@khanabazaar.dev", "display_name": "Platform Admin", "role": UserRole.Admin},
     {"email": "seller@khanabazaar.dev", "display_name": "Ravi Sharma", "role": UserRole.Seller},
     {"email": "seller2@khanabazaar.dev", "display_name": "Krishna Patel", "role": UserRole.Seller},
@@ -49,7 +49,7 @@ TEST_USERS = [
     {"email": "customer@khanabazaar.dev", "display_name": "Priya Verma", "role": UserRole.Customer},
 ]
 
-ADMIN = {
+ADMIN: dict[str, Any] = {
     "email": "admin@khanabazaar.dev",
     "full_name": "Platform Admin",
     "role": UserRole.Admin,
@@ -58,13 +58,13 @@ ADMIN = {
     "department": "Platform",
 }
 
-CUSTOMER = {
+CUSTOMER: dict[str, Any] = {
     "email": "customer@khanabazaar.dev",
     "full_name": "Priya Verma",
     "phone": "+919811110200",
 }
 
-APPLICATIONS = [
+APPLICATIONS: list[dict[str, Any]] = [
     {
         "email": "pending.seller@khanabazaar.dev",
         "full_name": "Arjun Menon",
@@ -133,14 +133,14 @@ APPLICATIONS = [
     },
 ]
 
-CATEGORIES = [
+CATEGORIES: list[dict[str, Any]] = [
     {"slug": "fruits-vegetables", "name": "Fruits & Vegetables", "description": "Fresh produce from local farms"},
     {"slug": "dairy-bakery", "name": "Dairy & Bakery", "description": "Milk, paneer, bread, and baked goods"},
     {"slug": "staples-grains", "name": "Staples & Grains", "description": "Rice, atta, dal, and cooking essentials"},
     {"slug": "snacks-beverages", "name": "Snacks & Beverages", "description": "Chips, biscuits, tea, coffee, and cold drinks"},
 ]
 
-PRODUCTS = [
+PRODUCTS: list[dict[str, Any]] = [
     {"slug": "fresh-tomatoes", "name": "Fresh Tomatoes", "description": "Firm, red tomatoes — perfect for curries and chutneys", "category_idx": 0, "image_url": "/images/products/tomatoes.jpg", "base_price": 40},
     {"slug": "green-coriander-bunch", "name": "Green Coriander Bunch", "description": "Fresh dhania for garnishing and chutney", "category_idx": 0, "image_url": "/images/products/coriander.jpg", "base_price": 15},
     {"slug": "onions-pyaaz", "name": "Onions (Pyaaz)", "description": "Medium-sized onions, a kitchen staple", "category_idx": 0, "image_url": "/images/products/onions.jpg", "base_price": 35},
@@ -155,7 +155,7 @@ PRODUCTS = [
     {"slug": "parle-g-biscuits-800g", "name": "Parle-G Biscuits (800g)", "description": "India's iconic glucose biscuits — since 1939", "category_idx": 3, "image_url": "/images/products/parle-g.jpg", "base_price": 80},
 ]
 
-STORES = [
+STORES: list[dict[str, Any]] = [
     {
         "name": "Sharma General Store",
         "seller_idx": 1,
@@ -246,7 +246,7 @@ INVENTORY_ITEMS = [
     for store_idx, product_idx, price, stock in INVENTORIES
 ]
 
-STORE_OWNER_PROFILES = [
+STORE_OWNER_PROFILES: list[dict[str, Any]] = [
     {
         "email": "seller@khanabazaar.dev",
         "full_name": "Ravi Sharma",

@@ -30,7 +30,7 @@ class CustomerProfile(BaseSchema, table=True):
 
 
 class CustomerAddress(BaseSchema, table=True):
-    __tablename__ = "customeraddress"  # type: ignore[assignment]
+    __tablename__ = "customeraddress"
     __table_args__ = (
         UniqueConstraint("customer_profile_id", "address_id", name="uq_customeraddress_customer_address"),
     )

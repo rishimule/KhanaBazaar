@@ -51,18 +51,18 @@ class SellerOtpVerifyBody(BaseModel):
 
 async def _full_name_for_user(session: AsyncSession, user: User) -> str | None:
     if user.role == UserRole.Customer:
-        result = await session.exec(
+        customer_result = await session.exec(
             select(CustomerProfile).where(CustomerProfile.user_id == user.id)
         )
-        profile = result.first()
+        profile = customer_result.first()
         if profile is None:
             return None
         return compose_full_name(profile.first_name, profile.last_name)
     if user.role == UserRole.Seller:
-        result = await session.exec(
+        seller_result = await session.exec(
             select(SellerProfile).where(SellerProfile.user_id == user.id)
         )
-        seller = result.first()
+        seller = seller_result.first()
         if seller is None:
             return None
         return compose_full_name(seller.first_name, seller.last_name)
@@ -116,6 +116,7 @@ async def otp_verify(
     result = await session.exec(select(User).where(User.email == email))
     user = result.first()
 
+    full_name: str | None
     if user is None:
         if not body.full_name:
             return {"access_token": None, "token_type": None, "user": None, "needs_name": True}
@@ -123,6 +124,7 @@ async def otp_verify(
         user = User(email=email, role=UserRole.Customer)
         session.add(user)
         await session.flush()
+        assert user.id is not None
         profile = CustomerProfile(user_id=user.id, first_name=first_name, last_name=last_name)
         session.add(profile)
         await session.commit()

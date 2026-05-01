@@ -125,4 +125,4 @@ def test_model_classes_are_imported() -> None:
         Review,
         Favorite,
     ]
-    assert all(model.__table__ is not None for model in classes)
+    assert all(getattr(model, "__table__", None) is not None for model in classes)

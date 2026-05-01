@@ -1,6 +1,5 @@
 from urllib.parse import urlparse
 
-
 LOCAL_HOSTS = {"localhost", "127.0.0.1"}
 CANONICAL_DATABASE_NAME = "khanabazaar"
 CANONICAL_DATABASE_PORT = 5432

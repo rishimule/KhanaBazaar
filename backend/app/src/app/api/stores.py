@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
@@ -41,7 +41,7 @@ def _store_read(store: Store) -> StoreRead:
     )
 
 
-def _store_with_relations_stmt():  # type: ignore[no-untyped-def]
+def _store_with_relations_stmt() -> Any:
     return select(Store).options(
         selectinload(Store.address),  # type: ignore[arg-type]
         selectinload(Store.seller_profile),  # type: ignore[arg-type]
@@ -52,7 +52,8 @@ async def _get_store_with_relations(
     session: AsyncSession, store_id: int
 ) -> Store | None:
     result = await session.exec(_store_with_relations_stmt().where(Store.id == store_id))
-    return result.first()
+    store: Store | None = result.first()
+    return store
 
 
 @router.get("/", response_model=List[StoreRead])
@@ -76,6 +77,7 @@ async def list_my_stores(
     session: AsyncSession = Depends(get_db_session),
     seller: User = Depends(get_current_seller),
 ) -> List[StoreRead]:
+    assert seller.id is not None
     profile = await _seller_profile_for_user(session, seller.id)
     stmt = _store_with_relations_stmt().where(Store.seller_profile_id == profile.id)
     result = await session.exec(stmt)

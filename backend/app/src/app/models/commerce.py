@@ -43,7 +43,7 @@ class Cart(BaseSchema, table=True):
 
 
 class CartItem(BaseSchema, table=True):
-    __tablename__ = "cartitem"  # type: ignore[assignment]
+    __tablename__ = "cartitem"
     __table_args__ = (UniqueConstraint("cart_id", "inventory_id", name="uq_cartitem_cart_inventory"),)
     cart_id: int = Field(foreign_key="cart.id", nullable=False)
     inventory_id: int = Field(foreign_key="storeinventory.id", nullable=False)
@@ -51,7 +51,7 @@ class CartItem(BaseSchema, table=True):
 
 
 class Order(BaseSchema, table=True):
-    __tablename__ = "order"  # type: ignore[assignment]
+    __tablename__ = "order"
     customer_profile_id: int = Field(foreign_key="customerprofile.id", nullable=False, index=True)
     store_id: int = Field(foreign_key="store.id", nullable=False, index=True)
     delivery_address_id: int = Field(foreign_key="address.id", nullable=False)
@@ -67,7 +67,7 @@ class Order(BaseSchema, table=True):
 
 
 class OrderItem(BaseSchema, table=True):
-    __tablename__ = "orderitem"  # type: ignore[assignment]
+    __tablename__ = "orderitem"
     __table_args__ = (UniqueConstraint("order_id", "inventory_id", name="uq_orderitem_order_inventory"),)
     order_id: int = Field(foreign_key="order.id", nullable=False)
     inventory_id: int = Field(foreign_key="storeinventory.id", nullable=False)

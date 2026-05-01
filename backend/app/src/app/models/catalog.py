@@ -29,7 +29,7 @@ class Service(BaseSchema, table=True):
 
 
 class ServiceTranslation(BaseSchema, table=True):
-    __tablename__ = "service_translation"  # type: ignore[assignment]
+    __tablename__ = "service_translation"
     __table_args__ = (UniqueConstraint("service_id", "language_code", name="uq_service_translation"),)
     service_id: int = Field(foreign_key="service.id", nullable=False)
     language_code: str = Field(foreign_key="language.code", nullable=False)
@@ -47,7 +47,7 @@ class Category(BaseSchema, table=True):
 
 
 class CategoryTranslation(BaseSchema, table=True):
-    __tablename__ = "category_translation"  # type: ignore[assignment]
+    __tablename__ = "category_translation"
     __table_args__ = (UniqueConstraint("category_id", "language_code", name="uq_category_translation"),)
     category_id: int = Field(foreign_key="category.id", nullable=False)
     language_code: str = Field(foreign_key="language.code", nullable=False)
@@ -63,7 +63,7 @@ class Subcategory(BaseSchema, table=True):
 
 
 class SubcategoryTranslation(BaseSchema, table=True):
-    __tablename__ = "subcategory_translation"  # type: ignore[assignment]
+    __tablename__ = "subcategory_translation"
     __table_args__ = (UniqueConstraint("subcategory_id", "language_code", name="uq_subcategory_translation"),)
     subcategory_id: int = Field(foreign_key="subcategory.id", nullable=False)
     language_code: str = Field(foreign_key="language.code", nullable=False)
@@ -79,7 +79,7 @@ class MasterProduct(BaseSchema, table=True):
 
 
 class MasterProductTranslation(BaseSchema, table=True):
-    __tablename__ = "masterproduct_translation"  # type: ignore[assignment]
+    __tablename__ = "masterproduct_translation"
     __table_args__ = (UniqueConstraint("master_product_id", "language_code", name="uq_masterproduct_translation"),)
     master_product_id: int = Field(foreign_key="masterproduct.id", nullable=False)
     language_code: str = Field(foreign_key="language.code", nullable=False)
