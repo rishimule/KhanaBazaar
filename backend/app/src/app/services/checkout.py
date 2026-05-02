@@ -232,6 +232,9 @@ async def place_orders_from_cart(
     # Clear cart (items first to satisfy the cart_id FK).
     for item in cart_items:
         await session.delete(item)
+    # Flush so the item DELETEs hit the DB before the cart DELETEs — without
+    # this, SQLAlchemy can reorder and trigger cartitem_cart_id_fkey violations.
+    await session.flush()
     for cart in carts:
         await session.delete(cart)
 

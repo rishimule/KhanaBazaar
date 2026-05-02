@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -27,7 +27,10 @@ from app.schemas.orders import (
     OrderListResponse,
     OrderRead,
     PaymentRead,
+    PlaceOrderRequest,
+    PlaceOrderResponse,
 )
+from app.services.checkout import place_orders_from_cart
 
 router = APIRouter()
 
@@ -199,3 +202,16 @@ async def get_order(
 ) -> OrderRead:
     order, include_customer = await _load_order_for_user(session, order_id, user)
     return await _serialize_order(session, order, include_customer_name=include_customer)
+
+
+@router.post("", response_model=PlaceOrderResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=PlaceOrderResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+async def place_order(
+    payload: PlaceOrderRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> PlaceOrderResponse:
+    orders = await place_orders_from_cart(session, user, payload.customer_address_id)
+    return PlaceOrderResponse(
+        orders=[await _serialize_order(session, o, include_customer_name=False) for o in orders]
+    )
