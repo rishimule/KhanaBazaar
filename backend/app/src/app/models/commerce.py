@@ -60,7 +60,7 @@ class Order(BaseSchema, table=True):
     delivery_fee: float = Field(nullable=False)
     tax: float = Field(nullable=False)
     total: float = Field(nullable=False)
-    delivery_address_snapshot: str = Field(default="", nullable=False)
+    delivery_address_snapshot: str = Field(nullable=False)
     placed_at: datetime = Field(  # type: ignore[call-overload]
         default_factory=lambda: datetime.now(timezone.utc),
         sa_type=DateTime(timezone=True),
