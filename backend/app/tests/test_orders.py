@@ -360,10 +360,12 @@ async def test_delivered_marks_payment_paid(as_customer: Any, seed: dict[str, in
 
     app.dependency_overrides[get_current_user] = lambda: mock_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
-        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "dispatched"})
+        r1 = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
+        assert r1.status_code == 200, r1.text
+        r2 = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "dispatched"})
+        assert r2.status_code == 200, r2.text
         resp = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "delivered"})
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.text
     assert resp.json()["payment"]["status"] == "paid"
     assert resp.json()["payment"]["paid_at"] is not None
 
