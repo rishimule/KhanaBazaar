@@ -290,3 +290,36 @@ async def test_clear_store_cart_unknown_store_returns_204(override_as_customer: 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.delete("/api/v1/carts/9999")
     assert resp.status_code == 204
+
+
+async def test_sync_empty_payload(override_as_other_customer: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/carts/sync", json={"carts": []})
+    assert resp.status_code == 200
+    assert resp.json() == {"carts": [], "dropped": []}
+
+
+async def test_sync_merges_quantities(override_as_customer: Any) -> None:
+    # Existing seed: store 1, inventory 1, qty 2.
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/carts/sync", json={
+            "carts": [{"store_id": 1, "items": [{"inventory_id": 1, "quantity": 5}]}]
+        })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["dropped"] == []
+    assert body["carts"][0]["items"][0]["quantity"] == 7   # 2 + 5
+
+
+async def test_sync_drops_unknown_inventory(override_as_other_customer: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/carts/sync", json={
+            "carts": [{"store_id": 1, "items": [
+                {"inventory_id": 1, "quantity": 1},
+                {"inventory_id": 9999, "quantity": 2},
+            ]}]
+        })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert any(d["inventory_id"] == 9999 for d in body["dropped"])
+    assert body["carts"][0]["items"][0]["inventory_id"] == 1

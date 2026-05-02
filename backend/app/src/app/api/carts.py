@@ -1,7 +1,4 @@
-from typing import List  # noqa: F401
-
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy.orm import selectinload  # noqa: F401
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -12,10 +9,7 @@ from app.models.catalog import MasterProduct, MasterProductTranslation
 from app.models.commerce import Cart, CartItem
 from app.models.profile import CustomerProfile
 from app.models.store import Store, StoreInventory
-
-# These schemas are re-exported here so the endpoints landing in follow-up
-# tasks (Tasks 4-7) can import them from this module without churn.
-from app.schemas.carts import (  # noqa: F401
+from app.schemas.carts import (
     CartItemAdd,
     CartItemRead,
     CartItemUpdate,
@@ -304,3 +298,63 @@ async def clear_store_cart(
         await session.delete(cart)
         await session.commit()
     return Response(status_code=204)
+
+
+@router.post("/sync", response_model=CartSyncResponse)
+async def sync_carts(
+    payload: CartSyncRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> CartSyncResponse:
+    profile_id = await _customer_profile_id(session, user)
+    dropped: list[DroppedSyncItem] = []
+
+    for cart_payload in payload.carts:
+        store_result = await session.exec(select(Store).where(Store.id == cart_payload.store_id))
+        store = store_result.first()
+        if store is None or not store.is_active:
+            for it in cart_payload.items:
+                dropped.append(DroppedSyncItem(inventory_id=it.inventory_id, reason="store_unavailable"))
+            continue
+
+        cart = await _get_or_create_cart(session, profile_id, cart_payload.store_id)
+
+        for item_payload in cart_payload.items:
+            inv_result = await session.exec(
+                select(StoreInventory).where(StoreInventory.id == item_payload.inventory_id)
+            )
+            inv = inv_result.first()
+            if inv is None or inv.store_id != cart_payload.store_id or not inv.is_available:
+                dropped.append(DroppedSyncItem(
+                    inventory_id=item_payload.inventory_id,
+                    reason="unknown_inventory" if inv is None else "item_unavailable",
+                ))
+                continue
+
+            existing_result = await session.exec(
+                select(CartItem).where(
+                    CartItem.cart_id == cart.id,
+                    CartItem.inventory_id == item_payload.inventory_id,
+                )
+            )
+            existing = existing_result.first()
+            if existing is None:
+                session.add(CartItem(
+                    cart_id=cart.id,
+                    inventory_id=item_payload.inventory_id,
+                    quantity=item_payload.quantity,
+                ))
+            else:
+                existing.quantity += item_payload.quantity
+
+    await session.commit()
+
+    # Return canonical cart state for the customer.
+    result = await session.exec(
+        select(Cart).where(Cart.customer_profile_id == profile_id)
+    )
+    carts = list(result.all())
+    return CartSyncResponse(
+        carts=await _serialize_carts(session, carts),
+        dropped=dropped,
+    )
