@@ -323,7 +323,7 @@ async def test_other_seller_cannot_see_order(as_customer: Any, seed: dict[str, i
 
 async def test_seller_marks_packed(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
-    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+    target = await _order_id_for_store(order_ids, seed["store_a"])
 
     app.dependency_overrides[get_current_user] = lambda: mock_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -335,7 +335,7 @@ async def test_seller_marks_packed(as_customer: Any, seed: dict[str, int]) -> No
 
 async def test_illegal_transition(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
-    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+    target = await _order_id_for_store(order_ids, seed["store_a"])
 
     app.dependency_overrides[get_current_user] = lambda: mock_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -346,7 +346,7 @@ async def test_illegal_transition(as_customer: Any, seed: dict[str, int]) -> Non
 
 async def test_other_seller_cannot_transition(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
-    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+    target = await _order_id_for_store(order_ids, seed["store_a"])
 
     app.dependency_overrides[get_current_user] = lambda: mock_other_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -356,7 +356,7 @@ async def test_other_seller_cannot_transition(as_customer: Any, seed: dict[str, 
 
 async def test_delivered_marks_payment_paid(as_customer: Any, seed: dict[str, int], session: AsyncSession) -> None:
     order_ids = await _place_orders(seed)
-    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+    target = await _order_id_for_store(order_ids, seed["store_a"])
 
     app.dependency_overrides[get_current_user] = lambda: mock_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -379,9 +379,18 @@ async def _get_order_store(order_id: int) -> int:
         return (await s.exec(select(Order.store_id).where(Order.id == order_id))).first()
 
 
+async def _order_id_for_store(order_ids: list[int], store_id: int) -> int:
+    """Return the id of the order belonging to `store_id`. Pre-resolves all
+    stores so the lookup is deterministic regardless of place_orders_from_cart's
+    return order."""
+    stores = [await _get_order_store(oid) for oid in order_ids]
+    return next(oid for oid, s in zip(order_ids, stores, strict=True) if s == store_id)
+
+
 async def test_customer_cancels_pending(as_customer: Any, seed: dict[str, int], session: AsyncSession) -> None:
     order_ids = await _place_orders(seed)
-    target = order_ids[0]
+    # Deterministically pick store_a's order so the restock assertion always fires.
+    target = await _order_id_for_store(order_ids, seed["store_a"])
     pre_stock = (await session.exec(select(StoreInventory.stock).where(StoreInventory.id == seed["inv_a"]))).first()
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -389,25 +398,17 @@ async def test_customer_cancels_pending(as_customer: Any, seed: dict[str, int], 
     assert resp.status_code == 200
     assert resp.json()["status"] == "cancelled"
 
-    target_store = (await session.exec(select(Order.store_id).where(Order.id == target))).first()
-    if target_store == seed["store_a"]:
-        post_stock = (await session.exec(select(StoreInventory.stock).where(StoreInventory.id == seed["inv_a"]))).first()
-        assert post_stock == pre_stock + 2
+    post_stock = (await session.exec(select(StoreInventory.stock).where(StoreInventory.id == seed["inv_a"]))).first()
+    assert post_stock == pre_stock + 2
 
 
 async def test_customer_cannot_cancel_after_pack(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
     app.dependency_overrides[get_current_user] = lambda: mock_seller
-    target = None
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        # Pack store_a's order
-        for oid in order_ids:
-            store = await _get_order_store(oid)
-            if store == seed["store_a"]:
-                await ac.post(f"/api/v1/orders/{oid}/transition", json={"to": "packed"})
-                target = oid
-                break
-    assert target is not None
+        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
 
     app.dependency_overrides[get_current_user] = lambda: mock_customer
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -417,9 +418,9 @@ async def test_customer_cannot_cancel_after_pack(as_customer: Any, seed: dict[st
 
 async def test_seller_cancels_packed_order(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
     app.dependency_overrides[get_current_user] = lambda: mock_seller
-    stores = [await _get_order_store(oid) for oid in order_ids]
-    target = next(oid for oid, s in zip(order_ids, stores, strict=True) if s == seed["store_a"])
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
         resp = await ac.post(f"/api/v1/orders/{target}/cancel")
@@ -427,11 +428,12 @@ async def test_seller_cancels_packed_order(as_customer: Any, seed: dict[str, int
     assert resp.json()["status"] == "cancelled"
 
 
-async def test_admin_cancels_dispatched_order(as_customer: Any, seed: dict[str, int]) -> None:
+async def test_admin_cancels_dispatched_order(as_customer: Any, seed: dict[str, int], session: AsyncSession) -> None:
     order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+    pre_stock = (await session.exec(select(StoreInventory.stock).where(StoreInventory.id == seed["inv_a"]))).first()
+
     app.dependency_overrides[get_current_user] = lambda: mock_seller
-    stores = [await _get_order_store(oid) for oid in order_ids]
-    target = next(oid for oid, s in zip(order_ids, stores, strict=True) if s == seed["store_a"])
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
         await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "dispatched"})
@@ -440,3 +442,7 @@ async def test_admin_cancels_dispatched_order(as_customer: Any, seed: dict[str, 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post(f"/api/v1/orders/{target}/cancel")
     assert resp.status_code == 200
+    # Cancel from non-Pending status must still restock; this branch wasn't
+    # exercised by the customer-cancels-Pending test.
+    post_stock = (await session.exec(select(StoreInventory.stock).where(StoreInventory.id == seed["inv_a"]))).first()
+    assert post_stock == pre_stock + 2
