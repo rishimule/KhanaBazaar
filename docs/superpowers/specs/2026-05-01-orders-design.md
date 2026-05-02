@@ -124,7 +124,7 @@ frontend/src/
 - `services/checkout.py` knows how to read carts, validate, fan out, and clear. It calls `services/inventory.py` for stock changes.
 - `services/orders.py` owns the state machine: legal transitions, role-based authorization, side effects (Payment update on Delivered, restock on cancel, email dispatch).
 - `api/orders.py` and `api/carts.py` parse requests, resolve auth, call services, serialize responses. No business logic.
-- `services/inventory.py` is the only place that reads/writes `StoreInventory.quantity` for order flows. Other features that touch inventory continue to use the existing `api/stores.py` paths.
+- `services/inventory.py` is the only place that reads/writes `StoreInventory.stock` for order flows. Other features that touch inventory continue to use the existing `api/stores.py` paths.
 - Frontend `CartContext` is the only consumer of `localCart`/`remoteCart`. UI components call context methods, never the adapters directly.
 - Frontend `lib/orders.ts` is the only place that talks to `/api/v1/orders/*`. Pages call it; components receive data via props.
 
@@ -199,7 +199,7 @@ frontend/src/
    4. If `Payment.status == Paid`: set `Payment.status = Refunded`. Otherwise leave `Pending`. (For COD this only matters if a Delivered order is later cancelled, which only admin can do.)
    5. For each `OrderItem`, increment `StoreInventory.stock` by `OrderItem.quantity` (restock).
    6. Commit.
-   7. Dispatch `send_order_status_changed_async(order_id, "cancelled")` to notify both parties.
+   7. Dispatch `send_order_status_changed_async(order_id, "cancelled")` for the customer AND `send_order_placed_seller_async`-style notification to the seller (re-using one task that takes a recipient hint, or two separate dispatch calls). Both parties get notified.
 
 ### Active orders fetch
 
@@ -222,6 +222,8 @@ Cancelled   → (terminal)
 ```
 
 Cancellation actor restrictions enforced separately in `cancel_order()`.
+
+**Note on `OrderStatus.Paid`:** the `OrderStatus` enum in `models/commerce.py` includes a `Paid` value from earlier schema work. The fulfillment lifecycle does NOT use it — `Order.status` only tracks fulfillment, and `Payment.status` is the authoritative source for payment state. `transition_order_status()` rejects any target outside `{Packed, Dispatched, Delivered}`, so `Paid` is unreachable. Treat the enum value as legacy; do not write it. (A future cleanup migration may remove it.)
 
 ## API Surface
 
