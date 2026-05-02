@@ -1,12 +1,12 @@
 from typing import List  # noqa: F401
 
-from fastapi import APIRouter, Depends, HTTPException  # noqa: F401
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload  # noqa: F401
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.security import get_current_customer  # noqa: F401
-from app.db.session import get_db_session  # noqa: F401
+from app.core.security import get_current_customer
+from app.db.session import get_db_session
 from app.models.base import User
 from app.models.catalog import MasterProduct, MasterProductTranslation
 from app.models.commerce import Cart, CartItem
@@ -132,3 +132,17 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
             )
         )
     return out
+
+
+@router.get("", response_model=CartListResponse)
+@router.get("/", response_model=CartListResponse, include_in_schema=False)
+async def list_carts(
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> CartListResponse:
+    profile_id = await _customer_profile_id(session, user)
+    result = await session.exec(
+        select(Cart).where(Cart.customer_profile_id == profile_id)
+    )
+    carts = list(result.all())
+    return CartListResponse(carts=await _serialize_carts(session, carts))
