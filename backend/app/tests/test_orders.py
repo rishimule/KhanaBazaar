@@ -274,9 +274,20 @@ async def test_admin_lists_all_orders(as_customer: Any, seed: dict[str, int]) ->
 async def test_active_filter(as_customer: Any, seed: dict[str, int]) -> None:
     await _place_orders(seed)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.get("/api/v1/orders?status=active")
-    assert resp.status_code == 200
-    assert len(resp.json()["orders"]) == 2
+        active = await ac.get("/api/v1/orders?status=active")
+        history = await ac.get("/api/v1/orders?status=history")
+    assert active.status_code == 200
+    assert len(active.json()["orders"]) == 2
+    # Filter must actually drop something — fresh orders are Pending, never history.
+    assert history.status_code == 200
+    assert history.json()["orders"] == []
+
+
+async def test_invalid_status_filter_returns_400(as_customer: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/orders?status=garbage")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "invalid_status_filter"
 
 
 async def test_get_order_detail(as_customer: Any, seed: dict[str, int]) -> None:
@@ -292,14 +303,19 @@ async def test_get_order_detail(as_customer: Any, seed: dict[str, int]) -> None:
 
 async def test_other_seller_cannot_see_order(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
-    # store_a is owned by mock_seller; mock_other_seller should be 403
-    app.dependency_overrides[get_current_user] = lambda: mock_other_seller
-    target_id = order_ids[0]
+    # Map id -> store_id while still authenticated as the customer.
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.get(f"/api/v1/orders/{target_id}")
-    assert resp.status_code in (200, 403)
-    # If the first id happens to be store_b's order, swap to the other.
-    if resp.status_code == 200:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            resp = await ac.get(f"/api/v1/orders/{order_ids[1]}")
-        assert resp.status_code == 403
+        details = [await ac.get(f"/api/v1/orders/{oid}") for oid in order_ids]
+    store_by_id = {oid: r.json()["store_id"] for oid, r in zip(order_ids, details, strict=True)}
+    own_id = next(oid for oid, sid in store_by_id.items() if sid == seed["store_b"])
+    forbidden_id = next(oid for oid, sid in store_by_id.items() if sid == seed["store_a"])
+
+    # mock_other_seller owns Store B; should see store_b's order, get 403 on store_a's.
+    app.dependency_overrides[get_current_user] = lambda: mock_other_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        own = await ac.get(f"/api/v1/orders/{own_id}")
+        forbidden = await ac.get(f"/api/v1/orders/{forbidden_id}")
+    assert own.status_code == 200
+    assert own.json()["store_id"] == seed["store_b"]
+    assert forbidden.status_code == 403
+    assert forbidden.json()["detail"] == "forbidden"
