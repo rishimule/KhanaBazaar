@@ -104,28 +104,30 @@ def upgrade() -> None:
     op.alter_column("order", "delivery_address_snapshot", server_default=None)
 
     # Recreate orderitem.inventory_id FK with ON DELETE SET NULL so order
-    # history survives if a seller removes an inventory row.
+    # history survives if a seller removes an inventory row. Use direct
+    # DDL on Postgres — batch_alter_table is for SQLite-style table rebuilds
+    # and silently rebuilds the table here, dropping defaults.
     op.alter_column("orderitem", "inventory_id", existing_type=sa.Integer(), nullable=True)
-    with op.batch_alter_table("orderitem") as batch_op:
-        batch_op.drop_constraint("orderitem_inventory_id_fkey", type_="foreignkey")
-        batch_op.create_foreign_key(
-            "orderitem_inventory_id_fkey",
-            "storeinventory",
-            ["inventory_id"],
-            ["id"],
-            ondelete="SET NULL",
-        )
+    op.drop_constraint("orderitem_inventory_id_fkey", "orderitem", type_="foreignkey")
+    op.create_foreign_key(
+        "orderitem_inventory_id_fkey",
+        "orderitem",
+        "storeinventory",
+        ["inventory_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("orderitem") as batch_op:
-        batch_op.drop_constraint("orderitem_inventory_id_fkey", type_="foreignkey")
-        batch_op.create_foreign_key(
-            "orderitem_inventory_id_fkey",
-            "storeinventory",
-            ["inventory_id"],
-            ["id"],
-        )
+    op.drop_constraint("orderitem_inventory_id_fkey", "orderitem", type_="foreignkey")
+    op.create_foreign_key(
+        "orderitem_inventory_id_fkey",
+        "orderitem",
+        "storeinventory",
+        ["inventory_id"],
+        ["id"],
+    )
     op.alter_column("orderitem", "inventory_id", existing_type=sa.Integer(), nullable=False)
     op.drop_column("order", "delivery_address_snapshot")
     op.drop_index("ix_order_customer_status", table_name="order")
@@ -148,7 +150,17 @@ Find the `OrderItem` class and change `inventory_id` to be nullable:
 
 (Keep the existing unique constraint definition. The `Optional` import is already present at top of file.)
 
-- [ ] **Step 4: Apply migration**
+- [ ] **Step 4: Verify FK constraint name on actual DB**
+
+The migration assumes the FK is named `orderitem_inventory_id_fkey` (Postgres default `<table>_<column>_fkey`). Confirm before running:
+
+```bash
+docker compose exec -T postgres psql -U postgres -d khanabazaar -c "\d orderitem" | grep inventory
+```
+
+Expected: line containing `"orderitem_inventory_id_fkey" FOREIGN KEY ...`. If a different name appears, update the migration to use that exact name.
+
+- [ ] **Step 5: Apply migration**
 
 ```bash
 uv run alembic upgrade head
@@ -156,7 +168,7 @@ uv run alembic upgrade head
 
 Expected: prints `Running upgrade ... -> <new_rev>` and exits 0.
 
-- [ ] **Step 5: Verify**
+- [ ] **Step 6: Verify**
 
 ```bash
 uv run python -c "
@@ -184,7 +196,7 @@ asyncio.run(main())
 
 Expected output: `OK`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add backend/app/migrations/versions/ backend/app/src/app/models/commerce.py
@@ -292,7 +304,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.security import get_current_customer
 from app.db.session import get_db_session
 from app.models.base import User
-from app.models.catalog import MasterProduct
+from app.models.catalog import MasterProduct, MasterProductTranslation
 from app.models.commerce import Cart, CartItem
 from app.models.profile import CustomerProfile
 from app.models.store import Store, StoreInventory
@@ -308,6 +320,25 @@ from app.schemas.carts import (
 )
 
 router = APIRouter()
+
+
+# MVP: render product names in English. Future work can plumb the user's
+# preferred_language from the User row through to this helper.
+DEFAULT_LANG = "en"
+
+
+async def _product_names(
+    session: AsyncSession, product_ids: list[int]
+) -> dict[int, str]:
+    if not product_ids:
+        return {}
+    result = await session.exec(
+        select(MasterProductTranslation).where(
+            MasterProductTranslation.master_product_id.in_(product_ids),  # type: ignore[attr-defined]
+            MasterProductTranslation.language_code == DEFAULT_LANG,
+        )
+    )
+    return {row.master_product_id: row.name for row in result.all()}
 
 
 async def _customer_profile_id(session: AsyncSession, user: User) -> int:
@@ -356,8 +387,13 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
     )
     rows = list(item_result.all())
     by_cart: dict[int, list[tuple[CartItem, StoreInventory, MasterProduct, Store]]] = {}
+    product_ids: set[int] = set()
     for item, inv, product, store in rows:
         by_cart.setdefault(item.cart_id, []).append((item, inv, product, store))
+        if product.id is not None:
+            product_ids.add(product.id)
+
+    name_by_product = await _product_names(session, list(product_ids))
 
     out: list[CartRead] = []
     for cart in carts:
@@ -368,7 +404,7 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
                 id=item.id,  # type: ignore[arg-type]
                 inventory_id=inv.id,  # type: ignore[arg-type]
                 product_id=product.id,  # type: ignore[arg-type]
-                product_name=product.name,
+                product_name=name_by_product.get(product.id, product.slug),
                 unit_price=inv.price,
                 quantity=item.quantity,
                 line_total=inv.price * item.quantity,
@@ -444,7 +480,16 @@ from app import app
 from app.core.security import get_current_user
 from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.catalog import Category, MasterProduct
+from app.models.catalog import (
+    Category,
+    CategoryTranslation,
+    MasterProduct,
+    MasterProductTranslation,
+    Service,
+    ServiceTranslation,
+    Subcategory,
+    SubcategoryTranslation,
+)
 from app.models.commerce import Cart, CartItem
 from app.models.profile import CustomerProfile, SellerProfile, VerificationStatus
 from app.models.store import Store, StoreInventory
@@ -453,6 +498,39 @@ from tests._helpers import make_address
 mock_customer = User(id=201, email="cart-customer@kb.com", role=UserRole.Customer, is_active=True)
 mock_other_customer = User(id=202, email="cart-other@kb.com", role=UserRole.Customer, is_active=True)
 mock_seller = User(id=203, email="cart-seller@kb.com", role=UserRole.Seller, is_active=True)
+
+
+async def _seed_product(
+    session: AsyncSession, *, service_slug: str, category_slug: str,
+    subcategory_slug: str, product_slug: str, name: str, base_price: float,
+) -> MasterProduct:
+    """Create the full Service → Category → Subcategory → MasterProduct chain
+    plus English translations. Each slug must be globally unique within its scope.
+    The 'en' Language row is seeded by the autouse `setup_test_db` fixture in
+    `conftest.py`."""
+    service = Service(slug=service_slug)
+    session.add(service)
+    await session.flush()
+    session.add(ServiceTranslation(service_id=service.id, language_code="en", name=name))
+
+    category = Category(service_id=service.id, slug=category_slug)
+    session.add(category)
+    await session.flush()
+    session.add(CategoryTranslation(category_id=category.id, language_code="en", name=name))
+
+    subcat = Subcategory(category_id=category.id, slug=subcategory_slug)
+    session.add(subcat)
+    await session.flush()
+    session.add(SubcategoryTranslation(subcategory_id=subcat.id, language_code="en", name=name))
+
+    product = MasterProduct(subcategory_id=subcat.id, slug=product_slug, base_price=base_price)
+    session.add(product)
+    await session.flush()
+    session.add(MasterProductTranslation(
+        master_product_id=product.id, language_code="en", name=name, description=name,
+    ))
+    await session.flush()
+    return product
 
 
 @pytest.fixture(autouse=True)
@@ -486,12 +564,10 @@ async def seed(session: AsyncSession) -> AsyncGenerator[None, None]:
     session.add(store)
     await session.flush()
 
-    category = Category(name="Food", slug="food")
-    session.add(category)
-    await session.flush()
-    product = MasterProduct(name="Apple", slug="apple", category_id=category.id)
-    session.add(product)
-    await session.flush()
+    product = await _seed_product(
+        session, service_slug="grocery", category_slug="food",
+        subcategory_slug="fruit", product_slug="apple", name="Apple", base_price=50.0,
+    )
 
     inv = StoreInventory(store_id=store.id, product_id=product.id, price=50.0, stock=10)
     session.add(inv)
@@ -722,11 +798,12 @@ async def add_cart_item(
     await session.commit()
     await session.refresh(item)
 
+    names = await _product_names(session, [product.id]) if product.id else {}
     response = CartItemRead(
         id=item.id,  # type: ignore[arg-type]
         inventory_id=inv.id,  # type: ignore[arg-type]
         product_id=product.id,  # type: ignore[arg-type]
-        product_name=product.name,
+        product_name=names.get(product.id, product.slug),
         unit_price=inv.price,
         quantity=item.quantity,
         line_total=inv.price * item.quantity,
@@ -850,11 +927,12 @@ async def update_cart_item(
         .where(StoreInventory.id == item.inventory_id)
     )
     inv, product = inv_result.first()  # type: ignore[misc]
+    names = await _product_names(session, [product.id]) if product.id else {}
     return CartItemRead(
         id=item.id,  # type: ignore[arg-type]
         inventory_id=inv.id,  # type: ignore[arg-type]
         product_id=product.id,  # type: ignore[arg-type]
-        product_name=product.name,
+        product_name=names.get(product.id, product.slug),
         unit_price=inv.price,
         quantity=item.quantity,
         line_total=inv.price * item.quantity,
@@ -1153,7 +1231,6 @@ Create `backend/app/src/app/services/inventory.py`:
 ```python
 from typing import Iterable
 
-from sqlalchemy import update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -1163,34 +1240,32 @@ from app.models.store import StoreInventory
 async def lock_inventory_rows(
     session: AsyncSession, inventory_ids: Iterable[int]
 ) -> list[StoreInventory]:
-    """Acquire per-row locks on inventory rows in deterministic order to avoid deadlocks."""
+    """Acquire per-row locks on inventory rows in deterministic id order
+    to avoid deadlocks under concurrent checkout. SQLAlchemy emits the
+    ORDER BY before FOR UPDATE; the deterministic order makes interleaved
+    transactions queue rather than deadlock."""
     ids = sorted(set(inventory_ids))
     if not ids:
         return []
     stmt = (
         select(StoreInventory)
         .where(StoreInventory.id.in_(ids))  # type: ignore[attr-defined]
-        .with_for_update()
         .order_by(StoreInventory.id)  # type: ignore[arg-type]
+        .with_for_update()
     )
     result = await session.exec(stmt)
     return list(result.all())
 
 
-async def decrement_stock(session: AsyncSession, inventory_id: int, quantity: int) -> None:
-    await session.exec(  # type: ignore[call-overload]
-        update(StoreInventory)
-        .where(StoreInventory.id == inventory_id)
-        .values(stock=StoreInventory.stock - quantity)
-    )
+def decrement_stock(inv: StoreInventory, quantity: int) -> None:
+    """Mutate the *already-locked* inventory instance. Caller must have
+    obtained `inv` via `lock_inventory_rows()` in the current session so
+    the unit-of-work flushes the change while the row lock is still held."""
+    inv.stock -= quantity
 
 
-async def restock(session: AsyncSession, inventory_id: int, quantity: int) -> None:
-    await session.exec(  # type: ignore[call-overload]
-        update(StoreInventory)
-        .where(StoreInventory.id == inventory_id)
-        .values(stock=StoreInventory.stock + quantity)
-    )
+def restock(inv: StoreInventory, quantity: int) -> None:
+    inv.stock += quantity
 ```
 
 - [ ] **Step 2: Commit**
@@ -1208,15 +1283,7 @@ git commit -m "feat(orders): add inventory service helpers"
 - Create: `backend/app/src/app/services/checkout.py`
 - Create: `backend/app/src/app/utils/format_address.py` if not present (we just need a callable; check first)
 
-- [ ] **Step 1: Check existing address formatter**
-
-```bash
-grep -rn "def format_address\|def address_to_str" backend/app/src/app/utils/ backend/app/src/app/schemas/ || true
-```
-
-If a formatter exists, import it. If not, the checkout service falls back to a local helper (Step 2 below includes one).
-
-- [ ] **Step 2: Create the checkout service**
+- [ ] **Step 1: Create the checkout service**
 
 Create `backend/app/src/app/services/checkout.py`:
 
@@ -1229,7 +1296,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.address import Address
 from app.models.base import User
-from app.models.catalog import MasterProduct
+from app.models.catalog import MasterProduct, MasterProductTranslation
 from app.models.commerce import (
     Cart,
     CartItem,
@@ -1244,18 +1311,9 @@ from app.models.commerce import (
 )
 from app.models.profile import CustomerAddress, CustomerProfile
 from app.models.store import Store, StoreInventory
+from app.schemas.address import address_to_payload
 from app.services.inventory import decrement_stock, lock_inventory_rows
-
-
-def _format_address_snapshot(address: Address) -> str:
-    parts = [
-        address.line1,
-        getattr(address, "line2", None),
-        address.city,
-        address.state,
-        address.pincode,
-    ]
-    return ", ".join(p for p in parts if p)
+from app.utils.address import format_address
 
 
 async def _customer_profile(session: AsyncSession, user: User) -> CustomerProfile:
@@ -1286,7 +1344,10 @@ async def place_orders_from_cart(
     customer_address, address = addr_row
     if customer_address.customer_profile_id != profile.id:
         raise HTTPException(status_code=403, detail="invalid_address")
-    address_snapshot = _format_address_snapshot(address)
+    # Use the existing formatter so the snapshot matches the format the
+    # rest of the app shows (Address has flat columns; format_address
+    # accepts an AddressPayload via address_to_payload).
+    address_snapshot = format_address(address_to_payload(address))
 
     cart_result = await session.exec(select(Cart).where(Cart.customer_profile_id == profile.id))
     carts = list(cart_result.all())
@@ -1328,13 +1389,21 @@ async def place_orders_from_cart(
         if store is None or not store.is_active:
             raise HTTPException(status_code=409, detail={"detail": "store_unavailable", "store_id": c.store_id})
 
-    # Snapshot product names.
-    products_result = await session.exec(
-        select(MasterProduct, StoreInventory.id)
-        .join(StoreInventory, StoreInventory.product_id == MasterProduct.id)  # type: ignore[arg-type]
+    # Snapshot product names: join via inventory → master_product → translation
+    # filtered by 'en' (MVP — language plumbing comes later).
+    name_rows = await session.exec(
+        select(StoreInventory.id, MasterProduct.slug, MasterProductTranslation.name)
+        .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+        .outerjoin(  # outerjoin so we still get a row even if translation missing
+            MasterProductTranslation,
+            (MasterProductTranslation.master_product_id == MasterProduct.id)
+            & (MasterProductTranslation.language_code == "en"),
+        )
         .where(StoreInventory.id.in_(inv_ids))  # type: ignore[attr-defined]
     )
-    name_by_inv: dict[int, str] = {inv_id: product.name for product, inv_id in products_result.all()}
+    name_by_inv: dict[int, str] = {}
+    for inv_id, slug, name in name_rows.all():
+        name_by_inv[inv_id] = name or slug
 
     items_by_cart: dict[int, list[CartItem]] = {}
     for item in cart_items:
@@ -1376,7 +1445,9 @@ async def place_orders_from_cart(
                 quantity=item.quantity,
                 line_total=inv.price * item.quantity,
             ))
-            await decrement_stock(session, item.inventory_id, item.quantity)
+            # Mutate the locked ORM instance — unit-of-work flushes the
+            # change while the row lock is still held by this transaction.
+            decrement_stock(inv, item.quantity)
 
         session.add(Payment(
             order_id=order.id,
@@ -1399,7 +1470,7 @@ async def place_orders_from_cart(
     return created_orders
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
 git add backend/app/src/app/services/checkout.py
@@ -1659,7 +1730,7 @@ from app import app
 from app.core.security import get_current_user
 from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.catalog import Category, MasterProduct
+from app.models.catalog import MasterProduct
 from app.models.commerce import (
     Cart,
     CartItem,
@@ -1736,13 +1807,17 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     session.add_all([store_a, store_b])
     await session.flush()
 
-    category = Category(name="Food", slug="food")
-    session.add(category)
-    await session.flush()
-    product = MasterProduct(name="Apple", slug="apple", category_id=category.id)
-    product_b = MasterProduct(name="Bread", slug="bread", category_id=category.id)
-    session.add_all([product, product_b])
-    await session.flush()
+    # Reuse the seeding helper from test_carts.py.
+    from tests.test_carts import _seed_product
+
+    product = await _seed_product(
+        session, service_slug="grocery", category_slug="food",
+        subcategory_slug="fruit", product_slug="apple", name="Apple", base_price=50.0,
+    )
+    product_b = await _seed_product(
+        session, service_slug="bakery", category_slug="bread-cat",
+        subcategory_slug="loaves", product_slug="bread", name="Bread", base_price=30.0,
+    )
 
     inv_a = StoreInventory(store_id=store_a.id, product_id=product.id, price=50.0, stock=10)
     inv_b = StoreInventory(store_id=store_b.id, product_id=product_b.id, price=30.0, stock=4)
@@ -2033,7 +2108,7 @@ from app.models.commerce import (
 )
 from app.models.profile import CustomerProfile, SellerProfile
 from app.models.store import Store
-from app.services.inventory import restock
+from app.services.inventory import lock_inventory_rows, restock
 
 LEGAL_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
     OrderStatus.Pending: {OrderStatus.Packed, OrderStatus.Cancelled},
@@ -2136,9 +2211,16 @@ async def cancel_order(session: AsyncSession, order: Order, actor: User) -> Orde
         payment.status = PaymentStatus.Refunded
 
     items_result = await session.exec(select(OrderItem).where(OrderItem.order_id == order.id))
-    for item in items_result.all():
-        if item.inventory_id is not None:
-            await restock(session, item.inventory_id, item.quantity)
+    items = list(items_result.all())
+    inv_ids = [item.inventory_id for item in items if item.inventory_id is not None]
+    locked_inv = await lock_inventory_rows(session, inv_ids)
+    inv_by_id = {inv.id: inv for inv in locked_inv}
+    for item in items:
+        if item.inventory_id is None:
+            continue
+        inv = inv_by_id.get(item.inventory_id)
+        if inv is not None:
+            restock(inv, item.quantity)
 
     await session.commit()
     await session.refresh(order)
@@ -2167,7 +2249,7 @@ Append to `backend/app/tests/test_orders.py`:
 ```python
 async def test_seller_marks_packed(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
-    target = order_ids[0] if (await __get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
 
     app.dependency_overrides[get_current_user] = lambda: mock_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -2179,7 +2261,7 @@ async def test_seller_marks_packed(as_customer: Any, seed: dict[str, int]) -> No
 
 async def test_illegal_transition(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
-    target = order_ids[0] if (await __get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
 
     app.dependency_overrides[get_current_user] = lambda: mock_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -2190,7 +2272,7 @@ async def test_illegal_transition(as_customer: Any, seed: dict[str, int]) -> Non
 
 async def test_other_seller_cannot_transition(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
-    target = order_ids[0] if (await __get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
 
     app.dependency_overrides[get_current_user] = lambda: mock_other_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -2200,7 +2282,7 @@ async def test_other_seller_cannot_transition(as_customer: Any, seed: dict[str, 
 
 async def test_delivered_marks_payment_paid(as_customer: Any, seed: dict[str, int], session: AsyncSession) -> None:
     order_ids = await _place_orders(seed)
-    target = order_ids[0] if (await __get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
 
     app.dependency_overrides[get_current_user] = lambda: mock_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -2212,11 +2294,11 @@ async def test_delivered_marks_payment_paid(as_customer: Any, seed: dict[str, in
     assert resp.json()["payment"]["paid_at"] is not None
 
 
-async def __get_order_store(order_id: int) -> int:
-    """Helper: peek an order's store_id from the DB."""
-    from app.db.session import engine
+async def _get_order_store(order_id: int) -> int:
+    """Peek an order's store_id from the test database (not the prod engine)."""
+    from tests.conftest import test_engine
     from sqlmodel.ext.asyncio.session import AsyncSession as S
-    async with S(engine) as s:
+    async with S(test_engine) as s:
         return (await s.exec(select(Order.store_id).where(Order.id == order_id))).first()
 ```
 
@@ -2301,7 +2383,7 @@ async def test_customer_cannot_cancel_after_pack(as_customer: Any, seed: dict[st
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Pack store_a's order
         for oid in order_ids:
-            store = await __get_order_store(oid)
+            store = await _get_order_store(oid)
             if store == seed["store_a"]:
                 await ac.post(f"/api/v1/orders/{oid}/transition", json={"to": "packed"})
                 target = oid
@@ -2316,7 +2398,7 @@ async def test_customer_cannot_cancel_after_pack(as_customer: Any, seed: dict[st
 async def test_seller_cancels_packed_order(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
     app.dependency_overrides[get_current_user] = lambda: mock_seller
-    target = next(oid for oid in order_ids if (await __get_order_store(oid)) == seed["store_a"])
+    target = next(oid for oid in order_ids if (await _get_order_store(oid)) == seed["store_a"])
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
         resp = await ac.post(f"/api/v1/orders/{target}/cancel")
@@ -2327,7 +2409,7 @@ async def test_seller_cancels_packed_order(as_customer: Any, seed: dict[str, int
 async def test_admin_cancels_dispatched_order(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
     app.dependency_overrides[get_current_user] = lambda: mock_seller
-    target = next(oid for oid in order_ids if (await __get_order_store(oid)) == seed["store_a"])
+    target = next(oid for oid in order_ids if (await _get_order_store(oid)) == seed["store_a"])
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
         await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "dispatched"})
@@ -2386,7 +2468,22 @@ git commit -m "feat(orders): add POST /orders/{id}/cancel"
 - Create: `backend/app/src/app/services/order_emails.py`
 - Create: `backend/app/tests/test_order_emails.py`
 
-- [ ] **Step 1: Write failing test**
+- [ ] **Step 1: Configure Celery to run tasks eagerly in tests**
+
+Append to `backend/app/tests/conftest.py` (after the `import` block, before any fixture):
+
+```python
+# Run Celery tasks inline during tests so .delay() does not require a real
+# Redis broker and email-task assertions can inspect side effects synchronously.
+import os
+os.environ.setdefault("CELERY_TASK_ALWAYS_EAGER", "true")
+
+from app.core.celery_app import celery_app
+celery_app.conf.task_always_eager = True
+celery_app.conf.task_eager_propagates = True
+```
+
+- [ ] **Step 2: Write failing test**
 
 Create `backend/app/tests/test_order_emails.py`:
 
@@ -2400,7 +2497,8 @@ import pytest
 @pytest.mark.parametrize("task_name,args", [
     ("send_order_placed_seller_async", (1,)),
     ("send_order_confirmed_customer_async", ([1, 2],)),
-    ("send_order_status_changed_async", (1, "packed")),
+    ("send_order_status_changed_async", (1, "packed", "customer")),
+    ("send_order_status_changed_async", (1, "cancelled", "seller")),
 ])
 def test_email_tasks_callable_in_console_mode(task_name: str, args: tuple[Any, ...]) -> None:
     from app import worker
@@ -2410,7 +2508,7 @@ def test_email_tasks_callable_in_console_mode(task_name: str, args: tuple[Any, .
     assert result is None
 ```
 
-- [ ] **Step 2: Run failing tests**
+- [ ] **Step 3: Run failing tests**
 
 ```bash
 uv run pytest tests/test_order_emails.py -v
@@ -2418,7 +2516,7 @@ uv run pytest tests/test_order_emails.py -v
 
 Expected: AttributeError or ImportError.
 
-- [ ] **Step 3: Add tasks**
+- [ ] **Step 4: Add tasks**
 
 Append to `backend/app/src/app/worker.py`:
 
@@ -2444,7 +2542,12 @@ def _resolve_email(to: str, subject: str, body: str) -> None:
 
 
 def _load_order_email_context(order_id: int) -> dict[str, Any]:
-    """Load order, store, customer email synchronously for Celery."""
+    """Load order, store, and both party emails for Celery.
+
+    Uses an isolated event loop so this works under Celery's default prefork
+    worker pool. If the worker is reconfigured to use a thread/gevent pool
+    that already has a running loop, swap to a sync engine instead.
+    """
     import asyncio
     from sqlalchemy.ext.asyncio import create_async_engine
     from sqlmodel import select
@@ -2457,39 +2560,46 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
 
     async def _load() -> dict[str, Any]:
         engine = create_async_engine(settings.DATABASE_URL)
-        async with AsyncSession(engine) as s:
-            order = (await s.exec(select(Order).where(Order.id == order_id))).first()
-            if order is None:
-                return {}
-            store = (await s.exec(select(Store).where(Store.id == order.store_id))).first()
-            seller_profile = None
-            if store is not None:
-                seller_profile = (await s.exec(
-                    select(SellerProfile).where(SellerProfile.id == store.seller_profile_id)
+        try:
+            async with AsyncSession(engine) as s:
+                order = (await s.exec(select(Order).where(Order.id == order_id))).first()
+                if order is None:
+                    return {}
+                store = (await s.exec(select(Store).where(Store.id == order.store_id))).first()
+                seller_profile = None
+                if store is not None:
+                    seller_profile = (await s.exec(
+                        select(SellerProfile).where(SellerProfile.id == store.seller_profile_id)
+                    )).first()
+                seller_user = None
+                if seller_profile is not None:
+                    seller_user = (await s.exec(
+                        select(User).where(User.id == seller_profile.user_id)
+                    )).first()
+                customer_profile = (await s.exec(
+                    select(CustomerProfile).where(CustomerProfile.id == order.customer_profile_id)
                 )).first()
-            seller_user = None
-            if seller_profile is not None:
-                seller_user = (await s.exec(
-                    select(User).where(User.id == seller_profile.user_id)
-                )).first()
-            customer_profile = (await s.exec(
-                select(CustomerProfile).where(CustomerProfile.id == order.customer_profile_id)
-            )).first()
-            customer_user = None
-            if customer_profile is not None:
-                customer_user = (await s.exec(
-                    select(User).where(User.id == customer_profile.user_id)
-                )).first()
-            return {
-                "order_id": order.id,
-                "store_name": store.name if store else "",
-                "total": order.total,
-                "status": order.status.value,
-                "customer_email": customer_user.email if customer_user else None,
-                "seller_email": seller_user.email if seller_user else None,
-            }
+                customer_user = None
+                if customer_profile is not None:
+                    customer_user = (await s.exec(
+                        select(User).where(User.id == customer_profile.user_id)
+                    )).first()
+                return {
+                    "order_id": order.id,
+                    "store_name": store.name if store else "",
+                    "total": order.total,
+                    "status": order.status.value,
+                    "customer_email": customer_user.email if customer_user else None,
+                    "seller_email": seller_user.email if seller_user else None,
+                }
+        finally:
+            await engine.dispose()
 
-    return asyncio.run(_load())
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(_load())
+    finally:
+        loop.close()
 
 
 @celery_app.task(name="send_order_placed_seller_async", autoretry_for=(Exception,), max_retries=3, retry_backoff=True)  # type: ignore[untyped-decorator]
@@ -2524,54 +2634,87 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
 
 
 @celery_app.task(name="send_order_status_changed_async", autoretry_for=(Exception,), max_retries=3, retry_backoff=True)  # type: ignore[untyped-decorator]
-def send_order_status_changed_async(order_id: int, new_status: str) -> None:
+def send_order_status_changed_async(order_id: int, new_status: str, recipient: str = "customer") -> None:
+    """Email the order's customer or seller about a status change.
+
+    `recipient` must be 'customer' or 'seller'. Caller picks who needs to hear
+    about this transition (typically customer for forward progress, both
+    parties for cancellation)."""
     ctx = _load_order_email_context(order_id)
-    if not ctx or not ctx.get("customer_email"):
+    if not ctx:
         return
-    _resolve_email(
-        ctx["customer_email"],
-        f"Order #{ctx['order_id']} update: {new_status}",
-        f"Your order from {ctx['store_name']} is now {new_status}.",
-    )
+    if recipient == "seller":
+        to = ctx.get("seller_email")
+        subject = f"Order #{ctx['order_id']} update: {new_status}"
+        body = f"Order on {ctx['store_name']} is now {new_status}."
+    else:
+        to = ctx.get("customer_email")
+        subject = f"Order #{ctx['order_id']} update: {new_status}"
+        body = f"Your order from {ctx['store_name']} is now {new_status}."
+    if not to:
+        return
+    _resolve_email(to, subject, body)
 ```
 
-- [ ] **Step 4: Add a thin dispatcher service**
+- [ ] **Step 5: Add a thin dispatcher service with safe-delay**
 
 Create `backend/app/src/app/services/order_emails.py`:
 
 ```python
-"""Tiny wrappers so business code calls plain functions, not Celery API."""
+"""Tiny wrappers so business code calls plain functions, not Celery API.
+
+`_safe_delay` is baked in from the start so a missing/unreachable broker
+in dev or CI never blocks an order — it just logs and continues."""
+import logging
+from typing import Any
+
 from app.worker import (
     send_order_confirmed_customer_async,
     send_order_placed_seller_async,
     send_order_status_changed_async,
 )
 
+_logger = logging.getLogger(__name__)
 
-def dispatch_order_placed(order_ids: list[int], customer_order_ids: list[int]) -> None:
+
+def _safe_delay(task: Any, *args: Any, **kwargs: Any) -> None:
+    try:
+        task.delay(*args, **kwargs)
+    except Exception:
+        _logger.exception("Celery dispatch failed for %s; continuing", getattr(task, "name", task))
+
+
+def dispatch_order_placed(order_ids: list[int]) -> None:
+    """Notify each store's seller and send the customer one combined confirmation."""
     for oid in order_ids:
-        send_order_placed_seller_async.delay(oid)
-    if customer_order_ids:
-        send_order_confirmed_customer_async.delay(customer_order_ids)
+        _safe_delay(send_order_placed_seller_async, oid)
+    if order_ids:
+        _safe_delay(send_order_confirmed_customer_async, order_ids)
 
 
-def dispatch_order_status_changed(order_id: int, new_status: str) -> None:
-    send_order_status_changed_async.delay(order_id, new_status)
+def dispatch_order_status_changed(
+    order_id: int, new_status: str, *, notify_seller: bool = False,
+) -> None:
+    """Customer is always notified. Seller only when explicitly requested
+    (e.g. cancellation, where both parties care)."""
+    _safe_delay(send_order_status_changed_async, order_id, new_status, "customer")
+    if notify_seller:
+        _safe_delay(send_order_status_changed_async, order_id, new_status, "seller")
 ```
 
-- [ ] **Step 5: Run tests**
+- [ ] **Step 6: Run tests**
 
 ```bash
 uv run pytest tests/test_order_emails.py -v
 ```
 
-Expected: 3 passed (console mode short-circuits the HTTP call).
+Expected: 4 passed (console mode short-circuits the HTTP call).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add backend/app/src/app/worker.py backend/app/src/app/services/order_emails.py backend/app/tests/test_order_emails.py
-git commit -m "feat(orders): add celery email tasks and dispatcher"
+git add backend/app/src/app/worker.py backend/app/src/app/services/order_emails.py backend/app/tests/test_order_emails.py backend/app/tests/conftest.py
+git commit -m "feat(orders): add celery email tasks, safe dispatcher, and EAGER conftest"
 ```
 
 ---
@@ -2598,7 +2741,7 @@ async def place_order(
 ) -> PlaceOrderResponse:
     orders = await place_orders_from_cart(session, user, payload.customer_address_id)
     order_ids = [o.id for o in orders if o.id is not None]
-    dispatch_order_placed(order_ids, order_ids)
+    dispatch_order_placed(order_ids)
     return PlaceOrderResponse(
         orders=[await _serialize_order(session, o, include_customer_name=False) for o in orders]
     )
@@ -2606,7 +2749,7 @@ async def place_order(
 
 - [ ] **Step 2: Inject dispatch on transitions**
 
-Modify `transition_order` to dispatch after the service call:
+Modify `transition_order` to dispatch after the service call. Forward progress notifies only the customer:
 
 ```python
 @router.post("/{order_id}/transition", response_model=OrderRead)
@@ -2625,9 +2768,9 @@ async def transition_order(
     return await _serialize_order(session, order, include_customer_name=include_customer)
 ```
 
-- [ ] **Step 3: Inject dispatch on cancel**
+- [ ] **Step 3: Inject dispatch on cancel — notify both parties**
 
-Modify `cancel`:
+Modify `cancel`. Spec §Cancellation says cancellation notifies both customer and seller, so set `notify_seller=True`:
 
 ```python
 @router.post("/{order_id}/cancel", response_model=OrderRead)
@@ -2639,54 +2782,24 @@ async def cancel(
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await cancel_order(session, order, user)
     if order.id is not None:
-        dispatch_order_status_changed(order.id, "cancelled")
+        dispatch_order_status_changed(order.id, "cancelled", notify_seller=True)
     return await _serialize_order(session, order, include_customer_name=include_customer)
 ```
 
 - [ ] **Step 4: Verify tests still pass**
 
-`.delay()` works in eager mode if Celery is configured; if not, dispatches happen against the broker. Either way, in-process tests should not crash because we use `.delay()` (which queues). Verify:
+`CELERY_TASK_ALWAYS_EAGER` is set in `tests/conftest.py` (Task 17 Step 1), so `.delay()` runs the task inline and any failure surfaces as a test failure. Run:
 
 ```bash
 uv run pytest tests/test_orders.py tests/test_carts.py tests/test_order_emails.py -v
 ```
 
-If `.delay()` blows up because Redis is not reachable in CI, set `CELERY_TASK_ALWAYS_EAGER=true` in test environment, or wrap the dispatchers in `try/except` that logs and continues.
+Expected: green.
 
-- [ ] **Step 5: Add safety wrap if needed**
-
-If Step 4 fails on broker connection, modify `services/order_emails.py` to swallow the dispatch error:
-
-```python
-import logging
-
-_logger = logging.getLogger(__name__)
-
-
-def _safe_delay(task: Any, *args: Any, **kwargs: Any) -> None:
-    try:
-        task.delay(*args, **kwargs)
-    except Exception:
-        _logger.exception("Celery dispatch failed; continuing")
-
-
-def dispatch_order_placed(order_ids: list[int], customer_order_ids: list[int]) -> None:
-    for oid in order_ids:
-        _safe_delay(send_order_placed_seller_async, oid)
-    if customer_order_ids:
-        _safe_delay(send_order_confirmed_customer_async, customer_order_ids)
-
-
-def dispatch_order_status_changed(order_id: int, new_status: str) -> None:
-    _safe_delay(send_order_status_changed_async, order_id, new_status)
-```
-
-Re-run tests.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add backend/app/src/app/api/orders.py backend/app/src/app/services/order_emails.py
+git add backend/app/src/app/api/orders.py
 git commit -m "feat(orders): dispatch email tasks on place/transition/cancel"
 ```
 

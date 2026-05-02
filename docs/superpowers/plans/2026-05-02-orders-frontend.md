@@ -126,18 +126,21 @@ export interface OrderListResponse {
 
 - [ ] **Step 3: Extend `CartItem`**
 
-Find `CartItem` in the same file and add `inventory_id`:
+Find `CartItem` in the same file. Preserve any existing fields (likely `product_id`, `product_name`, `quantity`, `price`, `image_url?`) and add the two new optional/required fields the cart refactor needs:
 
 ```ts
 export interface CartItem {
   product_id: number;
-  inventory_id: number;
+  inventory_id: number;             // NEW — required so DB cart writes know which inventory row
   product_name: string;
   quantity: number;
   price: number;
-  image_url?: string;
+  image_url?: string;               // keep if already present
+  id?: number;                      // NEW — populated only by remoteCart so the context can address rows
 }
 ```
+
+The `id?` field belongs here (not as a `declare module` augmentation later) so a single source of truth defines the type.
 
 - [ ] **Step 4: Verify compile**
 
@@ -339,7 +342,22 @@ git commit -m "feat(cart): add remoteCart api client"
 
 Create `frontend/src/lib/localCart.ts` — copy the full current `cart.ts` body verbatim (the localStorage logic). This file becomes the guest backend.
 
-- [ ] **Step 2: Replace `cart.ts` with a thin shim**
+- [ ] **Step 2: List existing direct importers from `@/lib/cart`**
+
+Before swapping the file, find every direct importer of the symbols this shim no longer re-exports as named exports:
+
+```bash
+grep -rn "from \"@/lib/cart\"" frontend/src | grep -v node_modules
+grep -rn "from '@/lib/cart'" frontend/src | grep -v node_modules
+```
+
+Anything that imported `addToCart`, `removeFromCart`, `updateQuantity`, `clearCart`, `clearAllCarts`, `getCart`, `getAllCarts`, `getSessionId`, or `getCartCount` directly from `@/lib/cart` will break. The expected fix is to either:
+- migrate that caller to `useCart()` from `CartContext` (preferred), or
+- import from `@/lib/localCart` directly when the caller genuinely needs the localStorage layer (rare — only `CartContext`).
+
+Capture the list; Step 3 commits the shim, Step 4 fixes the importers.
+
+- [ ] **Step 3: Replace `cart.ts` with a thin shim**
 
 Replace `frontend/src/lib/cart.ts` with:
 
@@ -369,11 +387,15 @@ export function getCartCount(carts: Cart[]): number {
 export * as localCart from "@/lib/localCart";
 ```
 
-- [ ] **Step 3: Update `localCart.ts` `addToCart` signature to require `inventory_id` on the item parameter**
+- [ ] **Step 4: Update direct importers from Step 2**
+
+For each file in the Step 2 grep output, switch to `useCart()` (or `import * as localCart from "@/lib/localCart"` if it really needs the raw guest module). Run `npx tsc --noEmit` between fixes to confirm progress.
+
+- [ ] **Step 5: Update `localCart.ts` `addToCart` signature to accept the new `CartItem` shape**
 
 Open `frontend/src/lib/localCart.ts` and confirm the `addToCart(storeId, storeName, item)` signature accepts the new `CartItem` shape (it will, because `CartItem` now requires `inventory_id`).
 
-- [ ] **Step 4: Verify TypeScript still compiles for the shared helpers**
+- [ ] **Step 6: Verify TypeScript still compiles for the shared helpers**
 
 ```bash
 cd frontend && npx tsc --noEmit 2>&1 | head -30
@@ -381,10 +403,10 @@ cd frontend && npx tsc --noEmit 2>&1 | head -30
 
 Errors should be limited to consumers (Task 5+).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/src/lib/cart.ts frontend/src/lib/localCart.ts
+git add frontend/src/lib/cart.ts frontend/src/lib/localCart.ts <fixed importers>
 git commit -m "refactor(cart): split cart.ts into localCart adapter and shared helpers"
 ```
 
@@ -503,19 +525,20 @@ function findRemoteItemId(carts: Cart[], storeId: number, productId: number): nu
   return cart?.items.find((i) => i.product_id === productId)?.id;
 }
 
-// `id` is exposed via the remoteCart payload; extend CartItem optionally without
-// breaking guest usage.
-declare module "@/types" {
-  interface CartItem {
-    id?: number;
-  }
-}
-
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { dbUser, token, loading: authLoading } = useAuth();
   const [carts, setCarts] = useState<Cart[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const lastSyncedUserId = useRef<number | null>(null);
+
+  // Reset the sync sentinel whenever the active user disappears (logout) or
+  // changes (account swap in same tab) so the next login re-syncs against
+  // its own localStorage rather than the previous user's stale state.
+  useEffect(() => {
+    if (!dbUser) {
+      lastSyncedUserId.current = null;
+    }
+  }, [dbUser]);
 
   const refreshLocal = useCallback(() => {
     setCarts(localCart.getAllCarts());
@@ -1284,10 +1307,20 @@ interface CustomerAddressApi {
   id: number;
   label: string | null;
   is_default: boolean;
-  address: { line1: string; city: string; state: string; pincode: string };
+  // Backend AddressPayload uses flat snake_case fields — see
+  // backend/app/src/app/schemas/address.py.
+  address: {
+    address_line1: string;
+    address_line2?: string | null;
+    city: string;
+    state: string;
+    pincode: string;
+  };
 }
 
 interface CustomerProfileResponse {
+  // Permissive — the real response also has user_id, email, first_name, etc.
+  // We only need addresses here.
   addresses: CustomerAddressApi[];
 }
 
@@ -1335,7 +1368,7 @@ export default function AddressPicker({ value, onChange }: Props) {
       >
         {addresses.map((a) => (
           <option key={a.id} value={a.id}>
-            {(a.label ?? "Address")} — {a.address.line1}, {a.address.city} {a.address.pincode}
+            {(a.label ?? "Address")} — {a.address.address_line1}, {a.address.city} {a.address.pincode}
           </option>
         ))}
       </select>
