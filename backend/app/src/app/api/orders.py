@@ -32,7 +32,7 @@ from app.schemas.orders import (
     TransitionRequest,
 )
 from app.services.checkout import place_orders_from_cart
-from app.services.orders import transition_order_status
+from app.services.orders import cancel_order, transition_order_status
 
 router = APIRouter()
 
@@ -230,4 +230,15 @@ async def transition_order(
         raise HTTPException(status_code=403, detail="forbidden")
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await transition_order_status(session, order, payload.to, user)
+    return await _serialize_order(session, order, include_customer_name=include_customer)
+
+
+@router.post("/{order_id}/cancel", response_model=OrderRead)
+async def cancel(
+    order_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order = await cancel_order(session, order, user)
     return await _serialize_order(session, order, include_customer_name=include_customer)
