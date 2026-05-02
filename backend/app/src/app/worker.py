@@ -61,11 +61,16 @@ def _resolve_email(to: str, subject: str, body: str) -> None:
 def _load_order_email_context(order_id: int) -> dict[str, Any]:
     """Load order/store/seller_user/customer_user scalars for email composition.
 
-    Opens an isolated event loop because Celery's prefork worker doesn't have an
-    asyncio loop and pytest's anyio loop would conflict if reused. Returns an
-    empty dict if the order cannot be found (callers should short-circuit).
+    Always runs the async loader in a worker thread with its own event loop.
+    This works under Celery's prefork worker (no ambient loop) AND in EAGER
+    test mode where the caller is already inside pytest-anyio's loop — a
+    second `loop.run_until_complete()` on the calling thread would raise
+    "Cannot run the event loop while another loop is running."
+
+    Returns an empty dict if the order cannot be found (callers short-circuit).
     """
     import asyncio
+    import concurrent.futures
 
     from sqlalchemy.ext.asyncio import create_async_engine
     from sqlmodel import select
@@ -129,11 +134,8 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
         finally:
             await engine.dispose()
 
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(_load())
-    finally:
-        loop.close()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]

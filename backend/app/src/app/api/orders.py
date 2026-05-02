@@ -32,6 +32,10 @@ from app.schemas.orders import (
     TransitionRequest,
 )
 from app.services.checkout import place_orders_from_cart
+from app.services.order_emails import (
+    dispatch_order_placed,
+    dispatch_order_status_changed,
+)
 from app.services.orders import cancel_order, transition_order_status
 
 router = APIRouter()
@@ -214,6 +218,8 @@ async def place_order(
     user: User = Depends(get_current_customer),
 ) -> PlaceOrderResponse:
     orders = await place_orders_from_cart(session, user, payload.customer_address_id)
+    order_ids = [o.id for o in orders if o.id is not None]
+    dispatch_order_placed(order_ids)
     return PlaceOrderResponse(
         orders=[await _serialize_order(session, o, include_customer_name=False) for o in orders]
     )
@@ -230,6 +236,8 @@ async def transition_order(
         raise HTTPException(status_code=403, detail="forbidden")
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await transition_order_status(session, order, payload.to, user)
+    if order.id is not None:
+        dispatch_order_status_changed(order.id, order.status.value)
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 
@@ -241,4 +249,6 @@ async def cancel(
 ) -> OrderRead:
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await cancel_order(session, order, user)
+    if order.id is not None:
+        dispatch_order_status_changed(order.id, "cancelled", notify_seller=True)
     return await _serialize_order(session, order, include_customer_name=include_customer)
