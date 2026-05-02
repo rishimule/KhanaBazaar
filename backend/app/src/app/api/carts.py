@@ -1,6 +1,7 @@
-from typing import List  # noqa: F401
+from typing import Any, List  # noqa: F401
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import selectinload  # noqa: F401
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -146,3 +147,68 @@ async def list_carts(
     )
     carts = list(result.all())
     return CartListResponse(carts=await _serialize_carts(session, carts))
+
+
+@router.post("/items", response_model=CartItemRead)
+async def add_cart_item(
+    payload: CartItemAdd,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> Any:
+    profile_id = await _customer_profile_id(session, user)
+
+    inv_result = await session.exec(
+        select(StoreInventory, MasterProduct)
+        .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+        .where(StoreInventory.id == payload.inventory_id)
+    )
+    row = inv_result.first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Inventory not found")
+    inv, product = row
+    if inv.store_id != payload.store_id:
+        raise HTTPException(status_code=400, detail="inventory_store_mismatch")
+    if not inv.is_available:
+        raise HTTPException(status_code=409, detail="item_unavailable")
+
+    # Capture scalar values before commit, since SQLAlchemy expires ORM
+    # attributes on commit and lazy reload triggers sync IO under asyncpg.
+    inv_id = inv.id
+    inv_price = inv.price
+    product_id = product.id
+    product_slug = product.slug
+    names = await _product_names(session, [product_id]) if product_id else {}
+    product_name = names.get(product_id, product_slug)
+
+    cart = await _get_or_create_cart(session, profile_id, payload.store_id)
+    existing_result = await session.exec(
+        select(CartItem).where(
+            CartItem.cart_id == cart.id,
+            CartItem.inventory_id == payload.inventory_id,
+        )
+    )
+    item = existing_result.first()
+    updated = item is not None
+    if item is None:
+        item = CartItem(
+            cart_id=cart.id, inventory_id=payload.inventory_id, quantity=payload.quantity
+        )
+        session.add(item)
+    else:
+        item.quantity += payload.quantity
+    await session.commit()
+    await session.refresh(item)
+
+    response = CartItemRead(
+        id=item.id,  # type: ignore[arg-type]
+        inventory_id=inv_id,  # type: ignore[arg-type]
+        product_id=product_id,  # type: ignore[arg-type]
+        product_name=product_name,
+        unit_price=inv_price,
+        quantity=item.quantity,
+        line_total=inv_price * item.quantity,
+    )
+    return JSONResponse(
+        response.model_dump(),
+        status_code=status.HTTP_200_OK if updated else status.HTTP_201_CREATED,
+    )

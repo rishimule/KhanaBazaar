@@ -163,3 +163,56 @@ async def test_other_customer_sees_empty_list(override_as_other_customer: Any) -
         resp = await ac.get("/api/v1/carts")
     assert resp.status_code == 200
     assert resp.json() == {"carts": []}
+
+
+async def test_add_item_to_new_cart(override_as_other_customer: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # Inventory id = 1 from seed (only one inventory row).
+        resp = await ac.post("/api/v1/carts/items", json={
+            "store_id": 1, "inventory_id": 1, "quantity": 3,
+        })
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["quantity"] == 3
+    assert body["product_name"] == "Apple"
+
+
+async def test_add_existing_item_increments_quantity(override_as_customer: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/carts/items", json={
+            "store_id": 1, "inventory_id": 1, "quantity": 5,
+        })
+    assert resp.status_code == 200, resp.text   # 200 = updated
+    assert resp.json()["quantity"] == 7   # 2 (seeded) + 5
+
+
+async def test_add_item_unknown_inventory(override_as_customer: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/carts/items", json={
+            "store_id": 1, "inventory_id": 9999, "quantity": 1,
+        })
+    assert resp.status_code == 404
+
+
+async def test_add_item_inventory_not_in_store(override_as_customer: Any, session: AsyncSession) -> None:
+    # Seed a second store + its inventory; passing store_id=1 + new inventory_id should 400.
+    addr2 = Address(**make_address(pincode="560003"))
+    session.add(addr2)
+    await session.flush()
+    seller2_profile_id = (await session.exec(
+        __import__("sqlmodel").select(SellerProfile.id)
+    )).first()
+    store2 = Store(name="S2", seller_profile_id=seller2_profile_id, address_id=addr2.id)
+    session.add(store2)
+    await session.flush()
+    inv2 = StoreInventory(store_id=store2.id, product_id=1, price=20.0, stock=5)
+    session.add(inv2)
+    await session.flush()
+    inv2_id = inv2.id
+    await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/carts/items", json={
+            "store_id": 1, "inventory_id": inv2_id, "quantity": 1,
+        })
+    assert resp.status_code == 400
