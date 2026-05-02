@@ -36,13 +36,20 @@ HISTORY_STATUSES = (OrderStatus.Delivered, OrderStatus.Cancelled)
 
 
 async def _serialize_order(session: AsyncSession, order: Order, *, include_customer_name: bool) -> OrderRead:
+    # TODO(perf): when list_orders calls this in a loop the round-trips compound
+    # (4-5 SELECTs per order × 50). Batch-load items/payments/deliveries/stores
+    # via WHERE order_id IN (...) before scaling list payloads.
     assert order.id is not None
     items_result = await session.exec(select(OrderItem).where(OrderItem.order_id == order.id))
     items = list(items_result.all())
     payment_result = await session.exec(select(Payment).where(Payment.order_id == order.id))
     payment = payment_result.first()
+    if payment is None:
+        raise HTTPException(status_code=500, detail="order_missing_payment")
     delivery_result = await session.exec(select(Delivery).where(Delivery.order_id == order.id))
     delivery = delivery_result.first()
+    if delivery is None:
+        raise HTTPException(status_code=500, detail="order_missing_delivery")
     store_result = await session.exec(select(Store).where(Store.id == order.store_id))
     store = store_result.first()
     customer_name: Optional[str] = None
@@ -52,7 +59,8 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
         )
         cust = cust_result.first()
         if cust is not None:
-            customer_name = " ".join(p for p in (cust.first_name, cust.last_name) if p)
+            parts = [p for p in (cust.first_name, cust.last_name) if p]
+            customer_name = " ".join(parts) if parts else None
     return OrderRead(
         id=order.id,
         store_id=order.store_id,
@@ -120,7 +128,7 @@ async def _customer_profile_id(session: AsyncSession, user: User) -> int:
 
 @router.get("", response_model=OrderListResponse)
 @router.get("/", response_model=OrderListResponse, include_in_schema=False)
-async def list_orders(  # noqa: C901
+async def list_orders(
     status: Optional[str] = Query(default=None),
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
@@ -130,7 +138,14 @@ async def list_orders(  # noqa: C901
     include_customer = False
 
     if user.role == UserRole.Customer:
-        profile_id = await _customer_profile_id(session, user)
+        # A logged-in customer with no CustomerProfile (incomplete onboarding)
+        # naturally has no orders; return [] instead of leaking via 404.
+        profile_result = await session.exec(
+            select(CustomerProfile.id).where(CustomerProfile.user_id == user.id)
+        )
+        profile_id = profile_result.first()
+        if profile_id is None:
+            return OrderListResponse(orders=[])
         stmt = stmt.where(Order.customer_profile_id == profile_id)
     elif user.role == UserRole.Seller:
         store_ids = await _seller_store_ids(session, user)
