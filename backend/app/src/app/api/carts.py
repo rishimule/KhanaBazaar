@@ -1,7 +1,6 @@
-from typing import Any, List  # noqa: F401
+from typing import List  # noqa: F401
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import selectinload  # noqa: F401
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -152,9 +151,10 @@ async def list_carts(
 @router.post("/items", response_model=CartItemRead)
 async def add_cart_item(
     payload: CartItemAdd,
+    response: Response,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
-) -> Any:
+) -> CartItemRead:
     profile_id = await _customer_profile_id(session, user)
 
     inv_result = await session.exec(
@@ -199,7 +199,8 @@ async def add_cart_item(
     await session.commit()
     await session.refresh(item)
 
-    response = CartItemRead(
+    response.status_code = status.HTTP_200_OK if updated else status.HTTP_201_CREATED
+    return CartItemRead(
         id=item.id,  # type: ignore[arg-type]
         inventory_id=inv_id,  # type: ignore[arg-type]
         product_id=product_id,  # type: ignore[arg-type]
@@ -207,8 +208,4 @@ async def add_cart_item(
         unit_price=inv_price,
         quantity=item.quantity,
         line_total=inv_price * item.quantity,
-    )
-    return JSONResponse(
-        response.model_dump(),
-        status_code=status.HTTP_200_OK if updated else status.HTTP_201_CREATED,
     )

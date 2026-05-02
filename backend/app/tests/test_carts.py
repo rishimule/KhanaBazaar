@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
@@ -200,7 +201,7 @@ async def test_add_item_inventory_not_in_store(override_as_customer: Any, sessio
     session.add(addr2)
     await session.flush()
     seller2_profile_id = (await session.exec(
-        __import__("sqlmodel").select(SellerProfile.id)
+        select(SellerProfile.id)
     )).first()
     store2 = Store(name="S2", seller_profile_id=seller2_profile_id, address_id=addr2.id)
     session.add(store2)
@@ -216,3 +217,16 @@ async def test_add_item_inventory_not_in_store(override_as_customer: Any, sessio
             "store_id": 1, "inventory_id": inv2_id, "quantity": 1,
         })
     assert resp.status_code == 400
+
+
+async def test_add_item_unavailable_returns_409(override_as_other_customer: Any, session: AsyncSession) -> None:
+    inv = (await session.exec(select(StoreInventory))).first()
+    inv.is_available = False
+    await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/carts/items", json={
+            "store_id": 1, "inventory_id": 1, "quantity": 1,
+        })
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "item_unavailable"
