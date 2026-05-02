@@ -245,6 +245,25 @@ async def test_update_item_other_customer_forbidden(override_as_other_customer: 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.patch(f"/api/v1/carts/items/{item_id}", json={"quantity": 4})
     assert resp.status_code == 403
+    assert resp.json()["detail"] == "not_your_item"
+
+
+async def test_update_unknown_item_returns_404(override_as_customer: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.patch("/api/v1/carts/items/9999", json={"quantity": 1})
+    assert resp.status_code == 404
+
+
+async def test_update_item_unavailable_returns_409(override_as_customer: Any, session: AsyncSession) -> None:
+    item_id = (await session.exec(select(CartItem.id))).first()
+    inv = (await session.exec(select(StoreInventory))).first()
+    inv.is_available = False
+    await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.patch(f"/api/v1/carts/items/{item_id}", json={"quantity": 5})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "item_unavailable"
 
 
 async def test_delete_cart_item(override_as_customer: Any, session: AsyncSession) -> None:
@@ -258,7 +277,16 @@ async def test_delete_cart_item(override_as_customer: Any, session: AsyncSession
     assert remaining == []
 
 
-async def test_clear_store_cart(override_as_customer: Any) -> None:
+async def test_clear_store_cart(override_as_customer: Any, session: AsyncSession) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.delete("/api/v1/carts/1")
+    assert resp.status_code == 204
+    await session.commit()
+    assert (await session.exec(select(Cart))).all() == []
+    assert (await session.exec(select(CartItem))).all() == []
+
+
+async def test_clear_store_cart_unknown_store_returns_204(override_as_customer: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.delete("/api/v1/carts/9999")
     assert resp.status_code == 204

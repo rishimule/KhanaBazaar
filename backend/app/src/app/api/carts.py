@@ -148,6 +148,36 @@ async def list_carts(
     return CartListResponse(carts=await _serialize_carts(session, carts))
 
 
+async def _build_cart_item_response(
+    session: AsyncSession, item: CartItem,
+) -> CartItemRead:
+    """Build a CartItemRead from a persisted CartItem.
+
+    Loads inventory + product + translation in one fresh query, so it is safe
+    to call after a commit (does not rely on previously-loaded ORM instances
+    whose attributes asyncpg has expired).
+    """
+    inv_result = await session.exec(
+        select(StoreInventory, MasterProduct)
+        .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+        .where(StoreInventory.id == item.inventory_id)
+    )
+    row = inv_result.first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="inventory_gone")
+    inv, product = row
+    names = await _product_names(session, [product.id]) if product.id else {}
+    return CartItemRead(
+        id=item.id,  # type: ignore[arg-type]
+        inventory_id=inv.id,  # type: ignore[arg-type]
+        product_id=product.id,  # type: ignore[arg-type]
+        product_name=names.get(product.id, product.slug),
+        unit_price=inv.price,
+        quantity=item.quantity,
+        line_total=inv.price * item.quantity,
+    )
+
+
 @router.post("/items", response_model=CartItemRead)
 async def add_cart_item(
     payload: CartItemAdd,
@@ -158,27 +188,15 @@ async def add_cart_item(
     profile_id = await _customer_profile_id(session, user)
 
     inv_result = await session.exec(
-        select(StoreInventory, MasterProduct)
-        .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
-        .where(StoreInventory.id == payload.inventory_id)
+        select(StoreInventory).where(StoreInventory.id == payload.inventory_id)
     )
-    row = inv_result.first()
-    if row is None:
+    inv = inv_result.first()
+    if inv is None:
         raise HTTPException(status_code=404, detail="Inventory not found")
-    inv, product = row
     if inv.store_id != payload.store_id:
         raise HTTPException(status_code=400, detail="inventory_store_mismatch")
     if not inv.is_available:
         raise HTTPException(status_code=409, detail="item_unavailable")
-
-    # Capture scalar values before commit, since SQLAlchemy expires ORM
-    # attributes on commit and lazy reload triggers sync IO under asyncpg.
-    inv_id = inv.id
-    inv_price = inv.price
-    product_id = product.id
-    product_slug = product.slug
-    names = await _product_names(session, [product_id]) if product_id else {}
-    product_name = names.get(product_id, product_slug)
 
     cart = await _get_or_create_cart(session, profile_id, payload.store_id)
     existing_result = await session.exec(
@@ -200,15 +218,7 @@ async def add_cart_item(
     await session.refresh(item)
 
     response.status_code = status.HTTP_200_OK if updated else status.HTTP_201_CREATED
-    return CartItemRead(
-        id=item.id,  # type: ignore[arg-type]
-        inventory_id=inv_id,  # type: ignore[arg-type]
-        product_id=product_id,  # type: ignore[arg-type]
-        product_name=product_name,
-        unit_price=inv_price,
-        quantity=item.quantity,
-        line_total=inv_price * item.quantity,
-    )
+    return await _build_cart_item_response(session, item)
 
 
 async def _owned_cart_item(
@@ -237,34 +247,21 @@ async def update_cart_item(
 ) -> CartItemRead:
     profile_id = await _customer_profile_id(session, user)
     item, _ = await _owned_cart_item(session, profile_id, item_id)
-    item.quantity = payload.quantity
-    # Capture inventory + product info BEFORE commit (asyncpg expires ORM
-    # attributes on commit and lazy reload triggers sync IO).
-    inv_result = await session.exec(
-        select(StoreInventory, MasterProduct)
-        .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
-        .where(StoreInventory.id == item.inventory_id)
-    )
-    inv, product = inv_result.first()  # type: ignore[misc]
-    inv_id = inv.id
-    inv_price = inv.price
-    product_id = product.id
-    product_slug = product.slug
-    names = await _product_names(session, [product_id]) if product_id else {}
-    product_name = names.get(product_id, product_slug)
 
+    # Re-validate availability so a customer cannot raise the quantity of an
+    # item the seller just disabled. Mirrors the POST endpoint's contract.
+    is_available = (await session.exec(
+        select(StoreInventory.is_available).where(StoreInventory.id == item.inventory_id)
+    )).first()
+    if is_available is None:
+        raise HTTPException(status_code=404, detail="inventory_gone")
+    if not is_available:
+        raise HTTPException(status_code=409, detail="item_unavailable")
+
+    item.quantity = payload.quantity
     await session.commit()
     await session.refresh(item)
-
-    return CartItemRead(
-        id=item.id,  # type: ignore[arg-type]
-        inventory_id=inv_id,  # type: ignore[arg-type]
-        product_id=product_id,  # type: ignore[arg-type]
-        product_name=product_name,
-        unit_price=inv_price,
-        quantity=item.quantity,
-        line_total=inv_price * item.quantity,
-    )
+    return await _build_cart_item_response(session, item)
 
 
 @router.delete("/items/{item_id}", status_code=204)
