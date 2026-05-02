@@ -25,7 +25,8 @@ In scope:
 - Customer cart persistence in the database for logged-in users. Every add/remove/qty edit hits the backend so the cart follows the user across devices.
 - Cart sync from `localStorage` to DB on login (quantities sum on conflict).
 - Single "Place Order" action on the cart page that fans out into one `Order` per store atomically in one transaction.
-- Stock decrement on order creation and automatic restock on cancellation.
+- Stock decrement (`StoreInventory.stock`) on order creation and automatic restock on cancellation.
+- `Order.delivery_address_id` stores the underlying `Address.id`. Checkout takes the customer-facing `customer_address_id` (i.e. a `CustomerAddress` row owned by the user) and resolves it server-side.
 - Seller-driven status lifecycle: `Pending → Packed → Dispatched → Delivered`. `Cancelled` reachable from any non-terminal state per role rules.
 - Customer can cancel only while `Pending`. Seller can cancel anytime before `Delivered`. Admin can cancel any non-terminal order.
 - Order list and detail pages for all three roles (customer, seller, admin).
@@ -155,17 +156,18 @@ frontend/src/
 1. Customer is on `/cart`, logged in, has at least one saved address. UI shows `<AddressPicker />` (defaults to first address) and an enabled "Place Order" button.
 2. Tap fires `POST /api/v1/orders {address_id}`.
 3. Backend `place_orders_from_cart()` runs in a single transaction:
-   1. Load `Cart` rows for the customer joined with `CartItem` and `StoreInventory`. Lock inventory rows with `SELECT ... FOR UPDATE` to serialize concurrent checkouts.
-   2. Validate: cart is non-empty, address belongs to customer, every item has `StoreInventory.quantity >= ordered_qty`, every item still resolves (not deleted), every store is active. Snapshot current `StoreInventory.price` as the unit price.
-   3. For each store cart:
+   1. Resolve the incoming `customer_address_id` to a `CustomerAddress` row owned by the current customer; pull its `address_id` (the underlying `Address` FK) and a formatted snapshot string.
+   2. Load `Cart` rows for the customer joined with `CartItem` and `StoreInventory`. Lock inventory rows with `SELECT ... FOR UPDATE` to serialize concurrent checkouts.
+   3. Validate: cart is non-empty, every item has `StoreInventory.stock >= ordered_qty`, every item still resolves and has `is_available=True`, every store is `is_active=True`. Snapshot current `StoreInventory.price` as the unit price.
+   4. For each store cart:
       - Compute `subtotal = sum(unit_price * quantity)`. `delivery_fee` = flat ₹0 for MVP (placeholder, easily configured later). `tax = 0`. `total = subtotal + delivery_fee + tax`.
       - Insert `Order(status=Pending, customer_profile_id, store_id, delivery_address_id, delivery_address_snapshot, subtotal, delivery_fee, tax, total, placed_at=now())`.
       - Insert `OrderItem` rows with `product_name_snapshot` and `unit_price_snapshot` captured.
-      - Decrement `StoreInventory.quantity` by ordered amount.
+      - Decrement `StoreInventory.stock` by ordered amount.
       - Insert `Payment(order_id, amount=total, method=Cash, status=Pending)`.
       - Insert `Delivery(order_id, status=Pending)`.
-   4. Delete the customer's `Cart` rows (cascade removes `CartItem`).
-   5. Commit.
+   5. Delete the customer's `Cart` rows along with their `CartItem` rows (delete items first, then carts).
+   6. Commit.
 4. After commit, dispatch Celery tasks: one `send_order_placed_seller_async(order_id)` per order, plus a single `send_order_confirmed_customer_async(order_ids=[...])`.
 5. Response: `{orders: [{id, store_id, status, total, ...}]}`.
 6. Frontend redirects to `/account/orders` and toasts "N orders placed".
@@ -195,7 +197,7 @@ frontend/src/
       - Admin: only if `status not in (Delivered, Cancelled)`.
    3. Update `Order.status = Cancelled`, `Delivery.status = Cancelled`.
    4. If `Payment.status == Paid`: set `Payment.status = Refunded`. Otherwise leave `Pending`. (For COD this only matters if a Delivered order is later cancelled, which only admin can do.)
-   5. For each `OrderItem`, increment `StoreInventory.quantity` by `OrderItem.quantity` (restock).
+   5. For each `OrderItem`, increment `StoreInventory.stock` by `OrderItem.quantity` (restock).
    6. Commit.
    7. Dispatch `send_order_status_changed_async(order_id, "cancelled")` to notify both parties.
 
@@ -231,7 +233,7 @@ Cancellation actor restrictions enforced separately in `cancel_order()`.
 | `DELETE` | `/api/v1/carts/items/{id}` | Customer (owns) | Remove single item |
 | `DELETE` | `/api/v1/carts/{store_id}` | Customer | Clear store cart |
 | `POST` | `/api/v1/carts/sync` | Customer | Bulk merge `{carts: [...]}` from localStorage |
-| `POST` | `/api/v1/orders` | Customer | Place orders from DB cart `{address_id}` |
+| `POST` | `/api/v1/orders` | Customer | Place orders from DB cart `{customer_address_id}` |
 | `GET` | `/api/v1/orders` | Customer / Seller / Admin | List, scoped by role; `?status=active\|history` |
 | `GET` | `/api/v1/orders/{id}` | Customer (owns) / Seller (owns store) / Admin | Order detail |
 | `POST` | `/api/v1/orders/{id}/transition` | Seller (owns store) / Admin | `{to: "packed"\|"dispatched"\|"delivered"}` |
@@ -281,7 +283,7 @@ class OrderRead(BaseModel):
     delivery: DeliveryRead
 
 class PlaceOrderRequest(BaseModel):
-    address_id: int
+    customer_address_id: int   # CustomerAddress.id, resolved server-side to Address.id
 
 class TransitionRequest(BaseModel):
     to: Literal["packed", "dispatched", "delivered"]
@@ -429,10 +431,10 @@ Each task opens a fresh DB session, loads the order(s), renders an email, and se
 |---|---|---|
 | Empty cart | 400 | `{detail: "cart_empty"}` |
 | Address not owned | 403 | `{detail: "invalid_address"}` |
-| Inventory insufficient | 409 | `{detail: "insufficient_stock", item: {inventory_id, available, requested}}` |
+| Inventory insufficient | 409 | `{detail: "insufficient_stock", item: {inventory_id, available_stock, requested}}` |
 | Price changed since cart add | 409 | `{detail: "price_changed", items: [...]}` |
-| Inventory unavailable (deleted/inactive) | 409 | `{detail: "item_unavailable", inventory_ids: [...]}` |
-| Store inactive | 409 | `{detail: "store_unavailable", store_id}` |
+| Inventory unavailable (deleted or `is_available=False`) | 409 | `{detail: "item_unavailable", inventory_ids: [...]}` |
+| Store inactive (`is_active=False`) | 409 | `{detail: "store_unavailable", store_id}` |
 
 All checkout failures fully roll back. No partial orders, no partial stock decrements.
 
