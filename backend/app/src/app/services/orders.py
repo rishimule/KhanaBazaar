@@ -120,6 +120,9 @@ async def cancel_order(session: AsyncSession, order: Order, actor: User) -> Orde
     order.status = OrderStatus.Cancelled
     if delivery is not None:
         delivery.status = DeliveryStatus.Cancelled
+    # NOTE: dormant today — Delivered is terminal so Paid orders cannot reach
+    # cancel. If a future workflow lets admins cancel post-Delivered, audit
+    # this branch (real money refund, not just bookkeeping).
     if payment is not None and payment.status == PaymentStatus.Paid:
         payment.status = PaymentStatus.Refunded
 
