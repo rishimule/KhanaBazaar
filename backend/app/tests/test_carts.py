@@ -321,5 +321,39 @@ async def test_sync_drops_unknown_inventory(override_as_other_customer: Any) -> 
         })
     assert resp.status_code == 200
     body = resp.json()
-    assert any(d["inventory_id"] == 9999 for d in body["dropped"])
+    assert any(d["inventory_id"] == 9999 and d["reason"] == "unknown_inventory" for d in body["dropped"])
     assert body["carts"][0]["items"][0]["inventory_id"] == 1
+
+
+async def test_sync_drops_unavailable_inventory(override_as_other_customer: Any, session: AsyncSession) -> None:
+    inv = (await session.exec(select(StoreInventory))).first()
+    inv.is_available = False
+    await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/carts/sync", json={
+            "carts": [{"store_id": 1, "items": [{"inventory_id": 1, "quantity": 1}]}]
+        })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["carts"] == []
+    assert body["dropped"] == [{"inventory_id": 1, "reason": "item_unavailable"}]
+
+
+async def test_sync_all_items_dropped_creates_no_cart(override_as_other_customer: Any, session: AsyncSession) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/carts/sync", json={
+            "carts": [{"store_id": 1, "items": [{"inventory_id": 9999, "quantity": 1}]}]
+        })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["carts"] == []
+    assert body["dropped"] == [{"inventory_id": 9999, "reason": "unknown_inventory"}]
+    # No empty Cart row should have been created for this customer.
+    profile_id = (await session.exec(
+        select(CustomerProfile.id).where(CustomerProfile.user_id == mock_other_customer.id)
+    )).first()
+    carts_for_other = (await session.exec(
+        select(Cart).where(Cart.customer_profile_id == profile_id)
+    )).all()
+    assert carts_for_other == []

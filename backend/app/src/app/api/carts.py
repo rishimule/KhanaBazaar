@@ -306,6 +306,8 @@ async def sync_carts(
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
 ) -> CartSyncResponse:
+    # TODO(perf): batch Store and StoreInventory lookups across the whole
+    # payload (one IN query each) before scaling sync beyond MVP-sized carts.
     profile_id = await _customer_profile_id(session, user)
     dropped: list[DroppedSyncItem] = []
 
@@ -317,7 +319,9 @@ async def sync_carts(
                 dropped.append(DroppedSyncItem(inventory_id=it.inventory_id, reason="store_unavailable"))
             continue
 
-        cart = await _get_or_create_cart(session, profile_id, cart_payload.store_id)
+        # Defer cart creation until at least one item validates so a payload
+        # whose items all drop does not leave an empty Cart row behind.
+        cart: Cart | None = None
 
         for item_payload in cart_payload.items:
             inv_result = await session.exec(
@@ -330,6 +334,9 @@ async def sync_carts(
                     reason="unknown_inventory" if inv is None else "item_unavailable",
                 ))
                 continue
+
+            if cart is None:
+                cart = await _get_or_create_cart(session, profile_id, cart_payload.store_id)
 
             existing_result = await session.exec(
                 select(CartItem).where(
