@@ -209,3 +209,101 @@ async def add_cart_item(
         quantity=item.quantity,
         line_total=inv_price * item.quantity,
     )
+
+
+async def _owned_cart_item(
+    session: AsyncSession, profile_id: int, item_id: int
+) -> tuple[CartItem, Cart]:
+    result = await session.exec(
+        select(CartItem, Cart)
+        .join(Cart, Cart.id == CartItem.cart_id)  # type: ignore[arg-type]
+        .where(CartItem.id == item_id)
+    )
+    row = result.first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Cart item not found")
+    item, cart = row
+    if cart.customer_profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="not_your_item")
+    return item, cart
+
+
+@router.patch("/items/{item_id}", response_model=CartItemRead)
+async def update_cart_item(
+    item_id: int,
+    payload: CartItemUpdate,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> CartItemRead:
+    profile_id = await _customer_profile_id(session, user)
+    item, _ = await _owned_cart_item(session, profile_id, item_id)
+    item.quantity = payload.quantity
+    # Capture inventory + product info BEFORE commit (asyncpg expires ORM
+    # attributes on commit and lazy reload triggers sync IO).
+    inv_result = await session.exec(
+        select(StoreInventory, MasterProduct)
+        .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+        .where(StoreInventory.id == item.inventory_id)
+    )
+    inv, product = inv_result.first()  # type: ignore[misc]
+    inv_id = inv.id
+    inv_price = inv.price
+    product_id = product.id
+    product_slug = product.slug
+    names = await _product_names(session, [product_id]) if product_id else {}
+    product_name = names.get(product_id, product_slug)
+
+    await session.commit()
+    await session.refresh(item)
+
+    return CartItemRead(
+        id=item.id,  # type: ignore[arg-type]
+        inventory_id=inv_id,  # type: ignore[arg-type]
+        product_id=product_id,  # type: ignore[arg-type]
+        product_name=product_name,
+        unit_price=inv_price,
+        quantity=item.quantity,
+        line_total=inv_price * item.quantity,
+    )
+
+
+@router.delete("/items/{item_id}", status_code=204)
+async def delete_cart_item(
+    item_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> Response:
+    profile_id = await _customer_profile_id(session, user)
+    item, cart = await _owned_cart_item(session, profile_id, item_id)
+    await session.delete(item)
+    await session.flush()
+
+    # Drop the cart if empty.
+    remaining = await session.exec(select(CartItem).where(CartItem.cart_id == cart.id))
+    if remaining.first() is None:
+        await session.delete(cart)
+    await session.commit()
+    return Response(status_code=204)
+
+
+@router.delete("/{store_id}", status_code=204)
+async def clear_store_cart(
+    store_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> Response:
+    profile_id = await _customer_profile_id(session, user)
+    cart_result = await session.exec(
+        select(Cart).where(
+            Cart.customer_profile_id == profile_id, Cart.store_id == store_id
+        )
+    )
+    cart = cart_result.first()
+    if cart is not None:
+        items_result = await session.exec(select(CartItem).where(CartItem.cart_id == cart.id))
+        for item in items_result.all():
+            await session.delete(item)
+        await session.flush()
+        await session.delete(cart)
+        await session.commit()
+    return Response(status_code=204)

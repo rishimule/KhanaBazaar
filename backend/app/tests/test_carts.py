@@ -230,3 +230,35 @@ async def test_add_item_unavailable_returns_409(override_as_other_customer: Any,
         })
     assert resp.status_code == 409
     assert resp.json()["detail"] == "item_unavailable"
+
+
+async def test_update_item_quantity(override_as_customer: Any, session: AsyncSession) -> None:
+    item_id = (await session.exec(select(CartItem.id))).first()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.patch(f"/api/v1/carts/items/{item_id}", json={"quantity": 4})
+    assert resp.status_code == 200
+    assert resp.json()["quantity"] == 4
+
+
+async def test_update_item_other_customer_forbidden(override_as_other_customer: Any, session: AsyncSession) -> None:
+    item_id = (await session.exec(select(CartItem.id))).first()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.patch(f"/api/v1/carts/items/{item_id}", json={"quantity": 4})
+    assert resp.status_code == 403
+
+
+async def test_delete_cart_item(override_as_customer: Any, session: AsyncSession) -> None:
+    item_id = (await session.exec(select(CartItem.id))).first()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.delete(f"/api/v1/carts/items/{item_id}")
+    assert resp.status_code == 204
+    # Cart row also gone (was the only item).
+    await session.commit()
+    remaining = (await session.exec(select(Cart))).all()
+    assert remaining == []
+
+
+async def test_clear_store_cart(override_as_customer: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.delete("/api/v1/carts/1")
+    assert resp.status_code == 204
