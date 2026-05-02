@@ -25,6 +25,11 @@ from app.schemas.address import address_to_payload
 from app.services.inventory import decrement_stock, lock_inventory_rows
 from app.utils.address import format_address
 
+# MVP pricing constants. When per-store fees and GST plug in, edit here so
+# every Order row built from this service stays in sync.
+MVP_DELIVERY_FEE = 0.0
+MVP_TAX = 0.0
+
 
 async def _customer_profile(session: AsyncSession, user: User) -> CustomerProfile:
     assert user.id is not None
@@ -37,12 +42,88 @@ async def _customer_profile(session: AsyncSession, user: User) -> CustomerProfil
     return profile
 
 
-async def place_orders_from_cart(  # noqa: C901
-    session: AsyncSession, user: User, customer_address_id: int
-) -> List[Order]:
-    profile = await _customer_profile(session, user)
-    assert profile.id is not None
+def _validate_inventory_availability(
+    cart_items: list[CartItem], inv_by_id: dict[int, StoreInventory]
+) -> None:
+    """Sum cart-item quantities per inventory_id and raise 409 on the first
+    unavailable / under-stocked row. Pure validation — no I/O, no mutation."""
+    qty_by_inv: dict[int, int] = {}
+    for item in cart_items:
+        qty_by_inv[item.inventory_id] = qty_by_inv.get(item.inventory_id, 0) + item.quantity
+    for inv_id, requested in qty_by_inv.items():
+        inv = inv_by_id.get(inv_id)
+        if inv is None or not inv.is_available:
+            raise HTTPException(
+                status_code=409,
+                detail={"detail": "item_unavailable", "inventory_ids": [inv_id]},
+            )
+        if inv.stock < requested:
+            raise HTTPException(status_code=409, detail={
+                "detail": "insufficient_stock",
+                "item": {"inventory_id": inv_id, "available_stock": inv.stock, "requested": requested},
+            })
 
+
+async def _validate_stores_active(
+    session: AsyncSession, store_ids: list[int]
+) -> None:
+    """Raise 409 store_unavailable for the first inactive/missing store.
+    Note: not row-locked — admin can race a deactivation here, which correctly
+    produces a 409 and rolls back the inventory locks held by the caller."""
+    stores_result = await session.exec(select(Store).where(Store.id.in_(store_ids)))  # type: ignore[attr-defined]
+    stores_by_id = {s.id: s for s in stores_result.all()}
+    for store_id in store_ids:
+        store = stores_by_id.get(store_id)
+        if store is None or not store.is_active:
+            raise HTTPException(status_code=409, detail={"detail": "store_unavailable", "store_id": store_id})
+
+
+def _build_order_for_cart(
+    *, profile_id: int, address_id: int, address_snapshot: str,
+    cart: Cart, items: list[CartItem],
+    inv_by_id: dict[int, StoreInventory], name_by_inv: dict[int, str],
+) -> tuple[Order, list[OrderItem], Payment, Delivery]:
+    """Pure builder. Returns the rows to add and computes the line decrements
+    via inv_by_id. Caller does session.add + decrement_stock."""
+    subtotal = sum(inv_by_id[i.inventory_id].price * i.quantity for i in items)
+    total = subtotal + MVP_DELIVERY_FEE + MVP_TAX
+    order = Order(
+        customer_profile_id=profile_id,
+        store_id=cart.store_id,
+        delivery_address_id=address_id,
+        delivery_address_snapshot=address_snapshot,
+        status=OrderStatus.Pending,
+        subtotal=subtotal,
+        delivery_fee=MVP_DELIVERY_FEE,
+        tax=MVP_TAX,
+        total=total,
+    )
+    order_items: list[OrderItem] = []
+    for item in items:
+        inv = inv_by_id[item.inventory_id]
+        assert item.inventory_id in name_by_inv, (
+            f"missing product name snapshot for inventory_id={item.inventory_id}"
+        )
+        order_items.append(OrderItem(
+            inventory_id=item.inventory_id,
+            product_name_snapshot=name_by_inv[item.inventory_id],
+            unit_price_snapshot=inv.price,
+            quantity=item.quantity,
+            line_total=inv.price * item.quantity,
+        ))
+    payment = Payment(
+        amount=total, method=PaymentMethod.Cash, status=PaymentStatus.Pending,
+    )
+    delivery = Delivery(status=DeliveryStatus.Pending)
+    return order, order_items, payment, delivery
+
+
+async def _resolve_address(
+    session: AsyncSession, customer_address_id: int, customer_profile_id: int
+) -> tuple[int, str]:
+    """Return (address_id, snapshot_string). 404 if missing; 403 if not owned
+    by the calling customer. Both errors carry detail='invalid_address' so
+    callers cannot distinguish missing from not-yours."""
     addr_result = await session.exec(
         select(CustomerAddress, Address)
         .join(Address, Address.id == CustomerAddress.address_id)  # type: ignore[arg-type]
@@ -52,18 +133,22 @@ async def place_orders_from_cart(  # noqa: C901
     if addr_row is None:
         raise HTTPException(status_code=404, detail="invalid_address")
     customer_address, address = addr_row
-    if customer_address.customer_profile_id != profile.id:
+    if customer_address.customer_profile_id != customer_profile_id:
         raise HTTPException(status_code=403, detail="invalid_address")
-    # Use the existing formatter so the snapshot matches the format the
-    # rest of the app shows (Address has flat columns; format_address
-    # accepts an AddressPayload via address_to_payload).
-    address_snapshot = format_address(address_to_payload(address))
+    assert address.id is not None
+    return address.id, format_address(address_to_payload(address))
 
-    cart_result = await session.exec(select(Cart).where(Cart.customer_profile_id == profile.id))
+
+async def _load_customer_carts(
+    session: AsyncSession, customer_profile_id: int
+) -> tuple[list[Cart], list[CartItem]]:
+    """Return (carts, items). Raises 400 cart_empty if either is empty."""
+    cart_result = await session.exec(
+        select(Cart).where(Cart.customer_profile_id == customer_profile_id)
+    )
     carts = list(cart_result.all())
     if not carts:
         raise HTTPException(status_code=400, detail="cart_empty")
-
     cart_ids = [c.id for c in carts if c.id is not None]
     items_result = await session.exec(
         select(CartItem).where(CartItem.cart_id.in_(cart_ids))  # type: ignore[attr-defined]
@@ -71,49 +156,48 @@ async def place_orders_from_cart(  # noqa: C901
     cart_items = list(items_result.all())
     if not cart_items:
         raise HTTPException(status_code=400, detail="cart_empty")
+    return carts, cart_items
 
-    inv_ids = [item.inventory_id for item in cart_items]
-    locked_inv = await lock_inventory_rows(session, inv_ids)
-    inv_by_id = {inv.id: inv for inv in locked_inv}
 
-    # Validate availability before any writes.
-    qty_by_inv: dict[int, int] = {}
-    for item in cart_items:
-        qty_by_inv[item.inventory_id] = qty_by_inv.get(item.inventory_id, 0) + item.quantity
-    for inv_id, requested in qty_by_inv.items():
-        inv = inv_by_id.get(inv_id)
-        if inv is None or not inv.is_available:
-            raise HTTPException(status_code=409, detail={"detail": "item_unavailable", "inventory_ids": [inv_id]})
-        if inv.stock < requested:
-            raise HTTPException(status_code=409, detail={
-                "detail": "insufficient_stock",
-                "item": {"inventory_id": inv_id, "available_stock": inv.stock, "requested": requested},
-            })
-
-    # Validate stores active.
-    store_ids = [c.store_id for c in carts]
-    stores_result = await session.exec(select(Store).where(Store.id.in_(store_ids)))  # type: ignore[attr-defined]
-    stores_by_id = {s.id: s for s in stores_result.all()}
-    for c in carts:
-        store = stores_by_id.get(c.store_id)
-        if store is None or not store.is_active:
-            raise HTTPException(status_code=409, detail={"detail": "store_unavailable", "store_id": c.store_id})
-
-    # Snapshot product names: join via inventory → master_product → translation
-    # filtered by 'en' (MVP — language plumbing comes later).
-    name_rows = await session.exec(
+async def _snapshot_product_names(
+    session: AsyncSession, inv_ids: list[int]
+) -> dict[int, str]:
+    """Build inventory_id → display name map. Joins MasterProductTranslation
+    (English MVP) and falls back to MasterProduct.slug when the translation row
+    is missing."""
+    result = await session.exec(
         select(StoreInventory.id, MasterProduct.slug, MasterProductTranslation.name)
         .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
-        .outerjoin(  # outerjoin so we still get a row even if translation missing
+        .outerjoin(
             MasterProductTranslation,
             (MasterProductTranslation.master_product_id == MasterProduct.id)
             & (MasterProductTranslation.language_code == "en"),
         )
         .where(StoreInventory.id.in_(inv_ids))  # type: ignore[attr-defined]
     )
-    name_by_inv: dict[int, str] = {}
-    for inv_id, slug, name in name_rows.all():
-        name_by_inv[inv_id] = name or slug
+    return {inv_id: (name or slug) for inv_id, slug, name in result.all()}
+
+
+async def place_orders_from_cart(
+    session: AsyncSession, user: User, customer_address_id: int
+) -> List[Order]:
+    profile = await _customer_profile(session, user)
+    assert profile.id is not None
+
+    address_id, address_snapshot = await _resolve_address(
+        session, customer_address_id, profile.id
+    )
+
+    carts, cart_items = await _load_customer_carts(session, profile.id)
+
+    inv_ids = [item.inventory_id for item in cart_items]
+    locked_inv = await lock_inventory_rows(session, inv_ids)
+    inv_by_id = {inv.id: inv for inv in locked_inv}
+
+    _validate_inventory_availability(cart_items, inv_by_id)
+    await _validate_stores_active(session, [c.store_id for c in carts])
+
+    name_by_inv = await _snapshot_product_names(session, inv_ids)
 
     items_by_cart: dict[int, list[CartItem]] = {}
     for item in cart_items:
@@ -125,50 +209,27 @@ async def place_orders_from_cart(  # noqa: C901
         items = items_by_cart.get(cart.id, [])
         if not items:
             continue
-        subtotal = sum(inv_by_id[i.inventory_id].price * i.quantity for i in items)
-        delivery_fee = 0.0
-        tax = 0.0
-        total = subtotal + delivery_fee + tax
-
-        order = Order(
-            customer_profile_id=profile.id,
-            store_id=cart.store_id,
-            delivery_address_id=address.id,
-            delivery_address_snapshot=address_snapshot,
-            status=OrderStatus.Pending,
-            subtotal=subtotal,
-            delivery_fee=delivery_fee,
-            tax=tax,
-            total=total,
+        order, order_items, payment, delivery = _build_order_for_cart(
+            profile_id=profile.id, address_id=address_id,
+            address_snapshot=address_snapshot, cart=cart, items=items,
+            inv_by_id=inv_by_id, name_by_inv=name_by_inv,
         )
         session.add(order)
         await session.flush()
         assert order.id is not None
-
-        for item in items:
-            inv = inv_by_id[item.inventory_id]
-            session.add(OrderItem(
-                order_id=order.id,
-                inventory_id=item.inventory_id,
-                product_name_snapshot=name_by_inv.get(item.inventory_id, "Item"),
-                unit_price_snapshot=inv.price,
-                quantity=item.quantity,
-                line_total=inv.price * item.quantity,
-            ))
+        for oi in order_items:
+            oi.order_id = order.id
+            session.add(oi)
             # Mutate the locked ORM instance — unit-of-work flushes the
             # change while the row lock is still held by this transaction.
-            decrement_stock(inv, item.quantity)
-
-        session.add(Payment(
-            order_id=order.id,
-            amount=total,
-            method=PaymentMethod.Cash,
-            status=PaymentStatus.Pending,
-        ))
-        session.add(Delivery(order_id=order.id, status=DeliveryStatus.Pending))
+            decrement_stock(inv_by_id[oi.inventory_id], oi.quantity)
+        payment.order_id = order.id
+        delivery.order_id = order.id
+        session.add(payment)
+        session.add(delivery)
         created_orders.append(order)
 
-    # Clear cart.
+    # Clear cart (items first to satisfy the cart_id FK).
     for item in cart_items:
         await session.delete(item)
     for cart in carts:
