@@ -30,8 +30,12 @@ def decrement_stock(inv: StoreInventory, quantity: int) -> None:
     """Mutate the *already-locked* inventory instance. Caller must have
     obtained `inv` via `lock_inventory_rows()` in the current session so
     the unit-of-work flushes the change while the row lock is still held."""
+    if quantity < 0:
+        raise ValueError("quantity must be non-negative")
     inv.stock -= quantity
 
 
 def restock(inv: StoreInventory, quantity: int) -> None:
+    if quantity < 0:
+        raise ValueError("quantity must be non-negative")
     inv.stock += quantity
