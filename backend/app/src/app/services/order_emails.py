@@ -8,6 +8,8 @@ placed or updated an order. Logging surfaces drop reasons for ops debugging.
 import logging
 from typing import Any
 
+from kombu.exceptions import OperationalError as KombuOperationalError
+
 from app.worker import (
     send_order_confirmed_customer_async,
     send_order_placed_seller_async,
@@ -16,12 +18,23 @@ from app.worker import (
 
 logger = logging.getLogger(__name__)
 
+# Catch only broker/transport errors. Programming errors (TypeError on the
+# wrong arg shape, AttributeError, etc.) should crash loud during dev so they
+# surface in tests rather than getting silently logged in prod.
+_BROKER_ERRORS: tuple[type[BaseException], ...] = (
+    KombuOperationalError,
+    ConnectionError,
+    OSError,
+    TimeoutError,
+)
+
 
 def _safe_delay(task: Any, *args: Any) -> None:
-    """Fire-and-forget Celery dispatch. Swallow and log any broker errors."""
+    """Fire-and-forget Celery dispatch. Swallow and log broker outages so a
+    Redis hiccup never breaks the request path that placed or updated an order."""
     try:
         task.delay(*args)
-    except Exception:  # noqa: BLE001 - intentional: never break the request path
+    except _BROKER_ERRORS:
         logger.exception(
             "Failed to dispatch order email task=%s args=%s",
             getattr(task, "name", repr(task)),

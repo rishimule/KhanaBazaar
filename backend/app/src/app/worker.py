@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Any
+from typing import Any, Literal
 
 from app.core.celery_app import celery_app
 
@@ -121,7 +121,7 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                 return {
                     "order_id": order.id,
                     "order_total": order.total,
-                    "order_status": order.status.value if hasattr(order.status, "value") else str(order.status),
+                    "order_status": order.status.value,
                     "store_name": store.name if store is not None else None,
                     "seller_email": seller_user.email if seller_user is not None else None,
                     "customer_email": customer_user.email if customer_user is not None else None,
@@ -195,7 +195,7 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
     retry_backoff=True,
 )
 def send_order_status_changed_async(
-    order_id: int, new_status: str, recipient: str = "customer"
+    order_id: int, new_status: str, recipient: Literal["customer", "seller"] = "customer"
 ) -> None:
     """Notify the customer or seller that an order status changed."""
     ctx = _load_order_email_context(order_id)
