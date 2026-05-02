@@ -29,8 +29,10 @@ from app.schemas.orders import (
     PaymentRead,
     PlaceOrderRequest,
     PlaceOrderResponse,
+    TransitionRequest,
 )
 from app.services.checkout import place_orders_from_cart
+from app.services.orders import transition_order_status
 
 router = APIRouter()
 
@@ -215,3 +217,17 @@ async def place_order(
     return PlaceOrderResponse(
         orders=[await _serialize_order(session, o, include_customer_name=False) for o in orders]
     )
+
+
+@router.post("/{order_id}/transition", response_model=OrderRead)
+async def transition_order(
+    order_id: int,
+    payload: TransitionRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    if user.role not in (UserRole.Seller, UserRole.Admin):
+        raise HTTPException(status_code=403, detail="forbidden")
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order = await transition_order_status(session, order, payload.to, user)
+    return await _serialize_order(session, order, include_customer_name=include_customer)

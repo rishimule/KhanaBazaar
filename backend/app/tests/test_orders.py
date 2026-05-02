@@ -319,3 +319,59 @@ async def test_other_seller_cannot_see_order(as_customer: Any, seed: dict[str, i
     assert own.json()["store_id"] == seed["store_b"]
     assert forbidden.status_code == 403
     assert forbidden.json()["detail"] == "forbidden"
+
+
+async def test_seller_marks_packed(as_customer: Any, seed: dict[str, int]) -> None:
+    order_ids = await _place_orders(seed)
+    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "packed"
+    assert resp.json()["delivery"]["status"] == "packed"
+
+
+async def test_illegal_transition(as_customer: Any, seed: dict[str, int]) -> None:
+    order_ids = await _place_orders(seed)
+    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "delivered"})
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["detail"] == "illegal_transition"
+
+
+async def test_other_seller_cannot_transition(as_customer: Any, seed: dict[str, int]) -> None:
+    order_ids = await _place_orders(seed)
+    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+
+    app.dependency_overrides[get_current_user] = lambda: mock_other_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
+    assert resp.status_code == 403
+
+
+async def test_delivered_marks_payment_paid(as_customer: Any, seed: dict[str, int], session: AsyncSession) -> None:
+    order_ids = await _place_orders(seed)
+    target = order_ids[0] if (await _get_order_store(order_ids[0])) == seed["store_a"] else order_ids[1]
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
+        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "dispatched"})
+        resp = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "delivered"})
+    assert resp.status_code == 200
+    assert resp.json()["payment"]["status"] == "paid"
+    assert resp.json()["payment"]["paid_at"] is not None
+
+
+async def _get_order_store(order_id: int) -> int:
+    """Peek an order's store_id from the test database (not the prod engine)."""
+    from sqlmodel.ext.asyncio.session import AsyncSession as S
+
+    from tests.conftest import test_engine
+    async with S(test_engine) as s:
+        return (await s.exec(select(Order.store_id).where(Order.id == order_id))).first()
