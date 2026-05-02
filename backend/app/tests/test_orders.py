@@ -230,3 +230,76 @@ async def test_place_orders_insufficient_stock(as_customer: Any, seed: dict[str,
     assert len(remaining_carts) == 2  # cart_a + cart_b still present
     remaining_items = (await session.exec(select(CartItem))).all()
     assert len(remaining_items) == 2  # both cart items still present
+
+
+async def _place_orders(seed: dict[str, int]) -> list[int]:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/orders", json={"customer_address_id": seed["customer_address_id"]})
+    assert resp.status_code == 201, resp.text
+    return [o["id"] for o in resp.json()["orders"]]
+
+
+async def test_customer_lists_only_their_orders(as_customer: Any, seed: dict[str, int]) -> None:
+    app.dependency_overrides[get_current_user] = lambda: mock_customer
+    order_ids = await _place_orders(seed)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/orders")
+    assert resp.status_code == 200
+    assert sorted(o["id"] for o in resp.json()["orders"]) == sorted(order_ids)
+
+
+async def test_seller_lists_only_their_store_orders(as_customer: Any, seed: dict[str, int]) -> None:
+    order_ids = await _place_orders(seed)
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/orders")
+    assert resp.status_code == 200
+    orders = resp.json()["orders"]
+    assert len(orders) == 1   # only Store A is theirs
+    assert orders[0]["store_id"] == seed["store_a"]
+    assert orders[0]["customer_name"] == "Cust"
+    # Reference order_ids to validate they were created.
+    assert len(order_ids) == 2
+
+
+async def test_admin_lists_all_orders(as_customer: Any, seed: dict[str, int]) -> None:
+    await _place_orders(seed)
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/orders")
+    assert resp.status_code == 200
+    assert len(resp.json()["orders"]) == 2
+
+
+async def test_active_filter(as_customer: Any, seed: dict[str, int]) -> None:
+    await _place_orders(seed)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/orders?status=active")
+    assert resp.status_code == 200
+    assert len(resp.json()["orders"]) == 2
+
+
+async def test_get_order_detail(as_customer: Any, seed: dict[str, int]) -> None:
+    order_ids = await _place_orders(seed)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(f"/api/v1/orders/{order_ids[0]}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["payment"]["status"] == "pending"
+    assert body["delivery"]["status"] == "pending"
+    assert len(body["items"]) == 1
+
+
+async def test_other_seller_cannot_see_order(as_customer: Any, seed: dict[str, int]) -> None:
+    order_ids = await _place_orders(seed)
+    # store_a is owned by mock_seller; mock_other_seller should be 403
+    app.dependency_overrides[get_current_user] = lambda: mock_other_seller
+    target_id = order_ids[0]
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(f"/api/v1/orders/{target_id}")
+    assert resp.status_code in (200, 403)
+    # If the first id happens to be store_b's order, swap to the other.
+    if resp.status_code == 200:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            resp = await ac.get(f"/api/v1/orders/{order_ids[1]}")
+        assert resp.status_code == 403
