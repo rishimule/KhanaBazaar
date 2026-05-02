@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.commerce import (
     DeliveryStatus,
@@ -56,7 +56,7 @@ class OrderListResponse(BaseModel):
 
 
 class PlaceOrderRequest(BaseModel):
-    customer_address_id: int
+    customer_address_id: int = Field(gt=0)
 
 
 class PlaceOrderResponse(BaseModel):
