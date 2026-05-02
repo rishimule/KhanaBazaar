@@ -193,9 +193,12 @@ async def test_place_orders_fans_out_per_store(as_customer: Any, seed: dict[str,
 
 
 async def test_place_orders_empty_cart(as_other_customer: Any, seed: dict[str, int]) -> None:
+    # other_customer has a CustomerProfile but no Cart rows; the address belongs
+    # to the main customer so the 403 path doesn't fire — we expect cart_empty.
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post("/api/v1/orders", json={"customer_address_id": seed["customer_address_id"]})
-    assert resp.status_code in (400, 403)
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "invalid_address"
 
 
 async def test_place_orders_invalid_address(as_customer: Any) -> None:
@@ -218,4 +221,12 @@ async def test_place_orders_insufficient_stock(as_customer: Any, seed: dict[str,
     inv = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_a"]))).first()
     inv_b = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_b"]))).first()
     assert inv.stock == 1 and inv_b.stock == 4
+    # Full rollback: no orders / payments / deliveries / order_items, cart still intact.
     assert (await session.exec(select(Order))).all() == []
+    assert (await session.exec(select(Payment))).all() == []
+    assert (await session.exec(select(Delivery))).all() == []
+    assert (await session.exec(select(OrderItem))).all() == []
+    remaining_carts = (await session.exec(select(Cart))).all()
+    assert len(remaining_carts) == 2  # cart_a + cart_b still present
+    remaining_items = (await session.exec(select(CartItem))).all()
+    assert len(remaining_items) == 2  # both cart items still present
