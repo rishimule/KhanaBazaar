@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import AsyncGenerator, Generator
 
 import pytest
@@ -8,8 +9,17 @@ from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app import app
-from app.db.session import get_db_session
+# Run Celery tasks inline during tests so .delay() does not require a real
+# Redis broker and email-task assertions can inspect side effects synchronously.
+# The env var must be set before celery_app is imported below.
+os.environ.setdefault("CELERY_TASK_ALWAYS_EAGER", "true")
+
+from app import app  # noqa: E402
+from app.core.celery_app import celery_app  # noqa: E402
+from app.db.session import get_db_session  # noqa: E402
+
+celery_app.conf.task_always_eager = True
+celery_app.conf.task_eager_propagates = True
 
 # Use a test Postgres database
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar_test"
