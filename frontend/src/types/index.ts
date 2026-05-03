@@ -132,10 +132,10 @@ export interface SellerProfile extends BaseSchema {
   services: Service[];
   address: Address;
   phone: string;
-  gst_number: string;
-  fssai_license: string;
-  bank_account_number: string;
-  bank_ifsc: string;
+  gst_number: string | null;
+  fssai_license: string | null;
+  bank_account_number: string | null;
+  bank_ifsc: string | null;
   verification_status: VerificationStatus;
   rejection_reason?: string;
 }
@@ -149,10 +149,10 @@ export interface SellerApplication {
   services: Service[];
   address: Address;
   phone: string;
-  gst_number: string;
-  fssai_license: string;
-  bank_account_number: string;
-  bank_ifsc: string;
+  gst_number: string | null;
+  fssai_license: string | null;
+  bank_account_number: string | null;
+  bank_ifsc: string | null;
   verification_status: VerificationStatus;
   rejection_reason: string | null;
   submitted_at: string;

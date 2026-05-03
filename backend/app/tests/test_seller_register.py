@@ -180,3 +180,69 @@ async def test_seller_register_rejects_unknown_service_id(seeded_grocery_service
         )
     assert resp.status_code == 400
     assert "service_ids" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_seller_register_accepts_null_compliance_and_bank_fields(
+    seeded_grocery_service_id: int,
+) -> None:
+    email_token = create_email_verification_token("nobank@test.com")
+    payload = _register_payload(
+        [seeded_grocery_service_id],
+        gst_number=None,
+        fssai_license=None,
+        bank_account_number=None,
+        bank_ifsc=None,
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/auth/seller/register",
+            json={"email_token": email_token, **payload},
+        )
+    assert resp.status_code == 200, resp.text
+
+    from sqlmodel import select
+
+    from app.models.profile import SellerProfile
+    from tests.conftest import test_engine
+
+    async with AsyncSession(test_engine) as s:
+        profile = (await s.exec(select(SellerProfile))).first()
+        assert profile is not None
+        assert profile.gst_number is None
+        assert profile.fssai_license is None
+        assert profile.bank_account_number is None
+        assert profile.bank_ifsc is None
+
+
+@pytest.mark.asyncio
+async def test_seller_register_normalizes_empty_strings_to_null(
+    seeded_grocery_service_id: int,
+) -> None:
+    email_token = create_email_verification_token("emptystr@test.com")
+    payload = _register_payload(
+        [seeded_grocery_service_id],
+        gst_number="",
+        fssai_license="",
+        bank_account_number="",
+        bank_ifsc="",
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/auth/seller/register",
+            json={"email_token": email_token, **payload},
+        )
+    assert resp.status_code == 200, resp.text
+
+    from sqlmodel import select
+
+    from app.models.profile import SellerProfile
+    from tests.conftest import test_engine
+
+    async with AsyncSession(test_engine) as s:
+        profile = (await s.exec(select(SellerProfile))).first()
+        assert profile is not None
+        assert profile.gst_number is None
+        assert profile.fssai_license is None
+        assert profile.bank_account_number is None
+        assert profile.bank_ifsc is None

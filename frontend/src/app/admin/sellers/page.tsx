@@ -442,11 +442,11 @@ export default function AdminSellersPage() {
               <div className={styles.detailsGroupTitle}>Compliance</div>
               <div className={styles.detailsRow}>
                 <span className={styles.detailsLabel}>GST Number</span>
-                <span className={styles.detailsValue}>{reviewing.gst_number}</span>
+                <span className={styles.detailsValue}>{reviewing.gst_number || "—"}</span>
               </div>
               <div className={styles.detailsRow}>
                 <span className={styles.detailsLabel}>FSSAI License</span>
-                <span className={styles.detailsValue}>{reviewing.fssai_license}</span>
+                <span className={styles.detailsValue}>{reviewing.fssai_license || "—"}</span>
               </div>
             </div>
             <div className={styles.detailsGroup}>
@@ -470,11 +470,11 @@ export default function AdminSellersPage() {
               <div className={styles.detailsGroupTitle}>Banking</div>
               <div className={styles.detailsRow}>
                 <span className={styles.detailsLabel}>Account Number</span>
-                <span className={styles.detailsValue}>{reviewing.bank_account_number}</span>
+                <span className={styles.detailsValue}>{reviewing.bank_account_number || "—"}</span>
               </div>
               <div className={styles.detailsRow}>
                 <span className={styles.detailsLabel}>IFSC</span>
-                <span className={styles.detailsValue}>{reviewing.bank_ifsc}</span>
+                <span className={styles.detailsValue}>{reviewing.bank_ifsc || "—"}</span>
               </div>
             </div>
           </div>
