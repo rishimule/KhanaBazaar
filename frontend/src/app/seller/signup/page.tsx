@@ -114,7 +114,7 @@ function SellerSignupPageInner() {
       .then((profile) => {
         setPhone(profile.phone);
         setBusinessName(profile.business_name);
-        setBusinessCategory(profile.business_category);
+        setBusinessCategory(profile.business_category ?? "");
         setAddress(profile.address);
         setGstNumber(profile.gst_number);
         setFssaiLicense(profile.fssai_license);

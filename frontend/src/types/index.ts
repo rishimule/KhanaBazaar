@@ -87,6 +87,7 @@ export interface Store extends BaseSchema {
   address: Address;
   is_active: boolean;
   seller_id: number;
+  services: Service[];
 }
 
 /** A store-specific inventory entry linking a product to a store. */
@@ -128,7 +129,9 @@ export type VerificationStatus = "pending" | "approved" | "rejected";
 export interface SellerProfile extends BaseSchema {
   user_id: number;
   business_name: string;
-  business_category: string;
+  // TODO: drop business_category once admin UI migrates to services (Tasks 18-19)
+  business_category?: string;
+  services: Service[];
   address: Address;
   phone: string;
   gst_number: string;
@@ -145,7 +148,9 @@ export interface SellerApplication {
   email: string;
   full_name: string;
   business_name: string;
-  business_category: string;
+  // TODO: drop business_category once admin UI migrates to services (Tasks 18-19)
+  business_category?: string;
+  services: Service[];
   address: Address;
   phone: string;
   gst_number: string;
