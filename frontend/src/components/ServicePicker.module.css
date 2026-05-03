@@ -1,0 +1,58 @@
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3, 0.75rem);
+}
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 0.25rem);
+  padding: var(--space-3, 0.75rem);
+  border: 2px solid var(--color-neutral-200, #e5e7eb);
+  border-radius: var(--radius-md, 0.5rem);
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.card:hover {
+  border-color: var(--color-neutral-400, #9ca3af);
+}
+.cardChecked {
+  border-color: var(--color-primary-500, #16a34a);
+  background-color: var(--color-primary-50, #f0fdf4);
+}
+.checkbox {
+  align-self: flex-start;
+  accent-color: var(--color-primary-600, #15803d);
+}
+.name {
+  font-weight: 600;
+  color: var(--color-neutral-900, #111827);
+}
+.description {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-neutral-600, #4b5563);
+}
+.skeleton {
+  height: 80px;
+  border-radius: var(--radius-md, 0.5rem);
+  background: var(--color-neutral-100, #f3f4f6);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.error {
+  color: var(--color-red-700, #b91c1c);
+  font-size: var(--text-sm, 0.875rem);
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
