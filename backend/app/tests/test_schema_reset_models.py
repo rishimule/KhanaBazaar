@@ -84,11 +84,11 @@ def test_new_schema_columns_are_present() -> None:
         "first_name",
         "last_name",
         "business_name",
-        "business_category",
         "business_address_id",
         "verification_status",
     }.issubset(seller_columns)
     assert "address_line1" not in seller_columns
+    assert "business_category" not in seller_columns
 
     product_columns = {column.name for column in inspect(MasterProduct).columns}
     assert {"subcategory_id", "slug", "image_url", "base_price"}.issubset(product_columns)
