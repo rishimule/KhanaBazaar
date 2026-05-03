@@ -57,16 +57,20 @@ async def get_seller_profile(
     current_user: User = Depends(get_current_seller),
     session: AsyncSession = Depends(get_db_session),
 ) -> SellerProfilePayload:
+    from app.services.seller_services import list_profile_services
+
     assert current_user.id is not None
     profile = await _seller_profile_with_address(session, current_user.id)
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
+    assert profile.id is not None
+    services = await list_profile_services(session, profile.id)
     return SellerProfilePayload(
         id=profile.id,
         user_id=profile.user_id,
         full_name=compose_full_name(profile.first_name, profile.last_name),
         business_name=profile.business_name,
-        business_category=profile.business_category,
+        services=services,
         address=address_to_payload(profile.business_address),
         phone=profile.phone,
         gst_number=profile.gst_number,
