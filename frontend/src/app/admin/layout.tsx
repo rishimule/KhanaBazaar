@@ -7,8 +7,9 @@ import { useAuth } from "@/lib/AuthContext";
 
 const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
+  { href: "/admin/orders", label: "Orders", icon: "📦" },
   { href: "/admin/sellers", label: "Sellers", icon: "✅" },
-  { href: "/admin/products", label: "Products", icon: "📦" },
+  { href: "/admin/products", label: "Products", icon: "🛒" },
   { href: "/admin/categories", label: "Categories", icon: "🏷️" },
 ];
 
@@ -40,7 +41,9 @@ export default function AdminLayout({
           ? "Product Catalog"
           : pathname === "/admin/categories"
             ? "Category Management"
-            : "Admin Panel";
+            : pathname.startsWith("/admin/orders")
+              ? "All Orders"
+              : "Admin Panel";
 
   return (
     <DashboardLayout

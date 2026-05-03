@@ -29,7 +29,7 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canTransition = role !== "customer" && NEXT_TRANSITION[order.status] !== undefined;
+  const canTransition = role === "seller" && NEXT_TRANSITION[order.status] !== undefined;
   const canCancelCustomer = role === "customer" && order.status === "pending";
   const canCancelStaff =
     role !== "customer" && order.status !== "delivered" && order.status !== "cancelled";

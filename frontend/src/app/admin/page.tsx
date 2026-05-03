@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import StatsCard from "@/components/StatsCard";
+import ActiveOrdersWidget from "@/components/orders/ActiveOrdersWidget";
 import { MasterProduct, Category, Store, ApplicationCounts } from "@/types";
 import styles from "../seller/page.module.css";
 
@@ -49,6 +50,8 @@ export default function AdminDashboardPage() {
 
   return (
     <>
+      <ActiveOrdersWidget role="admin" limit={10} />
+
       {/* Stats */}
       <div className={styles.statsGrid}>
         <StatsCard icon="📦" label="Master Products" value={products.length} variant="primary" />
