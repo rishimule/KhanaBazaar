@@ -1,0 +1,7 @@
+.widget { margin: 1.5rem 0; }
+.header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.8rem; }
+.title { font-size: 1.2rem; margin: 0; }
+.viewAll { color: var(--color-primary, #16a34a); font-weight: 600; text-decoration: none; }
+.empty { color: var(--color-text-muted, #6b7280); padding: 1rem; border: 1px dashed var(--color-border, #e5e7eb); border-radius: 8px; }
+.error { color: #991b1b; font-size: 0.9rem; margin-bottom: 0.5rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.8rem; }
