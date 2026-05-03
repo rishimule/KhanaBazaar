@@ -2,7 +2,7 @@ from typing import Any, AsyncGenerator, Iterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlmodel import select as _select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
@@ -39,12 +39,12 @@ async def _make_profile(
     phone: str,
     status: VerificationStatus,
     reason: str | None = None,
-) -> None:
+) -> SellerProfile:
     assert user_id is not None
     address = Address(**make_address())
     session.add(address)
     await session.flush()
-    session.add(SellerProfile(
+    profile = SellerProfile(
         user_id=user_id,
         first_name=first_name,
         last_name=last_name,
@@ -57,7 +57,10 @@ async def _make_profile(
         verification_status=status,
         rejection_reason=reason,
         business_address_id=address.id,
-    ))
+    )
+    session.add(profile)
+    await session.flush()
+    return profile
 
 
 @pytest.fixture(autouse=True)
@@ -67,13 +70,13 @@ async def seed_users_and_profiles(session: AsyncSession) -> AsyncGenerator[None,
     session.add(User(**mock_seller_approved.model_dump()))
     session.add(User(**mock_seller_rejected.model_dump()))
     await session.flush()
-    await _make_profile(
+    pending_profile = await _make_profile(
         session, mock_seller_pending.id, "Pending", "Seller", "9876543210", VerificationStatus.Pending,
     )
-    await _make_profile(
+    approved_profile = await _make_profile(
         session, mock_seller_approved.id, "Approved", "Seller", "9876543211", VerificationStatus.Approved,
     )
-    await _make_profile(
+    rejected_profile = await _make_profile(
         session, mock_seller_rejected.id, "Rejected", "Seller", "9876543212",
         VerificationStatus.Rejected, "Invalid GST",
     )
@@ -89,11 +92,7 @@ async def seed_users_and_profiles(session: AsyncSession) -> AsyncGenerator[None,
     await session.flush()
     grocery_id = grocery.id
 
-    for user_id in (mock_seller_pending.id, mock_seller_approved.id, mock_seller_rejected.id):
-        profile = (await session.exec(
-            _select(SellerProfile).where(SellerProfile.user_id == user_id)
-        )).first()
-        assert profile is not None
+    for profile in (pending_profile, approved_profile, rejected_profile):
         session.add(SellerProfileService(seller_profile_id=profile.id, service_id=grocery_id))
 
     await session.commit()

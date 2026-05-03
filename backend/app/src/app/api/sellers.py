@@ -175,6 +175,10 @@ async def admin_verify_seller(
 ALLOWED_STATUSES = {"pending", "approved", "rejected", "all"}
 
 
+# Performance note: list_profile_services issues one query per profile.
+# For small admin queues this is fine; if listings grow or pagination lands,
+# rewrite to a single JOIN across SellerProfile / SellerProfileService /
+# Service / ServiceTranslation with selectinload-style batching.
 async def _application_payload(
     session: AsyncSession,
     profile: SellerProfile,
