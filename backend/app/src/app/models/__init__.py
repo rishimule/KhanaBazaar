@@ -31,6 +31,7 @@ from .profile import (
     CustomerAddress,
     CustomerProfile,
     SellerProfile,
+    SellerProfileService,
     VerificationStatus,
 )
 from .store import Store, StoreInventory
@@ -60,6 +61,7 @@ __all__ = [
     "PaymentStatus",
     "Review",
     "SellerProfile",
+    "SellerProfileService",
     "Service",
     "ServiceTranslation",
     "Store",

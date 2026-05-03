@@ -79,3 +79,18 @@ class SellerProfile(BaseSchema, table=True):
 
     user: User = Relationship()
     business_address: Address = Relationship()
+
+
+class SellerProfileService(BaseSchema, table=True):
+    __tablename__ = "sellerprofile_service"
+    __table_args__ = (
+        UniqueConstraint(
+            "seller_profile_id", "service_id", name="uq_sellerprofile_service"
+        ),
+    )
+    seller_profile_id: int = Field(
+        foreign_key="sellerprofile.id", nullable=False, index=True
+    )
+    service_id: int = Field(
+        foreign_key="service.id", nullable=False, index=True
+    )
