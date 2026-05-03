@@ -1,0 +1,21 @@
+.card {
+  display: block;
+  padding: 1rem;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--color-surface, #fff);
+  transition: border-color 120ms;
+}
+.card:hover { border-color: var(--color-primary, #16a34a); }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+.id { font-size: 0.85rem; color: var(--color-text-muted, #6b7280); }
+.title { font-weight: 600; font-size: 1.05rem; }
+.subtitle { font-size: 0.85rem; color: var(--color-text-muted, #6b7280); margin-top: 0.15rem; }
+.meta {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 0.5rem; font-variant-numeric: tabular-nums;
+}
+.total { font-weight: 700; font-size: 1.1rem; }
+.time { font-size: 0.8rem; color: var(--color-text-muted, #6b7280); }

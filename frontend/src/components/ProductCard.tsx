@@ -39,6 +39,7 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
   const handleAdd = () => {
     addItem(storeId, storeName, {
       product_id: product.id,
+      inventory_id: item.id,
       product_name: product.name,
       quantity: 1,
       price,

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 import type { UserRole } from "@/types";
 
 const CUSTOMER_NAV = [
+  { href: "/account/orders", label: "Orders", icon: "📦" },
   { href: "/account/settings", label: "Settings", icon: "⚙️" },
 ];
 
