@@ -30,7 +30,7 @@ Two issues observed on the seller signup wizard (`/seller/signup`):
 
 ### Frontend — Step 4 layout
 
-**Current structure (page.tsx around lines 555–600):**
+**Current structure (page.tsx, outer wrapper at line 532, blocks span ~535–591):**
 
 ```tsx
 <div className={styles.formGrid}>
@@ -42,7 +42,7 @@ Two issues observed on the seller signup wizard (`/seller/signup`):
 </div>
 ```
 
-**New structure:** drop the `.formGrid` wrapper for Step 4 and let each block occupy its own full-width row inside the existing `.form` flex column. Business name input is one row. Services Offered (with `ServicePicker`) is the next row. Address block is the third row.
+**New structure:** drop the `.formGrid` wrapper for Step 4 and let each block occupy its own full-width row inside the existing `.form` flex column. Also drop `.formGridFull` from the address block — that class only sets `grid-column: 1 / -1` and becomes dead once the parent grid is gone.
 
 ```tsx
 <>
@@ -163,8 +163,8 @@ After the Step 4 change, manually verify the following at 320px, 375px, 414px, 7
 
 **Backend:**
 
-- Existing seller signup test (`backend/app/tests/test_seller_signup.py` or equivalent) should still pass.
-- Add one new test case: POST `/api/v1/auth/seller/signup` with `gst_number=None`, `fssai_license=None`, `bank_account_number=None`, `bank_ifsc=None` returns 200 and creates a `SellerProfile` row with NULLs in those columns.
+- Existing seller signup test (`backend/app/tests/test_seller_register.py`) should still pass.
+- Add one new test case in `test_seller_register.py`: POST the seller register endpoint with `gst_number=None`, `fssai_license=None`, `bank_account_number=None`, `bank_ifsc=None` returns 200 and creates a `SellerProfile` row with NULLs in those columns.
 - Run `uv run pytest -v` and `uv run mypy .` from `backend/app/`.
 
 **Frontend:**
@@ -192,6 +192,6 @@ After the Step 4 change, manually verify the following at 320px, 375px, 414px, 7
 | `backend/app/src/app/schemas/sellers.py` | `bank_account_number` / `bank_ifsc` → `Optional[str]` in 4 models |
 | `backend/app/src/app/models/profile.py` | `bank_account_number` / `bank_ifsc` → `Optional[str]`, `Field(default=None)` |
 | `backend/app/migrations/versions/<new>.py` | New migration: drop NOT NULL on the two columns |
-| `backend/app/tests/test_*.py` | Add nullable-bank-fields test case |
+| `backend/app/tests/test_seller_register.py` | Add nullable-bank-fields test case |
 
 No CSS file changes required. `seller-signup.module.css` keeps its `.formGrid` rules for use by Step 3.
