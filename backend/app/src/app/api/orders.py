@@ -51,6 +51,8 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
     assert order.id is not None
     items_result = await session.exec(select(OrderItem).where(OrderItem.order_id == order.id))
     items = list(items_result.all())
+    for it in items:
+        assert it.id is not None
     payment_result = await session.exec(select(Payment).where(Payment.order_id == order.id))
     payment = payment_result.first()
     if payment is None:
@@ -83,7 +85,7 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
         placed_at=order.placed_at,
         delivery_address_snapshot=order.delivery_address_snapshot,
         items=[OrderItemRead(
-            id=i.id,  # type: ignore[arg-type]
+            id=i.id,
             inventory_id=i.inventory_id,
             product_name_snapshot=i.product_name_snapshot,
             unit_price_snapshot=i.unit_price_snapshot,
@@ -122,7 +124,7 @@ async def _seller_store_ids(session: AsyncSession, user: User) -> list[int]:
     store_result = await session.exec(
         select(Store.id).where(Store.seller_profile_id == profile_id)
     )
-    return list(store_result.all())
+    return [sid for sid in store_result.all() if sid is not None]
 
 
 async def _customer_profile_id(session: AsyncSession, user: User) -> int:

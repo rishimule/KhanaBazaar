@@ -1,6 +1,7 @@
 from typing import List
 
 from fastapi import HTTPException
+from sqlalchemy import and_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -70,7 +71,7 @@ async def _validate_stores_active(
     """Raise 409 store_unavailable for the first inactive/missing store.
     Note: not row-locked — admin can race a deactivation here, which correctly
     produces a 409 and rolls back the inventory locks held by the caller."""
-    stores_result = await session.exec(select(Store).where(Store.id.in_(store_ids)))  # type: ignore[attr-defined]
+    stores_result = await session.exec(select(Store).where(Store.id.in_(store_ids)))  # type: ignore[union-attr]
     stores_by_id = {s.id: s for s in stores_result.all()}
     for store_id in store_ids:
         store = stores_by_id.get(store_id)
@@ -149,7 +150,7 @@ async def _load_customer_carts(
     carts = list(cart_result.all())
     if not carts:
         raise HTTPException(status_code=400, detail="cart_empty")
-    cart_ids = [c.id for c in carts if c.id is not None]
+    cart_ids: list[int] = [c.id for c in carts if c.id is not None]
     items_result = await session.exec(
         select(CartItem).where(CartItem.cart_id.in_(cart_ids))  # type: ignore[attr-defined]
     )
@@ -170,12 +171,18 @@ async def _snapshot_product_names(
         .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
         .outerjoin(
             MasterProductTranslation,
-            (MasterProductTranslation.master_product_id == MasterProduct.id)
-            & (MasterProductTranslation.language_code == "en"),
+            and_(
+                MasterProductTranslation.master_product_id == MasterProduct.id,  # type: ignore[arg-type]
+                MasterProductTranslation.language_code == "en",  # type: ignore[arg-type]
+            ),
         )
-        .where(StoreInventory.id.in_(inv_ids))  # type: ignore[attr-defined]
+        .where(StoreInventory.id.in_(inv_ids))  # type: ignore[union-attr]
     )
-    return {inv_id: (name or slug) for inv_id, slug, name in result.all()}
+    return {
+        inv_id: (name or slug)
+        for inv_id, slug, name in result.all()
+        if inv_id is not None
+    }
 
 
 async def place_orders_from_cart(
@@ -192,7 +199,9 @@ async def place_orders_from_cart(
 
     inv_ids = [item.inventory_id for item in cart_items]
     locked_inv = await lock_inventory_rows(session, inv_ids)
-    inv_by_id = {inv.id: inv for inv in locked_inv}
+    inv_by_id: dict[int, StoreInventory] = {
+        inv.id: inv for inv in locked_inv if inv.id is not None
+    }
 
     _validate_inventory_availability(cart_items, inv_by_id)
     await _validate_stores_active(session, [c.store_id for c in carts])
@@ -222,6 +231,7 @@ async def place_orders_from_cart(
             session.add(oi)
             # Mutate the locked ORM instance — unit-of-work flushes the
             # change while the row lock is still held by this transaction.
+            assert oi.inventory_id is not None
             decrement_stock(inv_by_id[oi.inventory_id], oi.quantity)
         payment.order_id = order.id
         delivery.order_id = order.id

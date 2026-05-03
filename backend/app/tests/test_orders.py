@@ -119,7 +119,14 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
 
     # Capture IDs before commit; commit expires attributes which would trigger
     # lazy reloads in async context (MissingGreenlet).
-    ids = {
+    assert cust_address.id is not None
+    assert store_a.id is not None
+    assert store_b.id is not None
+    assert inv_a.id is not None
+    assert inv_b.id is not None
+    assert customer_profile.id is not None
+    assert seller_profile.id is not None
+    ids: dict[str, int] = {
         "customer_address_id": cust_address.id,
         "store_a": store_a.id,
         "store_b": store_b.id,
@@ -185,6 +192,8 @@ async def test_place_orders_fans_out_per_store(as_customer: Any, seed: dict[str,
 
     inv_a = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_a"]))).first()
     inv_b = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_b"]))).first()
+    assert inv_a is not None
+    assert inv_b is not None
     assert inv_a.stock == 8
     assert inv_b.stock == 3
 
@@ -209,6 +218,7 @@ async def test_place_orders_invalid_address(as_customer: Any) -> None:
 
 async def test_place_orders_insufficient_stock(as_customer: Any, seed: dict[str, int], session: AsyncSession) -> None:
     inv = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_a"]))).first()
+    assert inv is not None
     inv.stock = 1   # cart wants 2
     await session.commit()
 
@@ -220,6 +230,8 @@ async def test_place_orders_insufficient_stock(as_customer: Any, seed: dict[str,
     # Both stocks unchanged on rollback.
     inv = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_a"]))).first()
     inv_b = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_b"]))).first()
+    assert inv is not None
+    assert inv_b is not None
     assert inv.stock == 1 and inv_b.stock == 4
     # Full rollback: no orders / payments / deliveries / order_items, cart still intact.
     assert (await session.exec(select(Order))).all() == []
@@ -376,7 +388,9 @@ async def _get_order_store(order_id: int) -> int:
 
     from tests.conftest import test_engine
     async with S(test_engine) as s:
-        return (await s.exec(select(Order.store_id).where(Order.id == order_id))).first()
+        store_id = (await s.exec(select(Order.store_id).where(Order.id == order_id))).first()
+        assert store_id is not None
+        return store_id
 
 
 async def _order_id_for_store(order_ids: list[int], store_id: int) -> int:
@@ -392,6 +406,7 @@ async def test_customer_cancels_pending(as_customer: Any, seed: dict[str, int], 
     # Deterministically pick store_a's order so the restock assertion always fires.
     target = await _order_id_for_store(order_ids, seed["store_a"])
     pre_stock = (await session.exec(select(StoreInventory.stock).where(StoreInventory.id == seed["inv_a"]))).first()
+    assert pre_stock is not None
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post(f"/api/v1/orders/{target}/cancel")
@@ -432,6 +447,7 @@ async def test_admin_cancels_dispatched_order(as_customer: Any, seed: dict[str, 
     order_ids = await _place_orders(seed)
     target = await _order_id_for_store(order_ids, seed["store_a"])
     pre_stock = (await session.exec(select(StoreInventory.stock).where(StoreInventory.id == seed["inv_a"]))).first()
+    assert pre_stock is not None
 
     app.dependency_overrides[get_current_user] = lambda: mock_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:

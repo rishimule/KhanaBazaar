@@ -221,6 +221,7 @@ async def test_add_item_inventory_not_in_store(override_as_customer: Any, sessio
 
 async def test_add_item_unavailable_returns_409(override_as_other_customer: Any, session: AsyncSession) -> None:
     inv = (await session.exec(select(StoreInventory))).first()
+    assert inv is not None
     inv.is_available = False
     await session.commit()
 
@@ -257,6 +258,7 @@ async def test_update_unknown_item_returns_404(override_as_customer: Any) -> Non
 async def test_update_item_unavailable_returns_409(override_as_customer: Any, session: AsyncSession) -> None:
     item_id = (await session.exec(select(CartItem.id))).first()
     inv = (await session.exec(select(StoreInventory))).first()
+    assert inv is not None
     inv.is_available = False
     await session.commit()
 
@@ -327,6 +329,7 @@ async def test_sync_drops_unknown_inventory(override_as_other_customer: Any) -> 
 
 async def test_sync_drops_unavailable_inventory(override_as_other_customer: Any, session: AsyncSession) -> None:
     inv = (await session.exec(select(StoreInventory))).first()
+    assert inv is not None
     inv.is_available = False
     await session.commit()
 

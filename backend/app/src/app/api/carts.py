@@ -100,23 +100,25 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
     for cart in carts:
         assert cart.id is not None
         rows_for_cart = by_cart.get(cart.id, [])
-        items = [
-            CartItemRead(
-                id=item.id,  # type: ignore[arg-type]
-                inventory_id=inv.id,  # type: ignore[arg-type]
-                product_id=product.id,  # type: ignore[arg-type]
+        items: list[CartItemRead] = []
+        for item, inv, product, _ in rows_for_cart:
+            assert item.id is not None
+            assert inv.id is not None
+            assert product.id is not None
+            items.append(CartItemRead(
+                id=item.id,
+                inventory_id=inv.id,
+                product_id=product.id,
                 product_name=name_by_product.get(product.id, product.slug),
                 unit_price=inv.price,
                 quantity=item.quantity,
                 line_total=inv.price * item.quantity,
-            )
-            for item, inv, product, _ in rows_for_cart
-        ]
+            ))
         store_name = rows_for_cart[0][3].name if rows_for_cart else ""
         if not store_name:
             store_result = await session.exec(select(Store).where(Store.id == cart.store_id))
-            store = store_result.first()
-            store_name = store.name if store else ""
+            store_row = store_result.first()
+            store_name = store_row.name if store_row else ""
         out.append(
             CartRead(
                 store_id=cart.store_id,
@@ -161,10 +163,13 @@ async def _build_cart_item_response(
         raise HTTPException(status_code=404, detail="inventory_gone")
     inv, product = row
     names = await _product_names(session, [product.id]) if product.id else {}
+    assert item.id is not None
+    assert inv.id is not None
+    assert product.id is not None
     return CartItemRead(
-        id=item.id,  # type: ignore[arg-type]
-        inventory_id=inv.id,  # type: ignore[arg-type]
-        product_id=product.id,  # type: ignore[arg-type]
+        id=item.id,
+        inventory_id=inv.id,
+        product_id=product.id,
         product_name=names.get(product.id, product.slug),
         unit_price=inv.price,
         quantity=item.quantity,

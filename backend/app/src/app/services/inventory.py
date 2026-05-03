@@ -18,7 +18,7 @@ async def lock_inventory_rows(
         return []
     stmt = (
         select(StoreInventory)
-        .where(StoreInventory.id.in_(ids))  # type: ignore[attr-defined]
+        .where(StoreInventory.id.in_(ids))  # type: ignore[union-attr]
         .order_by(StoreInventory.id)  # type: ignore[arg-type]
         .with_for_update()
     )
