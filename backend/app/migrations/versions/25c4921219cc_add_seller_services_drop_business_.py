@@ -48,7 +48,19 @@ def upgrade() -> None:
     )
 
     # 2. Backfill: every existing seller profile gets the grocery service.
-    #    Skip if grocery service does not exist (clean DB before seed).
+    #    Guard: if sellers exist, the grocery service must already be seeded.
+    conn = op.get_bind()
+    seller_count = conn.execute(sa.text("SELECT count(*) FROM sellerprofile")).scalar()
+    if seller_count and seller_count > 0:
+        grocery_exists = conn.execute(
+            sa.text("SELECT 1 FROM service WHERE slug = 'grocery' LIMIT 1")
+        ).scalar()
+        if not grocery_exists:
+            raise RuntimeError(
+                "Cannot run migration 25c4921219cc: sellerprofile has rows but the "
+                "'grocery' service is missing. Seed the service catalog first "
+                "(uv run python scripts/seed_database.py)."
+            )
     op.execute(
         """
         INSERT INTO sellerprofile_service (created_at, updated_at, seller_profile_id, service_id)
@@ -75,6 +87,8 @@ def downgrade() -> None:
         "sellerprofile",
         sa.Column("business_category", sa.String(), nullable=True),
     )
+    # Note: original business_category values are not preserved in the down direction.
+    # All profiles get a default value of 'Groceries'.
     op.execute(
         "UPDATE sellerprofile SET business_category = 'Groceries' WHERE business_category IS NULL"
     )
