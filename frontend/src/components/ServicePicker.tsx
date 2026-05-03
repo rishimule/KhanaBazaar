@@ -21,22 +21,17 @@ export default function ServicePicker({
   disabled = false,
   services: providedServices,
 }: Props) {
-  const [services, setServices] = useState<Service[] | null>(
-    providedServices ?? null,
-  );
+  const [fetchedServices, setFetchedServices] = useState<Service[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const services = providedServices ?? fetchedServices;
+
   useEffect(() => {
-    // When a pre-fetched list is provided, keep local state in sync without
-    // triggering a network request. State is initialised from props above so
-    // this branch only runs when the prop changes after the first render.
-    if (providedServices !== undefined) {
-      return;
-    }
+    if (providedServices !== undefined) return;  // parent supplies the data
     let cancelled = false;
     get<Service[]>("/api/v1/catalog/services", token ?? undefined)
       .then((rows) => {
-        if (!cancelled) setServices(rows);
+        if (!cancelled) setFetchedServices(rows);
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message ?? "Failed to load services");
