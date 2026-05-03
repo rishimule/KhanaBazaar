@@ -19,6 +19,7 @@ from app.models.catalog import (
     ServiceTranslation,
     Subcategory,
 )
+from app.schemas.services import ServicePayload
 
 router = APIRouter()
 
@@ -28,15 +29,8 @@ _DEFAULT_SUBCATEGORY_SLUG = "_default"
 _EN = "en"
 
 
-class ServiceRead(BaseModel):
-    id: int
-    created_at: datetime
-    updated_at: datetime
-    slug: str
-    name: str
-    description: str | None = None
-    is_active: bool
-    sort_order: int
+class ServiceRead(ServicePayload):
+    pass
 
 
 class CategoryRead(BaseModel):
