@@ -96,10 +96,12 @@ export interface InventoryWithProduct extends StoreInventory {
 /** A single item within a shopping cart. */
 export interface CartItem {
   product_id: number;
+  inventory_id: number;
   product_name: string;
   quantity: number;
   price: number;
   image_url?: string;
+  id?: number;
 }
 
 /** A shopping cart tied to a specific store. */
@@ -152,4 +154,57 @@ export interface ApplicationCounts {
   approved: number;
   rejected: number;
   total: number;
+}
+
+export type OrderStatus = "pending" | "packed" | "dispatched" | "delivered" | "cancelled";
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+export type DeliveryStatus = "pending" | "packed" | "dispatched" | "delivered" | "cancelled";
+export type PaymentMethod = "cash" | "upi";
+
+export interface OrderItem {
+  id: number;
+  inventory_id: number | null;
+  product_name_snapshot: string;
+  unit_price_snapshot: number;
+  quantity: number;
+  line_total: number;
+}
+
+export interface OrderPayment {
+  method: PaymentMethod;
+  status: PaymentStatus;
+  amount: number;
+  paid_at: string | null;
+}
+
+export interface OrderDelivery {
+  status: DeliveryStatus;
+  packed_at: string | null;
+  dispatched_at: string | null;
+  delivered_at: string | null;
+}
+
+export interface Order {
+  id: number;
+  store_id: number;
+  store_name: string;
+  customer_name?: string | null;
+  status: OrderStatus;
+  subtotal: number;
+  delivery_fee: number;
+  tax: number;
+  total: number;
+  placed_at: string;
+  delivery_address_snapshot: string;
+  items: OrderItem[];
+  payment: OrderPayment;
+  delivery: OrderDelivery;
+}
+
+export interface PlaceOrderResponse {
+  orders: Order[];
+}
+
+export interface OrderListResponse {
+  orders: Order[];
 }
