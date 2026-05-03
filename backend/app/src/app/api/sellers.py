@@ -14,6 +14,7 @@ from app.models.base import User
 from app.models.profile import SellerProfile, VerificationStatus
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.sellers import (
+    AdminSetServicesBody,
     SellerApplicationPayload,
     SellerProfilePayload,
     SellerProfileUpdateBody,
@@ -251,3 +252,31 @@ async def admin_application_counts(
             counts[key] = count
     counts["total"] = counts["pending"] + counts["approved"] + counts["rejected"]
     return counts
+
+
+@router.patch("/admin/{seller_id}/services")
+async def admin_set_services(
+    seller_id: int,
+    body: AdminSetServicesBody,
+    _current_user: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    profile_result = await session.exec(
+        select(SellerProfile).where(SellerProfile.user_id == seller_id)
+    )
+    profile = profile_result.first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+
+    assert profile.id is not None
+    profile_id: int = profile.id
+
+    try:
+        valid_ids = await validate_service_ids(session, body.service_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    await replace_profile_services(session, profile, valid_ids)
+    await session.commit()
+    services = await list_profile_services(session, profile_id)
+    return {"seller_id": seller_id, "services": [s.model_dump() for s in services]}

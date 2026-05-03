@@ -12,6 +12,7 @@ from app.models.base import User, UserRole
 from app.models.catalog import Service, ServiceTranslation
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from tests._helpers import make_address
+from tests.conftest import test_engine
 
 mock_admin = User(
     id=50, email="admin-apps@kb.com",
@@ -231,3 +232,64 @@ async def test_admin_applications_include_services(override_as_admin: Any) -> No
     assert "business_category" not in row
     assert isinstance(row["services"], list)
     assert any(s["slug"] == "grocery" for s in row["services"])
+
+
+@pytest.fixture
+async def seeded_pharmacy_service_id_in_apps() -> int:
+    async with AsyncSession(test_engine) as s:
+        pharmacy = Service(slug="pharmacy", is_active=True, sort_order=1)
+        s.add(pharmacy)
+        await s.flush()
+        pharmacy_id: int = pharmacy.id  # type: ignore[assignment]
+        s.add(ServiceTranslation(
+            service_id=pharmacy_id, language_code="en", name="Pharmacy"
+        ))
+        await s.commit()
+        return pharmacy_id
+
+
+@pytest.mark.asyncio
+async def test_admin_set_services_replaces_set(
+    override_as_admin: Any, seeded_pharmacy_service_id_in_apps: int,
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.patch(
+            f"/api/v1/sellers/admin/{mock_seller_pending.id}/services",
+            json={"service_ids": [seeded_pharmacy_service_id_in_apps]},
+        )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["seller_id"] == mock_seller_pending.id
+    assert {s["slug"] for s in body["services"]} == {"pharmacy"}
+
+    # Verify junction rows in DB
+    async with AsyncSession(test_engine) as s:
+        profile = (await s.exec(
+            select(SellerProfile).where(SellerProfile.user_id == mock_seller_pending.id)
+        )).first()
+        rows = (await s.exec(
+            select(SellerProfileService).where(
+                SellerProfileService.seller_profile_id == profile.id
+            )
+        )).all()
+        assert {r.service_id for r in rows} == {seeded_pharmacy_service_id_in_apps}
+
+
+@pytest.mark.asyncio
+async def test_admin_set_services_rejects_empty(override_as_admin: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.patch(
+            f"/api/v1/sellers/admin/{mock_seller_pending.id}/services",
+            json={"service_ids": []},
+        )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_admin_set_services_unknown_seller(override_as_admin: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.patch(
+            "/api/v1/sellers/admin/99999/services",
+            json={"service_ids": [1]},
+        )
+    assert resp.status_code == 404
