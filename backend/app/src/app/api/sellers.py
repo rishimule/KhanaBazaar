@@ -11,7 +11,8 @@ from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User
-from app.models.profile import SellerProfile, VerificationStatus
+from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
+from app.models.store import Store
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.sellers import (
     AdminSetServicesBody,
@@ -154,8 +155,48 @@ async def admin_verify_seller(
         raise HTTPException(status_code=404, detail="Seller profile not found")
 
     if body.action == "approve":
+        # Guard: profile must have at least one service
+        service_count = (await session.exec(
+            select(func.count(SellerProfileService.id)).where(
+                SellerProfileService.seller_profile_id == profile.id
+            )
+        )).one()
+        if int(service_count) == 0:
+            raise HTTPException(
+                status_code=400, detail="Set services before approving"
+            )
+
         profile.verification_status = VerificationStatus.Approved
         profile.rejection_reason = None
+
+        # Idempotent store provisioning
+        existing_store = (await session.exec(
+            select(Store).where(Store.seller_profile_id == profile.id)
+        )).first()
+        if existing_store is None:
+            biz_addr = (await session.exec(
+                select(Address).where(Address.id == profile.business_address_id)
+            )).first()
+            assert biz_addr is not None
+            store_addr = Address(
+                address_line1=biz_addr.address_line1,
+                address_line2=biz_addr.address_line2,
+                landmark=biz_addr.landmark,
+                city=biz_addr.city,
+                state=biz_addr.state,
+                pincode=biz_addr.pincode,
+                country=biz_addr.country,
+                latitude=biz_addr.latitude,
+                longitude=biz_addr.longitude,
+            )
+            session.add(store_addr)
+            await session.flush()
+            session.add(Store(
+                name=profile.business_name,
+                is_active=True,
+                seller_profile_id=profile.id,
+                address_id=store_addr.id,
+            ))
     elif body.action == "reject":
         if not body.rejection_reason or not body.rejection_reason.strip():
             raise HTTPException(status_code=400, detail="rejection_reason required when rejecting")
