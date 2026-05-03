@@ -21,7 +21,12 @@ from app.models.catalog import (
     SubcategoryTranslation,
 )
 from app.models.commerce import Cart, CartItem
-from app.models.profile import CustomerProfile, SellerProfile, SellerProfileService, VerificationStatus
+from app.models.profile import (
+    CustomerProfile,
+    SellerProfile,
+    SellerProfileService,
+    VerificationStatus,
+)
 from app.models.store import Store, StoreInventory
 from tests._helpers import make_address
 

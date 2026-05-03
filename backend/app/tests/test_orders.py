@@ -10,6 +10,7 @@ from app import app
 from app.core.security import get_current_user
 from app.models.address import Address
 from app.models.base import User, UserRole
+from app.models.catalog import Service
 from app.models.commerce import (
     Cart,
     CartItem,
@@ -19,7 +20,6 @@ from app.models.commerce import (
     Payment,
     PaymentStatus,
 )
-from app.models.catalog import Service, ServiceTranslation
 from app.models.profile import (
     CustomerAddress,
     CustomerProfile,
