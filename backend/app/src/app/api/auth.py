@@ -208,10 +208,10 @@ async def seller_register(
         last_name=last_name,
         business_name=body.business_name,
         phone=body.phone,
-        gst_number=body.gst_number,
-        fssai_license=body.fssai_license,
-        bank_account_number=body.bank_account_number,
-        bank_ifsc=body.bank_ifsc,
+        gst_number=body.gst_number or None,
+        fssai_license=body.fssai_license or None,
+        bank_account_number=body.bank_account_number or None,
+        bank_ifsc=body.bank_ifsc or None,
         business_address_id=address.id,
     )
     session.add(profile)

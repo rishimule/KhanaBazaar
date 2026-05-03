@@ -118,10 +118,10 @@ function SellerSignupPageInner() {
         setBusinessName(profile.business_name);
         setServiceIds(profile.services?.map((s) => s.id) ?? []);
         setAddress(profile.address);
-        setGstNumber(profile.gst_number);
-        setFssaiLicense(profile.fssai_license);
-        setBankAccountNumber(profile.bank_account_number);
-        setBankIfsc(profile.bank_ifsc);
+        setGstNumber(profile.gst_number ?? "");
+        setFssaiLicense(profile.fssai_license ?? "");
+        setBankAccountNumber(profile.bank_account_number ?? "");
+        setBankIfsc(profile.bank_ifsc ?? "");
       })
       .catch(() => {
         /* user fills in manually */

@@ -116,10 +116,10 @@ async def update_seller_profile(
         profile.last_name = last_name
     profile.business_name = body.business_name
     profile.phone = body.phone
-    profile.gst_number = body.gst_number
-    profile.fssai_license = body.fssai_license
-    profile.bank_account_number = body.bank_account_number
-    profile.bank_ifsc = body.bank_ifsc
+    profile.gst_number = body.gst_number or None
+    profile.fssai_license = body.fssai_license or None
+    profile.bank_account_number = body.bank_account_number or None
+    profile.bank_ifsc = body.bank_ifsc or None
 
     address = profile.business_address
     for key, value in address_from_payload(body.address).items():
