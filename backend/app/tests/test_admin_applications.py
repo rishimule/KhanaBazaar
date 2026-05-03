@@ -2,13 +2,15 @@ from typing import Any, AsyncGenerator, Iterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlmodel import select as _select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
 from app.core.security import get_current_admin, get_current_user
 from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.profile import SellerProfile, VerificationStatus
+from app.models.catalog import Service, ServiceTranslation
+from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from tests._helpers import make_address
 
 mock_admin = User(
@@ -47,7 +49,6 @@ async def _make_profile(
         first_name=first_name,
         last_name=last_name,
         business_name=f"Biz {user_id}",
-        business_category="grocery",
         phone=phone,
         gst_number="29ABCDE1234F1Z5",
         fssai_license="10020042000015",
@@ -76,6 +77,25 @@ async def seed_users_and_profiles(session: AsyncSession) -> AsyncGenerator[None,
         session, mock_seller_rejected.id, "Rejected", "Seller", "9876543212",
         VerificationStatus.Rejected, "Invalid GST",
     )
+
+    grocery = Service(slug="grocery", is_active=True, sort_order=0)
+    session.add(grocery)
+    await session.flush()
+    session.add(
+        ServiceTranslation(
+            service_id=grocery.id, language_code="en", name="Grocery"
+        )
+    )
+    await session.flush()
+    grocery_id = grocery.id
+
+    for user_id in (mock_seller_pending.id, mock_seller_approved.id, mock_seller_rejected.id):
+        profile = (await session.exec(
+            _select(SellerProfile).where(SellerProfile.user_id == user_id)
+        )).first()
+        assert profile is not None
+        session.add(SellerProfileService(seller_profile_id=profile.id, service_id=grocery_id))
+
     await session.commit()
     yield
 
@@ -176,6 +196,7 @@ async def test_counts_zero_when_no_profiles(
     override_as_admin: Any, session: AsyncSession
 ) -> None:
     from sqlmodel import delete
+    await session.exec(delete(SellerProfileService))
     await session.exec(delete(SellerProfile))
     await session.commit()
 
@@ -198,3 +219,16 @@ async def test_revoke_approved_seller(override_as_admin: Any) -> None:
     data = resp.json()
     assert data["verification_status"] == "rejected"
     assert data["rejection_reason"] == "Fraud detected post-approval"
+
+
+@pytest.mark.asyncio
+async def test_admin_applications_include_services(override_as_admin: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/sellers/admin/applications?status=pending")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) >= 1
+    row = body[0]
+    assert "business_category" not in row
+    assert isinstance(row["services"], list)
+    assert any(s["slug"] == "grocery" for s in row["services"])

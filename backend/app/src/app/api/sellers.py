@@ -175,13 +175,20 @@ async def admin_verify_seller(
 ALLOWED_STATUSES = {"pending", "approved", "rejected", "all"}
 
 
-def _application_payload(profile: SellerProfile, user: User, address: Address) -> dict:  # type: ignore[type-arg]
+async def _application_payload(
+    session: AsyncSession,
+    profile: SellerProfile,
+    user: User,
+    address: Address,
+) -> dict:  # type: ignore[type-arg]
+    assert profile.id is not None
+    services = await list_profile_services(session, profile.id)
     return SellerApplicationPayload(
         seller_id=user.id,
         email=user.email,
         full_name=compose_full_name(profile.first_name, profile.last_name),
         business_name=profile.business_name,
-        business_category=profile.business_category,
+        services=services,
         address=address_to_payload(address),
         phone=profile.phone,
         gst_number=profile.gst_number,
@@ -215,7 +222,10 @@ async def admin_list_applications(
 
     result = await session.exec(stmt)
     rows = result.all()
-    return [_application_payload(profile, user, address) for profile, user, address in rows]
+    return [
+        await _application_payload(session, profile, user, address)
+        for profile, user, address in rows
+    ]
 
 
 @router.get("/admin/applications/counts")
