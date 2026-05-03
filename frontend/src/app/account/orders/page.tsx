@@ -20,10 +20,11 @@ export default function CustomerOrdersPage() {
 
   useEffect(() => {
     if (!token) return;
-    setLoading(true);
+    let cancelled = false;
     listOrders(token, tab)
-      .then(setOrders)
-      .finally(() => setLoading(false));
+      .then((data) => { if (!cancelled) setOrders(data); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [token, tab]);
 
   return (
