@@ -1,12 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
+import { placeOrder } from "@/lib/orders";
+import AddressPicker from "@/components/orders/AddressPicker";
 import styles from "./page.module.css";
 
 export default function CartPage() {
   const { carts, removeItem, updateQty, clearStoreCart, getTotal, grandTotal } =
     useCart();
+  const { dbUser, token } = useAuth();
+  const router = useRouter();
+  const [addressId, setAddressId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (carts.length === 0) {
     return (
@@ -27,6 +37,23 @@ export default function CartPage() {
       </div>
     );
   }
+
+  const isCustomer = dbUser?.role === "customer";
+
+  const onCheckout = async () => {
+    if (!token || !addressId) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const orders = await placeOrder(token, addressId);
+      router.push(`/account/orders?placed=${orders.length}`);
+    } catch (e) {
+      const detail = (e as { detail?: unknown })?.detail;
+      setError(typeof detail === "string" ? detail : "Could not place order.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className={styles.page}>
@@ -49,7 +76,6 @@ export default function CartPage() {
         {/* Cart groups by store */}
         {carts.map((cart) => (
           <div key={cart.store_id} className={styles.storeGroup}>
-            {/* Store header */}
             <div className={styles.storeGroupHeader}>
               <div className={styles.storeGroupTitle}>
                 🏪{" "}
@@ -68,7 +94,6 @@ export default function CartPage() {
               </button>
             </div>
 
-            {/* Items */}
             {cart.items.map((item) => (
               <div key={item.product_id} className={styles.cartItem}>
                 <div className={styles.itemEmoji}>📦</div>
@@ -78,7 +103,6 @@ export default function CartPage() {
                   <div className={styles.itemPrice}>₹{item.price} each</div>
                 </div>
 
-                {/* Quantity */}
                 <div className={styles.qtyControls}>
                   <button
                     className={styles.qtyBtn}
@@ -123,7 +147,6 @@ export default function CartPage() {
               </div>
             ))}
 
-            {/* Store subtotal */}
             <div className={styles.storeSubtotal}>
               <span>Subtotal:</span>
               <span className={styles.storeSubtotalValue}>
@@ -133,19 +156,40 @@ export default function CartPage() {
           </div>
         ))}
 
-        {/* Grand total */}
+        {isCustomer && (
+          <div className={styles.addressBlock}>
+            <AddressPicker value={addressId} onChange={setAddressId} />
+          </div>
+        )}
+
         <div className={styles.totalBar}>
           <span className={styles.totalLabel}>Grand Total</span>
           <div className={styles.totalRight}>
             <span className={styles.totalValue}>₹{grandTotal}</span>
-            <button className={styles.checkoutBtn} disabled>
-              Proceed to Checkout
-              <span className={styles.checkoutTooltip}>
-                Checkout flow and payment integration coming in a future phase 🚀
+            {!dbUser ? (
+              <Link href="/login?next=/cart" className={styles.checkoutBtn}>
+                Login to checkout
+              </Link>
+            ) : !isCustomer ? (
+              <span className={styles.checkoutBtn} aria-disabled>
+                Customer login required
               </span>
-            </button>
+            ) : addressId === null ? (
+              <Link href="/account/settings" className={styles.checkoutBtn}>
+                Add address to checkout
+              </Link>
+            ) : (
+              <button
+                className={styles.checkoutBtn}
+                onClick={onCheckout}
+                disabled={submitting}
+              >
+                {submitting ? "Placing order…" : "Place Order"}
+              </button>
+            )}
           </div>
         </div>
+        {error && <div className={styles.error}>{error}</div>}
       </div>
     </div>
   );

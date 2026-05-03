@@ -317,3 +317,6 @@
 .checkoutBtn:hover .checkoutTooltip {
   display: block;
 }
+
+.addressBlock { margin: 1rem 0; padding: 1rem; border: 1px solid var(--color-border, #e5e7eb); border-radius: 10px; }
+.error { color: #991b1b; margin-top: 0.6rem; font-size: 0.9rem; }
