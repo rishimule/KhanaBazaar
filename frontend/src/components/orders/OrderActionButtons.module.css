@@ -1,0 +1,11 @@
+.actions { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+.primary {
+  background: var(--color-primary, #16a34a); color: white;
+  padding: 0.5rem 1rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600;
+}
+.primary:disabled { opacity: 0.6; cursor: progress; }
+.danger {
+  background: transparent; color: #991b1b; border: 1px solid #fca5a5;
+  padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600;
+}
+.error { color: #991b1b; font-size: 0.85rem; }
