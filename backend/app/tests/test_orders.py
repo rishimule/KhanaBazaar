@@ -19,10 +19,12 @@ from app.models.commerce import (
     Payment,
     PaymentStatus,
 )
+from app.models.catalog import Service, ServiceTranslation
 from app.models.profile import (
     CustomerAddress,
     CustomerProfile,
     SellerProfile,
+    SellerProfileService,
     VerificationStatus,
 )
 from app.models.store import Store, StoreInventory
@@ -60,7 +62,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     await session.flush()
     seller_profile = SellerProfile(
         user_id=mock_seller.id, first_name="S1", phone="+919800000010",
-        business_name="S1 Store", business_category="grocery",
+        business_name="S1 Store",
         bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved,
         business_address_id=seller_business_addr.id,
@@ -72,7 +74,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     await session.flush()
     other_seller_profile = SellerProfile(
         user_id=mock_other_seller.id, first_name="S2", phone="+919800000020",
-        business_name="S2 Store", business_category="grocery",
+        business_name="S2 Store",
         bank_account_number="2", bank_ifsc="HDFC0000002",
         verification_status=VerificationStatus.Approved,
         business_address_id=other_seller_business_addr.id,
@@ -101,6 +103,17 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
         session, service_slug="bakery", category_slug="bread-cat",
         subcategory_slug="loaves", product_slug="bread", name="Bread", base_price=30.0,
     )
+
+    # Link each seller to the service matching their store's products
+    grocery_svc_result = await session.exec(select(Service).where(Service.slug == "grocery"))
+    grocery_svc = grocery_svc_result.first()
+    assert grocery_svc is not None
+    bakery_svc_result = await session.exec(select(Service).where(Service.slug == "bakery"))
+    bakery_svc = bakery_svc_result.first()
+    assert bakery_svc is not None
+    session.add(SellerProfileService(seller_profile_id=seller_profile.id, service_id=grocery_svc.id))
+    session.add(SellerProfileService(seller_profile_id=other_seller_profile.id, service_id=bakery_svc.id))
+    await session.flush()
 
     inv_a = StoreInventory(store_id=store_a.id, product_id=product.id, price=50.0, stock=10)
     inv_b = StoreInventory(store_id=store_b.id, product_id=product_b.id, price=30.0, stock=4)

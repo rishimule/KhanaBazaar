@@ -1,6 +1,7 @@
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -14,6 +15,7 @@ from app.models.profile import SellerProfile
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.stores import StoreCreate, StoreRead
+from app.services.seller_services import list_profile_services
 
 router = APIRouter()
 
@@ -28,14 +30,16 @@ async def _seller_profile_for_user(session: AsyncSession, user_id: int) -> Selle
     return profile
 
 
-def _store_read(store: Store) -> StoreRead:
+async def _store_read(session: AsyncSession, store: Store) -> StoreRead:
     assert store.id is not None
+    services = await list_profile_services(session, store.seller_profile_id)
     return StoreRead(
         id=store.id,
         name=store.name,
         address=address_to_payload(store.address),
         is_active=store.is_active,
         seller_id=store.seller_profile.user_id,
+        services=services,
         created_at=store.created_at.isoformat(),
         updated_at=store.updated_at.isoformat(),
     )
@@ -69,7 +73,7 @@ async def list_stores(
         .limit(limit)
     )
     result = await session.exec(stmt)
-    return [_store_read(store) for store in result.all()]
+    return [await _store_read(session, store) for store in result.all()]
 
 
 @router.get("/my", response_model=List[StoreRead])
@@ -81,7 +85,7 @@ async def list_my_stores(
     profile = await _seller_profile_for_user(session, seller.id)
     stmt = _store_with_relations_stmt().where(Store.seller_profile_id == profile.id)
     result = await session.exec(stmt)
-    return [_store_read(store) for store in result.all()]
+    return [await _store_read(session, store) for store in result.all()]
 
 
 @router.post("/", response_model=StoreRead)
@@ -92,29 +96,31 @@ async def create_store(
 ) -> StoreRead:
     assert seller.id is not None, "Seller ID cannot be None"
     profile = await _seller_profile_for_user(session, seller.id)
+
     address = Address(**address_from_payload(payload.address))
     session.add(address)
     await session.flush()
-    address_payload = address_to_payload(address)
     store = Store(
         name=payload.name,
         seller_profile_id=profile.id,
         address_id=address.id,
     )
     session.add(store)
-    await session.flush()
-    assert store.id is not None
-    store_read = StoreRead(
-        id=store.id,
-        name=store.name,
-        address=address_payload,
-        is_active=store.is_active,
-        seller_id=seller.id,
-        created_at=store.created_at.isoformat(),
-        updated_at=store.updated_at.isoformat(),
-    )
-    await session.commit()
-    return store_read
+    try:
+        await session.flush()
+        assert store.id is not None
+        new_store_id = store.id
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409, detail="Seller may have only one store"
+        ) from exc
+
+    # Reload with relations for the response
+    refreshed = await _get_store_with_relations(session, new_store_id)
+    assert refreshed is not None
+    return await _store_read(session, refreshed)
 
 
 @router.get("/{store_id}", response_model=StoreRead)
@@ -124,7 +130,7 @@ async def get_store(
     store = await _get_store_with_relations(session, store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
-    return _store_read(store)
+    return await _store_read(session, store)
 
 
 # -------------------------------------------------------------

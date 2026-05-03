@@ -3,6 +3,7 @@
 from pydantic import BaseModel
 
 from app.schemas.address import AddressPayload
+from app.schemas.services import ServicePayload
 
 
 class StoreCreate(BaseModel):
@@ -16,5 +17,6 @@ class StoreRead(BaseModel):
     address: AddressPayload
     is_active: bool
     seller_id: int
+    services: list[ServicePayload] = []
     created_at: str
     updated_at: str

@@ -21,7 +21,7 @@ from app.models.catalog import (
     SubcategoryTranslation,
 )
 from app.models.commerce import Cart, CartItem
-from app.models.profile import CustomerProfile, SellerProfile, VerificationStatus
+from app.models.profile import CustomerProfile, SellerProfile, SellerProfileService, VerificationStatus
 from app.models.store import Store, StoreInventory
 from tests._helpers import make_address
 
@@ -79,7 +79,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[None, None]:
     await session.flush()
     seller_profile = SellerProfile(
         user_id=mock_seller.id, first_name="Sel", phone="+919800000001",
-        business_name="S", business_category="grocery",
+        business_name="S",
         bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved,
         business_address_id=seller_addr.id,
@@ -98,6 +98,13 @@ async def seed(session: AsyncSession) -> AsyncGenerator[None, None]:
         session, service_slug="grocery", category_slug="food",
         subcategory_slug="fruit", product_slug="apple", name="Apple", base_price=50.0,
     )
+
+    # Link seller to the grocery service seeded above
+    grocery_svc_result = await session.exec(select(Service).where(Service.slug == "grocery"))
+    grocery_svc = grocery_svc_result.first()
+    assert grocery_svc is not None
+    session.add(SellerProfileService(seller_profile_id=seller_profile.id, service_id=grocery_svc.id))
+    await session.flush()
 
     inv = StoreInventory(store_id=store.id, product_id=product.id, price=50.0, stock=10)
     session.add(inv)
@@ -196,14 +203,26 @@ async def test_add_item_unknown_inventory(override_as_customer: Any) -> None:
 
 
 async def test_add_item_inventory_not_in_store(override_as_customer: Any, session: AsyncSession) -> None:
-    # Seed a second store + its inventory; passing store_id=1 + new inventory_id should 400.
+    # Seed a second store (different seller) + its inventory; passing store_id=1 + new inventory_id should 400.
+    seller2_user = User(id=299, email="cart-seller2@kb.com", role=UserRole.Seller, is_active=True)
+    session.add(seller2_user)
+    await session.flush()
+    seller2_biz_addr = Address(**make_address(pincode="560004"))
+    session.add(seller2_biz_addr)
+    await session.flush()
+    seller2_profile = SellerProfile(
+        user_id=seller2_user.id, first_name="S2", phone="+919800000099",
+        business_name="S2 Biz",
+        bank_account_number="9", bank_ifsc="HDFC0000009",
+        verification_status=VerificationStatus.Approved,
+        business_address_id=seller2_biz_addr.id,
+    )
+    session.add(seller2_profile)
+    await session.flush()
     addr2 = Address(**make_address(pincode="560003"))
     session.add(addr2)
     await session.flush()
-    seller2_profile_id = (await session.exec(
-        select(SellerProfile.id)
-    )).first()
-    store2 = Store(name="S2", seller_profile_id=seller2_profile_id, address_id=addr2.id)
+    store2 = Store(name="S2", seller_profile_id=seller2_profile.id, address_id=addr2.id)
     session.add(store2)
     await session.flush()
     inv2 = StoreInventory(store_id=store2.id, product_id=1, price=20.0, stock=5)

@@ -7,6 +7,7 @@ from app.models.profile import SellerProfile
 
 
 class Store(BaseSchema, table=True):
+    __table_args__ = (UniqueConstraint("seller_profile_id", name="uq_store_seller_profile"),)
     name: str = Field(index=True, nullable=False)
     is_active: bool = Field(default=True, nullable=False)
     seller_profile_id: int = Field(foreign_key="sellerprofile.id", nullable=False, index=True)
