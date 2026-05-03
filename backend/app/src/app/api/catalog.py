@@ -22,9 +22,21 @@ from app.models.catalog import (
 
 router = APIRouter()
 
-_DEFAULT_SERVICE_SLUG = "default"
+_DEFAULT_SERVICE_SLUG = "grocery"
+_DEFAULT_SERVICE_NAME = "Grocery"
 _DEFAULT_SUBCATEGORY_SLUG = "_default"
 _EN = "en"
+
+
+class ServiceRead(BaseModel):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    slug: str
+    name: str
+    description: str | None = None
+    is_active: bool
+    sort_order: int
 
 
 class CategoryRead(BaseModel):
@@ -33,11 +45,13 @@ class CategoryRead(BaseModel):
     updated_at: datetime
     name: str
     description: str | None = None
+    service_id: int
 
 
 class CategoryCreate(BaseModel):
     name: str
     description: str | None = None
+    service_id: int | None = None
 
 
 class CategoryUpdate(BaseModel):
@@ -89,7 +103,7 @@ async def _ensure_default_service(session: AsyncSession) -> Service:
         ServiceTranslation(
             service_id=service.id,
             language_code=_EN,
-            name="Default",
+            name=_DEFAULT_SERVICE_NAME,
             description=None,
         )
     )
@@ -144,6 +158,21 @@ def _category_read(category: Category, translation: CategoryTranslation | None) 
         updated_at=category.updated_at,
         name=translation.name if translation else category.slug,
         description=translation.description if translation else None,
+        service_id=category.service_id,
+    )
+
+
+def _service_read(service: Service, translation: ServiceTranslation | None) -> ServiceRead:
+    assert service.id is not None
+    return ServiceRead(
+        id=service.id,
+        created_at=service.created_at,
+        updated_at=service.updated_at,
+        slug=service.slug,
+        name=translation.name if translation else service.slug,
+        description=translation.description if translation else None,
+        is_active=service.is_active,
+        sort_order=service.sort_order,
     )
 
 
@@ -163,6 +192,29 @@ def _product_read(
         image_url=product.image_url,
         base_price=product.base_price,
     )
+
+
+# ─── Services ─────────────────────────────────────────────────
+
+
+@router.get("/services", response_model=List[ServiceRead])
+async def list_services(session: AsyncSession = Depends(get_db_session)) -> List[ServiceRead]:
+    stmt = (
+        select(Service, ServiceTranslation)
+        .join(
+            ServiceTranslation,
+            ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+            isouter=True,
+        )
+        .where(Service.is_active == True)  # noqa: E712
+        .where(
+            (ServiceTranslation.language_code == _EN)
+            | (ServiceTranslation.id.is_(None))  # type: ignore[union-attr]
+        )
+        .order_by(Service.sort_order, Service.id)  # type: ignore[arg-type]
+    )
+    result = await session.exec(stmt)
+    return [_service_read(service, translation) for service, translation in result.all()]
 
 
 # ─── Categories ───────────────────────────────────────────────
@@ -192,7 +244,12 @@ async def create_category(
     session: AsyncSession = Depends(get_db_session),
     admin: User = Depends(get_current_admin),
 ) -> CategoryRead:
-    service = await _ensure_default_service(session)
+    if payload.service_id is not None:
+        service = await session.get(Service, payload.service_id)
+        if service is None:
+            raise HTTPException(status_code=400, detail="Service does not exist")
+    else:
+        service = await _ensure_default_service(session)
     slug = _slugify(payload.name)
     category = Category(service_id=service.id, slug=slug, sort_order=0)
     session.add(category)

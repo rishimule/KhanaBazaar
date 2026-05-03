@@ -25,10 +25,20 @@ export interface User extends BaseSchema {
   full_name?: string;
 }
 
+/** A top-level service / vertical (Grocery, Electronics, Pharmacy, etc.). */
+export interface Service extends BaseSchema {
+  slug: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  sort_order: number;
+}
+
 /** Category from the master catalog. */
 export interface Category extends BaseSchema {
   name: string;
   description?: string;
+  service_id: number;
 }
 
 /** A product in the master catalog managed by admins. */

@@ -6,7 +6,7 @@ import DataTable, { Column } from "@/components/DataTable";
 import Modal, { modalStyles } from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
 import { get, post, put, del } from "@/lib/api";
-import { Category, MasterProduct } from "@/types";
+import { Category, MasterProduct, Service } from "@/types";
 import styles from "../products/page.module.css";
 
 export default function AdminCategoriesPage() {
@@ -15,6 +15,7 @@ export default function AdminCategoriesPage() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<MasterProduct[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [fetching, setFetching] = useState(true);
   const [editItem, setEditItem] = useState<Category | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -22,6 +23,7 @@ export default function AdminCategoriesPage() {
   // Form state
   const [formName, setFormName] = useState("");
   const [formDesc, setFormDesc] = useState("");
+  const [formServiceId, setFormServiceId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!dbUser || dbUser.role !== "admin")) {
@@ -32,18 +34,30 @@ export default function AdminCategoriesPage() {
       Promise.all([
         get<Category[]>("/api/v1/catalog/categories", token),
         get<MasterProduct[]>("/api/v1/catalog/products", token),
+        get<Service[]>("/api/v1/catalog/services", token),
       ])
-        .then(([cats, prods]) => {
+        .then(([cats, prods, svcs]) => {
           setCategories(cats);
           setProducts(prods);
+          setServices(svcs);
         })
         .catch(() => {})
         .finally(() => setFetching(false));
     }
   }, [authLoading, dbUser, token, router]);
 
+  const getServiceName = (svcId: number) =>
+    services.find((s) => s.id === svcId)?.name ?? "—";
+
   const columns: Column<Category>[] = [
     { key: "name", label: "Category Name", render: (row) => <strong>{row.name}</strong> },
+    {
+      key: "service_id",
+      label: "Service",
+      render: (row) => (
+        <span className={styles.categoryBadge}>{getServiceName(row.service_id)}</span>
+      ),
+    },
     {
       key: "description",
       label: "Description",
@@ -91,15 +105,20 @@ export default function AdminCategoriesPage() {
   function openAdd() {
     setFormName("");
     setFormDesc("");
+    setFormServiceId(services[0]?.id ?? null);
     setShowAdd(true);
   }
 
   async function handleAdd() {
-    if (!formName.trim() || !token) return;
+    if (!formName.trim() || !token || formServiceId === null) return;
     try {
       const created = await post<Category>(
         "/api/v1/catalog/categories",
-        { name: formName.trim(), description: formDesc.trim() || undefined },
+        {
+          name: formName.trim(),
+          description: formDesc.trim() || undefined,
+          service_id: formServiceId,
+        },
         token
       );
       setCategories((prev) => [...prev, created]);
@@ -168,6 +187,19 @@ export default function AdminCategoriesPage() {
             </>
           }
         >
+          <div className={modalStyles.formGroup}>
+            <label className={modalStyles.label}>Service</label>
+            <select
+              className={modalStyles.select}
+              value={formServiceId ?? ""}
+              onChange={(e) => setFormServiceId(e.target.value ? parseInt(e.target.value, 10) : null)}
+            >
+              {services.length === 0 && <option value="">No services available</option>}
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
           <div className={modalStyles.formGroup}>
             <label className={modalStyles.label}>Category Name</label>
             <input className={modalStyles.input} value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Spices & Masala" />

@@ -37,8 +37,11 @@ LANGUAGES = [
     ("pa", "Punjabi", "ਪੰਜਾਬੀ"),
 ]
 
-DEFAULT_SERVICE_SLUG = "default"
-DEFAULT_SERVICE_NAME = "Khana Bazaar"
+SERVICES: list[dict[str, Any]] = [
+    {"slug": "grocery", "name": "Grocery", "description": "Daily essentials, fresh produce, pantry staples"},
+    {"slug": "electronics", "name": "Electronics", "description": "Gadgets, accessories, and home electronics"},
+    {"slug": "pharmacy", "name": "Pharmacy", "description": "Medicines, wellness, and personal care"},
+]
 DEFAULT_SUBCATEGORY_SLUG = "_default"
 
 TEST_USERS: list[dict[str, Any]] = [
@@ -134,10 +137,10 @@ APPLICATIONS: list[dict[str, Any]] = [
 ]
 
 CATEGORIES: list[dict[str, Any]] = [
-    {"slug": "fruits-vegetables", "name": "Fruits & Vegetables", "description": "Fresh produce from local farms"},
-    {"slug": "dairy-bakery", "name": "Dairy & Bakery", "description": "Milk, paneer, bread, and baked goods"},
-    {"slug": "staples-grains", "name": "Staples & Grains", "description": "Rice, atta, dal, and cooking essentials"},
-    {"slug": "snacks-beverages", "name": "Snacks & Beverages", "description": "Chips, biscuits, tea, coffee, and cold drinks"},
+    {"service_slug": "grocery", "slug": "fruits-vegetables", "name": "Fruits & Vegetables", "description": "Fresh produce from local farms"},
+    {"service_slug": "grocery", "slug": "dairy-bakery", "name": "Dairy & Bakery", "description": "Milk, paneer, bread, and baked goods"},
+    {"service_slug": "grocery", "slug": "staples-grains", "name": "Staples & Grains", "description": "Rice, atta, dal, and cooking essentials"},
+    {"service_slug": "grocery", "slug": "snacks-beverages", "name": "Snacks & Beverages", "description": "Chips, biscuits, tea, coffee, and cold drinks"},
 ]
 
 PRODUCTS: list[dict[str, Any]] = [
@@ -298,8 +301,8 @@ EXPECTED_FULL_COUNTS = {
     "adminprofile": 1,
     "sellerprofile": 6,
     "address": 9,
-    "service": 1,
-    "service_translation": 1,
+    "service": 3,
+    "service_translation": 3,
     "category": 4,
     "category_translation": 4,
     "subcategory": 4,
@@ -472,11 +475,18 @@ async def _upsert_customer_profile(
     return profile
 
 
-async def _ensure_default_service(session: AsyncSession) -> Service:
-    result = await session.exec(select(Service).where(Service.slug == DEFAULT_SERVICE_SLUG))
+async def _ensure_service(
+    session: AsyncSession, data: Mapping[str, Any], sort_order: int
+) -> Service:
+    result = await session.exec(select(Service).where(Service.slug == data["slug"]))
     service = result.first()
     if service is None:
-        service = Service(slug=DEFAULT_SERVICE_SLUG, is_active=True, sort_order=0)
+        service = Service(slug=data["slug"], is_active=True, sort_order=sort_order)
+        session.add(service)
+        await session.flush()
+    else:
+        service.sort_order = sort_order
+        service.is_active = True
         session.add(service)
         await session.flush()
 
@@ -492,12 +502,13 @@ async def _ensure_default_service(session: AsyncSession) -> Service:
             ServiceTranslation(
                 service_id=service.id,
                 language_code="en",
-                name=DEFAULT_SERVICE_NAME,
-                description=None,
+                name=data["name"],
+                description=data.get("description"),
             )
         )
     else:
-        translation.name = DEFAULT_SERVICE_NAME
+        translation.name = data["name"]
+        translation.description = data.get("description")
     await session.flush()
     return service
 
@@ -708,12 +719,17 @@ async def seed_demo_data(session: AsyncSession) -> None:
         users_by_email[user.email] = user
         await _upsert_seller_profile(session, user, application)
 
-    service = await _ensure_default_service(session)
-    assert service.id is not None
+    services_by_slug: dict[str, Service] = {}
+    for sort_order, service_data in enumerate(SERVICES):
+        service = await _ensure_service(session, service_data, sort_order)
+        assert service.id is not None
+        services_by_slug[service.slug] = service
 
     categories_by_slug: dict[str, Category] = {}
     subcategories_by_category_slug: dict[str, Subcategory] = {}
     for sort_order, category_data in enumerate(CATEGORIES):
+        service = services_by_slug[category_data["service_slug"]]
+        assert service.id is not None
         category = await _upsert_category(session, service.id, category_data, sort_order)
         categories_by_slug[category.slug] = category
         sub = await _upsert_default_subcategory(session, category, category_data["name"])
