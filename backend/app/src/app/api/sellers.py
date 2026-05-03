@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import desc, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -173,11 +174,17 @@ async def admin_verify_seller(
         existing_store = (await session.exec(
             select(Store).where(Store.seller_profile_id == profile.id)
         )).first()
+        # Note: Store.address is captured at first approval. Subsequent
+        # business-address edits do not propagate to an existing Store —
+        # sellers update store address via a dedicated store-settings flow.
         if existing_store is None:
             biz_addr = (await session.exec(
                 select(Address).where(Address.id == profile.business_address_id)
             )).first()
-            assert biz_addr is not None
+            if biz_addr is None:
+                raise HTTPException(
+                    status_code=500, detail="Seller profile missing business address"
+                )
             store_addr = Address(
                 address_line1=biz_addr.address_line1,
                 address_line2=biz_addr.address_line2,
@@ -205,7 +212,16 @@ async def admin_verify_seller(
     else:
         raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
 
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        # Another approval won the race; re-fetch and return success.
+        refreshed = await session.exec(
+            select(SellerProfile).where(SellerProfile.user_id == seller_id)
+        )
+        profile = refreshed.first()
+        assert profile is not None
     await session.refresh(profile)
     return {
         "seller_id": seller_id,
