@@ -129,8 +129,6 @@ export type VerificationStatus = "pending" | "approved" | "rejected";
 export interface SellerProfile extends BaseSchema {
   user_id: number;
   business_name: string;
-  // TODO: drop business_category once admin UI migrates to services (Tasks 18-19)
-  business_category?: string;
   services: Service[];
   address: Address;
   phone: string;
@@ -148,8 +146,6 @@ export interface SellerApplication {
   email: string;
   full_name: string;
   business_name: string;
-  // TODO: drop business_category once admin UI migrates to services (Tasks 18-19)
-  business_category?: string;
   services: Service[];
   address: Address;
   phone: string;
