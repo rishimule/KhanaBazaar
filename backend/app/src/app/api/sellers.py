@@ -19,7 +19,11 @@ from app.schemas.sellers import (
     SellerProfileUpdateBody,
 )
 from app.services.profiles import compose_full_name, split_full_name
-from app.services.seller_services import list_profile_services
+from app.services.seller_services import (
+    list_profile_services,
+    replace_profile_services,
+    validate_service_ids,
+)
 
 router = APIRouter()
 
@@ -92,12 +96,22 @@ async def update_seller_profile(
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
 
+    if body.service_ids is not None:
+        if profile.verification_status == VerificationStatus.Approved:
+            raise HTTPException(
+                status_code=400, detail="Services are locked after approval"
+            )
+        try:
+            valid_ids = await validate_service_ids(session, body.service_ids)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        await replace_profile_services(session, profile, valid_ids)
+
     if body.full_name is not None:
         first_name, last_name = split_full_name(body.full_name)
         profile.first_name = first_name
         profile.last_name = last_name
     profile.business_name = body.business_name
-    profile.business_category = body.business_category
     profile.phone = body.phone
     profile.gst_number = body.gst_number
     profile.fssai_license = body.fssai_license
