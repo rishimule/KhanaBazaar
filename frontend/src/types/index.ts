@@ -25,10 +25,20 @@ export interface User extends BaseSchema {
   full_name?: string;
 }
 
+/** A top-level service / vertical (Grocery, Electronics, Pharmacy, etc.). */
+export interface Service extends BaseSchema {
+  slug: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  sort_order: number;
+}
+
 /** Category from the master catalog. */
 export interface Category extends BaseSchema {
   name: string;
   description?: string;
+  service_id: number;
 }
 
 /** A product in the master catalog managed by admins. */
@@ -77,6 +87,7 @@ export interface Store extends BaseSchema {
   address: Address;
   is_active: boolean;
   seller_id: number;
+  services: Service[];
 }
 
 /** A store-specific inventory entry linking a product to a store. */
@@ -118,7 +129,7 @@ export type VerificationStatus = "pending" | "approved" | "rejected";
 export interface SellerProfile extends BaseSchema {
   user_id: number;
   business_name: string;
-  business_category: string;
+  services: Service[];
   address: Address;
   phone: string;
   gst_number: string;
@@ -135,7 +146,7 @@ export interface SellerApplication {
   email: string;
   full_name: string;
   business_name: string;
-  business_category: string;
+  services: Service[];
   address: Address;
   phone: string;
   gst_number: string;

@@ -7,9 +7,10 @@ address columns flat and these models expose them as a nested
 
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from app.schemas.address import AddressPayload
+from app.schemas.services import ServicePayload
 
 
 class SellerRegisterBody(BaseModel):
@@ -17,7 +18,7 @@ class SellerRegisterBody(BaseModel):
     full_name: str
     phone: str
     business_name: str
-    business_category: str
+    service_ids: list[int] = Field(min_length=1)
     address: AddressPayload
     gst_number: Optional[str] = None
     fssai_license: Optional[str] = None
@@ -28,7 +29,7 @@ class SellerRegisterBody(BaseModel):
 class SellerProfileUpdateBody(BaseModel):
     full_name: Optional[str] = None
     business_name: str
-    business_category: str
+    service_ids: Optional[list[int]] = Field(default=None, min_length=1)
     address: AddressPayload
     phone: str
     gst_number: Optional[str] = None
@@ -42,7 +43,7 @@ class SellerProfilePayload(BaseModel):
     user_id: int
     full_name: str
     business_name: str
-    business_category: str
+    services: list[ServicePayload]
     address: AddressPayload
     phone: str
     gst_number: Optional[str] = None
@@ -58,7 +59,7 @@ class SellerApplicationPayload(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     business_name: str
-    business_category: str
+    services: list[ServicePayload]
     address: AddressPayload
     phone: str
     gst_number: Optional[str] = None
@@ -69,3 +70,7 @@ class SellerApplicationPayload(BaseModel):
     rejection_reason: Optional[str] = None
     submitted_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+
+class AdminSetServicesBody(BaseModel):
+    service_ids: list[int] = Field(min_length=1)

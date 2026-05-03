@@ -6,7 +6,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { get, patch, post } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
-import { Address, SellerProfile, User } from "@/types";
+import ServicePicker from "@/components/ServicePicker";
+import { Address, SellerProfile, Service, User } from "@/types";
 import styles from "./seller-signup.module.css";
 
 /* ------------------------------------------------------------------ */
@@ -75,7 +76,8 @@ function SellerSignupPageInner() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
-  const [businessCategory, setBusinessCategory] = useState("");
+  const [serviceIds, setServiceIds] = useState<number[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [address, setAddress] = useState<Address>(emptyAddress());
   const [gstNumber, setGstNumber] = useState("");
   const [fssaiLicense, setFssaiLicense] = useState("");
@@ -114,7 +116,7 @@ function SellerSignupPageInner() {
       .then((profile) => {
         setPhone(profile.phone);
         setBusinessName(profile.business_name);
-        setBusinessCategory(profile.business_category);
+        setServiceIds(profile.services?.map((s) => s.id) ?? []);
         setAddress(profile.address);
         setGstNumber(profile.gst_number);
         setFssaiLicense(profile.fssai_license);
@@ -125,6 +127,10 @@ function SellerSignupPageInner() {
         /* user fills in manually */
       });
   }, [isResubmit, token, dbUser]);
+
+  useEffect(() => {
+    get<Service[]>("/api/v1/catalog/services").then(setServices).catch(() => {});
+  }, []);
 
   /* ---------------------------------------------------------------- */
   /* Handlers                                                          */
@@ -216,7 +222,7 @@ function SellerSignupPageInner() {
       if (isResubmit) {
         await patch("/api/v1/sellers/me/profile", {
           business_name: businessName,
-          business_category: businessCategory,
+          service_ids: serviceIds,
           address,
           phone,
           gst_number: gstNumber,
@@ -232,7 +238,7 @@ function SellerSignupPageInner() {
             full_name: fullName,
             phone,
             business_name: businessName,
-            business_category: businessCategory,
+            service_ids: serviceIds,
             address,
             gst_number: gstNumber,
             fssai_license: fssaiLicense,
@@ -554,38 +560,18 @@ function SellerSignupPageInner() {
                   </span>
                 )}
               </div>
-              <div className={styles.inputGroup}>
-                <label className={styles.label} htmlFor="business-category">
-                  Business category
-                </label>
-                <select
-                  id="business-category"
-                  className={
-                    fieldErrors.businessCategory
-                      ? `${styles.select} ${styles.inputError}`
-                      : styles.select
-                  }
-                  value={businessCategory}
-                  onChange={(e) => setBusinessCategory(e.target.value)}
-                  onBlur={() => {
-                    if (!businessCategory)
-                      setFieldErrors((p) => ({
-                        ...p,
-                        businessCategory: "Select a category",
-                      }));
-                    else clearError("businessCategory");
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Services Offered</label>
+                <ServicePicker
+                  selectedIds={serviceIds}
+                  onChange={(ids) => {
+                    setServiceIds(ids);
+                    if (ids.length > 0) clearError("services");
                   }}
-                >
-                  <option value="">Select category</option>
-                  <option value="grocery">Grocery</option>
-                  <option value="pharmacy">Pharmacy</option>
-                  <option value="electronics">Electronics</option>
-                  <option value="general">General</option>
-                </select>
-                {fieldErrors.businessCategory && (
-                  <span className={styles.fieldError}>
-                    {fieldErrors.businessCategory}
-                  </span>
+                  services={services.length > 0 ? services : undefined}
+                />
+                {fieldErrors.services && (
+                  <p className={styles.errorText}>{fieldErrors.services}</p>
                 )}
               </div>
               <div
@@ -619,8 +605,8 @@ function SellerSignupPageInner() {
                   const errs: Record<string, string> = {};
                   if (!businessName.trim())
                     errs.businessName = "Business name is required";
-                  if (!businessCategory)
-                    errs.businessCategory = "Select a category";
+                  if (serviceIds.length === 0)
+                    errs.services = "Select at least one service";
                   if (!address.address_line1.trim())
                     errs.address_line1 = "Address line 1 is required";
                   if (!address.city.trim()) errs.city = "City is required";
@@ -872,8 +858,13 @@ function SellerSignupPageInner() {
                 <span className={styles.reviewValue}>{businessName}</span>
               </div>
               <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}>Category</span>
-                <span className={styles.reviewValue}>{businessCategory}</span>
+                <span className={styles.reviewLabel}>Services</span>
+                <span className={styles.reviewValue}>
+                  {serviceIds
+                    .map((id) => services.find((s) => s.id === id)?.name)
+                    .filter(Boolean)
+                    .join(", ") || "—"}
+                </span>
               </div>
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}>Address</span>

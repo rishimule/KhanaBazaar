@@ -29,6 +29,7 @@ from app.models.profile import (
     CustomerAddress,
     CustomerProfile,
     SellerProfile,
+    SellerProfileService,
     VerificationStatus,
 )
 from app.models.store import Store, StoreInventory
@@ -47,6 +48,7 @@ def test_expected_tables_are_registered_in_metadata() -> None:
         "customerprofile",
         "adminprofile",
         "sellerprofile",
+        "sellerprofile_service",
         "address",
         "customeraddress",
         "service",
@@ -82,11 +84,11 @@ def test_new_schema_columns_are_present() -> None:
         "first_name",
         "last_name",
         "business_name",
-        "business_category",
         "business_address_id",
         "verification_status",
     }.issubset(seller_columns)
     assert "address_line1" not in seller_columns
+    assert "business_category" not in seller_columns
 
     product_columns = {column.name for column in inspect(MasterProduct).columns}
     assert {"subcategory_id", "slug", "image_url", "base_price"}.issubset(product_columns)
@@ -105,6 +107,7 @@ def test_model_classes_are_imported() -> None:
         CustomerAddress,
         AdminProfile,
         SellerProfile,
+        SellerProfileService,
         Language,
         Service,
         ServiceTranslation,
@@ -126,3 +129,8 @@ def test_model_classes_are_imported() -> None:
         Favorite,
     ]
     assert all(getattr(model, "__table__", None) is not None for model in classes)
+
+
+def test_sellerprofile_service_columns_are_present() -> None:
+    cols = {column.name for column in inspect(SellerProfileService).columns}
+    assert {"id", "seller_profile_id", "service_id", "created_at", "updated_at"}.issubset(cols)

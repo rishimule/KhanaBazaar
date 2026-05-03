@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import desc, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -11,14 +12,21 @@ from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User
-from app.models.profile import SellerProfile, VerificationStatus
+from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
+from app.models.store import Store
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.sellers import (
+    AdminSetServicesBody,
     SellerApplicationPayload,
     SellerProfilePayload,
     SellerProfileUpdateBody,
 )
 from app.services.profiles import compose_full_name, split_full_name
+from app.services.seller_services import (
+    list_profile_services,
+    replace_profile_services,
+    validate_service_ids,
+)
 
 router = APIRouter()
 
@@ -61,12 +69,14 @@ async def get_seller_profile(
     profile = await _seller_profile_with_address(session, current_user.id)
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
+    assert profile.id is not None
+    services = await list_profile_services(session, profile.id)
     return SellerProfilePayload(
         id=profile.id,
         user_id=profile.user_id,
         full_name=compose_full_name(profile.first_name, profile.last_name),
         business_name=profile.business_name,
-        business_category=profile.business_category,
+        services=services,
         address=address_to_payload(profile.business_address),
         phone=profile.phone,
         gst_number=profile.gst_number,
@@ -89,12 +99,22 @@ async def update_seller_profile(
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
 
+    if body.service_ids is not None:
+        if profile.verification_status == VerificationStatus.Approved:
+            raise HTTPException(
+                status_code=400, detail="Services are locked after approval"
+            )
+        try:
+            valid_ids = await validate_service_ids(session, body.service_ids)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        await replace_profile_services(session, profile, valid_ids)
+
     if body.full_name is not None:
         first_name, last_name = split_full_name(body.full_name)
         profile.first_name = first_name
         profile.last_name = last_name
     profile.business_name = body.business_name
-    profile.business_category = body.business_category
     profile.phone = body.phone
     profile.gst_number = body.gst_number
     profile.fssai_license = body.fssai_license
@@ -136,8 +156,54 @@ async def admin_verify_seller(
         raise HTTPException(status_code=404, detail="Seller profile not found")
 
     if body.action == "approve":
+        # Guard: profile must have at least one service
+        service_count = (await session.exec(
+            select(func.count()).where(
+                SellerProfileService.seller_profile_id == profile.id
+            )
+        )).one()
+        if int(service_count) == 0:
+            raise HTTPException(
+                status_code=400, detail="Set services before approving"
+            )
+
         profile.verification_status = VerificationStatus.Approved
         profile.rejection_reason = None
+
+        # Idempotent store provisioning
+        existing_store = (await session.exec(
+            select(Store).where(Store.seller_profile_id == profile.id)
+        )).first()
+        # Note: Store.address is captured at first approval. Subsequent
+        # business-address edits do not propagate to an existing Store —
+        # sellers update store address via a dedicated store-settings flow.
+        if existing_store is None:
+            biz_addr = (await session.exec(
+                select(Address).where(Address.id == profile.business_address_id)
+            )).first()
+            if biz_addr is None:
+                raise HTTPException(
+                    status_code=500, detail="Seller profile missing business address"
+                )
+            store_addr = Address(
+                address_line1=biz_addr.address_line1,
+                address_line2=biz_addr.address_line2,
+                landmark=biz_addr.landmark,
+                city=biz_addr.city,
+                state=biz_addr.state,
+                pincode=biz_addr.pincode,
+                country=biz_addr.country,
+                latitude=biz_addr.latitude,
+                longitude=biz_addr.longitude,
+            )
+            session.add(store_addr)
+            await session.flush()
+            session.add(Store(
+                name=profile.business_name,
+                is_active=True,
+                seller_profile_id=profile.id,
+                address_id=store_addr.id,
+            ))
     elif body.action == "reject":
         if not body.rejection_reason or not body.rejection_reason.strip():
             raise HTTPException(status_code=400, detail="rejection_reason required when rejecting")
@@ -146,7 +212,16 @@ async def admin_verify_seller(
     else:
         raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
 
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        # Another approval won the race; re-fetch and return success.
+        refreshed = await session.exec(
+            select(SellerProfile).where(SellerProfile.user_id == seller_id)
+        )
+        profile = refreshed.first()
+        assert profile is not None
     await session.refresh(profile)
     return {
         "seller_id": seller_id,
@@ -158,13 +233,24 @@ async def admin_verify_seller(
 ALLOWED_STATUSES = {"pending", "approved", "rejected", "all"}
 
 
-def _application_payload(profile: SellerProfile, user: User, address: Address) -> dict:  # type: ignore[type-arg]
+# Performance note: list_profile_services issues one query per profile.
+# For small admin queues this is fine; if listings grow or pagination lands,
+# rewrite to a single JOIN across SellerProfile / SellerProfileService /
+# Service / ServiceTranslation with selectinload-style batching.
+async def _application_payload(
+    session: AsyncSession,
+    profile: SellerProfile,
+    user: User,
+    address: Address,
+) -> dict:  # type: ignore[type-arg]
+    assert profile.id is not None
+    services = await list_profile_services(session, profile.id)
     return SellerApplicationPayload(
         seller_id=user.id,
         email=user.email,
         full_name=compose_full_name(profile.first_name, profile.last_name),
         business_name=profile.business_name,
-        business_category=profile.business_category,
+        services=services,
         address=address_to_payload(address),
         phone=profile.phone,
         gst_number=profile.gst_number,
@@ -198,7 +284,10 @@ async def admin_list_applications(
 
     result = await session.exec(stmt)
     rows = result.all()
-    return [_application_payload(profile, user, address) for profile, user, address in rows]
+    return [
+        await _application_payload(session, profile, user, address)
+        for profile, user, address in rows
+    ]
 
 
 @router.get("/admin/applications/counts")
@@ -220,3 +309,31 @@ async def admin_application_counts(
             counts[key] = count
     counts["total"] = counts["pending"] + counts["approved"] + counts["rejected"]
     return counts
+
+
+@router.patch("/admin/{seller_id}/services")
+async def admin_set_services(
+    seller_id: int,
+    body: AdminSetServicesBody,
+    _current_user: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    profile_result = await session.exec(
+        select(SellerProfile).where(SellerProfile.user_id == seller_id)
+    )
+    profile = profile_result.first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+
+    assert profile.id is not None
+    profile_id: int = profile.id
+
+    try:
+        valid_ids = await validate_service_ids(session, body.service_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    await replace_profile_services(session, profile, valid_ids)
+    await session.commit()
+    services = await list_profile_services(session, profile_id)
+    return {"seller_id": seller_id, "services": [s.model_dump() for s in services]}

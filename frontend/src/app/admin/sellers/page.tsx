@@ -6,7 +6,8 @@ import DataTable, { Column } from "@/components/DataTable";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
-import { SellerApplication, ApplicationCounts, VerificationStatus } from "@/types";
+import { SellerApplication, ApplicationCounts, VerificationStatus, Service } from "@/types";
+import ServicePicker from "@/components/ServicePicker";
 import styles from "./page.module.css";
 
 type Filter = VerificationStatus | "all";
@@ -49,6 +50,8 @@ export default function AdminSellersPage() {
   const [reviewing, setReviewing] = useState<SellerApplication | null>(null);
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [editingServices, setEditingServices] = useState<{ sellerId: number; ids: number[] } | null>(null);
+  const [allServices, setAllServices] = useState<Service[]>([]);
 
   function closeModal() {
     setReviewing(null);
@@ -109,6 +112,34 @@ export default function AdminSellersPage() {
     }
   }
 
+  async function saveServices() {
+    if (!editingServices || !token) return;
+    try {
+      await patch(
+        `/api/v1/sellers/admin/${editingServices.sellerId}/services`,
+        { service_ids: editingServices.ids },
+        token,
+      );
+      const fresh = await get<SellerApplication[]>(
+        `/api/v1/sellers/admin/applications?status=${filter}`,
+        token,
+      );
+      setApps(fresh);
+      setReviewing((prev) =>
+        prev && prev.seller_id === editingServices.sellerId
+          ? {
+              ...prev,
+              services:
+                fresh.find((r) => r.seller_id === prev.seller_id)?.services ?? prev.services,
+            }
+          : prev,
+      );
+      setEditingServices(null);
+    } catch {
+      /* silent */
+    }
+  }
+
   useEffect(() => {
     if (!authLoading && (!dbUser || dbUser.role !== "admin")) {
       router.push(dbUser ? "/" : "/login");
@@ -118,6 +149,11 @@ export default function AdminSellersPage() {
       fetchAll();
     }
   }, [authLoading, dbUser, token, router, fetchAll]);
+
+  useEffect(() => {
+    if (!token) return;
+    get<Service[]>("/api/v1/catalog/services", token).then(setAllServices).catch(() => {});
+  }, [token]);
 
   const columns: Column<SellerApplication>[] = [
     {
@@ -136,11 +172,22 @@ export default function AdminSellersPage() {
       ),
     },
     {
-      key: "business_category",
-      label: "Category",
-      render: (row) => (
-        <span className={styles.categoryBadge}>{row.business_category}</span>
-      ),
+      key: "services",
+      label: "Services",
+      render: (row) => {
+        const visible = row.services.slice(0, 2);
+        const extra = row.services.length - visible.length;
+        return (
+          <span>
+            {visible.map((s) => (
+              <span key={s.id} className={styles.categoryBadge}>{s.name}</span>
+            ))}
+            {extra > 0 && (
+              <span className={styles.categoryBadge}>+{extra} more</span>
+            )}
+          </span>
+        );
+      },
     },
     {
       key: "submitted_at",
@@ -214,6 +261,32 @@ export default function AdminSellersPage() {
         emptyMessage={emptyMsgMap[filter]}
       />
 
+      {editingServices && (
+        <Modal
+          title="Edit services"
+          onClose={() => setEditingServices(null)}
+          footer={
+            <>
+              <button className="btn btn-outline" onClick={() => setEditingServices(null)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                disabled={editingServices.ids.length === 0}
+                onClick={saveServices}
+              >
+                Save
+              </button>
+            </>
+          }
+        >
+          <ServicePicker
+            selectedIds={editingServices.ids}
+            onChange={(ids) => setEditingServices({ ...editingServices, ids })}
+            token={token}
+            services={allServices.length > 0 ? allServices : undefined}
+          />
+        </Modal>
+      )}
+
       {reviewing && (
         <Modal
           title={`Review — ${reviewing.business_name}`}
@@ -228,6 +301,8 @@ export default function AdminSellersPage() {
                   reviewing.verification_status === "rejected") && (
                   <button
                     className={styles.successBtn}
+                    disabled={reviewing.services.length === 0}
+                    title={reviewing.services.length === 0 ? "Set services before approving" : undefined}
                     onClick={() => handleApprove(reviewing.seller_id)}
                   >
                     Approve
@@ -304,8 +379,31 @@ export default function AdminSellersPage() {
                 <span className={styles.detailsValue}>{reviewing.business_name}</span>
               </div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>Category</span>
-                <span className={styles.detailsValue}>{reviewing.business_category}</span>
+                <span className={styles.detailsLabel}>
+                  Services
+                  <button
+                    type="button"
+                    style={{ marginLeft: "0.5rem", border: "none", background: "transparent", cursor: "pointer" }}
+                    onClick={() =>
+                      setEditingServices({
+                        sellerId: reviewing.seller_id,
+                        ids: reviewing.services.map((s) => s.id),
+                      })
+                    }
+                    aria-label="Edit services"
+                  >
+                    ✏️
+                  </button>
+                </span>
+                <span className={styles.detailsValue}>
+                  {reviewing.services.length === 0 ? (
+                    <em>None</em>
+                  ) : (
+                    reviewing.services.map((s) => (
+                      <span key={s.id} className={styles.categoryBadge}>{s.name}</span>
+                    ))
+                  )}
+                </span>
               </div>
               <div className={styles.detailsRow}>
                 <span className={styles.detailsLabel}>Address line 1</span>

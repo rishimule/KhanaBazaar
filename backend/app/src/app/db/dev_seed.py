@@ -24,6 +24,7 @@ from app.models.profile import (
     AdminProfile,
     CustomerProfile,
     SellerProfile,
+    SellerProfileService,
     VerificationStatus,
 )
 from app.models.store import Store, StoreInventory
@@ -37,8 +38,11 @@ LANGUAGES = [
     ("pa", "Punjabi", "ਪੰਜਾਬੀ"),
 ]
 
-DEFAULT_SERVICE_SLUG = "default"
-DEFAULT_SERVICE_NAME = "Khana Bazaar"
+SERVICES: list[dict[str, Any]] = [
+    {"slug": "grocery", "name": "Grocery", "description": "Daily essentials, fresh produce, pantry staples"},
+    {"slug": "electronics", "name": "Electronics", "description": "Gadgets, accessories, and home electronics"},
+    {"slug": "pharmacy", "name": "Pharmacy", "description": "Medicines, wellness, and personal care"},
+]
 DEFAULT_SUBCATEGORY_SLUG = "_default"
 
 TEST_USERS: list[dict[str, Any]] = [
@@ -69,7 +73,7 @@ APPLICATIONS: list[dict[str, Any]] = [
         "email": "pending.seller@khanabazaar.dev",
         "full_name": "Arjun Menon",
         "business_name": "Arjun Fresh Kirana",
-        "business_category": "Groceries",
+        "service_slugs": ["grocery"],
         "address_line1": "221B, Carter Road",
         "address_line2": "Bandra West",
         "landmark": "Near Bandstand Promenade",
@@ -91,7 +95,7 @@ APPLICATIONS: list[dict[str, Any]] = [
         "email": "approved.seller@khanabazaar.dev",
         "full_name": "Sana Kapoor",
         "business_name": "Sana Organic Mart",
-        "business_category": "Organic Produce",
+        "service_slugs": ["grocery"],
         "address_line1": "14, Brigade Road",
         "address_line2": "Ashok Nagar",
         "landmark": "Opposite Cauvery Emporium",
@@ -113,7 +117,7 @@ APPLICATIONS: list[dict[str, Any]] = [
         "email": "rejected.seller@khanabazaar.dev",
         "full_name": "Vikram Singh",
         "business_name": "Vikram Provision Store",
-        "business_category": "Groceries",
+        "service_slugs": ["grocery"],
         "address_line1": "7, Sector 18",
         "address_line2": None,
         "landmark": "Near Atta Market",
@@ -134,10 +138,10 @@ APPLICATIONS: list[dict[str, Any]] = [
 ]
 
 CATEGORIES: list[dict[str, Any]] = [
-    {"slug": "fruits-vegetables", "name": "Fruits & Vegetables", "description": "Fresh produce from local farms"},
-    {"slug": "dairy-bakery", "name": "Dairy & Bakery", "description": "Milk, paneer, bread, and baked goods"},
-    {"slug": "staples-grains", "name": "Staples & Grains", "description": "Rice, atta, dal, and cooking essentials"},
-    {"slug": "snacks-beverages", "name": "Snacks & Beverages", "description": "Chips, biscuits, tea, coffee, and cold drinks"},
+    {"service_slug": "grocery", "slug": "fruits-vegetables", "name": "Fruits & Vegetables", "description": "Fresh produce from local farms"},
+    {"service_slug": "grocery", "slug": "dairy-bakery", "name": "Dairy & Bakery", "description": "Milk, paneer, bread, and baked goods"},
+    {"service_slug": "grocery", "slug": "staples-grains", "name": "Staples & Grains", "description": "Rice, atta, dal, and cooking essentials"},
+    {"service_slug": "grocery", "slug": "snacks-beverages", "name": "Snacks & Beverages", "description": "Chips, biscuits, tea, coffee, and cold drinks"},
 ]
 
 PRODUCTS: list[dict[str, Any]] = [
@@ -251,7 +255,7 @@ STORE_OWNER_PROFILES: list[dict[str, Any]] = [
         "email": "seller@khanabazaar.dev",
         "full_name": "Ravi Sharma",
         "business_name": "Sharma General Store",
-        "business_category": "Groceries",
+        "service_slugs": ["grocery"],
         "phone": "+919811110001",
         "gst_number": "06AAAAA1111A1Z1",
         "fssai_license": "44556677889900",
@@ -265,7 +269,7 @@ STORE_OWNER_PROFILES: list[dict[str, Any]] = [
         "email": "seller2@khanabazaar.dev",
         "full_name": "Krishna Patel",
         "business_name": "Krishna Supermart",
-        "business_category": "Groceries",
+        "service_slugs": ["grocery"],
         "phone": "+919811110002",
         "gst_number": "27BBBBB2222B2Z2",
         "fssai_license": "55667788990011",
@@ -279,7 +283,7 @@ STORE_OWNER_PROFILES: list[dict[str, Any]] = [
         "email": "seller3@khanabazaar.dev",
         "full_name": "Balaji Ramaswamy",
         "business_name": "Balaji Fresh Market",
-        "business_category": "Fresh Produce",
+        "service_slugs": ["grocery"],
         "phone": "+919811110003",
         "gst_number": "33CCCCC3333C3Z3",
         "fssai_license": "66778899001122",
@@ -297,9 +301,10 @@ EXPECTED_FULL_COUNTS = {
     "customerprofile": 1,
     "adminprofile": 1,
     "sellerprofile": 6,
+    "sellerprofile_service": 6,
     "address": 9,
-    "service": 1,
-    "service_translation": 1,
+    "service": 3,
+    "service_translation": 3,
     "category": 4,
     "category_translation": 4,
     "subcategory": 4,
@@ -373,6 +378,37 @@ async def _upsert_address(session: AsyncSession, owner: object | None, data: Map
     return address
 
 
+async def _upsert_seller_profile_services(
+    session: AsyncSession, profile: SellerProfile, service_slugs: list[str]
+) -> None:
+    assert profile.id is not None
+    service_ids: list[int] = []
+    for slug in service_slugs:
+        result = await session.exec(select(Service).where(Service.slug == slug))
+        service = result.first()
+        assert service is not None and service.id is not None, (
+            f"seed expected service with slug={slug!r}; ensure SERVICES are seeded first"
+        )
+        service_ids.append(service.id)
+
+    existing_result = await session.exec(
+        select(SellerProfileService).where(
+            SellerProfileService.seller_profile_id == profile.id
+        )
+    )
+    existing = {row.service_id: row for row in existing_result.all()}
+    desired = set(service_ids)
+
+    for service_id in desired - existing.keys():
+        session.add(
+            SellerProfileService(seller_profile_id=profile.id, service_id=service_id)
+        )
+    for service_id, row in list(existing.items()):
+        if service_id not in desired:
+            await session.delete(row)
+    await session.flush()
+
+
 async def _upsert_seller_profile(
     session: AsyncSession, user: User, data: Mapping[str, Any]
 ) -> SellerProfile:
@@ -390,7 +426,6 @@ async def _upsert_seller_profile(
             last_name=last_name,
             phone=data["phone"],
             business_name=data["business_name"],
-            business_category=data["business_category"],
             gst_number=data["gst_number"],
             fssai_license=data["fssai_license"],
             bank_account_number=data["bank_account_number"],
@@ -406,7 +441,6 @@ async def _upsert_seller_profile(
         profile.last_name = last_name
         profile.phone = data["phone"]
         profile.business_name = data["business_name"]
-        profile.business_category = data["business_category"]
         profile.gst_number = data["gst_number"]
         profile.fssai_license = data["fssai_license"]
         profile.bank_account_number = data["bank_account_number"]
@@ -415,6 +449,7 @@ async def _upsert_seller_profile(
         profile.rejection_reason = data["rejection_reason"]
     session.add(profile)
     await session.flush()
+    await _upsert_seller_profile_services(session, profile, data["service_slugs"])
     return profile
 
 
@@ -472,11 +507,18 @@ async def _upsert_customer_profile(
     return profile
 
 
-async def _ensure_default_service(session: AsyncSession) -> Service:
-    result = await session.exec(select(Service).where(Service.slug == DEFAULT_SERVICE_SLUG))
+async def _ensure_service(
+    session: AsyncSession, data: Mapping[str, Any], sort_order: int
+) -> Service:
+    result = await session.exec(select(Service).where(Service.slug == data["slug"]))
     service = result.first()
     if service is None:
-        service = Service(slug=DEFAULT_SERVICE_SLUG, is_active=True, sort_order=0)
+        service = Service(slug=data["slug"], is_active=True, sort_order=sort_order)
+        session.add(service)
+        await session.flush()
+    else:
+        service.sort_order = sort_order
+        service.is_active = True
         session.add(service)
         await session.flush()
 
@@ -492,12 +534,13 @@ async def _ensure_default_service(session: AsyncSession) -> Service:
             ServiceTranslation(
                 service_id=service.id,
                 language_code="en",
-                name=DEFAULT_SERVICE_NAME,
-                description=None,
+                name=data["name"],
+                description=data.get("description"),
             )
         )
     else:
-        translation.name = DEFAULT_SERVICE_NAME
+        translation.name = data["name"]
+        translation.description = data.get("description")
     await session.flush()
     return service
 
@@ -683,6 +726,8 @@ async def seed_seller_application_subset(session: AsyncSession) -> None:
     await _ensure_languages(session)
     admin_user = await _upsert_user(session, ADMIN["email"], ADMIN["role"])
     await _upsert_admin_profile(session, admin_user, ADMIN)
+    for sort_order, service_data in enumerate(SERVICES):
+        await _ensure_service(session, service_data, sort_order)
     for application in APPLICATIONS:
         user = await _upsert_user(session, application["email"], UserRole.Seller)
         await _upsert_seller_profile(session, user, application)
@@ -699,6 +744,12 @@ async def seed_demo_data(session: AsyncSession) -> None:
     await _upsert_admin_profile(session, users_by_email[ADMIN["email"]], ADMIN)
     await _upsert_customer_profile(session, users_by_email[CUSTOMER["email"]], CUSTOMER)
 
+    services_by_slug: dict[str, Service] = {}
+    for sort_order, service_data in enumerate(SERVICES):
+        service = await _ensure_service(session, service_data, sort_order)
+        assert service.id is not None
+        services_by_slug[service.slug] = service
+
     for profile_data in STORE_OWNER_PROFILES:
         user = users_by_email[profile_data["email"]]
         await _upsert_seller_profile(session, user, profile_data)
@@ -708,12 +759,11 @@ async def seed_demo_data(session: AsyncSession) -> None:
         users_by_email[user.email] = user
         await _upsert_seller_profile(session, user, application)
 
-    service = await _ensure_default_service(session)
-    assert service.id is not None
-
     categories_by_slug: dict[str, Category] = {}
     subcategories_by_category_slug: dict[str, Subcategory] = {}
     for sort_order, category_data in enumerate(CATEGORIES):
+        service = services_by_slug[category_data["service_slug"]]
+        assert service.id is not None
         category = await _upsert_category(session, service.id, category_data, sort_order)
         categories_by_slug[category.slug] = category
         sub = await _upsert_default_subcategory(session, category, category_data["name"])
@@ -760,6 +810,7 @@ _COUNT_MODELS = {
     "customerprofile": CustomerProfile,
     "adminprofile": AdminProfile,
     "sellerprofile": SellerProfile,
+    "sellerprofile_service": SellerProfileService,
     "address": Address,
     "service": Service,
     "service_translation": ServiceTranslation,

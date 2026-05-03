@@ -8,7 +8,8 @@ from app import app
 from app.core.security import get_current_admin, get_current_seller, get_current_user
 from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.profile import SellerProfile, VerificationStatus
+from app.models.catalog import Service, ServiceTranslation
+from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from tests._helpers import make_address
 
 mock_admin = User(id=1, email="admin@kb.com", role=UserRole.Admin, is_active=True)
@@ -24,12 +25,11 @@ async def seed_mock_users(session: AsyncSession) -> AsyncGenerator[None, None]:
     address = Address(**make_address())
     session.add(address)
     await session.flush()
-    session.add(SellerProfile(
+    seller_profile = SellerProfile(
         user_id=mock_seller.id,
         first_name="Seller",
         last_name=None,
         business_name="Seller Store",
-        business_category="grocery",
         phone="+919811110000",
         gst_number="06AAAAA1111A1Z1",
         fssai_license="44556677889900",
@@ -37,7 +37,15 @@ async def seed_mock_users(session: AsyncSession) -> AsyncGenerator[None, None]:
         bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved,
         business_address_id=address.id,
-    ))
+    )
+    session.add(seller_profile)
+    await session.flush()
+
+    grocery_service = Service(slug="grocery")
+    session.add(grocery_service)
+    await session.flush()
+    session.add(ServiceTranslation(service_id=grocery_service.id, language_code="en", name="Grocery"))
+    session.add(SellerProfileService(seller_profile_id=seller_profile.id, service_id=grocery_service.id))
     await session.commit()
     yield
 
@@ -125,3 +133,32 @@ async def test_public_can_fetch_products_and_stores() -> None:
 
         stores_resp = await ac.get("/api/v1/stores/")
         assert stores_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_store_response_includes_services(
+    override_as_seller: Any,
+) -> None:
+    # Create the store first
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        store_data = {"name": "Services Mart", "address": make_address()}
+        create_resp = await ac.post("/api/v1/stores/", json=store_data)
+        assert create_resp.status_code == 200, create_resp.text
+        sid = create_resp.json()["id"]
+        get_resp = await ac.get(f"/api/v1/stores/{sid}")
+    assert get_resp.status_code == 200
+    body = get_resp.json()
+    assert isinstance(body["services"], list)
+    assert any(s["slug"] == "grocery" for s in body["services"])
+
+
+@pytest.mark.asyncio
+async def test_seller_cannot_create_second_store(override_as_seller: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        first = {"name": "First", "address": make_address()}
+        r1 = await ac.post("/api/v1/stores/", json=first)
+        assert r1.status_code == 200, r1.text
+        second = {"name": "Second", "address": make_address(pincode="400099")}
+        r2 = await ac.post("/api/v1/stores/", json=second)
+    assert r2.status_code == 409
+    assert "one" in r2.json()["detail"].lower()

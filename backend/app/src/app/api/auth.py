@@ -177,11 +177,21 @@ async def seller_register(
     body: SellerRegisterBody,
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:  # type: ignore[type-arg]
+    from app.services.seller_services import (
+        replace_profile_services,
+        validate_service_ids,
+    )
+
     email = decode_email_verification_token(body.email_token)
 
     result = await session.exec(select(User).where(User.email == email))
     if result.first():
         raise HTTPException(status_code=409, detail={"error": "email_already_registered"})
+
+    try:
+        valid_ids = await validate_service_ids(session, body.service_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     first_name, last_name = split_full_name(body.full_name)
     user = User(email=email, role=UserRole.Seller)
@@ -197,7 +207,6 @@ async def seller_register(
         first_name=first_name,
         last_name=last_name,
         business_name=body.business_name,
-        business_category=body.business_category,
         phone=body.phone,
         gst_number=body.gst_number,
         fssai_license=body.fssai_license,
@@ -206,6 +215,9 @@ async def seller_register(
         business_address_id=address.id,
     )
     session.add(profile)
+    await session.flush()
+    await replace_profile_services(session, profile, valid_ids)
+
     await session.commit()
     await session.refresh(user)
 
