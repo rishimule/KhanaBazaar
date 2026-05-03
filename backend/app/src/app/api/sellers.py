@@ -19,6 +19,7 @@ from app.schemas.sellers import (
     SellerProfileUpdateBody,
 )
 from app.services.profiles import compose_full_name, split_full_name
+from app.services.seller_services import list_profile_services
 
 router = APIRouter()
 
@@ -57,8 +58,6 @@ async def get_seller_profile(
     current_user: User = Depends(get_current_seller),
     session: AsyncSession = Depends(get_db_session),
 ) -> SellerProfilePayload:
-    from app.services.seller_services import list_profile_services
-
     assert current_user.id is not None
     profile = await _seller_profile_with_address(session, current_user.id)
     if not profile:
