@@ -267,6 +267,7 @@ async def test_admin_set_services_replaces_set(
         profile = (await s.exec(
             select(SellerProfile).where(SellerProfile.user_id == mock_seller_pending.id)
         )).first()
+        assert profile is not None
         rows = (await s.exec(
             select(SellerProfileService).where(
                 SellerProfileService.seller_profile_id == profile.id

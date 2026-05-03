@@ -145,6 +145,7 @@ async def test_approve_creates_store(
         profile = (await s.exec(
             select(SellerProfile).where(SellerProfile.user_id == mock_seller.id)
         )).first()
+        assert profile is not None
         stores = (await s.exec(
             select(Store).where(Store.seller_profile_id == profile.id)
         )).all()
@@ -189,6 +190,7 @@ async def test_re_approval_is_idempotent(
         profile = (await s.exec(
             select(SellerProfile).where(SellerProfile.user_id == mock_seller.id)
         )).first()
+        assert profile is not None
         stores = (await s.exec(
             select(Store).where(Store.seller_profile_id == profile.id)
         )).all()

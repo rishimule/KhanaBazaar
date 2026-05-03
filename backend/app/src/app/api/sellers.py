@@ -158,7 +158,7 @@ async def admin_verify_seller(
     if body.action == "approve":
         # Guard: profile must have at least one service
         service_count = (await session.exec(
-            select(func.count(SellerProfileService.id)).where(
+            select(func.count()).where(
                 SellerProfileService.seller_profile_id == profile.id
             )
         )).one()

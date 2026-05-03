@@ -1,7 +1,6 @@
 from typing import Any, AsyncGenerator, Iterator
 
 import pytest
-import sqlmodel
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -165,6 +164,7 @@ async def test_patch_me_pending_can_change_services(
 
     async with AsyncSession(test_engine) as s:
         profile = (await s.exec(select(SellerProfile).where(SellerProfile.user_id == mock_seller.id))).first()
+        assert profile is not None
         rows = (await s.exec(select(SellerProfileService).where(SellerProfileService.seller_profile_id == profile.id))).all()
         assert {r.service_id for r in rows} == {pid}
 

@@ -19,13 +19,14 @@ async def seeded_grocery_service_id(session: AsyncSession) -> int:
         )
     )
     await session.flush()
-    sid = service.id
+    assert service.id is not None
+    sid: int = service.id
     await session.commit()
     return sid
 
 
-def _register_payload(service_ids: list[int], **overrides) -> dict:
-    payload = {
+def _register_payload(service_ids: list[int], **overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
         "full_name": "Priya Verma",
         "phone": "9876543210",
         "business_name": "Priya's Grocery",
@@ -150,9 +151,9 @@ async def test_seller_register_persists_services(seeded_grocery_service_id: int)
         )
         assert resp.status_code == 200, resp.text
 
-    from app.models.profile import SellerProfile, SellerProfileService
     from sqlmodel import select
 
+    from app.models.profile import SellerProfile, SellerProfileService
     from tests.conftest import test_engine
 
     async with AsyncSession(test_engine) as s:
