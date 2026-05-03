@@ -529,66 +529,62 @@ function SellerSignupPageInner() {
                 {toast.message}
               </div>
             )}
-            <div className={styles.formGrid}>
-              <div className={styles.inputGroup}>
-                <label className={styles.label} htmlFor="business-name">
-                  Business name
-                </label>
-                <input
-                  id="business-name"
-                  type="text"
-                  className={
-                    fieldErrors.businessName
-                      ? `${styles.input} ${styles.inputError}`
-                      : styles.input
-                  }
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  onBlur={() => {
-                    if (!businessName.trim())
-                      setFieldErrors((p) => ({
-                        ...p,
-                        businessName: "Business name is required",
-                      }));
-                    else clearError("businessName");
-                  }}
-                  placeholder="Sharma Kirana Store"
-                />
-                {fieldErrors.businessName && (
-                  <span className={styles.fieldError}>
-                    {fieldErrors.businessName}
-                  </span>
-                )}
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Services Offered</label>
-                <ServicePicker
-                  selectedIds={serviceIds}
-                  onChange={(ids) => {
-                    setServiceIds(ids);
-                    if (ids.length > 0) clearError("services");
-                  }}
-                  services={services.length > 0 ? services : undefined}
-                />
-                {fieldErrors.services && (
-                  <p className={styles.errorText}>{fieldErrors.services}</p>
-                )}
-              </div>
-              <div
-                className={`${styles.inputGroup} ${styles.formGridFull}`}
-              >
-                <label className={styles.label}>Business address</label>
-                <AddressFields
-                  value={address}
-                  onChange={setAddress}
-                  errors={{
-                    address_line1: fieldErrors.address_line1,
-                    city: fieldErrors.city,
-                    state: fieldErrors.state,
-                    pincode: fieldErrors.pincode,
-                  }}
-                />
-              </div>
+            <div className={styles.inputGroup}>
+              <label className={styles.label} htmlFor="business-name">
+                Business name
+              </label>
+              <input
+                id="business-name"
+                type="text"
+                className={
+                  fieldErrors.businessName
+                    ? `${styles.input} ${styles.inputError}`
+                    : styles.input
+                }
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                onBlur={() => {
+                  if (!businessName.trim())
+                    setFieldErrors((p) => ({
+                      ...p,
+                      businessName: "Business name is required",
+                    }));
+                  else clearError("businessName");
+                }}
+                placeholder="Sharma Kirana Store"
+              />
+              {fieldErrors.businessName && (
+                <span className={styles.fieldError}>
+                  {fieldErrors.businessName}
+                </span>
+              )}
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Services Offered</label>
+              <ServicePicker
+                selectedIds={serviceIds}
+                onChange={(ids) => {
+                  setServiceIds(ids);
+                  if (ids.length > 0) clearError("services");
+                }}
+                services={services.length > 0 ? services : undefined}
+              />
+              {fieldErrors.services && (
+                <p className={styles.errorText}>{fieldErrors.services}</p>
+              )}
+            </div>
+            <div className={styles.inputGroup}>
+              <label className={styles.label}>Business address</label>
+              <AddressFields
+                value={address}
+                onChange={setAddress}
+                errors={{
+                  address_line1: fieldErrors.address_line1,
+                  city: fieldErrors.city,
+                  state: fieldErrors.state,
+                  pincode: fieldErrors.pincode,
+                }}
+              />
             </div>
             <div className={styles.btnRow}>
               <button
@@ -642,7 +638,7 @@ function SellerSignupPageInner() {
             <div className={styles.formGrid}>
               <div className={styles.inputGroup}>
                 <label className={styles.label} htmlFor="gst-number">
-                  GST number
+                  GST number (optional)
                 </label>
                 <input
                   id="gst-number"
@@ -676,7 +672,7 @@ function SellerSignupPageInner() {
               </div>
               <div className={styles.inputGroup}>
                 <label className={styles.label} htmlFor="fssai-license">
-                  FSSAI license number
+                  FSSAI license number (optional)
                 </label>
                 <input
                   id="fssai-license"
@@ -689,12 +685,7 @@ function SellerSignupPageInner() {
                   value={fssaiLicense}
                   onChange={(e) => setFssaiLicense(e.target.value)}
                   onBlur={() => {
-                    if (!fssaiLicense.trim())
-                      setFieldErrors((p) => ({
-                        ...p,
-                        fssaiLicense: "FSSAI license number is required",
-                      }));
-                    else clearError("fssaiLicense");
+                    clearError("fssaiLicense");
                   }}
                   placeholder="12345678901234"
                 />
@@ -706,7 +697,7 @@ function SellerSignupPageInner() {
               </div>
               <div className={styles.inputGroup}>
                 <label className={styles.label} htmlFor="bank-account">
-                  Bank account number
+                  Bank account number (optional)
                 </label>
                 <input
                   id="bank-account"
@@ -719,10 +710,10 @@ function SellerSignupPageInner() {
                   value={bankAccountNumber}
                   onChange={(e) => setBankAccountNumber(e.target.value)}
                   onBlur={() => {
-                    if (!bankAccountNumber.trim())
+                    if (bankAccountNumber && !/^\d{9,18}$/.test(bankAccountNumber))
                       setFieldErrors((p) => ({
                         ...p,
-                        bankAccountNumber: "Bank account number is required",
+                        bankAccountNumber: "Enter a valid bank account number (9–18 digits)",
                       }));
                     else clearError("bankAccountNumber");
                   }}
@@ -736,7 +727,7 @@ function SellerSignupPageInner() {
               </div>
               <div className={styles.inputGroup}>
                 <label className={styles.label} htmlFor="bank-ifsc">
-                  Bank IFSC code
+                  Bank IFSC code (optional)
                 </label>
                 <input
                   id="bank-ifsc"
@@ -785,10 +776,9 @@ function SellerSignupPageInner() {
                   if (gstNumber && !GST_REGEX.test(gstNumber))
                     errs.gstNumber =
                       "Enter a valid 15-character GST number (e.g., 27AAPFU0939F1ZV)";
-                  if (!fssaiLicense.trim())
-                    errs.fssaiLicense = "FSSAI license number is required";
-                  if (!bankAccountNumber.trim())
-                    errs.bankAccountNumber = "Bank account number is required";
+                  if (bankAccountNumber && !/^\d{9,18}$/.test(bankAccountNumber))
+                    errs.bankAccountNumber =
+                      "Enter a valid bank account number (9–18 digits)";
                   if (bankIfsc && !IFSC_REGEX.test(bankIfsc))
                     errs.bankIfsc =
                       "Enter a valid 11-character IFSC code (e.g., HDFC0001234)";
