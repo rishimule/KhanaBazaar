@@ -68,3 +68,21 @@ async def session_fixture() -> AsyncGenerator[AsyncSession, None]:
 async def client_fixture() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture(autouse=True)
+def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, None, None]:
+    """Mock order-email dispatchers as no-ops in every test except
+    test_order_emails (which exercises the real tasks). The real dispatchers
+    spawn a worker thread + open an engine to settings.DATABASE_URL (the dev
+    database). In EAGER test mode this races with pytest-anyio's loop and
+    the connection pool against the test DB, causing intermittent test
+    pollution and snapshot isolation oddities."""
+    if "test_order_emails" in request.node.nodeid:
+        yield
+        return
+    from unittest.mock import patch
+
+    with patch("app.api.orders.dispatch_order_placed", lambda *a, **kw: None), \
+         patch("app.api.orders.dispatch_order_status_changed", lambda *a, **kw: None):
+        yield
