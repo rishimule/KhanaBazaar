@@ -9,7 +9,8 @@ import { Store, VerificationStatus } from "@/types";
 
 const SELLER_NAV = [
   { href: "/seller", label: "Dashboard", icon: "📊" },
-  { href: "/seller/inventory", label: "Inventory", icon: "📦" },
+  { href: "/seller/orders", label: "Orders", icon: "📦" },
+  { href: "/seller/inventory", label: "Inventory", icon: "🏷️" },
 ];
 
 export default function SellerLayout({
@@ -95,7 +96,9 @@ export default function SellerLayout({
       ? "Seller Dashboard"
       : pathname === "/seller/inventory"
         ? "Inventory Management"
-        : "Seller Portal";
+        : pathname.startsWith("/seller/orders")
+          ? "Store Orders"
+          : "Seller Portal";
 
   return (
     <DashboardLayout

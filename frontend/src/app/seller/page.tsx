@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import StatsCard from "@/components/StatsCard";
+import ActiveOrdersWidget from "@/components/orders/ActiveOrdersWidget";
 import { Store, StoreInventory } from "@/types";
 import styles from "./page.module.css";
 
@@ -49,6 +50,8 @@ export default function SellerDashboardPage() {
 
   return (
     <>
+      <ActiveOrdersWidget role="seller" limit={10} />
+
       {/* Stats */}
       <div className={styles.statsGrid}>
         <StatsCard
