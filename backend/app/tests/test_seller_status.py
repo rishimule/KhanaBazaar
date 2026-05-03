@@ -3,6 +3,7 @@ from typing import Any, AsyncGenerator, Iterator
 import pytest
 import sqlmodel
 from httpx import ASGITransport, AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
@@ -12,6 +13,7 @@ from app.models.base import User, UserRole
 from app.models.catalog import Service, ServiceTranslation
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from tests._helpers import make_address
+from tests.conftest import test_engine
 
 mock_seller = User(
     id=10, email="sellerstatus@kb.com",
@@ -70,7 +72,6 @@ def override_as_seller() -> Iterator[None]:
 
 
 async def _set_seller_status(session: AsyncSession, status: VerificationStatus) -> None:
-    from sqlmodel import select
     profile = (await session.exec(
         select(SellerProfile).where(SellerProfile.user_id == mock_seller.id)
     )).first()
@@ -92,6 +93,23 @@ async def seller_status_approved(session: AsyncSession) -> None:
 @pytest.fixture
 async def seller_status_rejected(session: AsyncSession) -> None:
     await _set_seller_status(session, VerificationStatus.Rejected)
+
+
+@pytest.fixture
+async def seeded_pharmacy_service_id() -> int:
+    async with AsyncSession(test_engine) as s:
+        pharmacy = Service(slug="pharmacy", is_active=True, sort_order=1)
+        s.add(pharmacy)
+        await s.flush()
+        await s.refresh(pharmacy)
+        pid: int = pharmacy.id  # type: ignore[assignment]
+        s.add(
+            ServiceTranslation(
+                service_id=pid, language_code="en", name="Pharmacy"
+            )
+        )
+        await s.commit()
+        return pid
 
 
 def _patch_payload(**overrides: Any) -> dict:  # type: ignore[type-arg]
@@ -136,31 +154,16 @@ async def test_get_seller_profile_returns_fields(override_as_seller: Any) -> Non
 async def test_patch_me_pending_can_change_services(
     override_as_seller: Any,
     seller_status_pending: None,
+    seeded_pharmacy_service_id: int,
 ) -> None:
-    from app.models.catalog import Service, ServiceTranslation
-    from sqlmodel.ext.asyncio.session import AsyncSession as _AS
-    from tests.conftest import test_engine
-
-    pid: int
-    async with _AS(test_engine) as s:
-        pharmacy = Service(slug="pharmacy", is_active=True, sort_order=1)
-        s.add(pharmacy)
-        await s.flush()
-        await s.refresh(pharmacy)
-        pid = pharmacy.id  # type: ignore[assignment]
-        s.add(ServiceTranslation(
-            service_id=pid, language_code="en", name="Pharmacy"
-        ))
-        await s.commit()
-
+    pid = seeded_pharmacy_service_id
     body = _patch_payload(service_ids=[pid])
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.patch("/api/v1/sellers/me/profile", json=body)
     assert resp.status_code == 200, resp.text
     assert resp.json()["verification_status"] == "pending"
 
-    async with _AS(test_engine) as s:
-        from sqlmodel import select
+    async with AsyncSession(test_engine) as s:
         profile = (await s.exec(select(SellerProfile).where(SellerProfile.user_id == mock_seller.id))).first()
         rows = (await s.exec(select(SellerProfileService).where(SellerProfileService.seller_profile_id == profile.id))).all()
         assert {r.service_id for r in rows} == {pid}
@@ -170,21 +173,9 @@ async def test_patch_me_pending_can_change_services(
 async def test_patch_me_rejected_can_change_services(
     override_as_seller: Any,
     seller_status_rejected: None,
+    seeded_pharmacy_service_id: int,
 ) -> None:
-    from app.models.catalog import Service, ServiceTranslation
-    from sqlmodel.ext.asyncio.session import AsyncSession as _AS
-    from tests.conftest import test_engine
-
-    pid2: int
-    async with _AS(test_engine) as s:
-        pharmacy = Service(slug="pharmacy", is_active=True, sort_order=1)
-        s.add(pharmacy)
-        await s.flush()
-        await s.refresh(pharmacy)
-        pid2 = pharmacy.id  # type: ignore[assignment]
-        s.add(ServiceTranslation(service_id=pid2, language_code="en", name="Pharmacy"))
-        await s.commit()
-
+    pid2 = seeded_pharmacy_service_id
     body = _patch_payload(service_ids=[pid2])
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.patch("/api/v1/sellers/me/profile", json=body)
@@ -196,7 +187,7 @@ async def test_patch_me_approved_cannot_change_services(
     override_as_seller: Any,
     seller_status_approved: None,
 ) -> None:
-    body = _patch_payload(service_ids=[1])  # any id; should be rejected before lookup
+    body = _patch_payload(service_ids=[99999])  # any id; should be rejected before lookup
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.patch("/api/v1/sellers/me/profile", json=body)
     assert resp.status_code == 400
