@@ -34,6 +34,7 @@ export default function Navbar() {
     navLinks.push({ href: "/stores", label: "Stores", icon: "🏪" });
   }
   if (role === "customer") {
+    navLinks.push({ href: "/account/orders", label: "Orders", icon: "📦" });
     navLinks.push({ href: "/account", label: "Account", icon: "👤" });
   }
   if (role === "seller") {
