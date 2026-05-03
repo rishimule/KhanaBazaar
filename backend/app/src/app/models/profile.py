@@ -68,7 +68,6 @@ class SellerProfile(BaseSchema, table=True):
     last_name: Optional[str] = Field(default=None)
     phone: str = Field(nullable=False, max_length=20)
     business_name: str = Field(nullable=False)
-    business_category: str = Field(nullable=False)
     gst_number: Optional[str] = Field(default=None)
     fssai_license: Optional[str] = Field(default=None)
     bank_account_number: str = Field(nullable=False)

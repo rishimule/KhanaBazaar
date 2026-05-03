@@ -21,7 +21,10 @@ SELLER_APPLICATION_SUBSET_COUNTS = {
     "language": 5,
     "adminprofile": 1,
     "sellerprofile": 3,
+    "sellerprofile_service": 3,
     "address": 3,
+    "service": 3,
+    "service_translation": 3,
 }
 
 
