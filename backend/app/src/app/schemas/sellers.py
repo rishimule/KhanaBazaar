@@ -22,8 +22,8 @@ class SellerRegisterBody(BaseModel):
     address: AddressPayload
     gst_number: Optional[str] = None
     fssai_license: Optional[str] = None
-    bank_account_number: str
-    bank_ifsc: str
+    bank_account_number: Optional[str] = None
+    bank_ifsc: Optional[str] = None
 
 
 class SellerProfileUpdateBody(BaseModel):
@@ -34,8 +34,8 @@ class SellerProfileUpdateBody(BaseModel):
     phone: str
     gst_number: Optional[str] = None
     fssai_license: Optional[str] = None
-    bank_account_number: str
-    bank_ifsc: str
+    bank_account_number: Optional[str] = None
+    bank_ifsc: Optional[str] = None
 
 
 class SellerProfilePayload(BaseModel):
@@ -48,8 +48,8 @@ class SellerProfilePayload(BaseModel):
     phone: str
     gst_number: Optional[str] = None
     fssai_license: Optional[str] = None
-    bank_account_number: str
-    bank_ifsc: str
+    bank_account_number: Optional[str] = None
+    bank_ifsc: Optional[str] = None
     verification_status: str
     rejection_reason: Optional[str] = None
 
@@ -64,8 +64,8 @@ class SellerApplicationPayload(BaseModel):
     phone: str
     gst_number: Optional[str] = None
     fssai_license: Optional[str] = None
-    bank_account_number: str
-    bank_ifsc: str
+    bank_account_number: Optional[str] = None
+    bank_ifsc: Optional[str] = None
     verification_status: str
     rejection_reason: Optional[str] = None
     submitted_at: Optional[str] = None
