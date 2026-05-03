@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import AsyncGenerator, Generator
 
 import pytest
@@ -8,8 +9,17 @@ from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app import app
-from app.db.session import get_db_session
+# Run Celery tasks inline during tests so .delay() does not require a real
+# Redis broker and email-task assertions can inspect side effects synchronously.
+# The env var must be set before celery_app is imported below.
+os.environ.setdefault("CELERY_TASK_ALWAYS_EAGER", "true")
+
+from app import app  # noqa: E402
+from app.core.celery_app import celery_app  # noqa: E402
+from app.db.session import get_db_session  # noqa: E402
+
+celery_app.conf.task_always_eager = True
+celery_app.conf.task_eager_propagates = True
 
 # Use a test Postgres database
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar_test"
@@ -58,3 +68,21 @@ async def session_fixture() -> AsyncGenerator[AsyncSession, None]:
 async def client_fixture() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture(autouse=True)
+def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, None, None]:
+    """Mock order-email dispatchers as no-ops in every test except
+    test_order_emails (which exercises the real tasks). The real dispatchers
+    spawn a worker thread + open an engine to settings.DATABASE_URL (the dev
+    database). In EAGER test mode this races with pytest-anyio's loop and
+    the connection pool against the test DB, causing intermittent test
+    pollution and snapshot isolation oddities."""
+    if "test_order_emails" in request.node.nodeid:
+        yield
+        return
+    from unittest.mock import patch
+
+    with patch("app.api.orders.dispatch_order_placed", lambda *a, **kw: None), \
+         patch("app.api.orders.dispatch_order_status_changed", lambda *a, **kw: None):
+        yield

@@ -60,6 +60,7 @@ class Order(BaseSchema, table=True):
     delivery_fee: float = Field(nullable=False)
     tax: float = Field(nullable=False)
     total: float = Field(nullable=False)
+    delivery_address_snapshot: str = Field(nullable=False)
     placed_at: datetime = Field(  # type: ignore[call-overload]
         default_factory=lambda: datetime.now(timezone.utc),
         sa_type=DateTime(timezone=True),
@@ -70,7 +71,7 @@ class OrderItem(BaseSchema, table=True):
     __tablename__ = "orderitem"
     __table_args__ = (UniqueConstraint("order_id", "inventory_id", name="uq_orderitem_order_inventory"),)
     order_id: int = Field(foreign_key="order.id", nullable=False)
-    inventory_id: int = Field(foreign_key="storeinventory.id", nullable=False)
+    inventory_id: Optional[int] = Field(default=None, foreign_key="storeinventory.id")
     product_name_snapshot: str = Field(nullable=False)
     unit_price_snapshot: float = Field(nullable=False)
     quantity: int = Field(nullable=False)
