@@ -226,6 +226,16 @@
   background: hsla(0, 84%, 60%, 0.08);
 }
 
+.errorBanner {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: hsla(0, 84%, 60%, 0.1);
+  color: var(--color-error);
+  border: 1px solid hsla(0, 84%, 60%, 0.3);
+  font-size: var(--font-size-sm);
+}
+
 /* ── Store Subtotal ───────────────── */
 .storeFooter {
   display: flex;

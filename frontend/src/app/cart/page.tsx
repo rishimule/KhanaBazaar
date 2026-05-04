@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
 import styles from "./page.module.css";
@@ -8,6 +9,47 @@ import styles from "./page.module.css";
 export default function CartPage() {
   const { carts, removeItem, updateQty, clearStoreCart, getTotal } = useCart();
   const { dbUser } = useAuth();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleClear = async (storeId: number) => {
+    setErrorMsg(null);
+    try {
+      await clearStoreCart(storeId);
+    } catch (err) {
+      const detail =
+        (err as { detail?: string })?.detail ??
+        (err instanceof Error ? err.message : null);
+      setErrorMsg(detail ?? "Could not clear cart. Please try again.");
+    }
+  };
+
+  const handleRemove = async (storeId: number, productId: number) => {
+    setErrorMsg(null);
+    try {
+      await removeItem(storeId, productId);
+    } catch (err) {
+      const detail =
+        (err as { detail?: string })?.detail ??
+        (err instanceof Error ? err.message : null);
+      setErrorMsg(detail ?? "Could not remove item. Please try again.");
+    }
+  };
+
+  const handleUpdateQty = async (
+    storeId: number,
+    productId: number,
+    qty: number
+  ) => {
+    setErrorMsg(null);
+    try {
+      await updateQty(storeId, productId, qty);
+    } catch (err) {
+      const detail =
+        (err as { detail?: string })?.detail ??
+        (err instanceof Error ? err.message : null);
+      setErrorMsg(detail ?? "Could not update quantity. Please try again.");
+    }
+  };
 
   if (carts.length === 0) {
     return (
@@ -70,6 +112,12 @@ export default function CartPage() {
           </p>
         </div>
 
+        {errorMsg ? (
+          <div role="alert" className={styles.errorBanner}>
+            {errorMsg}
+          </div>
+        ) : null}
+
         {carts.map((cart) => {
           const subtotal = getTotal(cart);
           return (
@@ -86,7 +134,7 @@ export default function CartPage() {
                 </div>
                 <button
                   className={styles.clearBtn}
-                  onClick={() => clearStoreCart(cart.store_id)}
+                  onClick={() => handleClear(cart.store_id)}
                 >
                   Clear all
                 </button>
@@ -106,8 +154,8 @@ export default function CartPage() {
                       className={styles.qtyBtn}
                       onClick={() =>
                         item.quantity <= 1
-                          ? removeItem(cart.store_id, item.product_id)
-                          : updateQty(
+                          ? handleRemove(cart.store_id, item.product_id)
+                          : handleUpdateQty(
                               cart.store_id,
                               item.product_id,
                               item.quantity - 1
@@ -120,7 +168,7 @@ export default function CartPage() {
                     <button
                       className={styles.qtyBtn}
                       onClick={() =>
-                        updateQty(
+                        handleUpdateQty(
                           cart.store_id,
                           item.product_id,
                           item.quantity + 1
@@ -137,7 +185,7 @@ export default function CartPage() {
 
                   <button
                     className={styles.removeBtn}
-                    onClick={() => removeItem(cart.store_id, item.product_id)}
+                    onClick={() => handleRemove(cart.store_id, item.product_id)}
                     aria-label={`Remove ${item.product_name}`}
                   >
                     ✕
