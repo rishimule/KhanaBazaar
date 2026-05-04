@@ -297,6 +297,93 @@ async def test_place_order_insufficient_stock(
     assert len(remaining_items) == 2
 
 
+async def test_place_order_for_store_cash_method(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_b"],
+                "payment_method": "cash",
+            },
+        )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["payment"]["method"] == "cash"
+    assert body["payment"]["status"] == "pending"
+    assert body["store_id"] == seed["store_b"]
+
+
+async def test_place_order_pure_cart_not_found(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": 999_999,
+                "payment_method": "upi",
+            },
+        )
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "cart_not_found"
+
+
+async def test_place_order_invalid_payment_method(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "payment_method": "bitcoin",
+            },
+        )
+    assert resp.status_code == 422
+
+
+async def test_place_order_missing_store_id(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "payment_method": "upi",
+            },
+        )
+    assert resp.status_code == 422
+
+
+async def test_place_order_store_inactive(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    store = (await session.exec(select(Store).where(Store.id == seed["store_a"]))).first()
+    assert store is not None
+    store.is_active = False
+    await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "payment_method": "upi",
+            },
+        )
+    assert resp.status_code == 409
+    detail = resp.json()["detail"]
+    assert detail["detail"] == "store_unavailable"
+    assert detail["store_id"] == seed["store_a"]
+
+
 async def _place_orders(seed: dict[str, int]) -> list[int]:
     """Place one order per store in the seeded cart and return their ids in
     the order [store_a, store_b]. Mirrors the per-store contract."""
