@@ -26,6 +26,7 @@ interface CartContextValue {
   clearStoreCart: (storeId: number) => Promise<void>;
   getTotal: (cart: Cart) => number;
   grandTotal: number;
+  refresh: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -59,6 +60,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const fresh = await remoteCart.listCarts(token);
     setCarts(fresh);
   }, [token]);
+
+  const isCustomer = !!dbUser && dbUser.role === "customer" && !!token;
+
+  const refresh = useCallback(async () => {
+    if (isCustomer) {
+      await refreshRemote();
+    } else {
+      refreshLocal();
+    }
+  }, [isCustomer, refreshRemote, refreshLocal]);
 
   // Initial load + auth transitions.
   useEffect(() => {
@@ -101,8 +112,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [authLoading, dbUser, token, refreshLocal, refreshRemote]);
-
-  const isCustomer = !!dbUser && dbUser.role === "customer" && !!token;
 
   const addItem = useCallback(
     async (storeId: number, storeName: string, item: CartItem) => {
@@ -235,6 +244,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     clearStoreCart,
     getTotal: getCartTotal,
     grandTotal,
+    refresh,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

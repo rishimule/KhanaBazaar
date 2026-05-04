@@ -212,10 +212,6 @@ export interface Order {
   delivery: OrderDelivery;
 }
 
-export interface PlaceOrderResponse {
-  orders: Order[];
-}
-
 export interface OrderListResponse {
   orders: Order[];
 }

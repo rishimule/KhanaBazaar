@@ -28,10 +28,9 @@ from app.schemas.orders import (
     OrderRead,
     PaymentRead,
     PlaceOrderRequest,
-    PlaceOrderResponse,
     TransitionRequest,
 )
-from app.services.checkout import place_orders_from_cart
+from app.services.checkout import place_order_for_store
 from app.services.order_emails import (
     dispatch_order_placed,
     dispatch_order_status_changed,
@@ -212,19 +211,23 @@ async def get_order(
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 
-@router.post("", response_model=PlaceOrderResponse, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=PlaceOrderResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+@router.post("", response_model=OrderRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=OrderRead, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def place_order(
     payload: PlaceOrderRequest,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
-) -> PlaceOrderResponse:
-    orders = await place_orders_from_cart(session, user, payload.customer_address_id)
-    order_ids = [o.id for o in orders if o.id is not None]
-    dispatch_order_placed(order_ids)
-    return PlaceOrderResponse(
-        orders=[await _serialize_order(session, o, include_customer_name=False) for o in orders]
+) -> OrderRead:
+    order = await place_order_for_store(
+        session,
+        user,
+        payload.customer_address_id,
+        payload.store_id,
+        payload.payment_method,
     )
+    if order.id is not None:
+        dispatch_order_placed([order.id])
+    return await _serialize_order(session, order, include_customer_name=False)
 
 
 @router.post("/{order_id}/transition", response_model=OrderRead)

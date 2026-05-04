@@ -57,10 +57,8 @@ class OrderListResponse(BaseModel):
 
 class PlaceOrderRequest(BaseModel):
     customer_address_id: int = Field(gt=0)
-
-
-class PlaceOrderResponse(BaseModel):
-    orders: List[OrderRead]
+    store_id: int = Field(gt=0)
+    payment_method: PaymentMethod
 
 
 class TransitionRequest(BaseModel):
