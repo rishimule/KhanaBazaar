@@ -1,0 +1,137 @@
+.page {
+  min-height: 60vh;
+  padding: var(--space-8) var(--space-4) var(--space-12);
+}
+
+.pageInner {
+  max-width: var(--container-md);
+  margin-inline: auto;
+  display: grid;
+  gap: var(--space-6);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.backLink {
+  font-size: var(--font-sm);
+  color: var(--color-primary-600);
+  text-decoration: none;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.title {
+  font-size: var(--font-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-neutral-900);
+  margin: 0;
+}
+
+.section {
+  background: white;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.sectionTitle {
+  font-size: var(--font-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-900);
+  margin: 0 0 var(--space-3);
+}
+
+.itemList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.itemRow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-3);
+  align-items: baseline;
+  font-size: var(--font-sm);
+}
+
+.itemName {
+  color: var(--color-neutral-900);
+  font-weight: var(--weight-medium);
+}
+
+.itemQty {
+  color: var(--color-neutral-500);
+}
+
+.itemPrice {
+  color: var(--color-neutral-900);
+  font-weight: var(--weight-semibold);
+}
+
+.summary {
+  background: var(--color-neutral-50);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-sm);
+  color: var(--color-neutral-700);
+}
+
+.summaryTotal {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-neutral-900);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-neutral-200);
+  margin-top: var(--space-2);
+}
+
+.error {
+  background: hsla(0, 84%, 60%, 0.08);
+  border: 1px solid hsla(0, 84%, 60%, 0.3);
+  color: var(--color-error);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-sm);
+}
+
+.placeBtn {
+  background: var(--gradient-primary);
+  color: white;
+  font-size: var(--font-base);
+  font-weight: var(--weight-semibold);
+  padding: var(--space-4) var(--space-6);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.placeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.placeBtn:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+.loadingText {
+  text-align: center;
+  color: var(--color-neutral-500);
+  font-size: var(--font-base);
+}
