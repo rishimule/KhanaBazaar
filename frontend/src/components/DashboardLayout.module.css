@@ -194,3 +194,32 @@
     animation: fadeIn var(--duration-fast) var(--ease-out);
   }
 }
+
+@media (max-width: 768px) {
+  .topBar {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .topBarTitle {
+    font-size: var(--font-lg);
+  }
+
+  .sidebarLink {
+    min-height: 44px;
+  }
+
+  .mobileToggle {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: var(--space-3);
+  }
+
+  .topBarActions {
+    gap: var(--space-2);
+  }
+}
