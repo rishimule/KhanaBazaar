@@ -8,21 +8,26 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-/** Standard error shape returned by our FastAPI backend. */
-export interface ApiError {
+/** Standard error thrown when a FastAPI backend response is not ok. */
+export class ApiError extends Error {
   detail: string;
   status: number;
+  constructor(detail: string, status: number) {
+    super(typeof detail === "string" ? detail : `HTTP ${status}`);
+    this.name = "ApiError";
+    this.detail = detail;
+    this.status = status;
+  }
 }
 
 /** Throws a structured error when the response is not ok. */
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const error: ApiError = {
-      detail: body.detail ?? res.statusText,
-      status: res.status,
-    };
-    throw error;
+    throw new ApiError(body.detail ?? res.statusText, res.status);
+  }
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
   }
   return res.json() as Promise<T>;
 }
