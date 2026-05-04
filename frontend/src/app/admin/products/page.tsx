@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { get, post, put, del } from "@/lib/api";
 import { MasterProduct, Category } from "@/types";
 import styles from "./page.module.css";
+import mobileStyles from "@/components/DataTableCard.module.css";
 
 export default function AdminProductsPage() {
   const router = useRouter();
@@ -171,6 +172,24 @@ export default function AdminProductsPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         emptyMessage="No products in the catalog yet."
+        mobileCardRender={(p) => (
+          <>
+            <div className={mobileStyles.cardTopRow}>
+              <span className={mobileStyles.cardTitle}>{p.name}</span>
+              <span className={mobileStyles.cardPriceRight}>
+                ₹{Number(p.base_price ?? 0).toFixed(2)}
+              </span>
+            </div>
+            <div className={mobileStyles.cardChips}>
+              <span className={styles.categoryBadge}>
+                {getCategoryName(p.category_id)}
+              </span>
+            </div>
+            {p.description && (
+              <p className={mobileStyles.cardSubtitle}>{p.description}</p>
+            )}
+          </>
+        )}
       />
 
       {/* Edit Modal */}
