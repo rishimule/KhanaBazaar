@@ -1,11 +1,98 @@
-.page { padding: 1.5rem; max-width: 800px; margin: 0 auto; }
-.header { display: flex; justify-content: space-between; align-items: baseline; }
-.title { font-size: 1.6rem; margin: 0; }
-.subtitle { color: var(--color-text-muted, #6b7280); margin-top: 0.25rem; }
-.section { margin-top: 1.5rem; padding: 1rem; background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e5e7eb); border-radius: 10px; }
-.sectionTitle { font-size: 1.05rem; margin: 0 0 0.6rem; }
-.totals { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.8rem; font-variant-numeric: tabular-nums; }
-.totals div { display: flex; justify-content: space-between; }
-.grand { font-weight: 700; font-size: 1.1rem; border-top: 1px solid var(--color-border, #e5e7eb); padding-top: 0.4rem; margin-top: 0.3rem; }
-.loading, .error { padding: 2rem; text-align: center; color: var(--color-text-muted, #6b7280); }
-.error { color: #991b1b; }
+.page {
+  padding: 1.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.title {
+  font-size: 1.6rem;
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--color-text-muted, #6b7280);
+  margin-top: 0.25rem;
+}
+
+.section {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 10px;
+}
+
+.sectionTitle {
+  font-size: 1.05rem;
+  margin: 0 0 0.6rem;
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.grand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+  padding-top: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.loading,
+.error {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.error {
+  color: #991b1b;
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 1rem;
+  }
+
+  .title {
+    font-size: 1.4rem;
+  }
+
+  .header {
+    align-items: flex-start;
+  }
+
+  .section {
+    padding: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 0.75rem;
+  }
+
+  .totals div {
+    flex-direction: row;
+  }
+}
