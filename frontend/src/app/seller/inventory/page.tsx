@@ -9,6 +9,7 @@ import { get, post, put, del } from "@/lib/api";
 import { Store, StoreInventory, MasterProduct, Category } from "@/types";
 
 import styles from "./page.module.css";
+import mobileStyles from "@/components/DataTableCard.module.css";
 
 /** Enriched inventory with product info */
 interface InventoryWithProduct extends StoreInventory {
@@ -212,6 +213,26 @@ export default function SellerInventoryPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         emptyMessage="No inventory items yet. Add products from the master catalog."
+        mobileCardRender={(row) => (
+          <>
+            <div className={mobileStyles.cardTopRow}>
+              <span className={mobileStyles.cardTitle}>{row.product.name}</span>
+              <span className={mobileStyles.cardPriceRight}>₹{row.price}</span>
+            </div>
+            <div className={mobileStyles.cardMeta}>
+              {getCategoryName(row.product.category_id)} • Stock: {row.stock}
+            </div>
+            <button
+              className={`${styles.toggleBtn} ${
+                row.is_available ? styles.toggleActive : styles.toggleInactive
+              }`}
+              style={{ width: "100%", minHeight: 44 }}
+              onClick={() => toggleAvailability(row)}
+            >
+              {row.is_available ? "Available" : "Unavailable"}
+            </button>
+          </>
+        )}
       />
 
       {/* Edit Modal */}

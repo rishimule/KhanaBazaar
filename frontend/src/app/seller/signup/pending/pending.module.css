@@ -166,3 +166,26 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-3);
+  }
+
+  .card {
+    padding: var(--space-6) var(--space-5);
+  }
+
+  .icon {
+    font-size: var(--font-4xl);
+    margin-bottom: var(--space-4);
+  }
+
+  .title {
+    font-size: var(--font-xl);
+  }
+
+  .ctaBtn {
+    min-height: 44px;
+  }
+}

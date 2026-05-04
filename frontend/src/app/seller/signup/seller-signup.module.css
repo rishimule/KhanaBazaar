@@ -509,3 +509,72 @@
   text-align: center;
   margin-top: var(--space-4);
 }
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-3);
+  }
+
+  .card {
+    padding: var(--space-6) var(--space-5);
+  }
+
+  .cardLogo {
+    font-size: var(--font-4xl);
+    margin-bottom: var(--space-2);
+  }
+
+  .cardTitle {
+    font-size: var(--font-2xl);
+  }
+
+  .cardHeader {
+    margin-bottom: var(--space-6);
+  }
+
+  .stepIndicator {
+    margin-bottom: var(--space-6);
+  }
+
+  .stepDot {
+    width: 24px;
+    height: 24px;
+    font-size: var(--font-xs);
+    border-width: 1.5px;
+  }
+
+  .stepConnector {
+    min-width: var(--space-2);
+  }
+
+  .stepLabel {
+    margin-bottom: var(--space-4);
+  }
+
+  .form {
+    gap: var(--space-4);
+  }
+
+  .submitBtn,
+  .backBtn {
+    min-height: 44px;
+  }
+
+  .btnRow {
+    gap: var(--space-3);
+  }
+
+  .otpInput {
+    font-size: var(--font-xl);
+    letter-spacing: 0.2em;
+  }
+
+  .reviewRow {
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .reviewValue {
+    text-align: left;
+  }
+}
