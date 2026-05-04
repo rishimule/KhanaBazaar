@@ -7,7 +7,16 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import app
 from app.core.security import get_current_admin, get_current_user
 from app.models.base import User, UserRole
-from app.models.catalog import Service, ServiceTranslation
+from app.models.catalog import (
+    Category,
+    CategoryTranslation,
+    MasterProduct,
+    MasterProductTranslation,
+    Service,
+    ServiceTranslation,
+    Subcategory,
+    SubcategoryTranslation,
+)
 
 mock_admin = User(id=1, email="admin@kb.com", role=UserRole.Admin, is_active=True)
 
@@ -132,3 +141,99 @@ async def test_list_categories_returns_service_id(
     rows = listing.json()
     assert len(rows) == 1
     assert rows[0]["service_id"] == seed["pharmacy"]
+
+
+async def _seed_category_with_subcategories(
+    session: AsyncSession,
+    service_id: int,
+    category_name: str,
+    subcategory_names: list[str],
+) -> tuple[int, dict[str, int]]:
+    category = Category(service_id=service_id, slug=category_name.lower().replace(" ", "-"))
+    session.add(category)
+    await session.flush()
+    assert category.id is not None
+    session.add(
+        CategoryTranslation(
+            category_id=category.id, language_code="en", name=category_name, description=None
+        )
+    )
+    sub_ids: dict[str, int] = {}
+    for sort_order, sub_name in enumerate(subcategory_names):
+        sub = Subcategory(
+            category_id=category.id,
+            slug=sub_name.lower().replace(" ", "-"),
+            sort_order=sort_order,
+        )
+        session.add(sub)
+        await session.flush()
+        assert sub.id is not None
+        session.add(
+            SubcategoryTranslation(
+                subcategory_id=sub.id, language_code="en", name=sub_name, description=None
+            )
+        )
+        sub_ids[sub_name] = sub.id
+    await session.flush()
+    return category.id, sub_ids
+
+
+@pytest.mark.asyncio
+async def test_list_subcategories_returns_translated_names(
+    session: AsyncSession, seed: dict[str, int]
+) -> None:
+    await _seed_category_with_subcategories(
+        session,
+        seed["grocery"],
+        "Fruits & Vegetables",
+        ["Leafy Greens", "Roots", "Fruits"],
+    )
+    await session.commit()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/catalog/subcategories")
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    names = [r["name"] for r in rows]
+    assert names == ["Leafy Greens", "Roots", "Fruits"]
+    assert all(r["category_id"] == rows[0]["category_id"] for r in rows)
+
+
+@pytest.mark.asyncio
+async def test_list_products_includes_subcategory_fields(
+    session: AsyncSession, seed: dict[str, int]
+) -> None:
+    category_id, sub_ids = await _seed_category_with_subcategories(
+        session,
+        seed["grocery"],
+        "Fruits & Vegetables",
+        ["Leafy Greens"],
+    )
+    product = MasterProduct(
+        subcategory_id=sub_ids["Leafy Greens"],
+        slug="palak",
+        image_url=None,
+        base_price=28.0,
+    )
+    session.add(product)
+    await session.flush()
+    assert product.id is not None
+    session.add(
+        MasterProductTranslation(
+            master_product_id=product.id,
+            language_code="en",
+            name="Spinach Bunch",
+            description="Fresh palak",
+        )
+    )
+    await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/catalog/products")
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["name"] == "Spinach Bunch"
+    assert row["category_id"] == category_id
+    assert row["subcategory_id"] == sub_ids["Leafy Greens"]
+    assert row["subcategory_name"] == "Leafy Greens"
