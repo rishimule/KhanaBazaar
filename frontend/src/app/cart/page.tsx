@@ -1,22 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
-import { placeOrder } from "@/lib/orders";
-import AddressPicker from "@/components/orders/AddressPicker";
 import styles from "./page.module.css";
 
 export default function CartPage() {
-  const { carts, removeItem, updateQty, clearStoreCart, getTotal, grandTotal } =
-    useCart();
-  const { dbUser, token } = useAuth();
-  const router = useRouter();
-  const [addressId, setAddressId] = useState<number | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { carts, removeItem, updateQty, clearStoreCart, getTotal } = useCart();
+  const { dbUser } = useAuth();
 
   if (carts.length === 0) {
     return (
@@ -40,25 +31,31 @@ export default function CartPage() {
 
   const isCustomer = dbUser?.role === "customer";
 
-  const onCheckout = async () => {
-    if (!token || !addressId) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const orders = await placeOrder(token, addressId);
-      router.push(`/account/orders?placed=${orders.length}`);
-    } catch (e) {
-      const detail = (e as { detail?: unknown })?.detail;
-      setError(typeof detail === "string" ? detail : "Could not place order.");
-    } finally {
-      setSubmitting(false);
+  const renderCheckoutCta = (storeId: number, subtotal: number) => {
+    if (!dbUser) {
+      return (
+        <Link href={`/login?next=/checkout/${storeId}`} className={styles.checkoutBtn}>
+          Login to checkout
+        </Link>
+      );
     }
+    if (!isCustomer) {
+      return (
+        <span className={styles.checkoutBtn} aria-disabled>
+          Customer login required
+        </span>
+      );
+    }
+    return (
+      <Link href={`/checkout/${storeId}`} className={styles.checkoutBtn}>
+        Checkout · ₹{subtotal}
+      </Link>
+    );
   };
 
   return (
     <div className={styles.page}>
       <div className={styles.pageInner}>
-        {/* Header */}
         <div className={styles.header}>
           <h1 className={styles.title}>
             Your <span className={styles.titleAccent}>Cart</span>
@@ -73,123 +70,90 @@ export default function CartPage() {
           </p>
         </div>
 
-        {/* Cart groups by store */}
-        {carts.map((cart) => (
-          <div key={cart.store_id} className={styles.storeGroup}>
-            <div className={styles.storeGroupHeader}>
-              <div className={styles.storeGroupTitle}>
-                🏪{" "}
-                <Link
-                  href={`/stores/${cart.store_id}`}
-                  className={styles.storeGroupLink}
-                >
-                  {cart.store_name}
-                </Link>
-              </div>
-              <button
-                className={styles.clearBtn}
-                onClick={() => clearStoreCart(cart.store_id)}
-              >
-                Clear all
-              </button>
-            </div>
-
-            {cart.items.map((item) => (
-              <div key={item.product_id} className={styles.cartItem}>
-                <div className={styles.itemEmoji}>📦</div>
-
-                <div className={styles.itemInfo}>
-                  <div className={styles.itemName}>{item.product_name}</div>
-                  <div className={styles.itemPrice}>₹{item.price} each</div>
-                </div>
-
-                <div className={styles.qtyControls}>
-                  <button
-                    className={styles.qtyBtn}
-                    onClick={() =>
-                      item.quantity <= 1
-                        ? removeItem(cart.store_id, item.product_id)
-                        : updateQty(
-                            cart.store_id,
-                            item.product_id,
-                            item.quantity - 1
-                          )
-                    }
+        {carts.map((cart) => {
+          const subtotal = getTotal(cart);
+          return (
+            <div key={cart.store_id} className={styles.storeGroup}>
+              <div className={styles.storeGroupHeader}>
+                <div className={styles.storeGroupTitle}>
+                  🏪{" "}
+                  <Link
+                    href={`/stores/${cart.store_id}`}
+                    className={styles.storeGroupLink}
                   >
-                    −
-                  </button>
-                  <span className={styles.qtyValue}>{item.quantity}</span>
-                  <button
-                    className={styles.qtyBtn}
-                    onClick={() =>
-                      updateQty(
-                        cart.store_id,
-                        item.product_id,
-                        item.quantity + 1
-                      )
-                    }
-                  >
-                    +
-                  </button>
+                    {cart.store_name}
+                  </Link>
                 </div>
-
-                <div className={styles.itemTotal}>
-                  ₹{item.price * item.quantity}
-                </div>
-
                 <button
-                  className={styles.removeBtn}
-                  onClick={() => removeItem(cart.store_id, item.product_id)}
-                  aria-label={`Remove ${item.product_name}`}
+                  className={styles.clearBtn}
+                  onClick={() => clearStoreCart(cart.store_id)}
                 >
-                  ✕
+                  Clear all
                 </button>
               </div>
-            ))}
 
-            <div className={styles.storeSubtotal}>
-              <span>Subtotal:</span>
-              <span className={styles.storeSubtotalValue}>
-                ₹{getTotal(cart)}
-              </span>
+              {cart.items.map((item) => (
+                <div key={item.product_id} className={styles.cartItem}>
+                  <div className={styles.itemEmoji}>📦</div>
+
+                  <div className={styles.itemInfo}>
+                    <div className={styles.itemName}>{item.product_name}</div>
+                    <div className={styles.itemPrice}>₹{item.price} each</div>
+                  </div>
+
+                  <div className={styles.qtyControls}>
+                    <button
+                      className={styles.qtyBtn}
+                      onClick={() =>
+                        item.quantity <= 1
+                          ? removeItem(cart.store_id, item.product_id)
+                          : updateQty(
+                              cart.store_id,
+                              item.product_id,
+                              item.quantity - 1
+                            )
+                      }
+                    >
+                      −
+                    </button>
+                    <span className={styles.qtyValue}>{item.quantity}</span>
+                    <button
+                      className={styles.qtyBtn}
+                      onClick={() =>
+                        updateQty(
+                          cart.store_id,
+                          item.product_id,
+                          item.quantity + 1
+                        )
+                      }
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <div className={styles.itemTotal}>
+                    ₹{item.price * item.quantity}
+                  </div>
+
+                  <button
+                    className={styles.removeBtn}
+                    onClick={() => removeItem(cart.store_id, item.product_id)}
+                    aria-label={`Remove ${item.product_name}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+
+              <div className={styles.storeFooter}>
+                <span className={styles.storeSubtotalValue}>
+                  Subtotal: ₹{subtotal}
+                </span>
+                {renderCheckoutCta(cart.store_id, subtotal)}
+              </div>
             </div>
-          </div>
-        ))}
-
-        {isCustomer && (
-          <div className={styles.addressBlock}>
-            <AddressPicker value={addressId} onChange={setAddressId} />
-          </div>
-        )}
-
-        <div className={styles.totalBar}>
-          <span className={styles.totalLabel}>Grand Total</span>
-          <div className={styles.totalRight}>
-            <span className={styles.totalValue}>₹{grandTotal}</span>
-            {!dbUser ? (
-              <Link href="/login?next=/cart" className={styles.checkoutBtn}>
-                Login to checkout
-              </Link>
-            ) : !isCustomer ? (
-              <span className={styles.checkoutBtn} aria-disabled>
-                Customer login required
-              </span>
-            ) : addressId === null ? (
-              <Link href="/account/settings" className={styles.checkoutBtn}>
-                Add address to checkout
-              </Link>
-            ) : (
-              <button
-                className={styles.checkoutBtn}
-                onClick={onCheckout}
-                disabled={submitting}
-              >
-                {submitting ? "Placing order…" : "Place Order"}
-              </button>
-            )}
-          </div>
-        </div>
-        {error && <div className={styles.error}>{error}</div>}
+          );
+        })}
       </div>
     </div>
   );
