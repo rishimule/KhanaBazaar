@@ -13,6 +13,7 @@ interface Props<T> {
   onEdit?: (row: T) => void;
   onDelete?: (row: T) => void;
   emptyMessage?: string;
+  mobileCardRender?: (row: T) => React.ReactNode;
 }
 
 export default function DataTable<T extends object>({
@@ -22,6 +23,7 @@ export default function DataTable<T extends object>({
   onEdit,
   onDelete,
   emptyMessage = "No data to display",
+  mobileCardRender,
 }: Props<T>) {
   if (data.length === 0) {
     return (
@@ -34,15 +36,19 @@ export default function DataTable<T extends object>({
     );
   }
 
+  const hasActions = Boolean(onEdit || onDelete);
+
   return (
     <div className={styles.tableWrap}>
-      <table className={styles.table}>
+      <table
+        className={`${styles.table} ${mobileCardRender ? styles.tableHideOnMobile : ""}`}
+      >
         <thead>
           <tr>
             {columns.map((col) => (
               <th key={col.key}>{col.label}</th>
             ))}
-            {(onEdit || onDelete) && <th>Actions</th>}
+            {hasActions && <th>Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -57,7 +63,7 @@ export default function DataTable<T extends object>({
                       : String(rec[col.key] ?? "—")}
                   </td>
                 ))}
-                {(onEdit || onDelete) && (
+                {hasActions && (
                   <td>
                     <div className={styles.actions}>
                       {onEdit && (
@@ -84,6 +90,39 @@ export default function DataTable<T extends object>({
           })}
         </tbody>
       </table>
+
+      {mobileCardRender && (
+        <div className={styles.mobileCardList}>
+          {data.map((row) => {
+            const rec = row as Record<string, unknown>;
+            return (
+              <div className={styles.mobileCard} key={String(rec[keyField])}>
+                {mobileCardRender(row)}
+                {hasActions && (
+                  <div className={styles.mobileCardActions}>
+                    {onEdit && (
+                      <button
+                        className={`${styles.actionBtn} ${styles.editBtn}`}
+                        onClick={() => onEdit(row)}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                        onClick={() => onDelete(row)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
