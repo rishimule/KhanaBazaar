@@ -184,69 +184,109 @@ def as_admin() -> Iterator[None]:
     yield from _override(mock_admin)
 
 
-async def test_place_orders_fans_out_per_store(as_customer: Any, seed: dict[str, int], session: AsyncSession) -> None:
+async def test_place_order_for_store_creates_single_order_upi(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.post("/api/v1/orders", json={"customer_address_id": seed["customer_address_id"]})
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "payment_method": "upi",
+            },
+        )
     assert resp.status_code == 201, resp.text
     body = resp.json()
-    assert len(body["orders"]) == 2
-    totals = sorted(o["total"] for o in body["orders"])
-    assert totals == [30.0, 100.0]
+    assert body["store_id"] == seed["store_a"]
+    assert body["total"] == 100.0
+    assert body["payment"]["method"] == "upi"
+    assert body["payment"]["status"] == "pending"
 
     orders = (await session.exec(select(Order))).all()
-    assert len(orders) == 2
+    assert len(orders) == 1
     payments = (await session.exec(select(Payment))).all()
-    assert len(payments) == 2
-    assert all(p.status == PaymentStatus.Pending for p in payments)
+    assert len(payments) == 1 and payments[0].status == PaymentStatus.Pending
     deliveries = (await session.exec(select(Delivery))).all()
-    assert len(deliveries) == 2
+    assert len(deliveries) == 1
     items = (await session.exec(select(OrderItem))).all()
-    assert {i.product_name_snapshot for i in items} == {"Apple", "Bread"}
+    assert {i.product_name_snapshot for i in items} == {"Apple"}
 
     inv_a = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_a"]))).first()
     inv_b = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_b"]))).first()
-    assert inv_a is not None
-    assert inv_b is not None
-    assert inv_a.stock == 8
-    assert inv_b.stock == 3
+    assert inv_a is not None and inv_b is not None
+    assert inv_a.stock == 8  # 10 − 2
+    assert inv_b.stock == 4  # untouched
 
+    # Only store_a's cart was deleted; store_b's cart + item remain.
     remaining_carts = (await session.exec(select(Cart))).all()
-    assert remaining_carts == []
+    assert len(remaining_carts) == 1
+    assert remaining_carts[0].store_id == seed["store_b"]
+    remaining_items = (await session.exec(select(CartItem))).all()
+    assert len(remaining_items) == 1
 
 
-async def test_place_orders_empty_cart(as_other_customer: Any, seed: dict[str, int]) -> None:
-    # other_customer has a CustomerProfile but no Cart rows; the address belongs
-    # to the main customer so the 403 path doesn't fire — we expect cart_empty.
+async def test_place_order_cart_not_found_for_store(
+    as_other_customer: Any, seed: dict[str, int]
+) -> None:
+    # other_customer has a CustomerProfile but no cart for store_a. The address
+    # belongs to the main customer, so the address-ownership check fires first.
+    # A separate test below covers the pure cart_not_found case.
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.post("/api/v1/orders", json={"customer_address_id": seed["customer_address_id"]})
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "payment_method": "cash",
+            },
+        )
     assert resp.status_code == 403
     assert resp.json()["detail"] == "invalid_address"
 
 
-async def test_place_orders_invalid_address(as_customer: Any) -> None:
+async def test_place_order_invalid_address_missing(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.post("/api/v1/orders", json={"customer_address_id": 9999})
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": 9999,
+                "store_id": seed["store_a"],
+                "payment_method": "upi",
+            },
+        )
     assert resp.status_code == 404
+    assert resp.json()["detail"] == "invalid_address"
 
 
-async def test_place_orders_insufficient_stock(as_customer: Any, seed: dict[str, int], session: AsyncSession) -> None:
+async def test_place_order_insufficient_stock(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
     inv = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_a"]))).first()
     assert inv is not None
-    inv.stock = 1   # cart wants 2
+    inv.stock = 1  # cart wants 2
     await session.commit()
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.post("/api/v1/orders", json={"customer_address_id": seed["customer_address_id"]})
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "payment_method": "upi",
+            },
+        )
     assert resp.status_code == 409
     detail = resp.json()["detail"]
     assert detail["detail"] == "insufficient_stock"
-    # Both stocks unchanged on rollback.
+
     inv = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_a"]))).first()
     inv_b = (await session.exec(select(StoreInventory).where(StoreInventory.id == seed["inv_b"]))).first()
-    assert inv is not None
-    assert inv_b is not None
+    assert inv is not None and inv_b is not None
     assert inv.stock == 1 and inv_b.stock == 4
-    # Full rollback: no orders / payments / deliveries / order_items, cart still intact.
+
     assert (await session.exec(select(Order))).all() == []
     assert (await session.exec(select(Payment))).all() == []
     assert (await session.exec(select(Delivery))).all() == []
@@ -254,14 +294,26 @@ async def test_place_orders_insufficient_stock(as_customer: Any, seed: dict[str,
     remaining_carts = (await session.exec(select(Cart))).all()
     assert len(remaining_carts) == 2  # cart_a + cart_b still present
     remaining_items = (await session.exec(select(CartItem))).all()
-    assert len(remaining_items) == 2  # both cart items still present
+    assert len(remaining_items) == 2
 
 
 async def _place_orders(seed: dict[str, int]) -> list[int]:
+    """Place one order per store in the seeded cart and return their ids in
+    the order [store_a, store_b]. Mirrors the per-store contract."""
+    order_ids: list[int] = []
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.post("/api/v1/orders", json={"customer_address_id": seed["customer_address_id"]})
-    assert resp.status_code == 201, resp.text
-    return [o["id"] for o in resp.json()["orders"]]
+        for store_id in (seed["store_a"], seed["store_b"]):
+            resp = await ac.post(
+                "/api/v1/orders",
+                json={
+                    "customer_address_id": seed["customer_address_id"],
+                    "store_id": store_id,
+                    "payment_method": "upi",
+                },
+            )
+            assert resp.status_code == 201, resp.text
+            order_ids.append(resp.json()["id"])
+    return order_ids
 
 
 async def test_customer_lists_only_their_orders(as_customer: Any, seed: dict[str, int]) -> None:
