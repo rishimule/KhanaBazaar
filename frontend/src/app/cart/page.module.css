@@ -320,3 +320,91 @@
 
 .addressBlock { margin: 1rem 0; padding: 1rem; border: 1px solid var(--color-border, #e5e7eb); border-radius: 10px; }
 .error { color: #991b1b; margin-top: 0.6rem; font-size: 0.9rem; }
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-5) var(--space-3) var(--space-10);
+  }
+
+  .title {
+    font-size: var(--font-2xl);
+  }
+
+  .storeGroupHeader {
+    padding: var(--space-3) var(--space-4);
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .storeGroupTitle {
+    font-size: var(--font-base);
+  }
+
+  .cartItem {
+    flex-wrap: wrap;
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .itemInfo {
+    flex: 1 1 calc(100% - 64px);
+    min-width: 0;
+  }
+
+  .itemName {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .qtyControls {
+    flex: 1 1 auto;
+    order: 2;
+  }
+
+  .itemTotal {
+    order: 3;
+    margin-left: auto;
+    min-width: 50px;
+  }
+
+  .removeBtn {
+    order: 4;
+  }
+
+  .qtyBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .storeSubtotal {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .totalBar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .totalRight {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .totalValue {
+    text-align: center;
+    font-size: var(--font-xl);
+  }
+
+  .checkoutBtn {
+    width: 100%;
+    min-height: 44px;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .checkoutTooltip {
+    display: none !important;
+  }
+}
