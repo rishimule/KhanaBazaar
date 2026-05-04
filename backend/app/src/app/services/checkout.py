@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import HTTPException
 from sqlalchemy import and_
 from sqlmodel import select
@@ -83,6 +81,7 @@ def _build_order_for_cart(
     *, profile_id: int, address_id: int, address_snapshot: str,
     cart: Cart, items: list[CartItem],
     inv_by_id: dict[int, StoreInventory], name_by_inv: dict[int, str],
+    payment_method: PaymentMethod,
 ) -> tuple[Order, list[OrderItem], Payment, Delivery]:
     """Pure builder. Returns the rows to add and computes the line decrements
     via inv_by_id. Caller does session.add + decrement_stock."""
@@ -113,7 +112,7 @@ def _build_order_for_cart(
             line_total=inv.price * item.quantity,
         ))
     payment = Payment(
-        amount=total, method=PaymentMethod.Cash, status=PaymentStatus.Pending,
+        amount=total, method=payment_method, status=PaymentStatus.Pending,
     )
     delivery = Delivery(status=DeliveryStatus.Pending)
     return order, order_items, payment, delivery
@@ -140,24 +139,29 @@ async def _resolve_address(
     return address.id, format_address(address_to_payload(address))
 
 
-async def _load_customer_carts(
-    session: AsyncSession, customer_profile_id: int
-) -> tuple[list[Cart], list[CartItem]]:
-    """Return (carts, items). Raises 400 cart_empty if either is empty."""
+async def _load_cart_for_store(
+    session: AsyncSession, customer_profile_id: int, store_id: int
+) -> tuple[Cart, list[CartItem]]:
+    """Return (cart, items) for the customer's cart at this store. Raises
+    404 cart_not_found if the customer has no cart row for store_id; 400
+    cart_empty if the cart exists but has zero items."""
     cart_result = await session.exec(
-        select(Cart).where(Cart.customer_profile_id == customer_profile_id)
+        select(Cart).where(
+            Cart.customer_profile_id == customer_profile_id,
+            Cart.store_id == store_id,
+        )
     )
-    carts = list(cart_result.all())
-    if not carts:
-        raise HTTPException(status_code=400, detail="cart_empty")
-    cart_ids: list[int] = [c.id for c in carts if c.id is not None]
+    cart = cart_result.first()
+    if cart is None:
+        raise HTTPException(status_code=404, detail="cart_not_found")
+    assert cart.id is not None
     items_result = await session.exec(
-        select(CartItem).where(CartItem.cart_id.in_(cart_ids))  # type: ignore[attr-defined]
+        select(CartItem).where(CartItem.cart_id == cart.id)
     )
     cart_items = list(items_result.all())
     if not cart_items:
         raise HTTPException(status_code=400, detail="cart_empty")
-    return carts, cart_items
+    return cart, cart_items
 
 
 async def _snapshot_product_names(
@@ -185,9 +189,13 @@ async def _snapshot_product_names(
     }
 
 
-async def place_orders_from_cart(
-    session: AsyncSession, user: User, customer_address_id: int
-) -> List[Order]:
+async def place_order_for_store(
+    session: AsyncSession,
+    user: User,
+    customer_address_id: int,
+    store_id: int,
+    payment_method: PaymentMethod,
+) -> Order:
     profile = await _customer_profile(session, user)
     assert profile.id is not None
 
@@ -195,7 +203,7 @@ async def place_orders_from_cart(
         session, customer_address_id, profile.id
     )
 
-    carts, cart_items = await _load_customer_carts(session, profile.id)
+    cart, cart_items = await _load_cart_for_store(session, profile.id, store_id)
 
     inv_ids = [item.inventory_id for item in cart_items]
     locked_inv = await lock_inventory_rows(session, inv_ids)
@@ -204,51 +212,37 @@ async def place_orders_from_cart(
     }
 
     _validate_inventory_availability(cart_items, inv_by_id)
-    await _validate_stores_active(session, [c.store_id for c in carts])
+    await _validate_stores_active(session, [store_id])
 
     name_by_inv = await _snapshot_product_names(session, inv_ids)
 
-    items_by_cart: dict[int, list[CartItem]] = {}
-    for item in cart_items:
-        items_by_cart.setdefault(item.cart_id, []).append(item)
+    order, order_items, payment, delivery = _build_order_for_cart(
+        profile_id=profile.id, address_id=address_id,
+        address_snapshot=address_snapshot, cart=cart, items=cart_items,
+        inv_by_id=inv_by_id, name_by_inv=name_by_inv,
+        payment_method=payment_method,
+    )
+    session.add(order)
+    await session.flush()
+    assert order.id is not None
+    for oi in order_items:
+        oi.order_id = order.id
+        session.add(oi)
+        # Mutate the locked ORM instance — unit-of-work flushes the change
+        # while the row lock is still held by this transaction.
+        assert oi.inventory_id is not None
+        decrement_stock(inv_by_id[oi.inventory_id], oi.quantity)
+    payment.order_id = order.id
+    delivery.order_id = order.id
+    session.add(payment)
+    session.add(delivery)
 
-    created_orders: list[Order] = []
-    for cart in carts:
-        assert cart.id is not None
-        items = items_by_cart.get(cart.id, [])
-        if not items:
-            continue
-        order, order_items, payment, delivery = _build_order_for_cart(
-            profile_id=profile.id, address_id=address_id,
-            address_snapshot=address_snapshot, cart=cart, items=items,
-            inv_by_id=inv_by_id, name_by_inv=name_by_inv,
-        )
-        session.add(order)
-        await session.flush()
-        assert order.id is not None
-        for oi in order_items:
-            oi.order_id = order.id
-            session.add(oi)
-            # Mutate the locked ORM instance — unit-of-work flushes the
-            # change while the row lock is still held by this transaction.
-            assert oi.inventory_id is not None
-            decrement_stock(inv_by_id[oi.inventory_id], oi.quantity)
-        payment.order_id = order.id
-        delivery.order_id = order.id
-        session.add(payment)
-        session.add(delivery)
-        created_orders.append(order)
-
-    # Clear cart (items first to satisfy the cart_id FK).
+    # Clear only this store's cart (items first to satisfy the FK).
     for item in cart_items:
         await session.delete(item)
-    # Flush so the item DELETEs hit the DB before the cart DELETEs — without
-    # this, SQLAlchemy can reorder and trigger cartitem_cart_id_fkey violations.
     await session.flush()
-    for cart in carts:
-        await session.delete(cart)
+    await session.delete(cart)
 
     await session.commit()
-    for order in created_orders:
-        await session.refresh(order)
-    return created_orders
+    await session.refresh(order)
+    return order
