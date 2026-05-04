@@ -9,3 +9,16 @@
   padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600;
 }
 .error { color: #991b1b; font-size: 0.85rem; }
+
+@media (max-width: 640px) {
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .primary,
+  .danger {
+    width: 100%;
+    min-height: 44px;
+  }
+}
