@@ -1,0 +1,41 @@
+.cardTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cardTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-900);
+  word-break: break-word;
+}
+
+.cardPriceRight {
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-900);
+  flex-shrink: 0;
+}
+
+.cardSubtitle {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+.cardMeta {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-400);
+}
+
+.cardChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}

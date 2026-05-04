@@ -58,6 +58,7 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-default);
+  min-height: 36px;
 }
 
 .editBtn {
@@ -115,13 +116,55 @@
   color: var(--color-error);
 }
 
+/* ── Mobile card list (opt-in) ─────── */
+.mobileCardList {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-neutral-50);
+}
+
+.mobileCard {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-shadow: var(--shadow-sm);
+}
+
+.mobileCardActions {
+  display: flex;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-neutral-100);
+}
+
+.mobileCardActions .actionBtn {
+  flex: 1;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-sm);
+}
+
 /* ── Responsive ──────────────────── */
 @media (max-width: 768px) {
   .tableWrap {
     overflow-x: auto;
   }
 
-  .table {
+  .table:not(.tableHideOnMobile) {
     min-width: 600px;
+  }
+
+  .tableHideOnMobile {
+    display: none;
+  }
+
+  .mobileCardList {
+    display: flex;
   }
 }

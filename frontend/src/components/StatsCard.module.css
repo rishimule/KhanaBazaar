@@ -74,3 +74,20 @@
 .trendDown {
   color: var(--color-error);
 }
+
+@media (max-width: 480px) {
+  .card {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .iconWrap {
+    width: 40px;
+    height: 40px;
+    font-size: var(--font-xl);
+  }
+
+  .value {
+    font-size: var(--font-xl);
+  }
+}

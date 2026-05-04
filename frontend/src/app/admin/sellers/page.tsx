@@ -9,6 +9,7 @@ import { get, patch } from "@/lib/api";
 import { SellerApplication, ApplicationCounts, VerificationStatus, Service } from "@/types";
 import ServicePicker from "@/components/ServicePicker";
 import styles from "./page.module.css";
+import mobileStyles from "@/components/DataTableCard.module.css";
 
 type Filter = VerificationStatus | "all";
 
@@ -259,6 +260,28 @@ export default function AdminSellersPage() {
         data={apps}
         keyField="seller_id"
         emptyMessage={emptyMsgMap[filter]}
+        mobileCardRender={(row) => (
+          <>
+            <div className={mobileStyles.cardTopRow}>
+              <span className={mobileStyles.cardTitle}>{row.business_name}</span>
+              {statusPill(row.verification_status)}
+            </div>
+            <div className={styles.ownerCell}>
+              <span>{row.full_name}</span>
+              <span className={styles.ownerEmail}>{row.email}</span>
+            </div>
+            <div className={mobileStyles.cardMeta}>
+              {row.services.length} service{row.services.length === 1 ? "" : "s"} • {timeAgo(row.submitted_at)}
+            </div>
+            <button
+              className={styles.reviewBtn}
+              style={{ width: "100%", minHeight: 44 }}
+              onClick={() => setReviewing(row)}
+            >
+              Review
+            </button>
+          </>
+        )}
       />
 
       {editingServices && (
