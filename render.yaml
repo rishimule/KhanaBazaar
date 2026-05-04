@@ -7,7 +7,7 @@ databases:
     plan: basic-256mb
     databaseName: khanabazaar
     user: khanabazaar
-    postgresMajorVersion: "15"
+    postgresMajorVersion: "15"   # match local docker-compose; bump to "18" if you want Render's latest default
 
 services:
   # ── Redis (Celery broker + cache) ────────────────────────────────────
@@ -30,7 +30,7 @@ services:
     buildCommand: ./build.sh
     preDeployCommand: ./predeploy.sh
     startCommand: uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /api/v1/health
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
@@ -126,8 +126,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      # NEXT_PUBLIC_* is inlined at BUILD time. Render's `fromService.host`
+      # returns the private hostname (browser can't reach it), so paste the
+      # API service's public URL (e.g. https://khanabazaar-api.onrender.com)
+      # in the dashboard at first sync. Re-deploy this service after editing.
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: khanabazaar-api
-          property: host
+        sync: false

@@ -83,9 +83,12 @@ elif DATABASE_URL.startswith("postgresql://"):
 
 Render injects `PORT`. Next.js reads it automatically when started with `next start -p $PORT`. The Blueprint below sets that explicitly, so no code change is required.
 
-### 3.5 CORS allow-list
+### 3.5 CORS allow-list (required before deploy)
 
-In `backend/app/src/app/core/config.py`, ensure the Next.js Render URL (e.g. `https://khanabazaar-frontend.onrender.com`) is in the FastAPI CORS origins list, or configure via env var.
+`backend/app/src/app/__init__.py` currently hardcodes CORS origins to `localhost:3000` / `127.0.0.1:3000`. Production calls from `khanabazaar-web.onrender.com` will be blocked. Either:
+
+- Add the deployed frontend URL to the `allow_origins` list directly, **or**
+- Promote the list to an env var (e.g. `FRONTEND_ORIGIN`) and read it from `settings`. The Blueprint already exposes `FRONTEND_ORIGIN` as a `sync: false` secret on the API service for this purpose.
 
 ---
 
@@ -125,7 +128,7 @@ services:
     buildCommand: ./build.sh
     preDeployCommand: ./predeploy.sh
     startCommand: uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /api/v1/health
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
@@ -221,11 +224,11 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      # NEXT_PUBLIC_* is inlined at BUILD time. fromService.host returns the
+      # private hostname (browser can't reach it), so paste the API's public
+      # URL in the dashboard. Re-deploy frontend after editing.
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: khanabazaar-api
-          property: host          # resolves to https://khanabazaar-api.onrender.com
+        sync: false
 ```
 
 Key Blueprint features used:
@@ -233,7 +236,7 @@ Key Blueprint features used:
 - **`fromDatabase`** wires `DATABASE_URL` to the Postgres connection string automatically.
 - **`fromService` → `keyvalue`** wires the worker + API to the same Redis instance over Render's private network.
 - **`generateValue: true`** lets Render mint `JWT_SECRET` and `OTP_PEPPER` once and reuse them (worker pulls the same value via `fromService.envVarKey`).
-- **`sync: false`** marks secrets that must be entered manually in the dashboard at first sync (Resend keys, etc.).
+- **`sync: false`** marks values entered manually in the dashboard at first sync — used here for Resend secrets, `FRONTEND_ORIGIN`, and `NEXT_PUBLIC_API_URL` (the public API URL is only known after the API service first deploys, and Render does not expose a `publicUrl`/`externalUrl` Blueprint property).
 - **`preDeployCommand`** runs `alembic upgrade head` before each new revision becomes live, so migrations are atomic with code rollouts.
 - **`rootDir`** keeps the monorepo intact — each service builds only its own subtree.
 - **`ipAllowList: []`** on Redis blocks all external traffic; only Render services in your account can connect.
@@ -245,15 +248,17 @@ Key Blueprint features used:
 1. Commit `render.yaml`, `backend/app/build.sh`, `backend/app/predeploy.sh` and push to `main`.
 2. In the Render dashboard: **New + → Blueprint**.
 3. Pick the GitHub repo, branch `main`. Render parses `render.yaml` and shows every resource it will create.
-4. Fill in the `sync: false` secrets when prompted (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `FRONTEND_ORIGIN`).
+4. Fill in the `sync: false` secrets when prompted on the API service (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `FRONTEND_ORIGIN`) and on the frontend (`NEXT_PUBLIC_API_URL`). The first apply lets you stub these — they can be replaced once URLs are known.
 5. Click **Apply**. Render provisions Postgres → Redis → builds API + worker + frontend in parallel. First build takes 5–10 min.
-6. After the API service finishes its first deploy, copy its public URL (e.g. `https://khanabazaar-api.onrender.com`) and set `FRONTEND_ORIGIN` on the API and re-deploy if you didn't already plug in the frontend URL.
+6. After the API service finishes its first deploy, copy its public URL (e.g. `https://khanabazaar-api.onrender.com`):
+   - Set `NEXT_PUBLIC_API_URL` on `khanabazaar-web` to that URL → trigger a manual redeploy (Next.js inlines this at build time).
+   - Set `FRONTEND_ORIGIN` on `khanabazaar-api` to the frontend's public URL (e.g. `https://khanabazaar-web.onrender.com`) so CORS allows it.
 
 ---
 
 ## 6. Post-deploy checklist
 
-- **Health check**: `curl https://khanabazaar-api.onrender.com/api/v1/health` should return 200.
+- **Health check**: `curl https://khanabazaar-api.onrender.com/health` should return 200.
 - **Migrations**: API logs should show `alembic upgrade head` ran in the pre-deploy phase.
 - **Worker**: `khanabazaar-worker` logs should show `celery@... ready.` and a successful broker handshake to `khanabazaar-redis:6379`.
 - **Frontend**: open `https://khanabazaar-web.onrender.com`, confirm storefront loads and `NEXT_PUBLIC_API_URL` points at the API service.
