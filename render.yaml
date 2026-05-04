@@ -1,0 +1,134 @@
+# Khana Bazaar — Render Blueprint
+# Single source of truth for every Render resource.
+# Apply via Render Dashboard → New + → Blueprint → pick GitHub repo.
+
+databases:
+  - name: khanabazaar-db
+    plan: basic-256mb
+    databaseName: khanabazaar
+    user: khanabazaar
+    postgresMajorVersion: "15"   # match local docker-compose; bump to "18" if you want Render's latest default
+
+services:
+  # ── Redis (Celery broker + cache) ────────────────────────────────────
+  - type: keyvalue
+    name: khanabazaar-redis
+    plan: starter
+    region: singapore
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
+  # ── FastAPI backend ──────────────────────────────────────────────────
+  - type: web
+    name: khanabazaar-api
+    runtime: python
+    plan: starter
+    region: singapore
+    rootDir: backend/app
+    branch: main
+    autoDeploy: true
+    buildCommand: ./build.sh
+    preDeployCommand: ./predeploy.sh
+    startCommand: uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: PROJECT_NAME
+        value: "Khana Bazaar API"
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: khanabazaar-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: khanabazaar-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_HOURS
+        value: "24"
+      - key: OTP_PEPPER
+        generateValue: true
+      - key: OTP_TTL_SECONDS
+        value: "600"
+      - key: OTP_MAX_ATTEMPTS
+        value: "5"
+      - key: OTP_RESEND_COOLDOWN
+        value: "60"
+      - key: OTP_MAX_PER_HOUR
+        value: "5"
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+
+  # ── Celery worker ────────────────────────────────────────────────────
+  - type: worker
+    name: khanabazaar-worker
+    runtime: python
+    plan: starter
+    region: singapore
+    rootDir: backend/app
+    branch: main
+    autoDeploy: true
+    buildCommand: ./build.sh
+    startCommand: uv run celery -A app.core.celery_app worker --loglevel=info --concurrency 2
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: khanabazaar-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: khanabazaar-redis
+          property: connectionString
+      - key: JWT_SECRET
+        fromService:
+          type: web
+          name: khanabazaar-api
+          envVarKey: JWT_SECRET
+      - key: OTP_PEPPER
+        fromService:
+          type: web
+          name: khanabazaar-api
+          envVarKey: OTP_PEPPER
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+
+  # ── Next.js frontend ─────────────────────────────────────────────────
+  - type: web
+    name: khanabazaar-web
+    runtime: node
+    plan: starter
+    region: singapore
+    rootDir: frontend
+    branch: main
+    autoDeploy: true
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- -p $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # NEXT_PUBLIC_* is inlined at BUILD time. Render's `fromService.host`
+      # returns the private hostname (browser can't reach it), so paste the
+      # API service's public URL (e.g. https://khanabazaar-api.onrender.com)
+      # in the dashboard at first sync. Re-deploy this service after editing.
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
