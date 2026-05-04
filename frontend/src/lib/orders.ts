@@ -1,5 +1,5 @@
 import { get, post } from "@/lib/api";
-import type { Order, OrderListResponse, PlaceOrderResponse } from "@/types";
+import type { Order, OrderListResponse, PaymentMethod } from "@/types";
 
 export async function listOrders(
   token: string,
@@ -14,16 +14,25 @@ export async function getOrder(token: string, orderId: number): Promise<Order> {
   return get<Order>(`/api/v1/orders/${orderId}`, token);
 }
 
+export interface PlaceOrderArgs {
+  customerAddressId: number;
+  storeId: number;
+  paymentMethod: PaymentMethod;
+}
+
 export async function placeOrder(
   token: string,
-  customerAddressId: number
-): Promise<Order[]> {
-  const data = await post<PlaceOrderResponse>(
+  args: PlaceOrderArgs
+): Promise<Order> {
+  return post<Order>(
     "/api/v1/orders",
-    { customer_address_id: customerAddressId },
+    {
+      customer_address_id: args.customerAddressId,
+      store_id: args.storeId,
+      payment_method: args.paymentMethod,
+    },
     token
   );
-  return data.orders;
 }
 
 export async function transitionOrder(
