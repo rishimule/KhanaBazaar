@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { get, post, put, del } from "@/lib/api";
 import { Category, MasterProduct, Service } from "@/types";
 import styles from "../products/page.module.css";
+import mobileStyles from "@/components/DataTableCard.module.css";
 
 export default function AdminCategoriesPage() {
   const router = useRouter();
@@ -150,6 +151,23 @@ export default function AdminCategoriesPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         emptyMessage="No categories yet. Add one to get started."
+        mobileCardRender={(c) => {
+          const productCount = products.filter((p) => p.category_id === c.id).length;
+          return (
+            <>
+              <div className={mobileStyles.cardTopRow}>
+                <span className={mobileStyles.cardTitle}>{c.name}</span>
+                <span className={styles.categoryBadge}>{getServiceName(c.service_id)}</span>
+              </div>
+              {c.description && (
+                <p className={mobileStyles.cardSubtitle}>{c.description}</p>
+              )}
+              <div className={mobileStyles.cardMeta}>
+                {productCount} product{productCount === 1 ? "" : "s"}
+              </div>
+            </>
+          );
+        }}
       />
 
       {/* Edit Modal */}
