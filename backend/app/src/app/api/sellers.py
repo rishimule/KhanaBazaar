@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.locale import get_request_locale
 from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
 from app.models.address import Address
@@ -15,12 +16,14 @@ from app.models.base import User
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.store import Store
 from app.schemas.address import address_from_payload, address_to_payload
+from app.schemas.inventory import EligibleProduct
 from app.schemas.sellers import (
     AdminSetServicesBody,
     SellerApplicationPayload,
     SellerProfilePayload,
     SellerProfileUpdateBody,
 )
+from app.services.eligible_products import list_eligible_products
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_emails import (
     dispatch_seller_approved,
@@ -159,6 +162,34 @@ async def _notify_seller_of_decision(
         dispatch_seller_rejected(
             user.email, profile.business_name, profile.rejection_reason or ""
         )
+
+
+@router.get("/me/eligible-products", response_model=List[EligibleProduct])
+async def list_my_eligible_products(
+    session: AsyncSession = Depends(get_db_session),
+    seller: User = Depends(get_current_seller),
+    lang: str = Depends(get_request_locale),
+) -> List[EligibleProduct]:
+    profile_result = await session.exec(
+        select(SellerProfile).where(SellerProfile.user_id == seller.id)
+    )
+    profile = profile_result.first()
+    if profile is None or profile.id is None:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+
+    store_result = await session.exec(
+        select(Store).where(Store.seller_profile_id == profile.id)
+    )
+    store = store_result.first()
+    if store is None or store.id is None:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "STORE_NOT_PROVISIONED", "message": "No store yet"},
+        )
+
+    return await list_eligible_products(
+        session, profile_id=profile.id, store_id=store.id, lang=lang
+    )
 
 
 @router.patch("/admin/{seller_id}/verify")
