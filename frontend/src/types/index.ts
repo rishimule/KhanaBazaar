@@ -225,3 +225,38 @@ export interface Order {
 export interface OrderListResponse {
   orders: Order[];
 }
+
+export interface EligibleProduct {
+  id: number;
+  name: string;
+  base_price: number;
+  subcategory_id: number;
+  subcategory_name: string;
+  category_id: number;
+  category_name: string;
+  service_id: number;
+  service_name: string;
+  in_inventory: boolean;
+}
+
+export interface BulkInventoryItem {
+  product_id: number;
+  price: number;
+  stock: number;
+  is_available: boolean;
+}
+
+export type BulkInventoryErrorCode =
+  | "PRICE_INVALID"
+  | "STOCK_INVALID"
+  | "PRODUCT_NOT_FOUND"
+  | "SERVICE_NOT_APPROVED"
+  | "DUPLICATE_PRODUCT"
+  | "ROW_LIMIT";
+
+export interface BulkInventoryError {
+  index: number;
+  product_id: number;
+  code: BulkInventoryErrorCode;
+  message: string;
+}
