@@ -18,6 +18,7 @@ from app.models.catalog import (
     Service,
     ServiceTranslation,
     Subcategory,
+    SubcategoryTranslation,
 )
 from app.schemas.services import ServicePayload
 
@@ -53,6 +54,16 @@ class CategoryUpdate(BaseModel):
     description: str | None = None
 
 
+class SubcategoryRead(BaseModel):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    name: str
+    description: str | None = None
+    category_id: int
+    slug: str
+
+
 class ProductRead(BaseModel):
     id: int
     created_at: datetime
@@ -60,6 +71,8 @@ class ProductRead(BaseModel):
     name: str
     description: str
     category_id: int
+    subcategory_id: int
+    subcategory_name: str
     image_url: str | None = None
     base_price: float
 
@@ -144,6 +157,37 @@ async def _english_product_translation(
     return result.first()
 
 
+async def _english_subcategory_translation(
+    session: AsyncSession, subcategory_id: int
+) -> SubcategoryTranslation | None:
+    result = await session.exec(
+        select(SubcategoryTranslation).where(
+            SubcategoryTranslation.subcategory_id == subcategory_id,
+            SubcategoryTranslation.language_code == _EN,
+        )
+    )
+    return result.first()
+
+
+def _subcategory_name(subcategory: Subcategory, translation: SubcategoryTranslation | None) -> str:
+    return translation.name if translation else subcategory.slug
+
+
+def _subcategory_read(
+    subcategory: Subcategory, translation: SubcategoryTranslation | None
+) -> SubcategoryRead:
+    assert subcategory.id is not None
+    return SubcategoryRead(
+        id=subcategory.id,
+        created_at=subcategory.created_at,
+        updated_at=subcategory.updated_at,
+        name=_subcategory_name(subcategory, translation),
+        description=translation.description if translation else None,
+        category_id=subcategory.category_id,
+        slug=subcategory.slug,
+    )
+
+
 def _category_read(category: Category, translation: CategoryTranslation | None) -> CategoryRead:
     assert category.id is not None
     return CategoryRead(
@@ -174,8 +218,10 @@ def _product_read(
     product: MasterProduct,
     translation: MasterProductTranslation | None,
     subcategory: Subcategory,
+    subcategory_translation: SubcategoryTranslation | None = None,
 ) -> ProductRead:
     assert product.id is not None
+    assert subcategory.id is not None
     return ProductRead(
         id=product.id,
         created_at=product.created_at,
@@ -183,6 +229,8 @@ def _product_read(
         name=translation.name if translation else product.slug,
         description=translation.description if translation else "",
         category_id=subcategory.category_id,
+        subcategory_id=subcategory.id,
+        subcategory_name=_subcategory_name(subcategory, subcategory_translation),
         image_url=product.image_url,
         base_price=product.base_price,
     )
@@ -315,25 +363,64 @@ async def list_products(
     session: AsyncSession = Depends(get_db_session),
 ) -> List[ProductRead]:
     stmt = (
-        select(MasterProduct, MasterProductTranslation, Subcategory)
+        select(
+            MasterProduct,
+            MasterProductTranslation,
+            Subcategory,
+            SubcategoryTranslation,
+        )
         .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
         .join(
             MasterProductTranslation,
             MasterProductTranslation.master_product_id == MasterProduct.id,  # type: ignore[arg-type]
             isouter=True,
         )
+        .join(
+            SubcategoryTranslation,
+            SubcategoryTranslation.subcategory_id == Subcategory.id,  # type: ignore[arg-type]
+            isouter=True,
+        )
         .where(
             (MasterProductTranslation.language_code == _EN)
             | (MasterProductTranslation.id.is_(None))  # type: ignore[union-attr]
+        )
+        .where(
+            (SubcategoryTranslation.language_code == _EN)
+            | (SubcategoryTranslation.id.is_(None))  # type: ignore[union-attr]
         )
         .offset(skip)
         .limit(limit)
     )
     result = await session.exec(stmt)
     return [
-        _product_read(product, translation, subcategory)
-        for product, translation, subcategory in result.all()
+        _product_read(product, translation, subcategory, subcategory_translation)
+        for product, translation, subcategory, subcategory_translation in result.all()
     ]
+
+
+@router.get("/subcategories", response_model=List[SubcategoryRead])
+async def list_subcategories(
+    session: AsyncSession = Depends(get_db_session),
+) -> List[SubcategoryRead]:
+    stmt = (
+        select(Subcategory, SubcategoryTranslation)
+        .join(
+            SubcategoryTranslation,
+            SubcategoryTranslation.subcategory_id == Subcategory.id,  # type: ignore[arg-type]
+            isouter=True,
+        )
+        .where(
+            (SubcategoryTranslation.language_code == _EN)
+            | (SubcategoryTranslation.id.is_(None))  # type: ignore[union-attr]
+        )
+        .order_by(
+            Subcategory.category_id,  # type: ignore[arg-type]
+            Subcategory.sort_order,  # type: ignore[arg-type]
+            Subcategory.id,  # type: ignore[arg-type]
+        )
+    )
+    result = await session.exec(stmt)
+    return [_subcategory_read(sub, translation) for sub, translation in result.all()]
 
 
 @router.post("/products", response_model=ProductRead)

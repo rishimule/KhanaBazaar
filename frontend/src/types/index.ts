@@ -41,11 +41,21 @@ export interface Category extends BaseSchema {
   service_id: number;
 }
 
+/** Subcategory under a Category in the master catalog. */
+export interface Subcategory extends BaseSchema {
+  name: string;
+  description?: string;
+  category_id: number;
+  slug: string;
+}
+
 /** A product in the master catalog managed by admins. */
 export interface MasterProduct extends BaseSchema {
   name: string;
   description: string;
   category_id: number;
+  subcategory_id: number;
+  subcategory_name: string;
   image_url?: string;
   base_price: number;
 }
