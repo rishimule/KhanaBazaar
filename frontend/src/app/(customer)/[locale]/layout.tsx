@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
+import { alternateLanguages } from "@/i18n/metadata";
 import { routing } from "@/i18n/routing";
 
 const inter = Inter({
@@ -40,6 +41,9 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icons/icon-192x192.png",
     apple: "/icons/icon-192x192.png",
+  },
+  alternates: {
+    languages: alternateLanguages("/"),
   },
 };
 
