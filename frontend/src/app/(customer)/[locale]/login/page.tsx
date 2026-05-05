@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { User } from "@/types";
 import styles from "./page.module.css";
@@ -15,6 +16,7 @@ function getRedirect(user: User): string {
 }
 
 export default function LoginPage() {
+  const t = useTranslations("Login");
   const router = useRouter();
   const { requestOtp, verifyOtp, dbUser } = useAuth();
   const [step, setStep] = useState<Step>("email");
@@ -41,7 +43,7 @@ export default function LoginPage() {
       await requestOtp(email);
       setStep("code");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send code.");
+      setError(err instanceof Error ? err.message : t("errSendCode"));
     } finally {
       setSubmitting(false);
     }
@@ -59,7 +61,7 @@ export default function LoginPage() {
         router.push(getRedirect(result.user));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Verification failed.");
+      setError(err instanceof Error ? err.message : t("errVerify"));
     } finally {
       setSubmitting(false);
     }
@@ -73,7 +75,7 @@ export default function LoginPage() {
       const result = await verifyOtp(email, code, fullName);
       router.push(getRedirect(result.user));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create account.");
+      setError(err instanceof Error ? err.message : t("errCreateAccount"));
     } finally {
       setSubmitting(false);
     }
@@ -81,10 +83,10 @@ export default function LoginPage() {
 
   const subtitle =
     step === "email"
-      ? "Enter your email to sign in or create an account"
+      ? t("subtitleEmail")
       : step === "code"
-      ? `Enter the 6-digit code sent to ${email}`
-      : "One last step — what should we call you?";
+      ? t("subtitleCode", { email })
+      : t("subtitleName");
 
   return (
     <div className={styles.page}>
@@ -92,7 +94,7 @@ export default function LoginPage() {
         <div className={styles.cardHeader}>
           <div className={styles.cardLogo}>🛍️</div>
           <h1 className={styles.cardTitle}>
-            Welcome to{" "}
+            {t("welcomeTo")}{" "}
             <span className={styles.cardTitleAccent}>KhanaBazaar</span>
           </h1>
           <p className={styles.cardSubtitle}>{subtitle}</p>
@@ -103,13 +105,13 @@ export default function LoginPage() {
             {error && <div className={styles.error}>{error}</div>}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="login-email">
-                Email
+                {t("emailLabel")}
               </label>
               <input
                 id="login-email"
                 className={styles.input}
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t("emailPlaceholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -121,7 +123,7 @@ export default function LoginPage() {
               className={styles.submitBtn}
               disabled={submitting}
             >
-              {submitting ? "Sending code…" : "Send code"}
+              {submitting ? t("sending") : t("sendCode")}
             </button>
           </form>
         )}
@@ -131,7 +133,7 @@ export default function LoginPage() {
             {error && <div className={styles.error}>{error}</div>}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="login-code">
-                One-time code
+                {t("codeLabel")}
               </label>
               <input
                 id="login-code"
@@ -153,7 +155,7 @@ export default function LoginPage() {
               className={styles.submitBtn}
               disabled={submitting}
             >
-              {submitting ? "Verifying…" : "Verify code"}
+              {submitting ? t("verifying") : t("verifyCode")}
             </button>
             <button
               type="button"
@@ -164,7 +166,7 @@ export default function LoginPage() {
                 setError(null);
               }}
             >
-              Use a different email
+              {t("useDifferentEmail")}
             </button>
           </form>
         )}
@@ -174,13 +176,13 @@ export default function LoginPage() {
             {error && <div className={styles.error}>{error}</div>}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="login-name">
-                Your name
+                {t("nameLabel")}
               </label>
               <input
                 id="login-name"
                 className={styles.input}
                 type="text"
-                placeholder="Priya Verma"
+                placeholder={t("namePlaceholder")}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
@@ -193,7 +195,7 @@ export default function LoginPage() {
               className={styles.submitBtn}
               disabled={submitting}
             >
-              {submitting ? "Creating account…" : "Continue"}
+              {submitting ? t("creatingAccount") : t("continue")}
             </button>
           </form>
         )}
