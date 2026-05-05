@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { listOrders } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import OrderCard from "@/components/orders/OrderCard";
@@ -12,6 +13,7 @@ type Tab = "active" | "history";
 
 export default function CustomerOrdersPage() {
   const { token } = useAuth();
+  const t = useTranslations("Account.orders");
   const [tab, setTab] = useState<Tab>("active");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,26 +31,28 @@ export default function CustomerOrdersPage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Your orders</h1>
+      <h1 className={styles.title}>{t("title")}</h1>
       {justPlaced && (
         <div className={styles.toast}>
-          {justPlaced} order{Number(justPlaced) > 1 ? "s" : ""} placed successfully.
+          {t("placedToast", { count: Number(justPlaced) })}
         </div>
       )}
       <div className={styles.tabs}>
         <button
           className={tab === "active" ? styles.tabActive : styles.tab}
           onClick={() => setTab("active")}
-        >Active</button>
+        >{t("tabActive")}</button>
         <button
           className={tab === "history" ? styles.tabActive : styles.tab}
           onClick={() => setTab("history")}
-        >History</button>
+        >{t("tabHistory")}</button>
       </div>
       {loading ? (
-        <div className={styles.empty}>Loading…</div>
+        <div className={styles.empty}>{t("loading")}</div>
       ) : orders.length === 0 ? (
-        <div className={styles.empty}>No {tab} orders.</div>
+        <div className={styles.empty}>
+          {tab === "active" ? t("emptyActive") : t("emptyHistory")}
+        </div>
       ) : (
         <div className={styles.grid}>
           {orders.map((o) => (

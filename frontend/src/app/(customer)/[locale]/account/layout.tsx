@@ -2,14 +2,10 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/lib/AuthContext";
 import type { UserRole } from "@/types";
-
-const CUSTOMER_NAV = [
-  { href: "/account/orders", label: "Orders", icon: "📦" },
-  { href: "/account/settings", label: "Settings", icon: "⚙️" },
-];
 
 function redirectForRole(role: UserRole): string {
   if (role === "admin") return "/admin";
@@ -25,6 +21,7 @@ export default function AccountLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { dbUser, loading } = useAuth();
+  const t = useTranslations("Account");
 
   useEffect(() => {
     if (loading) return;
@@ -40,12 +37,17 @@ export default function AccountLayout({
   if (loading || !dbUser || dbUser.role !== "customer") {
     return (
       <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
-        Loading…
+        {t("loading")}
       </div>
     );
   }
 
-  const title = pathname === "/account/settings" ? "Account settings" : "Account";
+  const customerNav = [
+    { href: "/account/orders", label: t("navOrders"), icon: "📦" },
+    { href: "/account/settings", label: t("navSettings"), icon: "⚙️" },
+  ];
+
+  const title = pathname === "/account/settings" ? t("layoutSettingsTitle") : t("layoutTitle");
   const roleName = dbUser.full_name || dbUser.email;
 
   return (
@@ -53,7 +55,7 @@ export default function AccountLayout({
       role="customer"
       roleName={roleName}
       title={title}
-      navItems={CUSTOMER_NAV}
+      navItems={customerNav}
     >
       {children}
     </DashboardLayout>
