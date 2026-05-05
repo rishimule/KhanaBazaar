@@ -100,6 +100,7 @@ export default function SellerInventoryPage() {
   const [formProductId, setFormProductId] = useState<number>(0);
   const [formPrice, setFormPrice] = useState("");
   const [formStock, setFormStock] = useState("");
+  const [presetCategoryId, setPresetCategoryId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!dbUser || dbUser.role !== "seller")) {
@@ -275,8 +276,12 @@ export default function SellerInventoryPage() {
     } catch { /* silent */ }
   }
 
-  function openAdd() {
-    setFormProductId(availableProducts[0]?.id ?? 0);
+  function openAdd(categoryId?: number) {
+    const pool = categoryId
+      ? availableProducts.filter((p) => p.category_id === categoryId)
+      : availableProducts;
+    setPresetCategoryId(categoryId ?? null);
+    setFormProductId(pool[0]?.id ?? 0);
     setFormPrice("");
     setFormStock("");
     setShowAdd(true);
@@ -299,6 +304,7 @@ export default function SellerInventoryPage() {
       );
       setInventory((prev) => [...prev, { ...created, product }]);
       setShowAdd(false);
+      setPresetCategoryId(null);
     } catch { /* silent */ }
   }
 
@@ -321,7 +327,7 @@ export default function SellerInventoryPage() {
         </Link>
         <button
           className={styles.addBtn}
-          onClick={openAdd}
+          onClick={() => openAdd()}
           disabled={availableProducts.length === 0}
         >
           + Add Product
@@ -355,10 +361,31 @@ export default function SellerInventoryPage() {
               {bucket.category.name}
               <span className={styles.categoryCount}>({bucket.items.length})</span>
             </h2>
+            <button
+              className={styles.categoryAddBtn}
+              onClick={() => openAdd(bucket.category.id)}
+              disabled={
+                availableProducts.filter((p) => p.category_id === bucket.category.id)
+                  .length === 0
+              }
+            >
+              + Add
+            </button>
           </header>
           {bucket.items.length === 0 ? (
             <div className={styles.emptyCategory}>
-              No products in this category yet.
+              No products in this category yet.{" "}
+              <button
+                className={styles.categoryAddBtn}
+                style={{ marginLeft: "var(--space-2)" }}
+                onClick={() => openAdd(bucket.category.id)}
+                disabled={
+                  availableProducts.filter((p) => p.category_id === bucket.category.id)
+                    .length === 0
+                }
+              >
+                + Add
+              </button>
             </div>
           ) : (
             <DataTable
@@ -430,10 +457,15 @@ export default function SellerInventoryPage() {
       {showAdd && (
         <Modal
           title="Add Product to Store"
-          onClose={() => setShowAdd(false)}
+          onClose={() => { setShowAdd(false); setPresetCategoryId(null); }}
           footer={
             <>
-              <button className="btn btn-outline" onClick={() => setShowAdd(false)}>Cancel</button>
+              <button
+                className="btn btn-outline"
+                onClick={() => { setShowAdd(false); setPresetCategoryId(null); }}
+              >
+                Cancel
+              </button>
               <button className="btn btn-primary" onClick={handleAdd}>Add Product</button>
             </>
           }
@@ -445,11 +477,15 @@ export default function SellerInventoryPage() {
               value={formProductId}
               onChange={(e) => setFormProductId(parseInt(e.target.value, 10))}
             >
-              {availableProducts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — ₹{p.base_price}
-                </option>
-              ))}
+              {availableProducts
+                .filter((p) =>
+                  presetCategoryId == null ? true : p.category_id === presetCategoryId
+                )
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — ₹{p.base_price}
+                  </option>
+                ))}
             </select>
           </div>
           <div className={modalStyles.formGroup}>
