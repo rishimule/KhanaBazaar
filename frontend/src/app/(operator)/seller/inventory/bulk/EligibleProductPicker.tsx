@@ -10,6 +10,8 @@ interface Props {
   alreadyInSheet: Set<number>;
   onClose: () => void;
   onAdd: (selected: EligibleProduct[]) => void;
+  initialServiceId?: number | null;
+  initialCategoryId?: number | null;
 }
 
 export function EligibleProductPicker({
@@ -18,10 +20,12 @@ export function EligibleProductPicker({
   alreadyInSheet,
   onClose,
   onAdd,
+  initialServiceId = null,
+  initialCategoryId = null,
 }: Props) {
   const [search, setSearch] = useState("");
-  const [serviceId, setServiceId] = useState<number | null>(null);
-  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [serviceId, setServiceId] = useState<number | null>(initialServiceId);
+  const [categoryId, setCategoryId] = useState<number | null>(initialCategoryId);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const services = useMemo(() => {
