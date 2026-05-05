@@ -350,6 +350,12 @@ export default function SellerInventoryPage() {
         </div>
       )}
 
+      {activeBucket && activeBucket.categories.length === 0 && (
+        <div className={styles.servicesEmpty}>
+          No categories in this service yet.
+        </div>
+      )}
+
       {activeBucket?.categories.map((bucket) => (
         <section
           key={bucket.category.id}

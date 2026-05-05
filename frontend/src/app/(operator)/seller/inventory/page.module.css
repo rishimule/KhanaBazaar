@@ -215,4 +215,26 @@
     justify-content: center;
     min-height: 44px;
   }
+
+  .serviceTabs {
+    margin-left: calc(-1 * var(--space-3));
+    margin-right: calc(-1 * var(--space-3));
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+
+  .categoryNav {
+    margin-left: calc(-1 * var(--space-3));
+    margin-right: calc(-1 * var(--space-3));
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+
+  .categoryHeader {
+    flex-wrap: wrap;
+  }
+
+  .categorySection {
+    scroll-margin-top: 64px;
+  }
 }
