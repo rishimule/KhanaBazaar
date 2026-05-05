@@ -101,6 +101,8 @@ export default function SellerInventoryPage() {
   const [formPrice, setFormPrice] = useState("");
   const [formStock, setFormStock] = useState("");
   const [presetCategoryId, setPresetCategoryId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!dbUser || dbUser.role !== "seller")) {
@@ -284,7 +286,16 @@ export default function SellerInventoryPage() {
     setFormProductId(pool[0]?.id ?? 0);
     setFormPrice("");
     setFormStock("");
+    setSearchQuery("");
+    setShowAll(false);
     setShowAdd(true);
+  }
+
+  function closeAdd() {
+    setShowAdd(false);
+    setPresetCategoryId(null);
+    setSearchQuery("");
+    setShowAll(false);
   }
 
   async function handleAdd() {
@@ -303,8 +314,7 @@ export default function SellerInventoryPage() {
         token
       );
       setInventory((prev) => [...prev, { ...created, product }]);
-      setShowAdd(false);
-      setPresetCategoryId(null);
+      closeAdd();
     } catch { /* silent */ }
   }
 
@@ -452,39 +462,90 @@ export default function SellerInventoryPage() {
         </Modal>
       )}
 
-      {showAdd && (
+      {showAdd && (() => {
+        const presetActive = presetCategoryId !== null && !showAll;
+        const presetPool = presetActive
+          ? availableProducts.filter((p) => p.category_id === presetCategoryId)
+          : availableProducts;
+        const q = searchQuery.trim().toLowerCase();
+        const visibleProducts = q
+          ? presetPool.filter((p) => p.name.toLowerCase().includes(q))
+          : presetPool;
+        const selectionValid = visibleProducts.some((p) => p.id === formProductId);
+
+        return (
         <Modal
           title="Add Product to Store"
-          onClose={() => { setShowAdd(false); setPresetCategoryId(null); }}
+          onClose={closeAdd}
           footer={
             <>
-              <button
-                className="btn btn-outline"
-                onClick={() => { setShowAdd(false); setPresetCategoryId(null); }}
-              >
+              <button className="btn btn-outline" onClick={closeAdd}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleAdd}>Add Product</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleAdd}
+                disabled={!selectionValid}
+              >
+                Add Product
+              </button>
             </>
           }
         >
           <div className={modalStyles.formGroup}>
             <label className={modalStyles.label}>Product</label>
-            <select
-              className={modalStyles.select}
-              value={formProductId}
-              onChange={(e) => setFormProductId(parseInt(e.target.value, 10))}
+            <input
+              type="search"
+              className={styles.searchInput}
+              placeholder="Search products…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <div
+              className={styles.productList}
+              style={{ marginTop: "var(--space-2)" }}
             >
-              {availableProducts
-                .filter((p) =>
-                  presetCategoryId == null ? true : p.category_id === presetCategoryId
-                )
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — ₹{p.base_price}
-                  </option>
-                ))}
-            </select>
+              {visibleProducts.length === 0 ? (
+                <div className={styles.productListEmpty}>
+                  {q ? (
+                    `No products match "${searchQuery}".`
+                  ) : presetActive ? (
+                    <>
+                      All products in this category are already in your inventory.
+                      <br />
+                      <button
+                        type="button"
+                        className={styles.showAllBtn}
+                        onClick={() => setShowAll(true)}
+                      >
+                        Show all products
+                      </button>
+                    </>
+                  ) : (
+                    "All available products are already in your inventory."
+                  )}
+                </div>
+              ) : (
+                visibleProducts.map((p) => {
+                  const selected = p.id === formProductId;
+                  return (
+                    <button
+                      type="button"
+                      key={p.id}
+                      className={`${styles.productListRow} ${
+                        selected ? styles.productListRowSelected : ""
+                      }`}
+                      onClick={() => setFormProductId(p.id)}
+                    >
+                      <span>{p.name}</span>
+                      <span style={{ color: "var(--color-neutral-500)" }}>
+                        ₹{p.base_price}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
           <div className={modalStyles.formGroup}>
             <label className={modalStyles.label}>Your Price (₹)</label>
@@ -510,7 +571,8 @@ export default function SellerInventoryPage() {
             />
           </div>
         </Modal>
-      )}
+        );
+      })()}
     </>
   );
 }
