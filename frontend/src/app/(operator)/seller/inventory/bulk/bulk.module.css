@@ -157,3 +157,22 @@
   padding: var(--space-3);
   border-top: 1px solid var(--color-neutral-200);
 }
+
+.bulkFillWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) 0;
+}
+
+.bulkFillCount {
+  font-size: 0.875rem;
+  color: var(--color-neutral-600);
+}
+
+.bulkFillInline {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}

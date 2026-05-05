@@ -12,6 +12,7 @@ import {
 } from "@/types";
 
 import styles from "./bulk.module.css";
+import { BulkFillToolbar, type BulkFillAction } from "./BulkFillToolbar";
 import { BulkInventorySheet } from "./BulkInventorySheet";
 import { EligibleProductPicker } from "./EligibleProductPicker";
 
@@ -97,6 +98,34 @@ export default function BulkInventoryPage() {
     [rows],
   );
 
+  function applyBulkFill(action: BulkFillAction) {
+    setRows((prev) =>
+      prev.map((row, idx) => {
+        if (!selectedIndices.has(idx)) return row;
+        const next: SheetRow = { ...row, dirty: true };
+        if (action.kind === "set_price") {
+          next.price = String(action.value);
+        } else if (action.kind === "set_stock") {
+          next.stock = String(action.value);
+        } else {
+          const current = parseFloat(row.price);
+          if (!isNaN(current)) {
+            const updated = current * (1 + action.pct / 100);
+            next.price = updated.toFixed(2);
+          }
+        }
+        const errors: SheetRow["errors"] = {};
+        const p = parseFloat(next.price);
+        if (isNaN(p) || p <= 0 || p > 999999)
+          errors.price = "Price must be > 0 and ≤ 999999";
+        const s = parseInt(next.stock, 10);
+        if (isNaN(s) || s < 0) errors.stock = "Stock must be ≥ 0";
+        next.errors = errors;
+        return next;
+      }),
+    );
+  }
+
   if (authLoading || fetching) {
     return (
       <div style={{ padding: "2rem", textAlign: "center" }}>Loading…</div>
@@ -124,6 +153,11 @@ export default function BulkInventoryPage() {
       <div className={styles.statusBar}>
         {rows.length} row(s) · {alreadyInSheet.size} unique products · {eligible.length} eligible
       </div>
+
+      <BulkFillToolbar
+        selectedCount={selectedIndices.size}
+        onApply={applyBulkFill}
+      />
 
       <BulkInventorySheet
         rows={rows}
