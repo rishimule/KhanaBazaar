@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import { del, get, patch, post, put } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
@@ -99,6 +100,7 @@ function normalizeOptional(value: string): string | null {
 
 export default function AccountSettingsPage() {
   const { token } = useAuth();
+  const t = useTranslations("Account.settings");
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     first_name: "",
@@ -117,7 +119,7 @@ export default function AccountSettingsPage() {
   useEffect(() => {
     if (!token) {
       setLoadingProfile(false);
-      setSectionError("Could not load account settings.");
+      setSectionError(t("loadError"));
       return;
     }
 
@@ -131,7 +133,7 @@ export default function AccountSettingsPage() {
       })
       .catch((error) => {
         if (!active) return;
-        setSectionError(apiErrorMessage(error, "Could not load account settings."));
+        setSectionError(apiErrorMessage(error, t("loadError")));
       })
       .finally(() => {
         if (active) setLoadingProfile(false);
@@ -140,7 +142,7 @@ export default function AccountSettingsPage() {
     return () => {
       active = false;
     };
-  }, [token]);
+  }, [token, t]);
 
   const sortedAddresses = useMemo(() => {
     if (!profile) return [];
@@ -153,10 +155,10 @@ export default function AccountSettingsPage() {
   const validateProfile = (): ProfileErrors => {
     const errors: ProfileErrors = {};
     if (!profileForm.first_name.trim()) {
-      errors.first_name = "First name is required.";
+      errors.first_name = t("firstNameRequired");
     }
     if (profileForm.phone.trim() && !PHONE_RE.test(profileForm.phone.trim())) {
-      errors.phone = "Use 7-20 digits, spaces, +, -, or parentheses.";
+      errors.phone = t("phoneInvalid");
     }
     return errors;
   };
@@ -185,7 +187,7 @@ export default function AccountSettingsPage() {
       setProfileErrors({});
     } catch (error) {
       setProfileErrors(validationErrorsForPrefix(error, "body") as ProfileErrors);
-      setSectionError(apiErrorMessage(error, "Could not save profile changes."));
+      setSectionError(apiErrorMessage(error, t("saveProfileError")));
     } finally {
       setSavingProfile(false);
     }
@@ -232,7 +234,7 @@ export default function AccountSettingsPage() {
       setAddressErrors(
         validationErrorsForPrefix(error, "address") as AddressFieldsErrors
       );
-      setSectionError(apiErrorMessage(error, "Could not save delivery address."));
+      setSectionError(apiErrorMessage(error, t("saveAddressError")));
     } finally {
       setSavingAddress(false);
     }
@@ -250,7 +252,7 @@ export default function AccountSettingsPage() {
       );
       setProfile(next);
     } catch (error) {
-      setSectionError(apiErrorMessage(error, "Could not set default address."));
+      setSectionError(apiErrorMessage(error, t("setDefaultError")));
     } finally {
       setBusyAddressId(null);
     }
@@ -258,8 +260,8 @@ export default function AccountSettingsPage() {
 
   const deleteAddress = async (customerAddress: CustomerAddress) => {
     if (!token) return;
-    const label = customerAddress.label || "this address";
-    if (!window.confirm(`Delete ${label}?`)) return;
+    const label = customerAddress.label || t("deleteFallbackLabel");
+    if (!window.confirm(t("deleteConfirm", { label }))) return;
 
     setSectionError(null);
     setBusyAddressId(customerAddress.id);
@@ -271,21 +273,21 @@ export default function AccountSettingsPage() {
       setProfile(next);
       if (addressForm?.id === customerAddress.id) setAddressForm(null);
     } catch (error) {
-      setSectionError(apiErrorMessage(error, "Could not delete address."));
+      setSectionError(apiErrorMessage(error, t("deleteAddressError")));
     } finally {
       setBusyAddressId(null);
     }
   };
 
   if (loadingProfile) {
-    return <div className={styles.loading}>Loading account settings…</div>;
+    return <div className={styles.loading}>{t("loading")}</div>;
   }
 
   if (!profile) {
     return (
       <div className={styles.panel}>
         <div className={styles.errorBanner}>
-          {sectionError ?? "Could not load account settings."}
+          {sectionError ?? t("loadError")}
         </div>
       </div>
     );
@@ -298,7 +300,7 @@ export default function AccountSettingsPage() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <div>
-            <h2 className={styles.sectionTitle}>Profile</h2>
+            <h2 className={styles.sectionTitle}>{t("profileSection")}</h2>
             <p className={styles.sectionSubtitle}>{profile.email}</p>
           </div>
         </div>
@@ -306,7 +308,7 @@ export default function AccountSettingsPage() {
         <form className={styles.profileForm} onSubmit={saveProfile}>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="first-name">
-              First name
+              {t("firstNameLabel")}
             </label>
             <input
               id="first-name"
@@ -330,7 +332,7 @@ export default function AccountSettingsPage() {
 
           <div className={styles.field}>
             <label className={styles.label} htmlFor="last-name">
-              Last name
+              {t("lastNameLabel")}
             </label>
             <input
               id="last-name"
@@ -353,7 +355,7 @@ export default function AccountSettingsPage() {
 
           <div className={styles.field}>
             <label className={styles.label} htmlFor="phone">
-              Phone
+              {t("phoneLabel")}
             </label>
             <input
               id="phone"
@@ -377,7 +379,7 @@ export default function AccountSettingsPage() {
 
           <div className={styles.field}>
             <label className={styles.label} htmlFor="email">
-              Email
+              {t("emailLabel")}
             </label>
             <input
               id="email"
@@ -390,7 +392,7 @@ export default function AccountSettingsPage() {
 
           <div className={styles.formActions}>
             <button className="btn btn-primary" type="submit" disabled={savingProfile}>
-              {savingProfile ? "Saving…" : "Save profile"}
+              {savingProfile ? t("saving") : t("saveProfile")}
             </button>
           </div>
         </form>
@@ -399,22 +401,21 @@ export default function AccountSettingsPage() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <div>
-            <h2 className={styles.sectionTitle}>Saved delivery addresses</h2>
+            <h2 className={styles.sectionTitle}>{t("addressesTitle")}</h2>
             <p className={styles.sectionSubtitle}>
-              {sortedAddresses.length} saved address
-              {sortedAddresses.length === 1 ? "" : "es"}
+              {t("addressCount", { count: sortedAddresses.length })}
             </p>
           </div>
           <button className="btn btn-outline" type="button" onClick={openNewAddressForm}>
-            Add address
+            {t("addAddress")}
           </button>
         </div>
 
         {sortedAddresses.length === 0 && (
           <div className={styles.emptyState}>
-            <p>No delivery addresses are saved.</p>
+            <p>{t("noAddresses")}</p>
             <button className="btn btn-primary" type="button" onClick={openNewAddressForm}>
-              Add address
+              {t("addAddress")}
             </button>
           </div>
         )}
@@ -426,10 +427,10 @@ export default function AccountSettingsPage() {
                 <div className={styles.addressCardHeader}>
                   <div>
                     <h3 className={styles.addressLabel}>
-                      {customerAddress.label || "Address"}
+                      {customerAddress.label || t("addressFallbackLabel")}
                     </h3>
                     {customerAddress.is_default && (
-                      <span className={styles.defaultBadge}>Default</span>
+                      <span className={styles.defaultBadge}>{t("defaultBadge")}</span>
                     )}
                   </div>
                 </div>
@@ -443,7 +444,7 @@ export default function AccountSettingsPage() {
                     onClick={() => editAddress(customerAddress)}
                     disabled={busyAddressId === customerAddress.id}
                   >
-                    Edit
+                    {t("edit")}
                   </button>
                   <button
                     className={styles.textButton}
@@ -454,7 +455,7 @@ export default function AccountSettingsPage() {
                       busyAddressId === customerAddress.id
                     }
                   >
-                    Set default
+                    {t("setDefault")}
                   </button>
                   <button
                     className={`${styles.textButton} ${styles.dangerButton}`}
@@ -462,7 +463,7 @@ export default function AccountSettingsPage() {
                     onClick={() => deleteAddress(customerAddress)}
                     disabled={busyAddressId === customerAddress.id}
                   >
-                    Delete
+                    {t("delete")}
                   </button>
                 </div>
               </article>
@@ -475,8 +476,8 @@ export default function AccountSettingsPage() {
             <div className={styles.addressFormHeader}>
               <h3 className={styles.addressFormTitle}>
                 {addressForm.id === null
-                  ? "Add delivery address"
-                  : "Edit delivery address"}
+                  ? t("addAddressFormTitle")
+                  : t("editAddressFormTitle")}
               </h3>
               <button
                 className={styles.textButton}
@@ -484,13 +485,13 @@ export default function AccountSettingsPage() {
                 onClick={() => setAddressForm(null)}
                 disabled={savingAddress}
               >
-                Cancel
+                {t("cancel")}
               </button>
             </div>
 
             <div className={styles.field}>
               <label className={styles.label} htmlFor="address-label">
-                Label
+                {t("labelLabel")}
               </label>
               <input
                 id="address-label"
@@ -501,7 +502,7 @@ export default function AccountSettingsPage() {
                     current ? { ...current, label: event.target.value } : current
                   )
                 }
-                placeholder="Home, Work, Family"
+                placeholder={t("labelPlaceholder")}
                 maxLength={60}
                 disabled={savingAddress}
               />
@@ -531,12 +532,12 @@ export default function AccountSettingsPage() {
                 }
                 disabled={savingAddress}
               />
-              Make this the default delivery address
+              {t("makeDefault")}
             </label>
 
             <div className={styles.formActions}>
               <button className="btn btn-primary" type="submit" disabled={savingAddress}>
-                {savingAddress ? "Saving…" : "Save address"}
+                {savingAddress ? t("saving") : t("saveAddress")}
               </button>
             </div>
           </form>
