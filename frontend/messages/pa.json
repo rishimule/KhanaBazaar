@@ -214,6 +214,19 @@
     "finalBody": "Start your seller application and keep your business details ready.",
     "finalCta": "Start your seller application"
   },
+  "Errors": {
+    "network": "Network error. Try again.",
+    "unknown": "Something went wrong. Please try again.",
+    "otpInvalid": "Invalid OTP.",
+    "otpExpired": "OTP expired. Request a new one.",
+    "otpRateLimit": "Too many attempts. Try later.",
+    "unauthorized": "Please sign in.",
+    "forbidden": "Not authorized.",
+    "notFound": "Not found.",
+    "conflict": "Conflict — please refresh and retry.",
+    "validation": "Invalid input.",
+    "serverError": "Server error. Please try again."
+  },
   "Footer": {
     "tagline": "Your neighbourhood stores, now at your fingertips. Shop fresh groceries & essentials from local sellers and pay instantly with UPI.",
     "quickLinks": "Quick Links",
