@@ -7,14 +7,30 @@ import DataTable, { Column } from "@/components/DataTable";
 import Modal, { modalStyles } from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
 import { get, post, put, del } from "@/lib/api";
-import { Store, StoreInventory, MasterProduct, Category } from "@/types";
+import {
+  Store,
+  StoreInventory,
+  MasterProduct,
+  Category,
+  Service,
+} from "@/types";
 
 import styles from "./page.module.css";
 import mobileStyles from "@/components/DataTableCard.module.css";
 
-/** Enriched inventory with product info */
 interface InventoryWithProduct extends StoreInventory {
   product: MasterProduct;
+}
+
+interface CategoryBucket {
+  category: Category;
+  items: InventoryWithProduct[];
+}
+
+interface ServiceBucket {
+  service: Service;
+  categories: CategoryBucket[];
+  totalCount: number;
 }
 
 export default function SellerInventoryPage() {
@@ -33,7 +49,6 @@ export default function SellerInventoryPage() {
   const [formPrice, setFormPrice] = useState("");
   const [formStock, setFormStock] = useState("");
 
-  // Fetch data
   useEffect(() => {
     if (!authLoading && (!dbUser || dbUser.role !== "seller")) {
       router.push(dbUser ? "/" : "/login");
@@ -68,10 +83,42 @@ export default function SellerInventoryPage() {
     }
   }, [authLoading, dbUser, token, router]);
 
-  const getCategoryName = (catId: number) =>
-    categories.find((c) => c.id === catId)?.name ?? "Other";
+  const buckets: ServiceBucket[] = useMemo(() => {
+    if (!store) return [];
+    const catsByService = new Map<number, Category[]>();
+    for (const c of categories) {
+      const list = catsByService.get(c.service_id) ?? [];
+      list.push(c);
+      catsByService.set(c.service_id, list);
+    }
+    const itemsByCategory = new Map<number, InventoryWithProduct[]>();
+    for (const item of inventory) {
+      const list = itemsByCategory.get(item.product.category_id) ?? [];
+      list.push(item);
+      itemsByCategory.set(item.product.category_id, list);
+    }
+    const services = [...store.services].sort(
+      (a, b) => a.sort_order - b.sort_order
+    );
+    return services.map((service) => {
+      const serviceCats = (catsByService.get(service.id) ?? []).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+      const categoryBuckets: CategoryBucket[] = serviceCats.map((category) => {
+        const items = (itemsByCategory.get(category.id) ?? []).sort(
+          (a, b) =>
+            a.product.subcategory_name.localeCompare(b.product.subcategory_name) ||
+            a.product.name.localeCompare(b.product.name)
+        );
+        return { category, items };
+      });
+      const totalCount = categoryBuckets.reduce((n, b) => n + b.items.length, 0);
+      return { service, categories: categoryBuckets, totalCount };
+    });
+  }, [store, categories, inventory]);
 
-  // Products not yet in inventory
+  const activeBucket: ServiceBucket | null = buckets[0] ?? null;
+
   const availableProducts = useMemo(() => {
     const existingIds = new Set(inventory.map((i) => i.product_id));
     return allProducts.filter((p) => !existingIds.has(p.id));
@@ -84,9 +131,9 @@ export default function SellerInventoryPage() {
       render: (row) => <strong>{row.product.name}</strong>,
     },
     {
-      key: "category",
-      label: "Category",
-      render: (row) => getCategoryName(row.product.category_id),
+      key: "subcategory",
+      label: "Subcategory",
+      render: (row) => row.product.subcategory_name,
     },
     { key: "price", label: "Price (₹)", render: (row) => `₹${row.price}` },
     { key: "stock", label: "Stock", render: (row) => String(row.stock) },
@@ -191,12 +238,15 @@ export default function SellerInventoryPage() {
   }
 
   if (authLoading || fetching) {
-    return <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>Loading…</div>;
+    return (
+      <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
+        Loading…
+      </div>
+    );
   }
 
   return (
     <>
-      {/* Toolbar */}
       <div className={styles.toolbar}>
         <span className={styles.toolbarLeft}>
           {inventory.length} products in store
@@ -204,42 +254,63 @@ export default function SellerInventoryPage() {
         <Link href="/seller/inventory/bulk" className="btn btn-outline">
           Bulk edit →
         </Link>
-        <button className={styles.addBtn} onClick={openAdd} disabled={availableProducts.length === 0}>
+        <button
+          className={styles.addBtn}
+          onClick={openAdd}
+          disabled={availableProducts.length === 0}
+        >
           + Add Product
         </button>
       </div>
 
-      {/* Data table */}
-      <DataTable
-        columns={columns}
-        data={inventory}
-        keyField="id"
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        emptyMessage="No inventory items yet. Add products from the master catalog."
-        mobileCardRender={(row) => (
-          <>
-            <div className={mobileStyles.cardTopRow}>
-              <span className={mobileStyles.cardTitle}>{row.product.name}</span>
-              <span className={mobileStyles.cardPriceRight}>₹{row.price}</span>
+      {activeBucket?.categories.map((bucket) => (
+        <section
+          key={bucket.category.id}
+          id={`cat-${bucket.category.id}`}
+          className={styles.categorySection}
+        >
+          <header className={styles.categoryHeader}>
+            <h2 className={styles.categoryTitle}>
+              {bucket.category.name}
+              <span className={styles.categoryCount}>({bucket.items.length})</span>
+            </h2>
+          </header>
+          {bucket.items.length === 0 ? (
+            <div className={styles.emptyCategory}>
+              No products in this category yet.
             </div>
-            <div className={mobileStyles.cardMeta}>
-              {getCategoryName(row.product.category_id)} • Stock: {row.stock}
-            </div>
-            <button
-              className={`${styles.toggleBtn} ${
-                row.is_available ? styles.toggleActive : styles.toggleInactive
-              }`}
-              style={{ width: "100%", minHeight: 44 }}
-              onClick={() => toggleAvailability(row)}
-            >
-              {row.is_available ? "Available" : "Unavailable"}
-            </button>
-          </>
-        )}
-      />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={bucket.items}
+              keyField="id"
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              mobileCardRender={(row) => (
+                <>
+                  <div className={mobileStyles.cardTopRow}>
+                    <span className={mobileStyles.cardTitle}>{row.product.name}</span>
+                    <span className={mobileStyles.cardPriceRight}>₹{row.price}</span>
+                  </div>
+                  <div className={mobileStyles.cardMeta}>
+                    {row.product.subcategory_name} • Stock: {row.stock}
+                  </div>
+                  <button
+                    className={`${styles.toggleBtn} ${
+                      row.is_available ? styles.toggleActive : styles.toggleInactive
+                    }`}
+                    style={{ width: "100%", minHeight: 44 }}
+                    onClick={() => toggleAvailability(row)}
+                  >
+                    {row.is_available ? "Available" : "Unavailable"}
+                  </button>
+                </>
+              )}
+            />
+          )}
+        </section>
+      ))}
 
-      {/* Edit Modal */}
       {editItem && (
         <Modal
           title={`Edit — ${editItem.product.name}`}
@@ -275,7 +346,6 @@ export default function SellerInventoryPage() {
         </Modal>
       )}
 
-      {/* Add Modal */}
       {showAdd && (
         <Modal
           title="Add Product to Store"
