@@ -288,6 +288,36 @@ async def test_list_subcategories_returns_localized_name(
 
 
 @pytest.mark.asyncio
+async def test_list_services_falls_back_to_english_when_locale_missing(
+    session: AsyncSession, seed: dict[str, int]
+) -> None:
+    # autouse seed has en-only translations for grocery
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/catalog/services", headers={"Accept-Language": "hi"}
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert any(s["slug"] == "grocery" and s["name"] == "Grocery" for s in body), body
+
+
+@pytest.mark.asyncio
+async def test_list_services_falls_back_to_slug_when_no_translations(
+    session: AsyncSession,
+) -> None:
+    service = Service(slug="zerolang", sort_order=98, is_active=True)
+    session.add(service)
+    await session.commit()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/catalog/services", headers={"Accept-Language": "hi"}
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert any(s["slug"] == "zerolang" and s["name"] == "zerolang" for s in body), body
+
+
+@pytest.mark.asyncio
 async def test_list_subcategories_returns_translated_names(
     session: AsyncSession, seed: dict[str, int]
 ) -> None:
