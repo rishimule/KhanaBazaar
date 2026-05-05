@@ -64,6 +64,24 @@ function InventoryServiceTabs({
   );
 }
 
+function InventoryCategoryNav({ categories }: { categories: CategoryBucket[] }) {
+  if (categories.length === 0) return null;
+  return (
+    <nav className={styles.categoryNav} aria-label="Categories">
+      {categories.map(({ category, items }) => (
+        <a
+          key={category.id}
+          href={`#cat-${category.id}`}
+          className={styles.categoryNavLink}
+        >
+          {category.name}
+          <span className={styles.categoryNavCount}>({items.length})</span>
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 export default function SellerInventoryPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -315,6 +333,10 @@ export default function SellerInventoryPage() {
         activeId={activeBucket?.service.id ?? null}
         onChange={setActiveService}
       />
+
+      {activeBucket && (
+        <InventoryCategoryNav categories={activeBucket.categories} />
+      )}
 
       {buckets.length === 0 && (
         <div className={styles.servicesEmpty}>
