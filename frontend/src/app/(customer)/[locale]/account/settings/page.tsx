@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import { del, get, patch, post, put } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { apiErrorKey } from "@/lib/errors";
 import { formatAddress } from "@/lib/format-address";
 import type { AddressFieldsErrors } from "@/components/AddressFields";
 import type { Address, CustomerAddress, CustomerProfile } from "@/types";
@@ -101,6 +102,16 @@ function normalizeOptional(value: string): string | null {
 export default function AccountSettingsPage() {
   const { token } = useAuth();
   const t = useTranslations("Account.settings");
+  const tErr = useTranslations("Errors");
+
+  const localizedError = useCallback(
+    (error: unknown, fallback: string): string => {
+      const key = apiErrorKey(error);
+      if (key) return tErr(key.replace(/^Errors\./, ""));
+      return apiErrorMessage(error, fallback);
+    },
+    [tErr]
+  );
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     first_name: "",
@@ -133,7 +144,7 @@ export default function AccountSettingsPage() {
       })
       .catch((error) => {
         if (!active) return;
-        setSectionError(apiErrorMessage(error, t("loadError")));
+        setSectionError(localizedError(error, t("loadError")));
       })
       .finally(() => {
         if (active) setLoadingProfile(false);
@@ -142,7 +153,7 @@ export default function AccountSettingsPage() {
     return () => {
       active = false;
     };
-  }, [token, t]);
+  }, [token, t, localizedError]);
 
   const sortedAddresses = useMemo(() => {
     if (!profile) return [];
@@ -187,7 +198,7 @@ export default function AccountSettingsPage() {
       setProfileErrors({});
     } catch (error) {
       setProfileErrors(validationErrorsForPrefix(error, "body") as ProfileErrors);
-      setSectionError(apiErrorMessage(error, t("saveProfileError")));
+      setSectionError(localizedError(error, t("saveProfileError")));
     } finally {
       setSavingProfile(false);
     }
@@ -234,7 +245,7 @@ export default function AccountSettingsPage() {
       setAddressErrors(
         validationErrorsForPrefix(error, "address") as AddressFieldsErrors
       );
-      setSectionError(apiErrorMessage(error, t("saveAddressError")));
+      setSectionError(localizedError(error, t("saveAddressError")));
     } finally {
       setSavingAddress(false);
     }
@@ -252,7 +263,7 @@ export default function AccountSettingsPage() {
       );
       setProfile(next);
     } catch (error) {
-      setSectionError(apiErrorMessage(error, t("setDefaultError")));
+      setSectionError(localizedError(error, t("setDefaultError")));
     } finally {
       setBusyAddressId(null);
     }
@@ -273,7 +284,7 @@ export default function AccountSettingsPage() {
       setProfile(next);
       if (addressForm?.id === customerAddress.id) setAddressForm(null);
     } catch (error) {
-      setSectionError(apiErrorMessage(error, t("deleteAddressError")));
+      setSectionError(localizedError(error, t("deleteAddressError")));
     } finally {
       setBusyAddressId(null);
     }

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
+import { apiErrorKey } from "@/lib/errors";
 import { placeOrder } from "@/lib/orders";
 import AddressPicker from "@/components/orders/AddressPicker";
 import PaymentMethodPicker from "@/components/orders/PaymentMethodPicker";
@@ -14,6 +15,7 @@ import styles from "./page.module.css";
 
 export default function CheckoutPage() {
   const t = useTranslations("Checkout");
+  const tErr = useTranslations("Errors");
   const params = useParams<{ storeId: string }>();
   const storeId = Number(params.storeId);
   const router = useRouter();
@@ -100,13 +102,18 @@ export default function CheckoutPage() {
       });
       router.push("/account/orders?placed=1");
     } catch (e) {
-      const detail = (e as { detail?: unknown })?.detail;
-      if (typeof detail === "string") {
-        setError(detail);
-      } else if (detail && typeof detail === "object" && "detail" in detail) {
-        setError(String((detail as { detail: unknown }).detail));
+      const key = apiErrorKey(e);
+      if (key) {
+        setError(tErr(key.replace(/^Errors\./, "")));
       } else {
-        setError(t("errPlaceOrder"));
+        const detail = (e as { detail?: unknown })?.detail;
+        if (typeof detail === "string") {
+          setError(detail);
+        } else if (detail && typeof detail === "object" && "detail" in detail) {
+          setError(String((detail as { detail: unknown }).detail));
+        } else {
+          setError(t("errPlaceOrder"));
+        }
       }
     } finally {
       setSubmitting(false);
