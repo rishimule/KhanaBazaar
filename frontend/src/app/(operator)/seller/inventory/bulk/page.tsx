@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { get } from "@/lib/api";
+import { get, put } from "@/lib/api";
 import {
+  BulkInventoryItem,
   EligibleProduct,
   Store,
   StoreInventory,
@@ -98,6 +99,81 @@ export default function BulkInventoryPage() {
     [rows],
   );
 
+  const counts = useMemo(() => {
+    let added = 0,
+      edited = 0,
+      invalid = 0;
+    for (const r of rows) {
+      const hasErr = Object.keys(r.errors).length > 0;
+      if (hasErr) invalid++;
+      if (r.dirty && !hasErr) {
+        if (r.inventory_id === null) added++;
+        else edited++;
+      }
+    }
+    return { added, edited, invalid, total: rows.length };
+  }, [rows]);
+
+  const canSave =
+    !saving && counts.invalid === 0 && counts.added + counts.edited > 0;
+
+  // Warn on tab close when there are unsaved rows.
+  useEffect(() => {
+    const hasDirty = rows.some((r) => r.dirty);
+    if (!hasDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [rows]);
+
+  async function handleSave() {
+    if (!store || !token) return;
+    setSaving(true);
+    try {
+      const items: BulkInventoryItem[] = rows
+        .filter((r) => r.dirty && Object.keys(r.errors).length === 0)
+        .map((r) => ({
+          product_id: r.product_id,
+          price: parseFloat(r.price),
+          stock: parseInt(r.stock, 10),
+          is_available: r.is_available,
+        }));
+      if (items.length === 0) {
+        setSaving(false);
+        return;
+      }
+      const updated = await put<StoreInventory[]>(
+        `/api/v1/stores/${store.id}/inventory/bulk`,
+        { items },
+        token,
+      );
+      const byProduct = new Map(updated.map((u) => [u.product_id, u]));
+      setRows((prev) =>
+        prev.map((r) => {
+          const u = byProduct.get(r.product_id);
+          if (!u) return r;
+          return {
+            ...r,
+            inventory_id: u.id,
+            price: String(u.price),
+            stock: String(u.stock),
+            is_available: u.is_available,
+            dirty: false,
+            errors: {},
+          };
+        }),
+      );
+    } catch (err) {
+      console.error("bulk save failed", err);
+      alert("Save failed. Check rows for errors.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function applyBulkFill(action: BulkFillAction) {
     setRows((prev) =>
       prev.map((row, idx) => {
@@ -145,13 +221,17 @@ export default function BulkInventoryPage() {
         >
           + Add products
         </button>
-        <button className="btn btn-primary" disabled={true}>
-          {saving ? "Saving…" : "Save"}
+        <button
+          className="btn btn-primary"
+          onClick={handleSave}
+          disabled={!canSave}
+        >
+          {saving ? "Saving…" : `Save ${counts.added + counts.edited} change(s)`}
         </button>
       </div>
 
       <div className={styles.statusBar}>
-        {rows.length} row(s) · {alreadyInSheet.size} unique products · {eligible.length} eligible
+        {counts.added} new · {counts.edited} edited · {counts.invalid} invalid · {counts.total} total
       </div>
 
       <BulkFillToolbar
