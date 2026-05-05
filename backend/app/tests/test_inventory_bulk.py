@@ -2,6 +2,7 @@ from typing import Any, AsyncGenerator, Iterator
 
 import pytest
 from fastapi import HTTPException
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
@@ -21,8 +22,12 @@ from app.models.profile import (
     SellerProfileService,
     VerificationStatus,
 )
-from app.models.store import Store
-from app.services.inventory import assert_products_in_seller_services
+from app.models.store import Store, StoreInventory
+from app.schemas.inventory import BulkInventoryItem
+from app.services.inventory import (
+    assert_products_in_seller_services,
+    bulk_upsert_inventory,
+)
 from tests._helpers import make_address
 
 mock_seller = User(id=2, email="seller@kb.com", role=UserRole.Seller, is_active=True)
@@ -160,3 +165,93 @@ async def test_assert_products_rejects_unapproved_service(
         )
     assert exc.value.status_code == 403
     assert "SERVICE_NOT_APPROVED" in str(exc.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_bulk_upsert_creates_and_updates_in_one_call(
+    session: AsyncSession, seeded: dict[str, Any]
+) -> None:
+    # Pre-existing row for the grocery product.
+    existing = StoreInventory(
+        store_id=seeded["store_id"],
+        product_id=seeded["grocery_product_id"],
+        price=200.0,
+        stock=5,
+        is_available=True,
+    )
+    session.add(existing)
+    await session.commit()
+
+    # Add a second grocery product (sharing the grocery subcategory) so we
+    # have an insert candidate alongside the update candidate above.
+    existing_product = await session.get(MasterProduct, seeded["grocery_product_id"])
+    assert existing_product is not None
+    second_grocery = MasterProduct(
+        subcategory_id=existing_product.subcategory_id,
+        slug="tata-salt-1kg",
+        base_price=22.0,
+    )
+    session.add(second_grocery)
+    await session.flush()
+    session.add(
+        MasterProductTranslation(
+            master_product_id=second_grocery.id,
+            language_code="en",
+            name="Tata Salt 1kg",
+            description="iodized salt",
+        )
+    )
+    assert second_grocery.id is not None
+    second_id: int = second_grocery.id
+    await session.commit()
+
+    items = [
+        BulkInventoryItem(
+            product_id=seeded["grocery_product_id"],
+            price=275.0, stock=50, is_available=True,
+        ),
+        BulkInventoryItem(
+            product_id=second_id,
+            price=22.0, stock=120, is_available=True,
+        ),
+    ]
+
+    rows = await bulk_upsert_inventory(session, seeded["store_id"], items)
+    await session.commit()
+
+    assert len(rows) == 2
+    db_rows = list((await session.exec(
+        select(StoreInventory).where(StoreInventory.store_id == seeded["store_id"])
+    )).all())
+    by_product = {r.product_id: r for r in db_rows}
+    assert by_product[seeded["grocery_product_id"]].price == 275.0
+    assert by_product[seeded["grocery_product_id"]].stock == 50
+    assert by_product[second_id].price == 22.0
+    assert by_product[second_id].stock == 120
+    # The existing row was updated, not duplicated:
+    assert len(db_rows) == 2
+
+
+@pytest.mark.asyncio
+async def test_bulk_upsert_dedup_last_wins(
+    session: AsyncSession, seeded: dict[str, Any]
+) -> None:
+    items = [
+        BulkInventoryItem(
+            product_id=seeded["grocery_product_id"], price=100.0, stock=10
+        ),
+        BulkInventoryItem(
+            product_id=seeded["grocery_product_id"], price=200.0, stock=20
+        ),
+    ]
+    rows = await bulk_upsert_inventory(session, seeded["store_id"], items)
+    assert len(rows) == 1
+    assert rows[0].price == 200.0
+    assert rows[0].stock == 20
+    await session.commit()
+
+    db_rows = list((await session.exec(
+        select(StoreInventory).where(StoreInventory.store_id == seeded["store_id"])
+    )).all())
+    assert len(db_rows) == 1
+    assert db_rows[0].price == 200.0
