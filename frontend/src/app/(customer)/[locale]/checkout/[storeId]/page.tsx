@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
 import { placeOrder } from "@/lib/orders";
@@ -12,6 +13,7 @@ import type { PaymentMethod } from "@/types";
 import styles from "./page.module.css";
 
 export default function CheckoutPage() {
+  const t = useTranslations("Checkout");
   const params = useParams<{ storeId: string }>();
   const storeId = Number(params.storeId);
   const router = useRouter();
@@ -45,7 +47,7 @@ export default function CheckoutPage() {
     return (
       <div className={styles.page}>
         <div className={styles.pageInner}>
-          <p className={styles.loadingText}>Loading…</p>
+          <p className={styles.loadingText}>{t("loading")}</p>
         </div>
       </div>
     );
@@ -56,7 +58,11 @@ export default function CheckoutPage() {
       <div className={styles.page}>
         <div className={styles.pageInner}>
           <p className={styles.loadingText}>
-            <Link href={`/login?next=/checkout/${storeId}`}>Log in</Link> to check out.
+            {t.rich("loginPrompt", {
+              login: () => (
+                <Link href={`/login?next=/checkout/${storeId}`}>{t("loginLink")}</Link>
+              ),
+            })}
           </p>
         </div>
       </div>
@@ -67,7 +73,7 @@ export default function CheckoutPage() {
     return (
       <div className={styles.page}>
         <div className={styles.pageInner}>
-          <p className={styles.loadingText}>Customer login required.</p>
+          <p className={styles.loadingText}>{t("customerLoginRequired")}</p>
         </div>
       </div>
     );
@@ -100,7 +106,7 @@ export default function CheckoutPage() {
       } else if (detail && typeof detail === "object" && "detail" in detail) {
         setError(String((detail as { detail: unknown }).detail));
       } else {
-        setError("Could not place order. Please try again.");
+        setError(t("errPlaceOrder"));
       }
     } finally {
       setSubmitting(false);
@@ -112,13 +118,13 @@ export default function CheckoutPage() {
       <div className={styles.pageInner}>
         <div className={styles.header}>
           <Link href="/cart" className={styles.backLink}>
-            ← Back to cart
+            {t("backToCart")}
           </Link>
-          <h1 className={styles.title}>Checkout — {cart.store_name}</h1>
+          <h1 className={styles.title}>{t("title", { store: cart.store_name })}</h1>
         </div>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Items</h2>
+          <h2 className={styles.sectionTitle}>{t("items")}</h2>
           <ul className={styles.itemList}>
             {cart.items.map((item) => (
               <li key={item.product_id} className={styles.itemRow}>
@@ -131,7 +137,7 @@ export default function CheckoutPage() {
         </section>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Delivery address</h2>
+          <h2 className={styles.sectionTitle}>{t("deliveryAddress")}</h2>
           <AddressPicker value={addressId} onChange={setAddressId} />
         </section>
 
@@ -141,19 +147,19 @@ export default function CheckoutPage() {
 
         <section className={styles.summary}>
           <div className={styles.summaryRow}>
-            <span>Subtotal</span>
+            <span>{t("subtotal")}</span>
             <span>₹{subtotal}</span>
           </div>
           <div className={styles.summaryRow}>
-            <span>Delivery fee</span>
+            <span>{t("deliveryFee")}</span>
             <span>₹{deliveryFee}</span>
           </div>
           <div className={styles.summaryRow}>
-            <span>Tax</span>
+            <span>{t("tax")}</span>
             <span>₹{tax}</span>
           </div>
           <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
-            <span>Total</span>
+            <span>{t("total")}</span>
             <span>₹{total}</span>
           </div>
         </section>
@@ -165,7 +171,7 @@ export default function CheckoutPage() {
           onClick={onPlaceOrder}
           disabled={submitting || addressId === null}
         >
-          {submitting ? "Placing order…" : `Place Order — ₹${total}`}
+          {submitting ? t("placing") : t("placeOrder", { total })}
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { use, useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
@@ -115,6 +116,7 @@ function smoothScrollTo(id: string) {
 }
 
 export default function StoreDetailPage({ params }: Props) {
+  const t = useTranslations("StoreDetail");
   const { id } = use(params);
   const storeId = parseInt(id, 10);
   const router = useRouter();
@@ -266,12 +268,10 @@ export default function StoreDetailPage({ params }: Props) {
         <div className={styles.pageInner}>
           <div className={styles.notFound}>
             <div className={styles.notFoundIcon}>🔍</div>
-            <h1 className={styles.notFoundTitle}>Store Not Found</h1>
-            <p className={styles.notFoundText}>
-              This store doesn&apos;t exist or may have been removed.
-            </p>
+            <h1 className={styles.notFoundTitle}>{t("notFoundTitle")}</h1>
+            <p className={styles.notFoundText}>{t("notFoundBody")}</p>
             <Link href="/stores" className="btn btn-primary">
-              Browse All Stores
+              {t("browseAllStores")}
             </Link>
           </div>
         </div>
@@ -292,14 +292,14 @@ export default function StoreDetailPage({ params }: Props) {
           </div>
           <div className={styles.statusBadge}>
             <span className={styles.statusDot} aria-hidden="true" />
-            Open Now
+            {t("openNow")}
           </div>
         </header>
 
         {tree.length === 0 ? (
           <div className={styles.empty}>
             <div className={styles.emptyIcon} aria-hidden="true">🛒</div>
-            <p className={styles.emptyText}>This store has no products yet.</p>
+            <p className={styles.emptyText}>{t("noProductsYet")}</p>
           </div>
         ) : (
           <>
@@ -343,10 +343,11 @@ function StoreNav({
   onServiceClick,
   hideServiceRow,
 }: StoreNavProps) {
+  const t = useTranslations("StoreDetail");
   if (hideServiceRow || tree.length <= 1) return null;
 
   return (
-    <nav className={styles.stickyNav} aria-label="Store sections">
+    <nav className={styles.stickyNav} aria-label={t("navAriaLabel")}>
       <div className={`${styles.navRow} ${styles.navRowServices}`}>
         {tree.map((sn) => (
           <button
@@ -386,6 +387,7 @@ function ServiceShelf({
   onSubcategoryChange,
   onCategoryClick,
 }: ServiceShelfProps) {
+  const t = useTranslations("StoreDetail");
   return (
     <section
       id={SERVICE_ANCHOR(node.service.id)}
@@ -396,14 +398,14 @@ function ServiceShelf({
         <div className={styles.serviceHeader}>
           <h2 className={styles.serviceHeading}>{node.service.name}</h2>
           <span className={styles.serviceCount}>
-            {node.totalItems} item{node.totalItems === 1 ? "" : "s"}
+            {t("itemCount", { count: node.totalItems })}
           </span>
         </div>
       )}
       {node.categories.length > 0 && (
         <div
           className={styles.inlineCategories}
-          aria-label={`${node.service.name} categories`}
+          aria-label={t("categoriesAriaLabel", { name: node.service.name })}
         >
           {node.categories.map((cn) => (
             <button
@@ -447,6 +449,7 @@ function CategorySection({
   activeSubcategoryId,
   onSubcategoryChange,
 }: CategorySectionProps) {
+  const t = useTranslations("StoreDetail");
   const activeSubName = useMemo(() => {
     if (activeSubcategoryId == null) return null;
     return (
@@ -473,7 +476,7 @@ function CategorySection({
           )}
         </div>
         <span className={styles.categoryCount}>
-          {items.length} of {node.items.length}
+          {t("categoryCount", { shown: items.length, total: node.items.length })}
         </span>
       </div>
 
@@ -481,7 +484,7 @@ function CategorySection({
         <div
           className={styles.inlineSubcategories}
           role="tablist"
-          aria-label={`${node.category.name} subcategories`}
+          aria-label={t("subcategoriesAriaLabel", { name: node.category.name })}
         >
           <button
             type="button"
@@ -492,7 +495,7 @@ function CategorySection({
             aria-selected={activeSubcategoryId === null}
             onClick={() => onSubcategoryChange(node.category.id, null)}
           >
-            All
+            {t("subAll")}
             <span className={styles.subChipCount}>{node.items.length}</span>
           </button>
           {node.subcategories.map((sn) => (
@@ -525,9 +528,7 @@ function CategorySection({
           ))}
         </div>
       ) : (
-        <div className={styles.emptyInline}>
-          No products match this filter.
-        </div>
+        <div className={styles.emptyInline}>{t("noFilterMatch")}</div>
       )}
     </section>
   );

@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
 import styles from "./page.module.css";
 
 export default function CartPage() {
+  const t = useTranslations("Cart");
   const { carts, removeItem, updateQty, clearStoreCart, getTotal } = useCart();
   const { dbUser } = useAuth();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function CartPage() {
       const detail =
         (err as { detail?: string })?.detail ??
         (err instanceof Error ? err.message : null);
-      setErrorMsg(detail ?? "Could not clear cart. Please try again.");
+      setErrorMsg(detail ?? t("errClear"));
     }
   };
 
@@ -31,7 +33,7 @@ export default function CartPage() {
       const detail =
         (err as { detail?: string })?.detail ??
         (err instanceof Error ? err.message : null);
-      setErrorMsg(detail ?? "Could not remove item. Please try again.");
+      setErrorMsg(detail ?? t("errRemove"));
     }
   };
 
@@ -47,7 +49,7 @@ export default function CartPage() {
       const detail =
         (err as { detail?: string })?.detail ??
         (err instanceof Error ? err.message : null);
-      setErrorMsg(detail ?? "Could not update quantity. Please try again.");
+      setErrorMsg(detail ?? t("errUpdateQty"));
     }
   };
 
@@ -57,13 +59,10 @@ export default function CartPage() {
         <div className={styles.pageInner}>
           <div className={styles.empty}>
             <div className={styles.emptyIcon}>🛒</div>
-            <h1 className={styles.emptyTitle}>Your cart is empty</h1>
-            <p className={styles.emptyText}>
-              Looks like you haven&apos;t added anything yet. Browse nearby
-              stores and start adding items!
-            </p>
+            <h1 className={styles.emptyTitle}>{t("emptyTitle")}</h1>
+            <p className={styles.emptyText}>{t("emptyBody")}</p>
             <Link href="/stores" className="btn btn-primary" id="empty-cart-shop">
-              Start Shopping
+              {t("startShopping")}
             </Link>
           </div>
         </div>
@@ -77,38 +76,38 @@ export default function CartPage() {
     if (!dbUser) {
       return (
         <Link href={`/login?next=/checkout/${storeId}`} className={styles.checkoutBtn}>
-          Login to checkout
+          {t("loginToCheckout")}
         </Link>
       );
     }
     if (!isCustomer) {
       return (
         <span className={styles.checkoutBtn} aria-disabled>
-          Customer login required
+          {t("customerLoginRequired")}
         </span>
       );
     }
     return (
       <Link href={`/checkout/${storeId}`} className={styles.checkoutBtn}>
-        Checkout · ₹{subtotal}
+        {t("checkoutCta", { subtotal })}
       </Link>
     );
   };
+
+  const totalItems = carts.reduce(
+    (sum, c) => sum + c.items.reduce((s, i) => s + i.quantity, 0),
+    0
+  );
 
   return (
     <div className={styles.page}>
       <div className={styles.pageInner}>
         <div className={styles.header}>
           <h1 className={styles.title}>
-            Your <span className={styles.titleAccent}>Cart</span>
+            {t("yourLabel")} <span className={styles.titleAccent}>{t("cartLabel")}</span>
           </h1>
           <p className={styles.subtitle}>
-            {carts.length} store{carts.length > 1 ? "s" : ""} ·{" "}
-            {carts.reduce(
-              (sum, c) => sum + c.items.reduce((s, i) => s + i.quantity, 0),
-              0
-            )}{" "}
-            items
+            {t("summary", { stores: carts.length, items: totalItems })}
           </p>
         </div>
 
@@ -136,7 +135,7 @@ export default function CartPage() {
                   className={styles.clearBtn}
                   onClick={() => handleClear(cart.store_id)}
                 >
-                  Clear all
+                  {t("clearAll")}
                 </button>
               </div>
 
@@ -146,7 +145,7 @@ export default function CartPage() {
 
                   <div className={styles.itemInfo}>
                     <div className={styles.itemName}>{item.product_name}</div>
-                    <div className={styles.itemPrice}>₹{item.price} each</div>
+                    <div className={styles.itemPrice}>{t("priceEach", { price: item.price })}</div>
                   </div>
 
                   <div className={styles.qtyControls}>
@@ -186,7 +185,7 @@ export default function CartPage() {
                   <button
                     className={styles.removeBtn}
                     onClick={() => handleRemove(cart.store_id, item.product_id)}
-                    aria-label={`Remove ${item.product_name}`}
+                    aria-label={t("removeAria", { name: item.product_name })}
                   >
                     ✕
                   </button>
@@ -195,7 +194,7 @@ export default function CartPage() {
 
               <div className={styles.storeFooter}>
                 <span className={styles.storeSubtotalValue}>
-                  Subtotal: ₹{subtotal}
+                  {t("subtotal", { value: subtotal })}
                 </span>
                 {renderCheckoutCta(cart.store_id, subtotal)}
               </div>

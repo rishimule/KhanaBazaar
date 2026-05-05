@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Address } from "@/types";
 import { getIndianStates } from "@/lib/indian-states";
 import styles from "./AddressFields.module.css";
@@ -39,14 +40,15 @@ export function emptyAddress(): Address {
 }
 
 export function AddressFields({ value, onChange, errors, disabled }: AddressFieldsProps) {
+  const t = useTranslations("Address");
   const [states, setStates] = useState<string[]>([]);
   const [statesError, setStatesError] = useState<string | null>(null);
 
   useEffect(() => {
     getIndianStates()
       .then(setStates)
-      .catch(() => setStatesError("Could not load states. Please refresh."));
-  }, []);
+      .catch(() => setStatesError(t("statesLoadError")));
+  }, [t]);
 
   const update = <K extends keyof Address>(key: K, v: Address[K]) =>
     onChange({ ...value, [key]: v });
@@ -57,14 +59,14 @@ export function AddressFields({ value, onChange, errors, disabled }: AddressFiel
   return (
     <div className={styles.grid}>
       <div className={`${styles.field} ${styles.span2}`}>
-        <label className={styles.label} htmlFor="addr-line1">Address line 1</label>
+        <label className={styles.label} htmlFor="addr-line1">{t("line1Label")}</label>
         <input
           id="addr-line1"
           type="text"
           className={errClass("address_line1")}
           value={value.address_line1}
           onChange={(e) => update("address_line1", e.target.value)}
-          placeholder="House / building / street"
+          placeholder={t("line1Placeholder")}
           maxLength={120}
           disabled={disabled}
           required
@@ -73,35 +75,35 @@ export function AddressFields({ value, onChange, errors, disabled }: AddressFiel
       </div>
 
       <div className={`${styles.field} ${styles.span2}`}>
-        <label className={styles.label} htmlFor="addr-line2">Address line 2 (optional)</label>
+        <label className={styles.label} htmlFor="addr-line2">{t("line2Label")}</label>
         <input
           id="addr-line2"
           type="text"
           className={errClass("address_line2")}
           value={value.address_line2 ?? ""}
           onChange={(e) => update("address_line2", e.target.value || null)}
-          placeholder="Apartment / floor / unit"
+          placeholder={t("line2Placeholder")}
           maxLength={120}
           disabled={disabled}
         />
       </div>
 
       <div className={`${styles.field} ${styles.span2}`}>
-        <label className={styles.label} htmlFor="addr-landmark">Landmark (optional)</label>
+        <label className={styles.label} htmlFor="addr-landmark">{t("landmarkLabel")}</label>
         <input
           id="addr-landmark"
           type="text"
           className={errClass("landmark")}
           value={value.landmark ?? ""}
           onChange={(e) => update("landmark", e.target.value || null)}
-          placeholder="Nearby reference"
+          placeholder={t("landmarkPlaceholder")}
           maxLength={120}
           disabled={disabled}
         />
       </div>
 
       <div className={styles.field}>
-        <label className={styles.label} htmlFor="addr-city">City / Town</label>
+        <label className={styles.label} htmlFor="addr-city">{t("cityLabel")}</label>
         <input
           id="addr-city"
           type="text"
@@ -116,7 +118,7 @@ export function AddressFields({ value, onChange, errors, disabled }: AddressFiel
       </div>
 
       <div className={styles.field}>
-        <label className={styles.label} htmlFor="addr-state">State</label>
+        <label className={styles.label} htmlFor="addr-state">{t("stateLabel")}</label>
         <select
           id="addr-state"
           className={errClass("state")}
@@ -125,7 +127,7 @@ export function AddressFields({ value, onChange, errors, disabled }: AddressFiel
           disabled={disabled}
           required
         >
-          <option value="">Select state</option>
+          <option value="">{t("stateSelectPlaceholder")}</option>
           {states.map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
@@ -135,7 +137,7 @@ export function AddressFields({ value, onChange, errors, disabled }: AddressFiel
       </div>
 
       <div className={styles.field}>
-        <label className={styles.label} htmlFor="addr-pincode">Pincode</label>
+        <label className={styles.label} htmlFor="addr-pincode">{t("pincodeLabel")}</label>
         <input
           id="addr-pincode"
           type="text"
@@ -152,7 +154,7 @@ export function AddressFields({ value, onChange, errors, disabled }: AddressFiel
       </div>
 
       <div className={styles.field}>
-        <label className={styles.label} htmlFor="addr-country">Country</label>
+        <label className={styles.label} htmlFor="addr-country">{t("countryLabel")}</label>
         <input
           id="addr-country"
           type="text"

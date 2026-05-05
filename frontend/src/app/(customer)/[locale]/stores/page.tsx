@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
@@ -10,6 +11,7 @@ import { Store } from "@/types";
 import styles from "./page.module.css";
 
 export default function StoresPage() {
+  const t = useTranslations("Stores");
   const router = useRouter();
   const { dbUser, loading } = useAuth();
   const [stores, setStores] = useState<Store[]>([]);
@@ -33,7 +35,7 @@ export default function StoresPage() {
       <div className={styles.page}>
         <div className={styles.pageInner}>
           <div className={styles.header}>
-            <h1 className={styles.title}>Loading…</h1>
+            <h1 className={styles.title}>{t("loading")}</h1>
           </div>
         </div>
       </div>
@@ -43,17 +45,13 @@ export default function StoresPage() {
   return (
     <div className={styles.page}>
       <div className={styles.pageInner}>
-        {/* Header */}
         <div className={styles.header}>
           <h1 className={styles.title}>
-            Browse <span className={styles.titleAccent}>Stores</span>
+            {t("browse")} <span className={styles.titleAccent}>{t("stores")}</span>
           </h1>
-          <p className={styles.subtitle}>
-            Select a store to see what&apos;s available near you
-          </p>
+          <p className={styles.subtitle}>{t("subtitle")}</p>
         </div>
 
-        {/* Store Grid */}
         <div className={styles.grid}>
           {stores.map((store) => (
             <Link
@@ -66,11 +64,9 @@ export default function StoresPage() {
               <h2 className={styles.cardName}>{store.name}</h2>
               <p className={styles.cardAddress}>{formatAddress(store.address)}</p>
               <div className={styles.cardMeta}>
-                <span className={styles.cardStatus}>● Open</span>
+                <span className={styles.cardStatus}>{t("openDot")}</span>
               </div>
-              <span className={styles.viewBtn}>
-                View Store →
-              </span>
+              <span className={styles.viewBtn}>{t("viewStore")}</span>
             </Link>
           ))}
         </div>
