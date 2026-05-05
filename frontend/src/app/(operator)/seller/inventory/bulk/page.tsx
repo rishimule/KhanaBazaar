@@ -242,8 +242,14 @@ export default function BulkInventoryPage() {
         onApply={applyBulkFill}
       />
 
+      {rows.length === 0 && (
+        <div className={styles.empty}>
+          No rows. Click &ldquo;Add products&rdquo; to start.
+        </div>
+      )}
+
       <BulkInventorySheet
-        rows={rows}
+        rows={rows.map((row, originalIndex) => ({ row, originalIndex }))}
         selectedIndices={selectedIndices}
         onToggleSelect={(idx) => {
           setSelectedIndices((prev) => {
