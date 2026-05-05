@@ -133,9 +133,19 @@ async def _ensure_default_subcategory(session: AsyncSession, category_id: int) -
     return sub
 
 
-async def _english_category_translation(
-    session: AsyncSession, category_id: int
+async def _localized_category_translation(
+    session: AsyncSession, category_id: int, lang: str
 ) -> CategoryTranslation | None:
+    if lang != _EN:
+        result = await session.exec(
+            select(CategoryTranslation).where(
+                CategoryTranslation.category_id == category_id,
+                CategoryTranslation.language_code == lang,
+            )
+        )
+        row = result.first()
+        if row is not None:
+            return row
     result = await session.exec(
         select(CategoryTranslation).where(
             CategoryTranslation.category_id == category_id,
@@ -145,9 +155,19 @@ async def _english_category_translation(
     return result.first()
 
 
-async def _english_product_translation(
-    session: AsyncSession, product_id: int
+async def _localized_product_translation(
+    session: AsyncSession, product_id: int, lang: str
 ) -> MasterProductTranslation | None:
+    if lang != _EN:
+        result = await session.exec(
+            select(MasterProductTranslation).where(
+                MasterProductTranslation.master_product_id == product_id,
+                MasterProductTranslation.language_code == lang,
+            )
+        )
+        row = result.first()
+        if row is not None:
+            return row
     result = await session.exec(
         select(MasterProductTranslation).where(
             MasterProductTranslation.master_product_id == product_id,
@@ -157,9 +177,19 @@ async def _english_product_translation(
     return result.first()
 
 
-async def _english_subcategory_translation(
-    session: AsyncSession, subcategory_id: int
+async def _localized_subcategory_translation(
+    session: AsyncSession, subcategory_id: int, lang: str
 ) -> SubcategoryTranslation | None:
+    if lang != _EN:
+        result = await session.exec(
+            select(SubcategoryTranslation).where(
+                SubcategoryTranslation.subcategory_id == subcategory_id,
+                SubcategoryTranslation.language_code == lang,
+            )
+        )
+        row = result.first()
+        if row is not None:
+            return row
     result = await session.exec(
         select(SubcategoryTranslation).where(
             SubcategoryTranslation.subcategory_id == subcategory_id,
@@ -319,7 +349,7 @@ async def update_category(
     cat = await session.get(Category, category_id)
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")
-    translation = await _english_category_translation(session, category_id)
+    translation = await _localized_category_translation(session, category_id, _EN)
     if translation is None:
         translation = CategoryTranslation(
             category_id=cat.id,
@@ -480,7 +510,7 @@ async def update_product(
     if payload.image_url is not None:
         product.image_url = payload.image_url
 
-    translation = await _english_product_translation(session, product_id)
+    translation = await _localized_product_translation(session, product_id, _EN)
     if translation is None:
         translation = MasterProductTranslation(
             master_product_id=product.id,
