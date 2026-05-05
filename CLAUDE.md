@@ -1,7 +1,7 @@
 # Khana Bazaar
 
 Multi-vendor hyperlocal e-commerce platform for the Indian market (Instacart-like model).
-Admins manage a master product catalog; sellers pick products and manage local inventory/pricing; customers shop per-store and pay via UPI.
+Admins curate a master product catalog. Sellers register, get admin-approved, run **one store** with **multiple services** (Grocery, Food, Pharmacy, etc.) and manage local inventory/pricing. Customers shop per-store and pay via UPI.
 
 ## Subagent routing (gemini-worker)
 
@@ -18,197 +18,213 @@ This project has a `gemini-worker` subagent that wraps the Gemini CLI. It exists
 - Editing, creating, or deleting files
 - Running tests, linters, or build commands
 - Git operations
-- Brainstorming, plan-writing, or spec refinement (Superpowers `brainstorming`, `writing-plans`) — plan quality depends on you reading the code directly
-- Reviewing a diff against a plan (Superpowers `requesting-code-review`)
+- Brainstorming, plan-writing, or spec refinement — plan quality depends on you reading the code directly
+- Reviewing a diff against a plan
 - Small reads (1–3 specific files you already know you need)
-
-**How to invoke:** describe the research task to the subagent in one message. It returns Gemini's raw output. You do the interpretation.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend API | FastAPI (Python 3.12), Uvicorn ASGI |
-| ORM / Migrations | SQLModel + Alembic (asyncpg driver) |
+| Backend API | FastAPI 0.135+ (Python 3.12), Uvicorn ASGI |
+| ORM / Migrations | SQLModel 0.0.37+ + Alembic (asyncpg driver) |
 | Database | PostgreSQL 15 |
-| Cache / Broker | Redis (Celery for background tasks) |
-| Auth | Self-hosted email-OTP + JWT (PyJWT HS256, Resend) |
+| Cache / Broker | Redis 7 (Celery 5.6+ for background tasks) |
+| Auth | Self-hosted email-OTP + JWT (PyJWT HS256). **No Firebase, no passwords.** |
+| Email | `EMAIL_PROVIDER=console` (dev) or `resend` (prod, raw httpx call — no SDK) |
 | Config | Pydantic-Settings (`.env` files) |
-| Frontend | Next.js 16 (App Router), React 19, TypeScript |
-| Frontend styling | CSS Modules + design tokens (no Tailwind) |
-| PWA | Service worker + manifest.json |
+| Frontend | Next.js 16.1 (App Router), React 19.2, TypeScript 5 |
+| Frontend styling | CSS Modules + design tokens in `frontend/src/styles/design-tokens.css` (no Tailwind) |
+| PWA | `frontend/public/sw.js` + `manifest.json` (registered in `app/layout.tsx`) |
 | Package mgmt | `uv` (backend), `npm` (frontend) |
-| Linting/Types | Ruff + Mypy (backend), ESLint + TypeScript (frontend) |
-| Testing | Pytest + pytest-asyncio (backend) |
+| Linting/Types | Ruff + Mypy (backend), ESLint 9 + TypeScript (frontend) |
+| Testing | Pytest + pytest-asyncio (backend). **No frontend tests.** |
+| Deployment | Render.com Blueprint (`render.yaml`, `docs/render_deployment.md`) |
 
 ## Project Structure
 
 ```
-backend/app/                 # FastAPI application root (run commands from here)
+backend/app/                          # FastAPI app (run commands from here)
   src/app/
-    main.py                  # Uvicorn entrypoint
-    __init__.py              # FastAPI app instance, route mounting
-    api/                     # Route handlers (auth, catalog, stores, tasks)
-    core/                    # Config, security (Firebase), Celery setup
-    db/                      # Async DB session factory
-    models/                  # SQLModel table definitions (base, catalog, store)
-    worker.py                # Celery task definitions
-  migrations/                # Alembic migration versions
-  tests/                     # Pytest integration tests
-  pyproject.toml             # Dependencies, tool config (ruff, mypy, pytest)
+    main.py                           # Uvicorn entrypoint
+    __init__.py                       # FastAPI app instance, CORS, route mounting
+    api/                              # Routers (see API Surface below)
+    core/                             # config, security, otp, email, redis, celery_app, rate_limit, indian_states
+    db/                               # async session factory, seed scripts
+    models/                           # SQLModel tables (base, address, catalog, profile, commerce, store, seller)
+    services/                         # Business logic: checkout, orders, order_emails, seller_services, inventory, profiles
+    schemas/                          # Pydantic request/response models
+    utils/                            # address helpers, indian_states
+    worker.py                         # Celery task definitions
+  migrations/                         # Alembic versions
+  tests/                              # Pytest integration tests (separate khanabazaar_test DB)
+  pyproject.toml
 frontend/
   src/
-    app/                     # Next.js App Router pages
-      stores/                # Store listing + [id] detail page
-      cart/                  # Shopping cart page
-      seller/                # Seller dashboard + inventory management
-      admin/                 # Admin dashboard (categories, products)
-    components/              # Shared UI (Navbar, Footer, ProductCard, Modal, etc.)
-    lib/                     # API client, cart logic (localStorage), CartContext
-    types/                   # TypeScript interfaces mirroring backend models
-    styles/                  # Design tokens (CSS custom properties)
-docs/                        # Architecture, flows, setup guides
-docker-compose.yml           # Local Postgres + Redis
+    app/                              # Next.js App Router
+      stores/[id]/                    # Instacart-style service/category/subcategory layout
+      cart/, checkout/[storeId]/      # Per-store checkout flow
+      account/                        # Customer dashboard (orders, settings)
+      seller/                         # Seller dashboard (signup, inventory, orders) — DashboardLayout
+      admin/                          # Admin dashboard (categories, products, sellers, orders) — DashboardLayout
+    components/                       # Navbar, Footer, DashboardLayout, DataTable, Modal, ProductCard, orders/*
+    lib/                              # api, AuthContext, CartContext, cart, localCart, remoteCart, orders, format-address
+    types/index.ts                    # TS interfaces mirroring backend models
+    styles/                           # design-tokens.css, globals.css
+  public/                             # icons/, manifest.json, sw.js
+docs/                                 # architecture, flows, local_setup, development_guide, render_deployment, seller_signup
+docker-compose.yml                    # Postgres + Redis
+render.yaml                           # Render Blueprint
 ```
 
 ## Essential Commands
 
 ### Infrastructure
 ```bash
-docker-compose up -d                    # Start Postgres + Redis
+docker-compose up -d                                          # Postgres + Redis
 ```
 
 ### Backend (from `backend/app/`)
 ```bash
-uv sync                                 # Install dependencies
-uv run alembic upgrade head             # Apply DB migrations
-uv run alembic revision --autogenerate -m "description"  # Generate migration
-uv run uvicorn app.main:app --reload    # Start API server (port 8000)
-uv run celery -A app.core.celery_app worker --loglevel=info  # Start Celery worker
-uv run pytest -v                        # Run tests (requires khanabazaar_test DB)
-uv run ruff check .                     # Lint
-uv run mypy .                           # Type check
+uv sync                                                       # Install deps
+uv run alembic upgrade head                                   # Apply migrations
+uv run alembic revision --autogenerate -m "description"       # Generate migration
+uv run uvicorn app.main:app --reload                          # Dev server (port 8000)
+uv run celery -A app.core.celery_app worker --loglevel=info   # Celery worker
+uv run pytest -v                                              # Tests (needs khanabazaar_test DB)
+uv run ruff check .                                           # Lint
+uv run mypy .                                                 # Types
 ```
 
 ### Frontend (from `frontend/`)
 ```bash
-npm install                             # Install dependencies
-npm run dev                             # Start dev server (port 3000)
-npm run build                           # Production build
-npm run lint                            # ESLint
+npm install
+npm run dev                                                   # Port 3000
+npm run build
+npm run lint
 ```
 
-### API Documentation
-Swagger UI available at `http://localhost:8000/docs` when backend is running.
-All API routes are prefixed with `/api/v1` (see `backend/app/src/app/core/config.py:9`).
+API docs: `http://localhost:8000/docs`. All routes prefixed `/api/v1` (`core/config.py:8`).
 
 ## RBAC Roles
 
-Three roles defined in `backend/app/src/app/models/base.py:8-11`: **Admin**, **Seller**, **Customer**.
-- Public endpoints: list products, list stores, list inventory, health check
-- Seller endpoints: create store, manage inventory (also accessible by Admin)
-- Admin endpoints: create categories, create master products
+Defined in `backend/app/src/app/models/base.py:8-11`: **Customer**, **Seller**, **Admin**.
 
-## Testing
+Auth chain (`core/security.py`):
+- `HTTPBearer` → `decode_access_token` → `get_current_user` (loads User by JWT `sub`)
+- Role guards: `get_current_seller`, `get_current_admin`
+- Public endpoints take only `Depends(get_db_session)` (no auth)
 
-Tests use a **separate Postgres database** (`khanabazaar_test`) — not SQLite in-memory.
-Auth dependencies are overridden via `app.dependency_overrides` in test fixtures.
-See `backend/app/tests/conftest.py` for DB setup and `test_stores.py` for the override pattern.
+## API Surface
+
+Mounted in `api/__init__.py`. All under `/api/v1`:
+
+| Prefix | Module | Purpose |
+|--------|--------|---------|
+| `/auth` | `auth.py` | OTP request/verify, login, logout, me |
+| `/catalog` | `catalog.py` | Languages, services, categories, subcategories, master products |
+| `/stores` | `stores.py` | Store list/detail, inventory |
+| `/sellers` | `sellers.py` | Seller register, profile, services, applications, status |
+| `/customers` | `customers.py` | Customer profile, addresses |
+| `/carts` | `carts.py` | Cart ops, server-side sync |
+| `/orders` | `orders.py` | Create, list, detail, status |
+| `/tasks` | `tasks.py` | Celery test endpoint |
+| `/meta` | `meta.py` | Health, languages |
+
+Public: catalog reads, store reads, health, languages.
+Seller-only: register, profile/services updates, applications.
+Admin-only: create categories/products, approve seller applications.
 
 ## Environment Variables
 
-- Backend: `backend/app/.env` (see `backend/app/.env.example`)
-  - Required: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `OTP_PEPPER`
-  - Optional: `EMAIL_PROVIDER` (default `console`), `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
-- Frontend: `frontend/.env.local` (see `frontend/.env.example`)
-  - `NEXT_PUBLIC_API_URL` — backend base URL (default: `http://localhost:8000`)
+### Backend `backend/app/.env`
+**Required**: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `OTP_PEPPER`
+**Optional**:
+- `ENVIRONMENT` (development/production)
+- `EMAIL_PROVIDER` (`console` default | `resend`)
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (only when `EMAIL_PROVIDER=resend`)
+- `JWT_EXPIRES_HOURS` (default 24)
+- `OTP_TTL_SECONDS`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN`, `OTP_MAX_PER_HOUR`
+
+### Frontend `frontend/.env.local`
+- `NEXT_PUBLIC_API_URL` — backend base URL (default `http://localhost:8000`)
+
+## Testing
+
+`backend/app/tests/conftest.py`:
+- **Real Postgres test DB** (`khanabazaar_test`) — not SQLite, not mocked. Drop+recreate tables per function.
+- Pre-seeds 5 languages (en, hi, mr, gu, pa) before each test.
+- Auth dependencies overridden via `app.dependency_overrides` (see `test_stores.py` for pattern).
+- Celery runs **eager mode** in tests (inline execution, no worker needed).
+- Order-email dispatchers patched to no-op to avoid connection-pool races.
+
+No frontend tests configured.
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `backend/app/src/app/main.py` | Uvicorn entry |
+| `backend/app/src/app/__init__.py` | App factory, CORS (`localhost:3000`), router mount |
+| `backend/app/src/app/core/config.py` | Pydantic Settings, `API_V1_STR="/api/v1"` |
+| `backend/app/src/app/core/security.py` | JWT encode/decode, role guards |
+| `backend/app/src/app/db/session.py` | Async session factory |
+| `frontend/src/app/layout.tsx` | Root layout, mounts AuthProvider + CartProvider, registers PWA manifest |
+| `frontend/src/lib/api.ts` | Typed fetch wrapper, `ApiError` class |
+| `frontend/src/lib/AuthContext.tsx` | Auth state (token in `localStorage` key `kb_token`, OTP flow) |
+| `frontend/src/lib/CartContext.tsx` | Cart state + localStorage persistence |
+| `frontend/src/types/index.ts` | TS interfaces mirroring backend models |
+
+## Non-obvious patterns / gotchas
+
+**Multi-vendor model**: 1 Seller → 1 Store → many Services (Grocery, Food, Pharmacy, …). Each Service has Categories → Subcategories → MasterProducts. Inventory is per-product per-store.
+
+**Catalog is multi-lingual**: `Service`, `Category`, `Subcategory`, `MasterProduct` all have `*Translation` tables keyed by `LanguageCode`. Pre-seeded languages: en, hi, mr, gu, pa.
+
+**Auth is email-OTP + JWT only**: No passwords, no Firebase. Endpoints: `POST /api/v1/auth/otp/request`, `POST /api/v1/auth/otp/verify`. Seller signup uses 2-step variant — `/auth/seller/otp/verify` returns short-lived `email_token`, then `/auth/seller/register` consumes it. OTP stored in Redis (TTL 600s default), rate-limited 5/hour per IP, 60s resend cooldown. JWT issued on verify (`sub=user.id`, `role=user.role`, 24h TTL).
+
+**Cart architecture (frontend)**:
+- Guest carts: `localStorage` key `kb_carts` (JSON map `storeId → CartItem[]`)
+- Guest session ID: `localStorage` key `kb_session_id` (UUID, generated once)
+- Logged-in users sync to backend via `POST /api/v1/carts/sync`
+- Per-store cart isolation — no cross-store bundling
+
+**Per-store checkout** (`services/checkout.py`, `app/checkout/[storeId]/page.tsx`): customer picks delivery address + payment method per store. Inventory row-locked + validated, then Order + OrderItems + Payment + Delivery created atomically. `OrderStatus` enum: `pending → packed → dispatched → delivered` plus `cancelled` (and dormant `paid` value not currently transitioned to). MVP delivery fee + tax hardcoded to 0.
+
+**Seller signup flow**: register (multi-step wizard) → status `pending` → admin approves → status `approved` → can manage store/inventory. `/seller/signup/pending` blocks dashboard until approval. See `docs/seller_signup.md`.
+
+**Store detail page** (`app/stores/[id]/page.tsx`, commit `31e0cc0`): Instacart-style 3-pane — services sidebar → categories → products with per-store inventory.
+
+**Email dispatch**: OTP and order emails sent via Celery tasks (`worker.py`). Provider switch in `core/email.py` — `console` logs to stdout, `resend` does direct httpx POST (no SDK dep).
+
+**CSS conventions**: Design tokens (CSS custom properties) in `frontend/src/styles/design-tokens.css`. Global utility classes (`btn`, `btn-primary`, etc.) in `frontend/src/app/globals.css`. Component scoping via `*.module.css`. **Never add Tailwind.**
+
+**Async DB everywhere**: All routes use async sessions (`get_db_session`). When writing services, use `await session.exec(...)`, `await session.commit()`, `await session.refresh(obj)`.
 
 ## Git & GitHub Workflow
 
-### Branch Strategy
-- **Never commit directly to `main`.** All changes go through a feature branch and PR.
-- Always `gh repo clone` or `git checkout -b` a new branch before making any code changes.
-- Branch naming convention:
-  - `feat/<short-description>` — new features
-  - `fix/<short-description>` — bug fixes
-  - `chore/<short-description>` — tooling, deps, config
-  - `docs/<short-description>` — documentation only
-  - `refactor/<short-description>` — refactors with no behavior change
-  - `test/<short-description>` — adding or fixing tests
+- **Never commit to `main`**. Always branch: `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`.
+- **Conventional Commits**: `<type>(<scope>): <summary>` — imperative, ≤72 chars, no trailing period.
+- **No AI co-author trailers** in commits/PRs.
+- **Wait for explicit user approval before opening PRs**. Use `gh pr create` only.
+- **Keep merged branches** — do not pass `--delete-branch`.
+- All PRs: target `main`, must pass CI (lint + types + tests), squash-merge.
+- Always use `gh` CLI for GitHub ops (`gh pr create/list/merge`, `gh issue *`, `gh run list`). Never raw `git push` + manual PR.
 
-### Daily Workflow
-```bash
-# Start work on any task
-git checkout main && git pull origin main
-git checkout -b feat/my-feature
-
-# ... make changes, run tests ...
-
-git add <specific-files>          # never `git add .` blindly
-git commit -m "feat: short description"
-
-gh pr create ...                  # only after explicit user approval
-```
-
-### Commit Messages (Conventional Commits)
-Format: `<type>(<optional scope>): <short summary>`
-
-| Type | When to use |
-|------|-------------|
-| `feat` | New feature visible to users |
-| `fix` | Bug fix |
-| `chore` | Build, deps, tooling (no production code) |
-| `docs` | Documentation only |
-| `refactor` | Code change that is not a fix or feature |
-| `test` | Adding or updating tests |
-| `perf` | Performance improvement |
-| `ci` | CI/CD pipeline changes |
-
-- Summary line: ≤72 characters, imperative mood ("add X", not "added X")
-- No period at end of summary
-- Add a blank line + body for non-trivial commits explaining *why*, not *what*
-
-### Pull Requests
-- **Wait for explicit user permission before opening a PR.**
-- Always use `gh pr create` (never raw `git push` + manual PR).
-- PR title must follow the same Conventional Commits format as commit messages.
-- PR body must include: Summary, Test plan, and any migration/env-var notes.
-- Target branch is always `main` unless instructed otherwise.
-- Keep PRs small and focused — one logical change per PR.
-- Never force-push to `main` or any shared branch.
-
-### GitHub CLI — Always Use `gh`
-Use `gh` for all GitHub operations, never raw `git` equivalents:
-```bash
-gh repo view                      # view repo info
-gh pr create                      # open a PR
-gh pr list                        # list open PRs
-gh pr merge                       # merge a PR
-gh issue list / gh issue create   # manage issues
-gh run list                       # check CI runs
-```
-
-### Code Review & Merge Rules
-- All PRs require passing CI (lint + type-check + tests) before merge.
-- Squash merge preferred to keep `main` history linear.
-- Delete the feature branch after merging.
-- Never merge your own PR without review in a team setting.
-
-### What to Never Do
-- `git push --force` on `main` or shared branches
-- `git commit --amend` on already-pushed commits
-- Committing `.env` files, secrets, or large binaries
-- Skipping hooks with `--no-verify`
-- Committing directly to `main`
+**Forbidden**: `git push --force` on shared branches, `--amend` on pushed commits, committing `.env`/secrets, `--no-verify`, direct commits to `main`.
 
 ## Additional Documentation
 
-Check these files when working in the relevant area:
+- `docs/architecture.md` — system topology, tech stack rationale, data model diagram
+- `docs/flows.md` — guest cart, auth, cart sync, per-store checkout, order fulfillment, seller signup, catalog, inventory
+- `docs/local_setup.md` — Docker + backend + frontend setup
+- `docs/development_guide.md` — env vars, Alembic workflow, OTP/JWT, Celery, testing patterns, frontend conventions
+- `docs/render_deployment.md` — Render Blueprint deployment, env vars, build/predeploy scripts
+- `docs/seller_signup.md` — seller registration wizard, OTP 2-step flow, admin verify, layout guard
+- `.claude/docs/architectural_patterns.md` — DI, model hierarchy, auth chain (any Firebase mention is stale)
+- `TODO.md` — Phase tracker (Phases 1–4 complete, Phase 5 deployment in progress)
 
-- [Architectural Patterns](.claude/docs/architectural_patterns.md) — DI patterns, model hierarchy, auth chain, state management conventions
-- [Architecture Overview](docs/architecture.md) — Tech stack rationale, deployment strategy (Azure Container Apps)
-- [User & Data Flows](docs/flows.md) — Guest cart, auth merge, checkout, order fulfillment flows
-- [Local Setup](docs/local_setup.md) — Docker, backend, frontend setup walkthrough
-- [Development Guide](docs/development_guide.md) — Firebase setup, env vars, Alembic workflow, troubleshooting
-- [Roadmap](TODO.md) — Phase tracker (Phases 1-3 complete, Phase 4-5 in progress)
-- [Seller Signup & Onboarding](docs/seller_signup.md) — Seller registration flow, OTP/token auth, wizard steps, pending approval, admin verify, layout guard
+**Known TODOs surfaced during doc rewrite**:
+- CORS in `backend/app/src/app/__init__.py` is hardcoded to `localhost:3000` — `render.yaml` provisions `FRONTEND_ORIGIN` but `config.py` does not read it. Wire up before production.
+- No seller-approval/rejection email — seller learns via 30s status poll on `/seller/signup/pending`.
+- `OrderStatus.Paid` defined but never assigned by state machine; `Payment.status` flips to `paid` only on `delivered`.
