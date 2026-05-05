@@ -15,7 +15,7 @@ pieces fit together. Setup commands live in [CLAUDE.md](../CLAUDE.md) and
 |------------------|-------------------------------------------------------|-----|
 | API              | FastAPI 0.135+ (Python 3.12), Uvicorn ASGI            | Async-native, OpenAPI-first, fast dev loop |
 | ORM / Migrations | SQLModel 0.0.37 + Alembic, asyncpg driver             | Pydantic + SQLAlchemy in one type; first-class async |
-| Database         | PostgreSQL 15                                         | Relational integrity for inventory + orders; matches Render plan |
+| Database         | PostgreSQL 15                                         | Relational integrity for inventory + orders; matches Azure Database for PostgreSQL Flexible Server target |
 | Cache / Broker   | Redis 7 (+ Celery 5.6)                                | OTP rate limits, Celery broker, future caching |
 | Auth             | Self-hosted email-OTP + JWT (PyJWT HS256)             | No vendor lock-in, no passwords, low onboarding friction in India |
 | Email            | `EMAIL_PROVIDER=console` (dev) / `resend` (prod)      | Direct httpx POST to Resend REST API; no SDK dependency |
@@ -24,34 +24,39 @@ pieces fit together. Setup commands live in [CLAUDE.md](../CLAUDE.md) and
 | PWA              | `frontend/public/sw.js` + `manifest.json`             | Installable on low-end Android, offline shell |
 | Tooling          | `uv` (backend), `npm` (frontend), Ruff, Mypy strict, ESLint 9 | Fast, reproducible, strict by default |
 | Testing          | Pytest + pytest-asyncio against real Postgres (`khanabazaar_test`) | Realism over speed; matches prod async stack |
-| Deploy           | Render.com Blueprint (`render.yaml`)                  | One file provisions DB, Redis, API, worker, web |
+| Deploy           | Microsoft Azure (Container Apps + Postgres Flexible Server + Cache for Redis) via Bicep + `azd` | Managed PaaS, scales to zero on workers, single IaC repo |
 
 ## System Topology
 
-Four runtime services in production, all in Render Singapore region:
+Three Container Apps + two managed data services in production, all in Azure
+**Central India** (`centralindia`):
 
 ```
-                     +----------------------------+
-   browser --------> |  Next.js (khanabazaar-web) |  (SSR + PWA shell)
-                     +-------------+--------------+
-                                   | HTTPS, NEXT_PUBLIC_API_URL
-                                   v
-                     +----------------------------+
-                     |  FastAPI (khanabazaar-api) | --- /health, /api/v1/*
-                     +--+-----------+-------------+
-            asyncpg     |           | redis-py
-                        v           v
-              +-------------+  +----------------------+
-              | Postgres 15 |  |  Redis (keyvalue)    |
-              | khanabazaar |  |  OTPs, rate limits,  |
-              +------^------+  |  Celery broker       |
-                     |         +----------+-----------+
-                     |                    | broker
-                     |                    v
-                     |       +-------------------------------+
-                     +------ | Celery worker (khana...-worker)|
-                             | async email send, future jobs |
-                             +-------------------------------+
+                                 ┌──────────────────────┐
+       browser ────────────────► │  Azure Front Door    │  TLS, WAF, CDN
+                                 └────────┬─────────────┘
+                                          │
+                ┌─────────────────────────┴──────────────────────────┐
+                ▼                                                    ▼
+   +----------------------------+                       +----------------------------+
+   |  Container App: web        |                       |  Container App: api        |
+   |  Next.js (khanabazaar-web) | ── HTTPS, JWT ──────► |  FastAPI (khanabazaar-api) | --- /health, /api/v1/*
+   +-------------+--------------+                       +--+-----------+-------------+
+                                                  asyncpg    |           | redis-py
+                                                              v           v
+                                                  +-------------+  +----------------------+
+                                                  | Postgres 15 |  |  Azure Cache for     |
+                                                  | Flexible Svr|  |  Redis               |
+                                                  | (private EP)|  |  OTPs, rate limits,  |
+                                                  +------^------+  |  Celery broker       |
+                                                         |         +----------+-----------+
+                                                         |                    | broker
+                                                         |                    v
+                                                         |       +-------------------------------+
+                                                         +------ | Container App: worker         |
+                                                                 | Celery (khanabazaar-worker)   |
+                                                                 | async email send, future jobs |
+                                                                 +-------------------------------+
 ```
 
 Local dev mirrors this: `docker-compose up` provisions Postgres and Redis;
@@ -122,20 +127,28 @@ test suite yet; type checking and ESLint are the safety net.
 
 ## Deployment
 
-`render.yaml` is the single source of truth for cloud infra:
+Cloud infra lives in `infra/` as Bicep modules, orchestrated by the Azure
+Developer CLI (`azd up`). Single source of truth — every resource, role
+assignment, and Container App revision is declared there:
 
-| Resource              | Type     | Purpose                              |
-|-----------------------|----------|--------------------------------------|
-| `khanabazaar-db`      | postgres | Postgres 15, basic-256mb plan        |
-| `khanabazaar-redis`   | keyvalue | Cache + Celery broker, `noeviction`  |
-| `khanabazaar-api`     | web      | FastAPI; `./build.sh`, `./predeploy.sh` (migrations) |
-| `khanabazaar-worker`  | worker   | Celery worker, concurrency 2         |
-| `khanabazaar-web`     | web      | Next.js, `npm ci && npm run build`   |
+| Resource (Azure name)           | Service                                  | Purpose                                       |
+|---------------------------------|------------------------------------------|-----------------------------------------------|
+| `kb-prod-pg-cin`                | Postgres Flexible Server (Burstable B1ms) | Primary data store, private endpoint only    |
+| `kb-prod-redis-cin`             | Azure Cache for Redis (Basic C0)         | Cache + Celery broker, `noeviction`, TLS-only |
+| `kb-prod-api-cin`               | Container Apps (Consumption)             | FastAPI; image from ACR, public ingress       |
+| `kb-prod-worker-cin`            | Container Apps (Consumption)             | Celery worker, no ingress, KEDA Redis-scaled  |
+| `kb-prod-web-cin`               | Container Apps (Consumption)             | Next.js standalone build                      |
+| `kb-prod-migrate-cin`           | Container Apps Job                       | One-shot `alembic upgrade head` per deploy    |
+| `kbprodacrcin`                  | Azure Container Registry (Basic)         | Image hosting, pulled via managed identity    |
+| `kb-prod-kv-cin`                | Azure Key Vault                          | Secrets — JWT, OTP pepper, Resend, DB URL     |
+| `kb-prod-fd`                    | Azure Front Door (Standard)              | TLS, WAF, CDN, custom domain                  |
+| `kb-prod-appi-cin` + `kb-prod-law-cin` | App Insights + Log Analytics      | Telemetry, traces, structured logs            |
 
-Secrets `JWT_SECRET` and `OTP_PEPPER` use `generateValue: true`. Resend
-keys and `FRONTEND_ORIGIN` are `sync: false` — set manually in the
-dashboard. `NEXT_PUBLIC_API_URL` is inlined at build time, so the web
-service must be re-deployed after changing it.
+`JWT_SECRET` and `OTP_PEPPER` are stored in Key Vault and referenced from
+each Container App via `secretRef`. Resend keys and `FRONTEND_ORIGIN` are
+also Key Vault secrets, populated by the GitHub Actions workflow on first
+deploy. `NEXT_PUBLIC_API_URL` is inlined at build time, so the `web`
+image must be rebuilt for any URL change.
 
 ## Non-obvious Decisions
 
@@ -151,8 +164,10 @@ service must be re-deployed after changing it.
   pin, trivial JSON POST.
 - **Postgres for everything.** No separate search engine yet; full-text
   needs are met by `ILIKE` and indexes. Reassess at scale.
-- **Render, not Azure.** `render.yaml` Blueprint provisions the entire
-  stack from one file; cheaper to operate at current size.
+- **Azure, all PaaS.** Container Apps + managed Postgres + managed Redis,
+  provisioned by Bicep and deployed by `azd`. No VMs, no AKS, no
+  hand-managed certs — Front Door does TLS + WAF, managed identities
+  remove every static credential except the GitHub OIDC trust.
 
 ## Further Reading
 
