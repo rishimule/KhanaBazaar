@@ -39,7 +39,7 @@ This project has a `gemini-worker` subagent that wraps the Gemini CLI. It exists
 | Package mgmt | `uv` (backend), `npm` (frontend) |
 | Linting/Types | Ruff + Mypy (backend), ESLint 9 + TypeScript (frontend) |
 | Testing | Pytest + pytest-asyncio (backend). **No frontend tests.** |
-| Deployment | Render.com Blueprint (`render.yaml`, `docs/render_deployment.md`) |
+| Deployment | Microsoft Azure (Container Apps + Postgres Flexible Server + Cache for Redis) via Bicep + `azd` (`infra/`, `docs/azure_deployment.md`) |
 
 ## Project Structure
 
@@ -72,9 +72,9 @@ frontend/
     types/index.ts                    # TS interfaces mirroring backend models
     styles/                           # design-tokens.css, globals.css
   public/                             # icons/, manifest.json, sw.js
-docs/                                 # architecture, flows, local_setup, development_guide, render_deployment, seller_signup
+docs/                                 # architecture, flows, local_setup, development_guide, azure_deployment, seller_signup
 docker-compose.yml                    # Postgres + Redis
-render.yaml                           # Render Blueprint
+infra/                                # Bicep modules + azure.yaml (azd)
 ```
 
 ## Essential Commands
@@ -219,12 +219,12 @@ No frontend tests configured.
 - `docs/flows.md` — guest cart, auth, cart sync, per-store checkout, order fulfillment, seller signup, catalog, inventory
 - `docs/local_setup.md` — Docker + backend + frontend setup
 - `docs/development_guide.md` — env vars, Alembic workflow, OTP/JWT, Celery, testing patterns, frontend conventions
-- `docs/render_deployment.md` — Render Blueprint deployment, env vars, build/predeploy scripts
+- `docs/azure_deployment.md` — Azure deployment plan: Container Apps, Postgres Flexible Server, Cache for Redis, Bicep + `azd`, GitHub Actions OIDC
 - `docs/seller_signup.md` — seller registration wizard, OTP 2-step flow, admin verify, layout guard
 - `.claude/docs/architectural_patterns.md` — DI, model hierarchy, auth chain (any Firebase mention is stale)
 - `TODO.md` — Phase tracker (Phases 1–4 complete, Phase 5 deployment in progress)
 
 **Known TODOs surfaced during doc rewrite**:
-- CORS in `backend/app/src/app/__init__.py` is hardcoded to `localhost:3000` — `render.yaml` provisions `FRONTEND_ORIGIN` but `config.py` does not read it. Wire up before production.
+- CORS in `backend/app/src/app/__init__.py` is hardcoded to `localhost:3000` — Azure deploy plan provisions `FRONTEND_ORIGIN` via Key Vault but `config.py` does not read it. Wire up before production.
 - No seller-approval/rejection email — seller learns via 30s status poll on `/seller/signup/pending`.
 - `OrderStatus.Paid` defined but never assigned by state machine; `Payment.status` flips to `paid` only on `delivered`.

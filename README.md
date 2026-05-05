@@ -20,7 +20,7 @@ Auth is **email-OTP + JWT** — no passwords, no Firebase.
 | Frontend | Next.js 16.1 (App Router), React 19.2, TypeScript 5, CSS Modules + design tokens |
 | PWA | `frontend/public/sw.js` + `manifest.json` |
 | Tooling | `uv` (backend), `npm` (frontend), Ruff + Mypy, ESLint 9, Pytest |
-| Deploy | Render.com Blueprint (`render.yaml`) |
+| Deploy | Microsoft Azure (Container Apps + Postgres Flexible Server + Cache for Redis), provisioned via Bicep + `azd` |
 
 ## Repo Layout
 
@@ -40,7 +40,7 @@ frontend/src/
   components/            Navbar, Footer, DashboardLayout, DataTable, Modal, ProductCard, …
   lib/                   api, AuthContext, CartContext, orders, format-address
   styles/                design-tokens.css, globals.css
-docs/                    architecture, flows, local_setup, development_guide, render_deployment, seller_signup
+docs/                    architecture, flows, local_setup, development_guide, azure_deployment, seller_signup
 scripts/                 dev.sh, reset_local_state.sh
 ```
 
@@ -176,7 +176,7 @@ npm run lint
 
 ## Deployment
 
-Render.com via `render.yaml` Blueprint — see [`docs/render_deployment.md`](docs/render_deployment.md).
+Microsoft Azure — Container Apps (api, worker, web) + Postgres Flexible Server + Cache for Redis, fronted by Azure Front Door. Infra is Bicep + `azd up`; CI/CD is GitHub Actions with OIDC. See [`docs/azure_deployment.md`](docs/azure_deployment.md).
 
 ## Documentation
 
@@ -185,7 +185,7 @@ Render.com via `render.yaml` Blueprint — see [`docs/render_deployment.md`](doc
 - [Local setup](docs/local_setup.md)
 - [Development guide](docs/development_guide.md) — Alembic, OTP/JWT, Celery, testing
 - [Seller signup](docs/seller_signup.md) — wizard, 2-step OTP, admin approval
-- [Render deployment](docs/render_deployment.md)
+- [Azure deployment](docs/azure_deployment.md)
 - [Phase tracker](TODO.md)
 
 ## Contributing
