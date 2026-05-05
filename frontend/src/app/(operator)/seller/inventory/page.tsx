@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal, { modalStyles } from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
@@ -33,8 +33,42 @@ interface ServiceBucket {
   totalCount: number;
 }
 
+function InventoryServiceTabs({
+  buckets,
+  activeId,
+  onChange,
+}: {
+  buckets: ServiceBucket[];
+  activeId: number | null;
+  onChange: (slug: string) => void;
+}) {
+  if (buckets.length === 0) return null;
+  return (
+    <div className={styles.serviceTabs} role="tablist">
+      {buckets.map(({ service, totalCount }) => {
+        const isActive = service.id === activeId;
+        return (
+          <button
+            key={service.id}
+            role="tab"
+            aria-selected={isActive}
+            className={`${styles.serviceTab} ${isActive ? styles.serviceTabActive : ""}`}
+            onClick={() => onChange(service.slug)}
+          >
+            {service.name}
+            <span className={styles.serviceTabCount}>({totalCount})</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function SellerInventoryPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeServiceSlug = searchParams.get("service");
   const { dbUser, token, loading: authLoading } = useAuth();
 
   const [store, setStore] = useState<Store | null>(null);
@@ -117,7 +151,20 @@ export default function SellerInventoryPage() {
     });
   }, [store, categories, inventory]);
 
-  const activeBucket: ServiceBucket | null = buckets[0] ?? null;
+  const activeBucket: ServiceBucket | null = useMemo(() => {
+    if (buckets.length === 0) return null;
+    if (activeServiceSlug) {
+      const found = buckets.find((b) => b.service.slug === activeServiceSlug);
+      if (found) return found;
+    }
+    return buckets[0];
+  }, [buckets, activeServiceSlug]);
+
+  function setActiveService(slug: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("service", slug);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   const availableProducts = useMemo(() => {
     const existingIds = new Set(inventory.map((i) => i.product_id));
@@ -262,6 +309,18 @@ export default function SellerInventoryPage() {
           + Add Product
         </button>
       </div>
+
+      <InventoryServiceTabs
+        buckets={buckets}
+        activeId={activeBucket?.service.id ?? null}
+        onChange={setActiveService}
+      />
+
+      {buckets.length === 0 && (
+        <div className={styles.servicesEmpty}>
+          No services linked to this store. Contact admin.
+        </div>
+      )}
 
       {activeBucket?.categories.map((bucket) => (
         <section

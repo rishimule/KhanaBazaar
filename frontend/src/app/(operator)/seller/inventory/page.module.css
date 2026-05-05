@@ -115,6 +115,59 @@
   font-size: var(--font-sm);
 }
 
+.serviceTabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--space-1);
+}
+
+.serviceTab {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-neutral-700);
+  background: var(--color-neutral-100);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-fast) var(--ease-default);
+}
+
+.serviceTab:hover {
+  background: var(--color-neutral-200);
+}
+
+.serviceTabActive {
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
+  border-color: var(--color-primary-200);
+}
+
+.serviceTabCount {
+  margin-left: var(--space-2);
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+  font-weight: var(--weight-regular);
+}
+
+.serviceTabActive .serviceTabCount {
+  color: var(--color-primary-600);
+}
+
+.servicesEmpty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-neutral-500);
+  font-size: var(--font-sm);
+}
+
 @media (max-width: 480px) {
   .toolbar {
     flex-direction: column;
