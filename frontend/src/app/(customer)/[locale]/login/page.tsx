@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
+import { apiErrorKey } from "@/lib/errors";
 import { User } from "@/types";
 import styles from "./page.module.css";
 
@@ -17,6 +18,7 @@ function getRedirect(user: User): string {
 
 export default function LoginPage() {
   const t = useTranslations("Login");
+  const tErr = useTranslations("Errors");
   const router = useRouter();
   const { requestOtp, verifyOtp, dbUser } = useAuth();
   const [step, setStep] = useState<Step>("email");
@@ -43,7 +45,12 @@ export default function LoginPage() {
       await requestOtp(email);
       setStep("code");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errSendCode"));
+      const key = apiErrorKey(err);
+      if (key) {
+        setError(tErr(key.replace(/^Errors\./, "")));
+      } else {
+        setError(err instanceof Error ? err.message : t("errSendCode"));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -61,7 +68,12 @@ export default function LoginPage() {
         router.push(getRedirect(result.user));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errVerify"));
+      const key = apiErrorKey(err);
+      if (key) {
+        setError(tErr(key.replace(/^Errors\./, "")));
+      } else {
+        setError(err instanceof Error ? err.message : t("errVerify"));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -75,7 +87,12 @@ export default function LoginPage() {
       const result = await verifyOtp(email, code, fullName);
       router.push(getRedirect(result.user));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errCreateAccount"));
+      const key = apiErrorKey(err);
+      if (key) {
+        setError(tErr(key.replace(/^Errors\./, "")));
+      } else {
+        setError(err instanceof Error ? err.message : t("errCreateAccount"));
+      }
     } finally {
       setSubmitting(false);
     }

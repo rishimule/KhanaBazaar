@@ -5,10 +5,12 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
+import { apiErrorKey } from "@/lib/errors";
 import styles from "./page.module.css";
 
 export default function CartPage() {
   const t = useTranslations("Cart");
+  const tErr = useTranslations("Errors");
   const { carts, removeItem, updateQty, clearStoreCart, getTotal } = useCart();
   const { dbUser } = useAuth();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -18,10 +20,15 @@ export default function CartPage() {
     try {
       await clearStoreCart(storeId);
     } catch (err) {
-      const detail =
-        (err as { detail?: string })?.detail ??
-        (err instanceof Error ? err.message : null);
-      setErrorMsg(detail ?? t("errClear"));
+      const key = apiErrorKey(err);
+      if (key) {
+        setErrorMsg(tErr(key.replace(/^Errors\./, "")));
+      } else {
+        const detail =
+          (err as { detail?: string })?.detail ??
+          (err instanceof Error ? err.message : null);
+        setErrorMsg(detail ?? t("errClear"));
+      }
     }
   };
 
@@ -30,10 +37,15 @@ export default function CartPage() {
     try {
       await removeItem(storeId, productId);
     } catch (err) {
-      const detail =
-        (err as { detail?: string })?.detail ??
-        (err instanceof Error ? err.message : null);
-      setErrorMsg(detail ?? t("errRemove"));
+      const key = apiErrorKey(err);
+      if (key) {
+        setErrorMsg(tErr(key.replace(/^Errors\./, "")));
+      } else {
+        const detail =
+          (err as { detail?: string })?.detail ??
+          (err instanceof Error ? err.message : null);
+        setErrorMsg(detail ?? t("errRemove"));
+      }
     }
   };
 
@@ -46,10 +58,15 @@ export default function CartPage() {
     try {
       await updateQty(storeId, productId, qty);
     } catch (err) {
-      const detail =
-        (err as { detail?: string })?.detail ??
-        (err instanceof Error ? err.message : null);
-      setErrorMsg(detail ?? t("errUpdateQty"));
+      const key = apiErrorKey(err);
+      if (key) {
+        setErrorMsg(tErr(key.replace(/^Errors\./, "")));
+      } else {
+        const detail =
+          (err as { detail?: string })?.detail ??
+          (err instanceof Error ? err.message : null);
+        setErrorMsg(detail ?? t("errUpdateQty"));
+      }
     }
   };
 

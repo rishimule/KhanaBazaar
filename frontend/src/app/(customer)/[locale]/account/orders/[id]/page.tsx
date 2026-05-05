@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getOrder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
+import { apiErrorKey } from "@/lib/errors";
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import OrderItemList from "@/components/orders/OrderItemList";
 import OrderActionButtons from "@/components/orders/OrderActionButtons";
@@ -15,6 +16,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
   const { id } = use(params);
   const { token } = useAuth();
   const t = useTranslations("Account.orderDetail");
+  const tErr = useTranslations("Errors");
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,8 +24,16 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
     if (!token) return;
     getOrder(token, Number(id))
       .then(setOrder)
-      .catch((e: { detail?: string }) => setError(e?.detail ?? t("loadError")));
-  }, [token, id, t]);
+      .catch((e: unknown) => {
+        const key = apiErrorKey(e);
+        if (key) {
+          setError(tErr(key.replace(/^Errors\./, "")));
+        } else {
+          const detail = (e as { detail?: string })?.detail;
+          setError(detail ?? t("loadError"));
+        }
+      });
+  }, [token, id, t, tErr]);
 
   if (error) return <div className={styles.error}>{error}</div>;
   if (!order) return <div className={styles.loading}>{t("loading")}</div>;
