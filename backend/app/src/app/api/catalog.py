@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.locale import get_request_locale
 from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.base import User
@@ -133,9 +134,41 @@ async def _ensure_default_subcategory(session: AsyncSession, category_id: int) -
     return sub
 
 
-async def _english_category_translation(
-    session: AsyncSession, category_id: int
+async def _localized_service_translation(
+    session: AsyncSession, service_id: int, lang: str
+) -> ServiceTranslation | None:
+    if lang != _EN:
+        result = await session.exec(
+            select(ServiceTranslation).where(
+                ServiceTranslation.service_id == service_id,
+                ServiceTranslation.language_code == lang,
+            )
+        )
+        row = result.first()
+        if row is not None:
+            return row
+    result = await session.exec(
+        select(ServiceTranslation).where(
+            ServiceTranslation.service_id == service_id,
+            ServiceTranslation.language_code == _EN,
+        )
+    )
+    return result.first()
+
+
+async def _localized_category_translation(
+    session: AsyncSession, category_id: int, lang: str
 ) -> CategoryTranslation | None:
+    if lang != _EN:
+        result = await session.exec(
+            select(CategoryTranslation).where(
+                CategoryTranslation.category_id == category_id,
+                CategoryTranslation.language_code == lang,
+            )
+        )
+        row = result.first()
+        if row is not None:
+            return row
     result = await session.exec(
         select(CategoryTranslation).where(
             CategoryTranslation.category_id == category_id,
@@ -145,9 +178,19 @@ async def _english_category_translation(
     return result.first()
 
 
-async def _english_product_translation(
-    session: AsyncSession, product_id: int
+async def _localized_product_translation(
+    session: AsyncSession, product_id: int, lang: str
 ) -> MasterProductTranslation | None:
+    if lang != _EN:
+        result = await session.exec(
+            select(MasterProductTranslation).where(
+                MasterProductTranslation.master_product_id == product_id,
+                MasterProductTranslation.language_code == lang,
+            )
+        )
+        row = result.first()
+        if row is not None:
+            return row
     result = await session.exec(
         select(MasterProductTranslation).where(
             MasterProductTranslation.master_product_id == product_id,
@@ -157,9 +200,19 @@ async def _english_product_translation(
     return result.first()
 
 
-async def _english_subcategory_translation(
-    session: AsyncSession, subcategory_id: int
+async def _localized_subcategory_translation(
+    session: AsyncSession, subcategory_id: int, lang: str
 ) -> SubcategoryTranslation | None:
+    if lang != _EN:
+        result = await session.exec(
+            select(SubcategoryTranslation).where(
+                SubcategoryTranslation.subcategory_id == subcategory_id,
+                SubcategoryTranslation.language_code == lang,
+            )
+        )
+        row = result.first()
+        if row is not None:
+            return row
     result = await session.exec(
         select(SubcategoryTranslation).where(
             SubcategoryTranslation.subcategory_id == subcategory_id,
@@ -240,44 +293,39 @@ def _product_read(
 
 
 @router.get("/services", response_model=List[ServiceRead])
-async def list_services(session: AsyncSession = Depends(get_db_session)) -> List[ServiceRead]:
+async def list_services(
+    session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
+) -> List[ServiceRead]:
     stmt = (
-        select(Service, ServiceTranslation)
-        .join(
-            ServiceTranslation,
-            ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
-            isouter=True,
-        )
+        select(Service)
         .where(Service.is_active == True)  # noqa: E712
-        .where(
-            (ServiceTranslation.language_code == _EN)
-            | (ServiceTranslation.id.is_(None))  # type: ignore[union-attr]
-        )
         .order_by(Service.sort_order, Service.id)  # type: ignore[arg-type]
     )
     result = await session.exec(stmt)
-    return [_service_read(service, translation) for service, translation in result.all()]
+    out: List[ServiceRead] = []
+    for service in result.all():
+        assert service.id is not None
+        translation = await _localized_service_translation(session, service.id, lang)
+        out.append(_service_read(service, translation))
+    return out
 
 
 # ─── Categories ───────────────────────────────────────────────
 
 
 @router.get("/categories", response_model=List[CategoryRead])
-async def list_categories(session: AsyncSession = Depends(get_db_session)) -> List[CategoryRead]:
-    stmt = (
-        select(Category, CategoryTranslation)
-        .join(
-            CategoryTranslation,
-            CategoryTranslation.category_id == Category.id,  # type: ignore[arg-type]
-            isouter=True,
-        )
-        .where(
-            (CategoryTranslation.language_code == _EN)
-            | (CategoryTranslation.id.is_(None))  # type: ignore[union-attr]
-        )
-    )
-    result = await session.exec(stmt)
-    return [_category_read(category, translation) for category, translation in result.all()]
+async def list_categories(
+    session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
+) -> List[CategoryRead]:
+    result = await session.exec(select(Category))
+    out: List[CategoryRead] = []
+    for category in result.all():
+        assert category.id is not None
+        translation = await _localized_category_translation(session, category.id, lang)
+        out.append(_category_read(category, translation))
+    return out
 
 
 @router.post("/categories", response_model=CategoryRead)
@@ -319,7 +367,7 @@ async def update_category(
     cat = await session.get(Category, category_id)
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")
-    translation = await _english_category_translation(session, category_id)
+    translation = await _localized_category_translation(session, category_id, _EN)
     if translation is None:
         translation = CategoryTranslation(
             category_id=cat.id,
@@ -361,66 +409,42 @@ async def list_products(
     skip: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
 ) -> List[ProductRead]:
     stmt = (
-        select(
-            MasterProduct,
-            MasterProductTranslation,
-            Subcategory,
-            SubcategoryTranslation,
-        )
+        select(MasterProduct, Subcategory)
         .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
-        .join(
-            MasterProductTranslation,
-            MasterProductTranslation.master_product_id == MasterProduct.id,  # type: ignore[arg-type]
-            isouter=True,
-        )
-        .join(
-            SubcategoryTranslation,
-            SubcategoryTranslation.subcategory_id == Subcategory.id,  # type: ignore[arg-type]
-            isouter=True,
-        )
-        .where(
-            (MasterProductTranslation.language_code == _EN)
-            | (MasterProductTranslation.id.is_(None))  # type: ignore[union-attr]
-        )
-        .where(
-            (SubcategoryTranslation.language_code == _EN)
-            | (SubcategoryTranslation.id.is_(None))  # type: ignore[union-attr]
-        )
         .offset(skip)
         .limit(limit)
     )
     result = await session.exec(stmt)
-    return [
-        _product_read(product, translation, subcategory, subcategory_translation)
-        for product, translation, subcategory, subcategory_translation in result.all()
-    ]
+    out: List[ProductRead] = []
+    for product, subcategory in result.all():
+        assert product.id is not None
+        assert subcategory.id is not None
+        product_translation = await _localized_product_translation(session, product.id, lang)
+        sub_translation = await _localized_subcategory_translation(session, subcategory.id, lang)
+        out.append(_product_read(product, product_translation, subcategory, sub_translation))
+    return out
 
 
 @router.get("/subcategories", response_model=List[SubcategoryRead])
 async def list_subcategories(
     session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
 ) -> List[SubcategoryRead]:
-    stmt = (
-        select(Subcategory, SubcategoryTranslation)
-        .join(
-            SubcategoryTranslation,
-            SubcategoryTranslation.subcategory_id == Subcategory.id,  # type: ignore[arg-type]
-            isouter=True,
-        )
-        .where(
-            (SubcategoryTranslation.language_code == _EN)
-            | (SubcategoryTranslation.id.is_(None))  # type: ignore[union-attr]
-        )
-        .order_by(
-            Subcategory.category_id,  # type: ignore[arg-type]
-            Subcategory.sort_order,  # type: ignore[arg-type]
-            Subcategory.id,  # type: ignore[arg-type]
-        )
+    stmt = select(Subcategory).order_by(
+        Subcategory.category_id,  # type: ignore[arg-type]
+        Subcategory.sort_order,  # type: ignore[arg-type]
+        Subcategory.id,  # type: ignore[arg-type]
     )
     result = await session.exec(stmt)
-    return [_subcategory_read(sub, translation) for sub, translation in result.all()]
+    out: List[SubcategoryRead] = []
+    for sub in result.all():
+        assert sub.id is not None
+        translation = await _localized_subcategory_translation(session, sub.id, lang)
+        out.append(_subcategory_read(sub, translation))
+    return out
 
 
 @router.post("/products", response_model=ProductRead)
@@ -480,7 +504,7 @@ async def update_product(
     if payload.image_url is not None:
         product.image_url = payload.image_url
 
-    translation = await _english_product_translation(session, product_id)
+    translation = await _localized_product_translation(session, product_id, _EN)
     if translation is None:
         translation = MasterProductTranslation(
             master_product_id=product.id,

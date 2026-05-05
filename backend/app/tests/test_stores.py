@@ -2,6 +2,7 @@ from typing import Any, AsyncGenerator, Iterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
@@ -150,6 +151,48 @@ async def test_store_response_includes_services(
     body = get_resp.json()
     assert isinstance(body["services"], list)
     assert any(s["slug"] == "grocery" for s in body["services"])
+
+
+_STORE_GROCERY_TRANSLATIONS = {
+    "en": "Grocery",
+    "hi": "किराना",
+    "mr": "किराणा",
+    "gu": "કરિયાણું",
+    "pa": "ਕਰਿਆਨਾ",
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lang,expected", list(_STORE_GROCERY_TRANSLATIONS.items()))
+async def test_get_store_localizes_service_names(
+    session: AsyncSession, override_as_seller: Any, lang: str, expected: str
+) -> None:
+    # Add hi/mr/gu/pa translations onto the autouse-seeded grocery service.
+    grocery_row = await session.exec(select(Service).where(Service.slug == "grocery"))
+    grocery = grocery_row.first()
+    assert grocery is not None and grocery.id is not None
+    for code, name in _STORE_GROCERY_TRANSLATIONS.items():
+        if code == "en":
+            continue
+        session.add(
+            ServiceTranslation(
+                service_id=grocery.id, language_code=code, name=name, description=None
+            )
+        )
+    await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        create_resp = await ac.post(
+            "/api/v1/stores/", json={"name": "Locale Mart", "address": make_address()}
+        )
+        assert create_resp.status_code == 200, create_resp.text
+        sid = create_resp.json()["id"]
+        get_resp = await ac.get(
+            f"/api/v1/stores/{sid}", headers={"Accept-Language": lang}
+        )
+    assert get_resp.status_code == 200
+    body = get_resp.json()
+    assert any(s["name"] == expected for s in body["services"]), body["services"]
 
 
 @pytest.mark.asyncio
