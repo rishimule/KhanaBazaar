@@ -19,10 +19,10 @@ from app.utils.locale import DEFAULT_LOCALE, SUPPORTED_LOCALES, parse_accept_lan
         ("xx-YY,hi", "hi"),  # skip unsupported, take next supported
     ],
 )
-def test_parse_accept_language(header, expected):
+def test_parse_accept_language(header: str | None, expected: str) -> None:
     assert parse_accept_language(header) == expected
 
 
-def test_supported_locales_set():
+def test_supported_locales_set() -> None:
     assert SUPPORTED_LOCALES == {"en", "hi", "mr", "gu", "pa"}
     assert DEFAULT_LOCALE == "en"

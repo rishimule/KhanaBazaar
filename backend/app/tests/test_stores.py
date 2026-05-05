@@ -2,12 +2,11 @@ from typing import Any, AsyncGenerator, Iterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
 from app.core.security import get_current_admin, get_current_seller, get_current_user
-from sqlmodel import select
-
 from app.models.address import Address
 from app.models.base import User, UserRole
 from app.models.catalog import Service, ServiceTranslation
