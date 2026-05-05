@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import styles from "./Navbar.module.css";
@@ -14,6 +15,7 @@ function isActive(pathname: string, href: string) {
 }
 
 export default function Navbar() {
+  const t = useTranslations("Nav");
   const pathname = usePathname();
   const router = useRouter();
   const { cartCount } = useCart();
@@ -22,26 +24,25 @@ export default function Navbar() {
 
   const role = dbUser?.role ?? null;
 
-  // Build nav links based on role
-  const navLinks = [
-    { href: "/", label: "Home", icon: "🏠" },
+  const navLinks: { href: string; label: string; icon: string }[] = [
+    { href: "/", label: t("home"), icon: "🏠" },
   ];
 
   if (!loading && (!role || role === "customer")) {
-    navLinks.push({ href: "/sell", label: "Sell", icon: "🛍️" });
+    navLinks.push({ href: "/sell", label: t("sell"), icon: "🛍️" });
   }
   if (role === "customer" || role === "seller" || role === "admin") {
-    navLinks.push({ href: "/stores", label: "Stores", icon: "🏪" });
+    navLinks.push({ href: "/stores", label: t("stores"), icon: "🏪" });
   }
   if (role === "customer") {
-    navLinks.push({ href: "/account/orders", label: "Orders", icon: "📦" });
-    navLinks.push({ href: "/account", label: "Account", icon: "👤" });
+    navLinks.push({ href: "/account/orders", label: t("orders"), icon: "📦" });
+    navLinks.push({ href: "/account", label: t("account"), icon: "👤" });
   }
   if (role === "seller") {
-    navLinks.push({ href: "/seller", label: "Seller", icon: "📊" });
+    navLinks.push({ href: "/seller", label: t("seller"), icon: "📊" });
   }
   if (role === "admin") {
-    navLinks.push({ href: "/admin", label: "Admin", icon: "⚙️" });
+    navLinks.push({ href: "/admin", label: t("admin"), icon: "⚙️" });
   }
 
   const handleLogout = async () => {
@@ -52,7 +53,6 @@ export default function Navbar() {
   return (
     <nav className={styles.nav}>
       <div className={styles.navInner}>
-        {/* Logo */}
         <Link href="/" className={styles.logo}>
           <span className={styles.logoIcon}>
             <Image
@@ -67,7 +67,6 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Desktop links */}
         <div className={styles.navLinks}>
           {navLinks.map((link) => (
             <Link
@@ -82,11 +81,9 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* Right section */}
         <div className={styles.navActions}>
-          {/* Cart — visible to logged-in customers */}
           {dbUser && role === "customer" && (
-            <Link href="/cart" className={styles.cartBtn} aria-label="Shopping cart">
+            <Link href="/cart" className={styles.cartBtn} aria-label={t("cartAriaLabel")}>
               🛒
               {cartCount > 0 && (
                 <span className={styles.cartBadge}>{cartCount}</span>
@@ -94,40 +91,37 @@ export default function Navbar() {
             </Link>
           )}
 
-          {/* Auth button */}
           {!loading && (
             <>
               {dbUser ? (
                 <button
                   className={styles.authBtn}
                   onClick={handleLogout}
-                  title={`Signed in as ${dbUser.email ?? dbUser.full_name}`}
+                  title={t("logoutTitleSignedIn", { who: dbUser.email ?? dbUser.full_name ?? "" })}
                 >
                   <span className={styles.authAvatar}>
                     {(dbUser.full_name ?? dbUser.email ?? "U").charAt(0).toUpperCase()}
                   </span>
-                  <span className={styles.authLabel}>Logout</span>
+                  <span className={styles.authLabel}>{t("logoutLabel")}</span>
                 </button>
               ) : (
                 <Link href="/login" className={styles.loginBtn}>
-                  Sign In
+                  {t("signIn")}
                 </Link>
               )}
             </>
           )}
 
-          {/* Mobile hamburger */}
           <button
             className={styles.hamburger}
             onClick={() => setDrawerOpen(true)}
-            aria-label="Open menu"
+            aria-label={t("openMenu")}
           >
             ☰
           </button>
         </div>
       </div>
 
-      {/* Mobile drawer */}
       {drawerOpen && (
         <>
           <div
@@ -138,19 +132,20 @@ export default function Navbar() {
             <button
               className={styles.drawerClose}
               onClick={() => setDrawerOpen(false)}
-              aria-label="Close menu"
+              aria-label={t("closeMenu")}
             >
               ✕
             </button>
 
-            {/* User info in drawer */}
             {dbUser && (
               <div className={styles.drawerUser}>
                 <span className={styles.drawerUserAvatar}>
                   {(dbUser.full_name ?? dbUser.email ?? "U").charAt(0).toUpperCase()}
                 </span>
                 <div className={styles.drawerUserInfo}>
-                  <span className={styles.drawerUserName}>{dbUser.full_name ?? "User"}</span>
+                  <span className={styles.drawerUserName}>
+                    {dbUser.full_name ?? t("drawerUserFallback")}
+                  </span>
                   <span className={styles.drawerUserRole}>{dbUser.role}</span>
                 </div>
               </div>
@@ -172,7 +167,7 @@ export default function Navbar() {
                 className={styles.drawerLink}
                 onClick={() => setDrawerOpen(false)}
               >
-                🛒 Cart {cartCount > 0 && `(${cartCount})`}
+                🛒 {t("drawerCart")} {cartCount > 0 && `(${cartCount})`}
               </Link>
             )}
 
@@ -182,7 +177,7 @@ export default function Navbar() {
                 className={styles.drawerLink}
                 onClick={() => { handleLogout(); setDrawerOpen(false); }}
               >
-                🚪 Sign Out
+                🚪 {t("drawerSignOut")}
               </button>
             ) : (
               <Link
@@ -190,7 +185,7 @@ export default function Navbar() {
                 className={styles.drawerLink}
                 onClick={() => setDrawerOpen(false)}
               >
-                🔑 Sign In
+                🔑 {t("drawerSignIn")}
               </Link>
             )}
           </div>
