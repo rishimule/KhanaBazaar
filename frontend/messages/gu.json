@@ -1,1 +1,35 @@
-{}
+{
+  "Nav": {
+    "home": "Home",
+    "sell": "Sell",
+    "stores": "Stores",
+    "orders": "Orders",
+    "account": "Account",
+    "seller": "Seller",
+    "admin": "Admin",
+    "cartAriaLabel": "Shopping cart",
+    "logoutLabel": "Logout",
+    "logoutTitleSignedIn": "Signed in as {who}",
+    "signIn": "Sign In",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "drawerCart": "Cart",
+    "drawerSignOut": "Sign Out",
+    "drawerSignIn": "Sign In",
+    "drawerUserFallback": "User"
+  },
+  "Footer": {
+    "tagline": "Your neighbourhood stores, now at your fingertips. Shop fresh groceries & essentials from local sellers and pay instantly with UPI.",
+    "quickLinks": "Quick Links",
+    "home": "Home",
+    "browseStores": "Browse Stores",
+    "myCart": "My Cart",
+    "company": "Company",
+    "aboutUs": "About Us",
+    "forSellers": "For Sellers",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "copyright": "© {year} Khana Bazaar. All rights reserved.",
+    "madeWith": "Made with 🧡 for India's local sellers"
+  }
+}
