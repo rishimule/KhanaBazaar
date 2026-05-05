@@ -22,6 +22,10 @@ from app.schemas.sellers import (
     SellerProfileUpdateBody,
 )
 from app.services.profiles import compose_full_name, split_full_name
+from app.services.seller_emails import (
+    dispatch_seller_approved,
+    dispatch_seller_rejected,
+)
 from app.services.seller_services import (
     list_profile_services,
     replace_profile_services,
@@ -141,6 +145,22 @@ class AdminVerifyBody(BaseModel):
     rejection_reason: Optional[str] = None
 
 
+async def _notify_seller_of_decision(
+    session: AsyncSession, seller_id: int, profile: SellerProfile
+) -> None:
+    user = (await session.exec(
+        select(User).where(User.id == seller_id)
+    )).first()
+    if not user or not user.email:
+        return
+    if profile.verification_status == VerificationStatus.Approved:
+        dispatch_seller_approved(user.email, profile.business_name)
+    elif profile.verification_status == VerificationStatus.Rejected:
+        dispatch_seller_rejected(
+            user.email, profile.business_name, profile.rejection_reason or ""
+        )
+
+
 @router.patch("/admin/{seller_id}/verify")
 async def admin_verify_seller(
     seller_id: int,
@@ -223,6 +243,9 @@ async def admin_verify_seller(
         profile = refreshed.first()
         assert profile is not None
     await session.refresh(profile)
+
+    await _notify_seller_of_decision(session, seller_id, profile)
+
     return {
         "seller_id": seller_id,
         "verification_status": profile.verification_status,

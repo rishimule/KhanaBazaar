@@ -215,3 +215,42 @@ def send_order_status_changed_async(
         f"{ctx.get('store_name') or 'a store'} is now '{new_status}'."
     )
     _resolve_email(to, subject, body)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_seller_approved_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_seller_approved_async(to_email: str, business_name: str) -> None:
+    """Notify a seller that their application has been approved."""
+    if not to_email:
+        return
+    subject = "Your Khana Bazaar seller application is approved"
+    body = (
+        f"Congratulations! Your seller application for {business_name} has been approved.\n\n"
+        "Sign in to your seller dashboard to start managing your store inventory and accepting orders."
+    )
+    _resolve_email(to_email, subject, body)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_seller_rejected_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_seller_rejected_async(
+    to_email: str, business_name: str, reason: str
+) -> None:
+    """Notify a seller that their application has been rejected."""
+    if not to_email:
+        return
+    subject = "Update on your Khana Bazaar seller application"
+    body = (
+        f"Your seller application for {business_name} was not approved at this time.\n\n"
+        f"Reason: {reason}\n\n"
+        "You may update your application details and resubmit for review."
+    )
+    _resolve_email(to_email, subject, body)
