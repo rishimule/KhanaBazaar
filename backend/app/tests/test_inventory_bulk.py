@@ -2,6 +2,7 @@ from typing import Any, AsyncGenerator, Iterator
 
 import pytest
 from fastapi import HTTPException
+from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -255,3 +256,129 @@ async def test_bulk_upsert_dedup_last_wins(
     )).all())
     assert len(db_rows) == 1
     assert db_rows[0].price == 200.0
+
+
+@pytest.mark.asyncio
+async def test_bulk_endpoint_creates_and_updates_atomically(
+    seeded: dict[str, Any], override_as_seller: None
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        payload = {
+            "items": [
+                {
+                    "product_id": seeded["grocery_product_id"],
+                    "price": 275.0,
+                    "stock": 50,
+                    "is_available": True,
+                },
+            ]
+        }
+        resp = await ac.put(
+            f"/api/v1/stores/{seeded['store_id']}/inventory/bulk", json=payload
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert len(body) == 1
+        assert body[0]["price"] == 275.0
+        assert body[0]["stock"] == 50
+
+
+@pytest.mark.asyncio
+async def test_bulk_endpoint_rejects_unapproved_service(
+    seeded: dict[str, Any], override_as_seller: None
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        payload = {
+            "items": [
+                {
+                    "product_id": seeded["pharmacy_product_id"],
+                    "price": 20.0,
+                    "stock": 5,
+                    "is_available": True,
+                },
+            ]
+        }
+        resp = await ac.put(
+            f"/api/v1/stores/{seeded['store_id']}/inventory/bulk", json=payload
+        )
+        assert resp.status_code == 403, resp.text
+        assert "SERVICE_NOT_APPROVED" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_bulk_endpoint_caps_at_200_rows(
+    seeded: dict[str, Any], override_as_seller: None
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        items = [
+            {
+                "product_id": seeded["grocery_product_id"],
+                "price": 1.0,
+                "stock": 1,
+                "is_available": True,
+            }
+            for _ in range(201)
+        ]
+        resp = await ac.put(
+            f"/api/v1/stores/{seeded['store_id']}/inventory/bulk",
+            json={"items": items},
+        )
+        assert resp.status_code == 422, resp.text
+        assert "ROW_LIMIT" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_bulk_endpoint_rejects_invalid_price(
+    seeded: dict[str, Any], override_as_seller: None
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        payload = {
+            "items": [
+                {
+                    "product_id": seeded["grocery_product_id"],
+                    "price": 0.0,
+                    "stock": 5,
+                    "is_available": True,
+                },
+            ]
+        }
+        resp = await ac.put(
+            f"/api/v1/stores/{seeded['store_id']}/inventory/bulk", json=payload
+        )
+        assert resp.status_code == 422, resp.text
+        assert "PRICE_INVALID" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_bulk_endpoint_rolls_back_on_invalid_row(
+    session: AsyncSession,
+    seeded: dict[str, Any],
+    override_as_seller: None,
+) -> None:
+    """One invalid row → entire batch rejected, DB unchanged."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        payload = {
+            "items": [
+                {
+                    "product_id": seeded["grocery_product_id"],
+                    "price": 99.0,
+                    "stock": 9,
+                    "is_available": True,
+                },
+                {
+                    "product_id": seeded["pharmacy_product_id"],
+                    "price": 99.0,
+                    "stock": 9,
+                    "is_available": True,
+                },
+            ]
+        }
+        resp = await ac.put(
+            f"/api/v1/stores/{seeded['store_id']}/inventory/bulk", json=payload
+        )
+        assert resp.status_code == 403
+
+    rows = list((await session.exec(
+        select(StoreInventory).where(StoreInventory.store_id == seeded["store_id"])
+    )).all())
+    assert rows == []
