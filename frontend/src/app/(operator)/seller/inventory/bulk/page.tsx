@@ -12,6 +12,7 @@ import {
 } from "@/types";
 
 import styles from "./bulk.module.css";
+import { BulkInventorySheet } from "./BulkInventorySheet";
 
 export type SheetRow = {
   inventory_id: number | null;
@@ -37,6 +38,7 @@ export default function BulkInventoryPage() {
   const [fetching, setFetching] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!authLoading && (!dbUser || dbUser.role !== "seller")) {
@@ -122,9 +124,32 @@ export default function BulkInventoryPage() {
         {rows.length} row(s) · {alreadyInSheet.size} unique products · {eligible.length} eligible
       </div>
 
-      <div className={styles.placeholder}>
-        Sheet renders here (next task).
-      </div>
+      <BulkInventorySheet
+        rows={rows}
+        selectedIndices={selectedIndices}
+        onToggleSelect={(idx) => {
+          setSelectedIndices((prev) => {
+            const next = new Set(prev);
+            if (next.has(idx)) next.delete(idx);
+            else next.add(idx);
+            return next;
+          });
+        }}
+        onPatchRow={(idx, patch) => {
+          setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+        }}
+        onRemoveRow={(idx) => {
+          setRows((prev) => prev.filter((_, i) => i !== idx));
+          setSelectedIndices((prev) => {
+            const next = new Set<number>();
+            prev.forEach((i) => {
+              if (i < idx) next.add(i);
+              else if (i > idx) next.add(i - 1);
+            });
+            return next;
+          });
+        }}
+      />
 
       {pickerOpen && (
         <div className={styles.placeholder}>

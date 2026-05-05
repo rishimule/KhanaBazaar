@@ -39,3 +39,55 @@
     display: block;
   }
 }
+
+.sheetWrap {
+  overflow-x: auto;
+}
+
+.sheet {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.sheet th,
+.sheet td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-neutral-200);
+  text-align: left;
+  vertical-align: top;
+}
+
+.cell {
+  width: 110px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-sm);
+}
+
+.cellErr {
+  width: 110px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-sm);
+}
+
+.cellErrMsg {
+  color: var(--color-error);
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+.rowNew {
+  background: var(--color-accent-50);
+}
+
+.rowDirty {
+  background: var(--color-primary-50);
+}
+
+.empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-neutral-500);
+}
