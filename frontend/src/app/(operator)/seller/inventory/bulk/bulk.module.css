@@ -1,0 +1,178 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.statusBar {
+  font-size: 0.875rem;
+  color: var(--color-neutral-600);
+}
+
+.placeholder {
+  border: 1px dashed var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-neutral-500);
+}
+
+.mobileBanner {
+  display: none;
+  padding: var(--space-3);
+  background: var(--color-primary-50);
+  border-radius: var(--radius-md);
+  color: var(--color-primary-900);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .mobileBanner {
+    display: block;
+  }
+}
+
+.sheetWrap {
+  overflow-x: auto;
+}
+
+.sheet {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.sheet th,
+.sheet td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-neutral-200);
+  text-align: left;
+  vertical-align: top;
+}
+
+.cell {
+  width: 110px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-sm);
+}
+
+.cellErr {
+  width: 110px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-sm);
+}
+
+.cellErrMsg {
+  color: var(--color-error);
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+.rowNew {
+  background: var(--color-accent-50);
+}
+
+.rowDirty {
+  background: var(--color-primary-50);
+}
+
+.empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-neutral-500);
+}
+
+.pickerBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 100;
+}
+
+.pickerPanel {
+  width: min(480px, 90vw);
+  background: var(--color-neutral-0);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pickerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-neutral-200);
+}
+
+.pickerFilters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-neutral-200);
+}
+
+.pickerList {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.pickerRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-neutral-100);
+  cursor: pointer;
+}
+
+.pickerName {
+  font-weight: 500;
+}
+
+.pickerMeta {
+  color: var(--color-neutral-600);
+  font-size: 0.75rem;
+}
+
+.pickerFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-neutral-200);
+}
+
+.bulkFillWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) 0;
+}
+
+.bulkFillCount {
+  font-size: 0.875rem;
+  color: var(--color-neutral-600);
+}
+
+.bulkFillInline {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}

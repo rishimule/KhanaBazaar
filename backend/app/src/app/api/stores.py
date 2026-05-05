@@ -15,8 +15,19 @@ from app.models.catalog import MasterProduct
 from app.models.profile import SellerProfile
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_from_payload, address_to_payload
+from app.schemas.inventory import (
+    BulkInventoryError,
+    BulkInventoryItem,
+    BulkInventoryRequest,
+)
 from app.schemas.stores import StoreCreate, StoreRead
+from app.services.inventory import (
+    assert_products_in_seller_services,
+    bulk_upsert_inventory,
+)
 from app.services.seller_services import list_profile_services
+
+_BULK_ROW_LIMIT = 200
 
 router = APIRouter()
 
@@ -194,11 +205,17 @@ async def add_inventory(
     session: AsyncSession = Depends(get_db_session),
     seller: User = Depends(get_current_seller),
 ) -> StoreInventory:
-    await _authorize_store_ownership(session, store_id, seller, allow_admin=False)
+    store = await _authorize_store_ownership(
+        session, store_id, seller, allow_admin=False
+    )
 
     product = await session.get(MasterProduct, inventory.product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Master product not found")
+
+    await assert_products_in_seller_services(
+        session, store.seller_profile_id, [inventory.product_id]
+    )
 
     check_stmt = select(StoreInventory).where(
         StoreInventory.store_id == store_id,
@@ -217,6 +234,81 @@ async def add_inventory(
     await session.commit()
     await session.refresh(inventory)
     return inventory
+
+
+def _validate_bulk_items(
+    items: list[BulkInventoryItem],
+) -> list[BulkInventoryError]:
+    errs: list[BulkInventoryError] = []
+    seen: set[int] = set()
+    for idx, item in enumerate(items):
+        if item.price <= 0 or item.price > 999_999:
+            errs.append(
+                BulkInventoryError(
+                    index=idx,
+                    product_id=item.product_id,
+                    code="PRICE_INVALID",
+                    message="Price must be > 0 and <= 999999",
+                )
+            )
+        if item.stock < 0:
+            errs.append(
+                BulkInventoryError(
+                    index=idx,
+                    product_id=item.product_id,
+                    code="STOCK_INVALID",
+                    message="Stock must be >= 0",
+                )
+            )
+        if item.product_id in seen:
+            errs.append(
+                BulkInventoryError(
+                    index=idx,
+                    product_id=item.product_id,
+                    code="DUPLICATE_PRODUCT",
+                    message="Product appears more than once",
+                )
+            )
+        seen.add(item.product_id)
+    return errs
+
+
+@router.put("/{store_id}/inventory/bulk", response_model=List[StoreInventory])
+async def bulk_upsert_store_inventory(
+    store_id: int,
+    payload: BulkInventoryRequest,
+    session: AsyncSession = Depends(get_db_session),
+    seller: User = Depends(get_current_seller),
+) -> List[StoreInventory]:
+    store = await _authorize_store_ownership(
+        session, store_id, seller, allow_admin=False
+    )
+
+    if len(payload.items) > _BULK_ROW_LIMIT:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "ROW_LIMIT",
+                "message": f"At most {_BULK_ROW_LIMIT} items per request",
+            },
+        )
+
+    field_errors = _validate_bulk_items(payload.items)
+    if field_errors:
+        raise HTTPException(
+            status_code=422,
+            detail={"errors": [e.model_dump() for e in field_errors]},
+        )
+
+    profile_id = store.seller_profile_id
+    product_ids = [it.product_id for it in payload.items]
+    await assert_products_in_seller_services(session, profile_id, product_ids)
+
+    rows = await bulk_upsert_inventory(session, store_id, payload.items)
+    await session.commit()
+    for row in rows:
+        await session.refresh(row)
+    return rows
 
 
 @router.put("/{store_id}/inventory/{inventory_id}", response_model=StoreInventory)

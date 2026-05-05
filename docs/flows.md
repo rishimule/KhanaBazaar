@@ -209,3 +209,21 @@ Customer-facing reads:
 | `cart`, `cartitem` (Postgres) | authenticated cart | until checkout or explicit clear |
 | `order`, `orderitem`, `payment`, `delivery` (Postgres) | placed orders | permanent |
 | Celery task queue (Redis broker) | order email jobs | until worker drains |
+
+
+## 9. Seller bulk inventory edit
+
+1. Seller opens `/seller/inventory/bulk` from the toolbar link on `/seller/inventory`.
+2. Frontend loads three resources in parallel:
+   - `GET /api/v1/stores/my` → seller's store
+   - `GET /api/v1/sellers/me/eligible-products` → products in seller's approved services (each row carries an `in_inventory` flag for the seller's store)
+   - `GET /api/v1/stores/{id}/inventory/all` → existing rows
+3. Existing inventory rows render in an editable spreadsheet. The picker side panel offers add-from-eligible (drill-down by service → category → subcategory + free-text search; already-stocked products are hidden).
+4. Seller edits prices/stocks (optionally using the bulk-fill toolbar to set price/stock or apply ±N% to selected rows) and clicks **Save N change(s)**.
+5. Frontend pre-validates each row. Save is disabled while any row has errors OR when no row is dirty.
+6. `PUT /api/v1/stores/{id}/inventory/bulk` body: `{ "items": [{ product_id, price, stock, is_available }] }`.
+7. Server: authorize store ownership → enforce 200-row cap → field validation (price/stock ranges, no duplicate product_id) → service-membership check via `assert_products_in_seller_services` → upsert in a single transaction. Existing rows are locked in deterministic id order via `lock_inventory_rows()` to avoid checkout deadlocks (same pattern as `services/checkout.py`).
+8. On any failure: HTTP 4xx with structured per-row errors; the transaction rolls back; nothing persists.
+9. On success: returns the upserted `StoreInventory` rows. Frontend clears dirty/error state and rebases the sheet to the saved values.
+
+The single-row `POST /api/v1/stores/{id}/inventory` endpoint shares the same service-membership validator, so a seller who is approved only for Grocery cannot stock a Pharmacy product through either path. Pre-existing inventory rows that violate the new constraint are grandfathered (not deleted); operators can run `python -m app.db.scripts.audit_inventory_service_membership` to log them.

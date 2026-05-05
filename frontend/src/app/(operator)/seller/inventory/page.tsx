@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal, { modalStyles } from "@/components/Modal";
@@ -200,6 +201,9 @@ export default function SellerInventoryPage() {
         <span className={styles.toolbarLeft}>
           {inventory.length} products in store
         </span>
+        <Link href="/seller/inventory/bulk" className="btn btn-outline">
+          Bulk edit →
+        </Link>
         <button className={styles.addBtn} onClick={openAdd} disabled={availableProducts.length === 0}>
           + Add Product
         </button>
