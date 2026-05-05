@@ -315,21 +315,17 @@ async def list_services(
 
 
 @router.get("/categories", response_model=List[CategoryRead])
-async def list_categories(session: AsyncSession = Depends(get_db_session)) -> List[CategoryRead]:
-    stmt = (
-        select(Category, CategoryTranslation)
-        .join(
-            CategoryTranslation,
-            CategoryTranslation.category_id == Category.id,  # type: ignore[arg-type]
-            isouter=True,
-        )
-        .where(
-            (CategoryTranslation.language_code == _EN)
-            | (CategoryTranslation.id.is_(None))  # type: ignore[union-attr]
-        )
-    )
-    result = await session.exec(stmt)
-    return [_category_read(category, translation) for category, translation in result.all()]
+async def list_categories(
+    session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
+) -> List[CategoryRead]:
+    result = await session.exec(select(Category))
+    out: List[CategoryRead] = []
+    for category in result.all():
+        assert category.id is not None
+        translation = await _localized_category_translation(session, category.id, lang)
+        out.append(_category_read(category, translation))
+    return out
 
 
 @router.post("/categories", response_model=CategoryRead)

@@ -180,6 +180,40 @@ async def test_list_categories_returns_service_id(
     assert rows[0]["service_id"] == seed["pharmacy"]
 
 
+_FRUITS_VEG_TRANSLATIONS = {
+    "en": "Fruits & Vegetables",
+    "hi": "फल और सब्ज़ियां",
+    "mr": "फळे आणि भाज्या",
+    "gu": "ફળો અને શાકભાજી",
+    "pa": "ਫਲ ਅਤੇ ਸਬਜ਼ੀਆਂ",
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lang,expected_name", list(_FRUITS_VEG_TRANSLATIONS.items()))
+async def test_list_categories_returns_localized_name(
+    session: AsyncSession, seed: dict[str, int], lang: str, expected_name: str
+) -> None:
+    category = Category(service_id=seed["grocery"], slug="fruits-vegetables", sort_order=0)
+    session.add(category)
+    await session.flush()
+    assert category.id is not None
+    for code, name in _FRUITS_VEG_TRANSLATIONS.items():
+        session.add(
+            CategoryTranslation(
+                category_id=category.id, language_code=code, name=name, description=None
+            )
+        )
+    await session.commit()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/catalog/categories", headers={"Accept-Language": lang}
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert any(c["name"] == expected_name for c in body), body
+
+
 async def _seed_category_with_subcategories(
     session: AsyncSession,
     service_id: int,
