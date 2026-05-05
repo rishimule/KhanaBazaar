@@ -10,7 +10,7 @@ import { get, post, put, del } from "@/lib/api";
 import {
   Store,
   StoreInventory,
-  MasterProduct,
+  EligibleProduct,
   Category,
   Service,
 } from "@/types";
@@ -19,7 +19,7 @@ import styles from "./page.module.css";
 import mobileStyles from "@/components/DataTableCard.module.css";
 
 interface InventoryWithProduct extends StoreInventory {
-  product: MasterProduct;
+  product: EligibleProduct;
 }
 
 interface CategoryBucket {
@@ -91,7 +91,7 @@ export default function SellerInventoryPage() {
 
   const [store, setStore] = useState<Store | null>(null);
   const [inventory, setInventory] = useState<InventoryWithProduct[]>([]);
-  const [allProducts, setAllProducts] = useState<MasterProduct[]>([]);
+  const [allProducts, setAllProducts] = useState<EligibleProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [fetching, setFetching] = useState(true);
 
@@ -112,7 +112,7 @@ export default function SellerInventoryPage() {
     if (!authLoading && dbUser && token) {
       Promise.all([
         get<Store[]>("/api/v1/stores/my", token),
-        get<MasterProduct[]>("/api/v1/catalog/products"),
+        get<EligibleProduct[]>("/api/v1/sellers/me/eligible-products", token),
         get<Category[]>("/api/v1/catalog/categories"),
       ])
         .then(async ([myStores, products, cats]) => {
