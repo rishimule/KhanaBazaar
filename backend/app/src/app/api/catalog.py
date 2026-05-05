@@ -22,6 +22,18 @@ from app.models.catalog import (
     SubcategoryTranslation,
 )
 from app.schemas.services import ServicePayload
+from app.services.catalog_translations import (
+    localized_category_translation as _localized_category_translation,
+)
+from app.services.catalog_translations import (
+    localized_product_translation as _localized_product_translation,
+)
+from app.services.catalog_translations import (
+    localized_service_translation as _localized_service_translation,
+)
+from app.services.catalog_translations import (
+    localized_subcategory_translation as _localized_subcategory_translation,
+)
 
 router = APIRouter()
 
@@ -132,94 +144,6 @@ async def _ensure_default_subcategory(session: AsyncSession, category_id: int) -
     session.add(sub)
     await session.flush()
     return sub
-
-
-async def _localized_service_translation(
-    session: AsyncSession, service_id: int, lang: str
-) -> ServiceTranslation | None:
-    if lang != _EN:
-        result = await session.exec(
-            select(ServiceTranslation).where(
-                ServiceTranslation.service_id == service_id,
-                ServiceTranslation.language_code == lang,
-            )
-        )
-        row = result.first()
-        if row is not None:
-            return row
-    result = await session.exec(
-        select(ServiceTranslation).where(
-            ServiceTranslation.service_id == service_id,
-            ServiceTranslation.language_code == _EN,
-        )
-    )
-    return result.first()
-
-
-async def _localized_category_translation(
-    session: AsyncSession, category_id: int, lang: str
-) -> CategoryTranslation | None:
-    if lang != _EN:
-        result = await session.exec(
-            select(CategoryTranslation).where(
-                CategoryTranslation.category_id == category_id,
-                CategoryTranslation.language_code == lang,
-            )
-        )
-        row = result.first()
-        if row is not None:
-            return row
-    result = await session.exec(
-        select(CategoryTranslation).where(
-            CategoryTranslation.category_id == category_id,
-            CategoryTranslation.language_code == _EN,
-        )
-    )
-    return result.first()
-
-
-async def _localized_product_translation(
-    session: AsyncSession, product_id: int, lang: str
-) -> MasterProductTranslation | None:
-    if lang != _EN:
-        result = await session.exec(
-            select(MasterProductTranslation).where(
-                MasterProductTranslation.master_product_id == product_id,
-                MasterProductTranslation.language_code == lang,
-            )
-        )
-        row = result.first()
-        if row is not None:
-            return row
-    result = await session.exec(
-        select(MasterProductTranslation).where(
-            MasterProductTranslation.master_product_id == product_id,
-            MasterProductTranslation.language_code == _EN,
-        )
-    )
-    return result.first()
-
-
-async def _localized_subcategory_translation(
-    session: AsyncSession, subcategory_id: int, lang: str
-) -> SubcategoryTranslation | None:
-    if lang != _EN:
-        result = await session.exec(
-            select(SubcategoryTranslation).where(
-                SubcategoryTranslation.subcategory_id == subcategory_id,
-                SubcategoryTranslation.language_code == lang,
-            )
-        )
-        row = result.first()
-        if row is not None:
-            return row
-    result = await session.exec(
-        select(SubcategoryTranslation).where(
-            SubcategoryTranslation.subcategory_id == subcategory_id,
-            SubcategoryTranslation.language_code == _EN,
-        )
-    )
-    return result.first()
 
 
 def _subcategory_name(subcategory: Subcategory, translation: SubcategoryTranslation | None) -> str:
