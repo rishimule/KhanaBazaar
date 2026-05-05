@@ -44,3 +44,6 @@ htmlcov/
 
 # Git worktrees
 .worktrees/
+
+# Local dev runtime (scripts/dev.sh)
+.dev/
