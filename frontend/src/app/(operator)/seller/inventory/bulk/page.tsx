@@ -13,6 +13,7 @@ import {
 
 import styles from "./bulk.module.css";
 import { BulkInventorySheet } from "./BulkInventorySheet";
+import { EligibleProductPicker } from "./EligibleProductPicker";
 
 export type SheetRow = {
   inventory_id: number | null;
@@ -151,14 +152,31 @@ export default function BulkInventoryPage() {
         }}
       />
 
-      {pickerOpen && (
-        <div className={styles.placeholder}>
-          Picker open (next task)
-          <button onClick={() => setPickerOpen(false)} className="btn btn-outline" style={{ marginLeft: 8 }}>
-            Close
-          </button>
-        </div>
-      )}
+      <EligibleProductPicker
+        open={pickerOpen}
+        products={eligible}
+        alreadyInSheet={alreadyInSheet}
+        onClose={() => setPickerOpen(false)}
+        onAdd={(chosen) => {
+          setRows((prev) => [
+            ...prev,
+            ...chosen.map<SheetRow>((p) => ({
+              inventory_id: null,
+              product_id: p.id,
+              product_name: p.name,
+              service_name: p.service_name,
+              category_name: p.category_name,
+              subcategory_name: p.subcategory_name,
+              price: String(p.base_price),
+              stock: "0",
+              is_available: true,
+              dirty: true,
+              errors: {},
+            })),
+          ]);
+          setPickerOpen(false);
+        }}
+      />
     </div>
   );
 }
