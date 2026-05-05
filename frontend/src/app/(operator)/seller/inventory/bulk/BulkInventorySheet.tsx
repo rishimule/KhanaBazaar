@@ -3,8 +3,10 @@
 import type { SheetRow } from "./page";
 import styles from "./bulk.module.css";
 
+export type IndexedRow = { row: SheetRow; originalIndex: number };
+
 interface Props {
-  rows: SheetRow[];
+  rows: IndexedRow[];
   selectedIndices: Set<number>;
   onToggleSelect: (idx: number) => void;
   onPatchRow: (idx: number, patch: Partial<SheetRow>) => void;
@@ -18,6 +20,8 @@ export function BulkInventorySheet({
   onPatchRow,
   onRemoveRow,
 }: Props) {
+  if (rows.length === 0) return null;
+
   return (
     <div className={styles.sheetWrap}>
       <table className={styles.sheet}>
@@ -25,8 +29,7 @@ export function BulkInventorySheet({
           <tr>
             <th></th>
             <th>Product</th>
-            <th>Service</th>
-            <th>Category</th>
+            <th>Subcategory</th>
             <th>Price (₹)</th>
             <th>Stock</th>
             <th>Avl</th>
@@ -34,7 +37,7 @@ export function BulkInventorySheet({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, idx) => {
+          {rows.map(({ row, originalIndex }) => {
             const isNew = row.inventory_id === null;
             const dirty = row.dirty;
             const rowClass = dirty
@@ -43,20 +46,17 @@ export function BulkInventorySheet({
                 : styles.rowDirty
               : "";
             return (
-              <tr key={`${row.product_id}-${idx}`} className={rowClass}>
+              <tr key={`${row.product_id}-${originalIndex}`} className={rowClass}>
                 <td>
                   <input
                     type="checkbox"
-                    checked={selectedIndices.has(idx)}
-                    onChange={() => onToggleSelect(idx)}
+                    checked={selectedIndices.has(originalIndex)}
+                    onChange={() => onToggleSelect(originalIndex)}
                     aria-label={`Select ${row.product_name}`}
                   />
                 </td>
                 <td>{row.product_name}</td>
-                <td>{row.service_name}</td>
-                <td>
-                  {row.category_name} → {row.subcategory_name}
-                </td>
+                <td>{row.subcategory_name}</td>
                 <td>
                   <input
                     type="number"
@@ -67,7 +67,7 @@ export function BulkInventorySheet({
                     min="0.01"
                     step="0.01"
                     onChange={(e) =>
-                      onPatchRow(idx, {
+                      onPatchRow(originalIndex, {
                         price: e.target.value,
                         dirty: true,
                         errors: validateCell(e.target.value, row.stock),
@@ -89,7 +89,7 @@ export function BulkInventorySheet({
                     value={row.stock}
                     min="0"
                     onChange={(e) =>
-                      onPatchRow(idx, {
+                      onPatchRow(originalIndex, {
                         stock: e.target.value,
                         dirty: true,
                         errors: validateCell(row.price, e.target.value),
@@ -107,7 +107,7 @@ export function BulkInventorySheet({
                     type="checkbox"
                     checked={row.is_available}
                     onChange={(e) =>
-                      onPatchRow(idx, {
+                      onPatchRow(originalIndex, {
                         is_available: e.target.checked,
                         dirty: true,
                       })
@@ -119,7 +119,7 @@ export function BulkInventorySheet({
                   {isNew && (
                     <button
                       className="btn btn-outline"
-                      onClick={() => onRemoveRow(idx)}
+                      onClick={() => onRemoveRow(originalIndex)}
                     >
                       Remove
                     </button>
@@ -130,11 +130,6 @@ export function BulkInventorySheet({
           })}
         </tbody>
       </table>
-      {rows.length === 0 && (
-        <div className={styles.empty}>
-          No rows. Click &ldquo;Add products&rdquo; to start.
-        </div>
-      )}
     </div>
   );
 }
