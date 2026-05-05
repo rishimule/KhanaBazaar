@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { PaymentMethod } from "@/types";
 import styles from "./PaymentMethodPicker.module.css";
 
@@ -8,17 +9,18 @@ interface Props {
   onChange: (method: PaymentMethod) => void;
 }
 
-const OPTIONS: { value: PaymentMethod; label: string; hint: string }[] = [
-  { value: "upi", label: "UPI", hint: "Pay via UPI app" },
-  { value: "cash", label: "Cash on delivery", hint: "Pay when you receive" },
+const OPTION_KEYS: { value: PaymentMethod; labelKey: string; hintKey: string }[] = [
+  { value: "upi", labelKey: "upiLabel", hintKey: "upiHint" },
+  { value: "cash", labelKey: "cashLabel", hintKey: "cashHint" },
 ];
 
 export default function PaymentMethodPicker({ value, onChange }: Props) {
+  const t = useTranslations("Payment");
   return (
     <fieldset className={styles.fieldset}>
-      <legend className={styles.legend}>Payment method</legend>
+      <legend className={styles.legend}>{t("legend")}</legend>
       <div className={styles.options}>
-        {OPTIONS.map((opt) => (
+        {OPTION_KEYS.map((opt) => (
           <label
             key={opt.value}
             className={`${styles.option} ${value === opt.value ? styles.selected : ""}`}
@@ -31,8 +33,8 @@ export default function PaymentMethodPicker({ value, onChange }: Props) {
               onChange={() => onChange(opt.value)}
               className={styles.radio}
             />
-            <span className={styles.label}>{opt.label}</span>
-            <span className={styles.hint}>{opt.hint}</span>
+            <span className={styles.label}>{t(opt.labelKey)}</span>
+            <span className={styles.hint}>{t(opt.hintKey)}</span>
           </label>
         ))}
       </div>

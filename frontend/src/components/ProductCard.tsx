@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import { InventoryWithProduct } from "@/types";
@@ -20,10 +21,11 @@ const CATEGORY_EMOJI: Record<number, string> = {
 };
 
 export default function ProductCard({ item, storeId, storeName }: Props) {
+  const t = useTranslations("Product");
   const { carts, addItem, removeItem, updateQty } = useCart();
   const { dbUser } = useAuth();
   const { product, price, stock } = item;
-  
+
   const role = dbUser?.role;
 
   // Find current qty in cart
@@ -32,7 +34,11 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
   const qty = cartItem?.quantity ?? 0;
 
   const stockLabel =
-    stock === 0 ? "Out of stock" : stock <= 5 ? `Only ${stock} left` : "In stock";
+    stock === 0
+      ? t("outOfStock")
+      : stock <= 5
+      ? t("onlyNLeft", { count: stock })
+      : t("inStock");
   const stockClass =
     stock === 0 ? styles.outOfStock : stock <= 5 ? styles.lowStock : styles.inStock;
 
@@ -81,7 +87,7 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
             onClick={handleAdd}
             disabled={stock === 0}
           >
-            {stock === 0 ? "Out of Stock" : "Add to Cart"}
+            {stock === 0 ? t("outOfStockButton") : t("addToCart")}
           </button>
         ) : (
           <div className={styles.qtyControls}>
@@ -92,6 +98,7 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
                   ? removeItem(storeId, product.id)
                   : updateQty(storeId, product.id, qty - 1)
               }
+              aria-label={t("decreaseQty")}
             >
               −
             </button>
@@ -100,6 +107,7 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
               className={styles.qtyBtn}
               onClick={() => updateQty(storeId, product.id, qty + 1)}
               disabled={qty >= stock}
+              aria-label={t("increaseQty")}
             >
               +
             </button>

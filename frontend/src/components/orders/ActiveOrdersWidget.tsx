@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { listOrders } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import OrderCard from "./OrderCard";
@@ -22,6 +23,7 @@ const VIEW_ALL_HREF: Record<UserRole, string> = {
 const POLL_MS = 15_000;
 
 export default function ActiveOrdersWidget({ role, limit = 5 }: Props) {
+  const t = useTranslations("Order.active");
   const { token } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export default function ActiveOrdersWidget({ role, limit = 5 }: Props) {
           }
         })
         .catch((e: { detail?: string }) => {
-          if (!cancelled) setError(e?.detail ?? "Could not load orders.");
+          if (!cancelled) setError(e?.detail ?? t("errLoad"));
         });
     tick();
     const id = setInterval(tick, POLL_MS);
@@ -46,19 +48,19 @@ export default function ActiveOrdersWidget({ role, limit = 5 }: Props) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [token, limit]);
+  }, [token, limit, t]);
 
   return (
     <section className={styles.widget}>
       <div className={styles.header}>
-        <h2 className={styles.title}>Active orders</h2>
+        <h2 className={styles.title}>{t("title")}</h2>
         <Link href={VIEW_ALL_HREF[role]} className={styles.viewAll}>
-          View all
+          {t("viewAll")}
         </Link>
       </div>
       {error && <div className={styles.error}>{error}</div>}
       {orders.length === 0 ? (
-        <div className={styles.empty}>No active orders.</div>
+        <div className={styles.empty}>{t("empty")}</div>
       ) : (
         <div className={styles.grid}>
           {orders.map((o) => (
