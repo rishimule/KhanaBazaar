@@ -27,7 +27,14 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     REDIS_URL: str
 
+    # CORS — comma-separated list of allowed frontend origins
+    FRONTEND_ORIGIN: str = "http://localhost:3000,http://127.0.0.1:3000"
+
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.FRONTEND_ORIGIN.split(",") if o.strip()]
 
     @field_validator("DATABASE_URL", mode="after")
     @classmethod
