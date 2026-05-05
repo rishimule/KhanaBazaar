@@ -1,11 +1,14 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import type { OrderStatus } from "@/types";
 import styles from "./OrderTimeline.module.css";
 
-const STEPS: { key: OrderStatus; label: string }[] = [
-  { key: "pending", label: "Order placed" },
-  { key: "packed", label: "Packed" },
-  { key: "dispatched", label: "Dispatched" },
-  { key: "delivered", label: "Delivered" },
+const STEPS: { key: OrderStatus; labelKey: string }[] = [
+  { key: "pending", labelKey: "placed" },
+  { key: "packed", labelKey: "packed" },
+  { key: "dispatched", labelKey: "dispatched" },
+  { key: "delivered", labelKey: "delivered" },
 ];
 
 const ORDER_INDEX: Record<OrderStatus, number> = {
@@ -17,8 +20,9 @@ const ORDER_INDEX: Record<OrderStatus, number> = {
 };
 
 export default function OrderTimeline({ status }: { status: OrderStatus }) {
+  const t = useTranslations("Order.timeline");
   if (status === "cancelled") {
-    return <div className={styles.cancelled}>Order cancelled</div>;
+    return <div className={styles.cancelled}>{t("cancelled")}</div>;
   }
   const current = ORDER_INDEX[status];
   return (
@@ -31,7 +35,7 @@ export default function OrderTimeline({ status }: { status: OrderStatus }) {
             className={`${styles.step} ${completed ? styles.completed : ""}`}
           >
             <span className={styles.dot} />
-            <span className={styles.label}>{step.label}</span>
+            <span className={styles.label}>{t(step.labelKey)}</span>
           </li>
         );
       })}

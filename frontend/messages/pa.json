@@ -241,6 +241,86 @@
     "copyright": "© {year} Khana Bazaar. All rights reserved.",
     "madeWith": "Made with 🧡 for India's local sellers"
   },
+  "Dashboard": {
+    "openSidebar": "Open sidebar",
+    "roleSellerLabel": "Seller Portal",
+    "roleAdminLabel": "Admin Panel",
+    "roleCustomerLabel": "Account"
+  },
+  "Product": {
+    "outOfStock": "Out of stock",
+    "outOfStockButton": "Out of Stock",
+    "onlyNLeft": "Only {count} left",
+    "inStock": "In stock",
+    "addToCart": "Add to Cart",
+    "decreaseQty": "Decrease quantity",
+    "increaseQty": "Increase quantity"
+  },
+  "Address": {
+    "line1Label": "Address line 1",
+    "line1Placeholder": "House / building / street",
+    "line2Label": "Address line 2 (optional)",
+    "line2Placeholder": "Apartment / floor / unit",
+    "landmarkLabel": "Landmark (optional)",
+    "landmarkPlaceholder": "Nearby reference",
+    "cityLabel": "City / Town",
+    "stateLabel": "State",
+    "stateSelectPlaceholder": "Select state",
+    "statesLoadError": "Could not load states. Please refresh.",
+    "pincodeLabel": "Pincode",
+    "countryLabel": "Country",
+    "deliverTo": "Deliver to",
+    "pickerLoading": "Loading addresses…",
+    "pickerEmpty": "No saved address.",
+    "pickerAddOne": "Add one",
+    "fallbackLabel": "Address"
+  },
+  "Payment": {
+    "legend": "Payment method",
+    "upiLabel": "UPI",
+    "upiHint": "Pay via UPI app",
+    "cashLabel": "Cash on delivery",
+    "cashHint": "Pay when you receive"
+  },
+  "Order": {
+    "status": {
+      "pending": "Pending",
+      "packed": "Packed",
+      "dispatched": "Dispatched",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "timeline": {
+      "placed": "Order placed",
+      "packed": "Packed",
+      "dispatched": "Dispatched",
+      "delivered": "Delivered",
+      "cancelled": "Order cancelled"
+    },
+    "card": {
+      "forCustomer": "For {name}",
+      "secondsAgo": "{count}s ago",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago",
+      "daysAgo": "{count}d ago"
+    },
+    "actions": {
+      "markPacked": "Mark Packed",
+      "markDispatched": "Mark Dispatched",
+      "markDelivered": "Mark Delivered",
+      "cancelOrder": "Cancel order",
+      "confirmCashCollected": "Cash collected from customer?",
+      "confirmCancel": "Cancel this order? Stock will be restored.",
+      "errUpdate": "Could not update order.",
+      "errCancel": "Could not cancel order."
+    },
+    "active": {
+      "title": "Active orders",
+      "viewAll": "View all",
+      "empty": "No active orders.",
+      "errLoad": "Could not load orders."
+    }
+  },
   "Account": {
     "loading": "Loading…",
     "layoutTitle": "Account",

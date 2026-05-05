@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import styles from "./AddressPicker.module.css";
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export default function AddressPicker({ value, onChange }: Props) {
+  const t = useTranslations("Address");
   const { token } = useAuth();
   const [addresses, setAddresses] = useState<CustomerAddressApi[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,19 +50,19 @@ export default function AddressPicker({ value, onChange }: Props) {
       .finally(() => setLoading(false));
   }, [token, value, onChange]);
 
-  if (loading) return <div className={styles.loading}>Loading addresses…</div>;
+  if (loading) return <div className={styles.loading}>{t("pickerLoading")}</div>;
   if (addresses.length === 0) {
     return (
       <div className={styles.empty}>
-        No saved address.{" "}
-        <Link href="/account/settings" className={styles.link}>Add one</Link>
+        {t("pickerEmpty")}{" "}
+        <Link href="/account/settings" className={styles.link}>{t("pickerAddOne")}</Link>
       </div>
     );
   }
 
   return (
     <div className={styles.picker}>
-      <label htmlFor="address-picker" className={styles.label}>Deliver to</label>
+      <label htmlFor="address-picker" className={styles.label}>{t("deliverTo")}</label>
       <select
         id="address-picker"
         value={value ?? ""}
@@ -69,7 +71,7 @@ export default function AddressPicker({ value, onChange }: Props) {
       >
         {addresses.map((a) => (
           <option key={a.id} value={a.id}>
-            {(a.label ?? "Address")} — {a.address.address_line1}, {a.address.city} {a.address.pincode}
+            {(a.label ?? t("fallbackLabel"))} — {a.address.address_line1}, {a.address.city} {a.address.pincode}
           </option>
         ))}
       </select>

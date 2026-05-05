@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { cancelOrder, transitionOrder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import type { Order, OrderStatus, UserRole } from "@/types";
@@ -12,10 +13,10 @@ const NEXT_TRANSITION: Partial<Record<OrderStatus, "packed" | "dispatched" | "de
   dispatched: "delivered",
 };
 
-const NEXT_LABEL: Record<NonNullable<typeof NEXT_TRANSITION[OrderStatus]>, string> = {
-  packed: "Mark Packed",
-  dispatched: "Mark Dispatched",
-  delivered: "Mark Delivered",
+const NEXT_LABEL_KEYS: Record<NonNullable<typeof NEXT_TRANSITION[OrderStatus]>, string> = {
+  packed: "markPacked",
+  dispatched: "markDispatched",
+  delivered: "markDelivered",
 };
 
 interface Props {
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export default function OrderActionButtons({ order, role, onChange }: Props) {
+  const t = useTranslations("Order.actions");
   const { token } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,14 +39,14 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
   const handleTransition = async () => {
     if (!token) return;
     const target = NEXT_TRANSITION[order.status]!;
-    if (target === "delivered" && !confirm("Cash collected from customer?")) return;
+    if (target === "delivered" && !confirm(t("confirmCashCollected"))) return;
     setBusy(true);
     setError(null);
     try {
       const next = await transitionOrder(token, order.id, target);
       onChange(next);
     } catch (e) {
-      setError((e as { detail?: string })?.detail ?? "Could not update order.");
+      setError((e as { detail?: string })?.detail ?? t("errUpdate"));
     } finally {
       setBusy(false);
     }
@@ -52,14 +54,14 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
 
   const handleCancel = async () => {
     if (!token) return;
-    if (!confirm("Cancel this order? Stock will be restored.")) return;
+    if (!confirm(t("confirmCancel"))) return;
     setBusy(true);
     setError(null);
     try {
       const next = await cancelOrder(token, order.id);
       onChange(next);
     } catch (e) {
-      setError((e as { detail?: string })?.detail ?? "Could not cancel order.");
+      setError((e as { detail?: string })?.detail ?? t("errCancel"));
     } finally {
       setBusy(false);
     }
@@ -69,12 +71,12 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
     <div className={styles.actions}>
       {canTransition && (
         <button onClick={handleTransition} disabled={busy} className={styles.primary}>
-          {NEXT_LABEL[NEXT_TRANSITION[order.status]!]}
+          {t(NEXT_LABEL_KEYS[NEXT_TRANSITION[order.status]!])}
         </button>
       )}
       {(canCancelCustomer || canCancelStaff) && (
         <button onClick={handleCancel} disabled={busy} className={styles.danger}>
-          Cancel order
+          {t("cancelOrder")}
         </button>
       )}
       {error && <span className={styles.error}>{error}</span>}

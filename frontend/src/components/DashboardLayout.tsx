@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import styles from "./DashboardLayout.module.css";
 
 interface NavItem {
@@ -21,10 +22,10 @@ interface Props {
   navItems: NavItem[];
 }
 
-const ROLE_LABELS: Record<DashboardRole, string> = {
-  seller: "Seller Portal",
-  admin: "Admin Panel",
-  customer: "Account",
+const ROLE_LABEL_KEYS: Record<DashboardRole, string> = {
+  seller: "roleSellerLabel",
+  admin: "roleAdminLabel",
+  customer: "roleCustomerLabel",
 };
 
 const ROLE_ICONS: Record<DashboardRole, string> = {
@@ -46,6 +47,7 @@ export default function DashboardLayout({
   title,
   navItems,
 }: Props) {
+  const t = useTranslations("Dashboard");
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -66,7 +68,7 @@ export default function DashboardLayout({
           </div>
           <div className={styles.roleInfo}>
             <span className={styles.roleName}>{roleName}</span>
-            <span className={styles.roleLabel}>{ROLE_LABELS[role]}</span>
+            <span className={styles.roleLabel}>{t(ROLE_LABEL_KEYS[role])}</span>
           </div>
         </div>
 
@@ -94,7 +96,7 @@ export default function DashboardLayout({
             <button
               className={styles.mobileToggle}
               onClick={() => setSidebarOpen(true)}
-              aria-label="Open sidebar"
+              aria-label={t("openSidebar")}
             >
               ☰
             </button>
