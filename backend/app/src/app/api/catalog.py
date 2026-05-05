@@ -449,26 +449,20 @@ async def list_products(
 @router.get("/subcategories", response_model=List[SubcategoryRead])
 async def list_subcategories(
     session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
 ) -> List[SubcategoryRead]:
-    stmt = (
-        select(Subcategory, SubcategoryTranslation)
-        .join(
-            SubcategoryTranslation,
-            SubcategoryTranslation.subcategory_id == Subcategory.id,  # type: ignore[arg-type]
-            isouter=True,
-        )
-        .where(
-            (SubcategoryTranslation.language_code == _EN)
-            | (SubcategoryTranslation.id.is_(None))  # type: ignore[union-attr]
-        )
-        .order_by(
-            Subcategory.category_id,  # type: ignore[arg-type]
-            Subcategory.sort_order,  # type: ignore[arg-type]
-            Subcategory.id,  # type: ignore[arg-type]
-        )
+    stmt = select(Subcategory).order_by(
+        Subcategory.category_id,  # type: ignore[arg-type]
+        Subcategory.sort_order,  # type: ignore[arg-type]
+        Subcategory.id,  # type: ignore[arg-type]
     )
     result = await session.exec(stmt)
-    return [_subcategory_read(sub, translation) for sub, translation in result.all()]
+    out: List[SubcategoryRead] = []
+    for sub in result.all():
+        assert sub.id is not None
+        translation = await _localized_subcategory_translation(session, sub.id, lang)
+        out.append(_subcategory_read(sub, translation))
+    return out
 
 
 @router.post("/products", response_model=ProductRead)

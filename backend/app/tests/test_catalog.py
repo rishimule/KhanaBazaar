@@ -249,6 +249,44 @@ async def _seed_category_with_subcategories(
     return category.id, sub_ids
 
 
+_LEAFY_GREENS_TRANSLATIONS = {
+    "en": "Leafy Greens",
+    "hi": "हरी पत्तेदार सब्ज़ियां",
+    "mr": "हिरव्या पालेभाज्या",
+    "gu": "પાંદડાવાળી શાકભાજી",
+    "pa": "ਪੱਤੇਦਾਰ ਸਾਗ",
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lang,expected_name", list(_LEAFY_GREENS_TRANSLATIONS.items()))
+async def test_list_subcategories_returns_localized_name(
+    session: AsyncSession, seed: dict[str, int], lang: str, expected_name: str
+) -> None:
+    category = Category(service_id=seed["grocery"], slug="fruits-vegetables", sort_order=0)
+    session.add(category)
+    await session.flush()
+    assert category.id is not None
+    sub = Subcategory(category_id=category.id, slug="leafy-greens", sort_order=0)
+    session.add(sub)
+    await session.flush()
+    assert sub.id is not None
+    for code, name in _LEAFY_GREENS_TRANSLATIONS.items():
+        session.add(
+            SubcategoryTranslation(
+                subcategory_id=sub.id, language_code=code, name=name, description=None
+            )
+        )
+    await session.commit()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/catalog/subcategories", headers={"Accept-Language": lang}
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert any(s["name"] == expected_name for s in body), body
+
+
 @pytest.mark.asyncio
 async def test_list_subcategories_returns_translated_names(
     session: AsyncSession, seed: dict[str, int]
