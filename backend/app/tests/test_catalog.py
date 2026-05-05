@@ -85,6 +85,43 @@ async def test_list_services_excludes_inactive_and_orders_by_sort_order() -> Non
     assert all(s["is_active"] is True for s in body)
 
 
+_GROCERY_TRANSLATIONS = {
+    "en": "Grocery",
+    "hi": "किराना",
+    "mr": "किराणा",
+    "gu": "કરિયાણું",
+    "pa": "ਕਰਿਆਨਾ",
+}
+
+
+async def _seed_grocery_translations(session: AsyncSession, service_id: int) -> None:
+    for code, name in _GROCERY_TRANSLATIONS.items():
+        if code == "en":
+            continue  # already seeded by autouse seed fixture
+        session.add(
+            ServiceTranslation(
+                service_id=service_id, language_code=code, name=name, description=None
+            )
+        )
+    await session.commit()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lang,expected_name", list(_GROCERY_TRANSLATIONS.items()))
+async def test_list_services_returns_localized_name(
+    session: AsyncSession, seed: dict[str, int], lang: str, expected_name: str
+) -> None:
+    await _seed_grocery_translations(session, seed["grocery"])
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/catalog/services", headers={"Accept-Language": lang}
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    grocery = next(s for s in body if s["slug"] == "grocery")
+    assert grocery["name"] == expected_name
+
+
 @pytest.mark.asyncio
 async def test_create_category_with_explicit_service_id(
     seed: dict[str, int], override_as_admin: None

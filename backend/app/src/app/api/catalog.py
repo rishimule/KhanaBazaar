@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.locale import get_request_locale
 from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.base import User
@@ -131,6 +132,28 @@ async def _ensure_default_subcategory(session: AsyncSession, category_id: int) -
     session.add(sub)
     await session.flush()
     return sub
+
+
+async def _localized_service_translation(
+    session: AsyncSession, service_id: int, lang: str
+) -> ServiceTranslation | None:
+    if lang != _EN:
+        result = await session.exec(
+            select(ServiceTranslation).where(
+                ServiceTranslation.service_id == service_id,
+                ServiceTranslation.language_code == lang,
+            )
+        )
+        row = result.first()
+        if row is not None:
+            return row
+    result = await session.exec(
+        select(ServiceTranslation).where(
+            ServiceTranslation.service_id == service_id,
+            ServiceTranslation.language_code == _EN,
+        )
+    )
+    return result.first()
 
 
 async def _localized_category_translation(
@@ -270,23 +293,22 @@ def _product_read(
 
 
 @router.get("/services", response_model=List[ServiceRead])
-async def list_services(session: AsyncSession = Depends(get_db_session)) -> List[ServiceRead]:
+async def list_services(
+    session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
+) -> List[ServiceRead]:
     stmt = (
-        select(Service, ServiceTranslation)
-        .join(
-            ServiceTranslation,
-            ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
-            isouter=True,
-        )
+        select(Service)
         .where(Service.is_active == True)  # noqa: E712
-        .where(
-            (ServiceTranslation.language_code == _EN)
-            | (ServiceTranslation.id.is_(None))  # type: ignore[union-attr]
-        )
         .order_by(Service.sort_order, Service.id)  # type: ignore[arg-type]
     )
     result = await session.exec(stmt)
-    return [_service_read(service, translation) for service, translation in result.all()]
+    out: List[ServiceRead] = []
+    for service in result.all():
+        assert service.id is not None
+        translation = await _localized_service_translation(session, service.id, lang)
+        out.append(_service_read(service, translation))
+    return out
 
 
 # ─── Categories ───────────────────────────────────────────────
