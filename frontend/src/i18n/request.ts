@@ -19,7 +19,6 @@ export default getRequestConfig(async ({ requestLocale }) => {
     messages,
     onError(error) {
       if (process.env.NODE_ENV !== "production") {
-        // eslint-disable-next-line no-console
         console.warn("[i18n]", error);
       }
     },
