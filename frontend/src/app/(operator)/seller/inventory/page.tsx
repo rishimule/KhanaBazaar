@@ -370,10 +370,6 @@ export default function SellerInventoryPage() {
             <button
               className={styles.categoryAddBtn}
               onClick={() => openAdd(bucket.category.id)}
-              disabled={
-                availableProducts.filter((p) => p.category_id === bucket.category.id)
-                  .length === 0
-              }
             >
               + Add
             </button>
@@ -385,10 +381,6 @@ export default function SellerInventoryPage() {
                 className={styles.categoryAddBtn}
                 style={{ marginLeft: "var(--space-2)" }}
                 onClick={() => openAdd(bucket.category.id)}
-                disabled={
-                  availableProducts.filter((p) => p.category_id === bucket.category.id)
-                    .length === 0
-                }
               >
                 + Add
               </button>
