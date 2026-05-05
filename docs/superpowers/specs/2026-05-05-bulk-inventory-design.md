@@ -76,6 +76,10 @@ GET /api/v1/sellers/me/eligible-products
 Auth: `get_current_seller`.
 Returns: list of `EligibleProduct` (joined master-product + category + subcategory + service names + already-in-inventory flag for the seller's store). Filtered to products whose owning service is in `SellerProfileService` for the caller's profile.
 
+**Localization:** the `*_name` fields are pulled from the corresponding translation tables (`MasterProductTranslation`, `SubcategoryTranslation`, `CategoryTranslation`, `ServiceTranslation`) using `lang: str = Depends(get_request_locale)` with an English fallback when a translation is missing — same pattern as `GET /catalog/products`.
+
+**Store resolution:** the `in_inventory` flag is computed against the caller's single store (looked up via `SellerProfile.id` → `Store.seller_profile_id`). If the seller has no store yet (admin not yet approved them), endpoint returns 409 `STORE_NOT_PROVISIONED` — matches the existing dashboard guard.
+
 Response shape:
 
 ```json
