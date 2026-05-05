@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import AsyncGenerator, Generator
+from typing import Any, AsyncGenerator, Generator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -32,10 +32,20 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     yield loop
     loop.close()
 
+async def _reset_schema(conn: Any) -> None:
+    """Drop and recreate the public schema to clear tables AND Postgres enum
+    types. SQLModel.metadata.drop_all does not drop enum types, so reused
+    types collide with `pg_type_typname_nsp_index` on the next create_all."""
+    from sqlalchemy import text
+
+    await conn.execute(text("DROP SCHEMA public CASCADE"))
+    await conn.execute(text("CREATE SCHEMA public"))
+
+
 @pytest.fixture(autouse=True, scope="function")
 async def setup_test_db() -> AsyncGenerator[None, None]:
     async with test_engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
+        await _reset_schema(conn)
         await conn.run_sync(SQLModel.metadata.create_all)
     from app.models.catalog import Language
 
@@ -51,7 +61,7 @@ async def setup_test_db() -> AsyncGenerator[None, None]:
         await session.commit()
     yield
     async with test_engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
+        await _reset_schema(conn)
 
 async def override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSession(test_engine) as session:
