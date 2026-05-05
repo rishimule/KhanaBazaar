@@ -210,6 +210,9 @@ export default function BulkInventoryPage() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.mobileBanner}>
+        Bulk editor works best on a wider screen. Open from a desktop browser to use it comfortably.
+      </div>
       <div className={styles.toolbar}>
         <Link href="/seller/inventory" className="btn btn-outline">
           ← Single edit
