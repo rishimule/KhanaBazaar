@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
+import LocaleSwitcher from "./LocaleSwitcher";
 import styles from "./Navbar.module.css";
 
 function isActive(pathname: string, href: string) {
@@ -90,6 +91,8 @@ export default function Navbar() {
               )}
             </Link>
           )}
+
+          <LocaleSwitcher />
 
           {!loading && (
             <>
