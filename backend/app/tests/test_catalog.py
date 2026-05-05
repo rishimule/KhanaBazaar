@@ -307,6 +307,62 @@ async def test_list_subcategories_returns_translated_names(
     assert all(r["category_id"] == rows[0]["category_id"] for r in rows)
 
 
+_SPINACH_TRANSLATIONS = {
+    "en": ("Spinach", "Leafy Greens"),
+    "hi": ("पालक", "हरी पत्तेदार सब्ज़ियां"),
+    "mr": ("पालक", "हिरव्या पालेभाज्या"),
+    "gu": ("પાલક", "પાંદડાવાળી શાકભાજી"),
+    "pa": ("ਪਾਲਕ", "ਪੱਤੇਦਾਰ ਸਾਗ"),
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lang", list(_SPINACH_TRANSLATIONS.keys()))
+async def test_list_products_returns_localized_name_and_subcategory(
+    session: AsyncSession, seed: dict[str, int], lang: str
+) -> None:
+    expected_name, expected_sub = _SPINACH_TRANSLATIONS[lang]
+    category = Category(service_id=seed["grocery"], slug="fruits-vegetables", sort_order=0)
+    session.add(category)
+    await session.flush()
+    assert category.id is not None
+    sub = Subcategory(category_id=category.id, slug="leafy-greens", sort_order=0)
+    session.add(sub)
+    await session.flush()
+    assert sub.id is not None
+    for code, (_, sub_name) in _SPINACH_TRANSLATIONS.items():
+        session.add(
+            SubcategoryTranslation(
+                subcategory_id=sub.id, language_code=code, name=sub_name, description=None
+            )
+        )
+    product = MasterProduct(
+        subcategory_id=sub.id, slug="spinach", image_url=None, base_price=20.0
+    )
+    session.add(product)
+    await session.flush()
+    assert product.id is not None
+    for code, (name, _) in _SPINACH_TRANSLATIONS.items():
+        session.add(
+            MasterProductTranslation(
+                master_product_id=product.id,
+                language_code=code,
+                name=name,
+                description=f"desc-{code}",
+            )
+        )
+    await session.commit()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/catalog/products", headers={"Accept-Language": lang}
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    matching = [p for p in body if p["name"] == expected_name]
+    assert matching, body
+    assert matching[0]["subcategory_name"] == expected_sub
+
+
 @pytest.mark.asyncio
 async def test_list_products_includes_subcategory_fields(
     session: AsyncSession, seed: dict[str, int]

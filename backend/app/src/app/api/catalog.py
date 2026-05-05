@@ -409,41 +409,23 @@ async def list_products(
     skip: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
 ) -> List[ProductRead]:
     stmt = (
-        select(
-            MasterProduct,
-            MasterProductTranslation,
-            Subcategory,
-            SubcategoryTranslation,
-        )
+        select(MasterProduct, Subcategory)
         .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
-        .join(
-            MasterProductTranslation,
-            MasterProductTranslation.master_product_id == MasterProduct.id,  # type: ignore[arg-type]
-            isouter=True,
-        )
-        .join(
-            SubcategoryTranslation,
-            SubcategoryTranslation.subcategory_id == Subcategory.id,  # type: ignore[arg-type]
-            isouter=True,
-        )
-        .where(
-            (MasterProductTranslation.language_code == _EN)
-            | (MasterProductTranslation.id.is_(None))  # type: ignore[union-attr]
-        )
-        .where(
-            (SubcategoryTranslation.language_code == _EN)
-            | (SubcategoryTranslation.id.is_(None))  # type: ignore[union-attr]
-        )
         .offset(skip)
         .limit(limit)
     )
     result = await session.exec(stmt)
-    return [
-        _product_read(product, translation, subcategory, subcategory_translation)
-        for product, translation, subcategory, subcategory_translation in result.all()
-    ]
+    out: List[ProductRead] = []
+    for product, subcategory in result.all():
+        assert product.id is not None
+        assert subcategory.id is not None
+        product_translation = await _localized_product_translation(session, product.id, lang)
+        sub_translation = await _localized_subcategory_translation(session, subcategory.id, lang)
+        out.append(_product_read(product, product_translation, subcategory, sub_translation))
+    return out
 
 
 @router.get("/subcategories", response_model=List[SubcategoryRead])
