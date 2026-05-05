@@ -1,0 +1,139 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/AuthContext";
+import { get } from "@/lib/api";
+import {
+  EligibleProduct,
+  Store,
+  StoreInventory,
+} from "@/types";
+
+import styles from "./bulk.module.css";
+
+export type SheetRow = {
+  inventory_id: number | null;
+  product_id: number;
+  product_name: string;
+  service_name: string;
+  category_name: string;
+  subcategory_name: string;
+  price: string;
+  stock: string;
+  is_available: boolean;
+  dirty: boolean;
+  errors: Partial<Record<"price" | "stock", string>>;
+};
+
+export default function BulkInventoryPage() {
+  const router = useRouter();
+  const { dbUser, token, loading: authLoading } = useAuth();
+
+  const [store, setStore] = useState<Store | null>(null);
+  const [eligible, setEligible] = useState<EligibleProduct[]>([]);
+  const [rows, setRows] = useState<SheetRow[]>([]);
+  const [fetching, setFetching] = useState(true);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && (!dbUser || dbUser.role !== "seller")) {
+      router.push(dbUser ? "/" : "/login");
+      return;
+    }
+    if (!authLoading && dbUser && token) {
+      Promise.all([
+        get<Store[]>("/api/v1/stores/my", token),
+        get<EligibleProduct[]>("/api/v1/sellers/me/eligible-products", token),
+      ])
+        .then(async ([myStores, eligibleProducts]) => {
+          setEligible(eligibleProducts);
+          if (myStores.length > 0) {
+            const s = myStores[0];
+            setStore(s);
+            const inv = await get<StoreInventory[]>(
+              `/api/v1/stores/${s.id}/inventory/all`,
+              token,
+            );
+            const byProductId = new Map(
+              eligibleProducts.map((p) => [p.id, p]),
+            );
+            setRows(
+              inv
+                .map((i) => {
+                  const p = byProductId.get(i.product_id);
+                  if (!p) return null;
+                  const r: SheetRow = {
+                    inventory_id: i.id,
+                    product_id: p.id,
+                    product_name: p.name,
+                    service_name: p.service_name,
+                    category_name: p.category_name,
+                    subcategory_name: p.subcategory_name,
+                    price: String(i.price),
+                    stock: String(i.stock),
+                    is_available: i.is_available,
+                    dirty: false,
+                    errors: {},
+                  };
+                  return r;
+                })
+                .filter((x): x is SheetRow => x !== null),
+            );
+          }
+        })
+        .catch(() => {})
+        .finally(() => setFetching(false));
+    }
+  }, [authLoading, dbUser, token, router]);
+
+  const alreadyInSheet = useMemo(
+    () => new Set(rows.map((r) => r.product_id)),
+    [rows],
+  );
+
+  if (authLoading || fetching) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center" }}>Loading…</div>
+    );
+  }
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.toolbar}>
+        <Link href="/seller/inventory" className="btn btn-outline">
+          ← Single edit
+        </Link>
+        <button
+          className="btn btn-primary"
+          onClick={() => setPickerOpen(true)}
+          disabled={!store}
+        >
+          + Add products
+        </button>
+        <button className="btn btn-primary" disabled={true}>
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+
+      <div className={styles.statusBar}>
+        {rows.length} row(s) · {alreadyInSheet.size} unique products · {eligible.length} eligible
+      </div>
+
+      <div className={styles.placeholder}>
+        Sheet renders here (next task).
+      </div>
+
+      {pickerOpen && (
+        <div className={styles.placeholder}>
+          Picker open (next task)
+          <button onClick={() => setPickerOpen(false)} className="btn btn-outline" style={{ marginLeft: 8 }}>
+            Close
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

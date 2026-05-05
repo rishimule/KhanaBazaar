@@ -1,0 +1,41 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.statusBar {
+  font-size: 0.875rem;
+  color: var(--color-neutral-600);
+}
+
+.placeholder {
+  border: 1px dashed var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-neutral-500);
+}
+
+.mobileBanner {
+  display: none;
+  padding: var(--space-3);
+  background: var(--color-primary-50);
+  border-radius: var(--radius-md);
+  color: var(--color-primary-900);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .mobileBanner {
+    display: block;
+  }
+}
