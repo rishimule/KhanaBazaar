@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.locale import get_request_locale
 from app.core.security import get_current_seller
 from app.db.session import get_db_session
 from app.models.address import Address
@@ -30,9 +31,11 @@ async def _seller_profile_for_user(session: AsyncSession, user_id: int) -> Selle
     return profile
 
 
-async def _store_read(session: AsyncSession, store: Store) -> StoreRead:
+async def _store_read(session: AsyncSession, store: Store, lang: str = "en") -> StoreRead:
     assert store.id is not None
-    services = await list_profile_services(session, store.seller_profile_id)
+    services = await list_profile_services(
+        session, store.seller_profile_id, language_code=lang
+    )
     return StoreRead(
         id=store.id,
         name=store.name,
@@ -65,6 +68,7 @@ async def list_stores(
     skip: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
 ) -> List[StoreRead]:
     stmt = (
         _store_with_relations_stmt()
@@ -73,19 +77,20 @@ async def list_stores(
         .limit(limit)
     )
     result = await session.exec(stmt)
-    return [await _store_read(session, store) for store in result.all()]
+    return [await _store_read(session, store, lang) for store in result.all()]
 
 
 @router.get("/my", response_model=List[StoreRead])
 async def list_my_stores(
     session: AsyncSession = Depends(get_db_session),
     seller: User = Depends(get_current_seller),
+    lang: str = Depends(get_request_locale),
 ) -> List[StoreRead]:
     assert seller.id is not None
     profile = await _seller_profile_for_user(session, seller.id)
     stmt = _store_with_relations_stmt().where(Store.seller_profile_id == profile.id)
     result = await session.exec(stmt)
-    return [await _store_read(session, store) for store in result.all()]
+    return [await _store_read(session, store, lang) for store in result.all()]
 
 
 @router.post("/", response_model=StoreRead)
@@ -125,12 +130,14 @@ async def create_store(
 
 @router.get("/{store_id}", response_model=StoreRead)
 async def get_store(
-    store_id: int, session: AsyncSession = Depends(get_db_session)
+    store_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
 ) -> StoreRead:
     store = await _get_store_with_relations(session, store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
-    return await _store_read(session, store)
+    return await _store_read(session, store, lang)
 
 
 # -------------------------------------------------------------
