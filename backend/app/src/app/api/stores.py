@@ -205,11 +205,17 @@ async def add_inventory(
     session: AsyncSession = Depends(get_db_session),
     seller: User = Depends(get_current_seller),
 ) -> StoreInventory:
-    await _authorize_store_ownership(session, store_id, seller, allow_admin=False)
+    store = await _authorize_store_ownership(
+        session, store_id, seller, allow_admin=False
+    )
 
     product = await session.get(MasterProduct, inventory.product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Master product not found")
+
+    await assert_products_in_seller_services(
+        session, store.seller_profile_id, [inventory.product_id]
+    )
 
     check_stmt = select(StoreInventory).where(
         StoreInventory.store_id == store_id,

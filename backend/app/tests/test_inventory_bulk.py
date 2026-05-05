@@ -382,3 +382,22 @@ async def test_bulk_endpoint_rolls_back_on_invalid_row(
         select(StoreInventory).where(StoreInventory.store_id == seeded["store_id"])
     )).all())
     assert rows == []
+
+
+@pytest.mark.asyncio
+async def test_single_post_inventory_now_enforces_service_membership(
+    seeded: dict[str, Any], override_as_seller: None
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        payload = {
+            "product_id": seeded["pharmacy_product_id"],
+            "price": 20.0,
+            "stock": 5,
+            "is_available": True,
+            "store_id": seeded["store_id"],
+        }
+        resp = await ac.post(
+            f"/api/v1/stores/{seeded['store_id']}/inventory", json=payload
+        )
+        assert resp.status_code == 403, resp.text
+        assert "SERVICE_NOT_APPROVED" in resp.text
