@@ -57,6 +57,28 @@
     "sellerBandBody": "Bring your catalog online, manage local inventory, and reach nearby customers through Khana Bazaar.",
     "becomeSeller": "Become a seller"
   },
+  "Stores": {
+    "loading": "Loading…",
+    "browse": "Browse",
+    "stores": "Stores",
+    "subtitle": "Select a store to see what's available near you",
+    "openDot": "● Open",
+    "viewStore": "View Store →"
+  },
+  "StoreDetail": {
+    "openNow": "Open Now",
+    "noProductsYet": "This store has no products yet.",
+    "notFoundTitle": "Store Not Found",
+    "notFoundBody": "This store doesn't exist or may have been removed.",
+    "browseAllStores": "Browse All Stores",
+    "navAriaLabel": "Store sections",
+    "itemCount": "{count, plural, one {# item} other {# items}}",
+    "categoriesAriaLabel": "{name} categories",
+    "subcategoriesAriaLabel": "{name} subcategories",
+    "subAll": "All",
+    "categoryCount": "{shown} of {total}",
+    "noFilterMatch": "No products match this filter."
+  },
   "Footer": {
     "tagline": "Your neighbourhood stores, now at your fingertips. Shop fresh groceries & essentials from local sellers and pay instantly with UPI.",
     "quickLinks": "Quick Links",
