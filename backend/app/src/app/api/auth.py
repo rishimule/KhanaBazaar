@@ -22,6 +22,7 @@ from app.core.redis import get_redis
 from app.core.security import (
     create_access_token,
     create_seller_email_token,
+    create_seller_signup_token,
     decode_seller_email_token,
     get_current_user,
 )
@@ -33,6 +34,7 @@ from app.models.profile import CustomerProfile, SellerProfile
 from app.schemas.address import address_from_payload
 from app.schemas.sellers import (
     SellerPhoneOtpRequestBody,
+    SellerPhoneOtpVerifyBody,
     SellerRegisterBody,
 )
 from app.services.profiles import compose_full_name, split_full_name
@@ -277,3 +279,37 @@ async def seller_phone_otp_request(
         ),
     )
     return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
+
+
+@router.post("/seller/phone/otp/verify")
+async def seller_phone_otp_verify(
+    body: SellerPhoneOtpVerifyBody,
+    redis: aioredis.Redis = Depends(get_redis),
+) -> dict:  # type: ignore[type-arg]
+    email = decode_seller_email_token(body.email_token)
+
+    try:
+        phone = normalize_phone(body.phone)
+    except InvalidPhoneNumber:
+        raise HTTPException(
+            status_code=400, detail={"error": "invalid_phone"}
+        ) from None
+
+    try:
+        await verify_otp(phone, body.code, redis, namespace="phone")
+    except CodeExpired:
+        raise HTTPException(
+            status_code=410, detail={"error": "code_expired_or_used"}
+        ) from None
+    except TooManyAttempts:
+        raise HTTPException(
+            status_code=429, detail={"error": "too_many_attempts"}
+        ) from None
+    except InvalidCode:
+        raise HTTPException(
+            status_code=400, detail={"error": "invalid_code"}
+        ) from None
+
+    await consume_otp_key(phone, redis, namespace="phone")
+    signup_token = create_seller_signup_token(email, phone)
+    return {"signup_token": signup_token}
