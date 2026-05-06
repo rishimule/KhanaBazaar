@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { apiErrorKey } from "@/lib/errors";
@@ -16,10 +16,25 @@ function getRedirect(user: User): string {
   return "/stores";
 }
 
-export default function LoginPage() {
+function safeNext(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/")) return null;
+  if (raw.startsWith("//")) return null;
+  if (raw.includes("\\")) return null;
+  return raw;
+}
+
+function resolveTarget(user: User, nextRaw: string | null): string {
+  if (user.role !== "customer") return getRedirect(user);
+  return safeNext(nextRaw) ?? getRedirect(user);
+}
+
+function LoginPageInner() {
   const t = useTranslations("Login");
   const tErr = useTranslations("Errors");
   const router = useRouter();
+  const params = useSearchParams();
+  const nextParam = params.get("next");
   const { requestOtp, verifyOtp, dbUser } = useAuth();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -30,8 +45,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!dbUser) return;
-    router.push(getRedirect(dbUser));
-  }, [dbUser, router]);
+    router.push(resolveTarget(dbUser, nextParam));
+  }, [dbUser, router, nextParam]);
 
   if (dbUser) {
     return null;
@@ -65,7 +80,7 @@ export default function LoginPage() {
       if (result.needsName) {
         setStep("name");
       } else {
-        router.push(getRedirect(result.user));
+        router.push(resolveTarget(result.user, nextParam));
       }
     } catch (err) {
       const key = apiErrorKey(err);
@@ -85,7 +100,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const result = await verifyOtp(email, code, fullName);
-      router.push(getRedirect(result.user));
+      router.push(resolveTarget(result.user, nextParam));
     } catch (err) {
       const key = apiErrorKey(err);
       if (key) {
@@ -218,5 +233,13 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh" }} />}>
+      <LoginPageInner />
+    </Suspense>
   );
 }
