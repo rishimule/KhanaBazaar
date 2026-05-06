@@ -96,12 +96,16 @@ cd ..
 Brings up Postgres + Redis (Docker), backend (Uvicorn :8000), Celery worker, and frontend (Next.js :3000). Logs land in `.dev/logs/`.
 
 ```bash
-./scripts/dev.sh status              # pids + docker
-./scripts/dev.sh logs backend        # tail single log
-./scripts/dev.sh stop                # stop app procs
+./scripts/dev.sh status              # pids + docker (incl. ngrok URL when tunnel up)
+./scripts/dev.sh logs backend        # tail single log (also: celery, frontend, ngrok)
+./scripts/dev.sh stop                # stop app procs (incl. tunnel)
 ./scripts/dev.sh stop --all          # also stop Postgres + Redis
 ./scripts/dev.sh restart
+./scripts/dev.sh start --tunnel      # also start ngrok forwarding :3000 (mobile testing)
+./scripts/dev.sh tunnel-url          # print current public URL
 ```
+
+For real-device testing on a phone (over mobile data, not just same-wifi), use `start --tunnel`. ngrok forwards only `:3000`; backend stays loopback-only and Next.js proxies `/api/v1/*` server-side. See [`docs/local_setup.md`](docs/local_setup.md#6a-mobile-testing-via-ngrok-optional) for details.
 
 ### Run things manually (alternative)
 
@@ -172,7 +176,7 @@ npm run lint
 
 | Var | Default |
 |-----|---------|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` |
+| `NEXT_PUBLIC_API_URL` | `""` (empty — Next.js `rewrites()` proxies `/api/v1/*` to the backend) |
 
 ## Deployment
 

@@ -41,7 +41,7 @@ Lives at `frontend/.env.local`. Template is `frontend/.env.example`.
 
 | Var | Default | Purpose |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Backend base URL. Used by `frontend/src/lib/api.ts` and `AuthContext.tsx`. |
+| `NEXT_PUBLIC_API_URL` | `""` (empty) | Backend base URL. Used by `frontend/src/lib/api.ts` and `AuthContext.tsx`. Empty means relative paths — the Next.js dev server proxies `/api/v1/*` to `http://localhost:8000` via `rewrites()` in `next.config.ts`, which is what makes the ngrok mobile-test flow work without exposing the backend. In production, override with the absolute backend URL (Azure deploy inlines it at build time). |
 
 Anything not prefixed with `NEXT_PUBLIC_` is server-only in Next.js 16 — clients won't see it.
 

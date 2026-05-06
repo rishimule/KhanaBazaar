@@ -127,7 +127,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Only env var is `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:8000`).
+Open `http://localhost:3000`. Only env var is `NEXT_PUBLIC_API_URL` (defaults to `""` — empty means the browser sends `/api/v1/*` to the current origin and Next.js `rewrites()` proxies to the backend on `:8000`). For mobile testing over ngrok, see [section 6a](#6a-mobile-testing-via-ngrok-optional).
 
 ## 6. Verify the stack
 
