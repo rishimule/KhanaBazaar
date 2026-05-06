@@ -24,6 +24,7 @@ from app.core.security import (
     create_seller_email_token,
     create_seller_signup_token,
     decode_seller_email_token,
+    decode_seller_signup_token,
     get_current_user,
 )
 from app.core.sms import SMSSender, get_sms_sender
@@ -191,11 +192,20 @@ async def seller_register(
         validate_service_ids,
     )
 
-    email = decode_seller_email_token(body.email_token)
+    email, phone = decode_seller_signup_token(body.signup_token)
 
-    result = await session.exec(select(User).where(User.email == email))
-    if result.first():
-        raise HTTPException(status_code=409, detail={"error": "email_already_registered"})
+    user_exists = await session.exec(select(User).where(User.email == email))
+    if user_exists.first():
+        raise HTTPException(
+            status_code=409, detail={"error": "email_already_registered"}
+        )
+    phone_exists = await session.exec(
+        select(SellerProfile).where(SellerProfile.phone == phone)
+    )
+    if phone_exists.first():
+        raise HTTPException(
+            status_code=409, detail={"error": "phone_already_registered"}
+        )
 
     try:
         valid_ids = await validate_service_ids(session, body.service_ids)
@@ -216,7 +226,7 @@ async def seller_register(
         first_name=first_name,
         last_name=last_name,
         business_name=body.business_name,
-        phone=body.phone,
+        phone=phone,
         gst_number=body.gst_number or None,
         fssai_license=body.fssai_license or None,
         bank_account_number=body.bank_account_number or None,
