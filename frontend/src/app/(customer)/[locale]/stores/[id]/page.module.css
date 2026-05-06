@@ -104,7 +104,7 @@
 /* ── Sticky jump nav ─────── */
 .stickyNav {
   position: sticky;
-  top: 64px;
+  top: var(--nav-height, 64px);
   z-index: var(--z-sticky, 50);
   background: hsla(0, 0%, 100%, 0.92);
   backdrop-filter: saturate(180%) blur(12px);

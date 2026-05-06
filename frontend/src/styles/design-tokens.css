@@ -174,4 +174,7 @@
   --container-lg:  1024px;
   --container-xl:  1280px;
   --container-2xl: 1440px;
+
+  /* Sticky navbar height — keep in sync with .navInner padding + tallest child. */
+  --nav-height: 64px;
 }

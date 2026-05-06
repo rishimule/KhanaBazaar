@@ -29,6 +29,8 @@
   margin-inline: auto;
   padding: var(--space-3) var(--space-4);
   gap: var(--space-4);
+  min-height: var(--nav-height);
+  box-sizing: border-box;
 }
 
 @media (min-width: 768px) {
