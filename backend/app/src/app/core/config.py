@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = ""
 
+    # SMS: "console" (dev/test) or "twilio" (production)
+    SMS_PROVIDER: str = "console"
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_FROM_NUMBER: str = ""  # E.164, e.g. "+15005550006"
+
     DATABASE_URL: str
     REDIS_URL: str
 
