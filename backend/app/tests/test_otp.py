@@ -46,17 +46,23 @@ async def test_request_otp_stores_hashed_code(
     fake_redis: fakeredis.aioredis.FakeRedis,
 ) -> None:
     code = await request_otp("test@example.com", fake_redis)
-    data = await fake_redis.hgetall("otp:code:test@example.com")  # type: ignore[misc]
+    data = await fake_redis.hgetall("otp:email:code:test@example.com")  # type: ignore[misc]
     assert data["code_hash"] == hash_code(code)
     assert data["code_hash"] != code
     assert int(data["attempts"]) == 0
 
 
-async def test_request_otp_normalizes_email(
+async def test_request_otp_uses_email_namespace_key(
     fake_redis: fakeredis.aioredis.FakeRedis,
 ) -> None:
-    await request_otp("  UPPER@Example.COM  ", fake_redis)
-    assert await fake_redis.exists("otp:code:upper@example.com") == 1
+    """request_otp() defaults to the email namespace.
+
+    Identifier normalization moved to the caller side (api.auth). request_otp
+    is now generic across email and phone identifiers and does not transform
+    its input.
+    """
+    await request_otp("upper@example.com", fake_redis)
+    assert await fake_redis.exists("otp:email:code:upper@example.com") == 1
 
 
 async def test_verify_correct_code_returns_true(
@@ -80,7 +86,7 @@ async def test_verify_wrong_code_increments_attempts(
     await request_otp("user@example.com", fake_redis)
     with pytest.raises(InvalidCode):
         await verify_otp("user@example.com", "000000", fake_redis)
-    data = await fake_redis.hgetall("otp:code:user@example.com")  # type: ignore[misc]
+    data = await fake_redis.hgetall("otp:email:code:user@example.com")  # type: ignore[misc]
     assert int(data["attempts"]) == 1
 
 
@@ -93,7 +99,7 @@ async def test_five_failures_raises_too_many_attempts(
             await verify_otp("user@example.com", "000000", fake_redis)
     with pytest.raises(TooManyAttempts):
         await verify_otp("user@example.com", "000000", fake_redis)
-    assert await fake_redis.exists("otp:code:user@example.com") == 0
+    assert await fake_redis.exists("otp:email:code:user@example.com") == 0
 
 
 async def test_missing_key_raises_code_expired(
@@ -117,9 +123,9 @@ async def test_consume_deletes_all_keys(
 ) -> None:
     await request_otp("user@example.com", fake_redis)
     await consume_otp_key("user@example.com", fake_redis)
-    assert await fake_redis.exists("otp:code:user@example.com") == 0
-    assert await fake_redis.exists("otp:cooldown:user@example.com") == 0
-    assert await fake_redis.exists("otp:hourly:user@example.com") == 0
+    assert await fake_redis.exists("otp:email:code:user@example.com") == 0
+    assert await fake_redis.exists("otp:email:cooldown:user@example.com") == 0
+    assert await fake_redis.exists("otp:email:hourly:user@example.com") == 0
 
 
 async def test_verify_does_not_delete_key_on_success(
@@ -127,7 +133,7 @@ async def test_verify_does_not_delete_key_on_success(
 ) -> None:
     code = await request_otp("user@example.com", fake_redis)
     await verify_otp("user@example.com", code, fake_redis)
-    assert await fake_redis.exists("otp:code:user@example.com") == 1
+    assert await fake_redis.exists("otp:email:code:user@example.com") == 1
 
 
 async def test_hourly_cap_blocks_after_limit(
@@ -137,7 +143,9 @@ async def test_hourly_cap_blocks_after_limit(
 
     email = "cap@example.com"
     # Seed the hourly counter at the limit and remove any cooldown
-    await fake_redis.set(f"otp:hourly:{email}", str(settings.OTP_MAX_PER_HOUR), ex=3600)
+    await fake_redis.set(
+        f"otp:email:hourly:{email}", str(settings.OTP_MAX_PER_HOUR), ex=3600
+    )
 
     with pytest.raises(RateLimited) as exc_info:
         await request_otp(email, fake_redis)

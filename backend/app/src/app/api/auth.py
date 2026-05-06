@@ -81,15 +81,16 @@ async def otp_request(
     redis: aioredis.Redis = Depends(get_redis),
     sender: EmailSender = Depends(get_email_sender),
 ) -> dict:  # type: ignore[type-arg]
+    email = normalize_email(str(body.email))
     try:
-        code = await request_otp(str(body.email), redis)
+        code = await request_otp(email, redis)
     except RateLimited as exc:
         raise HTTPException(
             status_code=429,
             detail={"error": "rate_limited", "retry_after": exc.retry_after},
         ) from exc
     await sender.send(
-        to=str(body.email),
+        to=email,
         subject="Your Khana Bazaar login code",
         text=f"Your one-time login code is: {code}\n\nThis code expires in 10 minutes.",
     )
