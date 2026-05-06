@@ -19,8 +19,8 @@ from app.core.otp import (
 from app.core.redis import get_redis
 from app.core.security import (
     create_access_token,
-    create_email_verification_token,
-    decode_email_verification_token,
+    create_seller_email_token,
+    decode_seller_email_token,
     get_current_user,
 )
 from app.db.session import get_db_session
@@ -169,7 +169,7 @@ async def seller_otp_verify(
         raise HTTPException(status_code=400, detail={"error": "invalid_code"}) from None
 
     await consume_otp_key(email, redis)
-    email_token = create_email_verification_token(email)
+    email_token = create_seller_email_token(email)
     return {"email_token": email_token}
 
 
@@ -183,7 +183,7 @@ async def seller_register(
         validate_service_ids,
     )
 
-    email = decode_email_verification_token(body.email_token)
+    email = decode_seller_email_token(body.email_token)
 
     result = await session.exec(select(User).where(User.email == email))
     if result.first():
