@@ -9,10 +9,12 @@ from app.core.email import EmailSender, get_email_sender
 from app.core.otp import (
     CodeExpired,
     InvalidCode,
+    InvalidPhoneNumber,
     RateLimited,
     TooManyAttempts,
     consume_otp_key,
     normalize_email,
+    normalize_phone,
     request_otp,
     verify_otp,
 )
@@ -23,12 +25,16 @@ from app.core.security import (
     decode_seller_email_token,
     get_current_user,
 )
+from app.core.sms import SMSSender, get_sms_sender
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User, UserRole
 from app.models.profile import CustomerProfile, SellerProfile
 from app.schemas.address import address_from_payload
-from app.schemas.sellers import SellerRegisterBody
+from app.schemas.sellers import (
+    SellerPhoneOtpRequestBody,
+    SellerRegisterBody,
+)
 from app.services.profiles import compose_full_name, split_full_name
 
 router = APIRouter()
@@ -229,3 +235,45 @@ async def seller_register(
         "token_type": "bearer",
         "user": _user_payload(user, full_name),
     }
+
+
+@router.post("/seller/phone/otp/request")
+async def seller_phone_otp_request(
+    body: SellerPhoneOtpRequestBody,
+    session: AsyncSession = Depends(get_db_session),
+    redis: aioredis.Redis = Depends(get_redis),
+    sender: SMSSender = Depends(get_sms_sender),
+) -> dict:  # type: ignore[type-arg]
+    decode_seller_email_token(body.email_token)
+
+    try:
+        phone = normalize_phone(body.phone)
+    except InvalidPhoneNumber:
+        raise HTTPException(
+            status_code=400, detail={"error": "invalid_phone"}
+        ) from None
+
+    existing = await session.exec(
+        select(SellerProfile).where(SellerProfile.phone == phone)
+    )
+    if existing.first():
+        raise HTTPException(
+            status_code=409, detail={"error": "phone_already_registered"}
+        )
+
+    try:
+        code = await request_otp(phone, redis, namespace="phone")
+    except RateLimited as exc:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limited", "retry_after": exc.retry_after},
+        ) from exc
+
+    await sender.send(
+        to=phone,
+        text=(
+            f"Your Khana Bazaar seller verification code is: {code}\n"
+            "Expires in 10 minutes."
+        ),
+    )
+    return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
