@@ -4,7 +4,6 @@ import pytest
 from app.core.sms import (
     ConsoleSMSSender,
     TwilioSMSSender,
-    get_sms_sender,
 )
 
 
