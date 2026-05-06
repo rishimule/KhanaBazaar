@@ -138,6 +138,33 @@ Open `http://localhost:3000`. Only env var is `NEXT_PUBLIC_API_URL` (defaults to
    ```
 3. **OTP login** — on the frontend, request an OTP for any email. With `EMAIL_PROVIDER=console`, the 6-digit code appears in the uvicorn stdout log. Enter it on the frontend to receive a JWT.
 
+## 6a. Mobile testing via ngrok (optional)
+
+Open the in-progress webapp on a phone for real-device testing. ngrok must be installed and authenticated (`ngrok config add-authtoken <token>`) once.
+
+```bash
+./scripts/dev.sh start --tunnel
+```
+
+The script prints a public URL like `https://abc-123.ngrok-free.app`. Open it on the phone. ngrok serves a one-time interstitial warning page on first visit per device — click "Visit Site" — then the SPA loads.
+
+How it works: ngrok forwards only port 3000 (the Next.js dev server). All `/api/v1/*` requests go same-origin to that URL and are proxied server-side by Next.js to the loopback FastAPI on :8000. The backend is never publicly reachable.
+
+Useful while running:
+
+```bash
+./scripts/dev.sh tunnel-url     # print current public URL
+./scripts/dev.sh status         # show services + tunnel URL
+./scripts/dev.sh logs ngrok     # tail ngrok agent log
+./scripts/dev.sh stop           # also kills the tunnel
+```
+
+Notes:
+
+- The ngrok URL rotates on each restart on the free plan (unless you have a reserved domain configured in `~/.config/ngrok/ngrok.yml`). The frontend uses relative API paths, so this is harmless to the app — only the URL you type into the phone changes.
+- First request through the tunnel may briefly 502 while Next.js compiles the entry route. Reload after a few seconds.
+- `NEXT_PUBLIC_API_URL` in `frontend/.env.local` must remain an empty string. If it is set to an absolute URL like `http://localhost:8000`, the phone tries to reach the dev box's localhost and fails. The default in `.env.example` is already correct.
+
 ## 7. Test database
 
 Tests run against a separate Postgres database, `khanabazaar_test` (see `backend/app/tests/conftest.py:25`). Create it once:
@@ -199,4 +226,6 @@ docker compose down
 
 **Tests fail with `database "khanabazaar_test" does not exist`** — create it (see section 7).
 
-**Frontend can't reach API** — confirm `NEXT_PUBLIC_API_URL` in `frontend/.env.local` matches the running backend, and uvicorn is up. Restart `npm run dev` after editing `.env.local`.
+**Frontend can't reach API (localhost dev)** — confirm `NEXT_PUBLIC_API_URL` in `frontend/.env.local` is exactly `""` (empty string) and that the Next.js `rewrites()` block in `frontend/next.config.ts` proxies `/api/v1/:path*` to `http://localhost:8000/api/v1/:path*`. Restart `npm run dev` after editing either file.
+
+**Phone can't reach API (ngrok tunnel)** — check `./scripts/dev.sh logs ngrok` for auth or quota errors. If the URL loads HTML but `/api/v1/*` returns 404, the Next.js `rewrites()` block is missing or malformed — see `next.config.ts`.
