@@ -62,6 +62,12 @@ p {
   color: var(--color-neutral-600);
 }
 
+/* Confine sticky/blur stacking contexts inside <main> so the drawer overlay
+   and modal panel always paint above page-scoped sticky bars. */
+main {
+  isolation: isolate;
+}
+
 a {
   color: var(--color-primary-500);
   text-decoration: none;
