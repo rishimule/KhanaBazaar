@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { Store } from "@/types";
@@ -12,25 +10,17 @@ import styles from "./page.module.css";
 
 export default function StoresPage() {
   const t = useTranslations("Stores");
-  const router = useRouter();
-  const { dbUser, loading } = useAuth();
   const [stores, setStores] = useState<Store[]>([]);
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    if (!loading && !dbUser) {
-      router.push("/login");
-      return;
-    }
-    if (!loading && dbUser) {
-      get<Store[]>("/api/v1/stores/")
-        .then(setStores)
-        .catch(() => setStores([]))
-        .finally(() => setFetching(false));
-    }
-  }, [loading, dbUser, router]);
+    get<Store[]>("/api/v1/stores/")
+      .then(setStores)
+      .catch(() => setStores([]))
+      .finally(() => setFetching(false));
+  }, []);
 
-  if (loading || fetching) {
+  if (fetching) {
     return (
       <div className={styles.page}>
         <div className={styles.pageInner}>
