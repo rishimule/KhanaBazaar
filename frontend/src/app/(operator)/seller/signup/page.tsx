@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { get, patch, post } from "@/lib/api";
+import { ApiError, get, patch, post } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import ServicePicker from "@/components/ServicePicker";
@@ -23,11 +23,13 @@ const PHONE_REGEX = /^[6-9]\d{9}$/;
 /* Step indicator                                                       */
 /* ------------------------------------------------------------------ */
 
+const TOTAL_STEPS = 8;
+
 function StepIndicator({ current }: { current: number }) {
   return (
     <>
       <div className={styles.stepIndicator}>
-        {[1, 2, 3, 4, 5, 6].map((n, i) => (
+        {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((n, i) => (
           <React.Fragment key={n}>
             <div
               className={[
@@ -40,7 +42,7 @@ function StepIndicator({ current }: { current: number }) {
             >
               {n < current ? "✓" : n}
             </div>
-            {i < 5 && (
+            {i < TOTAL_STEPS - 1 && (
               <div
                 className={[
                   styles.stepConnector,
@@ -53,7 +55,7 @@ function StepIndicator({ current }: { current: number }) {
           </React.Fragment>
         ))}
       </div>
-      <p className={styles.stepLabel}>Step {current} of 6</p>
+      <p className={styles.stepLabel}>Step {current} of {TOTAL_STEPS}</p>
     </>
   );
 }
@@ -73,8 +75,10 @@ function SellerSignupPageInner() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [emailToken, setEmailToken] = useState("");
-  const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneCode, setPhoneCode] = useState("");
+  const [signupToken, setSignupToken] = useState("");
+  const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [serviceIds, setServiceIds] = useState<number[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -109,7 +113,11 @@ function SellerSignupPageInner() {
 
   useEffect(() => {
     if (!isResubmit) return;
-    setCurrentStep(3);
+    // Resubmit users already have a verified email + phone on their existing
+    // SellerProfile and use a different (authenticated PATCH) path that does
+    // not require signup_token. Jump straight to the renamed personal-info
+    // step (step 5).
+    setCurrentStep(5);
     if (dbUser?.full_name) setFullName(dbUser.full_name);
     if (!token) return;
     get<SellerProfile>("/api/v1/sellers/me/profile", token)
@@ -214,6 +222,101 @@ function SellerSignupPageInner() {
     }
   };
 
+  const handleSendPhoneCode = async (): Promise<boolean> => {
+    setSubmitting(true);
+    setToast(null);
+    try {
+      await post("/api/v1/auth/seller/phone/otp/request", {
+        email_token: emailToken,
+        phone: `+91${phone}`,
+      });
+      return true;
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      const code = (apiErr.detail as { error?: string } | string | undefined);
+      const errorCode = typeof code === "object" ? code?.error : undefined;
+      if (errorCode === "phone_already_registered") {
+        setFieldErrors((p) => ({
+          ...p,
+          phone: "This phone number is already registered.",
+        }));
+      } else if (errorCode === "invalid_phone") {
+        setFieldErrors((p) => ({
+          ...p,
+          phone: "Enter a valid 10-digit Indian mobile number.",
+        }));
+      } else if (errorCode === "rate_limited") {
+        setToast({
+          message: "Please wait before requesting another code.",
+          type: "error",
+        });
+      } else {
+        setToast({ message: "Failed to send code. Please try again.", type: "error" });
+      }
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePhoneNext = async () => {
+    const errs: Record<string, string> = {};
+    if (!phone) errs.phone = "Phone is required";
+    else if (!PHONE_REGEX.test(phone))
+      errs.phone = "Enter a valid 10-digit Indian mobile number.";
+    if (Object.keys(errs).length) {
+      setFieldErrors((p) => ({ ...p, ...errs }));
+      return;
+    }
+    const ok = await handleSendPhoneCode();
+    if (ok) setCurrentStep(4);
+  };
+
+  const handleResendPhoneCode = async () => {
+    const ok = await handleSendPhoneCode();
+    if (ok) setToast({ message: "Code resent! Check your phone.", type: "success" });
+  };
+
+  const handleVerifyPhoneCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setToast(null);
+    try {
+      const res = await post<{ signup_token: string }>(
+        "/api/v1/auth/seller/phone/otp/verify",
+        {
+          email_token: emailToken,
+          phone: `+91${phone}`,
+          code: phoneCode,
+        }
+      );
+      setSignupToken(res.signup_token);
+      setPhoneCode("");
+      setCurrentStep(5);
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      const detail = apiErr.detail as { error?: string } | string | undefined;
+      const errorCode = typeof detail === "object" ? detail?.error : undefined;
+      if (errorCode === "invalid_code") {
+        setToast({ message: "Incorrect code. Please try again.", type: "error" });
+      } else if (errorCode === "code_expired_or_used") {
+        setToast({
+          message: "Code expired. Please request a new one.",
+          type: "error",
+        });
+      } else if (errorCode === "too_many_attempts") {
+        setToast({
+          message: "Too many attempts. Please request a new code.",
+          type: "error",
+        });
+      } else {
+        setToast({ message: "Verification failed. Please try again.", type: "error" });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -234,9 +337,8 @@ function SellerSignupPageInner() {
         const data = await post<{ access_token: string; user: User }>(
           "/api/v1/auth/seller/register",
           {
-            email_token: emailToken,
+            signup_token: signupToken,
             full_name: fullName,
-            phone,
             business_name: businessName,
             service_ids: serviceIds,
             address,
@@ -254,17 +356,34 @@ function SellerSignupPageInner() {
         detail?: { error?: string };
         status?: number;
       };
-      if (apiErr?.detail?.error === "email_already_registered") {
+      const errorCode = apiErr?.detail?.error;
+      if (errorCode === "email_already_registered") {
         setToast({
           message:
             "This email is already registered as a seller. Log in instead.",
           type: "error",
         });
-      } else if (apiErr?.status === 400 || apiErr?.status === 410) {
+      } else if (errorCode === "phone_already_registered") {
         setToast({
-          message: "Verification expired. Please start over.",
+          message:
+            "This phone number was just registered. Please use a different number.",
           type: "error",
         });
+        setSignupToken("");
+        setPhoneCode("");
+        setCurrentStep(3);
+      } else if (
+        errorCode === "signup_token_expired" ||
+        errorCode === "invalid_signup_token"
+      ) {
+        setToast({
+          message:
+            "Phone verification expired. Please verify your phone number again.",
+          type: "error",
+        });
+        setSignupToken("");
+        setPhoneCode("");
+        setCurrentStep(3);
       } else {
         setToast({
           message: "Something went wrong. Please try again.",
@@ -280,13 +399,15 @@ function SellerSignupPageInner() {
   /* Step subtitles                                                    */
   /* ---------------------------------------------------------------- */
 
-  const subtitles: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
+  const subtitles: Record<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8, string> = {
     1: "Enter your email to get started",
     2: `Enter the 6-digit code sent to ${email}`,
-    3: "Tell us about yourself",
-    4: "Tell us about your business",
-    5: "Compliance & banking details",
-    6: "Review your application",
+    3: "Verify your phone number",
+    4: `Enter the 6-digit code sent to +91${phone}`,
+    5: "Tell us about yourself",
+    6: "Tell us about your business",
+    7: "Compliance & banking details",
+    8: "Review your application",
   };
 
   /* ---------------------------------------------------------------- */
@@ -304,7 +425,7 @@ function SellerSignupPageInner() {
             <span className={styles.cardTitleAccent}>KhanaBazaar</span>
           </h1>
           <p className={styles.cardSubtitle}>
-            {subtitles[currentStep as 1 | 2 | 3 | 4 | 5 | 6]}
+            {subtitles[currentStep as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8]}
           </p>
         </div>
 
@@ -402,7 +523,7 @@ function SellerSignupPageInner() {
           </form>
         )}
 
-        {/* ---- Step 3: Personal Info ---- */}
+        {/* ---- Step 3: Phone entry ---- */}
         {currentStep === 3 && (
           <>
             {toast && (
@@ -414,75 +535,42 @@ function SellerSignupPageInner() {
                 {toast.message}
               </div>
             )}
-            <div className={styles.formGrid}>
-              <div className={styles.inputGroup}>
-                <label className={styles.label} htmlFor="full-name">
-                  Full name
-                </label>
-                <input
-                  id="full-name"
-                  type="text"
-                  className={
-                    fieldErrors.fullName
-                      ? `${styles.input} ${styles.inputError}`
-                      : styles.input
-                  }
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  onBlur={() => {
-                    if (!fullName.trim())
-                      setFieldErrors((p) => ({
-                        ...p,
-                        fullName: "Name is required",
-                      }));
-                    else clearError("fullName");
-                  }}
-                  autoComplete="name"
-                  placeholder="Priya Verma"
-                />
-                {fieldErrors.fullName && (
-                  <span className={styles.fieldError}>
-                    {fieldErrors.fullName}
-                  </span>
-                )}
-              </div>
-              <div className={styles.inputGroup}>
-                <label className={styles.label} htmlFor="phone">
-                  Phone number
-                </label>
+            <div className={styles.inputGroup}>
+              <label className={styles.label} htmlFor="phone">
+                Mobile number
+              </label>
+              <div className={styles.phoneFieldRow}>
+                <span className={styles.phonePrefix}>+91</span>
                 <input
                   id="phone"
                   type="tel"
                   className={
                     fieldErrors.phone
-                      ? `${styles.input} ${styles.inputError}`
-                      : styles.input
+                      ? `${styles.phoneInput} ${styles.inputError}`
+                      : styles.phoneInput
                   }
+                  inputMode="numeric"
+                  maxLength={10}
                   value={phone}
-                  onChange={(e) =>
-                    setPhone(
-                      e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 10)
-                    )
-                  }
+                  onChange={(e) => {
+                    setPhone(e.target.value.replace(/\D/g, "").slice(0, 10));
+                    clearError("phone");
+                  }}
                   onBlur={() => {
                     if (phone && !PHONE_REGEX.test(phone))
                       setFieldErrors((p) => ({
                         ...p,
-                        phone: "Enter a valid 10-digit mobile number",
+                        phone: "Enter a valid 10-digit Indian mobile number.",
                       }));
                     else clearError("phone");
                   }}
                   placeholder="9876543210"
-                  maxLength={10}
+                  autoComplete="tel-national"
                 />
-                {fieldErrors.phone && (
-                  <span className={styles.fieldError}>
-                    {fieldErrors.phone}
-                  </span>
-                )}
               </div>
+              {fieldErrors.phone && (
+                <span className={styles.fieldError}>{fieldErrors.phone}</span>
+              )}
             </div>
             <div className={styles.btnRow}>
               {!isResubmit && (
@@ -497,17 +585,143 @@ function SellerSignupPageInner() {
               <button
                 type="button"
                 className={styles.submitBtn}
+                onClick={handlePhoneNext}
+                disabled={submitting || !PHONE_REGEX.test(phone)}
+              >
+                {submitting ? "Sending code…" : "Send code"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ---- Step 4: Phone OTP verify ---- */}
+        {currentStep === 4 && (
+          <form className={styles.form} onSubmit={handleVerifyPhoneCode}>
+            {toast && (
+              <div
+                className={
+                  toast.type === "success" ? styles.toastSuccess : styles.toast
+                }
+              >
+                {toast.message}
+              </div>
+            )}
+            <div className={styles.inputGroup}>
+              <label className={styles.label} htmlFor="phone-code">
+                One-time code
+              </label>
+              <input
+                id="phone-code"
+                type="text"
+                className={styles.otpInput}
+                inputMode="numeric"
+                pattern="\d{6}"
+                maxLength={6}
+                value={phoneCode}
+                onChange={(e) =>
+                  setPhoneCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                required
+                autoComplete="one-time-code"
+                autoFocus
+                placeholder="123456"
+              />
+            </div>
+            <div className={styles.btnRow}>
+              <button
+                type="button"
+                className={styles.backBtn}
+                onClick={() => {
+                  setPhoneCode("");
+                  setCurrentStep(3);
+                }}
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                className={styles.submitBtn}
+                disabled={submitting || phoneCode.length !== 6}
+              >
+                {submitting ? "Verifying…" : "Verify code"}
+              </button>
+            </div>
+            <div className={styles.resendRow}>
+              <span>Didn&apos;t receive it?</span>
+              <button
+                type="button"
+                className={styles.resendBtn}
+                onClick={handleResendPhoneCode}
+                disabled={submitting}
+              >
+                Resend code
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ---- Step 5: Personal Info ---- */}
+        {currentStep === 5 && (
+          <>
+            {toast && (
+              <div
+                className={
+                  toast.type === "success" ? styles.toastSuccess : styles.toast
+                }
+              >
+                {toast.message}
+              </div>
+            )}
+            <div className={styles.inputGroup}>
+              <label className={styles.label} htmlFor="full-name">
+                Full name
+              </label>
+              <input
+                id="full-name"
+                type="text"
+                className={
+                  fieldErrors.fullName
+                    ? `${styles.input} ${styles.inputError}`
+                    : styles.input
+                }
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                onBlur={() => {
+                  if (!fullName.trim())
+                    setFieldErrors((p) => ({
+                      ...p,
+                      fullName: "Name is required",
+                    }));
+                  else clearError("fullName");
+                }}
+                autoComplete="name"
+                placeholder="Priya Verma"
+              />
+              {fieldErrors.fullName && (
+                <span className={styles.fieldError}>{fieldErrors.fullName}</span>
+              )}
+            </div>
+            <div className={styles.btnRow}>
+              {!isResubmit && (
+                <button
+                  type="button"
+                  className={styles.backBtn}
+                  onClick={() => setCurrentStep(4)}
+                >
+                  Back
+                </button>
+              )}
+              <button
+                type="button"
+                className={styles.submitBtn}
                 onClick={() => {
                   const errs: Record<string, string> = {};
                   if (!fullName.trim()) errs.fullName = "Name is required";
-                  if (!phone) errs.phone = "Phone is required";
-                  else if (!PHONE_REGEX.test(phone))
-                    errs.phone = "Enter a valid 10-digit mobile number";
                   if (Object.keys(errs).length) {
                     setFieldErrors((p) => ({ ...p, ...errs }));
                     return;
                   }
-                  setCurrentStep(4);
+                  setCurrentStep(6);
                 }}
                 disabled={submitting}
               >
@@ -517,8 +731,8 @@ function SellerSignupPageInner() {
           </>
         )}
 
-        {/* ---- Step 4: Business Details ---- */}
-        {currentStep === 4 && (
+        {/* ---- Step 6: Business Details ---- */}
+        {currentStep === 6 && (
           <>
             {toast && (
               <div
@@ -590,7 +804,7 @@ function SellerSignupPageInner() {
               <button
                 type="button"
                 className={styles.backBtn}
-                onClick={() => setCurrentStep(3)}
+                onClick={() => setCurrentStep(5)}
               >
                 Back
               </button>
@@ -613,7 +827,7 @@ function SellerSignupPageInner() {
                     setFieldErrors((p) => ({ ...p, ...errs }));
                     return;
                   }
-                  setCurrentStep(5);
+                  setCurrentStep(7);
                 }}
                 disabled={submitting}
               >
@@ -623,8 +837,8 @@ function SellerSignupPageInner() {
           </>
         )}
 
-        {/* ---- Step 5: Compliance & Bank ---- */}
-        {currentStep === 5 && (
+        {/* ---- Step 7: Compliance & Bank ---- */}
+        {currentStep === 7 && (
           <>
             {toast && (
               <div
@@ -764,7 +978,7 @@ function SellerSignupPageInner() {
               <button
                 type="button"
                 className={styles.backBtn}
-                onClick={() => setCurrentStep(4)}
+                onClick={() => setCurrentStep(6)}
               >
                 Back
               </button>
@@ -786,7 +1000,7 @@ function SellerSignupPageInner() {
                     setFieldErrors((p) => ({ ...p, ...errs }));
                     return;
                   }
-                  setCurrentStep(6);
+                  setCurrentStep(8);
                 }}
                 disabled={submitting}
               >
@@ -796,8 +1010,8 @@ function SellerSignupPageInner() {
           </>
         )}
 
-        {/* ---- Step 6: Review & Submit ---- */}
-        {currentStep === 6 && (
+        {/* ---- Step 8: Review & Submit ---- */}
+        {currentStep === 8 && (
           <form className={styles.form} onSubmit={handleSubmit}>
             {toast && (
               <div
@@ -816,7 +1030,7 @@ function SellerSignupPageInner() {
                 <button
                   type="button"
                   className={styles.editLink}
-                  onClick={() => setCurrentStep(3)}
+                  onClick={() => setCurrentStep(5)}
                 >
                   Edit
                 </button>
@@ -827,7 +1041,7 @@ function SellerSignupPageInner() {
               </div>
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}>Phone</span>
-                <span className={styles.reviewValue}>{phone}</span>
+                <span className={styles.reviewValue}>+91 {phone}</span>
               </div>
             </div>
 
@@ -838,7 +1052,7 @@ function SellerSignupPageInner() {
                 <button
                   type="button"
                   className={styles.editLink}
-                  onClick={() => setCurrentStep(4)}
+                  onClick={() => setCurrentStep(6)}
                 >
                   Edit
                 </button>
@@ -869,7 +1083,7 @@ function SellerSignupPageInner() {
                 <button
                   type="button"
                   className={styles.editLink}
-                  onClick={() => setCurrentStep(5)}
+                  onClick={() => setCurrentStep(7)}
                 >
                   Edit
                 </button>
@@ -896,7 +1110,7 @@ function SellerSignupPageInner() {
               <button
                 type="button"
                 className={styles.backBtn}
-                onClick={() => setCurrentStep(5)}
+                onClick={() => setCurrentStep(7)}
               >
                 Back
               </button>

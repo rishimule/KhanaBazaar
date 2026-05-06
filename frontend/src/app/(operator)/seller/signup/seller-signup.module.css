@@ -207,6 +207,49 @@
   border-color: var(--color-error);
 }
 
+/* Phone field with locked +91 prefix adornment */
+.phoneFieldRow {
+  display: flex;
+  align-items: stretch;
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-neutral-0);
+  transition: all var(--duration-fast) var(--ease-default);
+}
+
+.phoneFieldRow:focus-within {
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px hsla(18, 90%, 52%, 0.12);
+}
+
+.phonePrefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-600);
+  font-size: var(--font-base);
+  font-weight: 500;
+  user-select: none;
+}
+
+.phoneInput {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-base);
+  border: none;
+  background: transparent;
+  color: var(--color-neutral-800);
+  outline: none;
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.phoneInput::placeholder {
+  color: var(--color-neutral-400);
+}
+
 .inputError:focus {
   border-color: var(--color-error);
   box-shadow: 0 0 0 3px hsla(0, 84%, 60%, 0.12);
