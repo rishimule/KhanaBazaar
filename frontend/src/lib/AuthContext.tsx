@@ -30,15 +30,18 @@ const TOKEN_KEY = "kb_token";
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [dbUser, setDbUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return localStorage.getItem(TOKEN_KEY) !== null;
-  });
+  // Always start loading=true so server and client first render agree.
+  // The useEffect below flips it to false once we know whether a token exists
+  // (and after /auth/me resolves if it does). Reading localStorage in the
+  // useState initializer caused a hydration mismatch — server saw no
+  // localStorage, client saw the missing token and rendered with loading=false.
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const stored =
       typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY);
     if (!stored) {
+      setLoading(false);
       return;
     }
     fetch(`${API_BASE}/api/v1/auth/me`, {
