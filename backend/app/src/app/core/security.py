@@ -101,19 +101,20 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
     return current_user
 
 
-def create_email_verification_token(email: str) -> str:
+def create_seller_email_token(email: str) -> str:
+    """Mint a 10-minute JWT proving the seller has verified their email."""
     now = datetime.now(timezone.utc)
     payload = {
         "sub": email,
-        "type": "seller_otp",
+        "type": "seller_email",
         "iat": now,
         "exp": now + timedelta(minutes=10),
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
 
 
-def decode_email_verification_token(token: str) -> str:
-    """Validate seller OTP email token. Returns email on success. Raises HTTPException otherwise."""
+def decode_seller_email_token(token: str) -> str:
+    """Validate the seller email-stage token. Returns email on success."""
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
     except jwt.ExpiredSignatureError:
@@ -126,9 +127,44 @@ def decode_email_verification_token(token: str) -> str:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": "invalid_email_token"},
         ) from None
-    if payload.get("type") != "seller_otp":
+    if payload.get("type") != "seller_email":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": "invalid_email_token"},
         )
     return str(payload["sub"])
+
+
+def create_seller_signup_token(email: str, phone: str) -> str:
+    """Mint a 10-minute JWT proving the seller verified both email and phone."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": email,
+        "phone": phone,
+        "type": "seller_signup",
+        "iat": now,
+        "exp": now + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+
+
+def decode_seller_signup_token(token: str) -> tuple[str, str]:
+    """Validate the seller signup token. Returns (email, phone)."""
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail={"error": "signup_token_expired"},
+        ) from None
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "invalid_signup_token"},
+        ) from None
+    if payload.get("type") != "seller_signup":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "invalid_signup_token"},
+        )
+    return str(payload["sub"]), str(payload["phone"])

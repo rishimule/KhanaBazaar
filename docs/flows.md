@@ -28,9 +28,10 @@ Removing the last item from a cart deletes the cart entry from `kb_carts` so emp
    ▼
 [FastAPI]                         [Redis]
    │ generate 6-digit code
-   │ hash via OTP_PEPPER ─────►  otp:code:<email>      TTL 600s
-   │                              otp:cooldown:<email> TTL 60s
-   │                              otp:hourly:<email>   counter, max 5/hr
+   │ hash via OTP_PEPPER ─────►  otp:email:code:<email>      TTL 600s
+   │                              otp:email:cooldown:<email> TTL 60s
+   │                              otp:email:hourly:<email>   counter, max 5/hr
+   │ (phone-OTP uses the same primitives under the namespace `otp:phone:*`.)
    │ enqueue email to Resend or log to console
    ▼
 [email arrives]
@@ -130,18 +131,28 @@ Broker errors (Kombu/Redis outage) get caught and logged in `_safe_delay`; the r
 
 ## 6. Seller Signup → Approval
 
-Six-step wizard at `frontend/src/app/seller/signup/page.tsx`.
+Eight-step wizard at `frontend/src/app/(operator)/seller/signup/page.tsx`. Two OTP gates (email and phone) precede the data-entry steps.
 
 ```
 Step 1: email
-   └── POST /auth/otp/request           (same Redis-backed OTP service)
-Step 2: code entry
-   └── POST /auth/seller/otp/verify     → { email_token }   (10-min JWT, stored in component state)
-Step 3-5: full_name, phone, business_name, services[], address, GST/FSSAI/bank
-Step 6: review + submit
-   └── POST /auth/seller/register { email_token, ...payload }
-        ├── decode email_token → email
-        ├── reject if email already registered (409)
+   └── POST /auth/otp/request           (Redis-backed OTP, namespace=email)
+Step 2: email-code entry
+   └── POST /auth/seller/otp/verify     → { email_token }   (10-min JWT, type=seller_email)
+Step 3: phone (E.164 +91)
+   └── POST /auth/seller/phone/otp/request { email_token, phone }
+        ├── decode email_token (proves email is verified)
+        ├── normalize_phone → +91XXXXXXXXXX
+        ├── reject if SellerProfile.phone exists (409 phone_already_registered, no SMS sent)
+        └── store hashed code in Redis (namespace=phone), dispatch SMS
+Step 4: phone-code entry
+   └── POST /auth/seller/phone/otp/verify { email_token, phone, code }
+        └── on success: → { signup_token }   (10-min JWT, type=seller_signup, sub=email, phone=+91…)
+Step 5-7: full_name, business_name, services[], address, GST/FSSAI/bank
+Step 8: review + submit
+   └── POST /auth/seller/register { signup_token, ...payload }   (no email, no phone — both from token claims)
+        ├── decode signup_token → (email, phone)
+        ├── reject if email already registered (409 email_already_registered)
+        ├── reject if phone already registered (409 phone_already_registered)  (race-window defence in depth)
         ├── create User(role=Seller)
         ├── create Address
         ├── create SellerProfile (verification_status=Pending)
@@ -151,8 +162,10 @@ Step 6: review + submit
 
 After register the browser stores `kb_token` and the seller is logged in but pending. The `/seller` layout guard checks `SellerProfile.verification_status` and redirects:
 - `Pending` → `/seller/signup/pending` (waiting screen)
-- `Rejected` → `/seller/signup?resubmit=true` (re-edit + resubmit, which sets status back to `Pending`)
+- `Rejected` → `/seller/signup?resubmit=true` (re-edit + resubmit, jumps to step 5; re-OTP not required because resubmit uses an authenticated PATCH path, not `/auth/seller/register`)
 - `Approved` → seller dashboard
+
+**SMS provider**: `SMS_PROVIDER=console` (dev/test, logs `[SMS] to=+91… code=…` to stdout) or `twilio` (production, raw httpx POST to Twilio Messages API; no SDK). Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` for production.
 
 **Admin queue** (`backend/app/src/app/api/sellers.py`):
 - `GET /sellers/admin/applications?status=pending|approved|rejected|all` — list w/ joined Address, services

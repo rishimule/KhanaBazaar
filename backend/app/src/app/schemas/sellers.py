@@ -14,9 +14,8 @@ from app.schemas.services import ServicePayload
 
 
 class SellerRegisterBody(BaseModel):
-    email_token: str
+    signup_token: str
     full_name: str
-    phone: str
     business_name: str
     service_ids: list[int] = Field(min_length=1)
     address: AddressPayload
@@ -24,6 +23,17 @@ class SellerRegisterBody(BaseModel):
     fssai_license: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
+
+
+class SellerPhoneOtpRequestBody(BaseModel):
+    email_token: str
+    phone: str
+
+
+class SellerPhoneOtpVerifyBody(BaseModel):
+    email_token: str
+    phone: str
+    code: str
 
 
 class SellerProfileUpdateBody(BaseModel):
