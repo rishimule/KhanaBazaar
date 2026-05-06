@@ -2,9 +2,7 @@
 
 import { use, useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import {
@@ -119,8 +117,6 @@ export default function StoreDetailPage({ params }: Props) {
   const t = useTranslations("StoreDetail");
   const { id } = use(params);
   const storeId = parseInt(id, 10);
-  const router = useRouter();
-  const { dbUser, loading: authLoading } = useAuth();
 
   const [store, setStore] = useState<Store | null>(null);
   const [inventory, setInventory] = useState<InventoryWithProduct[]>([]);
@@ -134,39 +130,33 @@ export default function StoreDetailPage({ params }: Props) {
   >({});
 
   useEffect(() => {
-    if (!authLoading && !dbUser) {
-      router.push("/login");
-      return;
-    }
-    if (!authLoading && dbUser) {
-      Promise.all([
-        get<Store>(`/api/v1/stores/${storeId}`),
-        get<StoreInventory[]>(`/api/v1/stores/${storeId}/inventory`),
-        get<MasterProduct[]>("/api/v1/catalog/products"),
-        get<Service[]>("/api/v1/catalog/services"),
-        get<Category[]>("/api/v1/catalog/categories"),
-        get<Subcategory[]>("/api/v1/catalog/subcategories").catch(
-          () => [] as Subcategory[]
-        ),
-      ])
-        .then(([storeData, invData, products, svcs, cats, subs]) => {
-          setStore(storeData);
-          setServices(svcs);
-          setCategories(cats);
-          setSubcategories(subs);
-          const productMap = new Map(products.map((p) => [p.id, p]));
-          const enriched = invData
-            .map((inv) => ({
-              ...inv,
-              product: productMap.get(inv.product_id)!,
-            }))
-            .filter((inv) => inv.product);
-          setInventory(enriched);
-        })
-        .catch(() => setStore(null))
-        .finally(() => setFetching(false));
-    }
-  }, [authLoading, dbUser, storeId, router]);
+    Promise.all([
+      get<Store>(`/api/v1/stores/${storeId}`),
+      get<StoreInventory[]>(`/api/v1/stores/${storeId}/inventory`),
+      get<MasterProduct[]>("/api/v1/catalog/products"),
+      get<Service[]>("/api/v1/catalog/services"),
+      get<Category[]>("/api/v1/catalog/categories"),
+      get<Subcategory[]>("/api/v1/catalog/subcategories").catch(
+        () => [] as Subcategory[]
+      ),
+    ])
+      .then(([storeData, invData, products, svcs, cats, subs]) => {
+        setStore(storeData);
+        setServices(svcs);
+        setCategories(cats);
+        setSubcategories(subs);
+        const productMap = new Map(products.map((p) => [p.id, p]));
+        const enriched = invData
+          .map((inv) => ({
+            ...inv,
+            product: productMap.get(inv.product_id)!,
+          }))
+          .filter((inv) => inv.product);
+        setInventory(enriched);
+      })
+      .catch(() => setStore(null))
+      .finally(() => setFetching(false));
+  }, [storeId]);
 
   const tree = useMemo(
     () => buildTree(inventory, services, categories, subcategories),
@@ -242,7 +232,7 @@ export default function StoreDetailPage({ params }: Props) {
     }
   }
 
-  if (authLoading || fetching) {
+  if (fetching) {
     return (
       <div className={styles.page}>
         <div className={styles.pageInner}>
