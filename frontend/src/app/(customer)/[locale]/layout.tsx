@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import "@/app/globals.css";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
+import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
 import { alternateLanguages } from "@/i18n/metadata";
@@ -68,6 +69,7 @@ export default async function CustomerLayout({
   return (
     <html lang={locale} className={inter.variable}>
       <head>
+        <ThirdPartyErrorSuppressor />
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
