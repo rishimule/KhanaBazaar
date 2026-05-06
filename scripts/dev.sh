@@ -16,6 +16,10 @@ BACKEND_LOG="${LOG_DIR}/backend.log"
 CELERY_LOG="${LOG_DIR}/celery.log"
 FRONTEND_LOG="${LOG_DIR}/frontend.log"
 
+NGROK_PID="${RUN_DIR}/ngrok.pid"
+NGROK_LOG="${LOG_DIR}/ngrok.log"
+NGROK_API="http://localhost:4040/api/tunnels"
+
 mkdir -p "${RUN_DIR}" "${LOG_DIR}"
 
 require_command() {
@@ -41,9 +45,12 @@ start_proc() {
   fi
 
   echo "Starting ${name}..."
+  # setsid puts the child in a new process group so stop_proc can kill the
+  # whole group (PGID == leader PID). Avoids orphaned grandchildren like
+  # next-server that reparent to init when their parent shell exits.
   (
     cd "${workdir}"
-    nohup "$@" >"${log_file}" 2>&1 &
+    setsid nohup "$@" >"${log_file}" 2>&1 < /dev/null &
     echo $! >"${pid_file}"
   )
   sleep 0.3
@@ -66,16 +73,17 @@ stop_proc() {
   local pid
   pid="$(cat "${pid_file}")"
   echo "Stopping ${name} (pid ${pid})..."
-  kill "${pid}" 2>/dev/null || true
+  # Kill the whole process group (started via setsid). Falls back to single
+  # PID if PGID kill fails (e.g. older PID file from before setsid was used).
+  kill -- -"${pid}" 2>/dev/null || kill "${pid}" 2>/dev/null || true
   for _ in $(seq 1 20); do
     kill -0 "${pid}" 2>/dev/null || break
     sleep 0.25
   done
   if kill -0 "${pid}" 2>/dev/null; then
     echo "Force killing ${name}..."
-    kill -9 "${pid}" 2>/dev/null || true
+    kill -9 -- -"${pid}" 2>/dev/null || kill -9 "${pid}" 2>/dev/null || true
   fi
-  pkill -P "${pid}" 2>/dev/null || true
   rm -f "${pid_file}"
 }
 
@@ -88,7 +96,73 @@ status_proc() {
   fi
 }
 
+fetch_tunnel_url() {
+  # Polls ngrok's local agent API for up to ~10s and prints the first
+  # public URL on stdout. Returns 0 if a URL is found, 1 otherwise.
+  local attempt url
+  for attempt in $(seq 1 20); do
+    url="$(curl -s --max-time 1 "${NGROK_API}" 2>/dev/null \
+      | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+tunnels = data.get("tunnels") or []
+if tunnels:
+    print(tunnels[0].get("public_url", ""))
+' 2>/dev/null)"
+    if [ -n "${url}" ]; then
+      echo "${url}"
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
+}
+
+cmd_tunnel() {
+  require_command ngrok
+  require_command curl
+  require_command python3
+
+  start_proc "ngrok"   "${NGROK_PID}"   "${NGROK_LOG}"   "${REPO_ROOT}" \
+    ngrok http 3000 --log=stdout --log-format=logfmt
+
+  echo -n "Resolving tunnel URL"
+  local url
+  if url="$(fetch_tunnel_url)"; then
+    echo
+    echo "Tunnel ready: ${url}  ->  :3000"
+  else
+    echo
+    echo "Tunnel started but URL unresolved. See ${NGROK_LOG}." >&2
+  fi
+}
+
+cmd_tunnel_url() {
+  if ! is_running "${NGROK_PID}"; then
+    echo "ngrok not running" >&2
+    exit 1
+  fi
+  local url
+  if url="$(fetch_tunnel_url)"; then
+    echo "${url}"
+  else
+    echo "ngrok running but URL not yet available; check ${NGROK_LOG}" >&2
+    exit 1
+  fi
+}
+
 cmd_start() {
+  local with_tunnel=0
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --tunnel) with_tunnel=1; shift ;;
+      *) echo "Unknown start arg: $1" >&2; exit 1 ;;
+    esac
+  done
+
   require_command docker
   require_command uv
   require_command npm
@@ -118,15 +192,26 @@ cmd_start() {
   start_proc "frontend" "${FRONTEND_PID}" "${FRONTEND_LOG}" "${FRONTEND_DIR}" \
     npm run dev
 
+  if [ "${with_tunnel}" -eq 1 ]; then
+    cmd_tunnel
+  fi
+
   echo
   echo "All services up."
   echo "  Backend:  http://localhost:8000  (docs: /docs)"
   echo "  Frontend: http://localhost:3000"
+  if [ "${with_tunnel}" -eq 1 ] && is_running "${NGROK_PID}"; then
+    local url
+    if url="$(fetch_tunnel_url)"; then
+      echo "  Tunnel:   ${url}  ->  :3000"
+    fi
+  fi
   echo "  Logs:     ${LOG_DIR}"
-  echo "Run '${0} logs [backend|celery|frontend]' to tail logs."
+  echo "Run '${0} logs [backend|celery|frontend|ngrok]' to tail logs."
 }
 
 cmd_stop() {
+  stop_proc "ngrok"    "${NGROK_PID}"
   stop_proc "frontend" "${FRONTEND_PID}"
   stop_proc "celery"   "${CELERY_PID}"
   stop_proc "backend"  "${BACKEND_PID}"
@@ -142,6 +227,13 @@ cmd_status() {
   status_proc "backend"  "${BACKEND_PID}"
   status_proc "celery"   "${CELERY_PID}"
   status_proc "frontend" "${FRONTEND_PID}"
+  status_proc "ngrok"    "${NGROK_PID}"
+  if is_running "${NGROK_PID}"; then
+    local url
+    if url="$(fetch_tunnel_url)"; then
+      echo "    URL: ${url}"
+    fi
+  fi
   echo
   echo "Docker:"
   (cd "${REPO_ROOT}" && docker compose ps postgres redis) || true
@@ -153,8 +245,9 @@ cmd_logs() {
     backend)  exec tail -f "${BACKEND_LOG}" ;;
     celery)   exec tail -f "${CELERY_LOG}" ;;
     frontend) exec tail -f "${FRONTEND_LOG}" ;;
+    ngrok)    exec tail -f "${NGROK_LOG}" ;;
     "")       exec tail -f "${BACKEND_LOG}" "${CELERY_LOG}" "${FRONTEND_LOG}" ;;
-    *) echo "Unknown log: ${target} (backend|celery|frontend)" >&2; exit 1 ;;
+    *) echo "Unknown log: ${target} (backend|celery|frontend|ngrok)" >&2; exit 1 ;;
   esac
 }
 
@@ -168,21 +261,26 @@ usage() {
 Usage: $0 <command>
 
 Commands:
-  start            Start Postgres+Redis (docker), backend, celery, frontend
-  stop             Stop backend, celery, frontend (leaves docker running)
-  stop --all       Also stop docker postgres+redis
-  restart          Stop then start app processes
-  status           Show pids + docker status
-  logs [name]      Tail logs (name: backend|celery|frontend; default: all)
+  start              Start Postgres+Redis (docker), backend, celery, frontend
+  start --tunnel     Same as start, plus an ngrok tunnel forwarding :3000
+  stop               Stop ngrok, backend, celery, frontend (leaves docker running)
+  stop --all         Also stop docker postgres+redis
+  restart            Stop then start app processes
+  status             Show pids + docker status (incl. ngrok URL when running)
+  logs [name]        Tail logs (name: backend|celery|frontend|ngrok; default: all app logs)
+  tunnel             Start an ngrok tunnel against an already-running frontend
+  tunnel-url         Print the current ngrok public URL (exits 1 if no tunnel)
 EOF
 }
 
 case "${1:-}" in
-  start)   cmd_start ;;
-  stop)    shift; cmd_stop "$@" ;;
-  restart) cmd_restart ;;
-  status)  cmd_status ;;
-  logs)    shift; cmd_logs "$@" ;;
+  start)      shift; cmd_start "$@" ;;
+  stop)       shift; cmd_stop "$@" ;;
+  restart)    cmd_restart ;;
+  status)     cmd_status ;;
+  logs)       shift; cmd_logs "$@" ;;
+  tunnel)     cmd_tunnel ;;
+  tunnel-url) cmd_tunnel_url ;;
   ""|-h|--help) usage ;;
   *) usage; exit 1 ;;
 esac
