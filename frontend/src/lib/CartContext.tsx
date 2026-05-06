@@ -27,6 +27,8 @@ interface CartContextValue {
   getTotal: (cart: Cart) => number;
   grandTotal: number;
   refresh: () => Promise<void>;
+  lastSyncDropped: number;
+  clearSyncDropped: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -40,6 +42,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const { dbUser, token, loading: authLoading } = useAuth();
   const [carts, setCarts] = useState<Cart[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [lastSyncDropped, setLastSyncDropped] = useState<number>(0);
   const lastSyncedUserId = useRef<number | null>(null);
 
   // Reset the sync sentinel whenever the active user disappears (logout) or
@@ -95,7 +98,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 .map((i) => ({ inventory_id: i.inventory_id, quantity: i.quantity })),
             }));
             const result = await remoteCart.syncCarts(token, payload);
-            if (!cancelled) setCarts(result.carts);
+            if (!cancelled) {
+              setCarts(result.carts);
+              setLastSyncDropped(result.dropped.length);
+            }
             localCart.clearAllCarts();
           } else {
             await refreshRemote();
@@ -234,6 +240,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const cartCount = useMemo(() => getCartCount(carts), [carts]);
   const grandTotal = useMemo(() => getGrandTotal(carts), [carts]);
 
+  const clearSyncDropped = useCallback(() => {
+    setLastSyncDropped(0);
+  }, []);
+
   const value: CartContextValue = {
     carts,
     cartCount,
@@ -245,6 +255,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     getTotal: getCartTotal,
     grandTotal,
     refresh,
+    lastSyncDropped,
+    clearSyncDropped,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

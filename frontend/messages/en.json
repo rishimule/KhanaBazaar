@@ -83,6 +83,8 @@
     "errClear": "Could not clear cart. Please try again.",
     "errRemove": "Could not remove item. Please try again.",
     "errUpdateQty": "Could not update quantity. Please try again.",
+    "itemsDropped": "{count, plural, one {# item from your guest cart was unavailable and removed.} other {# items from your guest cart were unavailable and removed.}}",
+    "dismiss": "Dismiss",
     "emptyTitle": "Your cart is empty",
     "emptyBody": "Looks like you haven't added anything yet. Browse nearby stores and start adding items!",
     "startShopping": "Start Shopping",

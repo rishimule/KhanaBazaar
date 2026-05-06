@@ -83,7 +83,7 @@ export default function Navbar() {
         </div>
 
         <div className={styles.navActions}>
-          {dbUser && role === "customer" && (
+          {(!role || role === "customer") && (
             <Link href="/cart" className={styles.cartBtn} aria-label={t("cartAriaLabel")}>
               🛒
               {cartCount > 0 && (
@@ -164,7 +164,7 @@ export default function Navbar() {
                 {link.icon} {link.label}
               </Link>
             ))}
-            {dbUser && role === "customer" && (
+            {(!role || role === "customer") && (
               <Link
                 href="/cart"
                 className={styles.drawerLink}

@@ -5,6 +5,7 @@ import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import "@/app/globals.css";
+import CartSyncBanner from "@/components/CartSyncBanner";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
@@ -77,6 +78,7 @@ export default async function CustomerLayout({
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
             <CartProvider>
+              <CartSyncBanner />
               <Navbar />
               <main>{children}</main>
               <Footer />
