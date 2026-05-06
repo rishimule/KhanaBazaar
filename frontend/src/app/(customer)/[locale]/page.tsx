@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { Store } from "@/types";
@@ -11,7 +10,6 @@ import styles from "./page.module.css";
 
 export default function Home() {
   const t = useTranslations("Home");
-  const { dbUser } = useAuth();
   const [stores, setStores] = useState<Store[]>([]);
 
   useEffect(() => {
@@ -20,8 +18,8 @@ export default function Home() {
       .catch(() => setStores([]));
   }, []);
 
-  const shoppingHref = dbUser ? "/stores" : "/login";
-  const shoppingLabel = dbUser ? t("ctaStartShopping") : t("ctaSignInToShop");
+  const shoppingHref = "/stores";
+  const shoppingLabel = t("ctaStartShopping");
 
   return (
     <>
@@ -141,7 +139,7 @@ export default function Home() {
               {stores.map((store) => (
                 <Link
                   key={store.id}
-                  href={dbUser ? `/stores/${store.id}` : "/login"}
+                  href={`/stores/${store.id}`}
                   className={styles.storeCard}
                 >
                   <div className={styles.storeCardTop}>
@@ -162,7 +160,7 @@ export default function Home() {
               <h3>{t("emptyTitle")}</h3>
               <p>{t("emptyBody")}</p>
               <Link href={shoppingHref} className="btn btn-outline">
-                {dbUser ? t("emptyBrowseAll") : t("emptySignInBrowse")}
+                {t("emptyBrowseAll")}
               </Link>
             </div>
           )}
