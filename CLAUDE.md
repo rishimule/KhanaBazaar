@@ -149,7 +149,7 @@ Admin-only: create categories/products, approve seller applications.
 - `OTP_TTL_SECONDS`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN`, `OTP_MAX_PER_HOUR`
 
 ### Frontend `frontend/.env.local`
-- `NEXT_PUBLIC_API_URL` — backend base URL (default `http://localhost:8000`)
+- `NEXT_PUBLIC_API_URL` — backend base URL. Default `""` (empty). Empty means relative paths; Next.js `rewrites()` in `next.config.ts` proxies `/api/v1/:rest(.*)` to `http://localhost:8000`. Production overrides this with the absolute backend URL (inlined at build time).
 
 ## Testing
 
@@ -198,6 +198,8 @@ No frontend tests configured.
 **Store detail page** (`app/stores/[id]/page.tsx`, commit `31e0cc0`): Instacart-style 3-pane — services sidebar → categories → products with per-store inventory.
 
 **Email dispatch**: OTP and order emails sent via Celery tasks (`worker.py`). Provider switch in `core/email.py` — `console` logs to stdout, `resend` does direct httpx POST (no SDK dep).
+
+**Frontend → backend path is a Next.js rewrite, not a direct fetch**: `NEXT_PUBLIC_API_URL` is empty in dev so the browser hits `/api/v1/*` on the current origin and `next.config.ts` proxies server-side to `http://localhost:8000`. Same-origin from the browser means no CORS, and same-origin under ngrok means the backend never has to be exposed publicly. **Use `:rest(.*)` in the rewrite source**, not `:path*` — `:path*` silently strips a trailing slash, FastAPI then 307s to the slashed URL using the upstream Host header (`https://localhost:8000`), which is unreachable from a phone. Also keep `skipTrailingSlashRedirect: true` so Next.js itself doesn't 308 the slash off before the rewrite. Mobile testing: `./scripts/dev.sh start --tunnel` brings up the stack plus an ngrok agent (config at `~/.config/ngrok/ngrok.yml`) forwarding `:3000`. See `docs/local_setup.md` §6a.
 
 **CSS conventions**: Design tokens (CSS custom properties) in `frontend/src/styles/design-tokens.css`. Global utility classes (`btn`, `btn-primary`, etc.) in `frontend/src/app/globals.css`. Component scoping via `*.module.css`. **Never add Tailwind.**
 
