@@ -108,7 +108,7 @@ function SellerSignupPageInner() {
     });
 
   /* ---------------------------------------------------------------- */
-  /* Resubmit: jump to step 3, pre-fill from profile                  */
+  /* Resubmit: jump to step 5 (personal info), pre-fill from profile  */
   /* ---------------------------------------------------------------- */
 
   useEffect(() => {
@@ -122,7 +122,9 @@ function SellerSignupPageInner() {
     if (!token) return;
     get<SellerProfile>("/api/v1/sellers/me/profile", token)
       .then((profile) => {
-        setPhone(profile.phone);
+        // Profile stores E.164 (`+91…`); wizard state is the 10-digit local
+        // part since the input has a locked `+91` prefix.
+        setPhone((profile.phone ?? "").replace(/^\+91/, ""));
         setBusinessName(profile.business_name);
         setServiceIds(profile.services?.map((s) => s.id) ?? []);
         setAddress(profile.address);
@@ -327,7 +329,7 @@ function SellerSignupPageInner() {
           business_name: businessName,
           service_ids: serviceIds,
           address,
-          phone,
+          phone: `+91${phone}`,
           gst_number: gstNumber,
           fssai_license: fssaiLicense,
           bank_account_number: bankAccountNumber,

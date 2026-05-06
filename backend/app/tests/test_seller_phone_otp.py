@@ -1,5 +1,5 @@
 """Tests for the seller phone-OTP endpoints."""
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 
 import jwt as pyjwt
 import pytest
@@ -30,7 +30,7 @@ def recorder() -> _RecorderSender:
 
 
 @pytest.fixture(autouse=True)
-def _override_sms(recorder: _RecorderSender) -> AsyncGenerator[None, None]:
+def _override_sms(recorder: _RecorderSender) -> Generator[None, None, None]:
     app.dependency_overrides[get_sms_sender] = lambda: recorder
     yield
     app.dependency_overrides.pop(get_sms_sender, None)
