@@ -13,3 +13,13 @@ async def test_indian_states_endpoint_returns_36_entries() -> None:
     assert len(data["states"]) == 36
     assert "Maharashtra" in data["states"]
     assert "Delhi" in data["states"]
+
+
+@pytest.mark.asyncio
+async def test_meta_health_endpoint_returns_ok() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/meta/health")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert "environment" in body
