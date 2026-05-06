@@ -192,6 +192,10 @@ Env vars (referenced via Key Vault where secret):
 | `EMAIL_PROVIDER`       | `resend`                                                        |
 | `RESEND_API_KEY`       | Key Vault secret `resend-api-key`                               |
 | `RESEND_FROM_EMAIL`    | Key Vault secret `resend-from-email`                            |
+| `SMS_PROVIDER`         | `twilio`                                                        |
+| `TWILIO_ACCOUNT_SID`   | Key Vault secret `twilio-account-sid`                           |
+| `TWILIO_AUTH_TOKEN`    | Key Vault secret `twilio-auth-token`                            |
+| `TWILIO_FROM_NUMBER`   | Key Vault secret `twilio-from-number` (E.164, e.g. `+15005550006`) |
 | `FRONTEND_ORIGIN`      | `https://www.khanabazaar.in,https://khanabazaar.in`             |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | from `kb-prod-appi-cin`                              |
 
@@ -202,7 +206,7 @@ Env vars (referenced via Key Vault where secret):
 - **Scale**: min 1, max 3. Rule: `azure-servicebus`-style custom rule on Redis queue length via KEDA `redis` scaler (`listLength` on `celery` queue).
 - **Identity**: system-assigned. Same Key Vault grants as the API.
 
-Env vars: identical to API for `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `OTP_PEPPER`, `EMAIL_PROVIDER`, `RESEND_*`. Worker doesn't need OTP rate-limit settings.
+Env vars: identical to API for `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `OTP_PEPPER`, `EMAIL_PROVIDER`, `RESEND_*`. Worker doesn't need OTP rate-limit settings or SMS settings (SMS is dispatched inline from the API container, not via Celery).
 
 ### 7.3 `kb-prod-web-cin` (Next.js)
 
@@ -254,6 +258,9 @@ Secrets:
 | `otp-pepper`        | Same generation pattern. Rotate manually with `openssl rand -hex 16`. |
 | `resend-api-key`    | Pulled from GitHub Actions secret `RESEND_API_KEY` and uploaded by `azd up`. |
 | `resend-from-email` | Same.                                               |
+| `twilio-account-sid` | Pulled from GitHub Actions secret `TWILIO_ACCOUNT_SID`. |
+| `twilio-auth-token`  | Pulled from GitHub Actions secret `TWILIO_AUTH_TOKEN`. |
+| `twilio-from-number` | Pulled from GitHub Actions secret `TWILIO_FROM_NUMBER` (E.164). |
 
 Container Apps use the [Container Apps secret reference syntax](https://learn.microsoft.com/azure/container-apps/manage-secrets) `secretRef: <secretName>` to expose Key Vault values without baking them into env JSON.
 

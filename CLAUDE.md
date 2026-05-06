@@ -143,6 +143,8 @@ Admin-only: create categories/products, approve seller applications.
 - `ENVIRONMENT` (development/production)
 - `EMAIL_PROVIDER` (`console` default | `resend`)
 - `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (only when `EMAIL_PROVIDER=resend`)
+- `SMS_PROVIDER` (`console` default | `twilio`)
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` (only when `SMS_PROVIDER=twilio`)
 - `JWT_EXPIRES_HOURS` (default 24)
 - `OTP_TTL_SECONDS`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN`, `OTP_MAX_PER_HOUR`
 
@@ -181,7 +183,7 @@ No frontend tests configured.
 
 **Catalog is multi-lingual**: `Service`, `Category`, `Subcategory`, `MasterProduct` all have `*Translation` tables keyed by `LanguageCode`. Pre-seeded languages: en, hi, mr, gu, pa.
 
-**Auth is email-OTP + JWT only**: No passwords, no Firebase. Endpoints: `POST /api/v1/auth/otp/request`, `POST /api/v1/auth/otp/verify`. Seller signup uses 2-step variant — `/auth/seller/otp/verify` returns short-lived `email_token`, then `/auth/seller/register` consumes it. OTP stored in Redis (TTL 600s default), rate-limited 5/hour per IP, 60s resend cooldown. JWT issued on verify (`sub=user.id`, `role=user.role`, 24h TTL).
+**Auth is email-OTP + JWT only**: No passwords, no Firebase. Endpoints: `POST /api/v1/auth/otp/request`, `POST /api/v1/auth/otp/verify`. **Seller signup uses a 4-OTP-endpoint chain**: `/auth/otp/request` → `/auth/seller/otp/verify` (returns 10-min `email_token`) → `/auth/seller/phone/otp/request` (gated by `email_token`, dispatches SMS) → `/auth/seller/phone/otp/verify` (returns 10-min `signup_token` binding email + verified phone) → `/auth/seller/register` (consumes `signup_token`, phone read from claims). OTP stored in Redis (TTL 600s default), rate-limited 5/hour per identifier, 60s resend cooldown. Email and phone OTPs share Redis primitives via a `namespace` argument (`otp:email:*` vs `otp:phone:*`). SMS provider switch in `core/sms.py` — `console` logs to stdout, `twilio` does direct httpx POST (no SDK dep). JWT issued on verify (`sub=user.id`, `role=user.role`, 24h TTL).
 
 **Cart architecture (frontend)**:
 - Guest carts: `localStorage` key `kb_carts` (JSON map `storeId → CartItem[]`)

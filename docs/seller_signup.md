@@ -1,8 +1,8 @@
 # Seller Signup & Onboarding
 
-Definitive guide to Khana Bazaar's seller onboarding flow — from the public landing page through OTP verification, the multi-step application wizard, the pending state, admin review, and finally the approved seller dashboard with one store and multi-service inventory.
+Definitive guide to Khana Bazaar's seller onboarding flow — from the public landing page through email-OTP **and** phone-OTP verification, the multi-step application wizard, the pending state, admin review, and finally the approved seller dashboard with one store and multi-service inventory.
 
-Auth is **email-OTP + JWT** (PyJWT, HS256). No Firebase. Each seller has **at most one Store** (enforced by `uq_store_seller_profile`) which can offer **multiple services** (kirana, pharmacy, electronics, …).
+Auth is **email-OTP + phone-OTP + JWT** (PyJWT, HS256). No Firebase. Each seller has **at most one Store** (enforced by `uq_store_seller_profile`) which can offer **multiple services** (kirana, pharmacy, electronics, …).
 
 ---
 
@@ -11,7 +11,8 @@ Auth is **email-OTP + JWT** (PyJWT, HS256). No Firebase. Each seller has **at mo
 | Phase | Actor | Outcome |
 |-------|-------|---------|
 | Landing | Anonymous visitor | Sees value props, clicks "Apply to sell" |
-| OTP signup | Anonymous visitor | Email verified, `email_token` issued (short-lived) |
+| Email-OTP | Anonymous visitor | Email verified, short-lived `email_token` issued |
+| Phone-OTP | Anonymous visitor | Phone verified, short-lived `signup_token` issued (binds verified email + phone) |
 | Wizard submit | Anonymous (still no `User` row) | `User` + `SellerProfile` + `Address` + `SellerProfileService[]` created in one transaction; access-token issued; status = `pending` |
 | Pending | Seller (pending) | Polls status, locked out of dashboard |
 | Admin review | Admin | Approves (creates `Store`) or rejects (with reason) |
@@ -26,15 +27,19 @@ End state: seller signs in, role = `seller`, `verification_status = approved`, c
 | Path | File | Purpose |
 |------|------|---------|
 | `/sell` | `frontend/src/app/sell/page.tsx` | Marketing page — value props, "How it works", FAQ, checklist, two CTAs to `/seller/signup` |
-| `/seller/signup` | `frontend/src/app/seller/signup/page.tsx` | The 6-step wizard |
-| `/seller/signup?resubmit=true` | same page | Pre-fills wizard from `/api/v1/sellers/me/profile`, jumps to step 3, calls `PATCH /me/profile` instead of `POST /seller/register` |
+| `/seller/signup` | `frontend/src/app/(operator)/seller/signup/page.tsx` | The 8-step wizard |
+| `/seller/signup?resubmit=true` | same page | Pre-fills wizard from `/api/v1/sellers/me/profile`, jumps to step 5 (Personal info — phone is already verified on the existing profile), calls `PATCH /me/profile` instead of `POST /seller/register`. The resubmit path uses an authenticated session and does **not** require a new `signup_token`. |
 | `/seller/signup/pending` | `frontend/src/app/seller/signup/pending/page.tsx` | Holding page that polls status every 30s |
 
 The `/sell` page is fully static (server-rendered metadata, no API calls). The wizard is a client component wrapped in `<Suspense>` because it uses `useSearchParams`.
 
 ---
 
-## 3. OTP signup flow (steps 1–2 of wizard)
+## 3. OTP signup flow (steps 1–4 of wizard)
+
+The seller wizard now has **two** OTP gates: email (steps 1-2) and phone (steps 3-4). Both reuse the same Redis-backed primitives via a `namespace` argument (`otp:email:*` vs `otp:phone:*`). Both rate-limit at 5 sends/hour per identifier with a 60-second resend cooldown.
+
+### 3.1 Email-OTP (steps 1-2)
 
 ```
 Browser                           Backend                         Redis / Email
@@ -44,35 +49,60 @@ Browser                           Backend                         Redis / Email
    |                                  |--- send email -------------> | (console in dev,
    |<------- 200 { ok: true } --------|                              |  Resend in prod)
    |                                  |                              |
-   |                                  |                              |
    | POST /auth/seller/otp/verify     |                              |
    | { email, code }                  |--- consume_otp_key --------> |
    |                                  |                              |
-   |<------- 200 { email_token } -----|  (signed short-TTL JWT,      |
-   |                                  |   purpose=email_verify)      |
+   |<------- 200 { email_token } -----|  (signed 10-min JWT,         |
+   |                                  |   type=seller_email)         |
 ```
 
-Two notes that differ from the customer login flow:
+The **seller-specific** verify route is `POST /api/v1/auth/seller/otp/verify`. It returns an `email_token`, **not** an access token. The customer route `POST /api/v1/auth/otp/verify` is the wrong one for sellers — it would create a `Customer` `User` row.
 
-- The **seller-specific** verify route is `POST /api/v1/auth/seller/otp/verify`. It returns an `email_token`, **not** an access token. Code at `backend/app/src/app/api/auth.py:155-172`.
-- The customer route `POST /api/v1/auth/otp/verify` is the wrong one for sellers — it would create a `Customer` `User` and a `CustomerProfile` row. Don't reuse it for the seller path.
+### 3.2 Phone-OTP (steps 3-4)
 
-Error codes in the `detail.error` field: `rate_limited`, `invalid_code`, `too_many_attempts`, `code_expired_or_used`. Wizard maps each to a toast.
+```
+Browser                           Backend                         Redis / SMS
+   |                                  |                              |
+   | POST /auth/seller/phone/otp/req  |                              |
+   | { email_token, phone }           |--- decode email_token        |
+   |                                  |--- check duplicate phone     |
+   |                                  |    in SellerProfile (DB)     |
+   |                                  |--- store hashed code ------> |
+   |                                  |--- send SMS --------------->  | (console in dev,
+   |<------- 200 { ok: true } --------|                              |  Twilio in prod)
+   |                                  |                              |
+   | POST /auth/seller/phone/otp/ver  |                              |
+   | { email_token, phone, code }     |--- consume_otp_key --------> |
+   |                                  |                              |
+   |<------- 200 { signup_token } ----|  (signed 10-min JWT,         |
+   |                                  |   type=seller_signup,        |
+   |                                  |   sub=email, phone=+91…)     |
+```
+
+The phone is normalized to E.164 `+91[6-9]XXXXXXXXX` server-side; non-Indian / non-mobile numbers are rejected with `400 invalid_phone`. The duplicate-phone pre-check rejects with `409 phone_already_registered` *before* dispatching the SMS — we never burn an SMS on a number that cannot ultimately register.
+
+Error codes in `detail.error`: `rate_limited`, `invalid_code`, `too_many_attempts`, `code_expired_or_used`, `invalid_phone`, `phone_already_registered`, `email_token_expired`, `invalid_email_token`, `signup_token_expired`, `invalid_signup_token`. Wizard maps each to a toast or inline field error.
+
+### 3.3 SMS provider switch
+
+`SMS_PROVIDER` env var: `console` (default; logs `[SMS] to=… code=…` to stdout, used in dev/test/CI) or `twilio` (production). The Twilio path is a raw `httpx.post` to `https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json` — no SDK, mirrors the Resend integration. See `core/sms.py`.
 
 ---
 
-## 4. The wizard — 6 steps
+## 4. The wizard — 8 steps
 
-`frontend/src/app/seller/signup/page.tsx` keeps everything in component state (no per-step backend roundtrip until submit). State persists only in memory — a hard refresh resets the wizard. The only persisted artefact mid-flow is the `email_token` returned by step 2; that token is itself short-lived.
+`frontend/src/app/(operator)/seller/signup/page.tsx` keeps everything in component state (no per-step backend roundtrip until submit). State persists only in memory — a hard refresh resets the wizard. The only persisted artefacts mid-flow are the short-lived `email_token` (after step 2) and `signup_token` (after step 4).
 
 | Step | Subtitle | Fields | Validates | Forward action |
 |------|----------|--------|-----------|----------------|
 | 1 | Enter your email | `email` | required | `POST /auth/otp/request`, advance to step 2 |
 | 2 | Enter the 6-digit code | `code` | 6 digits | `POST /auth/seller/otp/verify`, store `email_token`, advance |
-| 3 | Tell us about yourself | `full_name`, `phone` | name non-empty; phone matches `^[6-9]\d{9}$` | local validation, advance |
-| 4 | Tell us about your business | `business_name`, `service_ids[]` (via `ServicePicker`), `address` (line1/2, landmark, city, state, pincode, country) | non-empty business name; ≥1 service; line1, city, state required; pincode `^[1-9]\d{5}$` | local validation, advance |
-| 5 | Compliance & banking details | `gst_number`, `fssai_license`, `bank_account_number`, `bank_ifsc` — **all optional** | format checks if non-empty: GST regex, IFSC regex, account 9–18 digits | local validation, advance |
-| 6 | Review your application | summary cards with "Edit" links per section | n/a | `POST /auth/seller/register` (or `PATCH /sellers/me/profile` on resubmit) |
+| 3 | Verify your phone number | `phone` (10-digit local part with locked `+91` prefix) | matches `^[6-9]\d{9}$` | `POST /auth/seller/phone/otp/request`, advance to step 4 |
+| 4 | Enter the 6-digit code (SMS) | `phoneCode` | 6 digits | `POST /auth/seller/phone/otp/verify`, store `signup_token`, advance |
+| 5 | Tell us about yourself | `full_name` | name non-empty | local validation, advance |
+| 6 | Tell us about your business | `business_name`, `service_ids[]` (via `ServicePicker`), `address` (line1/2, landmark, city, state, pincode, country) | non-empty business name; ≥1 service; line1, city, state required; pincode `^[1-9]\d{5}$` | local validation, advance |
+| 7 | Compliance & banking details | `gst_number`, `fssai_license`, `bank_account_number`, `bank_ifsc` — **all optional** | format checks if non-empty: GST regex, IFSC regex, account 9–18 digits | local validation, advance |
+| 8 | Review your application | summary cards with "Edit" links per section | n/a | `POST /auth/seller/register` with `signup_token` (or `PATCH /sellers/me/profile` on resubmit) |
 
 Validation regexes live at the top of `seller/signup/page.tsx:17-20`:
 
@@ -88,10 +118,10 @@ Compliance / banking fields **are stored as `NULL` when blank**; the request bod
 
 When `?resubmit=true` is in the URL, the wizard:
 
-1. Skips OTP. The seller is already authenticated.
+1. Skips both OTP gates. The seller is already authenticated and their phone is already on the existing `SellerProfile`.
 2. Pre-fills from `GET /api/v1/sellers/me/profile`.
-3. Jumps to step 3.
-4. On final submit, calls `PATCH /api/v1/sellers/me/profile` (multipart of all editable fields) and the backend resets `verification_status → pending`, clears `rejection_reason`.
+3. Jumps to step 5 (Personal info).
+4. On final submit, calls `PATCH /api/v1/sellers/me/profile` and the backend resets `verification_status → pending`, clears `rejection_reason`. The PATCH path is **authenticated** (Bearer token) and does not consume `signup_token`.
 
 ---
 
@@ -102,8 +132,10 @@ All paths below are prefixed with `/api/v1` (see `app/__init__.py` → `api_rout
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
 | POST | `/auth/otp/request` | none | Send 6-digit code to email (rate-limited) |
-| POST | `/auth/seller/otp/verify` | none | Verify code, return `email_token` (no `User` yet) |
-| POST | `/auth/seller/register` | `email_token` in body | Create `User`+`SellerProfile`+`Address`+`SellerProfileService[]`; return `access_token` |
+| POST | `/auth/seller/otp/verify` | none | Verify email code, return `email_token` (10-min, type=`seller_email`) |
+| POST | `/auth/seller/phone/otp/request` | `email_token` in body | Send 6-digit SMS code; pre-checks duplicate phone |
+| POST | `/auth/seller/phone/otp/verify` | `email_token` in body | Verify SMS code, return `signup_token` (10-min, type=`seller_signup`, claims `sub=email`, `phone=+91…`) |
+| POST | `/auth/seller/register` | `signup_token` in body | Create `User`+`SellerProfile`+`Address`+`SellerProfileService[]`; phone read from token claims; return `access_token` |
 | GET  | `/sellers/me/status` | seller | `{ verification_status, rejection_reason }` |
 | GET  | `/sellers/me/profile` | seller | Full `SellerProfilePayload` (incl. services + address) |
 | PATCH| `/sellers/me/profile` | seller | Edit profile; locks `service_ids` once approved; resets status to `pending` |
@@ -118,9 +150,8 @@ Note the **path keying for admin endpoints uses `seller_id` = `User.id`**, not `
 
 ```json
 {
-  "email_token": "<JWT, purpose=email_verify>",
+  "signup_token": "<JWT, type=seller_signup, sub=email, phone=+91…>",
   "full_name": "Priya Verma",
-  "phone": "9876543210",
   "business_name": "Sharma Kirana Store",
   "service_ids": [1, 3],
   "address": { "address_line1": "...", "city": "...", "state": "MH", "pincode": "411001", ... },
@@ -131,7 +162,9 @@ Note the **path keying for admin endpoints uses `seller_id` = `User.id`**, not `
 }
 ```
 
-Returns `{ access_token, token_type: "bearer", user }`. Frontend stores the token in `localStorage` under key `kb_token` (`seller/signup/page.tsx:249`).
+Note: `email` and `phone` are NOT in the body — both are read from the signed `signup_token` claims, so the user cannot tamper with them between phone-OTP verification and registration. The handler also re-checks `email` and `phone` uniqueness in the DB at commit time as defence in depth (parallel signups racing).
+
+Returns `{ access_token, token_type: "bearer", user }`. Frontend stores the token in `localStorage` under key `kb_token`.
 
 `service_ids` must be non-empty (`SellerRegisterBody.service_ids: list[int] = Field(min_length=1)` in `schemas/sellers.py`). Validated against `Service.is_active = True` by `validate_service_ids` (`services/seller_services.py:14-34`).
 
@@ -325,8 +358,9 @@ Effect 2 fetches the store name for the sidebar — only runs on approved-seller
 - **Race in admin approval.** Two admins approving simultaneously: `IntegrityError` on the unique `Store` row → rollback and re-fetch; both calls return success.
 - **Approved seller editing profile.** Allowed for everything except `service_ids`. Editing also resets status to `pending` until re-approved (`api/sellers.py:128`).
 - **Browser refresh mid-wizard.** State is in-memory only. Refresh on steps 3–6 returns to step 1 and the user must re-OTP. Acceptable for now.
-- **OTP rate-limit.** `RateLimited` on `POST /auth/otp/request` returns 429 with `retry_after` seconds; the wizard surfaces this as a toast.
-- **`email_token` expiry.** Short-TTL signed JWT (purpose=`email_verify`). On 400/410 at submit the wizard tells the user to start over.
+- **OTP rate-limit.** `RateLimited` on either OTP-request endpoint returns 429 with `retry_after` seconds; the wizard surfaces this as a toast. Limits are per identifier (per email; per phone) — emailing one user does not consume the SMS budget for a different victim phone.
+- **`email_token` / `signup_token` expiry.** Both are 10-min signed JWTs. If `email_token` expires between steps 2 and 4 the wizard surfaces "code expired, request a new one" and the user resends the email OTP. If `signup_token` expires between step 4 and the final submit, the wizard sends the user back to step 3 (phone) to re-verify.
+- **Phone tampering.** `phone` is bound to the `signup_token` signature, not in the request body — a man-in-the-middle cannot swap it at register time. The DB still has a unique index on `SellerProfile.phone`, so a successful race ends in a 409 from the server's commit-time recheck.
 - **Compliance fields blank on submit.** Backend coerces `""` → `None` (`api/auth.py:211-214`); review screen will display "—" via the admin UI.
 - **No seller-facing notification email** on approval/rejection — pending poll is the only mechanism today (verify in code if you wire one up).
 
@@ -338,7 +372,11 @@ Seller-flow tests in `backend/app/tests/`:
 
 | File | Coverage |
 |------|----------|
-| `test_seller_register.py` | Happy path, missing/invalid address fields, invalid pincode, duplicate email, invalid `email_token`, wrong-purpose token, empty `service_ids`, persists services, unknown service id, null/empty compliance & bank fields |
+| `test_seller_register.py` | Happy path, missing/invalid address fields, invalid pincode, duplicate email, duplicate phone, invalid `signup_token`, email-token-as-signup-token rejection, empty `service_ids`, persists services, unknown service id, null/empty compliance & bank fields |
+| `test_seller_phone_otp.py` | Phone OTP request happy path (asserts SMS dispatch via injected fake `SMSSender`), invalid phone format, bad email_token, duplicate phone pre-check, cooldown, verify happy path (asserts `signup_token` claims), wrong code, too many attempts, code expired |
+| `test_security_signup_token.py` | `seller_email` and `seller_signup` token round-trips; cross-type rejection; expired-token rejection |
+| `test_otp_phone.py` | `normalize_phone` accept/reject matrix; namespaced Redis key shape `otp:phone:*` |
+| `test_sms_sender.py` | Console + Twilio sender protocol; factory selects by `SMS_PROVIDER` |
 | `test_seller_status.py` | `GET /me/status` returns pending; `GET /me/profile` shape; PATCH service rules (allowed when pending/rejected, blocked when approved); customer cannot access seller endpoints |
 | `test_admin_applications.py` | Default filter is `pending`; filter approved/rejected/all; invalid status → 400; non-admin → 403; counts grouping; counts zero with no profiles; revoke approved seller; payload includes services |
 | `test_admin_verify.py` | Approve, reject (with reason), missing-reason → 400, non-admin → 403, approve creates Store, approve blocked when zero services, re-approval idempotent |
