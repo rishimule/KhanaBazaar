@@ -11,14 +11,17 @@ LOG_DIR="${RUN_DIR}/logs"
 BACKEND_PID="${RUN_DIR}/backend.pid"
 CELERY_PID="${RUN_DIR}/celery.pid"
 FRONTEND_PID="${RUN_DIR}/frontend.pid"
+LOG_VIEWER_PID="${RUN_DIR}/log_viewer.pid"
 
 BACKEND_LOG="${LOG_DIR}/backend.log"
 CELERY_LOG="${LOG_DIR}/celery.log"
 FRONTEND_LOG="${LOG_DIR}/frontend.log"
+LOG_VIEWER_LOG="${LOG_DIR}/log_viewer.log"
 
 NGROK_PID="${RUN_DIR}/ngrok.pid"
 NGROK_LOG="${LOG_DIR}/ngrok.log"
 NGROK_API="http://localhost:4040/api/tunnels"
+export LOG_VIEWER_PORT="${LOG_VIEWER_PORT:-8001}"
 
 mkdir -p "${RUN_DIR}" "${LOG_DIR}"
 
@@ -97,19 +100,36 @@ status_proc() {
 }
 
 fetch_tunnel_url() {
-  # Polls ngrok's local agent API for up to ~10s and prints the first
-  # public URL on stdout. Returns 0 if a URL is found, 1 otherwise.
-  local attempt url
+  # Polls ngrok's local agent API for up to ~10s and prints the public URL
+  # for the named tunnel on stdout. Defaults to the first tunnel if no name
+  # is provided. Returns 0 if a URL is found, 1 otherwise.
+  local want="${1:-}" attempt url
   for attempt in $(seq 1 20); do
     url="$(curl -s --max-time 1 "${NGROK_API}" 2>/dev/null \
-      | python3 -c '
-import json, sys
+      | TUNNEL_NAME="${want}" python3 -c '
+import json, os, sys
 try:
     data = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
+want = os.environ.get("TUNNEL_NAME") or ""
 tunnels = data.get("tunnels") or []
-if tunnels:
+if not tunnels:
+    sys.exit(0)
+if want:
+    for t in tunnels:
+        if t.get("name") == want and t.get("proto") == "https":
+            print(t.get("public_url", ""))
+            sys.exit(0)
+    for t in tunnels:
+        if t.get("name") == want:
+            print(t.get("public_url", ""))
+            sys.exit(0)
+else:
+    for t in tunnels:
+        if t.get("proto") == "https":
+            print(t.get("public_url", ""))
+            sys.exit(0)
     print(tunnels[0].get("public_url", ""))
 ' 2>/dev/null)"
     if [ -n "${url}" ]; then
@@ -126,6 +146,11 @@ cmd_tunnel() {
   require_command curl
   require_command python3
 
+  if ! is_running "${LOG_VIEWER_PID}"; then
+    start_proc "log_viewer" "${LOG_VIEWER_PID}" "${LOG_VIEWER_LOG}" "${REPO_ROOT}" \
+      python3 "${SCRIPT_DIR}/log_viewer.py"
+  fi
+
   start_proc "ngrok"   "${NGROK_PID}"   "${NGROK_LOG}"   "${REPO_ROOT}" \
     ngrok http 3000 --log=stdout --log-format=logfmt
 
@@ -133,7 +158,7 @@ cmd_tunnel() {
   local url
   if url="$(fetch_tunnel_url)"; then
     echo
-    echo "Tunnel ready: ${url}  ->  :3000"
+    echo "Tunnel ready: ${url}  ->  :3000  (frontend; logs at ${url}/dev-logs/)"
   else
     echo
     echo "Tunnel started but URL unresolved. See ${NGROK_LOG}." >&2
@@ -192,29 +217,35 @@ cmd_start() {
   start_proc "frontend" "${FRONTEND_PID}" "${FRONTEND_LOG}" "${FRONTEND_DIR}" \
     npm run dev
 
+  start_proc "log_viewer" "${LOG_VIEWER_PID}" "${LOG_VIEWER_LOG}" "${REPO_ROOT}" \
+    python3 "${SCRIPT_DIR}/log_viewer.py"
+
   if [ "${with_tunnel}" -eq 1 ]; then
     cmd_tunnel
   fi
 
   echo
   echo "All services up."
-  echo "  Backend:  http://localhost:8000  (docs: /docs)"
-  echo "  Frontend: http://localhost:3000"
+  echo "  Backend:    http://localhost:8000  (docs: /docs)"
+  echo "  Frontend:   http://localhost:3000"
+  echo "  Log viewer: http://localhost:${LOG_VIEWER_PORT}"
   if [ "${with_tunnel}" -eq 1 ] && is_running "${NGROK_PID}"; then
     local url
     if url="$(fetch_tunnel_url)"; then
-      echo "  Tunnel:   ${url}  ->  :3000"
+      echo "  Tunnel:     ${url}  ->  :3000"
+      echo "  Tunnel Log: ${url}/dev-logs/  (proxied through frontend)"
     fi
   fi
-  echo "  Logs:     ${LOG_DIR}"
-  echo "Run '${0} logs [backend|celery|frontend|ngrok]' to tail logs."
+  echo "  Logs:       ${LOG_DIR}"
+  echo "Run '${0} logs [backend|celery|frontend|ngrok|log_viewer]' to tail logs."
 }
 
 cmd_stop() {
-  stop_proc "ngrok"    "${NGROK_PID}"
-  stop_proc "frontend" "${FRONTEND_PID}"
-  stop_proc "celery"   "${CELERY_PID}"
-  stop_proc "backend"  "${BACKEND_PID}"
+  stop_proc "ngrok"      "${NGROK_PID}"
+  stop_proc "log_viewer" "${LOG_VIEWER_PID}"
+  stop_proc "frontend"   "${FRONTEND_PID}"
+  stop_proc "celery"     "${CELERY_PID}"
+  stop_proc "backend"    "${BACKEND_PID}"
 
   if [ "${1:-}" = "--all" ]; then
     echo "Stopping Docker services..."
@@ -224,14 +255,16 @@ cmd_stop() {
 
 cmd_status() {
   echo "Services:"
-  status_proc "backend"  "${BACKEND_PID}"
-  status_proc "celery"   "${CELERY_PID}"
-  status_proc "frontend" "${FRONTEND_PID}"
-  status_proc "ngrok"    "${NGROK_PID}"
+  status_proc "backend"    "${BACKEND_PID}"
+  status_proc "celery"     "${CELERY_PID}"
+  status_proc "frontend"   "${FRONTEND_PID}"
+  status_proc "log_viewer" "${LOG_VIEWER_PID}"
+  status_proc "ngrok"      "${NGROK_PID}"
   if is_running "${NGROK_PID}"; then
     local url
     if url="$(fetch_tunnel_url)"; then
-      echo "    URL: ${url}"
+      echo "    URL:      ${url}"
+      echo "    Logs URL: ${url}/dev-logs/"
     fi
   fi
   echo
@@ -242,12 +275,13 @@ cmd_status() {
 cmd_logs() {
   local target="${1:-}"
   case "${target}" in
-    backend)  exec tail -f "${BACKEND_LOG}" ;;
-    celery)   exec tail -f "${CELERY_LOG}" ;;
-    frontend) exec tail -f "${FRONTEND_LOG}" ;;
-    ngrok)    exec tail -f "${NGROK_LOG}" ;;
-    "")       exec tail -f "${BACKEND_LOG}" "${CELERY_LOG}" "${FRONTEND_LOG}" ;;
-    *) echo "Unknown log: ${target} (backend|celery|frontend|ngrok)" >&2; exit 1 ;;
+    backend)    exec tail -f "${BACKEND_LOG}" ;;
+    celery)     exec tail -f "${CELERY_LOG}" ;;
+    frontend)   exec tail -f "${FRONTEND_LOG}" ;;
+    ngrok)      exec tail -f "${NGROK_LOG}" ;;
+    log_viewer) exec tail -f "${LOG_VIEWER_LOG}" ;;
+    "")         exec tail -f "${BACKEND_LOG}" "${CELERY_LOG}" "${FRONTEND_LOG}" ;;
+    *) echo "Unknown log: ${target} (backend|celery|frontend|ngrok|log_viewer)" >&2; exit 1 ;;
   esac
 }
 
@@ -262,13 +296,13 @@ Usage: $0 <command>
 
 Commands:
   start              Start Postgres+Redis (docker), backend, celery, frontend
-  start --tunnel     Same as start, plus an ngrok tunnel forwarding :3000
-  stop               Stop ngrok, backend, celery, frontend (leaves docker running)
+  start --tunnel     Same as start, plus ngrok tunnels for :3000 + log viewer
+  stop               Stop ngrok, log viewer, backend, celery, frontend (leaves docker running)
   stop --all         Also stop docker postgres+redis
   restart            Stop then start app processes
   status             Show pids + docker status (incl. ngrok URL when running)
-  logs [name]        Tail logs (name: backend|celery|frontend|ngrok; default: all app logs)
-  tunnel             Start an ngrok tunnel against an already-running frontend
+  logs [name]        Tail logs (name: backend|celery|frontend|ngrok|log_viewer; default: all app logs)
+  tunnel             Start ngrok tunnels (frontend + log viewer)
   tunnel-url         Print the current ngrok public URL (exits 1 if no tunnel)
 EOF
 }

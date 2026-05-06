@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
         source: "/api/v1/:rest(.*)",
         destination: "http://localhost:8000/api/v1/:rest",
       },
+      {
+        source: "/dev-logs",
+        destination: `http://localhost:${process.env.LOG_VIEWER_PORT ?? "8001"}/`,
+      },
+      {
+        source: "/dev-logs/:rest(.*)",
+        destination: `http://localhost:${process.env.LOG_VIEWER_PORT ?? "8001"}/:rest`,
+      },
     ];
   },
 };

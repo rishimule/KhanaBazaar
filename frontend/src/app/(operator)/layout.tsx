@@ -5,6 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import "@/app/globals.css";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
+import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
 import enMessages from "../../../messages/en.json";
@@ -42,6 +43,7 @@ export default function OperatorLayout({
   return (
     <html lang="en" className={inter.variable}>
       <head>
+        <ThirdPartyErrorSuppressor />
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
