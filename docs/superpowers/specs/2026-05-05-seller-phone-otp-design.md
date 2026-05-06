@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-05
 **Scope:**
-- Backend: `backend/app/src/app/core/{otp.py,sms.py,security.py,config.py}`, `backend/app/src/app/api/auth.py`, `backend/app/src/app/schemas/sellers.py`, `backend/app/src/app/worker.py`, new tests under `backend/app/tests/`.
+- Backend: `backend/app/src/app/core/{otp.py,sms.py,security.py,config.py}`, `backend/app/src/app/api/auth.py`, `backend/app/src/app/schemas/sellers.py`, new tests under `backend/app/tests/`.
 - Frontend: `frontend/src/app/(operator)/seller/signup/page.tsx`, signup wizard step components.
 - No DB schema change (`SellerProfile.phone` already exists, required + unique).
 
@@ -157,7 +157,7 @@ All under `/api/v1/auth`.
 
 Notes:
 
-- `/seller/phone/otp/request` validates `email_token`, normalizes `phone`, checks `SellerProfile.phone` uniqueness in DB **and** that no `User` with that email already exists (parallel to today's email check), then calls `request_otp(phone, redis, namespace="phone")` and dispatches the SMS via `send_otp_sms_async.delay(to=phone, code=code)`.
+- `/seller/phone/otp/request` validates `email_token`, normalizes `phone`, checks `SellerProfile.phone` uniqueness in DB **and** that no `User` with that email already exists (parallel to today's email check), then calls `request_otp(phone, redis, namespace="phone")` and dispatches the SMS inline via `await sender.send(to=phone, text=...)` where `sender` is injected by `Depends(get_sms_sender)` (mirrors the existing email-OTP request handler at `api/auth.py:91-95`, which dispatches inline rather than via Celery).
 - `/seller/phone/otp/verify` validates `email_token`, normalizes `phone`, runs `verify_otp(phone, code, redis, namespace="phone")`, then on success calls `consume_otp_key(phone, redis, namespace="phone")` and mints `signup_token(email_from_token, phone)`. The email and phone are first cryptographically linked when the `signup_token` is signed — there is no pre-verify Redis record tying them together. This is safe because the OTP code is delivered to the phone number, so an attacker minting a `signup_token` for `(email_A, phone_X)` still requires receiving the SMS at `phone_X`.
 - `/seller/register` takes the `signup_token`, decodes `(email, phone)` from claims, drops `phone` from the request body entirely. Re-checks duplicate email and duplicate phone at commit time (defence in depth — the uniqueness check at OTP-request time can race a concurrent registration).
 
@@ -175,16 +175,16 @@ Failure mapping (consistent with existing OTP endpoints):
 | Code expired or never issued                | 410    | `code_expired_or_used`     |
 | Signup_token expired / wrong type / invalid | 410/400| `signup_token_expired` / `invalid_signup_token` |
 
-### `worker.py` — Celery task
+### Dispatch (no new Celery task)
 
-```python
-@celery_app.task(name="send_otp_sms_async")
-def send_otp_sms_async(to: str, code: str) -> None:
-    # mirrors send_otp_email_async — sync wrapper that runs the async sender
-    # body text: "Your Khana Bazaar seller verification code is: {code}\nExpires in 10 minutes."
+SMS is dispatched **inline** in the route handler — `await sender.send(to=phone, text=body)` — mirroring the existing email-OTP request handler. The body text:
+
+```
+Your Khana Bazaar seller verification code is: {code}
+Expires in 10 minutes.
 ```
 
-Same eager-mode treatment in tests; same patch-to-no-op pattern in test fixtures.
+No new Celery task. (`worker.py` already defines a `send_otp_email_async` task that the live request handler does not use; we don't add a parallel SMS one until async dispatch is justified by volume.)
 
 ### `schemas/sellers.py` change
 
@@ -257,7 +257,7 @@ We do **not** add a separate IP-scoped counter in this spec; reuse the per-ident
 
 `backend/app/tests/test_seller_phone_otp.py` (new):
 
-- Patch `send_otp_sms_async.delay` to no-op (mirrors email tests in `conftest.py`).
+- Inject a fake `SMSSender` via `app.dependency_overrides[get_sms_sender]` to record `(to, text)` invocations and avoid hitting the console logger.
 - Helpers: `mint_email_token(email)`, `mint_signup_token(email, phone)` — call the security helpers directly so tests don't need the Redis OTP round-trip.
 - Cases:
   - `test_phone_request_happy_path` — valid email_token + new phone → 200, Redis key created.
@@ -280,7 +280,7 @@ We do **not** add a separate IP-scoped counter in this spec; reuse the per-ident
 
 `tests/conftest.py`:
 
-- Auto-patch `app.worker.send_otp_sms_async.delay` to a no-op (parallel to the existing email patch).
+- No new auto-patch needed: SMS is dispatched inline via `get_sms_sender()`, default `ConsoleSMSSender` only logs. Tests that need to assert SMS contents register a per-test `dependency_overrides[get_sms_sender]` override.
 
 No frontend tests (CLAUDE.md: "No frontend tests configured.").
 
