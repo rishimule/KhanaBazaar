@@ -47,3 +47,6 @@ htmlcov/
 
 # Local dev runtime (scripts/dev.sh)
 .dev/
+
+# Agent scratch
+.agents/
