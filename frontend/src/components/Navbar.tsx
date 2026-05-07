@@ -87,16 +87,18 @@ export default function Navbar() {
         </div>
 
         <div className={styles.navActions}>
-          <button
-            type="button"
-            className={styles.deliverChip}
-            onClick={() => setPickerOpen(true)}
-            aria-label="Set delivery location"
-          >
-            📍 <span className={styles.deliverChipText}>
-              {location?.label ?? "Set location"}
-            </span>
-          </button>
+          {(!role || role === "customer") && (
+            <button
+              type="button"
+              className={styles.deliverChip}
+              onClick={() => setPickerOpen(true)}
+              aria-label="Set delivery location"
+            >
+              📍 <span className={styles.deliverChipText}>
+                {location?.label ?? "Set location"}
+              </span>
+            </button>
+          )}
 
           {(!role || role === "customer") && (
             <Link href="/cart" className={styles.cartBtn} aria-label={t("cartAriaLabel")}>
