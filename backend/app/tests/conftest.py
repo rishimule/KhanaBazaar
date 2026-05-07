@@ -35,11 +35,13 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 async def _reset_schema(conn: Any) -> None:
     """Drop and recreate the public schema to clear tables AND Postgres enum
     types. SQLModel.metadata.drop_all does not drop enum types, so reused
-    types collide with `pg_type_typname_nsp_index` on the next create_all."""
+    types collide with `pg_type_typname_nsp_index` on the next create_all.
+    Re-enables PostGIS after reset since its objects live in `public`."""
     from sqlalchemy import text
 
     await conn.execute(text("DROP SCHEMA public CASCADE"))
     await conn.execute(text("CREATE SCHEMA public"))
+    await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
 
 
 @pytest.fixture(autouse=True, scope="function")
