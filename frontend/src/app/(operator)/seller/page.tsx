@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
-import { get } from "@/lib/api";
+import { get, patch } from "@/lib/api";
 import StatsCard from "@/components/StatsCard";
 import ActiveOrdersWidget from "@/components/orders/ActiveOrdersWidget";
 import { Store, StoreInventory } from "@/types";
@@ -48,9 +48,53 @@ export default function SellerDashboardPage() {
   const totalStock = inventory.reduce((sum, i) => sum + i.stock, 0);
   const availableCount = inventory.filter((i) => i.is_available).length;
 
+  const updateRadius = async (km: number) => {
+    if (!store || !token) return;
+    try {
+      const updated = await patch<Store>(
+        `/api/v1/stores/${store.id}`,
+        { delivery_radius_km: km },
+        token,
+      );
+      setStores((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    } catch {
+      /* ignore — UI keeps the previous value */
+    }
+  };
+
   return (
     <>
+      {store && !store.pin_confirmed && (
+        <div className={styles.pinBanner}>
+          <strong>Confirm your store pin.</strong> Customers can&apos;t find
+          you on the map yet — drop a pin from your business address page.
+        </div>
+      )}
+
       <ActiveOrdersWidget role="seller" limit={10} />
+
+      {store && (
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Delivery radius</h2>
+          </div>
+          <div className={styles.radiusRow}>
+            <label htmlFor="delivery-radius" className={styles.radiusLabel}>
+              Delivers within{" "}
+              <strong>{store.delivery_radius_km.toFixed(1)} km</strong>
+            </label>
+            <input
+              id="delivery-radius"
+              type="range"
+              min={0.5}
+              max={50}
+              step={0.5}
+              value={store.delivery_radius_km}
+              onChange={(e) => void updateRadius(parseFloat(e.target.value))}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className={styles.statsGrid}>

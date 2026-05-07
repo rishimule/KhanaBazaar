@@ -1,0 +1,50 @@
+.wrapper { position: relative; }
+
+.input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.08));
+}
+
+.option {
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+}
+
+.option:hover,
+.option[aria-selected="true"] {
+  background: var(--color-surface-hover, rgba(0,0,0,0.04));
+}
+
+.error {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-danger, #c0392b);
+  font-size: var(--text-sm, 0.875rem);
+}

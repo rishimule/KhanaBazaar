@@ -145,7 +145,7 @@ export default function CheckoutPage() {
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>{t("deliveryAddress")}</h2>
-          <AddressPicker value={addressId} onChange={setAddressId} />
+          <AddressPicker value={addressId} onChange={setAddressId} storeId={storeId} />
         </section>
 
         <section className={styles.section}>

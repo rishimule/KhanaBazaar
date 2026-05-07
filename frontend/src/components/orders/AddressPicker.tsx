@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { checkServiceability } from "@/lib/geo";
 import styles from "./AddressPicker.module.css";
 
 interface CustomerAddressApi {
@@ -19,6 +20,8 @@ interface CustomerAddressApi {
     city: string;
     state: string;
     pincode: string;
+    latitude?: number | null;
+    longitude?: number | null;
   };
 }
 
@@ -29,13 +32,18 @@ interface CustomerProfileResponse {
 interface Props {
   value: number | null;
   onChange: (id: number) => void;
+  /** When set, each saved address is checked against this store's delivery
+   *  radius via /api/v1/geo/serviceability and disabled if outside. */
+  storeId?: number;
 }
 
-export default function AddressPicker({ value, onChange }: Props) {
+export default function AddressPicker({ value, onChange, storeId }: Props) {
   const t = useTranslations("Address");
   const { token } = useAuth();
   const [addresses, setAddresses] = useState<CustomerAddressApi[]>([]);
   const [loading, setLoading] = useState(true);
+  /** id → serviceable? Missing entry means "still checking" or "no lat/lng". */
+  const [serviceability, setServiceability] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -50,6 +58,30 @@ export default function AddressPicker({ value, onChange }: Props) {
       .finally(() => setLoading(false));
   }, [token, value, onChange]);
 
+  useEffect(() => {
+    if (storeId === undefined || addresses.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const map: Record<number, boolean> = {};
+      for (const a of addresses) {
+        if (a.address.latitude == null || a.address.longitude == null) {
+          map[a.id] = false;
+          continue;
+        }
+        try {
+          const r = await checkServiceability(
+            a.address.latitude, a.address.longitude, storeId,
+          );
+          map[a.id] = r.serviceable;
+        } catch {
+          map[a.id] = false;
+        }
+      }
+      if (!cancelled) setServiceability(map);
+    })();
+    return () => { cancelled = true; };
+  }, [addresses, storeId]);
+
   if (loading) return <div className={styles.loading}>{t("pickerLoading")}</div>;
   if (addresses.length === 0) {
     return (
@@ -59,6 +91,9 @@ export default function AddressPicker({ value, onChange }: Props) {
       </div>
     );
   }
+
+  const isDisabled = (id: number) =>
+    storeId !== undefined && serviceability[id] === false;
 
   return (
     <div className={styles.picker}>
@@ -70,8 +105,9 @@ export default function AddressPicker({ value, onChange }: Props) {
         className={styles.select}
       >
         {addresses.map((a) => (
-          <option key={a.id} value={a.id}>
+          <option key={a.id} value={a.id} disabled={isDisabled(a.id)}>
             {(a.label ?? t("fallbackLabel"))} — {a.address.address_line1}, {a.address.city} {a.address.pincode}
+            {isDisabled(a.id) ? " (Outside delivery area)" : ""}
           </option>
         ))}
       </select>

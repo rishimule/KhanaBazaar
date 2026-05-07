@@ -5,18 +5,23 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
+import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { Store } from "@/types";
 import styles from "./page.module.css";
 
 export default function Home() {
   const t = useTranslations("Home");
   const [stores, setStores] = useState<Store[]>([]);
+  const { location } = useDeliveryLocation();
 
   useEffect(() => {
-    get<Store[]>("/api/v1/stores/")
+    const url = location
+      ? `/api/v1/stores/?lat=${location.lat}&lng=${location.lng}&sort=distance`
+      : "/api/v1/stores/";
+    get<Store[]>(url)
       .then(setStores)
       .catch(() => setStores([]));
-  }, []);
+  }, [location]);
 
   const shoppingHref = "/stores";
   const shoppingLabel = t("ctaStartShopping");

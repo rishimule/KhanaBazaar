@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Address } from "@/types";
 import { getIndianStates } from "@/lib/indian-states";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
+import { MapPicker } from "@/components/MapPicker";
+import type { GeoPlace } from "@/lib/geo";
 import styles from "./AddressFields.module.css";
 
 export interface AddressFieldsErrors {
@@ -23,6 +26,9 @@ export interface AddressFieldsProps {
   onChange: (next: Address) => void;
   errors?: AddressFieldsErrors;
   disabled?: boolean;
+  /** When true, renders MapPicker open by default and the parent is expected
+   *  to block submission until lat/lng are set. */
+  requirePin?: boolean;
 }
 
 export function emptyAddress(): Address {
@@ -36,13 +42,45 @@ export function emptyAddress(): Address {
     country: "India",
     latitude: null,
     longitude: null,
+    digipin: null,
+    place_id: null,
+    location_source: null,
   };
 }
 
-export function AddressFields({ value, onChange, errors, disabled }: AddressFieldsProps) {
+function applyPlace(
+  place: GeoPlace, current: Address, source: "autocomplete" | "pin",
+): Address {
+  const get = (type: string): string | null => {
+    const c = place.components.find((c) => c.types.includes(type));
+    return c ? c.long_name : null;
+  };
+  const line1FromFormatted = place.formatted_address.split(",")[0]?.trim();
+  return {
+    ...current,
+    address_line1: line1FromFormatted || current.address_line1,
+    city:
+      get("locality") ||
+      get("administrative_area_level_2") ||
+      current.city,
+    state: get("administrative_area_level_1") || current.state,
+    pincode: get("postal_code") || current.pincode,
+    country: get("country") || current.country,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    place_id: place.place_id,
+    location_source: source,
+  };
+}
+
+export function AddressFields({
+  value, onChange, errors, disabled, requirePin = false,
+}: AddressFieldsProps) {
   const t = useTranslations("Address");
   const [states, setStates] = useState<string[]>([]);
   const [statesError, setStatesError] = useState<string | null>(null);
+  const [showMap, setShowMap] = useState<boolean>(requirePin);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     getIndianStates()
@@ -53,11 +91,19 @@ export function AddressFields({ value, onChange, errors, disabled }: AddressFiel
   const update = <K extends keyof Address>(key: K, v: Address[K]) =>
     onChange({ ...value, [key]: v });
 
-  const errClass = (k: keyof Address) =>
+  const errClass = (k: keyof AddressFieldsErrors) =>
     errors?.[k] ? `${styles.input} ${styles.inputError}` : styles.input;
 
   return (
     <div className={styles.grid}>
+      <div className={`${styles.field} ${styles.span2}`}>
+        <AddressAutocomplete
+          initialValue={value.address_line1}
+          onPlace={(p) => onChange(applyPlace(p, value, "autocomplete"))}
+          disabled={disabled}
+        />
+      </div>
+
       <div className={`${styles.field} ${styles.span2}`}>
         <label className={styles.label} htmlFor="addr-line1">{t("line1Label")}</label>
         <input
@@ -163,6 +209,28 @@ export function AddressFields({ value, onChange, errors, disabled }: AddressFiel
           readOnly
           disabled
         />
+      </div>
+
+      <div className={`${styles.field} ${styles.span2}`}>
+        {!showMap && !requirePin && (
+          <button
+            type="button"
+            className={styles.toggle}
+            onClick={() => setShowMap(true)}
+          >
+            Pin location for accurate delivery
+          </button>
+        )}
+        {showMap && (
+          <MapPicker
+            initialLat={value.latitude ?? undefined}
+            initialLng={value.longitude ?? undefined}
+            requirePin={requirePin}
+            onPlace={(p) => onChange(applyPlace(p, value, "pin"))}
+            onError={setMapError}
+          />
+        )}
+        {mapError && <span className={styles.error}>{mapError}</span>}
       </div>
     </div>
   );

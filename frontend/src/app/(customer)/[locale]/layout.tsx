@@ -11,6 +11,7 @@ import Navbar from "@/components/Navbar";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
+import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
 import { alternateLanguages } from "@/i18n/metadata";
 import { routing } from "@/i18n/routing";
 
@@ -77,12 +78,14 @@ export default async function CustomerLayout({
       <body>
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
-            <CartProvider>
-              <CartSyncBanner />
-              <Navbar />
-              <main>{children}</main>
-              <Footer />
-            </CartProvider>
+            <DeliveryLocationProvider>
+              <CartProvider>
+                <CartSyncBanner />
+                <Navbar />
+                <main>{children}</main>
+                <Footer />
+              </CartProvider>
+            </DeliveryLocationProvider>
           </AuthProvider>
         </NextIntlClientProvider>
         <ServiceWorkerRegistrar />

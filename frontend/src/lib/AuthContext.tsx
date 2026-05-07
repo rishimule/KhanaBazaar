@@ -117,6 +117,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
+    // Wipe the per-session "deliver to" pick so the next user on a shared
+    // device doesn't inherit the previous user's location.
+    localStorage.removeItem("kb_delivery_location");
     setToken(null);
     setDbUser(null);
   }, []);
