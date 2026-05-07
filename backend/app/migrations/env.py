@@ -58,11 +58,29 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+_POSTGIS_TABLES = {"spatial_ref_sys"}
+# Columns managed via raw DDL (e.g., generated columns) that are not declared
+# on SQLModel classes. Autogen would otherwise try to drop them.
+_RAW_DDL_COLUMNS = {("address", "geo")}
+
+
+def _include_object(object, name, type_, reflected, compare_to):  # noqa: ARG001
+    """Skip PostGIS system tables and raw-DDL columns during autogenerate."""
+    if type_ == "table" and name in _POSTGIS_TABLES:
+        return False
+    if type_ == "column":
+        table = getattr(object, "table", None)
+        if table is not None and (table.name, name) in _RAW_DDL_COLUMNS:
+            return False
+    return True
+
+
 def do_run_migrations(connection: Connection) -> None:
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
         transaction_per_migration=True,
+        include_object=_include_object,
     )
 
     with context.begin_transaction():

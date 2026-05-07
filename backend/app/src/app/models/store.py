@@ -12,6 +12,8 @@ class Store(BaseSchema, table=True):
     is_active: bool = Field(default=True, nullable=False)
     seller_profile_id: int = Field(foreign_key="sellerprofile.id", nullable=False, index=True)
     address_id: int = Field(foreign_key="address.id", nullable=False, index=True)
+    delivery_radius_km: float = Field(default=5.0, nullable=False)
+    pin_confirmed: bool = Field(default=False, nullable=False)
 
     seller_profile: SellerProfile = Relationship()
     address: Address = Relationship()

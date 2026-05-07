@@ -12,6 +12,8 @@ from typing import Optional
 from pydantic import BaseModel, Field, model_validator
 
 from app.core.indian_states import INDIAN_STATES
+from app.models.address import LocationSource
+from app.utils.digipin import encode as digipin_encode
 
 _INDIA_PINCODE_RE = re.compile(r"^[1-9]\d{5}$")
 _NON_INDIA_PINCODE_RE = re.compile(r"^[A-Za-z0-9\- ]{3,10}$")
@@ -27,6 +29,8 @@ class AddressPayload(BaseModel):
     country: str = Field(default="India", min_length=1, max_length=60)
     latitude: Optional[float] = Field(default=None, ge=-90.0, le=90.0)
     longitude: Optional[float] = Field(default=None, ge=-180.0, le=180.0)
+    place_id: Optional[str] = Field(default=None, max_length=255)
+    location_source: Optional[LocationSource] = None
 
     @model_validator(mode="after")
     def _check_country_specific_rules(self) -> "AddressPayload":
@@ -53,12 +57,22 @@ _ADDRESS_FIELDS: tuple[str, ...] = (
     "country",
     "latitude",
     "longitude",
+    "place_id",
+    "location_source",
 )
 
 
 def address_from_payload(payload: AddressPayload) -> dict[str, object]:
-    """Flatten the nested payload to the column names used on owner tables."""
-    return {field: getattr(payload, field) for field in _ADDRESS_FIELDS}
+    """Flatten the nested payload to columns + derive DIGIPIN from lat/lng."""
+    out: dict[str, object] = {field: getattr(payload, field) for field in _ADDRESS_FIELDS}
+    digipin: Optional[str] = None
+    if payload.latitude is not None and payload.longitude is not None:
+        try:
+            digipin = digipin_encode(payload.latitude, payload.longitude)
+        except ValueError:
+            digipin = None  # outside India bbox — keep address but skip code
+    out["digipin"] = digipin
+    return out
 
 
 def address_to_payload(owner: object) -> AddressPayload:
