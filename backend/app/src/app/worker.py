@@ -254,3 +254,107 @@ def send_seller_rejected_async(
         "You may update your application details and resubmit for review."
     )
     _resolve_email(to_email, subject, body)
+
+
+# ---------------------------------------------------------------------------
+# Geo backfill — one-shot Celery task to forward-geocode legacy store/business
+# addresses missing lat/lng. Customer addresses NOT touched (saves Google
+# quota; they re-fill lazily on next user-driven address edit).
+# ---------------------------------------------------------------------------
+
+
+async def _forward_geocode_one(query: str) -> tuple[float, float] | None:
+    from app.core.config import settings
+    from app.core.google_maps import GoogleMapsClient, GoogleMapsError
+
+    if not settings.GOOGLE_MAPS_SERVER_API_KEY:
+        return None
+    client = GoogleMapsClient(api_key=settings.GOOGLE_MAPS_SERVER_API_KEY)
+    try:
+        body = await client.get(
+            "/geocode/json", {"address": query, "components": "country:IN"}
+        )
+        results = body.get("results", [])
+        if not results or results[0].get("partial_match", False):
+            return None
+        loc = results[0]["geometry"]["location"]
+        return float(loc["lat"]), float(loc["lng"])
+    except GoogleMapsError:
+        return None
+    finally:
+        await client.aclose()
+
+
+async def _run_backfill() -> dict[str, int]:
+    """Forward-geocode rows of `address` reachable via Store or
+    SellerProfile.business_address that lack lat/lng. Idempotent."""
+    import asyncio
+
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.utils.digipin import encode as digipin_encode
+
+    sql_select = text(
+        "SELECT a.id, a.address_line1, a.city, a.state, a.pincode "
+        "FROM address a "
+        "WHERE a.latitude IS NULL "
+        "  AND ("
+        "    EXISTS (SELECT 1 FROM store s WHERE s.address_id = a.id) "
+        "    OR EXISTS ("
+        "      SELECT 1 FROM sellerprofile sp WHERE sp.business_address_id = a.id"
+        "    )"
+        "  )"
+    )
+    sql_update = text(
+        "UPDATE address SET latitude = :lat, longitude = :lng, "
+        "  digipin = :digipin, location_source = 'geocoded' "
+        "WHERE id = :id"
+    )
+
+    filled = 0
+    skipped = 0
+    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    try:
+        async with AsyncSession(engine) as session:
+            rows = (await session.exec(sql_select)).all()
+            for row in rows:
+                query = (
+                    f"{row.address_line1}, {row.city}, {row.state} {row.pincode}, India"
+                )
+                coords = await _forward_geocode_one(query)
+                if coords is None:
+                    skipped += 1
+                    continue
+                lat, lng = coords
+                try:
+                    digipin = digipin_encode(lat, lng)
+                except ValueError:
+                    digipin = None
+                await session.exec(
+                    sql_update.bindparams(id=row.id, lat=lat, lng=lng, digipin=digipin)
+                )
+                filled += 1
+                await asyncio.sleep(0.1)  # 10 req/s ceiling
+            await session.commit()
+    finally:
+        await engine.dispose()
+    return {"filled": filled, "skipped": skipped}
+
+
+@celery_app.task(name="geo.backfill_store_addresses")  # type: ignore[untyped-decorator]
+def backfill_store_addresses_geocode() -> dict[str, int]:
+    """Forward-geocode addresses linked to Store or SellerProfile.business_address.
+
+    Skips addresses that already have lat/lng AND customer-only addresses.
+    Idempotent: safe to re-run.
+    """
+    import asyncio
+    import concurrent.futures
+
+    # Mirror the order-email loader pattern: run async logic in a worker
+    # thread so this works under both Celery prefork and pytest EAGER mode.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_run_backfill())).result()
