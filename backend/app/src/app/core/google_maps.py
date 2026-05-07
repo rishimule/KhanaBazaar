@@ -6,7 +6,7 @@ typed dataclass; callers are responsible for caching/rate-limiting.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -51,11 +51,11 @@ class GoogleMapsClient:
         self._key = api_key
         self._client = httpx.AsyncClient(transport=transport, timeout=timeout)
 
-    async def get(self, path: str, params: dict[str, str]) -> dict:
+    async def get(self, path: str, params: dict[str, str]) -> dict[str, Any]:
         params = {**params, "key": self._key}
         resp = await self._client.get(f"{_BASE}{path}", params=params)
         resp.raise_for_status()
-        body = resp.json()
+        body: dict[str, Any] = resp.json()
         if body.get("status") not in {"OK", "ZERO_RESULTS"}:
             raise GoogleMapsError(
                 f"google maps: {body.get('status')}: {body.get('error_message', '')}"
@@ -66,7 +66,7 @@ class GoogleMapsClient:
         await self._client.aclose()
 
 
-def _components(raw: list[dict]) -> tuple[AddressComponent, ...]:
+def _components(raw: list[dict[str, Any]]) -> tuple[AddressComponent, ...]:
     return tuple(
         AddressComponent(
             long_name=c.get("long_name", ""),

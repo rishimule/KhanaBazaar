@@ -1,7 +1,8 @@
 import enum
 from typing import Optional
 
-from sqlalchemy import Column, Enum as SAEnum
+from sqlalchemy import Column
+from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field
 
 from app.models.base import BaseSchema

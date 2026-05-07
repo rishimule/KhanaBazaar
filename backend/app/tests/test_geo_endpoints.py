@@ -4,7 +4,7 @@ Mocks the in-router calls to GoogleMapsClient/autocomplete/place_details/
 reverse_geocode so we never touch the real Google API. Serviceability uses
 real PostGIS in the test DB.
 """
-from typing import Any, AsyncGenerator
+from typing import Any, Iterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -29,10 +29,14 @@ def patched_geo(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stub out the Google client so the proxy returns canned data."""
     monkeypatch.setattr(geo_router, "_get_client", lambda: _StubClient())
 
-    async def _stub_autocomplete(client: Any, *, query: str, session_token: str):
+    async def _stub_autocomplete(
+        client: Any, *, query: str, session_token: str,
+    ) -> list[Prediction]:
         return [Prediction(place_id="p1", description=f"{query}, India")]
 
-    async def _stub_place_details(client: Any, *, place_id: str, session_token: str):
+    async def _stub_place_details(
+        client: Any, *, place_id: str, session_token: str,
+    ) -> Place:
         return Place(
             place_id=place_id,
             formatted_address="X Address",
@@ -40,7 +44,7 @@ def patched_geo(monkeypatch: pytest.MonkeyPatch) -> None:
             components=(),
         )
 
-    async def _stub_reverse(client: Any, *, lat: float, lng: float):
+    async def _stub_reverse(client: Any, *, lat: float, lng: float) -> Place:
         return Place(
             place_id="p2",
             formatted_address="Reverse Address",
@@ -56,7 +60,9 @@ def patched_geo(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
-def reset_redis_state(monkeypatch: pytest.MonkeyPatch):
+def reset_redis_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[None]:
     """Disable Redis cache during tests + override the rate-limit dep.
 
     The rate-limit function is wired in via `Depends(_geo_rate_limit)` which
@@ -64,9 +70,9 @@ def reset_redis_state(monkeypatch: pytest.MonkeyPatch):
     monkeypatch of the module attribute does NOT replace it. Use FastAPI's
     dependency_overrides for that one.
     """
-    async def _no_cache_get(key: str):
+    async def _no_cache_get(key: str) -> None:
         return None
-    async def _no_cache_set(key: str, value: dict, ttl: int):
+    async def _no_cache_set(key: str, value: dict[str, Any], ttl: int) -> None:
         return None
     monkeypatch.setattr(geo_router, "_cache_get", _no_cache_get)
     monkeypatch.setattr(geo_router, "_cache_set", _no_cache_set)

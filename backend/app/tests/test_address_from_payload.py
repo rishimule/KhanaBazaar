@@ -6,13 +6,13 @@ from app.schemas.address import AddressPayload, address_from_payload
 
 
 def _payload(**kwargs: object) -> AddressPayload:
-    base: dict[str, object] = dict(
-        address_line1="1, Main Rd",
-        city="Mumbai",
-        state="Maharashtra",
-        pincode="400001",
-        country="India",
-    )
+    base: dict[str, object] = {
+        "address_line1": "1, Main Rd",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400001",
+        "country": "India",
+    }
     base.update(kwargs)
     return AddressPayload(**base)
 

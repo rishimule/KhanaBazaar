@@ -6,7 +6,7 @@ cache reduce upstream cost.
 from __future__ import annotations
 
 import json
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import text
@@ -32,7 +32,6 @@ from app.schemas.geo import (
     ServiceabilityResponse,
 )
 
-
 router = APIRouter()
 
 
@@ -50,18 +49,18 @@ async def _geo_rate_limit(request: Request) -> None:
         raise HTTPException(status_code=429, detail="rate limit exceeded")
 
 
-async def _cache_get(cache_key: str) -> Optional[dict]:
+async def _cache_get(cache_key: str) -> Optional[dict[str, Any]]:
     redis = await get_redis()
     raw = await redis.get(cache_key)
     return json.loads(raw) if raw else None
 
 
-async def _cache_set(cache_key: str, value: dict, ttl: int) -> None:
+async def _cache_set(cache_key: str, value: dict[str, Any], ttl: int) -> None:
     redis = await get_redis()
     await redis.setex(cache_key, ttl, json.dumps(value))
 
 
-def _to_geo_place(p) -> GeoPlace:
+def _to_geo_place(p: Any) -> GeoPlace:
     return GeoPlace(
         place_id=p.place_id,
         formatted_address=p.formatted_address,
@@ -177,7 +176,7 @@ async def serviceability_endpoint(
             "    )"
             ") AS ok"
         )
-        result = await session.exec(
+        result = await session.exec(  # type: ignore[call-overload]
             sql.bindparams(lat=body.lat, lng=body.lng, store_id=body.store_id)
         )
         ok = bool(result.scalar_one())
@@ -193,6 +192,8 @@ async def serviceability_endpoint(
         "    s.delivery_radius_km * 1000"
         "  )"
     )
-    result = await session.exec(sql.bindparams(lat=body.lat, lng=body.lng))
+    result = await session.exec(  # type: ignore[call-overload]
+        sql.bindparams(lat=body.lat, lng=body.lng)
+    )
     count = int(result.scalar_one())
     return ServiceabilityResponse(serviceable=count > 0, store_count=count)

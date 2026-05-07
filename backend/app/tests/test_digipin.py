@@ -10,7 +10,6 @@ import pytest
 
 from app.utils.digipin import decode, encode
 
-
 _INDIA_LANDMARKS: list[tuple[str, float, float]] = [
     ("India Gate, New Delhi", 28.6129, 77.2295),
     ("Gateway of India, Mumbai", 18.9220, 72.8347),

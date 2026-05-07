@@ -4,13 +4,16 @@ NOT be touched."""
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import worker as worker_module
 from app.models.address import Address
 from app.models.base import User, UserRole
 from app.models.profile import (
-    CustomerAddress, CustomerProfile, SellerProfile, VerificationStatus,
+    CustomerAddress,
+    CustomerProfile,
+    SellerProfile,
+    VerificationStatus,
 )
 from app.models.store import Store
-from app import worker as worker_module
 
 
 @pytest.mark.asyncio
@@ -95,6 +98,9 @@ async def test_backfill_only_touches_store_and_business_addresses(
     cust_after = await session.get(Address, cust_addr_id)
     biz_after = await session.get(Address, biz_addr_id)
     store_after = await session.get(Address, store_addr_id)
+    assert cust_after is not None
+    assert biz_after is not None
+    assert store_after is not None
     assert cust_after.latitude is None  # customer-only NOT touched
     assert cust_after.digipin is None
     assert biz_after.latitude == 18.9220
@@ -144,4 +150,5 @@ async def test_backfill_low_confidence_result_skipped(
     assert result["skipped"] == 1
 
     after = await session.get(Address, biz_addr_id)
+    assert after is not None
     assert after.latitude is None

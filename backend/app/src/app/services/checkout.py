@@ -79,7 +79,7 @@ async def _assert_serviceable(
         "    AND ST_DWithin(sa.geo, ca.geo, s.delivery_radius_km * 1000)"
         ") AS ok"
     )
-    result = await session.exec(
+    result = await session.exec(  # type: ignore[call-overload]
         sql.bindparams(store_id=store_id, address_id=address_id)
     )
     ok = bool(result.scalar_one())

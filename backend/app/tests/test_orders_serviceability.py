@@ -14,8 +14,11 @@ from app.models.base import User, UserRole
 from app.models.catalog import Service
 from app.models.commerce import Cart, CartItem
 from app.models.profile import (
-    CustomerAddress, CustomerProfile,
-    SellerProfile, SellerProfileService, VerificationStatus,
+    CustomerAddress,
+    CustomerProfile,
+    SellerProfile,
+    SellerProfileService,
+    VerificationStatus,
 )
 from app.models.store import Store, StoreInventory
 
@@ -25,7 +28,7 @@ async def _seed(
     customer_lat: float, customer_lng: float,
     store_lat: float, store_lng: float,
     radius_km: float,
-) -> dict[str, int]:
+) -> dict[str, Any]:
     customer_user = User(
         id=701, email="cust@kb.com", role=UserRole.Customer, is_active=True,
     )

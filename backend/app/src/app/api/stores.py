@@ -133,12 +133,16 @@ async def list_stores(
     }
     if radius_km is not None:
         bind_params["user_cap"] = radius_km
-    rows = (await session.exec(sql.bindparams(**bind_params))).all()
+    rows = (
+        await session.exec(sql.bindparams(**bind_params))  # type: ignore[call-overload]
+    ).all()
     distance_by_id: dict[int, float] = {int(r[0]): float(r[1]) for r in rows}
     if not distance_by_id:
         return []
     stmt = (
-        _store_with_relations_stmt().where(Store.id.in_(list(distance_by_id.keys())))
+        _store_with_relations_stmt().where(
+            Store.id.in_(list(distance_by_id.keys()))  # type: ignore[union-attr]
+        )
     )
     stores_unsorted = (await session.exec(stmt)).all()
     by_id = {s.id: s for s in stores_unsorted}

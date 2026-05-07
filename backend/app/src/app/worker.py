@@ -319,7 +319,7 @@ async def _run_backfill() -> dict[str, int]:
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
     try:
         async with AsyncSession(engine) as session:
-            rows = (await session.exec(sql_select)).all()
+            rows = (await session.exec(sql_select)).all()  # type: ignore[call-overload]
             for row in rows:
                 query = (
                     f"{row.address_line1}, {row.city}, {row.state} {row.pincode}, India"
@@ -333,7 +333,7 @@ async def _run_backfill() -> dict[str, int]:
                     digipin = digipin_encode(lat, lng)
                 except ValueError:
                     digipin = None
-                await session.exec(
+                await session.exec(  # type: ignore[call-overload]
                     sql_update.bindparams(id=row.id, lat=lat, lng=lng, digipin=digipin)
                 )
                 filled += 1
