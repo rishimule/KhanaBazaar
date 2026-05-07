@@ -88,15 +88,18 @@ UI lives at `frontend/src/app/checkout/[storeId]/page.tsx`. Customer picks a `Cu
 | 1 | Resolve `CustomerProfile` from JWT | 404 customer profile not found |
 | 2 | Resolve + authorize address (must belong to caller) | 404/403 `invalid_address` |
 | 3 | Load `Cart` + `CartItem`s for store | 404 `cart_not_found`, 400 `cart_empty` |
-| 4 | `SELECT … FOR UPDATE` on every `StoreInventory` row in cart | row-locked till commit |
-| 5 | Validate availability + stock per inventory | 409 `item_unavailable`, 409 `insufficient_stock` |
-| 6 | Validate store still active | 409 `store_unavailable` |
-| 7 | Snapshot product names (English MVP, falls back to slug) | — |
-| 8 | Build `Order`, `OrderItem`s, `Payment` (status=Pending), `Delivery` (status=Pending) | — |
-| 9 | Decrement `StoreInventory.stock` on locked rows | — |
-| 10 | Delete `CartItem`s, then `Cart` | FK ordered |
-| 11 | `session.commit()` — atomic | rollback releases inventory lock |
-| 12 | `dispatch_order_placed([order_id])` → Celery | broker outage swallowed + logged |
+| 4 | **PostGIS serviceability assertion**: `ST_DWithin(store.geo, address.geo, store.delivery_radius_km*1000)` | **422 `Address outside store delivery area`** |
+| 5 | `SELECT … FOR UPDATE` on every `StoreInventory` row in cart | row-locked till commit |
+| 6 | Validate availability + stock per inventory | 409 `item_unavailable`, 409 `insufficient_stock` |
+| 7 | Validate store still active | 409 `store_unavailable` |
+| 8 | Snapshot product names (English MVP, falls back to slug) | — |
+| 9 | Build `Order`, `OrderItem`s, `Payment` (status=Pending), `Delivery` (status=Pending) | — |
+| 10 | Decrement `StoreInventory.stock` on locked rows | — |
+| 11 | Delete `CartItem`s, then `Cart` | FK ordered |
+| 12 | `session.commit()` — atomic | rollback releases inventory lock |
+| 13 | `dispatch_order_placed([order_id])` → Celery | broker outage swallowed + logged |
+
+The serviceability assertion is **defense in depth** against direct API bypass — the frontend `<AddressPicker>` already disables out-of-radius rows by calling `POST /api/v1/geo/serviceability` per saved address, but the backend re-checks at order time so a customer cannot POST around the picker. Stores or addresses missing `geo` (null lat/lng) are treated as not-serviceable so couriers never end up with un-pinpointed deliveries.
 
 Pricing is hardcoded at MVP: `MVP_DELIVERY_FEE = 0`, `MVP_TAX = 0`. `subtotal = sum(unit_price × qty)`, `total = subtotal + fee + tax`. Edit constants in `services/checkout.py` when fees plug in.
 
@@ -218,10 +221,16 @@ Customer-facing reads:
 | `kb_session_id` (localStorage) | guest UUID | until browser data cleared |
 | `kb_carts` (localStorage) | guest cart map | until login (cleared post-sync) or browser data cleared |
 | `kb_token` (localStorage) | JWT | 24h or until logout |
+| `kb_delivery_location` (localStorage) | guest + ad-hoc {lat,lng,label} | until logout or explicit clear |
 | `otp:*` (Redis) | OTP hash, cooldown, hourly counter | 60s / 600s / 1h |
+| `geo:auto:*` (Redis) | autocomplete cache by session_token | 60s |
+| `geo:rev:*` (Redis) | reverse-geocode cache by rounded lat/lng | 24h |
+| `rl:geo:*` (Redis) | per-IP rate-limit bucket for /geo/* | 60s |
 | `cart`, `cartitem` (Postgres) | authenticated cart | until checkout or explicit clear |
 | `order`, `orderitem`, `payment`, `delivery` (Postgres) | placed orders | permanent |
-| Celery task queue (Redis broker) | order email jobs | until worker drains |
+| `address.geo` (Postgres GENERATED column) | `geography(Point, 4326)` derived from lat/lng | auto-recomputed on insert/update |
+| `address.digipin` (Postgres) | India Post 10-char grid code | recomputed by `address_from_payload` on lat/lng change |
+| Celery task queue (Redis broker) | order email jobs, geo backfill | until worker drains |
 
 
 ## 9. Seller bulk inventory edit
@@ -240,3 +249,93 @@ Customer-facing reads:
 9. On success: returns the upserted `StoreInventory` rows. Frontend clears dirty/error state and rebases the sheet to the saved values.
 
 The single-row `POST /api/v1/stores/{id}/inventory` endpoint shares the same service-membership validator, so a seller who is approved only for Grocery cannot stock a Pharmacy product through either path. Pre-existing inventory rows that violate the new constraint are grandfathered (not deleted); operators can run `python -m app.db.scripts.audit_inventory_service_membership` to log them.
+
+## 10. Geo: Delivery location, address pin, distance browse
+
+Three intertwined flows. State lives in:
+
+- `localStorage["kb_delivery_location"]` — guest + ad-hoc delivery location (cleared on logout, cross-tab synchronized via `storage` event)
+- `Address.{latitude, longitude, geo, digipin, place_id, location_source}` — per address row
+- `Store.{delivery_radius_km, pin_confirmed}` — per store
+
+### 10.1 Customer adds / edits address
+
+```
+Browser                                    Backend
+   |                                          |
+   | type into <AddressAutocomplete>          |
+   | GET /api/v1/geo/autocomplete?q=&token=   |--- Redis cache lookup (60s)
+   |                                          |--- proxy → Google Places Autocomplete
+   |<------- predictions -------------------- |    (server key, not exposed)
+   |                                          |
+   | pick suggestion                          |
+   | GET /api/v1/geo/place/{id}?token=        |--- proxy → Google Place Details
+   |<------- {lat, lng, components, place_id} |
+   |  (autocomplete session token regenerated |
+   |   so Google bills as one session)        |
+   |                                          |
+   | (optional) drag <MapPicker> pin          |
+   | GET /api/v1/geo/reverse?lat=&lng=        |--- Redis cache lookup (24h, lat/lng rounded to 4dp)
+   |                                          |--- proxy → Google Geocoding (reverse)
+   |<------- {formatted_address, components}--|
+   |                                          |
+   | POST /customers/me/addresses             |--- address_from_payload(body.address)
+   |                                          |    derives DIGIPIN from lat/lng
+   |                                          |    Postgres generates `geo` column
+   |<------- 200 ---------------------------- |
+```
+
+`location_source` field tracks how lat/lng were acquired (`autocomplete`, `pin`, `geocoded`, `manual`). Used downstream by seller-approval logic to decide whether to inherit `pin_confirmed=true` on the auto-created Store.
+
+### 10.2 Guest sets delivery location
+
+Same UI as 10.1 but no DB write. `<DeliveryLocationPicker>` (modal) opens from the navbar "Deliver to" chip, lets the guest autocomplete or pin a location. On confirm: `{lat, lng, label}` saved to `localStorage["kb_delivery_location"]`. The store-list page reads it via `useDeliveryLocation()` and re-fetches.
+
+### 10.3 Distance-sorted store list
+
+```
+Browser                                    Backend
+   |                                          |
+   | <DeliveryLocationContext> has {lat, lng} |
+   | GET /stores/?lat=&lng=&sort=distance     |
+   |                                          |--- WHERE store.geo IS NOT NULL
+   |                                          |    AND ST_DWithin(store.geo, point,
+   |                                          |        store.delivery_radius_km * 1000)
+   |                                          |--- ORDER BY ST_Distance ASC
+   |<-- [{...store, distance_km}, ...] ------ |
+```
+
+Stores without a `geo` (null lat/lng) are excluded — they cannot be courier-located. When zero results, frontend shows "No stores deliver here yet". Optional `&radius_km=` query param shrinks the per-store radius further (cap = `LEAST(store.delivery_radius_km, user_cap)`).
+
+### 10.4 Checkout serviceability gate
+
+```
+<AddressPicker> (per saved address)        Backend
+   POST /geo/serviceability {lat, lng, store_id}
+                                          |--- ST_DWithin(store.geo, point, radius)
+                                          |
+   <select><option disabled> ←-- {serviceable: false}
+```
+
+The address dropdown disables un-serviceable rows in the UI. On submit, `POST /orders` re-asserts the same `ST_DWithin` (defense in depth, see §4 step 4).
+
+### 10.5 Seller signup pin step
+
+Wizard step 6 now requires a map pin in addition to the typed address. `<AddressFields requirePin>` renders the `<MapPicker>` always-open; user drags the pin (or hits "Use my location"); reverse-geocode fills city/state/pincode + sets `location_source='pin'`. The Next button checks `address.latitude == null` and blocks until both are set.
+
+### 10.6 Seller pin confirmation + radius adjust
+
+After approval, the seller dashboard:
+
+- Shows a "Confirm your store pin" banner until `Store.pin_confirmed=true`. New sellers who pinned during signup inherit `pin_confirmed=true` automatically (admin approval logic).
+- Renders a slider (0.5 km – 50 km) bound to `Store.delivery_radius_km`. Drag-end PATCHes `/api/v1/stores/{id}` `{ delivery_radius_km }`.
+
+### 10.7 Backfill (one-shot)
+
+Legacy stores created before the geo work have `Store.address.latitude IS NULL`. Run the Celery task:
+
+```
+celery -A app.core.celery_app call geo.backfill_store_addresses
+```
+
+Forward-geocodes via Google for `Address` rows reachable through `Store.address_id` or `SellerProfile.business_address_id`, gated by `partial_match=false`. Customer addresses are NOT touched (they re-fill lazily on next user-driven save). Idempotent.

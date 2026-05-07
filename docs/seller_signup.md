@@ -100,7 +100,7 @@ Error codes in `detail.error`: `rate_limited`, `invalid_code`, `too_many_attempt
 | 3 | Verify your phone number | `phone` (10-digit local part with locked `+91` prefix) | matches `^[6-9]\d{9}$` | `POST /auth/seller/phone/otp/request`, advance to step 4 |
 | 4 | Enter the 6-digit code (SMS) | `phoneCode` | 6 digits | `POST /auth/seller/phone/otp/verify`, store `signup_token`, advance |
 | 5 | Tell us about yourself | `full_name` | name non-empty | local validation, advance |
-| 6 | Tell us about your business | `business_name`, `service_ids[]` (via `ServicePicker`), `address` (line1/2, landmark, city, state, pincode, country) | non-empty business name; ≥1 service; line1, city, state required; pincode `^[1-9]\d{5}$` | local validation, advance |
+| 6 | Tell us about your business | `business_name`, `service_ids[]` (via `ServicePicker`), `address` (line1/2, landmark, city, state, pincode, country, **lat/lng via map pin**) | non-empty business name; ≥1 service; line1, city, state required; pincode `^[1-9]\d{5}$`; **lat/lng required (pin must be dropped on the map)** | local validation, advance |
 | 7 | Compliance & banking details | `gst_number`, `fssai_license`, `bank_account_number`, `bank_ifsc` — **all optional** | format checks if non-empty: GST regex, IFSC regex, account 9–18 digits | local validation, advance |
 | 8 | Review your application | summary cards with "Edit" links per section | n/a | `POST /auth/seller/register` with `signup_token` (or `PATCH /sellers/me/profile` on resubmit) |
 
@@ -232,8 +232,9 @@ The approve handler is **idempotent and atomic**. From `api/sellers.py:158-206`:
 
 1. Guard: at least one row must exist in `SellerProfileService` (else 400 "Set services before approving").
 2. `verification_status = Approved`, `rejection_reason = None`.
-3. Look up the existing `Store` by `seller_profile_id`. If none, copy the seller's `business_address` into a brand-new `Address` row (the `Store.address` is captured at first approval; later edits to the business address do **not** propagate — sellers update store address through a separate store-settings flow), then insert the `Store(name=business_name, is_active=True, ...)`.
-4. On `IntegrityError` (race between two admins approving), rollback and re-fetch — operation still reports success.
+3. Look up the existing `Store` by `seller_profile_id`. If none, copy the seller's `business_address` into a brand-new `Address` row (the `Store.address` is captured at first approval; later edits to the business address do **not** propagate — sellers update store address through a separate store-settings flow). The copy includes the geo fields: `latitude`, `longitude`, `digipin`, `place_id`, `location_source`. The PostGIS-generated `geo` column populates automatically.
+4. The new `Store` inherits **`pin_confirmed=true`** when the seller actually pinned during signup (`location_source ∈ {pin, autocomplete}` AND lat/lng non-null). Otherwise it's `false` and the seller sees a "Confirm your store pin" banner on the dashboard until they re-pin via the store-settings flow. `delivery_radius_km` defaults to 5 km.
+5. On `IntegrityError` (race between two admins approving), rollback and re-fetch — operation still reports success.
 
 ### Reject
 
@@ -295,13 +296,15 @@ class VerificationStatus(str, enum.Enum):
 
 Composite uniqueness `(seller_profile_id, service_id)`. No payload columns. Replaced atomically by `replace_profile_services` (`services/seller_services.py:37-59`).
 
-### `Store` (`models/store.py:9-17`)
+### `Store` (`models/store.py`)
 
 ```
-name, is_active, seller_profile_id (UNIQUE), address_id
+name, is_active, seller_profile_id (UNIQUE), address_id,
+delivery_radius_km (default 5.0, range 0.5–50.0),
+pin_confirmed (default false; set true when biz_addr was pinned at signup)
 ```
 
-`uq_store_seller_profile` enforces **1 seller ⇄ ≤1 store**. Created at approval, never deleted by the seller-onboarding flow.
+`uq_store_seller_profile` enforces **1 seller ⇄ ≤1 store**. Created at approval, never deleted by the seller-onboarding flow. Seller dashboard exposes a slider that PATCHes `delivery_radius_km` and a banner that nags until `pin_confirmed=true`.
 
 ### `StoreInventory` (`models/store.py:20-29`)
 

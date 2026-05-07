@@ -15,7 +15,7 @@ pieces fit together. Setup commands live in [CLAUDE.md](../CLAUDE.md) and
 |------------------|-------------------------------------------------------|-----|
 | API              | FastAPI 0.135+ (Python 3.12), Uvicorn ASGI            | Async-native, OpenAPI-first, fast dev loop |
 | ORM / Migrations | SQLModel 0.0.37 + Alembic, asyncpg driver             | Pydantic + SQLAlchemy in one type; first-class async |
-| Database         | PostgreSQL 15                                         | Relational integrity for inventory + orders; matches Azure Database for PostgreSQL Flexible Server target |
+| Database         | PostgreSQL 15 + PostGIS 3.4                           | Relational integrity for inventory + orders; PostGIS powers distance sort + per-store delivery radius (`ST_DWithin` / `ST_Distance` on a `geography(Point, 4326)` GENERATED column with GiST index); matches Azure Database for PostgreSQL Flexible Server target |
 | Cache / Broker   | Redis 7 (+ Celery 5.6)                                | OTP rate limits, Celery broker, future caching |
 | Auth             | Self-hosted email-OTP + JWT (PyJWT HS256)             | No vendor lock-in, no passwords, low onboarding friction in India |
 | Email            | `EMAIL_PROVIDER=console` (dev) / `resend` (prod)      | Direct httpx POST to Resend REST API; no SDK dependency |
@@ -109,6 +109,13 @@ Key invariants:
   `language_code`. `User.preferred_language` drives default translation.
 - **All tables inherit `BaseSchema`** — `id`, `created_at`, `updated_at`
   with timezone-aware UTC timestamps.
+- **Geo on every `Address`** — `latitude`, `longitude` columns plus a Postgres
+  GENERATED `geo geography(Point, 4326)` column with a GiST index, computed
+  automatically from lat/lng. `digipin` (India Post 10-char code) is derived
+  in Python by `address_from_payload`. `Store` carries `delivery_radius_km`
+  + `pin_confirmed`. Distance filter via `ST_DWithin`, sort via `ST_Distance`.
+- **Google Maps proxied** — `/api/v1/geo/{autocomplete,place,reverse,serviceability}`
+  hides the server API key, caches in Redis, rate-limits per IP.
 
 ## Background Jobs
 
@@ -164,6 +171,19 @@ image must be rebuilt for any URL change.
   pin, trivial JSON POST.
 - **Postgres for everything.** No separate search engine yet; full-text
   needs are met by `ILIKE` and indexes. Reassess at scale.
+- **PostGIS over a custom haversine.** GIS-native indexes scale to 10k+
+  stores without a full scan, and the `geography` type future-proofs the
+  schema for polygon delivery zones. The `geo` column is a STORED GENERATED
+  column, so it never drifts from `latitude`/`longitude` even when an
+  Alembic data migration writes raw SQL.
+- **DIGIPIN derived in Python, not the DB.** India Post's algorithm is
+  trivial to implement and keeps the encoder testable + portable. Storing
+  it lets future couriers index addresses by the 10-char grid code without
+  a re-derivation pass.
+- **Google Maps proxied through the backend.** Hides the server API key
+  (the browser key is referrer-restricted but only powers the map render),
+  enables Redis caching to cap upstream cost, and lets us swap providers
+  later (MapmyIndia, OSM) without touching the frontend.
 - **Azure, all PaaS.** Container Apps + managed Postgres + managed Redis,
   provisioned by Bicep and deployed by `azd`. No VMs, no AKS, no
   hand-managed certs — Front Door does TLS + WAF, managed identities
