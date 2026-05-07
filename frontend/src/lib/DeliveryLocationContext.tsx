@@ -30,6 +30,7 @@ export function DeliveryLocationProvider(
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from localStorage on mount
       if (raw) setLocationState(JSON.parse(raw));
     } catch {
       // localStorage unavailable / corrupted JSON — ignore.

@@ -36,6 +36,7 @@ export function AddressAutocomplete({
 
   useEffect(() => {
     if (query.length < 3) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset suggestions when input shrinks below threshold
       setPredictions([]);
       setOpen(false);
       return;

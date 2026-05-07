@@ -16,6 +16,7 @@ export default function StoresPage() {
   const { location } = useDeliveryLocation();
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- show spinner while refetching after location change
     setFetching(true);
     const url = location
       ? `/api/v1/stores/?lat=${location.lat}&lng=${location.lng}&sort=distance`
