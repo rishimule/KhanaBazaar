@@ -34,6 +34,23 @@ export function DeliveryLocationProvider(
     } catch {
       // localStorage unavailable / corrupted JSON — ignore.
     }
+    // Sync state when another tab — or our own AuthContext.logout — wipes
+    // the key. Without this listener, state lingers in this tab and the
+    // store list keeps showing the previous user's location.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEY) return;
+      if (!e.newValue) {
+        setLocationState(null);
+        return;
+      }
+      try {
+        setLocationState(JSON.parse(e.newValue));
+      } catch {
+        setLocationState(null);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const setLocation = useCallback((loc: DeliveryLocation | null) => {

@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.locale import get_request_locale
 from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
-from app.models.address import Address
+from app.models.address import Address, LocationSource
 from app.models.base import User
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.store import Store
@@ -246,14 +246,29 @@ async def admin_verify_seller(
                 country=biz_addr.country,
                 latitude=biz_addr.latitude,
                 longitude=biz_addr.longitude,
+                digipin=biz_addr.digipin,
+                place_id=biz_addr.place_id,
+                location_source=biz_addr.location_source,
             )
             session.add(store_addr)
             await session.flush()
+            # If the seller pinned their location during signup (lat/lng set
+            # AND source is 'pin' or 'autocomplete'), the auto-created Store
+            # inherits a confirmed pin. Otherwise the seller has to confirm
+            # via the dashboard banner.
+            inherits_pin = (
+                biz_addr.latitude is not None
+                and biz_addr.longitude is not None
+                and biz_addr.location_source in (
+                    LocationSource.pin, LocationSource.autocomplete,
+                )
+            )
             session.add(Store(
                 name=profile.business_name,
                 is_active=True,
                 seller_profile_id=profile.id,
                 address_id=store_addr.id,
+                pin_confirmed=inherits_pin,
             ))
     elif body.action == "reject":
         if not body.rejection_reason or not body.rejection_reason.strip():
