@@ -64,6 +64,14 @@ export async function reverseGeocode(
   return get(`/api/v1/geo/reverse?lat=${lat}&lng=${lng}`);
 }
 
+/** Forward-geocode a full address string into lat/lng + components. Used by
+ *  the customer "Verify address" flow: customer types address manually, we
+ *  resolve it to a map pin they can fine-tune. 404 means Google could not
+ *  locate the address — surface that to the user. */
+export async function forwardGeocode(address: string): Promise<GeoPlace> {
+  return get(`/api/v1/geo/geocode?address=${encodeURIComponent(address)}`);
+}
+
 export async function checkServiceability(
   lat: number, lng: number, storeId?: number,
 ): Promise<ServiceabilityResult> {

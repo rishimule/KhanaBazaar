@@ -88,17 +88,36 @@ select.input {
   margin-bottom: calc(-1 * var(--space-1));
 }
 
-.toggle {
+.verifyBtn {
   align-self: flex-start;
-  padding: var(--space-2) var(--space-3);
-  background: transparent;
-  border: 1px dashed var(--color-neutral-300);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-primary-500);
+  color: var(--color-neutral-0);
+  border: none;
   border-radius: var(--radius-md);
-  color: var(--color-primary-500, var(--color-primary));
   cursor: pointer;
   font: inherit;
+  font-weight: var(--weight-semibold);
+  transition: background var(--duration-fast) var(--ease-default);
 }
 
-.toggle:hover {
-  background: var(--color-neutral-100);
+.verifyBtn:hover:not(:disabled) {
+  background: var(--color-primary-600);
+}
+
+.verifyBtn:disabled {
+  background: var(--color-neutral-300);
+  color: var(--color-neutral-500);
+  cursor: not-allowed;
+}
+
+.verifyHint {
+  font-size: var(--font-sm);
+  color: var(--color-neutral-600);
+  margin: 0;
+}
+
+.required {
+  color: var(--color-error);
+  font-weight: var(--weight-medium);
 }

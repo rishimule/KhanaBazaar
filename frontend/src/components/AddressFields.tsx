@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Address } from "@/types";
 import { getIndianStates } from "@/lib/indian-states";
-import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { MapPicker } from "@/components/MapPicker";
-import type { GeoPlace } from "@/lib/geo";
+import { forwardGeocode, type GeoPlace } from "@/lib/geo";
+import { ApiError } from "@/lib/api";
 import styles from "./AddressFields.module.css";
 
 export interface AddressFieldsErrors {
@@ -26,8 +26,8 @@ export interface AddressFieldsProps {
   onChange: (next: Address) => void;
   errors?: AddressFieldsErrors;
   disabled?: boolean;
-  /** When true, renders MapPicker open by default and the parent is expected
-   *  to block submission until lat/lng are set. */
+  /** When true, the parent expects lat/lng to be set before submitting. The
+   *  map renders only after a successful "Verify address" geocode. */
   requirePin?: boolean;
 }
 
@@ -48,29 +48,36 @@ export function emptyAddress(): Address {
   };
 }
 
-function applyPlace(
-  place: GeoPlace, current: Address, source: "autocomplete" | "pin",
+/** Apply ONLY geo fields from a Place to the address — never the typed text.
+ *  The customer enters their address; we use the map to refine where on the
+ *  map that address sits. The text fields are authoritative. */
+function applyGeoOnly(
+  place: GeoPlace,
+  current: Address,
+  source: "geocoded" | "pin",
 ): Address {
-  const get = (type: string): string | null => {
-    const c = place.components.find((c) => c.types.includes(type));
-    return c ? c.long_name : null;
-  };
-  const line1FromFormatted = place.formatted_address.split(",")[0]?.trim();
   return {
     ...current,
-    address_line1: line1FromFormatted || current.address_line1,
-    city:
-      get("locality") ||
-      get("administrative_area_level_2") ||
-      current.city,
-    state: get("administrative_area_level_1") || current.state,
-    pincode: get("postal_code") || current.pincode,
-    country: get("country") || current.country,
     latitude: place.latitude,
     longitude: place.longitude,
     place_id: place.place_id,
     location_source: source,
   };
+}
+
+function buildAddressString(a: Address): string {
+  return [
+    a.address_line1,
+    a.address_line2,
+    a.landmark,
+    a.city,
+    a.state,
+    a.pincode,
+    a.country,
+  ]
+    .map((p) => (p ?? "").trim())
+    .filter(Boolean)
+    .join(", ");
 }
 
 export function AddressFields({
@@ -79,10 +86,11 @@ export function AddressFields({
   const t = useTranslations("Address");
   const [states, setStates] = useState<string[]>([]);
   const [statesError, setStatesError] = useState<string | null>(null);
-  const [showMap, setShowMap] = useState<boolean>(requirePin);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
-  /** Set when an autocomplete pick fires so MapPicker pans to the new
-   *  location. Cleared on map drag so the user isn't snapped back. */
+  const showMap = value.latitude != null && value.longitude != null;
+  /** Set after a successful verify so the map pans to the new geocode. */
   const [mapTarget, setMapTarget] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
@@ -97,19 +105,36 @@ export function AddressFields({
   const errClass = (k: keyof AddressFieldsErrors) =>
     errors?.[k] ? `${styles.input} ${styles.inputError}` : styles.input;
 
+  const canVerify =
+    value.address_line1.trim().length > 0 &&
+    value.city.trim().length > 0 &&
+    value.state.length > 0 &&
+    /^[1-9]\d{5}$/.test(value.pincode);
+
+  const verifyAddress = async () => {
+    setVerifyError(null);
+    setMapError(null);
+    if (!canVerify) {
+      setVerifyError(t("verifyMissingFields"));
+      return;
+    }
+    setVerifying(true);
+    try {
+      const place = await forwardGeocode(buildAddressString(value));
+      onChange(applyGeoOnly(place, value, "geocoded"));
+      setMapTarget({ lat: place.latitude, lng: place.longitude });
+    } catch (err) {
+      const status = (err as ApiError)?.status;
+      setVerifyError(
+        status === 404 ? t("verifyNotFound") : t("verifyFailed"),
+      );
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return (
     <div className={styles.grid}>
-      <div className={`${styles.field} ${styles.span2}`}>
-        <AddressAutocomplete
-          initialValue={value.address_line1}
-          onPlace={(p) => {
-            onChange(applyPlace(p, value, "autocomplete"));
-            setMapTarget({ lat: p.latitude, lng: p.longitude });
-          }}
-          disabled={disabled}
-        />
-      </div>
-
       <div className={`${styles.field} ${styles.span2}`}>
         <label className={styles.label} htmlFor="addr-line1">{t("line1Label")}</label>
         <input
@@ -218,27 +243,38 @@ export function AddressFields({
       </div>
 
       <div className={`${styles.field} ${styles.span2}`}>
-        {!showMap && !requirePin && (
-          <button
-            type="button"
-            className={styles.toggle}
-            onClick={() => setShowMap(true)}
-          >
-            Pin location for accurate delivery
-          </button>
-        )}
-        {showMap && (
+        <button
+          type="button"
+          className={styles.verifyBtn}
+          onClick={verifyAddress}
+          disabled={disabled || verifying || !canVerify}
+        >
+          {verifying
+            ? t("verifying")
+            : showMap ? t("verifyAgain") : t("verifyAddress")}
+        </button>
+        <p className={styles.verifyHint}>
+          {showMap ? t("verifyAdjustHint") : t("verifyHint")}
+          {requirePin && !showMap && (
+            <> <span className={styles.required}>{t("verifyRequired")}</span></>
+          )}
+        </p>
+        {verifyError && <span className={styles.error}>{verifyError}</span>}
+      </div>
+
+      {showMap && (
+        <div className={`${styles.field} ${styles.span2}`}>
           <MapPicker
             initialLat={value.latitude ?? undefined}
             initialLng={value.longitude ?? undefined}
             target={mapTarget}
             requirePin={requirePin}
-            onPlace={(p) => onChange(applyPlace(p, value, "pin"))}
+            onPlace={(p) => onChange(applyGeoOnly(p, value, "pin"))}
             onError={setMapError}
           />
-        )}
-        {mapError && <span className={styles.error}>{mapError}</span>}
-      </div>
+          {mapError && <span className={styles.error}>{mapError}</span>}
+        </div>
+      )}
     </div>
   );
 }
