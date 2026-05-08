@@ -50,6 +50,10 @@ scripts/                 dev.sh, reset_local_state.sh
 - Python 3.12 + [`uv`](https://docs.astral.sh/uv/)
 - Node.js 20+ + npm
 
+## For non-engineer teammates
+
+If you are not a developer and have never installed Docker / Node / Python before, follow [the teammate onboarding guide](docs/teammate-guide/README.md) instead. It walks Windows users through every install step from scratch and ends with a working demo.
+
 ## Local Setup
 
 ### 1. Copy env files
