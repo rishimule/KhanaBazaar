@@ -81,6 +81,9 @@ export function AddressFields({
   const [statesError, setStatesError] = useState<string | null>(null);
   const [showMap, setShowMap] = useState<boolean>(requirePin);
   const [mapError, setMapError] = useState<string | null>(null);
+  /** Set when an autocomplete pick fires so MapPicker pans to the new
+   *  location. Cleared on map drag so the user isn't snapped back. */
+  const [mapTarget, setMapTarget] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     getIndianStates()
@@ -99,7 +102,10 @@ export function AddressFields({
       <div className={`${styles.field} ${styles.span2}`}>
         <AddressAutocomplete
           initialValue={value.address_line1}
-          onPlace={(p) => onChange(applyPlace(p, value, "autocomplete"))}
+          onPlace={(p) => {
+            onChange(applyPlace(p, value, "autocomplete"));
+            setMapTarget({ lat: p.latitude, lng: p.longitude });
+          }}
           disabled={disabled}
         />
       </div>
@@ -225,6 +231,7 @@ export function AddressFields({
           <MapPicker
             initialLat={value.latitude ?? undefined}
             initialLng={value.longitude ?? undefined}
+            target={mapTarget}
             requirePin={requirePin}
             onPlace={(p) => onChange(applyPlace(p, value, "pin"))}
             onError={setMapError}

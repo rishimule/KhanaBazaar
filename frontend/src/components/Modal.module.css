@@ -16,9 +16,13 @@
   box-shadow: var(--shadow-2xl);
   width: 100%;
   max-width: 500px;
-  max-height: 85vh;
+  max-height: 90vh;
   overflow-y: auto;
   animation: modalIn 250ms var(--ease-out);
+}
+
+.modalWide {
+  max-width: 720px;
 }
 
 @keyframes modalIn {

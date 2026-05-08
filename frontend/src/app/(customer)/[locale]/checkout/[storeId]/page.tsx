@@ -7,10 +7,12 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
 import { apiErrorKey } from "@/lib/errors";
+import { get } from "@/lib/api";
 import { placeOrder } from "@/lib/orders";
 import AddressPicker from "@/components/orders/AddressPicker";
+import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import PaymentMethodPicker from "@/components/orders/PaymentMethodPicker";
-import type { PaymentMethod } from "@/types";
+import type { PaymentMethod, Store } from "@/types";
 import styles from "./page.module.css";
 
 export default function CheckoutPage() {
@@ -23,9 +25,20 @@ export default function CheckoutPage() {
   const { carts, loading: cartLoading, refresh, getTotal } = useCart();
 
   const [addressId, setAddressId] = useState<number | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState<{
+    id: number; latitude: number | null; longitude: number | null; serviceable: boolean;
+  } | null>(null);
+  const [storeDetails, setStoreDetails] = useState<Store | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!storeId || Number.isNaN(storeId)) return;
+    get<Store>(`/api/v1/stores/${storeId}`)
+      .then(setStoreDetails)
+      .catch(() => setStoreDetails(null));
+  }, [storeId]);
 
   useEffect(() => {
     refresh();
@@ -145,7 +158,32 @@ export default function CheckoutPage() {
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>{t("deliveryAddress")}</h2>
-          <AddressPicker value={addressId} onChange={setAddressId} storeId={storeId} />
+          <AddressPicker
+            value={addressId}
+            onChange={setAddressId}
+            storeId={storeId}
+            onSelectedAddress={setSelectedAddress}
+          />
+          {selectedAddress?.serviceable
+            && selectedAddress.latitude != null
+            && selectedAddress.longitude != null
+            && storeDetails?.address.latitude != null
+            && storeDetails?.address.longitude != null && (
+            <div className={styles.routeMap}>
+              <DeliveryRouteMap
+                store={{
+                  lat: storeDetails.address.latitude,
+                  lng: storeDetails.address.longitude,
+                  label: storeDetails.name,
+                }}
+                customer={{
+                  lat: selectedAddress.latitude,
+                  lng: selectedAddress.longitude,
+                  label: "Your address",
+                }}
+              />
+            </div>
+          )}
         </section>
 
         <section className={styles.section}>

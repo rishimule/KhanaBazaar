@@ -35,9 +35,20 @@ interface Props {
   /** When set, each saved address is checked against this store's delivery
    *  radius via /api/v1/geo/serviceability and disabled if outside. */
   storeId?: number;
+  /** Optional callback that fires whenever the picked address resolves to
+   *  a row with concrete data (id, lat/lng, serviceability). Lets the
+   *  parent render a route map / serviceability hint. */
+  onSelectedAddress?: (addr: {
+    id: number;
+    latitude: number | null;
+    longitude: number | null;
+    serviceable: boolean;
+  } | null) => void;
 }
 
-export default function AddressPicker({ value, onChange, storeId }: Props) {
+export default function AddressPicker({
+  value, onChange, storeId, onSelectedAddress,
+}: Props) {
   const t = useTranslations("Address");
   const { token } = useAuth();
   const [addresses, setAddresses] = useState<CustomerAddressApi[]>([]);
@@ -81,6 +92,27 @@ export default function AddressPicker({ value, onChange, storeId }: Props) {
     })();
     return () => { cancelled = true; };
   }, [addresses, storeId]);
+
+  // Emit the selected row + its serviceability up to the parent. Must run
+  // before any conditional early-return below — Rules of Hooks.
+  useEffect(() => {
+    if (!onSelectedAddress) return;
+    if (value == null) {
+      onSelectedAddress(null);
+      return;
+    }
+    const picked = addresses.find((a) => a.id === value);
+    if (!picked) {
+      onSelectedAddress(null);
+      return;
+    }
+    onSelectedAddress({
+      id: picked.id,
+      latitude: picked.address.latitude ?? null,
+      longitude: picked.address.longitude ?? null,
+      serviceable: storeId === undefined ? true : serviceability[picked.id] === true,
+    });
+  }, [value, addresses, serviceability, storeId, onSelectedAddress]);
 
   if (loading) return <div className={styles.loading}>{t("pickerLoading")}</div>;
   if (addresses.length === 0) {
