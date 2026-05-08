@@ -22,7 +22,7 @@ Type your email on the login screen and click **Send code** — the *[backend](.
 2. After requesting an OTP on the storefront, look for a log line that contains the email address and a 6-digit number. Example shape:
 
    ```
-   [otp] code for customer@khanabazaar.dev: 123456
+   EMAIL to=customer@khanabazaar.dev code=123456
    ```
 
    [Screenshot: log viewer with backend tab and a 6-digit OTP line highlighted]

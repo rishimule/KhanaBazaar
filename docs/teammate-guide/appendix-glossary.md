@@ -1,3 +1,5 @@
+# Glossary
+
 *Teammate Guide > Appendix: Glossary*
 
 Plain-English definitions for every technical term used elsewhere in this guide. Each entry is short and avoids more jargon. If you bump into a word that is missing here, ping the engineer — they will add it.

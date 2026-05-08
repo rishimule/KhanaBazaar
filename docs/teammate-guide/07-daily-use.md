@@ -118,7 +118,7 @@ Then check what changed:
   cd ../..
   ```
 
-  `uv sync` downloads any new *[dependencies](./appendix-glossary.md#dependency)`. `alembic upgrade head` applies any new *[migrations](./appendix-glossary.md#migration)*.
+  `uv sync` downloads any new *[dependencies](./appendix-glossary.md#dependency)*. `alembic upgrade head` applies any new *[migrations](./appendix-glossary.md#migration)*.
 
 - **If frontend files changed** (anything under `frontend/`):
 
@@ -131,6 +131,8 @@ Then check what changed:
   ```
 
   *[npm](./appendix-glossary.md#npm)* downloads new *[dependencies](./appendix-glossary.md#dependency)*.
+
+*If you are not sure what changed, run both sets of commands. They are safe to re-run when nothing changed — `uv sync` and `npm install` are no-ops if dependencies are already up to date.*
 
 Then restart the app:
 
@@ -211,7 +213,7 @@ ERROR    2026-05-08 10:00:03 — psycopg2.OperationalError: could not connect
 CRITICAL 2026-05-08 10:00:04 — Celery broker unreachable
 ```
 
-Most errors have an explanation or stack trace on the following lines. Start there. If you are stuck, use the Slack template in [Chapter 6](./06-troubleshooting.md#nothing-here-matches).
+Most errors have an explanation or stack trace on the following lines. Start there. If you are stuck, use the message template in [Chapter 6](./06-troubleshooting.md#nothing-here-matches) to send to your engineer.
 
 ---
 

@@ -19,6 +19,7 @@ In this chapter you will install eight things in order: first a BIOS check to ma
 3. Look for the line that reads **Virtualization:**.
 4. If it says **Enabled**, skip the rest of this section and move on to WSL2.
 5. If it says **Disabled**, reboot your laptop. As the screen goes dark and the manufacturer logo appears, press the BIOS key for your laptop brand:
+   - **Acer:** `F2` or `Del`
    - **Lenovo:** `F1` or `Fn + F2`
    - **HP:** `Esc`, then `F10`
    - **Dell:** `F2`

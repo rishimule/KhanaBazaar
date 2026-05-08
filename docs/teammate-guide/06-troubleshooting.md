@@ -2,7 +2,7 @@
 
 *Teammate Guide > Chapter 6: When things break*
 
-Look up your error by symptom. Each entry shows what you see, why it happens, and how to fix it. If nothing here matches your situation, use the Slack template at the bottom of this page.
+Look up your error by symptom. Each entry shows what you see, why it happens, and how to fix it. If nothing here matches, use the message template at the bottom of this page to send to your engineer.
 
 ---
 
@@ -354,10 +354,11 @@ Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docke
 
 **How to fix.**
 
-1. Open Docker Desktop from the Start menu (Windows) or Applications (Mac).
+1. Open Docker Desktop from the Start menu.
 2. Wait for the whale icon in the system tray to show "Docker Desktop is running" (it can take 30–60 seconds).
-3. Retry your command.
-4. If Docker Desktop shows an error on launch, restart the machine and try again.
+3. If you see `docker: 'compose' is not a docker command`, you have an old Docker without Compose V2. Verify with `docker compose version`. If it fails, reinstall Docker Desktop from https://www.docker.com/products/docker-desktop/ — current versions ship Compose V2 built-in.
+4. Retry your command.
+5. If Docker Desktop shows an error on launch, restart the machine and try again.
 
 **If the fix does not work.** Check that WSL 2 is installed and working — see [#docker-wsl-backend](#docker-wsl-backend). If Docker Desktop crashes on startup, reinstall it.
 
@@ -524,7 +525,7 @@ or a bare `Connection refused` on port 5432.
    ```bash
    docker compose up -d postgres
    ```
-3. Confirm the `DATABASE_URL` in `backend/app/.env` matches the values in `docker-compose.yml` (default user: `postgres`, password: `postgres`, db: `khanabazaar`).
+3. Confirm the `DATABASE_URL` in `backend/app/.env` matches the values in `docker-compose.yml` (default user: `postgres`, password: `password`, db: `khanabazaar`).
 4. Retry starting the backend.
 
 **If the fix does not work.** Run `docker compose logs postgres` to check for startup errors, and share them using the template at [#nothing-here-matches](#nothing-here-matches).
@@ -553,7 +554,7 @@ Could not parse rfc1738 URL from string 'postgres://...'
 2. Find the `DATABASE_URL` line.
 3. Change the scheme from `postgres://` to `postgresql+asyncpg://`:
    ```
-   DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/khanabazaar
+   DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar
    ```
 4. Save and restart the backend.
 
@@ -704,7 +705,7 @@ or an SSL certificate verification error.
 3. Find the specific error line and look it up in this chapter.
 4. Common causes: *[database](./appendix-glossary.md#database)* not running ([#asyncpg-password-error](#asyncpg-password-error)), missing `.env` ([#uv-sync-fails](#uv-sync-fails)), unapplied migration ([#alembic-not-up-to-date](#alembic-not-up-to-date)).
 
-**If the fix does not work.** Paste the full output of `./scripts/dev.sh logs backend | tail -30` into the Slack template at [#nothing-here-matches](#nothing-here-matches).
+**If the fix does not work.** Paste the full output of `./scripts/dev.sh logs backend | tail -30` into the message template at [#nothing-here-matches](#nothing-here-matches).
 
 ---
 
@@ -910,7 +911,11 @@ Error: listen EADDRINUSE: address already in use :::3000
    ```
    Search for a line like:
    ```
-   [CONSOLE EMAIL] OTP for user@example.com: 482913
+   EMAIL to=user@example.com code=482913
+   ```
+   You can search the log directly:
+   ```bash
+   ./scripts/dev.sh logs backend | grep "EMAIL to="
    ```
 3. Type that code into the app.
 4. If the line is absent, restart the backend — a stale process may be running with old config:
@@ -918,7 +923,7 @@ Error: listen EADDRINUSE: address already in use :::3000
    ./scripts/dev.sh restart
    ```
 
-**If the fix does not work.** Run `./scripts/dev.sh logs backend | grep OTP` to search more specifically. If still nothing, share the full backend log with the engineer.
+**If the fix does not work.** Run `./scripts/dev.sh logs backend | grep "EMAIL to="` to search more specifically. If still nothing, share the full backend log with the engineer.
 
 ---
 
@@ -1061,7 +1066,7 @@ or the map stops loading and the browser console shows this status.
 
 ## Nothing here matches {#nothing-here-matches}
 
-Send this message to the engineer in Slack. Fill in every section — an incomplete report will slow things down.
+Send this to your engineer. Fill in every section — an incomplete report will slow things down.
 
 ```
 Hey, I'm stuck on the teammate guide.

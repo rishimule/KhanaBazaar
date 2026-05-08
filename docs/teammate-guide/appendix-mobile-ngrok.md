@@ -96,7 +96,7 @@ Once the app loads, you can install it as an icon on your phone's home screen �
 - **Android:** Tap the three-dot menu in Chrome, select **Add to Home Screen**, and tap **Add**. The app installs as an icon and opens fullscreen.
 - **iOS:** Tap the Share button in Safari, scroll down, and tap **Add to Home Screen**. Choose a name and tap **Add**.
 
-This is a *[PWA](./appendix-glossary.md#frontend)* — a website that behaves like an installed app. It still runs on your laptop under the hood; the phone is a display. There is no App Store, no waiting for builds, and updates happen instantly when you change the frontend code.
+This is a **PWA** (Progressive Web App) — a website that behaves like an installed app. It still runs on your laptop under the hood; the phone is a display. There is no App Store, no waiting for builds, and updates happen instantly when you change the frontend code.
 
 ---
 
