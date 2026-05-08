@@ -50,11 +50,11 @@ Docker is a tool that packages up software into *[containers](#container)* so it
 
 ## Environment variable
 
-An environment variable is a configuration value that changes depending on where the code runs (your machine, a teammate's machine, production). Instead of hardcoding secrets and settings into the code, you store them in environment variables — things like the database password, email provider key, or backend URL. Environment variables live in `.env` files and are loaded when the app starts.
+An environment variable is a configuration value that changes depending on where the code runs (your machine, a teammate's machine, production). Instead of hardcoding secrets and settings into the code, you store them in environment variables — things like the database password, email provider key, or backend URL. Environment variables live in `.env` files and are loaded when the app starts. Because `.env` files are never committed to Git, secrets stay safe and separate from the codebase.
 
 ## Frontend
 
-The frontend is the part of KhanaBazaar that customers and sellers see and touch: the website, buttons, product pages, shopping cart, checkout flow. It runs in your web browser. The frontend is built in *[Node.js](#node-js)* and *[React](#react)* (using *[npm](#npm)*), and it talks to the *[backend](#backend)* through an *[API](#api)* to fetch data and submit orders.
+The frontend is the part of KhanaBazaar that customers and sellers see and touch: the website, buttons, product pages, shopping cart, checkout flow. It runs in your web browser. The frontend is built in *[Node.js](#nodejs)* and *React* (using *[npm](#npm)*), and it talks to the *[backend](#backend)* through an *[API](#api)* to fetch data and submit orders.
 
 ## Git
 
@@ -66,7 +66,7 @@ Hot reload is a developer feature that automatically restarts or refreshes the a
 
 ## JSON
 
-JSON (JavaScript Object Notation) is a simple text format for storing and sending structured data — like a menu written in a universal language that every system understands. An API response is usually JSON: it might contain a customer's name, address, order history, all formatted in a consistent way. It looks a bit like Python *[dictionaries](#dictionary)* or spreadsheets, but more compact.
+JSON (JavaScript Object Notation) is a simple text format for storing and sending structured data — like a menu written in a universal language that every system understands. An API response is usually JSON: it might contain a customer's name, address, order history, all formatted in a consistent way. It looks a bit like Python *dictionaries* or spreadsheets, but more compact.
 
 ## JWT
 
@@ -78,15 +78,15 @@ Localhost (or `127.0.0.1`) is the address of your own machine, used for testing 
 
 ## Migration
 
-A migration is a set of instructions that modifies the structure of the database — adding a new column to a table, creating a new table, renaming a field, etc. Every migration is a file that engineers commit to Git, so the whole team can track schema changes. KhanaBazaar uses *[Alembic](#alembic)*: when you pull new code, you run `alembic upgrade head` to apply any pending migrations to your *[database](#database)*.
+A migration is a set of instructions that modifies the structure of the database — adding a new column to a table, creating a new table, renaming a field, etc. Every migration is a file that engineers commit to Git, so the whole team can track schema changes. KhanaBazaar uses *Alembic*: when you pull new code, you run `alembic upgrade head` to apply any pending migrations to your *[database](#database)*.
 
 ## Node.js
 
-Node.js is a runtime environment that runs *[JavaScript](#javascript)* code outside the browser — on servers or your local machine. The KhanaBazaar frontend uses Node.js tooling (like *[npm](#npm)*) to bundle, develop, and build the web app. You do not write Node.js code directly; you write *[React](#react)* components in TypeScript, and Node.js runs the tools that translate and optimize them.
+Node.js is a runtime environment that runs *JavaScript* code outside the browser — on servers or your local machine. The KhanaBazaar frontend uses Node.js tooling (like *[npm](#npm)*) to bundle, develop, and build the web app. You do not write Node.js code directly; you write *React* components in TypeScript, and Node.js runs the tools that translate and optimize them.
 
 ## npm
 
-npm (Node Package Manager) is the package manager for *[Node.js](#node-js)* and *[JavaScript](#javascript)* — it downloads and installs code libraries. Think of it as the store where you buy ingredients for a recipe. The KhanaBazaar frontend's dependencies (like React, TypeScript, linters) are listed in `package.json`, and you install them all by running `npm install`.
+npm (Node Package Manager) is the package manager for *[Node.js](#nodejs)* and *JavaScript* — it downloads and installs code libraries. Think of it as the store where you buy ingredients for a recipe. The KhanaBazaar frontend's dependencies (like React, TypeScript, linters) are listed in `package.json`, and you install them all by running `npm install`.
 
 ## OTP
 
@@ -102,7 +102,7 @@ PostgreSQL is the database system that stores all of KhanaBazaar's data: custome
 
 ## Python
 
-Python is the programming language used to write the KhanaBazaar *[backend](#backend)*. It is readable, close to English, and great for building web servers, data processing, and *[machine learning](#machine-learning)*. The backend is written in Python using a web framework called *[FastAPI](#fastapi)*.
+Python is the programming language used to write the KhanaBazaar *[backend](#backend)*. It is readable, close to English, and great for web servers, scripts, and data work. The backend is written in Python using a web framework called *FastAPI*.
 
 ## Redis
 
@@ -122,7 +122,7 @@ The shell (or terminal) is a text-based interface where you type commands to con
 
 ## SQL
 
-SQL (Structured Query Language) is the language you use to ask a *[database](#database)* for information: "show me all orders placed today," "list products under $5," etc. Engineers and database analysts write SQL queries to fetch, insert, update, or delete data. The KhanaBazaar backend uses an ORM called *[SQLModel](#sqlmodel)* that translates Python code into SQL, so engineers do not have to write raw SQL as often.
+SQL (Structured Query Language) is the language you use to ask a *[database](#database)* for information: "show me all orders placed today," "list products under $5," etc. Engineers and database analysts write SQL queries to fetch, insert, update, or delete data. The KhanaBazaar backend uses an ORM called *SQLModel* that translates Python code into SQL, so engineers do not have to write raw SQL as often.
 
 ## SSL / TLS
 
@@ -134,7 +134,7 @@ Swagger (now called OpenAPI) is a standard format for documenting an *[API](#api
 
 ## uv
 
-uv is a fast package manager for Python — it downloads and installs Python libraries. Think of it as the Python equivalent of *[npm](#npm)* for *[Node.js](#node-js)*. The KhanaBazaar backend uses uv to install dependencies listed in `pyproject.toml`. Instead of using the older `pip` command, engineers run `uv sync` to set up the environment.
+uv is a fast package manager for Python — it downloads and installs Python libraries. Think of it as the Python equivalent of *[npm](#npm)* for *[Node.js](#nodejs)*. The KhanaBazaar backend uses uv to install dependencies listed in `pyproject.toml`. Instead of using the older `pip` command, engineers run `uv sync` to set up the environment.
 
 ## WSL
 
