@@ -2,7 +2,7 @@
 
 *Teammate Guide > Chapter 1: Install your tools*
 
-> **Estimated time: 60–90 minutes. Most of it is downloads — go grab tea between sections.**
+> **Estimated time: 60–90 minutes. Most of the time is spent waiting for downloads; you can step away during long installs.**
 
 In this chapter you will install eight things in order: first a BIOS check to make sure your CPU is ready, then *[WSL](./appendix-glossary.md#wsl)* (a Linux layer inside Windows), then Docker Desktop (which runs the *[database](./appendix-glossary.md#database)* and *[cache](./appendix-glossary.md#cache)*), then Windows Terminal (a nicer command window), then *[Git](./appendix-glossary.md#git)* (for downloading and tracking code), then Node.js (which runs the *[frontend](./appendix-glossary.md#frontend)*), then *[Python](./appendix-glossary.md#python)* (which runs the *[backend](./appendix-glossary.md#backend)*), and finally *[uv](./appendix-glossary.md#uv)* (which manages Python packages). Every tool has a verify command at the end so you know for certain it worked before moving on.
 
@@ -24,7 +24,7 @@ In this chapter you will install eight things in order: first a BIOS check to ma
    - **Dell:** `F2`
    - **Asus:** `F2` or `Del`
    - **MSI:** `Del`
-6. Inside the BIOS menu, look for a setting called one of these names: `Intel Virtualization Technology`, `VT-x`, `SVM Mode`, or `AMD-V`. Enable it (the setting is usually under an **Advanced** or **CPU** tab).
+6. Inside the BIOS menu, look for a setting called one of these names: `Intel Virtualization Technology`, `VT-x`, `SVM Mode`, or `AMD-V`. Enable it (the setting is usually under an **Advanced** or **CPU** tab). If you cannot find it there, expand any **Advanced**, **Chipset**, or **Processor** menus.
 7. Press `F10` to Save & Exit. Your laptop reboots into Windows.
 
 [Screenshot: Task Manager Performance > CPU panel showing "Virtualization: Enabled"]
@@ -66,7 +66,9 @@ The requested operation is successful. Changes will not be effective until the s
 
 5. After the reboot, an Ubuntu window opens automatically and finishes setup. When asked:
    - **Enter new UNIX username:** type a short lowercase name with no spaces (for example: `rishi`).
-   - **New password:** type a password. **Heads-up:** the screen shows nothing while you type — no dots, no asterisks. That is normal Linux behaviour. Type carefully, press Enter, then type it again to confirm.
+   - **New password:** type a password. Type carefully, press Enter, then type it again to confirm.
+
+   **Heads-up:** While you type the password the screen shows nothing — no dots, no asterisks. This is normal Linux behaviour.
 
 [Screenshot: Ubuntu terminal window showing the "Enter new UNIX username:" prompt]
 
@@ -148,13 +150,13 @@ docker run --rm hello-world
 ```
 **What you should see:** A paragraph beginning with "Hello from Docker!" that confirms the installation is working. This command downloads a tiny test image (about 10 seconds on first run) and then removes it automatically.
 
-**If it fails.** If Docker Desktop fails to start or shows "Docker Engine stopped", your antivirus or a missing restart is usually the cause. See [./06-troubleshooting.md#docker-wont-start](./06-troubleshooting.md#docker-wont-start).
+**If it fails.** If Docker Desktop fails to start or shows "Docker Engine stopped", your antivirus or a missing restart is the cause. See [./06-troubleshooting.md#docker-wont-start](./06-troubleshooting.md#docker-wont-start).
 
 ---
 
 ### Tool: Windows Terminal {#windows-terminal}
 
-**What it is.** Windows Terminal is a nicer command window than the default console. It gives you tabs, reliable copy-paste with `Ctrl + C` / `Ctrl + V`, and a cleaner look. It is recommended but not required — you can use the plain Ubuntu app instead.
+**What it is.** Windows Terminal is a nicer command window than the default console. It gives you tabs, reliable copy-paste with `Ctrl + C` / `Ctrl + V`, and a cleaner look. **Skip this section** if you are happy with the default Ubuntu console window. Install it if you want tabs, copy-paste shortcuts, and a darker theme.
 
 **Install steps.**
 
@@ -205,7 +207,7 @@ git version 2.x.x
 
 ### Tool: Node.js 20 via nvm {#nodejs}
 
-**What it is.** *[Node.js](./appendix-glossary.md#nodejs)* runs the *[frontend](./appendix-glossary.md#frontend)*. `nvm` (Node Version Manager) installs and switches Node versions without administrator rights. We use nvm instead of `apt install nodejs` because Ubuntu's built-in version is older than what KhanaBazaar needs.
+**What it is.** *[Node.js](./appendix-glossary.md#nodejs)* runs the *[frontend](./appendix-glossary.md#frontend)*. `nvm` (Node Version Manager) installs and switches Node versions without administrator rights. We use nvm instead of `apt install nodejs` because Ubuntu's package repository ships Node 18; KhanaBazaar requires Node 20 or newer.
 
 **Install steps.**
 
