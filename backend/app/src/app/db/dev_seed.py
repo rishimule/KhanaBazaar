@@ -7,7 +7,7 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.address import Address
+from app.models.address import Address, LocationSource
 from app.models.base import User, UserRole
 from app.models.catalog import (
     Category,
@@ -22,6 +22,7 @@ from app.models.catalog import (
 )
 from app.models.profile import (
     AdminProfile,
+    CustomerAddress,
     CustomerProfile,
     SellerProfile,
     SellerProfileService,
@@ -29,6 +30,7 @@ from app.models.profile import (
 )
 from app.models.store import Store, StoreInventory
 from app.services.profiles import split_full_name
+from app.utils.digipin import encode as digipin_encode
 
 LANGUAGES = [
     ("en", "English", "English"),
@@ -72,6 +74,57 @@ CUSTOMER: dict[str, Any] = {
     "email": "customer@khanabazaar.dev",
     "full_name": "Priya Verma",
     "phone": "+919811110200",
+    # Five real Mumbai-area addresses baked at authoring time via
+    # `scripts/bake_mumbai_seed.py` against the live /geo/reverse endpoint.
+    # Coverage by store delivery radius (see STORES list below) is mixed
+    # on purpose so manual QA exercises distance sort + serviceability gating.
+    "addresses": [
+        {
+            "label": "Home", "is_default": True,
+            "address_line1": "Shop No-1", "address_line2": "Bandra West",
+            "landmark": None, "city": "Mumbai", "state": "Maharashtra",
+            "pincode": "400050", "country": "India",
+            "latitude": 19.0620132, "longitude": 72.8350166,
+            "place_id": "ChIJ3a7_7hbJ5zsRTua0Lko4fWg",
+            "location_source": "pin",
+        },
+        {
+            "label": "Office", "is_default": False,
+            "address_line1": "shop 462", "address_line2": "Lower Parel",
+            "landmark": None, "city": "Mumbai", "state": "Maharashtra",
+            "pincode": "400013", "country": "India",
+            "latitude": 19.000969, "longitude": 72.8290959,
+            "place_id": "ChIJj1DkqZjP5zsREIvsj3DfgyI",
+            "location_source": "pin",
+        },
+        {
+            "label": "Friend's Place", "is_default": False,
+            "address_line1": "27", "address_line2": "Andheri East",
+            "landmark": None, "city": "Mumbai", "state": "Maharashtra",
+            "pincode": "400093", "country": "India",
+            "latitude": 19.1220695, "longitude": 72.8700202,
+            "place_id": "ChIJWyxqIs_J5zsRN14FDiaqRTI",
+            "location_source": "pin",
+        },
+        {
+            "label": "Parents", "is_default": False,
+            "address_line1": "Main Building", "address_line2": "Powai",
+            "landmark": None, "city": "Mumbai", "state": "Maharashtra",
+            "pincode": "400076", "country": "India",
+            "latitude": 19.1331093, "longitude": 72.91565440000001,
+            "place_id": "ChIJ0egPbfbH5zsRi5n6M7ZV5yI",
+            "location_source": "pin",
+        },
+        {
+            "label": "Pune Trip", "is_default": False,
+            "address_line1": "58", "address_line2": "Koregaon Park",
+            "landmark": None, "city": "Pune", "state": "Maharashtra",
+            "pincode": "411001", "country": "India",
+            "latitude": 18.538646, "longitude": 73.892386,
+            "place_id": "ChIJa9CQfQHBwjsRmqjG-A-aJ0A",
+            "location_source": "pin",
+        },
+    ],
 }
 
 APPLICATIONS: list[dict[str, Any]] = [
@@ -362,123 +415,163 @@ PRODUCTS: list[dict[str, Any]] = [
     {"subcategory_slug": "herbal-supplements", "slug": "baidyanath-shilajit-20g", "name": "Baidyanath Shilajit Gold (20g)", "description": "Premium pure shilajit resin", "image_url": "/images/products/shilajit.jpg", "base_price": 1299},
 ]
 
+# All 9 stores anchored in Mumbai with real addresses + radii baked at
+# authoring time via `scripts/bake_mumbai_seed.py`. Existing names preserved
+# (inventory rows in INVENTORIES key by list position). Radii deliberately
+# vary so a single customer address sees a serviceable / not-serviceable mix.
 STORES: list[dict[str, Any]] = [
     {
         "name": "Sharma General Store",
         "seller_idx": 1,
-        "address_line1": "12, MG Road",
-        "address_line2": "Sector 14",
-        "landmark": "Near HUDA City Centre",
-        "city": "Gurugram",
-        "state": "Haryana",
-        "pincode": "122001",
+        "address_line1": "La Solita",
+        "address_line2": "Bandra West",
+        "landmark": None,
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400050",
         "country": "India",
-        "latitude": 28.4595,
-        "longitude": 77.0266,
+        "latitude": 19.0601047,
+        "longitude": 72.8309154,
+        "place_id": "ChIJdR8zBxXJ5zsR64Phy3jGYhg",
+        "location_source": "pin",
+        "delivery_radius_km": 5.0,
+        "pin_confirmed": True,
     },
     {
         "name": "Krishna Supermart",
         "seller_idx": 2,
-        "address_line1": "45, Nehru Nagar",
+        "address_line1": "Laxmi Industrial Estate",
         "address_line2": "Andheri West",
-        "landmark": "Opposite Lokhandwala Complex",
+        "landmark": None,
         "city": "Mumbai",
         "state": "Maharashtra",
-        "pincode": "400058",
+        "pincode": "400053",
         "country": "India",
-        "latitude": 19.1364,
-        "longitude": 72.8296,
+        "latitude": 19.1351148,
+        "longitude": 72.8289904,
+        "place_id": "ChIJcUHMQwO25zsRhpNwGgnYIa8",
+        "location_source": "pin",
+        "delivery_radius_km": 3.0,
+        "pin_confirmed": True,
     },
     {
         "name": "Balaji Fresh Market",
         "seller_idx": 3,
-        "address_line1": "78, Rajaji Street",
-        "address_line2": "T. Nagar",
-        "landmark": "Next to Pothys",
-        "city": "Chennai",
-        "state": "Tamil Nadu",
-        "pincode": "600017",
+        "address_line1": "93",
+        "address_line2": "Colaba",
+        "landmark": None,
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400005",
         "country": "India",
-        "latitude": 13.0418,
-        "longitude": 80.2341,
+        "latitude": 18.9099905,
+        "longitude": 72.81500129999999,
+        "place_id": "ChIJNx5VMY7R5zsR2qpDZIBh9Z8",
+        "location_source": "pin",
+        "delivery_radius_km": 2.0,
+        "pin_confirmed": True,
     },
     {
         "name": "Aditya Tech Hub",
         "seller_idx": 4,
-        "address_line1": "12, Brigade Road",
-        "address_line2": "Ashok Nagar",
-        "landmark": "Near MG Road Metro",
-        "city": "Bengaluru",
-        "state": "Karnataka",
-        "pincode": "560001",
+        "address_line1": "Unit No.101-B",
+        "address_line2": "Powai (Hiranandani)",
+        "landmark": None,
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400076",
         "country": "India",
-        "latitude": 12.9719,
-        "longitude": 77.6086,
+        "latitude": 19.1170694,
+        "longitude": 72.90998309999999,
+        "place_id": "ChIJgzb6G03H5zsR2uTl3Lt7uB4",
+        "location_source": "pin",
+        "delivery_radius_km": 8.0,
+        "pin_confirmed": True,
     },
     {
         "name": "Mehta Digital World",
         "seller_idx": 5,
-        "address_line1": "44, FC Road",
-        "address_line2": "Shivaji Nagar",
-        "landmark": "Near Wadeshwar",
-        "city": "Pune",
+        "address_line1": "1186/202",
+        "address_line2": "Worli (Sea Face)",
+        "landmark": None,
+        "city": "Mumbai",
         "state": "Maharashtra",
-        "pincode": "411005",
+        "pincode": "400018",
         "country": "India",
-        "latitude": 18.5226,
-        "longitude": 73.8447,
+        "latitude": 19.0186703,
+        "longitude": 72.8161872,
+        "place_id": "ChIJ02MiK7vO5zsRp-LFI3hfzXo",
+        "location_source": "pin",
+        "delivery_radius_km": 5.0,
+        "pin_confirmed": True,
     },
     {
         "name": "Iyer Electronics Bazaar",
         "seller_idx": 6,
-        "address_line1": "Road No 12, Banjara Hills",
-        "address_line2": "Banjara Hills",
-        "landmark": "Near GVK One Mall",
-        "city": "Hyderabad",
-        "state": "Telangana",
-        "pincode": "500034",
+        "address_line1": "1",
+        "address_line2": "Juhu (Tara Rd)",
+        "landmark": None,
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400049",
         "country": "India",
-        "latitude": 17.4239,
-        "longitude": 78.4480,
+        "latitude": 19.0988292,
+        "longitude": 72.82631640000001,
+        "place_id": "ChIJOw1xwJXJ5zsRbjgfRbESNnQ",
+        "location_source": "pin",
+        "delivery_radius_km": 1.0,
+        "pin_confirmed": True,
     },
     {
         "name": "Wellness First Pharmacy",
         "seller_idx": 7,
-        "address_line1": "Block A, Connaught Place",
-        "address_line2": "Connaught Place",
-        "landmark": "Near Janpath Metro",
-        "city": "New Delhi",
-        "state": "Delhi",
-        "pincode": "110001",
+        "address_line1": "Dadar",
+        "address_line2": "Dadar West (Kabutar Khana)",
+        "landmark": None,
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400014",
         "country": "India",
-        "latitude": 28.6315,
-        "longitude": 77.2167,
+        "latitude": 19.0191157,
+        "longitude": 72.8439253,
+        "place_id": "ChIJCwutcdzO5zsR_OaUwR9amHQ",
+        "location_source": "pin",
+        "delivery_radius_km": 15.0,
+        "pin_confirmed": True,
     },
     {
         "name": "Reddy MediMart",
         "seller_idx": 8,
-        "address_line1": "5, Park Street",
-        "address_line2": "Park Street Area",
-        "landmark": "Near St. Xavier's College",
-        "city": "Kolkata",
-        "state": "West Bengal",
-        "pincode": "700016",
+        "address_line1": "8",
+        "address_line2": "Lower Parel (Kamala Mills)",
+        "landmark": None,
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400013",
         "country": "India",
-        "latitude": 22.5535,
-        "longitude": 88.3520,
+        "latitude": 18.997986,
+        "longitude": 72.828964,
+        "place_id": "ChIJo-COxPLO5zsRC3u5jYRig7E",
+        "location_source": "pin",
+        "delivery_radius_km": 4.0,
+        "pin_confirmed": True,
     },
     {
         "name": "Bhatt Care Pharmacy",
         "seller_idx": 9,
-        "address_line1": "23, CG Road",
-        "address_line2": "Navrangpura",
-        "landmark": "Near AMA Auditorium",
-        "city": "Ahmedabad",
-        "state": "Gujarat",
-        "pincode": "380009",
+        "address_line1": "92",
+        "address_line2": "Goregaon East (Aarey Rd)",
+        "landmark": None,
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400063",
         "country": "India",
-        "latitude": 23.0276,
-        "longitude": 72.5634,
+        "latitude": 19.1650473,
+        "longitude": 72.8509831,
+        "place_id": "ChIJL8Wjz1K25zsRtDVS61waA-c",
+        "location_source": "pin",
+        "delivery_radius_km": 3.0,
+        "pin_confirmed": True,
     },
 ]
 
@@ -493,7 +586,42 @@ _ADDRESS_KEYS = (
     "country",
     "latitude",
     "longitude",
+    "place_id",
+    "location_source",
 )
+
+
+def _coerce_location_source(raw: Any) -> LocationSource | None:
+    """Accept either a string (`'pin'`) or a `LocationSource` enum and
+    return the enum (or None). Lets seed data stay as JSON-friendly strings."""
+    if raw is None:
+        return None
+    if isinstance(raw, LocationSource):
+        return raw
+    return LocationSource(raw)
+
+
+def _build_address_kwargs(data: Mapping[str, Any]) -> dict[str, Any]:
+    """Project a seed dict to Address column kwargs + auto-derive DIGIPIN.
+
+    Mirrors the production `address_from_payload` helper: any seed entry with
+    both lat and lng inside the India bbox gets a DIGIPIN. Out-of-bbox values
+    silently produce None (the address still saves)."""
+    out: dict[str, Any] = {}
+    for key in _ADDRESS_KEYS:
+        if key not in data:
+            continue
+        value = data[key]
+        if key == "location_source":
+            value = _coerce_location_source(value)
+        out[key] = value
+    lat, lng = out.get("latitude"), out.get("longitude")
+    if lat is not None and lng is not None:
+        try:
+            out["digipin"] = digipin_encode(lat, lng)
+        except ValueError:
+            out["digipin"] = None
+    return out
 
 _STORES_BY_NAME = {store["name"]: store for store in STORES}
 STORE_ITEMS = [
@@ -505,16 +633,16 @@ STORE_ITEMS = [
 ]
 
 # Inventory: (store_idx, product_slug, price, stock).
-# Store indices into STORES list:
-#   0 Sharma General Store (Gurugram, grocery)
-#   1 Krishna Supermart (Mumbai, grocery)
-#   2 Balaji Fresh Market (Chennai, grocery)
-#   3 Aditya Tech Hub (Bengaluru, electronics)
-#   4 Mehta Digital World (Pune, electronics)
-#   5 Iyer Electronics Bazaar (Hyderabad, electronics)
-#   6 Wellness First Pharmacy (Delhi, pharmacy)
-#   7 Reddy MediMart (Kolkata, pharmacy)
-#   8 Bhatt Care Pharmacy (Ahmedabad, pharmacy)
+# Store indices into STORES list (all in Mumbai post-seed-revamp):
+#   0 Sharma General Store    (Bandra West,  5 km radius, grocery)
+#   1 Krishna Supermart       (Andheri West, 3 km radius, grocery)
+#   2 Balaji Fresh Market     (Colaba,       2 km radius, grocery)
+#   3 Aditya Tech Hub         (Powai,        8 km radius, electronics)
+#   4 Mehta Digital World     (Worli,        5 km radius, electronics)
+#   5 Iyer Electronics Bazaar (Juhu,         1 km radius, electronics)
+#   6 Wellness First Pharmacy (Dadar West,  15 km radius, pharmacy)
+#   7 Reddy MediMart          (Lower Parel,  4 km radius, pharmacy)
+#   8 Bhatt Care Pharmacy     (Goregaon E,   3 km radius, pharmacy)
 INVENTORIES: list[tuple[int, str, float, int]] = [
     # Sharma General Store (Gurugram) — broad selection
     (0, "spinach-bunch-palak", 28, 40),
@@ -911,10 +1039,12 @@ EXPECTED_FULL_COUNTS = {
     "users": 14,
     "language": 5,
     "customerprofile": 1,
+    "customeraddress": 5,
     "adminprofile": 1,
     "sellerprofile": 12,
     "sellerprofile_service": 15,
-    "address": 21,
+    # 21 prior addresses + 5 new customer addresses = 26.
+    "address": 26,
     "service": 3,
     "service_translation": 3,
     "category": 9,
@@ -976,8 +1106,10 @@ async def _upsert_user(
 
 
 async def _upsert_address(session: AsyncSession, owner: object | None, data: Mapping[str, Any]) -> Address:
-    """Update existing owner-linked address, or insert a new one."""
-    address_fields = {key: data[key] for key in _ADDRESS_KEYS}
+    """Update existing owner-linked address, or insert a new one. Auto-derives
+    DIGIPIN from lat/lng via `_build_address_kwargs` (mirrors the production
+    `address_from_payload` helper)."""
+    address_fields = _build_address_kwargs(data)
     if owner is not None:
         for key, value in address_fields.items():
             setattr(owner, key, value)
@@ -1117,6 +1249,36 @@ async def _upsert_customer_profile(
     session.add(profile)
     await session.flush()
     return profile
+
+
+async def _upsert_customer_addresses(
+    session: AsyncSession,
+    profile: CustomerProfile,
+    addresses: list[dict[str, Any]],
+) -> None:
+    """Idempotent: skips entries whose `(profile_id, label)` join row already
+    exists. Each address gets its own `Address` row plus a `CustomerAddress`
+    join row carrying the label + is_default flag."""
+    assert profile.id is not None
+    existing = await session.exec(
+        select(CustomerAddress).where(
+            CustomerAddress.customer_profile_id == profile.id
+        )
+    )
+    have_labels = {row.label for row in existing.all()}
+    for entry in addresses:
+        label = entry.get("label")
+        if label in have_labels:
+            continue
+        address = await _upsert_address(session, None, entry)
+        assert address.id is not None
+        session.add(CustomerAddress(
+            customer_profile_id=profile.id,
+            address_id=address.id,
+            label=label,
+            is_default=bool(entry.get("is_default", False)),
+        ))
+    await session.flush()
 
 
 async def _ensure_service(
@@ -1301,11 +1463,17 @@ async def _upsert_store(
             is_active=True,
             seller_profile_id=profile.id,
             address_id=address.id,
+            delivery_radius_km=float(data.get("delivery_radius_km", 5.0)),
+            pin_confirmed=bool(data.get("pin_confirmed", False)),
         )
     else:
         existing_address = await session.get(Address, store.address_id)
         await _upsert_address(session, existing_address, data)
         store.is_active = True
+        if "delivery_radius_km" in data:
+            store.delivery_radius_km = float(data["delivery_radius_km"])
+        if "pin_confirmed" in data:
+            store.pin_confirmed = bool(data["pin_confirmed"])
     session.add(store)
     await session.flush()
     return store
@@ -1356,7 +1524,12 @@ async def seed_demo_data(session: AsyncSession) -> None:
         users_by_email[user.email] = user
 
     await _upsert_admin_profile(session, users_by_email[ADMIN["email"]], ADMIN)
-    await _upsert_customer_profile(session, users_by_email[CUSTOMER["email"]], CUSTOMER)
+    customer_profile = await _upsert_customer_profile(
+        session, users_by_email[CUSTOMER["email"]], CUSTOMER
+    )
+    await _upsert_customer_addresses(
+        session, customer_profile, CUSTOMER.get("addresses", []),
+    )
 
     services_by_slug: dict[str, Service] = {}
     for sort_order, service_data in enumerate(SERVICES):
@@ -1425,6 +1598,7 @@ _COUNT_MODELS = {
     "users": User,
     "language": Language,
     "customerprofile": CustomerProfile,
+    "customeraddress": CustomerAddress,
     "adminprofile": AdminProfile,
     "sellerprofile": SellerProfile,
     "sellerprofile_service": SellerProfileService,
