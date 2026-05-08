@@ -14,6 +14,12 @@ import styles from "./MapPicker.module.css";
 export interface MapPickerProps {
   initialLat?: number;
   initialLng?: number;
+  /** When set, the map pans to this point. Useful when a parent
+   *  autocomplete picks a place — the map should follow so the fixed
+   *  pin lines up with the chosen location. The reverse-geocode that
+   *  would normally fire after this pan is suppressed (the parent
+   *  already has authoritative place data from the autocomplete). */
+  target?: { lat: number; lng: number } | null;
   /** When true, render an inline note that the user must place the pin
    *  before continuing (used in the seller-signup wizard). */
   requirePin?: boolean;
@@ -31,20 +37,32 @@ const DEFAULT_CENTER = { lat: 19.076, lng: 72.8777 };  // Mumbai
 function CenterListener({
   onCenter,
   resolveTo,
+  programmaticTarget,
 }: {
   onCenter: (lat: number, lng: number) => void;
   resolveTo: { lat: number; lng: number } | null;
+  /** Programmatic pan from the parent (e.g., autocomplete pick). The idle
+   *  that follows this pan is suppressed so the parent's authoritative
+   *  place data is not overwritten by a redundant reverse-geocode. */
+  programmaticTarget: { lat: number; lng: number } | null;
 }) {
   const map = useMap();
   const lastFiredRef = useRef<{ lat: number; lng: number } | null>(null);
   const skipFirstIdleRef = useRef<boolean>(true);
 
-  // Imperatively pan when "Use my location" sets a new target. The
-  // resulting idle event is NOT skipped (skipFirstIdle is consumed on
-  // mount).
+  // Pan when "Use my location" sets resolveTo. The resulting idle goes
+  // through the normal reverse-geocode path.
   useEffect(() => {
     if (map && resolveTo) map.panTo(resolveTo);
   }, [map, resolveTo]);
+
+  // Pan when the parent picks a place (autocomplete). Pre-seed
+  // lastFiredRef so the resulting idle dedups and skips onCenter.
+  useEffect(() => {
+    if (!map || !programmaticTarget) return;
+    lastFiredRef.current = { ...programmaticTarget };
+    map.panTo(programmaticTarget);
+  }, [map, programmaticTarget]);
 
   useEffect(() => {
     if (!map) return;
@@ -79,6 +97,7 @@ function CenterListener({
 export function MapPicker({
   initialLat,
   initialLng,
+  target,
   requirePin = false,
   onPlace,
   onError,
@@ -149,7 +168,11 @@ export function MapPicker({
             disableDefaultUI={false}
             style={{ width: "100%", height: "100%" }}
           >
-            <CenterListener onCenter={(lat, lng) => void onCenter(lat, lng)} resolveTo={panTarget} />
+            <CenterListener
+              onCenter={(lat, lng) => void onCenter(lat, lng)}
+              resolveTo={panTarget}
+              programmaticTarget={target ?? null}
+            />
           </Map>
           {/* Fixed crosshair pin over the map center. Drag the map under it. */}
           <div className={styles.pinOverlay} aria-hidden="true">
