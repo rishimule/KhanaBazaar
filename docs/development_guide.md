@@ -2,7 +2,7 @@
 
 How we develop on Khana Bazaar day-to-day. Covers env config, Alembic, OTP auth, Celery, tests, lint/types, frontend conventions, and the gotchas that bite us most often.
 
-For one-time setup of Postgres / Redis / dependencies, see [`local_setup.md`](./local_setup.md). For deployment, see [`azure_deployment.md`](./azure_deployment.md).
+For one-time setup of Postgres / Redis / dependencies, see [`local_setup.md`](./local_setup.md). For deployment, see [`azure_deployment.md`](./azure_deployment.md). For Google Maps API keys (powering autocomplete + map pin + reverse geocoding), see [`google_maps_setup.md`](./google_maps_setup.md).
 
 ---
 
@@ -381,3 +381,45 @@ Rules:
 - **OTP rate limits in dev.** Five requests per hour per email; hit it while debugging and you're locked out for the rest of the hour. `redis-cli FLUSHDB` is the dev escape hatch.
 - **Token override leakage in tests.** Always wrap `app.dependency_overrides[...] = ...` with a `try/finally` that pops it. State leaks between tests cause hours of "why does this only fail when I run the whole suite" debugging.
 - **EAGER Celery + real dispatchers.** If you write a new background task that touches the DB outside the request session, patch it out in tests unless you specifically want to exercise it — see the `_patch_email_dispatch` autouse fixture for the pattern.
+
+---
+
+## 10. Geo / PostGIS / DIGIPIN
+
+### Database
+
+- Local Postgres image: `postgis/postgis:15-3.4` (`docker-compose.yml`). Drop-in compatible with `postgres:15` on disk; if you have an old volume, see `local_setup.md` for the one-time recreate.
+- The `address.geo` column is a Postgres **GENERATED column** (`geography(Point, 4326) STORED`) computed from `latitude`/`longitude`. SQLModel does NOT declare it; reads happen via raw SQL. Migrations that touch the schema must NOT autogenerate-drop it — `migrations/env.py` includes a guard for this.
+- `migrations/env.py` also skips PostGIS system tables (`spatial_ref_sys`) during autogen.
+- Test DB: `tests/conftest.py` runs `CREATE EXTENSION IF NOT EXISTS postgis` after the schema reset, then re-applies the `geo` generated column + GiST index so tests have prod parity.
+
+### DIGIPIN
+
+`backend/app/src/app/utils/digipin.py` — pure-Python implementation of India Post's open 4×4-grid algorithm. Bounds: lat 2.5–38.5°, lng 63.5–99.5°. `address_from_payload` derives the code automatically when both lat/lng are present; coordinates outside India produce a null DIGIPIN but the address still saves.
+
+### `/api/v1/geo/*` endpoints
+
+`backend/app/src/app/api/geo.py`. All public.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /geo/autocomplete?q=&session_token=` | Server-side proxy for Google Places Autocomplete. Cached 60s. |
+| `GET /geo/place/{place_id}?session_token=` | Place Details (lat/lng + components). |
+| `GET /geo/reverse?lat=&lng=` | Reverse geocode. Cached 24h, keyed by lat/lng rounded to 4 decimals. |
+| `POST /geo/serviceability` | `{lat, lng, store_id?}` → boolean (per-store) or `{serviceable, store_count}` (global). PostGIS-backed via `ST_DWithin`. |
+
+Server API key (`GOOGLE_MAPS_SERVER_API_KEY`) NEVER reaches the browser. The browser key (`GOOGLE_MAPS_BROWSER_API_KEY`, exposed to the frontend as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`) is only used by the Maps JS render and must be HTTP-referrer-restricted in the GCP console.
+
+Per-IP rate limit on `/geo/*` defaults to `30/min` (`GEO_RATE_LIMIT_PER_MIN`).
+
+### Tests
+
+Mock the Google client globally in any new geo test — see `tests/test_geo_endpoints.py` for the dependency-override pattern (the `Depends(_geo_rate_limit)` callable cannot be replaced via `monkeypatch.setattr`; use `app.dependency_overrides[geo_router._geo_rate_limit] = lambda: None`).
+
+### Distance + radius
+
+Stores are filtered/sorted by lat/lng via `GET /api/v1/stores/?lat=&lng=&sort=distance` (PostGIS `ST_DWithin` for filter, `ST_Distance` for sort). Order creation re-asserts `ST_DWithin` against the customer address — defense in depth against direct API bypass. Stores or addresses missing `geo` are treated as not-serviceable.
+
+### Backfill
+
+`worker.backfill_store_addresses_geocode` is a one-shot Celery task that forward-geocodes legacy `Store.address` and `SellerProfile.business_address` rows missing lat/lng. Customer addresses are NOT touched (saves Google quota; they re-fill lazily on user re-save). Idempotent. Confidence-gated (skips `partial_match=true`).

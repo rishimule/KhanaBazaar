@@ -60,6 +60,10 @@ export interface MasterProduct extends BaseSchema {
   base_price: number;
 }
 
+/** How the lat/lng on an address was acquired (used by backend confidence
+ *  scoring + telemetry; safe to omit on writes). */
+export type LocationSource = "manual" | "autocomplete" | "pin" | "geocoded";
+
 /** Structured address matching backend AddressPayload. */
 export interface Address {
   address_line1: string;
@@ -71,6 +75,9 @@ export interface Address {
   country: string;
   latitude: number | null;
   longitude: number | null;
+  digipin?: string | null;
+  place_id?: string | null;
+  location_source?: LocationSource | null;
 }
 
 /** A saved delivery address for a customer account. */
@@ -98,6 +105,10 @@ export interface Store extends BaseSchema {
   is_active: boolean;
   seller_id: number;
   services: Service[];
+  delivery_radius_km: number;
+  pin_confirmed: boolean;
+  /** Set when the store list was queried with the user's lat/lng. */
+  distance_km?: number | null;
 }
 
 /** A store-specific inventory entry linking a product to a store. */

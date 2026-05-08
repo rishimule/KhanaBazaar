@@ -8,6 +8,7 @@ import Navbar from "@/components/Navbar";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
+import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
 import enMessages from "../../../messages/en.json";
 
 const inter = Inter({
@@ -50,11 +51,13 @@ export default function OperatorLayout({
       <body>
         <NextIntlClientProvider locale="en" messages={enMessages}>
           <AuthProvider>
-            <CartProvider>
-              <Navbar />
-              <main>{children}</main>
-              <Footer />
-            </CartProvider>
+            <DeliveryLocationProvider>
+              <CartProvider>
+                <Navbar />
+                <main>{children}</main>
+                <Footer />
+              </CartProvider>
+            </DeliveryLocationProvider>
           </AuthProvider>
         </NextIntlClientProvider>
       </body>

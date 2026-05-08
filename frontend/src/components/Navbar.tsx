@@ -7,6 +7,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
+import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import LocaleSwitcher from "./LocaleSwitcher";
 import styles from "./Navbar.module.css";
 
@@ -21,7 +23,9 @@ export default function Navbar() {
   const router = useRouter();
   const { cartCount } = useCart();
   const { dbUser, loading, logout } = useAuth();
+  const { location } = useDeliveryLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const role = dbUser?.role ?? null;
 
@@ -83,6 +87,19 @@ export default function Navbar() {
         </div>
 
         <div className={styles.navActions}>
+          {(!role || role === "customer") && (
+            <button
+              type="button"
+              className={styles.deliverChip}
+              onClick={() => setPickerOpen(true)}
+              aria-label="Set delivery location"
+            >
+              📍 <span className={styles.deliverChipText}>
+                {location?.label ?? "Set location"}
+              </span>
+            </button>
+          )}
+
           {(!role || role === "customer") && (
             <Link href="/cart" className={styles.cartBtn} aria-label={t("cartAriaLabel")}>
               🛒
@@ -194,6 +211,11 @@ export default function Navbar() {
           </div>
         </>
       )}
+
+      <DeliveryLocationPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+      />
     </nav>
   );
 }

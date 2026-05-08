@@ -100,7 +100,9 @@ async def test_seller_can_create_store(override_as_seller: Any) -> None:
         store = store_resp.json()
         assert store["name"] == "Rishi's Supermarket"
         assert store["seller_id"] == mock_seller.id
-        assert store["address"] == store_data["address"]
+        sent_address: dict[str, Any] = store_data["address"]  # type: ignore[assignment]
+        for k, v in sent_address.items():
+            assert store["address"][k] == v
 
 
 @pytest.mark.asyncio
@@ -119,7 +121,10 @@ async def test_get_store_by_id_returns_nested_address(override_as_seller: Any) -
         store_id = create_resp.json()["id"]
         get_resp = await ac.get(f"/api/v1/stores/{store_id}")
     assert get_resp.status_code == 200
-    assert get_resp.json()["address"] == store_data["address"]
+    body_addr = get_resp.json()["address"]
+    sent_address: dict[str, Any] = store_data["address"]  # type: ignore[assignment]
+    for k, v in sent_address.items():
+        assert body_addr[k] == v
 
 
 @pytest.mark.asyncio

@@ -147,6 +147,9 @@ Admin-only: create categories/products, approve seller applications.
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` (only when `SMS_PROVIDER=twilio`)
 - `JWT_EXPIRES_HOURS` (default 24)
 - `OTP_TTL_SECONDS`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN`, `OTP_MAX_PER_HOUR`
+- `GOOGLE_MAPS_SERVER_API_KEY` (server-only, IP-restricted in GCP — powers `/api/v1/geo/*`)
+- `GOOGLE_MAPS_BROWSER_API_KEY` (referrer-restricted, exposed to FE as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`)
+- `GEO_RATE_LIMIT_PER_MIN` (default 30), `GEO_AUTOCOMPLETE_CACHE_TTL_SECONDS` (60), `GEO_REVERSE_CACHE_TTL_SECONDS` (86400)
 
 ### Frontend `frontend/.env.local`
 - `NEXT_PUBLIC_API_URL` — backend base URL. Default `""` (empty). Empty means relative paths; Next.js `rewrites()` in `next.config.ts` proxies `/api/v1/:rest(.*)` to `http://localhost:8000`. Production overrides this with the absolute backend URL (inlined at build time).
@@ -199,6 +202,8 @@ No frontend tests configured.
 
 **Email dispatch**: OTP and order emails sent via Celery tasks (`worker.py`). Provider switch in `core/email.py` — `console` logs to stdout, `resend` does direct httpx POST (no SDK dep).
 
+**Geo / PostGIS / DIGIPIN**: Address coordinates stored as `latitude`/`longitude` plus a Postgres-GENERATED `geo geography(Point, 4326) STORED` column with a GiST index — SQLModel does NOT declare `geo`; reads are raw SQL. `address.digipin` is auto-derived from lat/lng in `address_from_payload` via `app/utils/digipin.py` (India Post 4×4-grid algorithm, India bbox only). `Store` carries `delivery_radius_km` (default 5) and `pin_confirmed` (false until seller confirms map pin). Distance + filter via `GET /stores/?lat=&lng=&sort=distance` (PostGIS `ST_DWithin` + `ST_Distance`); order creation re-asserts `ST_DWithin` against the customer address. `/api/v1/geo/{autocomplete,place,reverse,serviceability}` proxies Google Maps server-side so the API key never reaches the browser; per-IP rate limit 30/min, Redis-cached. Local Postgres image: `postgis/postgis:15-3.4`. Alembic `migrations/env.py` skips PostGIS system tables AND the generated `geo` column during autogen — do not "clean up" those guards. Frontend: `<AddressAutocomplete>` + `<MapPicker>` (vis.gl/react-google-maps) used by `<AddressFields>`; `<DeliveryLocationContext>` persists guest location to `localStorage` (`kb_delivery_location`); navbar 'Deliver to' chip opens `<DeliveryLocationPicker>`. Browser key (`NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`) is referrer-restricted. See `docs/development_guide.md` §10 + `docs/superpowers/specs/2026-05-06-geo-stores-delivery-radius-design.md`.
+
 **Frontend → backend path is a Next.js rewrite, not a direct fetch**: `NEXT_PUBLIC_API_URL` is empty in dev so the browser hits `/api/v1/*` on the current origin and `next.config.ts` proxies server-side to `http://localhost:8000`. Same-origin from the browser means no CORS, and same-origin under ngrok means the backend never has to be exposed publicly. **Use `:rest(.*)` in the rewrite source**, not `:path*` — `:path*` silently strips a trailing slash, FastAPI then 307s to the slashed URL using the upstream Host header (`https://localhost:8000`), which is unreachable from a phone. Also keep `skipTrailingSlashRedirect: true` so Next.js itself doesn't 308 the slash off before the rewrite. Mobile testing: `./scripts/dev.sh start --tunnel` brings up the stack plus an ngrok agent (config at `~/.config/ngrok/ngrok.yml`) forwarding `:3000`. See `docs/local_setup.md` §6a.
 
 **CSS conventions**: Design tokens (CSS custom properties) in `frontend/src/styles/design-tokens.css`. Global utility classes (`btn`, `btn-primary`, etc.) in `frontend/src/app/globals.css`. Component scoping via `*.module.css`. **Never add Tailwind.**
@@ -225,6 +230,7 @@ No frontend tests configured.
 - `docs/development_guide.md` — env vars, Alembic workflow, OTP/JWT, Celery, testing patterns, frontend conventions
 - `docs/azure_deployment.md` — Azure deployment plan: Container Apps, Postgres Flexible Server, Cache for Redis, Bicep + `azd`, GitHub Actions OIDC
 - `docs/seller_signup.md` — seller registration wizard, OTP 2-step flow, admin verify, layout guard
+- `docs/google_maps_setup.md` — provision the server + browser API keys for the maps feature, restrictions, env wiring, cost orientation
 - `.claude/docs/architectural_patterns.md` — DI, model hierarchy, auth chain (any Firebase mention is stale)
 - `TODO.md` — Phase tracker (Phases 1–4 complete, Phase 5 deployment in progress)
 

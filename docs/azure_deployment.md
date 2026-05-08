@@ -197,6 +197,11 @@ Env vars (referenced via Key Vault where secret):
 | `TWILIO_AUTH_TOKEN`    | Key Vault secret `twilio-auth-token`                            |
 | `TWILIO_FROM_NUMBER`   | Key Vault secret `twilio-from-number` (E.164, e.g. `+15005550006`) |
 | `FRONTEND_ORIGIN`      | `https://www.khanabazaar.in,https://khanabazaar.in`             |
+| `GOOGLE_MAPS_SERVER_API_KEY` | Key Vault secret `google-maps-server-api-key` (IP-restricted in GCP console to the Container App's outbound NAT) |
+| `GOOGLE_MAPS_BROWSER_API_KEY` | Key Vault secret `google-maps-browser-api-key` (referrer-restricted; passed to the web container at build time as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`) |
+| `GEO_RATE_LIMIT_PER_MIN` | `30` (default; bump per region if needed) |
+| `GEO_AUTOCOMPLETE_CACHE_TTL_SECONDS` | `60` |
+| `GEO_REVERSE_CACHE_TTL_SECONDS` | `86400` |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | from `kb-prod-appi-cin`                              |
 
 ### 7.2 `kb-prod-worker-cin` (Celery)
@@ -220,6 +225,7 @@ Env vars:
 |----------------------|---------------------------------------------------------------------|
 | `NODE_VERSION`       | `20` (image base)                                                   |
 | `NEXT_PUBLIC_API_URL`| `https://api.khanabazaar.in` (inlined at **build** time)            |
+| `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` | Key Vault `google-maps-browser-api-key` injected at build time (referrer-restricted) |
 
 `NEXT_PUBLIC_*` is baked into the bundle by `next build`, so the build pipeline must be re-run for any URL change. The Bicep + GitHub Actions flow rebuilds the image automatically when this var changes in `azd env`.
 
@@ -229,7 +235,7 @@ Env vars:
 - **Public access disabled** — only reachable via the VNet private endpoint.
 - High availability: **off** at B1ms (not supported). Geo-redundant backups enabled.
 - Backups: 7-day retention, geo-redundant. Point-in-time restore supported.
-- `azure.extensions = uuid-ossp,pg_trgm` in server parameters (keep parity with local dev).
+- `azure.extensions = uuid-ossp,pg_trgm,POSTGIS` in server parameters (PostGIS is required for the address `geo` GENERATED column + `ST_DWithin` distance queries; the local image is `postgis/postgis:15-3.4` for parity).
 - Connection string handed to apps as `database-url` Key Vault secret in the form `postgresql+asyncpg://kbadmin:<pwd>@kb-prod-pg-cin.postgres.database.azure.com:5432/khanabazaar?ssl=require`.
 
 ### 7.5 Azure Cache for Redis (`kb-prod-redis-cin`)
@@ -257,6 +263,8 @@ Secrets:
 | `jwt-secret`        | Generated once in Bicep via `uniqueString(subscription().subscriptionId, deployment().name)` + `base64`; replace manually before launch with `openssl rand -hex 32`. |
 | `otp-pepper`        | Same generation pattern. Rotate manually with `openssl rand -hex 16`. |
 | `resend-api-key`    | Pulled from GitHub Actions secret `RESEND_API_KEY` and uploaded by `azd up`. |
+| `google-maps-server-api-key` | Pulled from GitHub Actions secret `GOOGLE_MAPS_SERVER_API_KEY`. IP-restrict to the Container App's outbound IPs in GCP console. |
+| `google-maps-browser-api-key` | Pulled from GitHub Actions secret `GOOGLE_MAPS_BROWSER_API_KEY`. HTTP-referrer-restrict to `https://*.khanabazaar.in/*` in GCP console. |
 | `resend-from-email` | Same.                                               |
 | `twilio-account-sid` | Pulled from GitHub Actions secret `TWILIO_ACCOUNT_SID`. |
 | `twilio-auth-token`  | Pulled from GitHub Actions secret `TWILIO_AUTH_TOKEN`. |

@@ -35,11 +35,33 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 async def _reset_schema(conn: Any) -> None:
     """Drop and recreate the public schema to clear tables AND Postgres enum
     types. SQLModel.metadata.drop_all does not drop enum types, so reused
-    types collide with `pg_type_typname_nsp_index` on the next create_all."""
+    types collide with `pg_type_typname_nsp_index` on the next create_all.
+    Re-enables PostGIS after reset since its objects live in `public`."""
     from sqlalchemy import text
 
     await conn.execute(text("DROP SCHEMA public CASCADE"))
     await conn.execute(text("CREATE SCHEMA public"))
+    await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+
+
+async def _add_postgis_geo_column(conn: Any) -> None:
+    """Add the address.geo generated column + GiST index after create_all.
+
+    SQLModel metadata doesn't declare `geo` (it's raw DDL in the prod migration),
+    so create_all skips it. Replicate the migration's DDL here so the test DB
+    has schema parity with prod.
+    """
+    from sqlalchemy import text
+
+    await conn.execute(text(
+        "ALTER TABLE address ADD COLUMN geo geography(Point, 4326) "
+        "GENERATED ALWAYS AS ("
+        "  CASE WHEN latitude IS NOT NULL AND longitude IS NOT NULL "
+        "       THEN ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography "
+        "       ELSE NULL END"
+        ") STORED"
+    ))
+    await conn.execute(text("CREATE INDEX ix_address_geo ON address USING GIST (geo)"))
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -47,6 +69,7 @@ async def setup_test_db() -> AsyncGenerator[None, None]:
     async with test_engine.begin() as conn:
         await _reset_schema(conn)
         await conn.run_sync(SQLModel.metadata.create_all)
+        await _add_postgis_geo_column(conn)
     from app.models.catalog import Language
 
     async with AsyncSession(test_engine) as session:

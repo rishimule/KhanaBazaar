@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     # CORS — comma-separated list of allowed frontend origins
     FRONTEND_ORIGIN: str = "http://localhost:3000,http://127.0.0.1:3000"
 
+    # Geo / Google Maps Platform
+    GOOGLE_MAPS_SERVER_API_KEY: str = ""
+    GOOGLE_MAPS_BROWSER_API_KEY: str = ""  # exposed to FE; referrer-restricted
+    GEO_RATE_LIMIT_PER_MIN: int = 30
+    GEO_AUTOCOMPLETE_CACHE_TTL_SECONDS: int = 60
+    GEO_REVERSE_CACHE_TTL_SECONDS: int = 86400
+
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
 
     @property

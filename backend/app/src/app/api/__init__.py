@@ -5,6 +5,7 @@ from app.api import (
     carts,
     catalog,
     customers,
+    geo,
     meta,
     orders,
     sellers,
@@ -22,3 +23,4 @@ api_router.include_router(customers.router, prefix="/customers", tags=["customer
 api_router.include_router(carts.router, prefix="/carts", tags=["carts"])
 api_router.include_router(orders.router, prefix="/orders", tags=["orders"])
 api_router.include_router(meta.router, prefix="/meta", tags=["meta"])
+api_router.include_router(geo.router, prefix="/geo", tags=["geo"])

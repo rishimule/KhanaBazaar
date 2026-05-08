@@ -794,6 +794,7 @@ function SellerSignupPageInner() {
               <AddressFields
                 value={address}
                 onChange={setAddress}
+                requirePin
                 errors={{
                   address_line1: fieldErrors.address_line1,
                   city: fieldErrors.city,
@@ -825,6 +826,8 @@ function SellerSignupPageInner() {
                   if (!address.state) errs.state = "State is required";
                   if (!/^[1-9]\d{5}$/.test(address.pincode))
                     errs.pincode = "Enter a valid 6-digit pincode";
+                  if (address.latitude == null || address.longitude == null)
+                    errs.address_line1 = "Drop a pin on the map to mark your store location";
                   if (Object.keys(errs).length) {
                     setFieldErrors((p) => ({ ...p, ...errs }));
                     return;

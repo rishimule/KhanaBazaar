@@ -1,6 +1,7 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -20,7 +21,7 @@ from app.schemas.inventory import (
     BulkInventoryItem,
     BulkInventoryRequest,
 )
-from app.schemas.stores import StoreCreate, StoreRead
+from app.schemas.stores import StoreCreate, StoreRead, StoreUpdate
 from app.services.inventory import (
     assert_products_in_seller_services,
     bulk_upsert_inventory,
@@ -42,7 +43,13 @@ async def _seller_profile_for_user(session: AsyncSession, user_id: int) -> Selle
     return profile
 
 
-async def _store_read(session: AsyncSession, store: Store, lang: str = "en") -> StoreRead:
+async def _store_read(
+    session: AsyncSession,
+    store: Store,
+    lang: str = "en",
+    *,
+    distance_km: Optional[float] = None,
+) -> StoreRead:
     assert store.id is not None
     services = await list_profile_services(
         session, store.seller_profile_id, language_code=lang
@@ -54,6 +61,9 @@ async def _store_read(session: AsyncSession, store: Store, lang: str = "en") -> 
         is_active=store.is_active,
         seller_id=store.seller_profile.user_id,
         services=services,
+        delivery_radius_km=store.delivery_radius_km,
+        pin_confirmed=store.pin_confirmed,
+        distance_km=distance_km,
         created_at=store.created_at.isoformat(),
         updated_at=store.updated_at.isoformat(),
     )
@@ -78,17 +88,71 @@ async def _get_store_with_relations(
 async def list_stores(
     skip: int = 0,
     limit: int = 100,
+    lat: Optional[float] = Query(default=None, ge=-90.0, le=90.0),
+    lng: Optional[float] = Query(default=None, ge=-180.0, le=180.0),
+    radius_km: Optional[float] = Query(default=None, gt=0, le=100),
+    sort: Optional[str] = Query(default=None, pattern="^distance$"),
     session: AsyncSession = Depends(get_db_session),
     lang: str = Depends(get_request_locale),
 ) -> List[StoreRead]:
-    stmt = (
-        _store_with_relations_stmt()
-        .where(Store.is_active)
-        .offset(skip)
-        .limit(limit)
+    if lat is None or lng is None:
+        stmt = (
+            _store_with_relations_stmt()
+            .where(Store.is_active)
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await session.exec(stmt)
+        return [
+            await _store_read(session, store, lang, distance_km=None)
+            for store in result.all()
+        ]
+
+    point = "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography"
+    if radius_km is not None:
+        radius_clause = (
+            f"ST_DWithin(a.geo, {point}, "
+            "LEAST(s.delivery_radius_km, :user_cap) * 1000)"
+        )
+    else:
+        radius_clause = (
+            f"ST_DWithin(a.geo, {point}, s.delivery_radius_km * 1000)"
+        )
+    order_clause = (
+        f"ST_Distance(a.geo, {point}) ASC" if sort == "distance" else "s.id ASC"
     )
-    result = await session.exec(stmt)
-    return [await _store_read(session, store, lang) for store in result.all()]
+    sql = text(
+        f"SELECT s.id, ST_Distance(a.geo, {point}) / 1000.0 AS distance_km "
+        "FROM store s JOIN address a ON a.id = s.address_id "
+        f"WHERE s.is_active AND a.geo IS NOT NULL AND {radius_clause} "
+        f"ORDER BY {order_clause} "
+        "OFFSET :skip LIMIT :limit"
+    )
+    bind_params: dict[str, Any] = {
+        "lat": lat, "lng": lng, "skip": skip, "limit": limit,
+    }
+    if radius_km is not None:
+        bind_params["user_cap"] = radius_km
+    rows = (
+        await session.exec(sql.bindparams(**bind_params))  # type: ignore[call-overload]
+    ).all()
+    distance_by_id: dict[int, float] = {int(r[0]): float(r[1]) for r in rows}
+    if not distance_by_id:
+        return []
+    stmt = (
+        _store_with_relations_stmt().where(
+            Store.id.in_(list(distance_by_id.keys()))  # type: ignore[union-attr]
+        )
+    )
+    stores_unsorted = (await session.exec(stmt)).all()
+    by_id = {s.id: s for s in stores_unsorted}
+    ordered = [by_id[i] for i in distance_by_id.keys() if i in by_id]
+    return [
+        await _store_read(
+            session, store, lang, distance_km=distance_by_id[store.id]
+        )
+        for store in ordered
+    ]
 
 
 @router.get("/my", response_model=List[StoreRead])
@@ -120,6 +184,8 @@ async def create_store(
         name=payload.name,
         seller_profile_id=profile.id,
         address_id=address.id,
+        delivery_radius_km=payload.delivery_radius_km,
+        pin_confirmed=payload.pin_confirmed,
     )
     session.add(store)
     try:
@@ -149,6 +215,28 @@ async def get_store(
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
     return await _store_read(session, store, lang)
+
+
+@router.patch("/{store_id}", response_model=StoreRead)
+async def update_store(
+    store_id: int,
+    payload: StoreUpdate,
+    session: AsyncSession = Depends(get_db_session),
+    seller: User = Depends(get_current_seller),
+    lang: str = Depends(get_request_locale),
+) -> StoreRead:
+    store = await _authorize_store_ownership(session, store_id, seller, allow_admin=False)
+    if payload.name is not None:
+        store.name = payload.name
+    if payload.delivery_radius_km is not None:
+        store.delivery_radius_km = payload.delivery_radius_km
+    if payload.pin_confirmed is not None:
+        store.pin_confirmed = payload.pin_confirmed
+    session.add(store)
+    await session.commit()
+    refreshed = await _get_store_with_relations(session, store_id)
+    assert refreshed is not None
+    return await _store_read(session, refreshed, lang)
 
 
 # -------------------------------------------------------------
