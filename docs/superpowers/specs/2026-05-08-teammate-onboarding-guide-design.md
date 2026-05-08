@@ -121,10 +121,10 @@ Cross-cutting concerns explicitly addressed in this chapter:
    - `python3 -c "import secrets; print(secrets.token_hex(32))"` — copy output, this is `JWT_SECRET`.
    - `python3 -c "import secrets; print(secrets.token_hex(16))"` — copy output, this is `OTP_PEPPER`.
    Explain in one paragraph what each secret is used for, in plain language.
-6. Edit `backend/app/.env` with `nano` — line-by-line walkthrough of nano: arrow keys to move, type to edit, `Ctrl+O` to save (then `Enter` to confirm filename), `Ctrl+X` to exit. Show the exact two lines they should change and what their file should look like after.
-7. Note that `EMAIL_PROVIDER=console` should stay as-is — explains that OTP codes will print to a log they can view in chapter 5.
-8. Maps keys section: a clearly-marked "**Skip this if you do not need maps**" block. Tells them to leave `GOOGLE_MAPS_SERVER_API_KEY` and `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` blank for now and continue. Forward link to chapter 3 for when they want maps.
-9. Sanity check: `cat backend/app/.env` shows the file contents, JWT and OTP secrets are real strings (not the placeholder text).
+6. Edit `backend/app/.env` with `nano` — line-by-line walkthrough of nano: arrow keys to move, type to edit, `Ctrl+O` to save (then `Enter` to confirm filename), `Ctrl+X` to exit. Show the exact two lines they should change. Critical instruction: replace the **entire value between the quotes** (the placeholder text `change-me-use-secrets-token-hex-32` must go), not just paste the new secret next to the placeholder. Show a before/after side-by-side. End-state should look like `JWT_SECRET="<their-real-hex-string>"`.
+7. Note that `EMAIL_PROVIDER="console"` should stay as-is — explains that OTP codes will print to a log they can view in chapter 5.
+8. Maps keys section: a clearly-marked "**Skip this if you do not need maps**" block. Tells them to leave `GOOGLE_MAPS_SERVER_API_KEY` and `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` blank for now and continue. Note that the backend `.env` also contains a `GOOGLE_MAPS_BROWSER_API_KEY` line — that one stays empty in this app's setup; only the frontend `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` is read at runtime. Forward link to chapter 3 for when they want maps.
+9. Sanity check: `cat backend/app/.env` shows the file contents, JWT and OTP secrets are real hex strings (not the `change-me-...` placeholder text).
 
 ### 5.4 `03-google-maps-keys.md` (Optional: Google Maps API keys)
 
@@ -133,28 +133,28 @@ Top callout: "**Skip this chapter if you only need the core e-commerce demo.** T
 1. **What you are about to do.** Two-paragraph plain-English explanation: Google Maps is not free in production, but Google gives a generous monthly free tier that the demo will not exceed. You'll create a Google Cloud account, link a payment method (required even for free use), enable three APIs, create two keys, and lock each key down so it cannot be abused.
 2. **Sign in to Google Cloud.** Visit `console.cloud.google.com`, sign in with a Google account.
 3. **Create project "KhanaBazaar Dev".** Project picker → New Project → name → create.
-4. **Enable billing.** Navigation → Billing → Link a billing account → Create billing account. Add payment method (Indian card or UPI). Explicit callout: **RuPay-only cards may be rejected**; use a Visa / Mastercard credit or debit card. Free trial with $300 credit may appear — accept it.
-5. **Set a budget alert.** Billing → Budgets & alerts → Create Budget → $5 → email alert at 50% / 90% / 100%. Reassures them they will get warned long before any charge.
+4. **Enable billing.** Navigation → Billing → Link a billing account → Create billing account. Add payment method (Indian card or UPI). Explicit callout: **RuPay-only cards may be rejected**; use a Visa / Mastercard credit or debit card. Free trial with $300 credit may appear — accept it. Reassurance paragraph: Maps Platform also gives **$200 of free Maps usage every month** on top of any trial credit. The demo will not come close to using it.
+5. **Set a budget alert.** Billing → Budgets & alerts → Create Budget → $5 → email alert at 50% / 90% / 100%. Reassures them they will get warned long before any real charge happens. Five dollars is a paranoia floor, not the actual free-tier ceiling.
 6. **Enable the three APIs.** APIs & Services → Library → search for and Enable each:
    - **Maps JavaScript API** — renders the map in the browser.
-   - **Places API (New)** — address autocomplete suggestions.
+   - **Places API** — address autocomplete suggestions.
    - **Geocoding API** — turning a typed address into latitude / longitude.
-   Explanation per API: one short sentence on what it does in this app.
+   Explanation per API: one short sentence on what it does in this app. Reinforce: do **not** enable other Maps APIs (Routes, Roads, Air Quality) — they bill separately and the app does not use them.
 7. **Create the server key.**
    - APIs & Services → Credentials → Create Credentials → API key.
-   - Rename to "KhanaBazaar Server".
-   - Application restrictions → IP addresses → add your public IP. Walk them to `whatismyipaddress.com` to find it. Note: home connections often have changing IPs, may need to update later.
-   - API restrictions → Restrict key → select Places API (New) and Geocoding API.
+   - Rename to "khana-bazaar-server".
+   - Application restrictions → leave at **None** for local dev. Plain-English explanation: home internet IP addresses change frequently, so locking the key to one IP just causes pain. The key only ever runs from your laptop right now; tightening this is a production concern.
+   - API restrictions → Restrict key → tick **Places API** and **Geocoding API** only.
    - Save. Copy the key value.
 8. **Create the browser key.**
    - Same Credentials page → Create Credentials → API key.
-   - Rename to "KhanaBazaar Browser".
-   - Application restrictions → HTTP referrers → add `http://localhost:3000/*` and `http://127.0.0.1:3000/*`.
-   - API restrictions → Restrict key → select Maps JavaScript API and Places API (New).
+   - Rename to "khana-bazaar-browser".
+   - Application restrictions → HTTP referrers → add `http://localhost:3000/*` and `http://127.0.0.1:3000/*` (trailing `/*` is required).
+   - API restrictions → Restrict key → tick **only** Maps JavaScript API. Untick Places and Geocoding — the browser never calls those directly; they go through the backend.
    - Save. Copy the key value.
-9. **Paste into env files.** Open `backend/app/.env`, replace `GOOGLE_MAPS_SERVER_API_KEY=` line with the server key. Open `frontend/.env.local`, replace `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=` line with the browser key.
-10. **Test each key.** Provided after chapter 4 runs the app — browser key works if the address picker shows suggestions; server key works if a store list shows distances. Cross-link to chapter 6 troubleshooting entries `RefererNotAllowedMapError` and `REQUEST_DENIED`.
-11. Cross-link to engineer doc `docs/google_maps_setup.md` for deeper detail.
+9. **Paste into env files.** Open `backend/app/.env`, replace `GOOGLE_MAPS_SERVER_API_KEY=""` line with the server key. Open `frontend/.env.local`, replace `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=""` line with the browser key. Restart `dev.sh` after editing so the backend re-reads its env.
+10. **Test each key.** Provided after chapter 4 runs the app — browser key works if the embedded map renders without a "For development purposes only" watermark; server key works if address autocomplete shows Indian suggestions when typing in the location chip. Cross-link to chapter 6 troubleshooting entries `RefererNotAllowedMapError`, `REQUEST_DENIED`, `For development purposes only`.
+11. Cross-link to engineer doc `docs/google_maps_setup.md` for deeper detail (cost orientation §10, key rotation §11, local-dev shortcut §12).
 
 ### 5.5 `04-first-run.md` (Run the app for the first time)
 
@@ -169,7 +169,11 @@ Top callout: "**Skip this chapter if you only need the core e-commerce demo.** T
    ```
    docker compose ps
    ```
-   Both services should show `Up` (or `healthy`).
+   Both services should show `Up` (or `healthy`). **Wait for Postgres to finish starting** before the next step — running migrations against a half-started database fails with `connection refused`. Plain-English wait test:
+   ```
+   docker compose exec postgres pg_isready -U postgres -d khanabazaar
+   ```
+   Repeat until it prints `accepting connections`.
 3. **Install backend dependencies.**
    ```
    cd backend/app
