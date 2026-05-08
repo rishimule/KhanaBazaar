@@ -3,14 +3,19 @@
 import { useEffect } from "react";
 import styles from "./Modal.module.css";
 
+type ModalSize = "default" | "wide";
+
 interface Props {
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
   onClose: () => void;
+  /** "default" = 500px max-width (existing behavior), "wide" = 720px for
+   *  modals that contain rich content like maps or wide forms. */
+  size?: ModalSize;
 }
 
-export default function Modal({ title, children, footer, onClose }: Props) {
+export default function Modal({ title, children, footer, onClose, size = "default" }: Props) {
   // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -23,7 +28,7 @@ export default function Modal({ title, children, footer, onClose }: Props) {
   return (
     <div className={styles.backdrop} onClick={onClose}>
       <div
-        className={styles.modal}
+        className={`${styles.modal} ${size === "wide" ? styles.modalWide : ""}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

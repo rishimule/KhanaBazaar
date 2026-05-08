@@ -3,16 +3,18 @@
 .input {
   width: 100%;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
+  border: 1.5px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-neutral-0);
+  color: var(--color-neutral-800);
   font: inherit;
+  transition: border-color var(--duration-fast) var(--ease-default);
 }
 
 .input:focus {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
+  outline: none;
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px hsla(18, 90%, 52%, 0.12);
 }
 
 .dropdown {
@@ -21,30 +23,32 @@
   left: 0;
   right: 0;
   z-index: 20;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
   list-style: none;
   padding: 0;
   margin: 0;
   max-height: 240px;
   overflow-y: auto;
-  box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.08));
+  box-shadow: var(--shadow-md);
 }
 
 .option {
   padding: var(--space-3) var(--space-4);
   cursor: pointer;
+  color: var(--color-neutral-800);
+  font-size: var(--font-sm);
 }
 
 .option:hover,
 .option[aria-selected="true"] {
-  background: var(--color-surface-hover, rgba(0,0,0,0.04));
+  background: var(--color-neutral-50);
 }
 
 .error {
   display: block;
-  margin-top: 4px;
-  color: var(--color-danger, #c0392b);
-  font-size: var(--text-sm, 0.875rem);
+  margin-top: var(--space-1-5);
+  color: var(--color-error);
+  font-size: var(--font-xs);
 }

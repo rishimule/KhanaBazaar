@@ -46,6 +46,7 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
     <Modal
       title="Set delivery location"
       onClose={onClose}
+      size="wide"
       footer={
         <button
           type="button"
