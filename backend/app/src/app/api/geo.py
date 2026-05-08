@@ -14,9 +14,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.core.google_maps import (
+    GeocodeNotFoundError,
     GoogleMapsClient,
     GoogleMapsError,
     autocomplete,
+    forward_geocode,
     place_details,
     reverse_geocode,
 )
@@ -126,6 +128,35 @@ async def place_endpoint(
     finally:
         await client.aclose()
     return _to_geo_place(place)
+
+
+@router.get("/geocode", response_model=GeoPlace,
+            dependencies=[Depends(_geo_rate_limit)])
+async def geocode_endpoint(
+    address: str = Query(min_length=3, max_length=300),
+) -> GeoPlace:
+    cache_key = f"geo:fwd:{address.lower().strip()}"
+    cached = await _cache_get(cache_key)
+    if cached:
+        return GeoPlace(**cached)
+
+    client = _get_client()
+    try:
+        place = await forward_geocode(client, address=address)
+    except GeocodeNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="address not found") from exc
+    except GoogleMapsError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    finally:
+        await client.aclose()
+
+    out = _to_geo_place(place)
+    await _cache_set(
+        cache_key,
+        out.model_dump(),
+        settings.GEO_REVERSE_CACHE_TTL_SECONDS,
+    )
+    return out
 
 
 @router.get("/reverse", response_model=GeoPlace,

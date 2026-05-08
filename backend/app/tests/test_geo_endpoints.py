@@ -13,7 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import app
 from app.api import geo as geo_router
 from app.core.config import settings
-from app.core.google_maps import Place, Prediction
+from app.core.google_maps import GeocodeNotFoundError, Place, Prediction
 from app.models.address import Address
 from app.models.base import User, UserRole
 from app.models.profile import SellerProfile, VerificationStatus
@@ -52,9 +52,20 @@ def patched_geo(monkeypatch: pytest.MonkeyPatch) -> None:
             components=(),
         )
 
+    async def _stub_forward(client: Any, *, address: str) -> Place:
+        if "nowhere" in address.lower():
+            raise GeocodeNotFoundError(f"no geocode for {address!r}")
+        return Place(
+            place_id="p3",
+            formatted_address=f"{address}, India",
+            latitude=19.0760, longitude=72.8777,
+            components=(),
+        )
+
     monkeypatch.setattr(geo_router, "autocomplete", _stub_autocomplete)
     monkeypatch.setattr(geo_router, "place_details", _stub_place_details)
     monkeypatch.setattr(geo_router, "reverse_geocode", _stub_reverse)
+    monkeypatch.setattr(geo_router, "forward_geocode", _stub_forward)
     # Server key must be present for _get_client check to pass
     monkeypatch.setattr(settings, "GOOGLE_MAPS_SERVER_API_KEY", "test-key")
 
@@ -107,6 +118,35 @@ async def test_place_details_returns_lat_lng() -> None:
     body = r.json()
     assert body["latitude"] == 18.9220
     assert body["longitude"] == 72.8347
+
+
+@pytest.mark.asyncio
+async def test_geocode_returns_lat_lng_for_known_address() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        r = await ac.get(
+            "/api/v1/geo/geocode",
+            params={"address": "1 Marine Drive, Mumbai, Maharashtra, 400020"},
+        )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["latitude"] == 19.0760
+    assert body["longitude"] == 72.8777
+    assert body["place_id"] == "p3"
+
+
+@pytest.mark.asyncio
+async def test_geocode_returns_404_when_not_found() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        r = await ac.get(
+            "/api/v1/geo/geocode",
+            params={"address": "Somewhere in nowhere land"},
+        )
+    assert r.status_code == 404
+    assert r.json()["detail"] == "address not found"
 
 
 @pytest.mark.asyncio

@@ -275,7 +275,16 @@
     "pickerLoading": "Loading addresses…",
     "pickerEmpty": "No saved address.",
     "pickerAddOne": "Add one",
-    "fallbackLabel": "Address"
+    "fallbackLabel": "Address",
+    "verifyAddress": "Verify address",
+    "verifyAgain": "Verify again",
+    "verifying": "Verifying…",
+    "verifyHint": "We'll show your address on a map so couriers can find you.",
+    "verifyAdjustHint": "Drag the map to fine-tune the pin if it's slightly off. Your typed address won't change.",
+    "verifyMissingFields": "Fill address line 1, city, state and a 6-digit pincode first.",
+    "verifyNotFound": "Couldn't locate that address on the map. Edit it and try again, or pin manually.",
+    "verifyFailed": "Address lookup failed. Please try again.",
+    "verifyRequired": "Verification required to continue."
   },
   "Payment": {
     "legend": "Payment method",
