@@ -93,21 +93,8 @@ export default function AddressPicker({
     return () => { cancelled = true; };
   }, [addresses, storeId]);
 
-  if (loading) return <div className={styles.loading}>{t("pickerLoading")}</div>;
-  if (addresses.length === 0) {
-    return (
-      <div className={styles.empty}>
-        {t("pickerEmpty")}{" "}
-        <Link href="/account/settings" className={styles.link}>{t("pickerAddOne")}</Link>
-      </div>
-    );
-  }
-
-  const isDisabled = (id: number) =>
-    storeId !== undefined && serviceability[id] === false;
-
-  // Emit the selected row + its serviceability up to the parent. Re-runs
-  // when the value or serviceability map changes.
+  // Emit the selected row + its serviceability up to the parent. Must run
+  // before any conditional early-return below — Rules of Hooks.
   useEffect(() => {
     if (!onSelectedAddress) return;
     if (value == null) {
@@ -126,6 +113,19 @@ export default function AddressPicker({
       serviceable: storeId === undefined ? true : serviceability[picked.id] === true,
     });
   }, [value, addresses, serviceability, storeId, onSelectedAddress]);
+
+  if (loading) return <div className={styles.loading}>{t("pickerLoading")}</div>;
+  if (addresses.length === 0) {
+    return (
+      <div className={styles.empty}>
+        {t("pickerEmpty")}{" "}
+        <Link href="/account/settings" className={styles.link}>{t("pickerAddOne")}</Link>
+      </div>
+    );
+  }
+
+  const isDisabled = (id: number) =>
+    storeId !== undefined && serviceability[id] === false;
 
   return (
     <div className={styles.picker}>
