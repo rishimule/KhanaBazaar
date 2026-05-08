@@ -24,7 +24,7 @@ A cache is a small, fast memory bank that stores copies of data the app has alre
 
 ## Celery
 
-Celery is a tool that runs tasks in the background — things like sending emails, processing images, or cleaning up old data — without making the customer wait. KhanaBazaar uses Celery to dispatch order confirmation emails and OTP messages so the app stays snappy. Think of it like a to-do list: the user makes a request, you write it down, and a worker (the Celery worker) completes it later.
+Celery is a tool that runs tasks in the background — things like sending emails, processing images, or cleaning up old data — without making the customer wait. KhanaBazaar uses Celery to dispatch order confirmation emails and OTP messages so the app stays snappy. Think of it like a to-do list: a customer makes a request, you write it down, and a worker (the Celery worker) completes it later.
 
 ## Cluster
 
@@ -48,7 +48,7 @@ A dependency is a piece of code (usually someone else's library) that another pi
 
 ## Docker
 
-Docker is a tool that packages up software into *[containers](#container)* so it runs the same way everywhere. You use Docker to spin up a *[PostgreSQL](#postgresql)* database and a *[Redis](#redis)* cache on your laptop without having to install them on your machine directly — they run inside containers instead. Launching containers is as simple as `docker-compose up`.
+Docker is a tool that packages up software into *[containers](#container)* so it runs the same way everywhere. You use Docker to spin up a *[PostgreSQL](#postgresql)* database and a *[Redis](#redis)* cache on your laptop without having to install them on your machine directly — they run inside containers instead. Containers are started with `docker compose up`.
 
 ## Environment variable
 

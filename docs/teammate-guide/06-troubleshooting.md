@@ -905,25 +905,29 @@ Error: listen EADDRINUSE: address already in use :::3000
    EMAIL_PROVIDER=console
    SMS_PROVIDER=console
    ```
-2. Look at the backend log for the OTP code:
+2. Look at the backend log for the OTP block:
    ```bash
    ./scripts/dev.sh logs backend
    ```
-   Search for a line like:
+   Search for a block like:
    ```
-   EMAIL to=user@example.com code=482913
+   [EMAIL] to=user@example.com
+   Your one-time login code is: 482913
+
+   This code expires in 10 minutes.
    ```
-   You can search the log directly:
+   You can search the log directly and see the code on the next lines:
    ```bash
-   ./scripts/dev.sh logs backend | grep "EMAIL to="
+   ./scripts/dev.sh logs backend | grep -A 2 '\[EMAIL\] to='
    ```
+   (`-A 2` shows 2 lines after each match, which includes the code line.)
 3. Type that code into the app.
-4. If the line is absent, restart the backend — a stale process may be running with old config:
+4. If the block is absent, restart the backend — a stale process may be running with old config:
    ```bash
    ./scripts/dev.sh restart
    ```
 
-**If the fix does not work.** Run `./scripts/dev.sh logs backend | grep "EMAIL to="` to search more specifically. If still nothing, share the full backend log with the engineer.
+**If the fix does not work.** Run `./scripts/dev.sh logs backend | grep -A 2 '\[EMAIL\] to='` to search more specifically. If still nothing, share the full backend log with the engineer.
 
 ---
 
@@ -993,6 +997,7 @@ or the map area shows a grey/blank tile with an error overlay.
 3. Under **Application restrictions** → **HTTP referrers (web sites)**, add:
    ```
    http://localhost:3000/*
+   http://127.0.0.1:3000/*
    ```
 4. Save. Changes propagate in a few minutes — reload the app.
 

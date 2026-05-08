@@ -51,7 +51,7 @@ That is the entire start-of-day routine. Open the three browser tabs from chapte
 ./scripts/dev.sh stop
 ```
 
-**What you should see:** four `Stopping <service> (pid ...)...` lines, one for each *[backend](./appendix-glossary.md#backend)* process.
+**What you should see:** four or five `Stopping <service> (pid ...)` lines (one per running service — services that were not started print `<service> not running` instead, which is fine).
 
 The *[Docker](./appendix-glossary.md#docker)* *[PostgreSQL](./appendix-glossary.md#postgresql)* and *[Redis](./appendix-glossary.md#redis)* *[containers](./appendix-glossary.md#container)* keep running in the background — they use very little memory and restart quickly.
 
@@ -180,10 +180,10 @@ wsl --update
 
 ```
 nvm install --lts
-nvm alias default <new-version>
+nvm alias default lts/*
 ```
 
-Replace `<new-version>` with the version number that `nvm install --lts` printed.
+`lts/*` always points "default" at the latest LTS — no version number to type.
 
 **uv:**
 
@@ -209,7 +209,7 @@ Examples:
 ```
 INFO     2026-05-08 10:00:01 — request started: GET /api/v1/stores
 WARNING  2026-05-08 10:00:02 — slow query (>500ms): SELECT * FROM orders ...
-ERROR    2026-05-08 10:00:03 — psycopg2.OperationalError: could not connect
+ERROR    2026-05-08 10:00:03 — sqlalchemy.exc.OperationalError: connection failed: connection refused
 CRITICAL 2026-05-08 10:00:04 — Celery broker unreachable
 ```
 

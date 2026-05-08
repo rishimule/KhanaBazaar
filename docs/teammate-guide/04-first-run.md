@@ -156,6 +156,8 @@ This single command starts four processes: the backend server on *[port](./appen
 
 **What you should see:**
 
+*The first 10–30 seconds print Docker output (`Bringing up Postgres + Redis...`, `[+] Running`...) before the `Starting <service>` lines arrive. This is normal — the script confirms the database is ready before it boots the backend.*
+
 ```
 Starting backend...
 backend started (pid 12345) -> .dev/logs/backend.log
@@ -206,7 +208,7 @@ All services up.
 ./scripts/dev.sh stop
 ```
 
-**What you should see:** four `Stopping <service> (pid ...)...` lines, one for each process.
+**What you should see:** four or five `Stopping <service> (pid ...)` lines (one per running service — services that were not started print `<service> not running` instead, which is fine).
 
 The *[Docker](./appendix-glossary.md#docker)* Postgres and Redis *[containers](./appendix-glossary.md#container)* keep running in the background after this — they use little RAM and restart quickly. To stop them as well, run:
 

@@ -116,7 +116,7 @@ This is a **PWA** (Progressive Web App) — a website that behaves like an insta
   ./scripts/dev.sh logs ngrok
   ```
 
-  Common reasons: authtoken not configured, free-tier quota exhausted for the day (reset at 4 PM UTC), or an old ngrok process still holding the port. If stuck, ask an engineer.
+  Common reasons: authtoken not configured, free-tier limits hit — see your ngrok dashboard for the exact reset window, or an old ngrok process still holding the port. If stuck, ask an engineer.
 
 ---
 

@@ -208,7 +208,7 @@ git version 2.x.x
 
 ### Tool: Node.js 20 via nvm {#nodejs}
 
-**What it is.** *[Node.js](./appendix-glossary.md#nodejs)* runs the *[frontend](./appendix-glossary.md#frontend)*. `nvm` (Node Version Manager) installs and switches Node versions without administrator rights. We use nvm instead of `apt install nodejs` because Ubuntu's package repository ships Node 18; KhanaBazaar requires Node 20 or newer.
+**What it is.** *[Node.js](./appendix-glossary.md#nodejs)* runs the *[frontend](./appendix-glossary.md#frontend)*. `nvm` (Node Version Manager) installs and switches Node versions without administrator rights. This guide uses nvm instead of `apt install nodejs` because Ubuntu's package repository ships Node 18; KhanaBazaar requires Node 20 or newer.
 
 **Install steps.**
 
@@ -348,7 +348,7 @@ uv --version
 ```
 uv 0.4.x
 ```
-Any version 0.4 or newer is fine.
+Version `0.4` or newer is fine (you'll often see `0.5.x` or higher).
 
 **If it fails.** If you get `uv: command not found` after reopening the terminal, the installer may not have updated your PATH. See [./06-troubleshooting.md#uv-not-found](./06-troubleshooting.md#uv-not-found).
 

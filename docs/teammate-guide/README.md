@@ -12,7 +12,7 @@ KhanaBazaar is an online grocery and food marketplace for Indian neighbourhoods.
 - An optional way to view the app on your phone.
 - A troubleshooting reference for when things break.
 
-> **Time estimate:** Roughly 90 minutes the first time end-to-end (install + run); about 5 minutes on subsequent days.
+> **Time estimate:** Plan for 2–3 hours the first time, including downloads. About 5 minutes on subsequent days.
 
 ## Before you start
 

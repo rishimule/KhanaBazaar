@@ -179,7 +179,7 @@ These checks assume the app is running (see chapter 4 if it is not).
 
 **Check 1 — Autocomplete**
 
-**Click in: web browser** — open `http://localhost:3000`. Click the **Deliver to** chip in the navbar. Type `andheri`. You should see Indian address autocomplete suggestions appear in a dropdown.
+**Click in: web browser** — open `http://localhost:3000`. Click **Set location** (or your saved address if you've set one) in the navbar. Type `andheri`. You should see Indian address autocomplete suggestions appear in a dropdown.
 
 **If it fails.** [./06-troubleshooting.md#request-denied](./06-troubleshooting.md#request-denied)
 

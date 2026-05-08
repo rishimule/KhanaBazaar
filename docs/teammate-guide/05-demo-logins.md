@@ -2,7 +2,7 @@
 
 *Teammate Guide > Chapter 5: Demo accounts and login flow*
 
-> **Estimated time:** about 20 minutes for the demo script.
+> **Estimated time:** about 10–15 minutes including switching between accounts.
 
 Now that the app is running, this chapter shows you how to log in as the three kinds of user, and walks through a 5-minute end-to-end demo.
 
@@ -19,17 +19,20 @@ Type your email on the login screen and click **Send code** — the *[backend](.
 **Click in: web browser** — open `http://localhost:8001`. **You should see** a log viewer with four tabs.
 
 1. Click the **backend** tab.
-2. After requesting an OTP on the storefront, look for a log line that contains the email address and a 6-digit number. Example shape:
+2. After requesting an OTP on the storefront, look for the OTP block. It looks like this:
 
    ```
-   EMAIL to=customer@khanabazaar.dev code=123456
+   [EMAIL] to=customer@khanabazaar.dev
+   Your one-time login code is: 482913
+
+   This code expires in 10 minutes.
    ```
+
+   The line that starts with `[EMAIL] to=<their-email>` marks where the OTP message begins. The 6-digit code appears on the very next line, right after `Your one-time login code is:`.
 
    [Screenshot: log viewer with backend tab and a 6-digit OTP line highlighted]
 
-   Note: the exact log format may vary — the line always contains the email plus a 6-digit number.
-
-3. Tip: use Ctrl+F in the log viewer to search by email address if the log is busy.
+3. Tip: use Ctrl-F in the log viewer and search for `[EMAIL] to=` to jump straight to the most recent OTP block.
 
 ---
 
@@ -93,7 +96,7 @@ These three steps form a complete end-to-end walkthrough you can perform live fo
 
 ## Page tour by role {#page-tour}
 
-This section describes what you see when navigating each major area of the app as each primary role. Exact button labels may have shifted since this guide was written — read these descriptions for intent, not literal layout.
+This section describes what you see when navigating each major area of the app as each primary role.
 
 ### Customer
 
