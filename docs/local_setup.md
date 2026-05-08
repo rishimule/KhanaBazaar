@@ -1,6 +1,8 @@
 # Local Setup
 
-Get KhanaBazaar running on your machine in under 10 minutes. Stack: FastAPI + Next.js 16 + Postgres 15 + Redis 7.
+Get KhanaBazaar running on your machine in under 10 minutes. Stack: FastAPI + Next.js 16 + Postgres 15 (PostGIS 3.4) + Redis 7.
+
+> The map / autocomplete features require Google Maps API keys. Skip them initially — the app falls back to manual address entry. When you need them, see [`google_maps_setup.md`](./google_maps_setup.md).
 
 ## 1. Prerequisites
 

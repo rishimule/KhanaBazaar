@@ -230,6 +230,7 @@ No frontend tests configured.
 - `docs/development_guide.md` — env vars, Alembic workflow, OTP/JWT, Celery, testing patterns, frontend conventions
 - `docs/azure_deployment.md` — Azure deployment plan: Container Apps, Postgres Flexible Server, Cache for Redis, Bicep + `azd`, GitHub Actions OIDC
 - `docs/seller_signup.md` — seller registration wizard, OTP 2-step flow, admin verify, layout guard
+- `docs/google_maps_setup.md` — provision the server + browser API keys for the maps feature, restrictions, env wiring, cost orientation
 - `.claude/docs/architectural_patterns.md` — DI, model hierarchy, auth chain (any Firebase mention is stale)
 - `TODO.md` — Phase tracker (Phases 1–4 complete, Phase 5 deployment in progress)
 

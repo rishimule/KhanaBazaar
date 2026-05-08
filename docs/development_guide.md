@@ -2,7 +2,7 @@
 
 How we develop on Khana Bazaar day-to-day. Covers env config, Alembic, OTP auth, Celery, tests, lint/types, frontend conventions, and the gotchas that bite us most often.
 
-For one-time setup of Postgres / Redis / dependencies, see [`local_setup.md`](./local_setup.md). For deployment, see [`azure_deployment.md`](./azure_deployment.md).
+For one-time setup of Postgres / Redis / dependencies, see [`local_setup.md`](./local_setup.md). For deployment, see [`azure_deployment.md`](./azure_deployment.md). For Google Maps API keys (powering autocomplete + map pin + reverse geocoding), see [`google_maps_setup.md`](./google_maps_setup.md).
 
 ---
 
