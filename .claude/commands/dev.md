@@ -4,6 +4,12 @@ argument-hint: "[start|stop|stop --all|restart|status|logs [backend|celery|front
 allowed-tools: Bash(./scripts/dev.sh:*)
 ---
 
+<!--
+Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+-->
+
+
 Run `./scripts/dev.sh $ARGUMENTS` from repo root via the Bash tool.
 
 If `$ARGUMENTS` is empty, run `./scripts/dev.sh --help` to show usage.

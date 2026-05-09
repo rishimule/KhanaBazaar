@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+-->
 # Geo-aware Stores, Delivery Radius, Address Mapping — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

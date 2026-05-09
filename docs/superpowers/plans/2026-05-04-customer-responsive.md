@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+-->
 # Customer Responsive + Light Polish Plan
 
 **Goal:** Make `/account/orders`, `/account/orders/[id]`, and `/cart` clean on mobile. Other customer pages already responsive.

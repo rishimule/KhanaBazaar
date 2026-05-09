@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+-->
 # Local Setup
 
 Get KhanaBazaar running on your machine in under 10 minutes. Stack: FastAPI + Next.js 16 + Postgres 15 (PostGIS 3.4) + Redis 7.

@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+-->
 # Seller Signup & Onboarding
 
 Definitive guide to Khana Bazaar's seller onboarding flow — from the public landing page through email-OTP **and** phone-OTP verification, the multi-step application wizard, the pending state, admin review, and finally the approved seller dashboard with one store and multi-service inventory.

@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+-->
 # Google Maps API Keys — Setup Guide
 
 How to provision the two Google Maps API keys Khana Bazaar needs for address autocomplete, the map pin picker, and reverse geocoding. The keys are restricted in two different ways so they cannot be abused if leaked. Plan ~20 minutes the first time, ~5 minutes thereafter.

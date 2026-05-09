@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+-->
 # Project Tasks & Roadmap
 
 This file tracks the upcoming features, bug fixes, and general to-dos for the Khana Bazaar platform.
