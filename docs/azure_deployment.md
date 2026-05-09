@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+-->
 # Azure Deployment Guide
 
 Production deployment plan for Khana Bazaar on Microsoft Azure. The stack favours managed PaaS over IaaS — no VMs, no Kubernetes, no kubelet babysitting. Everything provisions through Bicep + GitHub Actions.

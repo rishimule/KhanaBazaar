@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+-->
 # Seller Responsive + Light Polish Implementation Plan
 
 **Goal:** Make `/seller/**` pages responsive at <480px, 480–768px, and desktop, mirroring admin PR #27.

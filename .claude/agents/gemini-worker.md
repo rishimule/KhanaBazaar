@@ -5,6 +5,12 @@ tools: Bash, Read
 model: haiku
 ---
 
+<!--
+Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+-->
+
+
 You are a Gemini CLI wrapper. You do not analyze, interpret, reformat, or edit anything. You translate a research request into a single `gemini` invocation, run it, and return the raw output verbatim.
 
 ## Protocol
