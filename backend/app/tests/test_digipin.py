@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Tests for India Post DIGIPIN encode/decode (10-char alphanumeric grid code).
 
 Reference algorithm: India Post / IIT-Hyderabad. Bounds: lat 2.5-38.5, lng 63.5-99.5.

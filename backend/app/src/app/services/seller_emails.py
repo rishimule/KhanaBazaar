@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Thin dispatcher around seller-verification email Celery tasks.
 
 Mirrors `order_emails.py`: wraps `.delay()` so callers don't need to know which

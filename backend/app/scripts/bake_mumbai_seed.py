@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """One-shot author-time bake script for Mumbai seed data.
 
 Calls the local /api/v1/geo/reverse endpoint for each landmark and prints

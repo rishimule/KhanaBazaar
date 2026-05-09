@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Tiny SSE log viewer for KhanaBazaar dev. Tails .dev/logs/*.log over HTTP."""
 from __future__ import annotations
 
