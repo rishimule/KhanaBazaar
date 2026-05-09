@@ -202,3 +202,13 @@ Microsoft Azure — Container Apps (api, worker, web) + Postgres Flexible Server
 - Conventional Commits — `<type>(<scope>): <summary>`, ≤72 chars, no trailing period.
 - PRs target `main`, must pass CI (lint + types + tests), merged via merge-commit (`gh pr merge --merge`).
 - Never commit `.env` / secrets; never `git push --force` on shared branches.
+
+## Copyright
+
+Copyright © 2026 Rishi Mule. All rights reserved.
+
+This source code and all associated assets are the proprietary and confidential property of Rishi Mule. No part of this repository — including but not limited to the source code, design, documentation, schemas, and configuration — may be used, copied, reproduced, modified, merged, published, distributed, sublicensed, sold, or otherwise exploited, in whole or in part, by any person or entity, for any purpose (commercial or non-commercial), without the **prior written and explicit permission of Rishi Mule**.
+
+Unauthorized use, reproduction, or distribution is strictly prohibited and may result in civil and criminal liability under applicable copyright and intellectual property laws.
+
+For licensing or permission inquiries, contact: **mulerishi1234@gmail.com**.
