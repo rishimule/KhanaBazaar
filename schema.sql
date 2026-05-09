@@ -1,3 +1,5 @@
+-- Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+-- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
 -- migration head `cecb3aa39b17`. Regenerate this file when the head changes.

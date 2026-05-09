@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+// This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";

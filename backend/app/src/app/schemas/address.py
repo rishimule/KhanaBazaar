@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Pydantic schema for the structured address wire format.
 
 Used as the nested `address` object on every API request/response body

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Wire-format model for services. Mirrors the shape returned by
 GET /catalog/services so frontend code can reuse a single Service type."""
 

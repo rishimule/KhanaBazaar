@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """One-shot audit: log any storeinventory rows whose product belongs to
 a service NOT in the owning seller's approved services. Does not modify
 data — purely a diagnostic for the bulk-inventory rollout (2026-05-05).

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
 .widget { margin: 1.5rem 0; }
 .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.8rem; }
 .title { font-size: 1.2rem; margin: 0; }
