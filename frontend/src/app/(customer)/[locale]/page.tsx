@@ -8,12 +8,35 @@ import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
-import { Store } from "@/types";
+import { Service, Store } from "@/types";
 import styles from "./page.module.css";
+
+const SERVICE_GLYPH: Record<string, string> = {
+  grocery: "🛒",
+  food: "🍱",
+  pharmacy: "💊",
+  electronics: "🔌",
+  bakery: "🍞",
+  fresh: "🥬",
+  meat: "🍖",
+  seafood: "🦐",
+  beverages: "🍵",
+  household: "🏠",
+};
+
+function serviceGlyph(slug: string): string {
+  const k = slug.toLowerCase();
+  if (SERVICE_GLYPH[k]) return SERVICE_GLYPH[k];
+  for (const key in SERVICE_GLYPH) {
+    if (k.includes(key)) return SERVICE_GLYPH[key];
+  }
+  return "🛍️";
+}
 
 export default function Home() {
   const t = useTranslations("Home");
   const [stores, setStores] = useState<Store[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const { location } = useDeliveryLocation();
 
   useEffect(() => {
@@ -25,125 +48,77 @@ export default function Home() {
       .catch(() => setStores([]));
   }, [location]);
 
-  const shoppingHref = "/stores";
-  const shoppingLabel = t("ctaStartShopping");
+  useEffect(() => {
+    get<Service[]>("/api/v1/catalog/services")
+      .then((rows) =>
+        setServices(
+          rows
+            .filter((s) => s.is_active !== false)
+            .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
+        )
+      )
+      .catch(() => setServices([]));
+  }, []);
 
   return (
-    <>
-      <section className={styles.hero}>
-        <div className={styles.heroInner}>
-          <div className={styles.heroCopy}>
-            <div className={styles.badge}>
-              <span className={styles.badgeDot} />
-              {t("badge")}
-            </div>
-
-            <h1 className={styles.heroTitle}>{t("heroTitle")}</h1>
-
-            <p className={styles.heroDescription}>{t("heroDescription")}</p>
-
-            <div className={styles.heroCta}>
-              <Link
-                href={shoppingHref}
-                className="btn btn-primary"
-                id="cta-start-shopping"
-              >
-                {shoppingLabel}
-              </Link>
-              <Link
-                href="/sell"
-                className="btn btn-outline"
-                id="cta-become-seller"
-              >
-                {t("ctaSellOnKB")}
-              </Link>
-            </div>
-
-            <div
-              className={styles.trustChips}
-              aria-label={t("highlightsAria")}
-            >
-              <span>{t("trustPincode")}</span>
-              <span>{t("trustInventory")}</span>
-              <span>{t("trustUpi")}</span>
-            </div>
+    <div className={styles.page}>
+      <div className={styles.shell}>
+        <section className={styles.hero}>
+          <span className={styles.heroGlyph} aria-hidden>🥢</span>
+          <div className={styles.eyebrow}>{t("badge")}</div>
+          <h1 className={styles.heroTitle}>{t("heroTitle")}</h1>
+          <p className={styles.heroSub}>{t("heroDescription")}</p>
+          <div className={styles.heroCta}>
+            <Link href="/stores" className={styles.heroBtnPrimary}>
+              {t("ctaStartShopping")}
+            </Link>
+            <Link href="/sell" className={styles.heroBtnGhost}>
+              {t("ctaSellOnKB")}
+            </Link>
           </div>
+        </section>
 
-          <div className={styles.heroVisual} aria-hidden="true">
-            <div className={styles.marketCard}>
-              <div className={styles.marketHeader}>
-                <span>{t("marketBasket")}</span>
-                <strong>{t("marketToday")}</strong>
-              </div>
+        <section className={styles.promoRow}>
+          <div className={`${styles.promoCard} ${styles.promoCardRefer}`}>
+            <span className={styles.promoGlyph} aria-hidden>🎁</span>
+            <div className={styles.promoEyebrow}>{t("trustPincode")}</div>
+            <h3 className={styles.promoTitle}>Same-day delivery in 2 hours</h3>
+            <span className={styles.promoLink}>Browse nearby stores →</span>
+          </div>
+          <div className={`${styles.promoCard} ${styles.promoCardMember}`}>
+            <span className={styles.promoGlyph} aria-hidden>👑</span>
+            <div className={styles.promoEyebrow}>{t("trustUpi")}</div>
+            <h3 className={styles.promoTitle}>Pay with UPI · zero card hassle</h3>
+            <span className={`${styles.promoLink} ${styles.promoLinkDark}`}>Learn how →</span>
+          </div>
+        </section>
 
-              <div className={styles.produceGrid}>
-                <span className={styles.produceItem} />
-                <span className={styles.produceItem} />
-                <span className={styles.produceItem} />
-                <span className={styles.produceItem} />
-              </div>
-
-              <div className={styles.orderPanel}>
-                <div>
-                  <span className={styles.orderLabel}>{t("marketNearbyStore")}</span>
-                  <strong>{t("marketFreshMart")}</strong>
-                </div>
-                <span className={styles.statusPill}>{t("marketOpenNow")}</span>
-              </div>
-
-              <div className={styles.deliveryCard}>
-                <span className={styles.deliveryIcon} />
-                <div>
-                  <strong>{t("marketAreaMatched")}</strong>
-                  <span>{t("marketAreaSubtitle")}</span>
-                </div>
-              </div>
+        {services.length > 0 && (
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <h2 className={styles.sectionTitle}>Shop by service</h2>
+              <Link href="/stores" className={styles.sectionMore}>More ›</Link>
             </div>
-          </div>
-        </div>
-      </section>
+            <div className={styles.svcGrid}>
+              {services.map((s) => (
+                <Link key={s.id} href="/stores" className={styles.catTile}>
+                  <span className={styles.catTileGlyph} aria-hidden>{serviceGlyph(s.slug)}</span>
+                  <span className={styles.catTileLabel}>{s.name}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
-      <section className={styles.benefitsSection}>
-        <div className={styles.sectionInner}>
-          <div className={styles.benefitsGrid}>
-            <article className={styles.benefitCard}>
-              <span
-                className={`${styles.benefitIcon} ${styles.benefitIconPrimary}`}
-              />
-              <h2>{t("benefitShopNearbyTitle")}</h2>
-              <p>{t("benefitShopNearbyBody")}</p>
-            </article>
-
-            <article className={styles.benefitCard}>
-              <span
-                className={`${styles.benefitIcon} ${styles.benefitIconAccent}`}
-              />
-              <h2>{t("benefitFreshTitle")}</h2>
-              <p>{t("benefitFreshBody")}</p>
-            </article>
-
-            <article className={styles.benefitCard}>
-              <span
-                className={`${styles.benefitIcon} ${styles.benefitIconInfo}`}
-              />
-              <h2>{t("benefitMobileTitle")}</h2>
-              <p>{t("benefitMobileBody")}</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.storesSection}>
-        <div className={styles.sectionInner}>
-          <div className={styles.sectionHeader}>
-            <span className={styles.sectionEyebrow}>{t("popularEyebrow")}</span>
-            <h2>{t("popularTitle")}</h2>
-            <p>{t("popularSubtitle")}</p>
+        <section className={styles.section}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>{t("popularTitle")}</h2>
+            <Link href="/stores" className={styles.sectionMore}>{t("viewAllStores")} ›</Link>
           </div>
 
           {stores.length > 0 ? (
             <div className={styles.storesGrid}>
-              {stores.map((store) => (
+              {stores.slice(0, 8).map((store) => (
                 <Link
                   key={store.id}
                   href={`/stores/${store.id}`}
@@ -155,44 +130,36 @@ export default function Home() {
                     </span>
                     <span className={styles.storeCardStatus}>{t("storeOpenNow")}</span>
                   </div>
-                  <h3>{store.name}</h3>
-                  <p>{formatAddress(store.address)}</p>
-                  <span className={styles.storeCardAction}>{t("storeBrowse")}</span>
+                  <div className={styles.storeCardBody}>
+                    <h3 className={styles.storeName}>{store.name}</h3>
+                    <p className={styles.storeAddr}>{formatAddress(store.address)}</p>
+                    <span className={styles.storeCardAction}>{t("storeBrowse")} →</span>
+                  </div>
                 </Link>
               ))}
             </div>
           ) : (
             <div className={styles.emptyState}>
-              <span className={styles.emptyStateIcon} />
-              <h3>{t("emptyTitle")}</h3>
-              <p>{t("emptyBody")}</p>
-              <Link href={shoppingHref} className="btn btn-outline">
+              <h3 className={styles.emptyTitle}>{t("emptyTitle")}</h3>
+              <p className={styles.emptyBody}>{t("emptyBody")}</p>
+              <Link href="/stores" className="btn btn-secondary">
                 {t("emptyBrowseAll")}
               </Link>
             </div>
           )}
+        </section>
 
-          <div className={styles.storesSectionCta}>
-            <Link href={shoppingHref} className="btn btn-outline">
-              {t("viewAllStores")}
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.sellerBand}>
-        <div className={styles.sellerBandInner}>
+        <section className={styles.sellerBand}>
           <div>
-            <span className={styles.sectionEyebrow}>{t("sellerBandEyebrow")}</span>
-            <h2>{t("sellerBandTitle")}</h2>
-            <p>{t("sellerBandBody")}</p>
+            <span className={styles.eyebrow}>{t("sellerBandEyebrow")}</span>
+            <h2 className={styles.sellerBandTitle}>{t("sellerBandTitle")}</h2>
+            <p className={styles.sellerBandSub}>{t("sellerBandBody")}</p>
           </div>
-
-          <Link href="/sell" className="btn btn-accent">
+          <Link href="/sell" className="btn btn-primary">
             {t("becomeSeller")}
           </Link>
-        </div>
-      </section>
-    </>
+        </section>
+      </div>
+    </div>
   );
 }

@@ -2,27 +2,55 @@
  * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
  * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
  */
-.actions { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-family: var(--font-family-sans);
+}
+
 .primary {
-  background: var(--color-primary, #16a34a); color: white;
-  padding: 0.5rem 1rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600;
+  background: var(--color-btn-primary-bg);
+  color: var(--white);
+  padding: 10px 18px;
+  border-radius: var(--radius-card);
+  border: none;
+  cursor: pointer;
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-sm);
+  font-family: var(--font-family-sans);
+  transition: background var(--duration-fast), transform var(--duration-fast);
 }
-.primary:disabled { opacity: 0.6; cursor: progress; }
+.primary:hover  { background: var(--color-btn-primary-hover); }
+.primary:active { transform: scale(0.97); }
+.primary:disabled {
+  background: var(--shade-cool-light-5);
+  color: var(--shade-cool-base-4);
+  cursor: progress;
+  transform: none;
+}
+
 .danger {
-  background: transparent; color: #991b1b; border: 1px solid #fca5a5;
-  padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600;
+  background: transparent;
+  color: var(--tomato-red-base-4);
+  border: 1px solid var(--tomato-red-light-2);
+  padding: 10px 18px;
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  font-weight: var(--weight-medium);
+  font-size: var(--body-sm);
+  font-family: var(--font-family-sans);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
 }
-.error { color: #991b1b; font-size: 0.85rem; }
+.danger:hover { background: var(--tomato-red-light-1); border-color: var(--tomato-red-base-4); }
+
+.error {
+  color: var(--tomato-red-dark-1);
+  font-size: var(--body-xs);
+}
 
 @media (max-width: 640px) {
-  .actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .primary,
-  .danger {
-    width: 100%;
-    min-height: 44px;
-  }
+  .actions { flex-direction: column; align-items: stretch; }
+  .primary, .danger { width: 100%; min-height: 44px; }
 }

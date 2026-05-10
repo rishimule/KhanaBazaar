@@ -7,7 +7,7 @@
 .input {
   width: 100%;
   padding: var(--space-3) var(--space-4);
-  border: 1.5px solid var(--color-neutral-200);
+  border: 1px solid var(--shade-cool-light-6);
   border-radius: var(--radius-lg);
   background: var(--color-neutral-0);
   color: var(--color-neutral-800);
@@ -18,7 +18,7 @@
 .input:focus {
   outline: none;
   border-color: var(--color-primary-400);
-  box-shadow: 0 0 0 3px hsla(18, 90%, 52%, 0.12);
+  box-shadow: 0 0 0 2px rgba(92, 107, 46, 0.12);
 }
 
 .dropdown {

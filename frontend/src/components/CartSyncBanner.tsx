@@ -16,15 +16,17 @@ export default function CartSyncBanner() {
       role="status"
       aria-live="polite"
       style={{
-        background: "var(--color-warning-bg, #fff7e6)",
-        color: "var(--color-warning-fg, #92400e)",
-        borderBottom: "1px solid var(--color-warning-border, #fcd34d)",
-        padding: "0.75rem 1rem",
+        background: "var(--mandarin-orange-light-1)",
+        color: "var(--mandarin-orange-base-4)",
+        borderBottom: "1px solid var(--hairline)",
+        padding: "10px 16px",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        gap: "1rem",
-        fontSize: "0.9rem",
+        gap: "12px",
+        fontFamily: "var(--font-family-sans)",
+        fontSize: "var(--body-sm)",
+        fontWeight: 500,
       }}
     >
       <span>{t("itemsDropped", { count: lastSyncDropped })}</span>

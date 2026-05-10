@@ -3,14 +3,15 @@
  * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
  */
 .footer {
-  background: var(--color-neutral-900);
-  color: var(--color-neutral-400);
+  background: var(--shade-cool-dark-7);
+  color: var(--shade-cool-base-5);
   padding: var(--space-12) var(--space-4) var(--space-6);
   margin-top: auto;
+  font-family: var(--font-family-sans);
 }
 
 .footerInner {
-  max-width: var(--container-xl);
+  max-width: var(--container-2xl);
   margin-inline: auto;
   display: grid;
   grid-template-columns: 1fr;
@@ -24,7 +25,6 @@
   }
 }
 
-/* ── Brand column ─────────────────── */
 .footerBrand {
   display: flex;
   flex-direction: column;
@@ -32,26 +32,30 @@
 }
 
 .footerLogo {
-  font-size: var(--font-xl);
-  font-weight: var(--weight-bold);
-  color: var(--color-neutral-0);
-  letter-spacing: var(--tracking-tight);
+  font-size: 22px;
+  font-weight: var(--weight-extra);
+  color: var(--white);
+  letter-spacing: -0.6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .footerLogoAccent {
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-btn-primary-bg);
+  display: inline-block;
 }
 
 .footerDescription {
-  font-size: var(--font-sm);
-  line-height: var(--leading-relaxed);
+  font-size: var(--body-sm);
+  line-height: 1.6;
   max-width: 360px;
+  color: var(--shade-cool-base-4);
 }
 
-/* ── Link columns ─────────────────── */
 .footerColumn {
   display: flex;
   flex-direction: column;
@@ -59,38 +63,38 @@
 }
 
 .footerColumnTitle {
-  font-size: var(--font-sm);
+  font-size: var(--body-2xs);
   font-weight: var(--weight-semibold);
-  color: var(--color-neutral-200);
+  color: var(--shade-cool-light-7);
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
+  letter-spacing: 0.04em;
 }
 
 .footerLink {
-  font-size: var(--font-sm);
-  color: var(--color-neutral-400);
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-4);
   text-decoration: none;
   transition: color var(--duration-fast) var(--ease-default);
 }
 
 .footerLink:hover {
-  color: var(--color-primary-400);
+  color: var(--color-btn-primary-bg);
+  text-decoration: none;
 }
 
-/* ── Bottom bar ───────────────────── */
 .footerBottom {
-  max-width: var(--container-xl);
+  max-width: var(--container-2xl);
   margin-inline: auto;
   margin-top: var(--space-8);
   padding-top: var(--space-6);
-  border-top: 1px solid hsla(220, 14%, 30%, 0.4);
+  border-top: 1px solid var(--shade-cool-dark-3);
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-3);
-  font-size: var(--font-xs);
-  color: var(--color-neutral-500);
+  font-size: var(--body-2xs);
+  color: var(--shade-cool-base-4);
 }
 
 .madeWith {

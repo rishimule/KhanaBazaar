@@ -31,7 +31,7 @@
 .input {
   padding: var(--space-3) var(--space-4);
   font-size: var(--font-base);
-  border: 1.5px solid var(--color-neutral-200);
+  border: 1px solid var(--shade-cool-light-6);
   border-radius: var(--radius-lg);
   background: var(--color-neutral-0);
   color: var(--color-neutral-800);
@@ -44,7 +44,7 @@
 
 .input:focus {
   border-color: var(--color-primary-400);
-  box-shadow: 0 0 0 3px hsla(18, 90%, 52%, 0.12);
+  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
 }
 
 .input::placeholder {
@@ -75,7 +75,7 @@ select.input {
 
 .inputError:focus {
   border-color: var(--color-error);
-  box-shadow: 0 0 0 3px hsla(0, 84%, 60%, 0.12);
+  box-shadow: 0 0 0 2px rgba(236, 65, 67, 0.18);
 }
 
 .error {
@@ -94,20 +94,20 @@ select.input {
 
 .verifyBtn {
   align-self: flex-start;
-  padding: var(--space-3) var(--space-5);
-  background: var(--color-primary-500);
-  color: var(--color-neutral-0);
+  padding: 12px 18px;
+  background: var(--color-btn-primary-bg);
+  color: var(--white);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   cursor: pointer;
   font: inherit;
+  font-family: var(--font-family-sans);
   font-weight: var(--weight-semibold);
-  transition: background var(--duration-fast) var(--ease-default);
+  transition: background var(--duration-fast), transform var(--duration-fast);
 }
 
-.verifyBtn:hover:not(:disabled) {
-  background: var(--color-primary-600);
-}
+.verifyBtn:hover:not(:disabled)  { background: var(--color-btn-primary-hover); }
+.verifyBtn:active:not(:disabled) { transform: scale(0.97); }
 
 .verifyBtn:disabled {
   background: var(--color-neutral-300);

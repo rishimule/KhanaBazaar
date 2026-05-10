@@ -2,11 +2,15 @@
  * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
  * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
  */
+/* ============================================================
+   Modal — 12px radius, 0.54 scrim, soft shadow, hairline divisions.
+   ============================================================ */
+
 .backdrop {
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
-  background: hsla(220, 22%, 8%, 0.5);
+  background: var(--tint-black-54);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15,112 +19,112 @@
 }
 
 .modal {
-  background: var(--color-neutral-0);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-2xl);
+  background: var(--white);
+  border-radius: var(--radius-modal);
+  box-shadow: var(--shadow-modal);
   width: 100%;
-  max-width: 500px;
+  max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
-  animation: modalIn 250ms var(--ease-out);
+  font-family: var(--font-family-sans);
+  animation: modalIn 220ms var(--ease-out);
 }
 
 .modalWide {
-  max-width: 720px;
+  max-width: 640px;
 }
 
 @keyframes modalIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-5) var(--space-6) var(--space-4);
-  border-bottom: 1px solid var(--color-neutral-100);
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .title {
-  font-size: var(--font-lg);
-  font-weight: var(--weight-semibold);
-  color: var(--color-neutral-900);
+  font-size: var(--display-lg);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--display-lg-track);
+  color: var(--shade-cool-dark-7);
+  margin: 0;
 }
 
 .closeBtn {
   width: 32px;
   height: 32px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
-  font-size: var(--font-lg);
-  color: var(--color-neutral-400);
-  transition: all var(--duration-fast) var(--ease-default);
+  border-radius: 50%;
+  font-size: 18px;
+  color: var(--shade-cool-base-7);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
 }
 
 .closeBtn:hover {
-  background: var(--color-neutral-100);
-  color: var(--color-neutral-700);
+  background: var(--shade-cool-light-1);
+  color: var(--shade-cool-dark-7);
 }
 
 .body {
-  padding: var(--space-5) var(--space-6);
+  padding: 18px 24px;
 }
 
 .footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-6);
-  border-top: 1px solid var(--color-neutral-100);
+  gap: 12px;
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--hairline);
 }
 
-/* ── Form styles ─────────────────── */
 .formGroup {
-  margin-bottom: var(--space-4);
+  margin-bottom: 14px;
 }
 
 .label {
   display: block;
-  font-size: var(--font-sm);
+  font-size: var(--body-sm);
   font-weight: var(--weight-medium);
-  color: var(--color-neutral-700);
-  margin-bottom: var(--space-1-5);
+  color: var(--shade-cool-dark-3);
+  margin-bottom: 6px;
 }
 
 .input,
 .select,
 .textarea {
   width: 100%;
-  padding: var(--space-2-5) var(--space-3);
-  font-size: var(--font-sm);
-  color: var(--color-neutral-800);
-  background: var(--color-neutral-0);
-  border: 1.5px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-  transition: border-color var(--duration-fast) var(--ease-default);
+  padding: 12px 14px;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+  background: var(--white);
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-card);
+  font-family: var(--font-family-sans);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
 }
 
 .input:focus,
 .select:focus,
 .textarea:focus {
   outline: none;
-  border-color: var(--color-primary-400);
-  box-shadow: 0 0 0 3px hsla(18, 90%, 52%, 0.1);
+  border-color: var(--color-primary-1);
+  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
 }
 
 .textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 96px;
 }
 
 .select {

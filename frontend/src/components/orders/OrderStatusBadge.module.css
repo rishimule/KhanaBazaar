@@ -3,16 +3,21 @@
  * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
  */
 .badge {
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.20px;
+  line-height: 1.4;
+  font-family: var(--font-family-sans);
 }
 
-.pending { background: #fef3c7; color: #92400e; }
-.packed { background: #dbeafe; color: #1e40af; }
-.dispatched { background: #ede9fe; color: #5b21b6; }
-.delivered { background: #dcfce7; color: #166534; }
-.cancelled { background: #fee2e2; color: #991b1b; }
+.pending    { background: var(--mandarin-orange-light-1); color: var(--mandarin-orange-base-4); }
+.packed     { background: var(--saffron-light-1);          color: var(--color-primary-1); }
+.dispatched { background: var(--eggplant-purple-light-1);  color: var(--eggplant-purple-base-4); }
+.delivered  { background: var(--chive-green-light-1);      color: var(--chive-green-base-4); }
+.cancelled  { background: var(--tomato-red-light-1);       color: var(--tomato-red-dark-1); }
+.paid       { background: var(--jade-green-light-1);       color: var(--jade-green-dark-1); }
