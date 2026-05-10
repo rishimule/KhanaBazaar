@@ -22,7 +22,7 @@
   border: 1px solid var(--color-neutral-200);
   color: var(--color-neutral-600);
   padding: 0.5rem 1rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
@@ -34,16 +34,16 @@
 }
 
 .tabActive {
-  background: var(--color-primary-500);
-  color: white;
-  border-color: var(--color-primary-500);
+  background: var(--color-primary-1);
+  color: var(--white);
+  border-color: var(--color-primary-1);
 }
 
 .tabBadge {
   margin-left: 0.4rem;
   background: rgba(255, 255, 255, 0.25);
   padding: 0.1rem 0.5rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   font-size: 0.8rem;
 }
 
@@ -57,7 +57,7 @@
   background: var(--color-neutral-100);
   color: var(--color-neutral-700);
   padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   font-size: 0.8rem;
   text-transform: capitalize;
 }
@@ -67,30 +67,33 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   font-size: 0.85rem;
   font-weight: 500;
 }
 
-.statusPending { background: #fef3c7; color: #92400e; }
-.statusApproved { background: #d1fae5; color: #065f46; }
-.statusRejected { background: #fee2e2; color: #991b1b; }
+.statusPending { background: var(--mandarin-orange-light-1); color: var(--mandarin-orange-base-4); }
+.statusApproved { background: var(--jade-green-light-1); color: var(--jade-green-dark-1); }
+.statusRejected { background: var(--tomato-red-light-1); color: var(--tomato-red-dark-1); }
 
 .ownerCell { display: flex; flex-direction: column; }
 .ownerEmail { color: var(--color-neutral-500); font-size: 0.8rem; }
 
 .reviewBtn {
-  background: var(--color-primary-500);
-  color: white;
+  background: var(--color-btn-primary-bg);
+  color: var(--white);
   border: none;
-  padding: 0.4rem 0.9rem;
-  border-radius: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-card);
   cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  transition: background var(--duration-fast), transform var(--duration-fast);
 }
 
-.reviewBtn:hover { opacity: 0.9; }
+.reviewBtn:hover  { background: var(--color-btn-primary-hover); }
+.reviewBtn:active { transform: scale(0.97); }
 
 .detailsGrid {
   display: grid;
@@ -110,8 +113,8 @@
 .detailsValue { color: var(--color-neutral-900); word-break: break-word; }
 
 .rejectionCallout {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--tomato-red-light-1);
+  color: var(--tomato-red-dark-1);
   padding: 0.75rem 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
@@ -125,7 +128,7 @@
 }
 
 .dangerBtn {
-  background: #dc2626;
+  background: var(--tomato-red-base-4);
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -140,7 +143,7 @@
 }
 
 .successBtn {
-  background: #059669;
+  background: var(--jade-green-base-4);
   color: white;
   border: none;
   padding: 0.5rem 1rem;

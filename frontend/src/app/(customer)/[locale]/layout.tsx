@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Poppins } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -17,14 +17,15 @@ import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
 import { alternateLanguages } from "@/i18n/metadata";
 import { routing } from "@/i18n/routing";
 
-const inter = Inter({
+const poppins = Poppins({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
-  variable: "--font-family-sans",
+  variable: "--font-poppins",
 });
 
 export const viewport: Viewport = {
-  themeColor: "#e8611a",
+  themeColor: "#B8470F",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -71,7 +72,7 @@ export default async function CustomerLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={inter.variable}>
+    <html lang={locale} className={poppins.variable}>
       <head>
         <ThirdPartyErrorSuppressor />
         <link rel="manifest" href="/manifest.json" />
@@ -82,8 +83,8 @@ export default async function CustomerLayout({
           <AuthProvider>
             <DeliveryLocationProvider>
               <CartProvider>
-                <CartSyncBanner />
                 <Navbar />
+                <CartSyncBanner />
                 <main>{children}</main>
                 <Footer />
               </CartProvider>

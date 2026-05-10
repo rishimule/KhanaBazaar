@@ -69,7 +69,7 @@
 
 .input {
   width: 100%;
-  border: 1.5px solid var(--color-neutral-200);
+  border: 1px solid var(--shade-cool-light-6);
   border-radius: var(--radius-md);
   background: var(--color-neutral-0);
   color: var(--color-neutral-800);
@@ -80,8 +80,8 @@
 }
 
 .input:focus {
-  border-color: var(--color-primary-400);
-  box-shadow: 0 0 0 3px hsla(18, 90%, 52%, 0.12);
+  border-color: var(--color-primary-1);
+  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
 }
 
 .input:disabled {
@@ -100,8 +100,8 @@
 }
 
 .errorBanner {
-  background: hsla(0, 84%, 60%, 0.1);
-  border: 1px solid hsla(0, 84%, 60%, 0.25);
+  background: var(--tomato-red-light-1);
+  border: 1px solid var(--tomato-red-light-2);
   border-radius: var(--radius-md);
   color: var(--color-error);
   font-size: var(--font-sm);
@@ -174,13 +174,14 @@
 }
 
 .textButton {
-  color: var(--color-primary-600);
+  color: var(--color-primary-1);
   font-size: var(--font-sm);
   font-weight: var(--weight-semibold);
 }
 
 .textButton:hover:not(:disabled) {
-  color: var(--color-primary-700);
+  color: var(--color-primary-1);
+  text-decoration: underline;
 }
 
 .textButton:disabled {

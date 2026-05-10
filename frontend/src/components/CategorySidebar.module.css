@@ -1,0 +1,70 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.rail {
+  width: var(--sidebar-width);
+  background: var(--white);
+  border-right: 1px solid var(--hairline);
+  padding: 8px 0;
+  flex-shrink: 0;
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
+  position: sticky;
+  top: var(--nav-height);
+  align-self: flex-start;
+  max-height: calc(100vh - var(--nav-height));
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  color: var(--shade-cool-base-7);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  background: transparent;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: inherit;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+
+.item:hover {
+  background: var(--shade-cool-light-1);
+  color: var(--color-primary-1);
+  text-decoration: none;
+}
+
+.itemActive {
+  background: var(--shade-cool-light-2);
+  color: var(--color-primary-1);
+  border-left-color: var(--color-primary-1);
+}
+
+.icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 1023px) {
+  .rail { display: none; }
+}

@@ -3,9 +3,13 @@
  * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
  */
 .page {
-  padding: 1.5rem;
+  padding: 0;
   max-width: 800px;
   margin: 0 auto;
+  font-family: var(--font-family-sans);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .header {
@@ -13,90 +17,77 @@
   justify-content: space-between;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .title {
-  font-size: 1.6rem;
+  font-size: var(--display-lg);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--display-lg-track);
+  color: var(--shade-cool-dark-7);
   margin: 0;
 }
 
 .subtitle {
-  color: var(--color-text-muted, #6b7280);
-  margin-top: 0.25rem;
+  color: var(--shade-cool-base-5);
+  margin-top: 4px;
+  font-size: var(--body-sm);
 }
 
 .section {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 10px;
+  padding: 18px;
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
 }
 
 .sectionTitle {
-  font-size: 1.05rem;
-  margin: 0 0 0.6rem;
+  font-size: var(--body-base);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-dark-7);
+  margin: 0 0 12px;
 }
 
 .totals {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin-top: 0.8rem;
+  gap: 8px;
+  margin-top: 14px;
   font-variant-numeric: tabular-nums;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
 }
 
 .totals div {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .grand {
-  font-weight: 700;
-  font-size: 1.1rem;
-  border-top: 1px solid var(--color-border, #e5e7eb);
-  padding-top: 0.4rem;
-  margin-top: 0.3rem;
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-lg);
+  color: var(--shade-cool-dark-7);
+  border-top: 1px solid var(--hairline);
+  padding-top: 10px;
+  margin-top: 4px;
 }
 
 .loading,
 .error {
-  padding: 2rem;
+  padding: 32px 16px;
   text-align: center;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--shade-cool-base-5);
+  font-size: var(--body-base);
 }
 
 .error {
-  color: #991b1b;
+  color: var(--tomato-red-dark-1);
 }
 
 @media (max-width: 768px) {
-  .page {
-    padding: 1rem;
-  }
-
-  .title {
-    font-size: 1.4rem;
-  }
-
-  .header {
-    align-items: flex-start;
-  }
-
-  .section {
-    padding: 0.85rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .page {
-    padding: 0.75rem;
-  }
-
-  .totals div {
-    flex-direction: row;
-  }
+  .title { font-size: var(--body-2xl); }
+  .header { align-items: flex-start; }
+  .section { padding: 14px; }
 }

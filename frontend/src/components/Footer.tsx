@@ -11,7 +11,8 @@ export default function Footer() {
       <div className={styles.footerInner}>
         <div className={styles.footerBrand}>
           <div className={styles.footerLogo}>
-            Khana<span className={styles.footerLogoAccent}>Bazaar</span>
+            <span>khanabazaar</span>
+            <span className={styles.footerLogoAccent} aria-hidden />
           </div>
           <p className={styles.footerDescription}>{t("tagline")}</p>
         </div>

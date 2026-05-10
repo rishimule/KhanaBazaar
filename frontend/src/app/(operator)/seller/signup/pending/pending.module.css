@@ -4,30 +4,22 @@
  */
 /* Same gradient page layout as login/wizard */
 .page {
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - var(--nav-height));
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--space-6);
-  background: linear-gradient(
-    160deg,
-    var(--color-primary-50) 0%,
-    var(--color-accent-50) 50%,
-    var(--color-neutral-50) 100%
-  );
+  background: var(--shade-cool-light-1);
+  font-family: var(--font-family-sans);
 }
 
-/* Centered card — narrower than wizard (max-width: 400px) */
 .card {
   width: 100%;
-  max-width: 400px;
-  background: hsla(0, 0%, 100%, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid hsla(0, 0%, 100%, 0.6);
-  border-radius: var(--radius-2xl);
-  padding: var(--space-10) var(--space-8);
-  box-shadow: var(--shadow-xl);
+  max-width: 440px;
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-modal);
+  padding: 32px 28px;
   animation: fadeInUp var(--duration-slow) var(--ease-out);
   text-align: center;
 }
@@ -42,9 +34,10 @@
 
 /* Title */
 .title {
-  font-size: var(--font-2xl);
-  font-weight: var(--weight-bold);
-  color: var(--color-neutral-900);
+  font-size: var(--display-xl);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--display-xl-track);
+  color: var(--shade-cool-dark-7);
   margin-bottom: var(--space-3);
 }
 
@@ -64,8 +57,8 @@
 
 /* Rejection callout — red */
 .rejectionCallout {
-  background: hsla(0, 84%, 60%, 0.08);
-  border: 1px solid hsla(0, 84%, 60%, 0.2);
+  background: var(--tomato-red-light-1);
+  border: 1px solid var(--tomato-red-light-2);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
   margin: var(--space-6) 0;
@@ -89,25 +82,23 @@
 .ctaBtn {
   display: block;
   width: 100%;
-  padding: var(--space-3) var(--space-6);
-  font-size: var(--font-base);
+  padding: 14px 24px;
+  font-family: var(--font-family-sans);
+  font-size: var(--body-base);
   font-weight: var(--weight-semibold);
-  color: var(--color-neutral-0);
-  background: var(--gradient-primary);
+  color: var(--white);
+  background: var(--color-btn-primary-bg);
   border: none;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   cursor: pointer;
-  transition: all var(--duration-normal) var(--ease-default);
-  box-shadow: var(--shadow-md), var(--shadow-glow-primary);
+  transition: background var(--duration-fast), transform var(--duration-fast);
   margin-top: var(--space-4);
   text-decoration: none;
   text-align: center;
 }
 
-.ctaBtn:hover {
-  filter: brightness(1.05);
-  transform: translateY(-1px);
-}
+.ctaBtn:hover  { background: var(--color-btn-primary-hover); }
+.ctaBtn:active { transform: scale(0.97); }
 
 .ctaBtn:focus-visible {
   outline: 2px solid var(--color-primary-400);
