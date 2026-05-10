@@ -2,96 +2,81 @@
  * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
  * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
  */
+/* ============================================================
+   StatsCard — flat white card, hairline border, 10px radius,
+   uppercase saffron eyebrow, big tabular value, jade/tomato delta.
+   ============================================================ */
+
 .card {
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-100);
-  border-radius: var(--radius-xl);
-  padding: var(--space-5);
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 18px;
   display: flex;
   align-items: flex-start;
-  gap: var(--space-4);
-  transition: all var(--duration-normal) var(--ease-default);
+  gap: 14px;
+  font-family: var(--font-family-sans);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
 }
 
 .card:hover {
-  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .iconWrap {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-lg);
-  display: flex;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-2xl);
+  font-size: 22px;
   flex-shrink: 0;
+  line-height: 1;
 }
 
-.iconPrimary {
-  background: var(--color-primary-50);
-}
-
-.iconAccent {
-  background: var(--color-accent-50);
-}
-
-.iconInfo {
-  background: hsla(199, 89%, 48%, 0.1);
-}
-
-.iconWarning {
-  background: hsla(38, 92%, 50%, 0.1);
-}
+.iconPrimary { background: var(--saffron-light-1);     color: var(--color-primary-1); }
+.iconAccent  { background: var(--turmeric-light-1);    color: var(--turmeric-base-7); }
+.iconInfo    { background: var(--shade-cool-light-2);  color: var(--shade-cool-dark-3); }
+.iconWarning { background: var(--mandarin-orange-light-1); color: var(--mandarin-orange-base-4); }
+.iconSuccess { background: var(--jade-green-light-1);  color: var(--jade-green-dark-1); }
+.iconDanger  { background: var(--tomato-red-light-1);  color: var(--tomato-red-base-4); }
 
 .info {
   display: flex;
   flex-direction: column;
-  gap: var(--space-0-5);
+  gap: 4px;
   min-width: 0;
 }
 
 .label {
-  font-size: var(--font-xs);
-  font-weight: var(--weight-medium);
-  color: var(--color-neutral-400);
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-base-5);
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
+  letter-spacing: 0.4px;
 }
 
 .value {
-  font-size: var(--font-2xl);
-  font-weight: var(--weight-bold);
-  color: var(--color-neutral-900);
-  line-height: var(--leading-none);
+  font-size: var(--display-lg);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--display-lg-track);
+  color: var(--shade-cool-dark-7);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .trend {
-  font-size: var(--font-xs);
-  font-weight: var(--weight-medium);
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-semibold);
 }
 
-.trendUp {
-  color: var(--color-accent-500);
-}
-
-.trendDown {
-  color: var(--color-error);
-}
+.trendUp   { color: var(--jade-green-dark-1); }
+.trendDown { color: var(--tomato-red-base-4); }
 
 @media (max-width: 480px) {
-  .card {
-    padding: var(--space-4);
-    gap: var(--space-3);
-  }
-
-  .iconWrap {
-    width: 40px;
-    height: 40px;
-    font-size: var(--font-xl);
-  }
-
-  .value {
-    font-size: var(--font-xl);
-  }
+  .card { padding: 14px; gap: 10px; }
+  .iconWrap { width: 36px; height: 36px; font-size: 18px; }
+  .value { font-size: var(--display-sm); }
 }

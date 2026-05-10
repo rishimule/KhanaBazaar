@@ -16,6 +16,8 @@ import {
   Subcategory,
 } from "@/types";
 import ProductCard from "@/components/ProductCard";
+import CategorySidebar from "@/components/CategorySidebar";
+import CartRail from "@/components/CartRail";
 import styles from "./page.module.css";
 
 interface InventoryWithProduct extends StoreInventory {
@@ -43,9 +45,43 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
-const SERVICE_ANCHOR = (id: number) => `service-${id}`;
 const CATEGORY_ANCHOR = (id: number) => `category-${id}`;
-const SCROLL_OFFSET = 180;
+const SCROLL_OFFSET = 96;
+
+/** Emoji per service slug — falls back to 🛒. */
+const SERVICE_GLYPH: Record<string, string> = {
+  grocery: "🛒",
+  food: "🍱",
+  pharmacy: "💊",
+  electronics: "🔌",
+  bakery: "🍞",
+  fresh: "🥬",
+};
+
+/** Emoji per category — fallback uses service glyph. */
+const CATEGORY_GLYPH: Record<string, string> = {
+  fruits: "🍅",
+  vegetables: "🥦",
+  dairy: "🥛",
+  bakery: "🍞",
+  staples: "🌾",
+  snacks: "🍿",
+  beverages: "🍵",
+  meat: "🍖",
+  seafood: "🦐",
+  frozen: "🥟",
+  instant: "🍜",
+  seasoning: "🌶️",
+  personal: "🧴",
+};
+
+function categoryGlyph(name: string, serviceSlug?: string): string {
+  const k = name.toLowerCase();
+  for (const key in CATEGORY_GLYPH) {
+    if (k.includes(key)) return CATEGORY_GLYPH[key];
+  }
+  return SERVICE_GLYPH[serviceSlug ?? ""] ?? "🛍️";
+}
 
 function buildTree(
   inventory: InventoryWithProduct[],
@@ -126,7 +162,8 @@ export default function StoreDetailPage({ params }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
+  const [activeServiceId, setActiveServiceId] = useState<number | null>(null);
+  const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [subcategoryFilters, setSubcategoryFilters] = useState<
     Record<number, number | null>
   >({});
@@ -165,14 +202,25 @@ export default function StoreDetailPage({ params }: Props) {
     [inventory, services, categories, subcategories]
   );
 
-  const onlyOneService = tree.length === 1;
+  const activeServiceNode = useMemo(
+    () => tree.find((n) => n.service.id === activeServiceId) ?? tree[0] ?? null,
+    [tree, activeServiceId]
+  );
 
-  const handleServiceClick = useCallback((serviceId: number) => {
-    smoothScrollTo(SERVICE_ANCHOR(serviceId));
-  }, []);
+  // Sidebar items derive from active service's categories.
+  const sidebarItems = useMemo(() => {
+    if (!activeServiceNode) return [];
+    return activeServiceNode.categories.map((cn) => ({
+      id: cn.category.id,
+      icon: categoryGlyph(cn.category.name, activeServiceNode.service.slug),
+      label: cn.category.name,
+    }));
+  }, [activeServiceNode]);
 
-  const handleCategoryClick = useCallback((categoryId: number) => {
-    smoothScrollTo(CATEGORY_ANCHOR(categoryId));
+  const handleSidebarSelect = useCallback((catId: string | number) => {
+    const idNum = typeof catId === "number" ? catId : parseInt(String(catId), 10);
+    setActiveCategoryId(idNum);
+    smoothScrollTo(CATEGORY_ANCHOR(idNum));
   }, []);
 
   const handleSubcategoryChange = useCallback(
@@ -182,72 +230,54 @@ export default function StoreDetailPage({ params }: Props) {
     []
   );
 
+  // Track scroll-spy active category.
   useEffect(() => {
-    if (tree.length === 0) return;
+    if (!activeServiceNode || activeServiceNode.categories.length === 0) return;
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
         if (visible.length > 0) {
-          setActiveAnchor(visible[0].target.id);
+          const id = visible[0].target.id;
+          if (id.startsWith("category-")) {
+            setActiveCategoryId(parseInt(id.slice("category-".length), 10));
+          }
         }
       },
       { rootMargin: `-${SCROLL_OFFSET}px 0px -55% 0px`, threshold: 0 }
     );
-    const ids: string[] = [];
-    for (const sn of tree) {
-      ids.push(SERVICE_ANCHOR(sn.service.id));
-      for (const cn of sn.categories) ids.push(CATEGORY_ANCHOR(cn.category.id));
-    }
-    for (const id of ids) {
-      const el = document.getElementById(id);
+    for (const cn of activeServiceNode.categories) {
+      const el = document.getElementById(CATEGORY_ANCHOR(cn.category.id));
       if (el) observer.observe(el);
     }
     return () => observer.disconnect();
-  }, [tree]);
-
-  let activeServiceId: number | null = null;
-  let activeCategoryId: number | null = null;
-  if (tree.length > 0) {
-    if (activeAnchor?.startsWith("category-")) {
-      const cid = parseInt(activeAnchor.slice("category-".length), 10);
-      for (const sn of tree) {
-        const cn = sn.categories.find((c) => c.category.id === cid);
-        if (cn) {
-          activeServiceId = sn.service.id;
-          activeCategoryId = cid;
-          break;
-        }
-      }
-    } else if (activeAnchor?.startsWith("service-")) {
-      const sid = parseInt(activeAnchor.slice("service-".length), 10);
-      const sn = tree.find((s) => s.service.id === sid);
-      if (sn) {
-        activeServiceId = sid;
-        activeCategoryId = sn.categories[0]?.category.id ?? null;
-      }
-    }
-    if (activeServiceId == null) {
-      activeServiceId = tree[0].service.id;
-      activeCategoryId = tree[0].categories[0]?.category.id ?? null;
-    }
-  }
+  }, [activeServiceNode]);
 
   if (fetching) {
     return (
       <div className={styles.page}>
-        <div className={styles.pageInner}>
-          <StoreHeaderSkeleton />
-          <div className={styles.skeletonNav}>
-            <div className={styles.skeletonPill} />
-            <div className={styles.skeletonPill} />
-            <div className={styles.skeletonPill} />
-          </div>
-          <div className={styles.productsGrid}>
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className={styles.skeletonCard} />
-            ))}
+        <div className={styles.shell}>
+          <div className={styles.content}>
+            <div className={`${styles.storeHeader} ${styles.skeletonHeader}`}>
+              <div className={styles.storeHeaderLeft}>
+                <div className={`${styles.storeIcon} ${styles.skeletonShape}`} />
+                <div className={styles.storeInfo}>
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLineLg}`} />
+                  <div className={styles.skeletonLine} />
+                </div>
+              </div>
+            </div>
+            <div className={styles.skeletonNav}>
+              <div className={styles.skeletonPill} />
+              <div className={styles.skeletonPill} />
+              <div className={styles.skeletonPill} />
+            </div>
+            <div className={styles.productsGrid}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className={styles.skeletonCard} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -257,14 +287,16 @@ export default function StoreDetailPage({ params }: Props) {
   if (!store) {
     return (
       <div className={styles.page}>
-        <div className={styles.pageInner}>
-          <div className={styles.notFound}>
-            <div className={styles.notFoundIcon}>🔍</div>
-            <h1 className={styles.notFoundTitle}>{t("notFoundTitle")}</h1>
-            <p className={styles.notFoundText}>{t("notFoundBody")}</p>
-            <Link href="/stores" className="btn btn-primary">
-              {t("browseAllStores")}
-            </Link>
+        <div className={styles.shell}>
+          <div className={styles.content}>
+            <div className={styles.notFound}>
+              <div className={styles.notFoundIcon}>🔍</div>
+              <h1 className={styles.notFoundTitle}>{t("notFoundTitle")}</h1>
+              <p className={styles.notFoundText}>{t("notFoundBody")}</p>
+              <Link href="/stores" className="btn btn-primary">
+                {t("browseAllStores")}
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -273,158 +305,79 @@ export default function StoreDetailPage({ params }: Props) {
 
   return (
     <div className={styles.page}>
-      <div className={styles.pageInner}>
-        <header className={styles.storeHeader}>
-          <div className={styles.storeHeaderLeft}>
-            <div className={styles.storeIcon} aria-hidden="true">🏪</div>
-            <div className={styles.storeInfo}>
-              <h1 className={styles.storeName}>{store.name}</h1>
-              <p className={styles.storeAddress}>{formatAddress(store.address)}</p>
-            </div>
-          </div>
-          <div className={styles.statusBadge}>
-            <span className={styles.statusDot} aria-hidden="true" />
-            {t("openNow")}
-          </div>
-        </header>
+      <div className={styles.shell}>
+        <CategorySidebar
+          items={sidebarItems}
+          activeId={activeCategoryId}
+          onSelect={handleSidebarSelect}
+        />
 
-        {tree.length === 0 ? (
-          <div className={styles.empty}>
-            <div className={styles.emptyIcon} aria-hidden="true">🛒</div>
-            <p className={styles.emptyText}>{t("noProductsYet")}</p>
-          </div>
-        ) : (
-          <>
-            <StoreNav
-              tree={tree}
-              activeServiceId={activeServiceId}
-              onServiceClick={handleServiceClick}
-              hideServiceRow={onlyOneService}
-            />
-            <div className={styles.shelves}>
-              {tree.map((sn) => (
-                <ServiceShelf
-                  key={sn.service.id}
-                  node={sn}
-                  store={store}
-                  hideServiceHeading={onlyOneService}
-                  subcategoryFilters={subcategoryFilters}
-                  activeCategoryId={activeCategoryId}
-                  onSubcategoryChange={handleSubcategoryChange}
-                  onCategoryClick={handleCategoryClick}
-                />
-              ))}
+        <div className={styles.content}>
+          <header className={styles.storeHeader}>
+            <div className={styles.storeHeaderLeft}>
+              <div className={styles.storeIcon} aria-hidden="true">
+                {store.name.charAt(0).toUpperCase()}
+              </div>
+              <div className={styles.storeInfo}>
+                <h1 className={styles.storeName}>{store.name}</h1>
+                <p className={styles.storeAddress}>{formatAddress(store.address)}</p>
+              </div>
             </div>
-          </>
-        )}
+            <div className={styles.statusBadge}>
+              <span className={styles.statusDot} aria-hidden="true" />
+              {t("openNow")}
+            </div>
+          </header>
+
+          {tree.length === 0 ? (
+            <div className={styles.empty}>
+              <div className={styles.emptyIcon} aria-hidden="true">🛒</div>
+              <p className={styles.emptyText}>{t("noProductsYet")}</p>
+            </div>
+          ) : (
+            <>
+              {tree.length > 1 && (
+                <nav className={styles.serviceTabs} aria-label={t("navAriaLabel")}>
+                  {tree.map((sn) => (
+                    <button
+                      key={sn.service.id}
+                      type="button"
+                      className={`${styles.servicePill} ${
+                        sn.service.id === activeServiceId ? styles.servicePillActive : ""
+                      }`}
+                      onClick={() => {
+                        setActiveServiceId(sn.service.id);
+                        setActiveCategoryId(sn.categories[0]?.category.id ?? null);
+                      }}
+                      aria-current={sn.service.id === activeServiceId ? "true" : undefined}
+                    >
+                      {sn.service.name}
+                      <span className={styles.servicePillCount}>{sn.totalItems}</span>
+                    </button>
+                  ))}
+                </nav>
+              )}
+
+              {activeServiceNode && (
+                <div>
+                  {activeServiceNode.categories.map((cn) => (
+                    <CategorySection
+                      key={cn.category.id}
+                      node={cn}
+                      store={store}
+                      activeSubcategoryId={subcategoryFilters[cn.category.id] ?? null}
+                      onSubcategoryChange={handleSubcategoryChange}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <CartRail storeId={store.id} />
       </div>
     </div>
-  );
-}
-
-interface StoreNavProps {
-  tree: ServiceNode[];
-  activeServiceId: number | null;
-  onServiceClick: (id: number) => void;
-  hideServiceRow: boolean;
-}
-
-function StoreNav({
-  tree,
-  activeServiceId,
-  onServiceClick,
-  hideServiceRow,
-}: StoreNavProps) {
-  const t = useTranslations("StoreDetail");
-  if (hideServiceRow || tree.length <= 1) return null;
-
-  return (
-    <nav className={styles.stickyNav} aria-label={t("navAriaLabel")}>
-      <div className={`${styles.navRow} ${styles.navRowServices}`}>
-        {tree.map((sn) => (
-          <button
-            key={sn.service.id}
-            type="button"
-            className={`${styles.navPill} ${
-              sn.service.id === activeServiceId ? styles.navPillActive : ""
-            }`}
-            onClick={() => onServiceClick(sn.service.id)}
-            aria-current={sn.service.id === activeServiceId ? "true" : undefined}
-          >
-            {sn.service.name}
-            <span className={styles.navCount}>{sn.totalItems}</span>
-          </button>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-interface ServiceShelfProps {
-  node: ServiceNode;
-  store: Store;
-  hideServiceHeading: boolean;
-  subcategoryFilters: Record<number, number | null>;
-  activeCategoryId: number | null;
-  onSubcategoryChange: (categoryId: number, subcategoryId: number | null) => void;
-  onCategoryClick: (categoryId: number) => void;
-}
-
-function ServiceShelf({
-  node,
-  store,
-  hideServiceHeading,
-  subcategoryFilters,
-  activeCategoryId,
-  onSubcategoryChange,
-  onCategoryClick,
-}: ServiceShelfProps) {
-  const t = useTranslations("StoreDetail");
-  return (
-    <section
-      id={SERVICE_ANCHOR(node.service.id)}
-      className={styles.serviceShelf}
-      aria-label={node.service.name}
-    >
-      {!hideServiceHeading && (
-        <div className={styles.serviceHeader}>
-          <h2 className={styles.serviceHeading}>{node.service.name}</h2>
-          <span className={styles.serviceCount}>
-            {t("itemCount", { count: node.totalItems })}
-          </span>
-        </div>
-      )}
-      {node.categories.length > 0 && (
-        <div
-          className={styles.inlineCategories}
-          aria-label={t("categoriesAriaLabel", { name: node.service.name })}
-        >
-          {node.categories.map((cn) => (
-            <button
-              key={cn.category.id}
-              type="button"
-              className={`${styles.navChip} ${
-                cn.category.id === activeCategoryId ? styles.navChipActive : ""
-              }`}
-              onClick={() => onCategoryClick(cn.category.id)}
-              aria-current={cn.category.id === activeCategoryId ? "true" : undefined}
-            >
-              {cn.category.name}
-              <span className={styles.navChipCount}>{cn.items.length}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {node.categories.map((cn) => (
-        <CategorySection
-          key={cn.category.id}
-          node={cn}
-          store={store}
-          activeSubcategoryId={subcategoryFilters[cn.category.id] ?? null}
-          onSubcategoryChange={onSubcategoryChange}
-        />
-      ))}
-    </section>
   );
 }
 
@@ -523,19 +476,5 @@ function CategorySection({
         <div className={styles.emptyInline}>{t("noFilterMatch")}</div>
       )}
     </section>
-  );
-}
-
-function StoreHeaderSkeleton() {
-  return (
-    <div className={`${styles.storeHeader} ${styles.skeletonHeader}`}>
-      <div className={styles.storeHeaderLeft}>
-        <div className={`${styles.storeIcon} ${styles.skeletonShape}`} />
-        <div className={styles.storeInfo}>
-          <div className={`${styles.skeletonLine} ${styles.skeletonLineLg}`} />
-          <div className={styles.skeletonLine} />
-        </div>
-      </div>
-    </div>
   );
 }

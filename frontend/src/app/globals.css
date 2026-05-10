@@ -4,13 +4,13 @@
  */
 /* ============================================================
    Khana Bazaar — Global Styles
-   Imports design tokens and sets base element styles.
+   Cobalt + teal brand, Poppins, dense flat surfaces.
    ============================================================ */
 
 @import url("../styles/design-tokens.css");
 
 /* --------------------------------------------------------
-   CSS RESET / NORMALIZE
+   RESET / NORMALIZE
    -------------------------------------------------------- */
 *,
 *::before,
@@ -31,55 +31,59 @@ html {
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
   min-height: 100vh;
 }
 
-/* --------------------------------------------------------
-   BASE ELEMENT STYLES
-   -------------------------------------------------------- */
+/* Allow horizontal clipping at the body level only, so sticky descendants
+   continue to stick against the viewport scroll. `clip` keeps overflow
+   contained without creating a new scroll container. */
+body {
+  overflow-x: clip;
+}
+
 body {
   font-family: var(--font-family-sans);
-  font-size: var(--font-base);
+  font-size: var(--body-base);
   font-weight: var(--weight-regular);
-  line-height: var(--leading-normal);
-  color: var(--color-neutral-800);
-  background-color: var(--color-neutral-0);
+  line-height: var(--lh-body);
+  color: var(--color-text);
+  background: var(--color-surface);
+  padding-top: var(--nav-height);
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-weight: var(--weight-bold);
-  line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-tight);
-  color: var(--color-neutral-900);
+  font-family: var(--font-family-sans);
+  font-weight: var(--weight-medium);
+  line-height: var(--lh-display);
+  color: var(--color-text-strong);
+  letter-spacing: -0.20px;
 }
 
-h1 { font-size: var(--font-5xl); }
-h2 { font-size: var(--font-4xl); }
-h3 { font-size: var(--font-3xl); }
-h4 { font-size: var(--font-2xl); }
-h5 { font-size: var(--font-xl);  }
-h6 { font-size: var(--font-lg);  }
+h1 { font-size: var(--display-2xl); letter-spacing: var(--display-2xl-track); }
+h2 { font-size: var(--display-xl);  letter-spacing: var(--display-xl-track); }
+h3 { font-size: var(--display-lg);  letter-spacing: var(--display-lg-track); }
+h4 { font-size: var(--display-sm); letter-spacing: 0; }
+h5 { font-size: var(--body-lg);   font-weight: var(--weight-semibold); letter-spacing: 0; }
+h6 { font-size: var(--body-base); font-weight: var(--weight-semibold); letter-spacing: 0; }
 
 p {
-  line-height: var(--leading-relaxed);
-  color: var(--color-neutral-600);
+  margin: 0;
+  line-height: var(--lh-body);
+  color: var(--color-text);
 }
 
-/* Confine sticky/blur stacking contexts inside <main> so the drawer overlay
-   and modal panel always paint above page-scoped sticky bars. */
 main {
   isolation: isolate;
 }
 
 a {
-  color: var(--color-primary-500);
+  color: var(--color-primary-1);
   text-decoration: none;
   transition: color var(--duration-fast) var(--ease-default);
 }
 
 a:hover {
-  color: var(--color-primary-600);
+  text-decoration: underline;
 }
 
 img, picture, video, canvas, svg {
@@ -103,30 +107,23 @@ ul, ol {
 }
 
 /* --------------------------------------------------------
-   UTILITY CLASSES
+   UTILITIES
    -------------------------------------------------------- */
-
-/** Responsive container with max-width and auto margins */
 .container {
   width: 100%;
-  max-width: var(--container-xl);
+  max-width: var(--container-2xl);
   margin-inline: auto;
   padding-inline: var(--space-4);
 }
 
 @media (min-width: 768px) {
-  .container {
-    padding-inline: var(--space-6);
-  }
+  .container { padding-inline: var(--space-6); }
 }
 
 @media (min-width: 1280px) {
-  .container {
-    padding-inline: var(--space-8);
-  }
+  .container { padding-inline: var(--space-8); }
 }
 
-/** Screen reader only */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -139,87 +136,225 @@ ul, ol {
   border-width: 0;
 }
 
-/** Text overflow ellipsis */
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/** Focus visible ring */
 :focus-visible {
-  outline: 2px solid var(--color-primary-400);
+  outline: 2px solid var(--color-primary-1);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
 
 /* --------------------------------------------------------
-   BUTTON BASE STYLES
+   PRICE TYPOGRAPHY (always tabular-nums, 600 semibold)
+   -------------------------------------------------------- */
+.price {
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-strong);
+}
+.price--sale   { color: var(--tomato-red-base-4); }
+.price--member { color: var(--jade-green-dark-1); }
+.price--strike {
+  font-weight: var(--weight-regular);
+  color: var(--shade-cool-base-4);
+  text-decoration: line-through;
+}
+
+/* --------------------------------------------------------
+   BADGES — uppercase pills, micro
+   -------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-semibold);
+  padding: 3px 8px;
+  border-radius: var(--radius-badge);
+  letter-spacing: 0.20px;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.badge--sale    { background: var(--tomato-red-base-4);     color: var(--white); }
+.badge--new     { background: var(--energy-blue-base-4);    color: var(--white); }
+.badge--hot     { background: var(--mandarin-orange-base-4);color: var(--white); }
+.badge--ebt     { background: var(--durian-yellow-base-4);  color: var(--color-primary-1); }
+.badge--member  { background: var(--durian-yellow-base-1);  color: var(--durian-yellow-dark-1); }
+.badge--limited { background: var(--eggplant-purple-base-4);color: var(--white); }
+.badge--local   { background: var(--chive-green-light-1);   color: var(--chive-green-dark-1); }
+.badge--instock { background: var(--chive-green-light-1);   color: var(--chive-green-base-4); }
+.badge--success { background: var(--jade-green-light-1);    color: var(--jade-green-dark-1); }
+.badge--warning { background: var(--mandarin-orange-light-1); color: var(--mandarin-orange-base-4); }
+.badge--neutral { background: var(--shade-cool-light-2);    color: var(--shade-cool-base-7); }
+
+/* --------------------------------------------------------
+   BUTTONS
+   Primary = teal CTA; secondary = cobalt-bordered pill;
+   tertiary = inline cobalt text; destructive = tomato.
    -------------------------------------------------------- */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-6);
-  font-size: var(--font-sm);
+  padding: 14px 24px;
+  font-family: var(--font-family-sans);
+  font-size: var(--body-base);
   font-weight: var(--weight-semibold);
-  line-height: var(--leading-none);
-  border-radius: var(--radius-lg);
-  transition: all var(--duration-normal) var(--ease-default);
+  line-height: 1;
+  border-radius: var(--radius-card);
+  transition: background var(--duration-fast) var(--ease-default), transform var(--duration-fast) var(--ease-default), border-color var(--duration-fast) var(--ease-default);
   white-space: nowrap;
   user-select: none;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
 }
 
-.btn:active {
-  transform: scale(0.97);
+.btn:active { transform: scale(0.97); }
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  background: var(--shade-cool-light-5);
+  color: var(--shade-cool-base-4);
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-primary {
-  background: var(--gradient-primary);
-  color: var(--color-neutral-0);
-  box-shadow: var(--shadow-md), var(--shadow-glow-primary);
+  background: var(--color-btn-primary-bg);
+  color: var(--white);
 }
-
-.btn-primary:hover {
-  box-shadow: var(--shadow-lg), var(--shadow-glow-primary);
-  filter: brightness(1.05);
-}
+.btn-primary:hover { background: var(--color-btn-primary-hover); text-decoration: none; }
 
 .btn-accent {
-  background: var(--gradient-accent);
-  color: var(--color-neutral-0);
-  box-shadow: var(--shadow-md), var(--shadow-glow-accent);
+  background: var(--color-btn-primary-bg);
+  color: var(--white);
 }
+.btn-accent:hover { background: var(--color-btn-primary-hover); text-decoration: none; }
 
-.btn-accent:hover {
-  box-shadow: var(--shadow-lg), var(--shadow-glow-accent);
-  filter: brightness(1.05);
-}
-
+.btn-secondary,
 .btn-outline {
-  background: transparent;
-  color: var(--color-primary-500);
-  border: 1.5px solid var(--color-primary-300);
+  background: var(--white);
+  color: var(--color-primary-1);
+  border: 1px solid var(--shade-cool-light-6);
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
 }
-
+.btn-secondary:hover,
 .btn-outline:hover {
-  background: var(--color-primary-50);
-  border-color: var(--color-primary-500);
+  border-color: var(--color-primary-1);
+  color: var(--color-primary-1);
+  text-decoration: none;
 }
 
+.btn-tertiary,
 .btn-ghost {
   background: transparent;
-  color: var(--color-neutral-600);
+  color: var(--color-primary-1);
+  padding: 8px 12px;
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+}
+.btn-tertiary:hover,
+.btn-ghost:hover {
+  background: var(--shade-cool-light-1);
+  text-decoration: none;
 }
 
-.btn-ghost:hover {
-  background: var(--color-neutral-100);
-  color: var(--color-neutral-900);
+.btn-destructive,
+.btn-danger {
+  background: transparent;
+  color: var(--tomato-red-base-4);
+  font-weight: var(--weight-medium);
+}
+.btn-destructive:hover,
+.btn-danger:hover {
+  background: var(--tomato-red-light-1);
+  text-decoration: none;
+}
+
+.btn-pill {
+  border-radius: var(--radius-pill);
 }
 
 /* --------------------------------------------------------
-   ANIMATIONS / KEYFRAMES
+   PILLS / FILTER CHIPS
+   -------------------------------------------------------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  color: var(--shade-cool-base-7);
+  border: 1px solid var(--shade-cool-light-6);
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
+}
+.pill:hover {
+  border-color: var(--color-primary-1);
+  color: var(--color-primary-1);
+}
+.pill--active {
+  background: var(--color-primary-1);
+  color: var(--white);
+  border-color: var(--color-primary-1);
+}
+
+/* --------------------------------------------------------
+   FORM INPUTS — flat, hairline borders, saffron focus.
+   Wrapped in :where() so element/attribute specificity stays 0,
+   letting any component class (CSS module or otherwise) override.
+   -------------------------------------------------------- */
+:where(.input),
+:where(input[type="text"]),
+:where(input[type="email"]),
+:where(input[type="tel"]),
+:where(input[type="search"]),
+:where(input[type="password"]),
+:where(input[type="number"]),
+:where(textarea),
+:where(select) {
+  font-family: var(--font-family-sans);
+  font-size: var(--body-base);
+  color: var(--color-text-strong);
+  background: var(--white);
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  width: 100%;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+:where(.input)::placeholder,
+:where(input)::placeholder,
+:where(textarea)::placeholder {
+  color: var(--shade-cool-base-5);
+}
+
+:where(.input):focus,
+:where(input):focus,
+:where(textarea):focus,
+:where(select):focus {
+  outline: none;
+  border-color: var(--color-primary-1);
+  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
+}
+
+:where(.input--error),
+:where(input[aria-invalid="true"]) {
+  border-color: var(--tomato-red-base-4);
+}
+
+/* --------------------------------------------------------
+   ANIMATIONS
    -------------------------------------------------------- */
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -227,45 +362,20 @@ ul, ol {
 }
 
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50%      { opacity: 0.5; }
+  50%      { opacity: 0.6; }
 }
 
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.animate-fade-in {
-  animation: fadeIn var(--duration-slow) var(--ease-out);
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp var(--duration-slow) var(--ease-out);
-}
-
-.animate-slide-in-right {
-  animation: slideInRight var(--duration-slow) var(--ease-out);
-}
+.animate-fade-in     { animation: fadeIn     var(--duration-slow) var(--ease-out); }
+.animate-fade-in-up  { animation: fadeInUp   var(--duration-slow) var(--ease-out); }
+.animate-slide-in-right { animation: slideInRight var(--duration-slow) var(--ease-out); }

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Poppins } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 
 import "@/app/globals.css";
@@ -13,14 +13,15 @@ import { CartProvider } from "@/lib/CartContext";
 import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
 import enMessages from "../../../messages/en.json";
 
-const inter = Inter({
+const poppins = Poppins({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
-  variable: "--font-family-sans",
+  variable: "--font-poppins",
 });
 
 export const viewport: Viewport = {
-  themeColor: "#e8611a",
+  themeColor: "#B8470F",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -44,7 +45,7 @@ export default function OperatorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={poppins.variable}>
       <head>
         <ThirdPartyErrorSuppressor />
         <link rel="manifest" href="/manifest.json" />

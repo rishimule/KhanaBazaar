@@ -30,8 +30,8 @@
   border-radius: 50%;
 }
 
-.dotStore { background: var(--color-primary-500); }
-.dotCustomer { background: var(--color-info, hsl(204, 88%, 53%)); }
+.dotStore { background: var(--color-primary-1); }
+.dotCustomer { background: var(--eggplant-purple-base-4); }
 
 .mapBox {
   position: relative;

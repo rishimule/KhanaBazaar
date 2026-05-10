@@ -4,22 +4,58 @@
  */
 .card {
   display: block;
-  padding: 1rem;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
   text-decoration: none;
   color: inherit;
-  background: var(--color-surface, #fff);
-  transition: border-color 120ms;
+  background: var(--white);
+  font-family: var(--font-family-sans);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast), border-color var(--duration-fast);
 }
-.card:hover { border-color: var(--color-primary, #16a34a); }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
-.id { font-size: 0.85rem; color: var(--color-text-muted, #6b7280); }
-.title { font-weight: 600; font-size: 1.05rem; }
-.subtitle { font-size: 0.85rem; color: var(--color-text-muted, #6b7280); margin-top: 0.15rem; }
+.card:hover {
+  border-color: var(--shade-cool-light-7);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+.id {
+  font-size: var(--body-2xs);
+  color: var(--shade-cool-base-5);
+  font-variant-numeric: tabular-nums;
+}
+.title {
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-base);
+  color: var(--shade-cool-dark-7);
+  line-height: 1.25;
+}
+.subtitle {
+  font-size: var(--body-xs);
+  color: var(--shade-cool-base-5);
+  margin-top: 2px;
+}
 .meta {
-  display: flex; justify-content: space-between; align-items: baseline;
-  margin-top: 0.5rem; font-variant-numeric: tabular-nums;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
 }
-.total { font-weight: 700; font-size: 1.1rem; }
-.time { font-size: 0.8rem; color: var(--color-text-muted, #6b7280); }
+.total {
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-lg);
+  color: var(--shade-cool-dark-7);
+}
+.time {
+  font-size: var(--body-2xs);
+  color: var(--shade-cool-base-5);
+}

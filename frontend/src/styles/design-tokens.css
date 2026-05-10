@@ -4,143 +4,245 @@
  */
 /* ============================================================
    Khana Bazaar — Design Tokens
-   A premium, Indian-market-inspired design system.
+   Cobalt navy chrome + bright teal action, food-themed palette,
+   Poppins type. Source: design bundle DESIGN.md.
    ============================================================ */
 
 :root {
   /* --------------------------------------------------------
-     COLOR PALETTE
+     BRAND & PRIMARY — Saffron / Turmeric warmth
+     Chrome: deep saffron (was cobalt navy).
+     CTA:    golden saffron (was bright teal).
      -------------------------------------------------------- */
+  --color-primary-1:        #B8470F; /* Saffron Deep — wordmark, nav, links, active */
+  --color-btn-primary-bg:   #F18A1F; /* Golden Saffron — primary CTA */
+  --color-btn-primary-hover:#D9731B; /* Saffron CTA hover */
+  --color-link:             #E8611A; /* Saffron Base — inline links, accents */
 
-  /* Primary — Deep Saffron to Coral gradient endpoints */
-  --color-primary-50:  hsl(24, 100%, 96%);
-  --color-primary-100: hsl(24, 96%, 89%);
-  --color-primary-200: hsl(24, 94%, 78%);
-  --color-primary-300: hsl(22, 93%, 67%);
-  --color-primary-400: hsl(20, 92%, 58%);
-  --color-primary-500: hsl(18, 90%, 52%);   /* Main primary */
-  --color-primary-600: hsl(14, 85%, 46%);
-  --color-primary-700: hsl(10, 78%, 38%);
-  --color-primary-800: hsl(8,  70%, 31%);
-  --color-primary-900: hsl(6,  65%, 24%);
+  /* Saffron / Turmeric ramp (replaces Energy Blue) */
+  --saffron-light-1:        #FFEFE0;
+  --saffron-light-2:        #FFD9B8;
+  --saffron-base-1:         #FFA866;
+  --saffron-base-4:         #E8611A;
+  --saffron-base-7:         #D9731B;
+  --saffron-dark-1:         #B8470F;
+  --saffron-dark-4:         #8A3208;
+  --saffron-dark-7:         #5C2106;
 
-  /* Accent — Rich Emerald Green */
-  --color-accent-50:  hsl(152, 76%, 96%);
-  --color-accent-100: hsl(152, 72%, 87%);
-  --color-accent-200: hsl(152, 70%, 72%);
-  --color-accent-300: hsl(152, 68%, 55%);
-  --color-accent-400: hsl(152, 68%, 44%);
-  --color-accent-500: hsl(152, 68%, 38%);   /* Main accent */
-  --color-accent-600: hsl(152, 65%, 30%);
-  --color-accent-700: hsl(152, 60%, 24%);
-  --color-accent-800: hsl(152, 55%, 18%);
-  --color-accent-900: hsl(152, 50%, 12%);
+  /* Turmeric (golden CTA-side accent, replaces flow teal) */
+  --turmeric-light-1:       #FFF4D6;
+  --turmeric-base-1:        #FFC766;
+  --turmeric-base-4:        #F18A1F;
+  --turmeric-base-7:        #D9731B;
+  --turmeric-dark-1:        #A8590E;
 
-  /* Neutrals — Cool slate scale */
-  --color-neutral-0:   hsl(0, 0%, 100%);
-  --color-neutral-50:  hsl(220, 20%, 97%);
-  --color-neutral-100: hsl(220, 18%, 93%);
-  --color-neutral-200: hsl(220, 16%, 85%);
-  --color-neutral-300: hsl(220, 14%, 72%);
-  --color-neutral-400: hsl(220, 12%, 56%);
-  --color-neutral-500: hsl(220, 11%, 44%);
-  --color-neutral-600: hsl(220, 12%, 34%);
-  --color-neutral-700: hsl(220, 14%, 24%);
-  --color-neutral-800: hsl(220, 18%, 14%);
-  --color-neutral-900: hsl(220, 22%, 8%);
-
-  /* Semantic */
-  --color-success:  hsl(152, 68%, 38%);
-  --color-warning:  hsl(38, 92%, 50%);
-  --color-error:    hsl(0, 84%, 60%);
-  --color-info:     hsl(199, 89%, 48%);
-
-  /* Gradients */
-  --gradient-primary: linear-gradient(135deg, hsl(24, 95%, 53%) 0%, hsl(3, 90%, 58%) 100%);
-  --gradient-accent:  linear-gradient(135deg, hsl(152, 68%, 44%) 0%, hsl(152, 68%, 32%) 100%);
-  --gradient-hero:    linear-gradient(160deg, hsl(24, 95%, 53%) 0%, hsl(3, 90%, 58%) 50%, hsl(340, 82%, 52%) 100%);
-  --gradient-dark:    linear-gradient(135deg, hsl(220, 22%, 8%) 0%, hsl(220, 18%, 16%) 100%);
+  /* Legacy Energy Blue / Flow Teal aliases — remap to warm so any rule that
+     still references them inherits saffron instead of cobalt/teal. */
+  --energy-blue-light-1:    var(--saffron-light-1);
+  --energy-blue-light-2:    var(--saffron-light-2);
+  --energy-blue-base-1:     var(--saffron-base-1);
+  --energy-blue-base-4:     var(--saffron-base-4);
+  --energy-blue-dark-1:     var(--saffron-dark-1);
+  --energy-blue-dark-4:     var(--saffron-dark-1);
+  --energy-blue-dark-7:     var(--saffron-dark-7);
+  --flow-teal-light-1:      var(--turmeric-light-1);
+  --flow-teal-base-1:       var(--turmeric-base-1);
+  --flow-teal-base-4:       var(--turmeric-base-4);
+  --flow-teal-base-7:       var(--turmeric-base-7);
+  --flow-teal-dark-1:       var(--turmeric-dark-1);
 
   /* --------------------------------------------------------
-     TYPOGRAPHY
+     FOOD-THEMED ACCENTS
      -------------------------------------------------------- */
-  --font-family-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-family-mono:  'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  /* Tomato Red — sale / urgency */
+  --tomato-red-light-1:     #ffeded;
+  --tomato-red-light-2:     #ffd5d5;
+  --tomato-red-base-1:      #f56e70;
+  --tomato-red-base-4:      #ec4143;
+  --tomato-red-dark-1:      #b80617;
 
-  /* Type scale */
-  --font-xs:   0.75rem;    /* 12px */
-  --font-sm:   0.875rem;   /* 14px */
-  --font-base: 1rem;       /* 16px */
-  --font-lg:   1.125rem;   /* 18px */
-  --font-xl:   1.25rem;    /* 20px */
-  --font-2xl:  1.5rem;     /* 24px */
-  --font-3xl:  1.875rem;   /* 30px */
-  --font-4xl:  2.25rem;    /* 36px */
-  --font-5xl:  3rem;       /* 48px */
-  --font-6xl:  3.75rem;    /* 60px */
+  /* Mandarin Orange — warmth / hot */
+  --mandarin-orange-light-1:#feefdb;
+  --mandarin-orange-base-1: #ff8a5f;
+  --mandarin-orange-base-4: #ff5026;
 
-  /* Line heights */
-  --leading-none:    1;
-  --leading-tight:   1.25;
-  --leading-snug:    1.375;
-  --leading-normal:  1.5;
-  --leading-relaxed: 1.625;
-  --leading-loose:   2;
+  /* Durian Yellow — member / EBT / stars */
+  --durian-yellow-base-1:   #ffed8e;
+  --durian-yellow-base-4:   #ffd600;
+  --durian-yellow-base-7:   #ffb700;
+  --durian-yellow-dark-1:   #ab8403;
 
-  /* Font weights */
+  /* Jade Green — savings */
+  --jade-green-light-1:     #f3fefb;
+  --jade-green-base-1:      #80decc;
+  --jade-green-base-4:      #1eba9c;
+  --jade-green-dark-1:      #018260;
+
+  /* Chive Green — fresh produce */
+  --chive-green-light-1:    #d7fae1;
+  --chive-green-base-4:     #2da34f;
+  --chive-green-dark-1:     #1f4f2d;
+
+  /* Dragonfruit Pink — wishlist / beauty */
+  --dragonfruit-pink-light-1:#ffdfee;
+  --dragonfruit-pink-base-4: #f43c7e;
+
+  /* Eggplant Purple — premium / wellness */
+  --eggplant-purple-light-1:#f6edff;
+  --eggplant-purple-base-4: #9654ff;
+
+  /* --------------------------------------------------------
+     SHADE COOL — neutrals (cool-tinted, never warm)
+     -------------------------------------------------------- */
+  --shade-cool-dark-7:      #07101a; /* near-black, headings */
+  --shade-cool-dark-3:      #3a4c60; /* sub-headings */
+  --shade-cool-base-7:      #52667d; /* body */
+  --shade-cool-base-5:      #758296; /* secondary metadata */
+  --shade-cool-base-4:      #9299ae; /* disabled, strikethrough */
+  --shade-cool-light-7:     #c7cede; /* strong dividers */
+  --shade-cool-light-6:     #d3daeb; /* input borders */
+  --shade-cool-light-5:     #dee4f3; /* disabled bg */
+  --shade-cool-light-4:     #e4eaf5; /* hairline in cart */
+  --shade-cool-light-2:     #eef2fb; /* search bg, selected sidebar */
+  --shade-cool-light-1:     #f6f9fc; /* page tint */
+
+  /* --------------------------------------------------------
+     RESERVED & SURFACE
+     -------------------------------------------------------- */
+  --white:                  #ffffff;
+  --black:                  #000000;
+  --hairline:               #eaeaea; /* the 1px workhorse divider */
+
+  /* Tint Black overlays */
+  --tint-black-05:          rgba(0,0,0,0.05);
+  --tint-black-15:          rgba(0,0,0,0.15);
+  --tint-black-40:          rgba(0,0,0,0.40);
+  --tint-black-54:          rgba(0,0,0,0.54);
+
+  /* --------------------------------------------------------
+     GRADIENTS
+     -------------------------------------------------------- */
+  --gradient-brand-sweep:   linear-gradient(135deg, #B8470F 0%, #E8611A 50%, #F18A1F 100%);
+  --gradient-sale-sweep:    linear-gradient(90deg,  #ec4143 0%, #f43c7e 100%);
+  --gradient-member-sweep:  linear-gradient(135deg, #ffd600 0%, #ff5026 100%);
+
+  /* --------------------------------------------------------
+     TYPOGRAPHY — Poppins everywhere
+     -------------------------------------------------------- */
+  --font-family-sans: var(--font-poppins, 'Poppins'), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-family-mono: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+
+  /* Display scale — weight 500, negative tracking */
+  --display-5xl: 72px; --display-5xl-track: -0.60px;
+  --display-4xl: 60px; --display-4xl-track: -0.60px;
+  --display-3xl: 48px; --display-3xl-track: -0.30px;
+  --display-2xl: 36px; --display-2xl-track: -0.30px;
+  --display-xl:  30px; --display-xl-track:  -0.20px;
+  --display-lg:  24px; --display-lg-track:  -0.20px;
+  --display-sm:  20px;
+
+  /* Body scale */
+  --body-2xl:   24px;
+  --body-xl:    20px;
+  --body-lg:    18px;
+  --body-base:  16px;
+  --body-sm:    14px;
+  --body-xs:    13px;
+  --body-2xs:   12px;
+  --body-3xs:   11px;
+
+  /* Legacy font tokens (back-compat for components that still reference them) */
+  --font-xs:   0.8125rem; /* 13px */
+  --font-sm:   0.875rem;  /* 14px */
+  --font-base: 1rem;      /* 16px */
+  --font-lg:   1.125rem;  /* 18px */
+  --font-xl:   1.25rem;   /* 20px */
+  --font-2xl:  1.5rem;    /* 24px */
+  --font-3xl:  1.875rem;  /* 30px */
+  --font-4xl:  2.25rem;   /* 36px */
+  --font-5xl:  3rem;      /* 48px */
+  --font-6xl:  3.75rem;   /* 60px */
+
+  /* Weights */
   --weight-regular:  400;
   --weight-medium:   500;
   --weight-semibold: 600;
   --weight-bold:     700;
+  --weight-extra:    800;
 
-  /* Letter spacing */
-  --tracking-tighter: -0.05em;
-  --tracking-tight:   -0.025em;
-  --tracking-normal:   0em;
-  --tracking-wide:     0.025em;
-  --tracking-wider:    0.05em;
+  --lh-display:      1.0;
+  --lh-body:         1.25;
+
+  /* Legacy line-height + tracking aliases */
+  --leading-none:    1;
+  --leading-tight:   1.0;
+  --leading-snug:    1.25;
+  --leading-normal:  1.25;
+  --leading-relaxed: 1.4;
+  --leading-loose:   1.6;
+  --tracking-tighter: -0.04em;
+  --tracking-tight:   -0.02em;
+  --tracking-normal:  0;
+  --tracking-wide:    0.02em;
+  --tracking-wider:   0.04em;
 
   /* --------------------------------------------------------
-     SPACING (4px base)
+     SPACING (8px base, 4px allowed)
      -------------------------------------------------------- */
   --space-0:   0;
   --space-px:  1px;
-  --space-0-5: 0.125rem;   /* 2px */
-  --space-1:   0.25rem;    /* 4px */
-  --space-1-5: 0.375rem;   /* 6px */
-  --space-2:   0.5rem;     /* 8px */
-  --space-3:   0.75rem;    /* 12px */
-  --space-4:   1rem;       /* 16px */
-  --space-5:   1.25rem;    /* 20px */
-  --space-6:   1.5rem;     /* 24px */
-  --space-8:   2rem;       /* 32px */
-  --space-10:  2.5rem;     /* 40px */
-  --space-12:  3rem;       /* 48px */
-  --space-16:  4rem;       /* 64px */
-  --space-20:  5rem;       /* 80px */
-  --space-24:  6rem;       /* 96px */
+  --space-0-5: 2px;
+  --space-1:   4px;
+  --space-1-5: 6px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+  --space-20:  80px;
+  --space-24:  96px;
 
   /* --------------------------------------------------------
-     BORDER RADIUS
+     RADII
      -------------------------------------------------------- */
-  --radius-sm:   0.25rem;   /* 4px */
-  --radius-md:   0.5rem;    /* 8px */
-  --radius-lg:   0.75rem;   /* 12px */
-  --radius-xl:   1rem;      /* 16px */
-  --radius-2xl:  1.5rem;    /* 24px */
-  --radius-full: 9999px;
+  --radius-card:   10px;
+  --radius-modal:  12px;
+  --radius-sheet:  16px;
+  --radius-pill:   100px;
+  --radius-circle: 50%;
+  --radius-badge:  4px;
+
+  /* Legacy radius aliases */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   10px;
+  --radius-xl:   12px;
+  --radius-2xl:  16px;
+  --radius-full: 100px;
 
   /* --------------------------------------------------------
-     SHADOWS
+     SHADOWS — flat by default; transient only
      -------------------------------------------------------- */
-  --shadow-xs:  0 1px 2px  0 rgba(0, 0, 0, 0.05);
-  --shadow-sm:  0 1px 3px  0 rgba(0, 0, 0, 0.1),  0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow-md:  0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-lg:  0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  --shadow-xl:  0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --shadow-glow-primary: 0 0 20px hsla(18, 90%, 52%, 0.3);
-  --shadow-glow-accent:  0 0 20px hsla(152, 68%, 38%, 0.3);
+  --shadow-none:        none;
+  --shadow-card-hover:  0 4px 10px rgba(0,0,0,0.15);
+  --shadow-search:      0 4px 10px rgba(0,0,0,0.08);
+  --shadow-modal:       0 20px 40px rgba(0,0,0,0.15);
+  --shadow-sticky-bar:  0 -2px 8px rgba(0,0,0,0.05);
+  --shadow-toast:       1.5px 1.5px 5px rgba(0,0,0,0.15);
+
+  /* Legacy shadow aliases — collapse to subtle, system stays flat */
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md:  0 2px 6px rgba(0,0,0,0.08);
+  --shadow-lg:  var(--shadow-search);
+  --shadow-xl:  var(--shadow-modal);
+  --shadow-2xl: var(--shadow-modal);
+  --shadow-glow-primary: none;
+  --shadow-glow-accent:  none;
 
   /* --------------------------------------------------------
      TRANSITIONS
@@ -152,8 +254,8 @@
   --ease-bounce:  cubic-bezier(0.34, 1.56, 0.64, 1);
 
   --duration-fast:    150ms;
-  --duration-normal:  250ms;
-  --duration-slow:    350ms;
+  --duration-normal:  200ms;
+  --duration-slow:    300ms;
   --duration-slower:  500ms;
 
   /* --------------------------------------------------------
@@ -173,12 +275,92 @@
      LAYOUT
      -------------------------------------------------------- */
   --container-xs:  480px;
-  --container-sm:  640px;
-  --container-md:  768px;
-  --container-lg:  1024px;
-  --container-xl:  1280px;
-  --container-2xl: 1440px;
+  --container-sm:  768px;
+  --container-md:  1024px;
+  --container-lg:  1280px;
+  --container-xl:  1440px;
+  --container-2xl: 1600px;
+  --container-3xl: 1920px;
 
-  /* Sticky navbar height — keep in sync with .navInner padding + tallest child. */
+  --bp-xs:  0;
+  --bp-sm:  480px;
+  --bp-md:  768px;
+  --bp-lg:  1024px;
+  --bp-xl:  1280px;
+  --bp-2xl: 1440px;
+  --bp-3xl: 1920px;
+
+  /* Sticky navbar height */
   --nav-height: 64px;
+  --sidebar-width: 200px;
+  --cart-rail-width: 360px;
+
+  /* --------------------------------------------------------
+     SEMANTIC ROLE ALIASES
+     -------------------------------------------------------- */
+  --color-text-strong:     var(--shade-cool-dark-7);
+  --color-text:            var(--shade-cool-base-7);
+  --color-text-muted:      var(--shade-cool-base-5);
+  --color-text-disabled:   var(--shade-cool-base-4);
+  --color-surface:         var(--white);
+  --color-surface-tint:    var(--shade-cool-light-2);
+  --color-page:            var(--shade-cool-light-1);
+  --color-divider:         var(--hairline);
+  --color-input-border:    var(--shade-cool-light-6);
+  --color-sale:            var(--tomato-red-base-4);
+  --color-savings:         var(--jade-green-dark-1);
+
+  /* --------------------------------------------------------
+     LEGACY PALETTE ALIASES — map old --color-primary-*, --color-accent-*,
+     --color-neutral-* to the new warm system so untouched components inherit
+     saffron/turmeric without breaking. Saffron is brand; turmeric is action.
+     -------------------------------------------------------- */
+  --color-primary-50:  #FFEFE0;
+  --color-primary-100: #FFD9B8;
+  --color-primary-200: #FFB987;
+  --color-primary-300: #FF9959;
+  --color-primary-400: #F2782A;
+  --color-primary-500: #B8470F; /* saffron deep — brand */
+  --color-primary-600: #9C3B0C;
+  --color-primary-700: #7E2F0A;
+  --color-primary-800: #5C2106;
+  --color-primary-900: #3A1404;
+
+  --color-accent-50:  #FFF4D6;
+  --color-accent-100: #FFE4A8;
+  --color-accent-200: #FFD17A;
+  --color-accent-300: #FFC766;
+  --color-accent-400: #FF9F30;
+  --color-accent-500: #F18A1F; /* turmeric — action */
+  --color-accent-600: #D9731B;
+  --color-accent-700: #B85B14;
+  --color-accent-800: #8A4910;
+  --color-accent-900: #5C2F0A;
+
+  --color-neutral-0:   var(--white);
+  --color-neutral-50:  var(--shade-cool-light-1);
+  --color-neutral-100: var(--shade-cool-light-2);
+  --color-neutral-200: var(--shade-cool-light-5);
+  --color-neutral-300: var(--shade-cool-light-6);
+  --color-neutral-400: var(--shade-cool-base-4);
+  --color-neutral-500: var(--shade-cool-base-5);
+  --color-neutral-600: var(--shade-cool-base-7);
+  --color-neutral-700: var(--shade-cool-dark-3);
+  --color-neutral-800: var(--shade-cool-dark-7);
+  --color-neutral-900: var(--shade-cool-dark-7);
+
+  --color-success: var(--jade-green-base-4);
+  --color-warning: var(--mandarin-orange-base-4);
+  --color-error:   var(--tomato-red-base-4);
+  --color-info:    var(--energy-blue-base-4);
+
+  /* Legacy gradients — map to new warm sweeps */
+  --gradient-primary: var(--gradient-brand-sweep);
+  --gradient-accent:  linear-gradient(135deg, #F18A1F 0%, #E8611A 100%);
+  --gradient-hero:    var(--gradient-brand-sweep);
+  --gradient-dark:    linear-gradient(135deg, #3A1404 0%, #B8470F 100%);
+
+  /* Even-older single-token names used by some account/order styles */
+  --color-primary: var(--color-primary-1);
+  --color-border:  var(--hairline);
 }

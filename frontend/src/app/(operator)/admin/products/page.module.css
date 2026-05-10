@@ -25,7 +25,7 @@
 .filterSelect {
   padding: var(--space-2) var(--space-3);
   font-size: var(--font-sm);
-  border: 1.5px solid var(--color-neutral-200);
+  border: 1px solid var(--shade-cool-light-6);
   border-radius: var(--radius-lg);
   color: var(--color-neutral-700);
   background: var(--color-neutral-0);
@@ -34,28 +34,28 @@
 
 .filterSelect:focus {
   outline: none;
-  border-color: var(--color-primary-400);
+  border-color: var(--color-primary-1);
+  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
 }
 
 .addBtn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2-5) var(--space-4);
-  font-size: var(--font-sm);
+  gap: 8px;
+  padding: 12px 18px;
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
   font-weight: var(--weight-semibold);
-  background: var(--gradient-primary);
-  color: var(--color-neutral-0);
-  border-radius: var(--radius-lg);
+  background: var(--color-btn-primary-bg);
+  color: var(--white);
+  border-radius: var(--radius-card);
   cursor: pointer;
   border: none;
-  transition: all var(--duration-normal) var(--ease-default);
+  transition: background var(--duration-fast), transform var(--duration-fast);
 }
 
-.addBtn:hover {
-  filter: brightness(1.05);
-  box-shadow: var(--shadow-md), var(--shadow-glow-primary);
-}
+.addBtn:hover  { background: var(--color-btn-primary-hover); }
+.addBtn:active { transform: scale(0.97); }
 
 .categoryBadge {
   display: inline-flex;

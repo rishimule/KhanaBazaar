@@ -5,39 +5,47 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 14px;
+  font-family: var(--font-family-sans);
 }
 
 .or {
   margin: 0;
   text-align: center;
-  color: var(--color-neutral-500);
-  font-size: var(--font-sm);
+  color: var(--shade-cool-base-5);
+  font-size: var(--body-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: var(--weight-medium);
 }
 
 .confirm {
-  padding: var(--space-3) var(--space-5);
-  background: var(--color-primary-500);
-  color: var(--color-neutral-0);
+  padding: 14px 22px;
+  background: var(--color-btn-primary-bg);
+  color: var(--white);
   border: 0;
-  border-radius: var(--radius-lg);
-  font: inherit;
+  border-radius: var(--radius-card);
+  font-family: var(--font-family-sans);
   font-weight: var(--weight-semibold);
+  font-size: var(--body-base);
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-default);
+  transition: background var(--duration-fast), transform var(--duration-fast);
 }
 
-.confirm:hover:not(:disabled) {
-  background: var(--color-primary-600);
-}
+.confirm:hover:not(:disabled)  { background: var(--color-btn-primary-hover); }
+.confirm:active:not(:disabled) { transform: scale(0.97); }
 
 .confirm:disabled {
-  background: var(--color-neutral-300);
-  color: var(--color-neutral-500);
+  background: var(--shade-cool-light-5);
+  color: var(--shade-cool-base-4);
   cursor: not-allowed;
 }
 
 .error {
-  color: var(--color-error);
-  font-size: var(--font-sm);
+  color: var(--tomato-red-dark-1);
+  background: var(--tomato-red-light-1);
+  border: 1px solid var(--tomato-red-light-2);
+  padding: 10px 14px;
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
 }

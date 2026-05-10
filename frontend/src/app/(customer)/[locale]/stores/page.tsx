@@ -45,14 +45,12 @@ export default function StoresPage() {
     <div className={styles.page}>
       <div className={styles.pageInner}>
         <div className={styles.header}>
-          <h1 className={styles.title}>
-            {t("browse")} <span className={styles.titleAccent}>{t("stores")}</span>
-          </h1>
+          <h1 className={styles.title}>{t("browse")} {t("stores")}</h1>
           <p className={styles.subtitle}>{t("subtitle")}</p>
         </div>
 
         {location && stores.length === 0 && (
-          <p className={styles.subtitle} style={{ textAlign: "center" }}>
+          <p className={styles.subtitle} style={{ textAlign: "center", padding: "32px 0" }}>
             No stores deliver to your selected location yet.
           </p>
         )}
@@ -65,18 +63,22 @@ export default function StoresPage() {
               className={styles.card}
               id={`store-card-${store.id}`}
             >
-              <div className={styles.cardIcon}>🏪</div>
-              <h2 className={styles.cardName}>{store.name}</h2>
-              <p className={styles.cardAddress}>{formatAddress(store.address)}</p>
-              <div className={styles.cardMeta}>
+              <div className={styles.cardTop}>
+                <span className={styles.cardIcon}>{store.name.charAt(0).toUpperCase()}</span>
                 <span className={styles.cardStatus}>{t("openDot")}</span>
-                {typeof store.distance_km === "number" && (
-                  <span className={styles.cardDistance}>
-                    {store.distance_km.toFixed(1)} km away
-                  </span>
-                )}
               </div>
-              <span className={styles.viewBtn}>{t("viewStore")}</span>
+              <div className={styles.cardBody}>
+                <h2 className={styles.cardName}>{store.name}</h2>
+                <p className={styles.cardAddress}>{formatAddress(store.address)}</p>
+                <div className={styles.cardMeta}>
+                  {typeof store.distance_km === "number" && (
+                    <span className={styles.cardDistance}>
+                      {store.distance_km.toFixed(1)} km away
+                    </span>
+                  )}
+                </div>
+                <span className={styles.viewBtn}>{t("viewStore")} →</span>
+              </div>
             </Link>
           ))}
         </div>

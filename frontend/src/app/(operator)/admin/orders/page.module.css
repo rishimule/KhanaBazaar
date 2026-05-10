@@ -3,60 +3,73 @@
  * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
  */
 .page {
-  padding: 1.5rem;
+  padding: 0;
   max-width: 1100px;
   margin: 0 auto;
+  font-family: var(--font-family-sans);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .title {
-  font-size: 1.6rem;
-  margin-bottom: 1rem;
+  font-size: var(--display-lg);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--display-lg-track);
+  color: var(--shade-cool-dark-7);
+  margin: 0;
 }
 
 .tabs {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .tab,
 .tabActive {
-  border: 1px solid var(--color-border, #d1d5db);
-  background: transparent;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
+  border: 1px solid var(--shade-cool-light-6);
+  background: var(--white);
+  color: var(--shade-cool-base-7);
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  font-weight: 500;
+  font-family: var(--font-family-sans);
+  font-weight: var(--weight-medium);
+  font-size: var(--body-sm);
   min-height: 36px;
+  transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
+}
+
+.tab:hover {
+  border-color: var(--color-primary-1);
+  color: var(--color-primary-1);
 }
 
 .tabActive {
-  background: var(--color-primary, #16a34a);
-  color: white;
-  border-color: transparent;
+  background: var(--color-primary-1);
+  color: var(--white);
+  border-color: var(--color-primary-1);
 }
 
 .empty {
-  color: var(--color-text-muted, #6b7280);
-  padding: 2rem;
+  color: var(--shade-cool-base-7);
+  padding: 48px 24px;
   text-align: center;
+  background: var(--shade-cool-light-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  font-size: var(--body-base);
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
+  gap: 12px;
 }
 
 @media (max-width: 768px) {
-  .page {
-    padding: 1rem;
-  }
-
-  .title {
-    font-size: 1.4rem;
-  }
+  .title { font-size: var(--body-2xl); }
 
   .tabs {
     overflow-x: auto;
@@ -64,24 +77,10 @@
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-
-  .tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .tab,
-  .tabActive {
-    flex-shrink: 0;
-    min-height: 44px;
-  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab, .tabActive { flex-shrink: 0; min-height: 44px; }
 }
 
 @media (max-width: 480px) {
-  .page {
-    padding: 0.75rem;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
-  }
+  .grid { grid-template-columns: 1fr; }
 }

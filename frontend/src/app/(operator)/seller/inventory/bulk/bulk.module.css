@@ -210,10 +210,11 @@
 }
 
 .serviceTabActive {
-  background: var(--color-primary-50);
-  color: var(--color-primary-700);
-  border-color: var(--color-primary-200);
+  background: var(--color-primary-1);
+  color: var(--white);
+  border-color: var(--color-primary-1);
 }
+.serviceTabActive:hover { background: var(--color-primary-1); }
 
 .serviceTabCount {
   margin-left: var(--space-2);
@@ -223,7 +224,7 @@
 }
 
 .serviceTabActive .serviceTabCount {
-  color: var(--color-primary-600);
+  color: rgba(255,255,255,0.85);
 }
 
 .categoryNav {
