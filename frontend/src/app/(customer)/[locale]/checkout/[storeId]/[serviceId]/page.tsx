@@ -11,7 +11,7 @@ import { useCart } from "@/lib/CartContext";
 import { apiErrorKey } from "@/lib/errors";
 import { get } from "@/lib/api";
 import { placeOrder } from "@/lib/orders";
-import AddressPicker from "@/components/orders/AddressPicker";
+import AddressPicker, { type PickerState } from "@/components/orders/AddressPicker";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import PaymentMethodPicker from "@/components/orders/PaymentMethodPicker";
 import type { PaymentMethod, Store } from "@/types";
@@ -28,12 +28,13 @@ export default function CheckoutPage() {
   const { carts, loading: cartLoading, refresh, getTotal } = useCart();
 
   const [addressId, setAddressId] = useState<number | null>(null);
-  const [selectedAddress, setSelectedAddress] = useState<{
-    id: number;
-    latitude: number | null;
-    longitude: number | null;
-    serviceable: boolean;
-  } | null>(null);
+  const [pickerState, setPickerState] = useState<PickerState>({
+    selectedId: null,
+    latitude: null,
+    longitude: null,
+    serviceable: false,
+    loading: true,
+  });
   const [storeDetails, setStoreDetails] = useState<Store | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
   const [submitting, setSubmitting] = useState(false);
@@ -184,11 +185,11 @@ export default function CheckoutPage() {
             value={addressId}
             onChange={setAddressId}
             storeId={storeId}
-            onSelectedAddress={setSelectedAddress}
+            onStateChange={setPickerState}
           />
-          {selectedAddress?.serviceable &&
-            selectedAddress.latitude != null &&
-            selectedAddress.longitude != null &&
+          {pickerState.serviceable &&
+            pickerState.latitude != null &&
+            pickerState.longitude != null &&
             storeDetails?.address.latitude != null &&
             storeDetails?.address.longitude != null && (
               <div className={styles.routeMap}>
@@ -199,8 +200,8 @@ export default function CheckoutPage() {
                     label: storeDetails.name,
                   }}
                   customer={{
-                    lat: selectedAddress.latitude,
-                    lng: selectedAddress.longitude,
+                    lat: pickerState.latitude,
+                    lng: pickerState.longitude,
                     label: "Your address",
                   }}
                 />
@@ -239,9 +240,18 @@ export default function CheckoutPage() {
         <button
           className={styles.placeBtn}
           onClick={onPlaceOrder}
-          disabled={submitting || addressId === null}
+          disabled={
+            submitting ||
+            pickerState.selectedId === null ||
+            pickerState.loading ||
+            !pickerState.serviceable
+          }
         >
-          {submitting ? t("placing") : t("placeOrder", { total })}
+          {submitting
+            ? t("placing")
+            : pickerState.loading
+              ? t("checkingDeliveryArea")
+              : t("placeOrder", { total })}
         </button>
       </div>
     </div>
