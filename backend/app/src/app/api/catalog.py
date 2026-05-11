@@ -333,7 +333,11 @@ async def delete_category(
 @router.get("/products", response_model=List[ProductRead])
 async def list_products(
     skip: int = 0,
-    limit: int = 100,
+    # Default sized to cover the full dev catalog (~1500 products). Store
+    # detail + admin pages enrich inventory by id from this list, so a low
+    # default silently drops products whose id falls outside the first page
+    # and the UI then renders "no products yet" for stores stocking them.
+    limit: int = 5000,
     session: AsyncSession = Depends(get_db_session),
     lang: str = Depends(get_request_locale),
 ) -> List[ProductRead]:
