@@ -38,6 +38,10 @@
   color: var(--shade-cool-dark-7);
   line-height: 1.25;
 }
+.serviceChip {
+  color: var(--shade-cool-base-5);
+  font-weight: var(--weight-regular);
+}
 .subtitle {
   font-size: var(--body-xs);
   color: var(--shade-cool-base-5);

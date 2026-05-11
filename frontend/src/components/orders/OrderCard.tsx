@@ -42,7 +42,9 @@ export default function OrderCard({ order, role }: Props) {
         <span className={styles.id}>#{order.id}</span>
         <OrderStatusBadge status={order.status} />
       </div>
-      <div className={styles.title}>{order.store_name}</div>
+      <div className={styles.title}>
+        {order.store_name} <span className={styles.serviceChip}>· {order.service_name}</span>
+      </div>
       {order.customer_name && (
         <div className={styles.subtitle}>{t("forCustomer", { name: order.customer_name })}</div>
       )}

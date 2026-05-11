@@ -35,7 +35,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
         <OrderStatusBadge status={order.status} />
       </div>
       <p className={styles.subtitle}>
-        {order.store_name}
+        {order.store_name} <span className={styles.serviceChip}>· {order.service_name}</span>
         {order.customer_name && ` · ${order.customer_name}`}
       </p>
 
