@@ -113,6 +113,71 @@ async def _get_or_create_cart(
     return cart
 
 
+async def _validate_service_for_store(
+    session: AsyncSession, store_id: int, service_id: int
+) -> None:
+    """Raise 409 service_unavailable if the store's seller does not offer
+    `service_id`, or if Service.is_active is false."""
+    from app.models.catalog import Service
+    from app.models.profile import SellerProfile, SellerProfileService
+
+    row = (
+        await session.exec(
+            select(SellerProfileService.id)
+            .join(
+                SellerProfile,
+                SellerProfile.id == SellerProfileService.seller_profile_id,  # type: ignore[arg-type]
+            )
+            .join(Store, Store.seller_profile_id == SellerProfile.id)  # type: ignore[arg-type]
+            .where(
+                Store.id == store_id,
+                SellerProfileService.service_id == service_id,
+            )
+        )
+    ).first()
+    service_active = (
+        await session.exec(
+            select(Service.is_active).where(Service.id == service_id)
+        )
+    ).first()
+    if row is None or service_active is not True:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "detail": "service_unavailable",
+                "store_id": store_id,
+                "service_id": service_id,
+            },
+        )
+
+
+async def _assert_inventory_service_match(
+    session: AsyncSession, inventory_id: int, service_id: int
+) -> None:
+    """Raise 400 service_mismatch if `inventory_id`'s product resolves to a
+    different `service_id` via subcategory→category."""
+    from app.models.catalog import Category, Subcategory
+
+    resolved = (
+        await session.exec(
+            select(Category.service_id)
+            .join(Subcategory, Subcategory.category_id == Category.id)  # type: ignore[arg-type]
+            .join(MasterProduct, MasterProduct.subcategory_id == Subcategory.id)  # type: ignore[arg-type]
+            .join(StoreInventory, StoreInventory.product_id == MasterProduct.id)  # type: ignore[arg-type]
+            .where(StoreInventory.id == inventory_id)
+        )
+    ).first()
+    if resolved != service_id:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "detail": "service_mismatch",
+                "inventory_id": inventory_id,
+                "service_id": service_id,
+            },
+        )
+
+
 async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[CartRead]:
     if not carts:
         return []
@@ -238,7 +303,14 @@ async def add_cart_item(
     if not inv.is_available:
         raise HTTPException(status_code=409, detail="item_unavailable")
 
-    cart = await _get_or_create_cart(session, profile_id, payload.store_id)
+    await _validate_service_for_store(session, payload.store_id, payload.service_id)
+    await _assert_inventory_service_match(
+        session, payload.inventory_id, payload.service_id
+    )
+
+    cart = await _get_or_create_cart(
+        session, profile_id, payload.store_id, payload.service_id
+    )
     existing_result = await session.exec(
         select(CartItem).where(
             CartItem.cart_id == cart.id,
