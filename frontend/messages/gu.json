@@ -228,8 +228,8 @@
     "conflict": "વિરોધ — કૃપા કરીને રિફ્રેશ કરી ફરી પ્રયાસ કરો.",
     "validation": "અમાન્ય ઇનપુટ.",
     "serverError": "સર્વર ભૂલ. કૃપા કરીને ફરી પ્રયાસ કરો.",
-    "service_unavailable": "This service is no longer offered by the store. Remove the items and try a different service.",
-    "service_mismatch": "An item in your cart no longer belongs to this service. Remove it and try again."
+    "service_unavailable": "આ સેવા હવે આ સ્ટોરમાંથી ઉપલબ્ધ નથી. વસ્તુઓ દૂર કરો અને બીજી સેવા અજમાવો.",
+    "service_mismatch": "તમારી કાર્ટની એક વસ્તુ હવે આ સેવાની નથી. તેને દૂર કરો અને ફરી પ્રયત્ન કરો."
   },
   "Footer": {
     "tagline": "તમારી પડોશની દુકાનો, હવે તમારી આંગળીના ટેરવે. સ્થાનિક વિક્રેતાઓ પાસેથી તાજું કરિયાણું અને જરૂરી વસ્તુઓ ખરીદો અને UPI દ્વારા તરત જ ચૂકવણી કરો.",

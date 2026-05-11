@@ -228,8 +228,8 @@
     "conflict": "विरोध — कृपया रिफ्रेश करून पुन्हा प्रयत्न करा.",
     "validation": "अवैध इनपुट.",
     "serverError": "सर्व्हर त्रुटी. कृपया पुन्हा प्रयत्न करा.",
-    "service_unavailable": "This service is no longer offered by the store. Remove the items and try a different service.",
-    "service_mismatch": "An item in your cart no longer belongs to this service. Remove it and try again."
+    "service_unavailable": "ही सेवा आता या स्टोअरमधून उपलब्ध नाही. वस्तू काढा आणि दुसरी सेवा वापरून पहा.",
+    "service_mismatch": "तुमच्या कार्टमधील एक वस्तू आता या सेवेची नाही. ती काढा आणि पुन्हा प्रयत्न करा."
   },
   "Footer": {
     "tagline": "तुमची शेजारची दुकाने, आता तुमच्या बोटांच्या टोकावर. स्थानिक विक्रेत्यांकडून ताजे किराणा व आवश्यक वस्तू खरेदी करा आणि UPI ने तत्काळ पैसे भरा.",
