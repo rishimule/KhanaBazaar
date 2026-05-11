@@ -114,6 +114,7 @@
     "total": "कुल",
     "errPlaceOrder": "ऑर्डर नहीं दिया जा सका। कृपया फिर से कोशिश करें।",
     "placing": "ऑर्डर दिया जा रहा है…",
+    "checkingDeliveryArea": "डिलीवरी क्षेत्र की जाँच हो रही है…",
     "placeOrder": "ऑर्डर करें — ₹{total}"
   },
   "Login": {
@@ -276,6 +277,7 @@
     "deliverTo": "यहाँ पहुँचाएँ",
     "pickerLoading": "पते लोड हो रहे हैं…",
     "pickerEmpty": "कोई सहेजा गया पता नहीं।",
+    "noServiceableTitle": "इस स्टोर के डिलीवरी क्षेत्र में कोई सहेजा गया पता नहीं है।",
     "pickerAddOne": "एक जोड़ें",
     "fallbackLabel": "पता",
     "verifyAddress": "पता सत्यापित करें",

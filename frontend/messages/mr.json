@@ -114,6 +114,7 @@
     "total": "एकूण",
     "errPlaceOrder": "ऑर्डर देता आली नाही. कृपया पुन्हा प्रयत्न करा.",
     "placing": "ऑर्डर देत आहे…",
+    "checkingDeliveryArea": "वितरण क्षेत्र तपासत आहोत…",
     "placeOrder": "ऑर्डर द्या — ₹{total}"
   },
   "Login": {
@@ -276,6 +277,7 @@
     "deliverTo": "येथे पोहोचवा",
     "pickerLoading": "पत्ते लोड होत आहेत…",
     "pickerEmpty": "जतन केलेला पत्ता नाही.",
+    "noServiceableTitle": "या दुकानाच्या वितरण क्षेत्रात कोणताही जतन केलेला पत्ता नाही.",
     "pickerAddOne": "एक जोडा",
     "fallbackLabel": "पत्ता",
     "verifyAddress": "पत्ता पडताळा",

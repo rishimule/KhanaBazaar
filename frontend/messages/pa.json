@@ -114,6 +114,7 @@
     "total": "ਕੁੱਲ",
     "errPlaceOrder": "ਆਰਡਰ ਨਹੀਂ ਦਿੱਤਾ ਜਾ ਸਕਿਆ. ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ.",
     "placing": "ਆਰਡਰ ਦਿੱਤਾ ਜਾ ਰਿਹਾ ਹੈ…",
+    "checkingDeliveryArea": "ਡਿਲੀਵਰੀ ਖੇਤਰ ਜਾਂਚ ਰਹੇ ਹਾਂ…",
     "placeOrder": "ਆਰਡਰ ਦਿਓ — ₹{total}"
   },
   "Login": {
@@ -276,6 +277,7 @@
     "deliverTo": "ਇੱਥੇ ਪਹੁੰਚਾਓ",
     "pickerLoading": "ਪਤੇ ਲੋਡ ਹੋ ਰਹੇ ਹਨ…",
     "pickerEmpty": "ਕੋਈ ਸੰਭਾਲਿਆ ਪਤਾ ਨਹੀਂ.",
+    "noServiceableTitle": "ਇਸ ਸਟੋਰ ਦੇ ਡਿਲੀਵਰੀ ਖੇਤਰ ਵਿੱਚ ਕੋਈ ਸੰਭਾਲਿਆ ਪਤਾ ਨਹੀਂ ਹੈ।",
     "pickerAddOne": "ਇੱਕ ਜੋੜੋ",
     "fallbackLabel": "ਪਤਾ",
     "verifyAddress": "ਪਤਾ ਤਸਦੀਕ ਕਰੋ",

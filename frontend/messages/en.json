@@ -114,6 +114,7 @@
     "total": "Total",
     "errPlaceOrder": "Could not place order. Please try again.",
     "placing": "Placing order…",
+    "checkingDeliveryArea": "Checking delivery area…",
     "placeOrder": "Place Order — ₹{total}"
   },
   "Login": {
@@ -276,6 +277,7 @@
     "deliverTo": "Deliver to",
     "pickerLoading": "Loading addresses…",
     "pickerEmpty": "No saved address.",
+    "noServiceableTitle": "No saved address is within this store's delivery area.",
     "pickerAddOne": "Add one",
     "fallbackLabel": "Address",
     "verifyAddress": "Verify address",
