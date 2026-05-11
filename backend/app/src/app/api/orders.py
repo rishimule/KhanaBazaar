@@ -32,7 +32,7 @@ from app.schemas.orders import (
     PlaceOrderRequest,
     TransitionRequest,
 )
-from app.services.checkout import place_order_for_store
+from app.services.checkout import place_order_for_sub_basket
 from app.services.order_emails import (
     dispatch_order_placed,
     dispatch_order_status_changed,
@@ -77,6 +77,8 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
         id=order.id,
         store_id=order.store_id,
         store_name=store.name if store else "",
+        service_id=order.service_id,
+        service_name=order.service_name_snapshot,
         customer_name=customer_name,
         status=order.status,
         subtotal=order.subtotal,
@@ -142,6 +144,7 @@ async def _customer_profile_id(session: AsyncSession, user: User) -> int:
 @router.get("/", response_model=OrderListResponse, include_in_schema=False)
 async def list_orders(
     status: Optional[str] = Query(default=None),
+    service_id: Optional[int] = Query(default=None, gt=0),
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> OrderListResponse:
@@ -159,6 +162,8 @@ async def list_orders(
         if profile_id is None:
             return OrderListResponse(orders=[])
         stmt = stmt.where(Order.customer_profile_id == profile_id)
+        if service_id is not None:
+            stmt = stmt.where(Order.service_id == service_id)
     elif user.role == UserRole.Seller:
         store_ids = await _seller_store_ids(session, user)
         if not store_ids:
@@ -220,11 +225,12 @@ async def place_order(
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
 ) -> OrderRead:
-    order = await place_order_for_store(
+    order = await place_order_for_sub_basket(
         session,
         user,
         payload.customer_address_id,
         payload.store_id,
+        payload.service_id,
         payload.payment_method,
     )
     if order.id is not None:
