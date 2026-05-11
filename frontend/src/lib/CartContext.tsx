@@ -22,10 +22,25 @@ interface CartContextValue {
   carts: Cart[];
   cartCount: number;
   loading: boolean;
-  addItem: (storeId: number, storeName: string, item: CartItem) => Promise<void>;
-  removeItem: (storeId: number, productId: number) => Promise<void>;
-  updateQty: (storeId: number, productId: number, qty: number) => Promise<void>;
-  clearStoreCart: (storeId: number) => Promise<void>;
+  addItem: (
+    storeId: number,
+    storeName: string,
+    serviceId: number,
+    serviceName: string,
+    item: CartItem,
+  ) => Promise<void>;
+  removeItem: (
+    storeId: number,
+    serviceId: number,
+    productId: number,
+  ) => Promise<void>;
+  updateQty: (
+    storeId: number,
+    serviceId: number,
+    productId: number,
+    qty: number,
+  ) => Promise<void>;
+  clearSubBasket: (storeId: number, serviceId: number) => Promise<void>;
   getTotal: (cart: Cart) => number;
   grandTotal: number;
   refresh: () => Promise<void>;
@@ -35,8 +50,15 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-function findRemoteItemId(carts: Cart[], storeId: number, productId: number): number | undefined {
-  const cart = carts.find((c) => c.store_id === storeId);
+function findRemoteItemId(
+  carts: Cart[],
+  storeId: number,
+  serviceId: number,
+  productId: number,
+): number | undefined {
+  const cart = carts.find(
+    (c) => c.store_id === storeId && c.service_id === serviceId,
+  );
   return cart?.items.find((i) => i.product_id === productId)?.id;
 }
 
@@ -47,9 +69,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncDropped, setLastSyncDropped] = useState<number>(0);
   const lastSyncedUserId = useRef<number | null>(null);
 
-  // Reset the sync sentinel whenever the active user disappears (logout) or
-  // changes (account swap in same tab) so the next login re-syncs against
-  // its own localStorage rather than the previous user's stale state.
   useEffect(() => {
     if (!dbUser) {
       lastSyncedUserId.current = null;
@@ -76,7 +95,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isCustomer, refreshRemote, refreshLocal]);
 
-  // Initial load + auth transitions.
   useEffect(() => {
     if (authLoading) return;
     let cancelled = false;
@@ -95,9 +113,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           if (local.length > 0) {
             const payload = local.map((c) => ({
               store_id: c.store_id,
+              service_id: c.service_id,
               items: c.items
                 .filter((i) => typeof i.inventory_id === "number")
-                .map((i) => ({ inventory_id: i.inventory_id, quantity: i.quantity })),
+                .map((i) => ({
+                  inventory_id: i.inventory_id,
+                  quantity: i.quantity,
+                })),
             }));
             const result = await remoteCart.syncCarts(token, payload);
             if (!cancelled) {
@@ -122,18 +144,38 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [authLoading, dbUser, token, refreshLocal, refreshRemote]);
 
   const addItem = useCallback(
-    async (storeId: number, storeName: string, item: CartItem) => {
+    async (
+      storeId: number,
+      storeName: string,
+      serviceId: number,
+      serviceName: string,
+      item: CartItem,
+    ) => {
       if (!isCustomer) {
-        const updated = localCart.addToCart(storeId, storeName, item);
+        const updated = localCart.addToCart(
+          storeId,
+          storeName,
+          serviceId,
+          serviceName,
+          item,
+        );
         setCarts(updated);
         return;
       }
       const previous = carts;
       setCarts((prev) => {
         const next = prev.map((c) => ({ ...c, items: [...c.items] }));
-        let cart = next.find((c) => c.store_id === storeId);
+        let cart = next.find(
+          (c) => c.store_id === storeId && c.service_id === serviceId,
+        );
         if (!cart) {
-          cart = { store_id: storeId, store_name: storeName, items: [] };
+          cart = {
+            store_id: storeId,
+            store_name: storeName,
+            service_id: serviceId,
+            service_name: serviceName,
+            items: [],
+          };
           next.push(cart);
         }
         const existing = cart.items.find((i) => i.product_id === item.product_id);
@@ -145,32 +187,38 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
       try {
-        await remoteCart.addItem(token!, storeId, item.inventory_id, item.quantity);
+        await remoteCart.addItem(
+          token!,
+          storeId,
+          serviceId,
+          item.inventory_id,
+          item.quantity,
+        );
         await refreshRemote();
       } catch (err) {
         setCarts(previous);
         throw err;
       }
     },
-    [carts, isCustomer, token, refreshRemote]
+    [carts, isCustomer, token, refreshRemote],
   );
 
   const removeItem = useCallback(
-    async (storeId: number, productId: number) => {
+    async (storeId: number, serviceId: number, productId: number) => {
       if (!isCustomer) {
-        setCarts(localCart.removeFromCart(storeId, productId));
+        setCarts(localCart.removeFromCart(storeId, serviceId, productId));
         return;
       }
       const previous = carts;
-      const itemId = findRemoteItemId(carts, storeId, productId);
+      const itemId = findRemoteItemId(carts, storeId, serviceId, productId);
       setCarts((prev) =>
         prev
           .map((c) =>
-            c.store_id === storeId
+            c.store_id === storeId && c.service_id === serviceId
               ? { ...c, items: c.items.filter((i) => i.product_id !== productId) }
-              : c
+              : c,
           )
-          .filter((c) => c.items.length > 0)
+          .filter((c) => c.items.length > 0),
       );
       if (!itemId) return;
       try {
@@ -181,32 +229,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         throw err;
       }
     },
-    [carts, isCustomer, token, refreshRemote]
+    [carts, isCustomer, token, refreshRemote],
   );
 
   const updateQty = useCallback(
-    async (storeId: number, productId: number, qty: number) => {
+    async (
+      storeId: number,
+      serviceId: number,
+      productId: number,
+      qty: number,
+    ) => {
       if (qty <= 0) {
-        await removeItem(storeId, productId);
+        await removeItem(storeId, serviceId, productId);
         return;
       }
       if (!isCustomer) {
-        setCarts(localCart.updateQuantity(storeId, productId, qty));
+        setCarts(localCart.updateQuantity(storeId, serviceId, productId, qty));
         return;
       }
       const previous = carts;
-      const itemId = findRemoteItemId(carts, storeId, productId);
+      const itemId = findRemoteItemId(carts, storeId, serviceId, productId);
       setCarts((prev) =>
         prev.map((c) =>
-          c.store_id === storeId
+          c.store_id === storeId && c.service_id === serviceId
             ? {
                 ...c,
                 items: c.items.map((i) =>
-                  i.product_id === productId ? { ...i, quantity: qty } : i
+                  i.product_id === productId ? { ...i, quantity: qty } : i,
                 ),
               }
-            : c
-        )
+            : c,
+        ),
       );
       if (!itemId) return;
       try {
@@ -217,26 +270,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         throw err;
       }
     },
-    [carts, isCustomer, token, refreshRemote, removeItem]
+    [carts, isCustomer, token, refreshRemote, removeItem],
   );
 
-  const clearStoreCart = useCallback(
-    async (storeId: number) => {
+  const clearSubBasket = useCallback(
+    async (storeId: number, serviceId: number) => {
       if (!isCustomer) {
-        setCarts(localCart.clearCart(storeId));
+        setCarts(localCart.clearCart(storeId, serviceId));
         return;
       }
       const previous = carts;
-      setCarts((prev) => prev.filter((c) => c.store_id !== storeId));
+      setCarts((prev) =>
+        prev.filter(
+          (c) => !(c.store_id === storeId && c.service_id === serviceId),
+        ),
+      );
       try {
-        await remoteCart.clearStoreCart(token!, storeId);
+        await remoteCart.clearSubBasket(token!, storeId, serviceId);
         await refreshRemote();
       } catch (err) {
         setCarts(previous);
         throw err;
       }
     },
-    [carts, isCustomer, token, refreshRemote]
+    [carts, isCustomer, token, refreshRemote],
   );
 
   const cartCount = useMemo(() => getCartCount(carts), [carts]);
@@ -253,7 +310,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     addItem,
     removeItem,
     updateQty,
-    clearStoreCart,
+    clearSubBasket,
     getTotal: getCartTotal,
     grandTotal,
     refresh,
