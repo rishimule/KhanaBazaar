@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
@@ -62,19 +62,14 @@ export default function AddressPicker({
   const [profileLoading, setProfileLoading] = useState(true);
   /** id → serviceable? Missing entry means "still checking" or "no lat/lng". */
   const [serviceability, setServiceability] = useState<Record<number, boolean>>({});
+  const didAutoSelect = useRef(false);
 
   useEffect(() => {
     if (!token) return;
     get<CustomerProfileResponse>("/api/v1/customers/me", token)
-      .then((data) => {
-        setAddresses(data.addresses);
-        if (value === null && data.addresses.length > 0) {
-          const def = data.addresses.find((a) => a.is_default) ?? data.addresses[0];
-          onChange(def.id);
-        }
-      })
+      .then((data) => { setAddresses(data.addresses); })
       .finally(() => setProfileLoading(false));
-  }, [token, value, onChange]);
+  }, [token]);
 
   useEffect(() => {
     if (storeId === undefined || addresses.length === 0) return;
@@ -105,6 +100,25 @@ export default function AddressPicker({
   const allSettled =
     !profileLoading &&
     (storeId === undefined || addresses.every((a) => a.id in serviceability));
+
+  useEffect(() => {
+    if (!allSettled) return;
+    if (didAutoSelect.current) return;
+    if (value !== null) { didAutoSelect.current = true; return; }
+    if (addresses.length === 0) { didAutoSelect.current = true; return; }
+
+    const isOk = (id: number) =>
+      storeId === undefined || serviceability[id] === true;
+
+    const def = addresses.find((a) => a.is_default);
+    const pick =
+      (def && isOk(def.id) ? def : null) ??
+      addresses.find((a) => isOk(a.id)) ??
+      null;
+
+    if (pick) onChange(pick.id);
+    didAutoSelect.current = true;
+  }, [allSettled, addresses, serviceability, storeId, value, onChange]);
 
   useEffect(() => {
     if (!onStateChange) return;
