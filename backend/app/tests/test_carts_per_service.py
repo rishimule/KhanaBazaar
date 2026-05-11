@@ -116,6 +116,13 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     # Capture ids as plain ints BEFORE commit. After commit() SQLAlchemy expires
     # instance attributes; accessing them during yield can trigger
     # MissingGreenlet (matches the pattern in tests/test_carts.py).
+    assert store.id is not None
+    assert grocery.id is not None
+    assert pharmacy.id is not None
+    assert other_service.id is not None
+    assert g_inv.id is not None
+    assert p_inv.id is not None
+    assert bakery_inv.id is not None
     store_id = store.id
     grocery_id = grocery.id
     pharmacy_id = pharmacy.id

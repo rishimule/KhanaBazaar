@@ -156,6 +156,12 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
         ))
     ).first()
     assert cust_address_id is not None
+    assert store.id is not None
+    assert grocery.id is not None
+    assert pharmacy.id is not None
+    assert g_inv.id is not None
+    assert p_inv.id is not None
+    assert seller.id is not None
     store_id = store.id
     grocery_id = grocery.id
     pharmacy_id = pharmacy.id
@@ -239,9 +245,11 @@ async def test_catalog_drift_after_add_to_cart_raises_409(
 ) -> None:
     subcat = (await session.exec(
         select(Subcategory).join(
-            MasterProduct, MasterProduct.subcategory_id == Subcategory.id,
+            MasterProduct,
+            MasterProduct.subcategory_id == Subcategory.id,  # type: ignore[arg-type]
         ).join(
-            StoreInventory, StoreInventory.product_id == MasterProduct.id,
+            StoreInventory,
+            StoreInventory.product_id == MasterProduct.id,  # type: ignore[arg-type]
         ).where(StoreInventory.id == seed["grocery_inv_id"])
     )).first()
     assert subcat is not None

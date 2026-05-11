@@ -67,6 +67,7 @@ async def _seed_product(
         master_product_id=product.id, language_code="en", name=name, description=name,
     ))
     await session.flush()
+    assert service.id is not None
     return product, service.id
 
 
@@ -122,6 +123,8 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     # Capture ids as plain ints BEFORE commit — after commit the session expires
     # the ORM-managed attributes, and lazy-loading them during `yield` (which is
     # outside an awaitable context) triggers MissingGreenlet on asyncpg.
+    assert store.id is not None
+    assert inv.id is not None
     store_id = store.id
     inventory_id = inv.id
     await session.commit()
