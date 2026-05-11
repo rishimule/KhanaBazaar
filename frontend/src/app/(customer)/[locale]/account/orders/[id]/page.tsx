@@ -46,7 +46,9 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
         <h1 className={styles.title}>{t("title", { id: order.id })}</h1>
         <OrderStatusBadge status={order.status} />
       </div>
-      <p className={styles.subtitle}>{order.store_name}</p>
+      <p className={styles.subtitle}>
+        {order.store_name} <span className={styles.serviceChip}>· {order.service_name}</span>
+      </p>
 
       <section className={styles.section}>
         <OrderTimeline status={order.status} />

@@ -19,21 +19,23 @@ export async function getOrder(token: string, orderId: number): Promise<Order> {
 export interface PlaceOrderArgs {
   customerAddressId: number;
   storeId: number;
+  serviceId: number;
   paymentMethod: PaymentMethod;
 }
 
 export async function placeOrder(
   token: string,
-  args: PlaceOrderArgs
+  args: PlaceOrderArgs,
 ): Promise<Order> {
   return post<Order>(
     "/api/v1/orders",
     {
       customer_address_id: args.customerAddressId,
       store_id: args.storeId,
+      service_id: args.serviceId,
       payment_method: args.paymentMethod,
     },
-    token
+    token,
   );
 }
 

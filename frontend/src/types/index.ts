@@ -138,10 +138,12 @@ export interface CartItem {
   id?: number;
 }
 
-/** A shopping cart tied to a specific store. */
+/** A shopping cart sub-basket scoped to one (store, service) pair. */
 export interface Cart {
   store_id: number;
   store_name: string;
+  service_id: number;
+  service_name: string;
   items: CartItem[];
 }
 
@@ -222,6 +224,8 @@ export interface Order {
   id: number;
   store_id: number;
   store_name: string;
+  service_id: number;
+  service_name: string;
   customer_name?: string | null;
   status: OrderStatus;
   subtotal: number;

@@ -16,6 +16,8 @@ interface RemoteCartItem {
 interface RemoteCart {
   store_id: number;
   store_name: string;
+  service_id: number;
+  service_name: string;
   items: RemoteCartItem[];
   subtotal: number;
 }
@@ -33,6 +35,8 @@ function toCart(remote: RemoteCart): Cart {
   return {
     store_id: remote.store_id,
     store_name: remote.store_name,
+    service_id: remote.service_id,
+    service_name: remote.service_name,
     items: remote.items.map<CartItem>((item) => ({
       id: item.id,
       product_id: item.product_id,
@@ -52,36 +56,61 @@ export async function listCarts(token: string): Promise<Cart[]> {
 export async function addItem(
   token: string,
   storeId: number,
+  serviceId: number,
   inventoryId: number,
-  quantity: number
+  quantity: number,
 ): Promise<RemoteCartItem> {
   return post<RemoteCartItem>(
     "/api/v1/carts/items",
-    { store_id: storeId, inventory_id: inventoryId, quantity },
-    token
+    {
+      store_id: storeId,
+      service_id: serviceId,
+      inventory_id: inventoryId,
+      quantity,
+    },
+    token,
   );
 }
 
 export async function updateItemQty(
   token: string,
   itemId: number,
-  quantity: number
+  quantity: number,
 ): Promise<RemoteCartItem> {
-  return patch<RemoteCartItem>(`/api/v1/carts/items/${itemId}`, { quantity }, token);
+  return patch<RemoteCartItem>(
+    `/api/v1/carts/items/${itemId}`,
+    { quantity },
+    token,
+  );
 }
 
 export async function removeItem(token: string, itemId: number): Promise<void> {
   await del<void>(`/api/v1/carts/items/${itemId}`, token);
 }
 
-export async function clearStoreCart(token: string, storeId: number): Promise<void> {
-  await del<void>(`/api/v1/carts/${storeId}`, token);
+export async function clearSubBasket(
+  token: string,
+  storeId: number,
+  serviceId: number,
+): Promise<void> {
+  await del<void>(`/api/v1/carts/${storeId}/${serviceId}`, token);
 }
 
 export async function syncCarts(
   token: string,
-  carts: { store_id: number; items: { inventory_id: number; quantity: number }[] }[]
-): Promise<{ carts: Cart[]; dropped: { inventory_id: number; reason: string }[] }> {
-  const data = await post<RemoteCartSyncResponse>("/api/v1/carts/sync", { carts }, token);
+  carts: {
+    store_id: number;
+    service_id: number;
+    items: { inventory_id: number; quantity: number }[];
+  }[],
+): Promise<{
+  carts: Cart[];
+  dropped: { inventory_id: number; reason: string }[];
+}> {
+  const data = await post<RemoteCartSyncResponse>(
+    "/api/v1/carts/sync",
+    { carts },
+    token,
+  );
   return { carts: data.carts.map(toCart), dropped: data.dropped };
 }

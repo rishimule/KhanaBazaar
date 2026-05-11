@@ -40,6 +40,8 @@ class OrderRead(BaseModel):
     id: int
     store_id: int
     store_name: str
+    service_id: int
+    service_name: str
     customer_name: Optional[str] = None
     status: OrderStatus
     subtotal: float
@@ -60,6 +62,7 @@ class OrderListResponse(BaseModel):
 class PlaceOrderRequest(BaseModel):
     customer_address_id: int = Field(gt=0)
     store_id: int = Field(gt=0)
+    service_id: int = Field(gt=0)
     payment_method: PaymentMethod
 
 

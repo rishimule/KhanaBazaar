@@ -90,7 +90,7 @@
     "startShopping": "Start Shopping",
     "loginToCheckout": "Login to checkout",
     "customerLoginRequired": "Customer login required",
-    "checkoutCta": "Checkout · ₹{subtotal}",
+    "checkoutCta": "Checkout {service} — ₹{subtotal}",
     "yourLabel": "Your",
     "cartLabel": "Cart",
     "summary": "{stores, plural, one {# store} other {# stores}} · {items, plural, one {# item} other {# items}}",
@@ -227,7 +227,9 @@
     "notFound": "Not found.",
     "conflict": "Conflict — please refresh and retry.",
     "validation": "Invalid input.",
-    "serverError": "Server error. Please try again."
+    "serverError": "Server error. Please try again.",
+    "service_unavailable": "This service is no longer offered by the store. Remove the items and try a different service.",
+    "service_mismatch": "An item in your cart no longer belongs to this service. Remove it and try again."
   },
   "Footer": {
     "tagline": "Your neighbourhood stores, now at your fingertips. Shop fresh groceries & essentials from local sellers and pay instantly with UPI.",

@@ -40,11 +40,11 @@ mock_seller = User(id=203, email="cart-seller@kb.com", role=UserRole.Seller, is_
 async def _seed_product(
     session: AsyncSession, *, service_slug: str, category_slug: str,
     subcategory_slug: str, product_slug: str, name: str, base_price: float,
-) -> MasterProduct:
+) -> tuple[MasterProduct, int]:
     """Create the full Service → Category → Subcategory → MasterProduct chain
     plus English translations. Each slug must be globally unique within its scope.
     The 'en' Language row is seeded by the autouse `setup_test_db` fixture in
-    `conftest.py`."""
+    `conftest.py`. Returns `(product, service_id)`."""
     service = Service(slug=service_slug)
     session.add(service)
     await session.flush()
@@ -67,11 +67,12 @@ async def _seed_product(
         master_product_id=product.id, language_code="en", name=name, description=name,
     ))
     await session.flush()
-    return product
+    assert service.id is not None
+    return product, service.id
 
 
 @pytest.fixture(autouse=True)
-async def seed(session: AsyncSession) -> AsyncGenerator[None, None]:
+async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     for u in (mock_customer, mock_other_customer, mock_seller):
         session.add(User(**u.model_dump()))
     await session.flush()
@@ -101,16 +102,13 @@ async def seed(session: AsyncSession) -> AsyncGenerator[None, None]:
     session.add(store)
     await session.flush()
 
-    product = await _seed_product(
+    product, service_id = await _seed_product(
         session, service_slug="grocery", category_slug="food",
         subcategory_slug="fruit", product_slug="apple", name="Apple", base_price=50.0,
     )
 
     # Link seller to the grocery service seeded above
-    grocery_svc_result = await session.exec(select(Service).where(Service.slug == "grocery"))
-    grocery_svc = grocery_svc_result.first()
-    assert grocery_svc is not None
-    session.add(SellerProfileService(seller_profile_id=seller_profile.id, service_id=grocery_svc.id))
+    session.add(SellerProfileService(seller_profile_id=seller_profile.id, service_id=service_id))
     await session.flush()
 
     inv = StoreInventory(store_id=store.id, product_id=product.id, price=50.0, stock=10)
@@ -118,12 +116,19 @@ async def seed(session: AsyncSession) -> AsyncGenerator[None, None]:
     await session.flush()
 
     # Pre-existing cart row for the main customer for read tests.
-    cart = Cart(customer_profile_id=customer_profile.id, store_id=store.id)
+    cart = Cart(customer_profile_id=customer_profile.id, store_id=store.id, service_id=service_id)
     session.add(cart)
     await session.flush()
     session.add(CartItem(cart_id=cart.id, inventory_id=inv.id, quantity=2))
+    # Capture ids as plain ints BEFORE commit — after commit the session expires
+    # the ORM-managed attributes, and lazy-loading them during `yield` (which is
+    # outside an awaitable context) triggers MissingGreenlet on asyncpg.
+    assert store.id is not None
+    assert inv.id is not None
+    store_id = store.id
+    inventory_id = inv.id
     await session.commit()
-    yield
+    yield {"service_id": service_id, "store_id": store_id, "inventory_id": inventory_id}
 
 
 @pytest.fixture
@@ -160,7 +165,7 @@ async def test_seller_cannot_list_carts(override_as_seller: Any) -> None:
     assert resp.status_code == 403
 
 
-async def test_customer_lists_their_carts(override_as_customer: Any) -> None:
+async def test_customer_lists_their_carts(override_as_customer: Any, seed: dict[str, int]) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.get("/api/v1/carts")
     assert resp.status_code == 200, resp.text
@@ -168,6 +173,8 @@ async def test_customer_lists_their_carts(override_as_customer: Any) -> None:
     assert len(data["carts"]) == 1
     cart = data["carts"][0]
     assert cart["store_name"] == "Test Store"
+    assert cart["service_id"] == seed["service_id"]
+    assert cart["service_name"] == "Apple"
     assert cart["subtotal"] == 100.0
     assert cart["items"][0]["product_name"] == "Apple"
     assert cart["items"][0]["quantity"] == 2
@@ -180,11 +187,11 @@ async def test_other_customer_sees_empty_list(override_as_other_customer: Any) -
     assert resp.json() == {"carts": []}
 
 
-async def test_add_item_to_new_cart(override_as_other_customer: Any) -> None:
+async def test_add_item_to_new_cart(override_as_other_customer: Any, seed: dict[str, int]) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Inventory id = 1 from seed (only one inventory row).
         resp = await ac.post("/api/v1/carts/items", json={
-            "store_id": 1, "inventory_id": 1, "quantity": 3,
+            "store_id": 1, "service_id": seed["service_id"], "inventory_id": 1, "quantity": 3,
         })
     assert resp.status_code == 201, resp.text
     body = resp.json()
@@ -192,24 +199,24 @@ async def test_add_item_to_new_cart(override_as_other_customer: Any) -> None:
     assert body["product_name"] == "Apple"
 
 
-async def test_add_existing_item_increments_quantity(override_as_customer: Any) -> None:
+async def test_add_existing_item_increments_quantity(override_as_customer: Any, seed: dict[str, int]) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post("/api/v1/carts/items", json={
-            "store_id": 1, "inventory_id": 1, "quantity": 5,
+            "store_id": 1, "service_id": seed["service_id"], "inventory_id": 1, "quantity": 5,
         })
     assert resp.status_code == 200, resp.text   # 200 = updated
     assert resp.json()["quantity"] == 7   # 2 (seeded) + 5
 
 
-async def test_add_item_unknown_inventory(override_as_customer: Any) -> None:
+async def test_add_item_unknown_inventory(override_as_customer: Any, seed: dict[str, int]) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post("/api/v1/carts/items", json={
-            "store_id": 1, "inventory_id": 9999, "quantity": 1,
+            "store_id": 1, "service_id": seed["service_id"], "inventory_id": 9999, "quantity": 1,
         })
     assert resp.status_code == 404
 
 
-async def test_add_item_inventory_not_in_store(override_as_customer: Any, session: AsyncSession) -> None:
+async def test_add_item_inventory_not_in_store(override_as_customer: Any, session: AsyncSession, seed: dict[str, int]) -> None:
     # Seed a second store (different seller) + its inventory; passing store_id=1 + new inventory_id should 400.
     seller2_user = User(id=299, email="cart-seller2@kb.com", role=UserRole.Seller, is_active=True)
     session.add(seller2_user)
@@ -240,12 +247,12 @@ async def test_add_item_inventory_not_in_store(override_as_customer: Any, sessio
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post("/api/v1/carts/items", json={
-            "store_id": 1, "inventory_id": inv2_id, "quantity": 1,
+            "store_id": 1, "service_id": seed["service_id"], "inventory_id": inv2_id, "quantity": 1,
         })
     assert resp.status_code == 400
 
 
-async def test_add_item_unavailable_returns_409(override_as_other_customer: Any, session: AsyncSession) -> None:
+async def test_add_item_unavailable_returns_409(override_as_other_customer: Any, session: AsyncSession, seed: dict[str, int]) -> None:
     inv = (await session.exec(select(StoreInventory))).first()
     assert inv is not None
     inv.is_available = False
@@ -253,7 +260,7 @@ async def test_add_item_unavailable_returns_409(override_as_other_customer: Any,
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post("/api/v1/carts/items", json={
-            "store_id": 1, "inventory_id": 1, "quantity": 1,
+            "store_id": 1, "service_id": seed["service_id"], "inventory_id": 1, "quantity": 1,
         })
     assert resp.status_code == 409
     assert resp.json()["detail"] == "item_unavailable"
@@ -305,18 +312,20 @@ async def test_delete_cart_item(override_as_customer: Any, session: AsyncSession
     assert remaining == []
 
 
-async def test_clear_store_cart(override_as_customer: Any, session: AsyncSession) -> None:
+async def test_clear_store_cart(override_as_customer: Any, session: AsyncSession, seed: dict[str, int]) -> None:
+    service_id = seed["service_id"]
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.delete("/api/v1/carts/1")
+        resp = await ac.delete(f"/api/v1/carts/1/{service_id}")
     assert resp.status_code == 204
     await session.commit()
     assert (await session.exec(select(Cart))).all() == []
     assert (await session.exec(select(CartItem))).all() == []
 
 
-async def test_clear_store_cart_unknown_store_returns_204(override_as_customer: Any) -> None:
+async def test_clear_store_cart_unknown_store_returns_204(override_as_customer: Any, seed: dict[str, int]) -> None:
+    service_id = seed["service_id"]
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.delete("/api/v1/carts/9999")
+        resp = await ac.delete(f"/api/v1/carts/9999/{service_id}")
     assert resp.status_code == 204
 
 
@@ -327,22 +336,26 @@ async def test_sync_empty_payload(override_as_other_customer: Any) -> None:
     assert resp.json() == {"carts": [], "dropped": []}
 
 
-async def test_sync_merges_quantities(override_as_customer: Any) -> None:
+async def test_sync_merges_quantities(override_as_customer: Any, seed: dict[str, int]) -> None:
     # Existing seed: store 1, inventory 1, qty 2.
+    service_id = seed["service_id"]
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post("/api/v1/carts/sync", json={
-            "carts": [{"store_id": 1, "items": [{"inventory_id": 1, "quantity": 5}]}]
+            "carts": [{"store_id": 1, "service_id": service_id, "items": [{"inventory_id": 1, "quantity": 5}]}]
         })
     assert resp.status_code == 200
     body = resp.json()
     assert body["dropped"] == []
     assert body["carts"][0]["items"][0]["quantity"] == 7   # 2 + 5
+    assert body["carts"][0]["service_id"] == service_id
+    assert body["carts"][0]["service_name"] == "Apple"
 
 
-async def test_sync_drops_unknown_inventory(override_as_other_customer: Any) -> None:
+async def test_sync_drops_unknown_inventory(override_as_other_customer: Any, seed: dict[str, int]) -> None:
+    service_id = seed["service_id"]
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post("/api/v1/carts/sync", json={
-            "carts": [{"store_id": 1, "items": [
+            "carts": [{"store_id": 1, "service_id": service_id, "items": [
                 {"inventory_id": 1, "quantity": 1},
                 {"inventory_id": 9999, "quantity": 2},
             ]}]
@@ -351,17 +364,19 @@ async def test_sync_drops_unknown_inventory(override_as_other_customer: Any) -> 
     body = resp.json()
     assert any(d["inventory_id"] == 9999 and d["reason"] == "unknown_inventory" for d in body["dropped"])
     assert body["carts"][0]["items"][0]["inventory_id"] == 1
+    assert body["carts"][0]["service_id"] == service_id
 
 
-async def test_sync_drops_unavailable_inventory(override_as_other_customer: Any, session: AsyncSession) -> None:
+async def test_sync_drops_unavailable_inventory(override_as_other_customer: Any, session: AsyncSession, seed: dict[str, int]) -> None:
     inv = (await session.exec(select(StoreInventory))).first()
     assert inv is not None
     inv.is_available = False
     await session.commit()
 
+    service_id = seed["service_id"]
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post("/api/v1/carts/sync", json={
-            "carts": [{"store_id": 1, "items": [{"inventory_id": 1, "quantity": 1}]}]
+            "carts": [{"store_id": 1, "service_id": service_id, "items": [{"inventory_id": 1, "quantity": 1}]}]
         })
     assert resp.status_code == 200
     body = resp.json()
@@ -369,10 +384,11 @@ async def test_sync_drops_unavailable_inventory(override_as_other_customer: Any,
     assert body["dropped"] == [{"inventory_id": 1, "reason": "item_unavailable"}]
 
 
-async def test_sync_all_items_dropped_creates_no_cart(override_as_other_customer: Any, session: AsyncSession) -> None:
+async def test_sync_all_items_dropped_creates_no_cart(override_as_other_customer: Any, session: AsyncSession, seed: dict[str, int]) -> None:
+    service_id = seed["service_id"]
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post("/api/v1/carts/sync", json={
-            "carts": [{"store_id": 1, "items": [{"inventory_id": 9999, "quantity": 1}]}]
+            "carts": [{"store_id": 1, "service_id": service_id, "items": [{"inventory_id": 9999, "quantity": 1}]}]
         })
     assert resp.status_code == 200
     body = resp.json()

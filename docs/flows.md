@@ -73,41 +73,52 @@ When a guest signs in, their `kb_carts` get pushed to the backend exactly once.
 5. Server iterates each store: validates store active, validates each `StoreInventory` belongs to that store and `is_available`. Drops invalid items into `dropped[]` with reason (`store_unavailable | unknown_inventory | item_unavailable`). Survivors get inserted into the customer's `Cart` / `CartItem` rows; same-inventory hits accumulate quantity.
 6. Response returns canonical server cart state. Client calls `localCart.clearAllCarts()` and stamps `lastSyncedUserId.current = dbUser.id`.
 
-**Tables written:** `cart`, `cartitem`. The unique key `(customer_profile_id, store_id)` on `cart` and `(cart_id, inventory_id)` on `cartitem` make the merge idempotent on retry.
+**Tables written:** `cart`, `cartitem`. The unique key `(customer_profile_id, store_id, service_id)` on `cart` and `(cart_id, inventory_id)` on `cartitem` make the merge idempotent on retry. Sync auto-derives `service_id` per item from the inventory's product chain so legacy single-key payloads keep working.
 
-After merge, every cart mutation is server-authoritative. `addItem`, `updateQty`, `removeItem`, and `clearStoreCart` go through `frontend/src/lib/remoteCart.ts` against `/carts/items*` and `/carts/{store_id}`. The provider does optimistic UI updates and rolls back on error.
+After merge, every cart mutation is server-authoritative. `addItem`, `updateQty`, `removeItem`, and `clearStoreServiceCart` go through `frontend/src/lib/remoteCart.ts` against `/carts/items*` and `/carts/{store_id}/{service_id}`. The provider does optimistic UI updates and rolls back on error.
 
-## 4. Per-Store Checkout
+## 4. Per-Store-Per-Service Checkout
 
-Each store cart checks out independently — one Order per store, one payment per Order.
+Carts are keyed `(customer_profile_id, store_id, service_id)` — a single store can host one sub-basket per service (Grocery, Food, Pharmacy, …), and each sub-basket checks out as its own `Order` with its own `Payment` + `Delivery`. Sibling sub-baskets at the same store stay intact when one of them is placed.
 
-UI lives at `frontend/src/app/checkout/[storeId]/page.tsx`. Customer picks a `CustomerAddress` and a `PaymentMethod` (`upi` or `cash`).
+**Cross-service add auto-splits, no modal.** When a customer adds a product whose service differs from any existing cart at that store, `CartContext` silently routes the item into a new `(store, service)` sub-basket. The previous "one cart per store" merge prompt is gone. Each add-to-cart call validates two invariants:
 
-**Request:** `POST /orders { store_id, customer_address_id, payment_method }`
+- **Seller-offers-service**: the store's seller must currently offer the target service. Failure → `409 service_unavailable`.
+- **Inventory ↔ service match**: the inventory's `MasterProduct → Subcategory → Category → Service` chain must resolve to the same `service_id` the customer is adding under. Failure → `400 service_mismatch` (catches catalog drift or a forged `service_id`).
 
-**`place_order_for_store` pipeline** (`backend/app/src/app/services/checkout.py`):
+UI lives at `frontend/src/app/checkout/[storeId]/page.tsx`, scoped to one `service_id`. Customer picks a `CustomerAddress` and a `PaymentMethod` (`upi` or `cash`).
+
+**Request:** `POST /orders { store_id, service_id, customer_address_id, payment_method }`
+
+**`place_order_for_store_service` pipeline** (`backend/app/src/app/services/checkout.py`):
 
 | Step | What | Failure mode |
 |------|------|--------------|
 | 1 | Resolve `CustomerProfile` from JWT | 404 customer profile not found |
 | 2 | Resolve + authorize address (must belong to caller) | 404/403 `invalid_address` |
-| 3 | Load `Cart` + `CartItem`s for store | 404 `cart_not_found`, 400 `cart_empty` |
+| 3 | Load `Cart` + `CartItem`s for `(store_id, service_id)` | 404 `cart_not_found`, 400 `cart_empty` |
 | 4 | **PostGIS serviceability assertion**: `ST_DWithin(store.geo, address.geo, store.delivery_radius_km*1000)` | **422 `Address outside store delivery area`** |
-| 5 | `SELECT … FOR UPDATE` on every `StoreInventory` row in cart | row-locked till commit |
-| 6 | Validate availability + stock per inventory | 409 `item_unavailable`, 409 `insufficient_stock` |
-| 7 | Validate store still active | 409 `store_unavailable` |
-| 8 | Snapshot product names (English MVP, falls back to slug) | — |
-| 9 | Build `Order`, `OrderItem`s, `Payment` (status=Pending), `Delivery` (status=Pending) | — |
-| 10 | Decrement `StoreInventory.stock` on locked rows | — |
-| 11 | Delete `CartItem`s, then `Cart` | FK ordered |
-| 12 | `session.commit()` — atomic | rollback releases inventory lock |
-| 13 | `dispatch_order_placed([order_id])` → Celery | broker outage swallowed + logged |
+| 5 | `_validate_service_active_for_store(store_id, service_id)` — seller still offers this service | **409 `service_unavailable`** |
+| 6 | `SELECT … FOR UPDATE` on every `StoreInventory` row in cart | row-locked till commit |
+| 7 | `_assert_locked_inventory_matches_service(...)` — re-derive `service_id` from each locked product chain and compare to payload | **409 `service_mismatch`** |
+| 8 | Validate availability + stock per inventory | 409 `item_unavailable`, 409 `insufficient_stock` |
+| 9 | Validate store still active | 409 `store_unavailable` |
+| 10 | Snapshot product names AND `service_name_snapshot` (English MVP, slug fallback) | — |
+| 11 | Build `Order` (carries `service_id` + `service_name_snapshot`), `OrderItem`s, `Payment` (status=Pending), `Delivery` (status=Pending) | — |
+| 12 | Decrement `StoreInventory.stock` on locked rows | — |
+| 13 | Delete `CartItem`s, then this sub-basket's `Cart` row (sibling carts untouched) | FK ordered |
+| 14 | `session.commit()` — atomic | rollback releases inventory lock |
+| 15 | `dispatch_order_placed([order_id])` → Celery | broker outage swallowed + logged |
 
-The serviceability assertion is **defense in depth** against direct API bypass — the frontend `<AddressPicker>` already disables out-of-radius rows by calling `POST /api/v1/geo/serviceability` per saved address, but the backend re-checks at order time so a customer cannot POST around the picker. Stores or addresses missing `geo` (null lat/lng) are treated as not-serviceable so couriers never end up with un-pinpointed deliveries.
+Steps 5 and 7 are deliberate **defense-in-depth against catalog drift**: between cart-load and checkout the seller may have revoked the service (→ 409 `service_unavailable`) or admin may have re-parented a subcategory to a different service (→ 409 `service_mismatch`). Both raise cleanly so a half-placed cross-service order is impossible. No automatic cart purge happens — the customer is informed and can prune the sub-basket themselves.
+
+The serviceability assertion (step 4) is **defense in depth** against direct API bypass — the frontend `<AddressPicker>` already disables out-of-radius rows by calling `POST /api/v1/geo/serviceability` per saved address, but the backend re-checks at order time so a customer cannot POST around the picker. Stores or addresses missing `geo` (null lat/lng) are treated as not-serviceable so couriers never end up with un-pinpointed deliveries.
 
 Pricing is hardcoded at MVP: `MVP_DELIVERY_FEE = 0`, `MVP_TAX = 0`. `subtotal = sum(unit_price × qty)`, `total = subtotal + fee + tax`. Edit constants in `services/checkout.py` when fees plug in.
 
-**Tables written:** `order`, `orderitem`, `payment`, `delivery`, `storeinventory` (stock decrement); `cartitem` + `cart` rows for that store deleted.
+**Order email subject + body include the service name** (snapshot at placement time — `Order.service_name_snapshot`, English with slug fallback), so customers and sellers can tell apart two simultaneous orders from the same store. See `services/order_emails.py`.
+
+**Tables written:** `order` (with `service_id` + `service_name_snapshot`), `orderitem`, `payment`, `delivery`, `storeinventory` (stock decrement); `cartitem` + the matching `(store_id, service_id)` `cart` row deleted (sibling sub-baskets at the same store are untouched).
 
 ## 5. Order Fulfillment
 

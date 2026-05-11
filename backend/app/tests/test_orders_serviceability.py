@@ -6,14 +6,12 @@ from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
 from app.core.security import get_current_user
 from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.catalog import Service
 from app.models.commerce import Cart, CartItem
 from app.models.profile import (
     CustomerAddress,
@@ -91,17 +89,13 @@ async def _seed(
     await session.flush()
 
     from tests.test_carts import _seed_product
-    product = await _seed_product(
+    product, service_id = await _seed_product(
         session, service_slug="grocery", category_slug="food",
         subcategory_slug="fruit", product_slug="apple",
         name="Apple", base_price=50.0,
     )
-    grocery = (
-        await session.exec(select(Service).where(Service.slug == "grocery"))
-    ).first()
-    assert grocery is not None
     session.add(SellerProfileService(
-        seller_profile_id=seller_profile.id, service_id=grocery.id,
+        seller_profile_id=seller_profile.id, service_id=service_id,
     ))
     await session.flush()
 
@@ -111,7 +105,11 @@ async def _seed(
     session.add(inv)
     await session.flush()
 
-    cart = Cart(customer_profile_id=customer_profile.id, store_id=store.id)
+    cart = Cart(
+        customer_profile_id=customer_profile.id,
+        store_id=store.id,
+        service_id=service_id,
+    )
     session.add(cart)
     await session.flush()
     session.add(CartItem(cart_id=cart.id, inventory_id=inv.id, quantity=1))
@@ -121,6 +119,7 @@ async def _seed(
         "customer_user_id": customer_user.id,
         "customer_address_id": cust_address_link.id,
         "store_id": store.id,
+        "service_id": service_id,
     }
     await session.commit()
     return out
@@ -156,6 +155,7 @@ async def test_order_succeeds_when_address_inside_radius(
                 json={
                     "customer_address_id": seed["customer_address_id"],
                     "store_id": seed["store_id"],
+                    "service_id": seed["service_id"],
                     "payment_method": "upi",
                 },
             )
@@ -186,6 +186,7 @@ async def test_order_rejected_when_address_outside_radius(
                 json={
                     "customer_address_id": seed["customer_address_id"],
                     "store_id": seed["store_id"],
+                    "service_id": seed["service_id"],
                     "payment_method": "upi",
                 },
             )

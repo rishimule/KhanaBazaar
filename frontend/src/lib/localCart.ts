@@ -3,14 +3,25 @@
 /**
  * Khana Bazaar — Guest Cart (localStorage adapter).
  *
- * Manages shopping carts in localStorage using a guest session_id pattern.
- * Each store has its own cart. Carts persist across page reloads.
+ * Each (store, service) pair has its own sub-basket. Carts persist across
+ * page reloads. v2 storage key supersedes the legacy `kb_carts` key; the
+ * legacy key is purged on first read so stale single-service carts cannot
+ * accumulate indefinitely after the upgrade.
  */
 
 import { Cart, CartItem } from "@/types";
 
-const CARTS_KEY = "kb_carts";
+const CARTS_KEY = "kb_carts_v2";
+const LEGACY_CARTS_KEY = "kb_carts";
 const SESSION_KEY = "kb_session_id";
+
+let legacyPurged = false;
+
+function purgeLegacyOnce(): void {
+  if (legacyPurged || typeof window === "undefined") return;
+  legacyPurged = true;
+  localStorage.removeItem(LEGACY_CARTS_KEY);
+}
 
 /** Generate or retrieve a persistent guest session ID. */
 export function getSessionId(): string {
@@ -23,9 +34,10 @@ export function getSessionId(): string {
   return sid;
 }
 
-/** Read all carts from localStorage. */
+/** Read all sub-baskets from localStorage. */
 export function getAllCarts(): Cart[] {
   if (typeof window === "undefined") return [];
+  purgeLegacyOnce();
   try {
     const raw = localStorage.getItem(CARTS_KEY);
     return raw ? (JSON.parse(raw) as Cart[]) : [];
@@ -34,27 +46,44 @@ export function getAllCarts(): Cart[] {
   }
 }
 
-/** Persist carts to localStorage. */
 function saveCarts(carts: Cart[]): void {
   localStorage.setItem(CARTS_KEY, JSON.stringify(carts));
 }
 
-/** Get a single store's cart, or null if it doesn't exist. */
-export function getCart(storeId: number): Cart | null {
-  return getAllCarts().find((c) => c.store_id === storeId) ?? null;
+function find(
+  carts: Cart[],
+  storeId: number,
+  serviceId: number,
+): Cart | undefined {
+  return carts.find(
+    (c) => c.store_id === storeId && c.service_id === serviceId,
+  );
 }
 
-/** Add an item to a store's cart (or increment if already present). */
+/** Get a single sub-basket, or null. */
+export function getCart(storeId: number, serviceId: number): Cart | null {
+  return find(getAllCarts(), storeId, serviceId) ?? null;
+}
+
+/** Add an item to a sub-basket (or increment if already present). */
 export function addToCart(
   storeId: number,
   storeName: string,
-  item: CartItem
+  serviceId: number,
+  serviceName: string,
+  item: CartItem,
 ): Cart[] {
   const carts = getAllCarts();
-  let cart = carts.find((c) => c.store_id === storeId);
+  let cart = find(carts, storeId, serviceId);
 
   if (!cart) {
-    cart = { store_id: storeId, store_name: storeName, items: [] };
+    cart = {
+      store_id: storeId,
+      store_name: storeName,
+      service_id: serviceId,
+      service_name: serviceName,
+      items: [],
+    };
     carts.push(cart);
   }
 
@@ -69,10 +98,14 @@ export function addToCart(
   return carts;
 }
 
-/** Remove a specific product from a store's cart. */
-export function removeFromCart(storeId: number, productId: number): Cart[] {
+/** Remove a specific product from a sub-basket. */
+export function removeFromCart(
+  storeId: number,
+  serviceId: number,
+  productId: number,
+): Cart[] {
   const carts = getAllCarts();
-  const cart = carts.find((c) => c.store_id === storeId);
+  const cart = find(carts, storeId, serviceId);
   if (cart) {
     cart.items = cart.items.filter((i) => i.product_id !== productId);
     if (cart.items.length === 0) {
@@ -84,16 +117,19 @@ export function removeFromCart(storeId: number, productId: number): Cart[] {
   return carts;
 }
 
-/** Update the quantity of a specific product in a store's cart. */
+/** Update the quantity of a specific product in a sub-basket. */
 export function updateQuantity(
   storeId: number,
+  serviceId: number,
   productId: number,
-  quantity: number
+  quantity: number,
 ): Cart[] {
-  if (quantity <= 0) return removeFromCart(storeId, productId);
+  if (quantity <= 0) {
+    return removeFromCart(storeId, serviceId, productId);
+  }
 
   const carts = getAllCarts();
-  const cart = carts.find((c) => c.store_id === storeId);
+  const cart = find(carts, storeId, serviceId);
   if (cart) {
     const item = cart.items.find((i) => i.product_id === productId);
     if (item) item.quantity = quantity;
@@ -102,14 +138,16 @@ export function updateQuantity(
   return carts;
 }
 
-/** Clear a specific store's cart. */
-export function clearCart(storeId: number): Cart[] {
-  const carts = getAllCarts().filter((c) => c.store_id !== storeId);
+/** Clear a specific sub-basket. */
+export function clearCart(storeId: number, serviceId: number): Cart[] {
+  const carts = getAllCarts().filter(
+    (c) => !(c.store_id === storeId && c.service_id === serviceId),
+  );
   saveCarts(carts);
   return carts;
 }
 
-/** Clear all carts. */
+/** Clear all sub-baskets. */
 export function clearAllCarts(): Cart[] {
   saveCarts([]);
   return [];

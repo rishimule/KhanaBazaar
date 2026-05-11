@@ -18,6 +18,8 @@ class CartItemRead(BaseModel):
 class CartRead(BaseModel):
     store_id: int
     store_name: str
+    service_id: int
+    service_name: str
     items: List[CartItemRead]
     subtotal: float
 
@@ -28,6 +30,7 @@ class CartListResponse(BaseModel):
 
 class CartItemAdd(BaseModel):
     store_id: int
+    service_id: int = Field(gt=0)
     inventory_id: int
     quantity: int = Field(gt=0)
 
@@ -43,6 +46,7 @@ class CartSyncItem(BaseModel):
 
 class CartSyncCart(BaseModel):
     store_id: int
+    service_id: int = Field(gt=0)
     items: List[CartSyncItem]
 
 

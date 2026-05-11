@@ -44,6 +44,34 @@ async def _product_names(
     return {row.master_product_id: row.name for row in result.all()}
 
 
+async def _service_names(
+    session: AsyncSession, service_ids: list[int]
+) -> dict[int, str]:
+    """Map service_id → display name. English translation, slug fallback."""
+    if not service_ids:
+        return {}
+    from sqlalchemy import and_
+
+    from app.models.catalog import Service, ServiceTranslation
+
+    result = await session.exec(
+        select(Service.id, Service.slug, ServiceTranslation.name)
+        .outerjoin(
+            ServiceTranslation,
+            and_(
+                ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+                ServiceTranslation.language_code == DEFAULT_LANG,  # type: ignore[arg-type]
+            ),
+        )
+        .where(Service.id.in_(service_ids))  # type: ignore[union-attr]
+    )
+    return {
+        sid: (name or slug)
+        for sid, slug, name in result.all()
+        if sid is not None
+    }
+
+
 async def _customer_profile_id(session: AsyncSession, user: User) -> int:
     assert user.id is not None
     result = await session.exec(
@@ -56,12 +84,16 @@ async def _customer_profile_id(session: AsyncSession, user: User) -> int:
 
 
 async def _get_or_create_cart(
-    session: AsyncSession, customer_profile_id: int, store_id: int
+    session: AsyncSession,
+    customer_profile_id: int,
+    store_id: int,
+    service_id: int,
 ) -> Cart:
     result = await session.exec(
         select(Cart).where(
             Cart.customer_profile_id == customer_profile_id,
             Cart.store_id == store_id,
+            Cart.service_id == service_id,
         )
     )
     cart = result.first()
@@ -71,10 +103,79 @@ async def _get_or_create_cart(
         store = store_result.first()
         if store is None or not store.is_active:
             raise HTTPException(status_code=404, detail="Store not found or inactive")
-        cart = Cart(customer_profile_id=customer_profile_id, store_id=store_id)
+        cart = Cart(
+            customer_profile_id=customer_profile_id,
+            store_id=store_id,
+            service_id=service_id,
+        )
         session.add(cart)
         await session.flush()
     return cart
+
+
+async def _validate_service_for_store(
+    session: AsyncSession, store_id: int, service_id: int
+) -> None:
+    """Raise 409 service_unavailable if the store's seller does not offer
+    `service_id`, or if Service.is_active is false."""
+    from app.models.catalog import Service
+    from app.models.profile import SellerProfile, SellerProfileService
+
+    row = (
+        await session.exec(
+            select(SellerProfileService.id)
+            .join(
+                SellerProfile,
+                SellerProfile.id == SellerProfileService.seller_profile_id,  # type: ignore[arg-type]
+            )
+            .join(Store, Store.seller_profile_id == SellerProfile.id)  # type: ignore[arg-type]
+            .where(
+                Store.id == store_id,
+                SellerProfileService.service_id == service_id,
+            )
+        )
+    ).first()
+    service_active = (
+        await session.exec(
+            select(Service.is_active).where(Service.id == service_id)
+        )
+    ).first()
+    if row is None or service_active is not True:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "detail": "service_unavailable",
+                "store_id": store_id,
+                "service_id": service_id,
+            },
+        )
+
+
+async def _assert_inventory_service_match(
+    session: AsyncSession, inventory_id: int, service_id: int
+) -> None:
+    """Raise 400 service_mismatch if `inventory_id`'s product resolves to a
+    different `service_id` via subcategory→category."""
+    from app.models.catalog import Category, Subcategory
+
+    resolved = (
+        await session.exec(
+            select(Category.service_id)
+            .join(Subcategory, Subcategory.category_id == Category.id)  # type: ignore[arg-type]
+            .join(MasterProduct, MasterProduct.subcategory_id == Subcategory.id)  # type: ignore[arg-type]
+            .join(StoreInventory, StoreInventory.product_id == MasterProduct.id)  # type: ignore[arg-type]
+            .where(StoreInventory.id == inventory_id)
+        )
+    ).first()
+    if resolved != service_id:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "detail": "service_mismatch",
+                "inventory_id": inventory_id,
+                "service_id": service_id,
+            },
+        )
 
 
 async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[CartRead]:
@@ -97,6 +198,7 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
             product_ids.add(product.id)
 
     name_by_product = await _product_names(session, list(product_ids))
+    name_by_service = await _service_names(session, [c.service_id for c in carts])
 
     out: list[CartRead] = []
     for cart in carts:
@@ -125,6 +227,8 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
             CartRead(
                 store_id=cart.store_id,
                 store_name=store_name,
+                service_id=cart.service_id,
+                service_name=name_by_service.get(cart.service_id, str(cart.service_id)),
                 items=items,
                 subtotal=sum(i.line_total for i in items),
             )
@@ -199,7 +303,14 @@ async def add_cart_item(
     if not inv.is_available:
         raise HTTPException(status_code=409, detail="item_unavailable")
 
-    cart = await _get_or_create_cart(session, profile_id, payload.store_id)
+    await _validate_service_for_store(session, payload.store_id, payload.service_id)
+    await _assert_inventory_service_match(
+        session, payload.inventory_id, payload.service_id
+    )
+
+    cart = await _get_or_create_cart(
+        session, profile_id, payload.store_id, payload.service_id
+    )
     existing_result = await session.exec(
         select(CartItem).where(
             CartItem.cart_id == cart.id,
@@ -284,16 +395,19 @@ async def delete_cart_item(
     return Response(status_code=204)
 
 
-@router.delete("/{store_id}", status_code=204)
-async def clear_store_cart(
+@router.delete("/{store_id}/{service_id}", status_code=204)
+async def clear_sub_basket_cart(
     store_id: int,
+    service_id: int,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
 ) -> Response:
     profile_id = await _customer_profile_id(session, user)
     cart_result = await session.exec(
         select(Cart).where(
-            Cart.customer_profile_id == profile_id, Cart.store_id == store_id
+            Cart.customer_profile_id == profile_id,
+            Cart.store_id == store_id,
+            Cart.service_id == service_id,
         )
     )
     cart = cart_result.first()
@@ -308,26 +422,39 @@ async def clear_store_cart(
 
 
 @router.post("/sync", response_model=CartSyncResponse)
-async def sync_carts(
+async def sync_carts(  # noqa: C901  # per-item validation branches; refactor tracked separately
     payload: CartSyncRequest,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
 ) -> CartSyncResponse:
     # TODO(perf): batch Store and StoreInventory lookups across the whole
-    # payload (one IN query each) before scaling sync beyond MVP-sized carts.
+    # payload before scaling sync beyond MVP-sized carts.
     profile_id = await _customer_profile_id(session, user)
     dropped: list[DroppedSyncItem] = []
 
     for cart_payload in payload.carts:
-        store_result = await session.exec(select(Store).where(Store.id == cart_payload.store_id))
+        store_result = await session.exec(
+            select(Store).where(Store.id == cart_payload.store_id)
+        )
         store = store_result.first()
         if store is None or not store.is_active:
             for it in cart_payload.items:
-                dropped.append(DroppedSyncItem(inventory_id=it.inventory_id, reason="store_unavailable"))
+                dropped.append(DroppedSyncItem(
+                    inventory_id=it.inventory_id, reason="store_unavailable",
+                ))
             continue
 
-        # Defer cart creation until at least one item validates so a payload
-        # whose items all drop does not leave an empty Cart row behind.
+        try:
+            await _validate_service_for_store(
+                session, cart_payload.store_id, cart_payload.service_id
+            )
+        except HTTPException:
+            for it in cart_payload.items:
+                dropped.append(DroppedSyncItem(
+                    inventory_id=it.inventory_id, reason="service_unavailable",
+                ))
+            continue
+
         cart: Cart | None = None
 
         for item_payload in cart_payload.items:
@@ -342,8 +469,20 @@ async def sync_carts(
                 ))
                 continue
 
+            try:
+                await _assert_inventory_service_match(
+                    session, item_payload.inventory_id, cart_payload.service_id
+                )
+            except HTTPException:
+                dropped.append(DroppedSyncItem(
+                    inventory_id=item_payload.inventory_id, reason="service_mismatch",
+                ))
+                continue
+
             if cart is None:
-                cart = await _get_or_create_cart(session, profile_id, cart_payload.store_id)
+                cart = await _get_or_create_cart(
+                    session, profile_id, cart_payload.store_id, cart_payload.service_id
+                )
 
             existing_result = await session.exec(
                 select(CartItem).where(
@@ -363,7 +502,6 @@ async def sync_carts(
 
     await session.commit()
 
-    # Return canonical cart state for the customer.
     result = await session.exec(
         select(Cart).where(Cart.customer_profile_id == profile_id)
     )

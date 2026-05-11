@@ -34,6 +34,11 @@
   font-size: var(--body-sm);
 }
 
+.serviceChip {
+  color: var(--shade-cool-base-5);
+  font-weight: var(--weight-regular);
+}
+
 .section {
   padding: 18px;
   background: var(--white);

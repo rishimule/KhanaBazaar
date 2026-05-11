@@ -12,7 +12,6 @@ from app import app
 from app.core.security import get_current_user
 from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.catalog import Service
 from app.models.commerce import (
     Cart,
     CartItem,
@@ -97,24 +96,20 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     # Reuse the seeding helper from test_carts.py.
     from tests.test_carts import _seed_product
 
-    product = await _seed_product(
+    product, grocery_service_id = await _seed_product(
         session, service_slug="grocery", category_slug="food",
         subcategory_slug="fruit", product_slug="apple", name="Apple", base_price=50.0,
     )
-    product_b = await _seed_product(
+    product_b, bakery_service_id = await _seed_product(
         session, service_slug="bakery", category_slug="bread-cat",
         subcategory_slug="loaves", product_slug="bread", name="Bread", base_price=30.0,
     )
 
-    # Link each seller to the service matching their store's products
-    grocery_svc_result = await session.exec(select(Service).where(Service.slug == "grocery"))
-    grocery_svc = grocery_svc_result.first()
-    assert grocery_svc is not None
-    bakery_svc_result = await session.exec(select(Service).where(Service.slug == "bakery"))
-    bakery_svc = bakery_svc_result.first()
-    assert bakery_svc is not None
-    session.add(SellerProfileService(seller_profile_id=seller_profile.id, service_id=grocery_svc.id))
-    session.add(SellerProfileService(seller_profile_id=other_seller_profile.id, service_id=bakery_svc.id))
+    # Bind each seller to the service its store sells. Task 12 will add
+    # _validate_service_active_for_store to the checkout path; this row keeps
+    # every place-order call in this file valid once that lands.
+    session.add(SellerProfileService(seller_profile_id=seller_profile.id, service_id=grocery_service_id))
+    session.add(SellerProfileService(seller_profile_id=other_seller_profile.id, service_id=bakery_service_id))
     await session.flush()
 
     inv_a = StoreInventory(store_id=store_a.id, product_id=product.id, price=50.0, stock=10)
@@ -123,8 +118,8 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     await session.flush()
 
     # Multi-store cart for main customer.
-    cart_a = Cart(customer_profile_id=customer_profile.id, store_id=store_a.id)
-    cart_b = Cart(customer_profile_id=customer_profile.id, store_id=store_b.id)
+    cart_a = Cart(customer_profile_id=customer_profile.id, store_id=store_a.id, service_id=grocery_service_id)
+    cart_b = Cart(customer_profile_id=customer_profile.id, store_id=store_b.id, service_id=bakery_service_id)
     session.add_all([cart_a, cart_b])
     await session.flush()
     session.add_all([
@@ -149,6 +144,8 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
         "inv_b": inv_b.id,
         "customer_profile": customer_profile.id,
         "seller_profile": seller_profile.id,
+        "grocery_service_id": grocery_service_id,
+        "bakery_service_id": bakery_service_id,
     }
     await session.commit()
 
@@ -195,12 +192,15 @@ async def test_place_order_for_store_creates_single_order_upi(
             json={
                 "customer_address_id": seed["customer_address_id"],
                 "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
                 "payment_method": "upi",
             },
         )
     assert resp.status_code == 201, resp.text
     body = resp.json()
     assert body["store_id"] == seed["store_a"]
+    assert body["service_id"] == seed["grocery_service_id"]
+    assert body["service_name"] == "Apple"
     assert body["total"] == 100.0
     assert body["payment"]["method"] == "upi"
     assert body["payment"]["status"] == "pending"
@@ -240,6 +240,7 @@ async def test_place_order_cart_not_found_for_store(
             json={
                 "customer_address_id": seed["customer_address_id"],
                 "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
                 "payment_method": "cash",
             },
         )
@@ -256,6 +257,7 @@ async def test_place_order_invalid_address_missing(
             json={
                 "customer_address_id": 9999,
                 "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
                 "payment_method": "upi",
             },
         )
@@ -277,6 +279,7 @@ async def test_place_order_insufficient_stock(
             json={
                 "customer_address_id": seed["customer_address_id"],
                 "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
                 "payment_method": "upi",
             },
         )
@@ -308,6 +311,7 @@ async def test_place_order_for_store_cash_method(
             json={
                 "customer_address_id": seed["customer_address_id"],
                 "store_id": seed["store_b"],
+                "service_id": seed["bakery_service_id"],
                 "payment_method": "cash",
             },
         )
@@ -316,6 +320,8 @@ async def test_place_order_for_store_cash_method(
     assert body["payment"]["method"] == "cash"
     assert body["payment"]["status"] == "pending"
     assert body["store_id"] == seed["store_b"]
+    assert body["service_id"] == seed["bakery_service_id"]
+    assert body["service_name"] == "Bread"
 
 
 async def test_place_order_pure_cart_not_found(
@@ -327,11 +333,18 @@ async def test_place_order_pure_cart_not_found(
             json={
                 "customer_address_id": seed["customer_address_id"],
                 "store_id": 999_999,
+                "service_id": seed["grocery_service_id"],
                 "payment_method": "upi",
             },
         )
-    assert resp.status_code == 404
-    assert resp.json()["detail"] == "cart_not_found"
+    # Task 12 added _validate_service_active_for_store ahead of cart lookup;
+    # a non-existent store has no SellerProfileService row, so this now 409s
+    # service_unavailable before reaching the cart_not_found branch.
+    assert resp.status_code == 409
+    detail = resp.json()["detail"]
+    assert detail["detail"] == "service_unavailable"
+    assert detail["store_id"] == 999_999
+    assert detail["service_id"] == seed["grocery_service_id"]
 
 
 async def test_place_order_invalid_payment_method(
@@ -343,6 +356,7 @@ async def test_place_order_invalid_payment_method(
             json={
                 "customer_address_id": seed["customer_address_id"],
                 "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
                 "payment_method": "bitcoin",
             },
         )
@@ -357,6 +371,7 @@ async def test_place_order_missing_store_id(
             "/api/v1/orders",
             json={
                 "customer_address_id": seed["customer_address_id"],
+                "service_id": seed["grocery_service_id"],
                 "payment_method": "upi",
             },
         )
@@ -377,6 +392,7 @@ async def test_place_order_store_inactive(
             json={
                 "customer_address_id": seed["customer_address_id"],
                 "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
                 "payment_method": "upi",
             },
         )
@@ -390,13 +406,18 @@ async def _place_orders(seed: dict[str, int]) -> list[int]:
     """Place one order per store in the seeded cart and return their ids in
     the order [store_a, store_b]. Mirrors the per-store contract."""
     order_ids: list[int] = []
+    pairs = (
+        (seed["store_a"], seed["grocery_service_id"]),
+        (seed["store_b"], seed["bakery_service_id"]),
+    )
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        for store_id in (seed["store_a"], seed["store_b"]):
+        for store_id, service_id in pairs:
             resp = await ac.post(
                 "/api/v1/orders",
                 json={
                     "customer_address_id": seed["customer_address_id"],
                     "store_id": store_id,
+                    "service_id": service_id,
                     "payment_method": "upi",
                 },
             )

@@ -13,6 +13,8 @@ interface Props {
   item: InventoryWithProduct;
   storeId: number;
   storeName: string;
+  serviceId: number;
+  serviceName: string;
 }
 
 const CATEGORY_EMOJI: Record<number, string> = {
@@ -37,7 +39,9 @@ function HeartIcon({ filled }: { filled: boolean }) {
   );
 }
 
-export default function ProductCard({ item, storeId, storeName }: Props) {
+export default function ProductCard({
+  item, storeId, storeName, serviceId, serviceName,
+}: Props) {
   const t = useTranslations("Product");
   const { carts, addItem, removeItem, updateQty } = useCart();
   const { dbUser } = useAuth();
@@ -48,7 +52,9 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
   const role = dbUser?.role;
   const canShop = !role || role === "customer";
 
-  const cart = carts.find((c) => c.store_id === storeId);
+  const cart = carts.find(
+    (c) => c.store_id === storeId && c.service_id === serviceId,
+  );
   const cartItem = cart?.items.find((i) => i.product_id === product.id);
   const qty = cartItem?.quantity ?? 0;
 
@@ -62,7 +68,7 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
     stock === 0 ? styles.outOfStock : stock <= 5 ? styles.lowStock : styles.inStock;
 
   const handleAdd = () => {
-    addItem(storeId, storeName, {
+    addItem(storeId, storeName, serviceId, serviceName, {
       product_id: product.id,
       inventory_id: item.id,
       product_name: product.name,
@@ -133,8 +139,8 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
                   className={styles.qtyBtn}
                   onClick={() =>
                     qty <= 1
-                      ? removeItem(storeId, product.id)
-                      : updateQty(storeId, product.id, qty - 1)
+                      ? removeItem(storeId, serviceId, product.id)
+                      : updateQty(storeId, serviceId, product.id, qty - 1)
                   }
                   aria-label={t("decreaseQty")}
                 >
@@ -143,7 +149,9 @@ export default function ProductCard({ item, storeId, storeName }: Props) {
                 <span className={styles.qtyValue}>{qty}</span>
                 <button
                   className={styles.qtyBtn}
-                  onClick={() => updateQty(storeId, product.id, qty + 1)}
+                  onClick={() =>
+                    updateQty(storeId, serviceId, product.id, qty + 1)
+                  }
                   disabled={qty >= stock}
                   aria-label={t("increaseQty")}
                 >
