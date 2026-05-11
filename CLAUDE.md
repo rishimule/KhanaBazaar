@@ -193,12 +193,16 @@ No frontend tests configured.
 **Auth is email-OTP + JWT only**: No passwords, no Firebase. Endpoints: `POST /api/v1/auth/otp/request`, `POST /api/v1/auth/otp/verify`. **Seller signup uses a 4-OTP-endpoint chain**: `/auth/otp/request` → `/auth/seller/otp/verify` (returns 10-min `email_token`) → `/auth/seller/phone/otp/request` (gated by `email_token`, dispatches SMS) → `/auth/seller/phone/otp/verify` (returns 10-min `signup_token` binding email + verified phone) → `/auth/seller/register` (consumes `signup_token`, phone read from claims). OTP stored in Redis (TTL 600s default), rate-limited 5/hour per identifier, 60s resend cooldown. Email and phone OTPs share Redis primitives via a `namespace` argument (`otp:email:*` vs `otp:phone:*`). SMS provider switch in `core/sms.py` — `console` logs to stdout, `twilio` does direct httpx POST (no SDK dep). JWT issued on verify (`sub=user.id`, `role=user.role`, 24h TTL).
 
 **Cart architecture (frontend)**:
-- Guest carts: `localStorage` key `kb_carts` (JSON map `storeId → CartItem[]`)
+- Guest carts: `localStorage` key `kb_carts` (JSON keyed by `(storeId, serviceId)` sub-baskets — one entry per store+service pair)
 - Guest session ID: `localStorage` key `kb_session_id` (UUID, generated once)
 - Logged-in users sync to backend via `POST /api/v1/carts/sync`
-- Per-store cart isolation — no cross-store bundling
+- Server `Cart` unique key is `(customer_profile_id, store_id, service_id)` — a single store can hold multiple sub-baskets (Grocery, Food, Pharmacy, …) for the same customer. Cross-service add auto-splits into a new sub-basket; no modal.
 
-**Per-store checkout** (`services/checkout.py`, `app/checkout/[storeId]/page.tsx`): customer picks delivery address + payment method per store. Inventory row-locked + validated, then Order + OrderItems + Payment + Delivery created atomically. `OrderStatus` enum: `pending → packed → dispatched → delivered` plus `cancelled` (and dormant `paid` value not currently transitioned to). MVP delivery fee + tax hardcoded to 0.
+**Per-store-per-service checkout** (`services/checkout.py`, `app/checkout/[storeId]/page.tsx`): one Order per `(store, service)` sub-basket — sibling sub-baskets at the same store stay intact when one is placed. Customer picks delivery address + payment method per sub-basket. Inventory row-locked + validated, then Order (carrying `service_id` + `service_name_snapshot`) + OrderItems + Payment + Delivery created atomically. Catalog drift between add and checkout: admin re-parenting a subcategory to a different service → `409 service_mismatch` (`_assert_locked_inventory_matches_service`); seller revoking the service → `409 service_unavailable` (`_validate_service_active_for_store`). Both fire at checkout only — no auto cart purge, customer prunes the sub-basket. `Order` carries `service_id` (FK) + `service_name_snapshot` (string) so order emails and history can label which service the order is for even if the catalog changes later. `OrderStatus` enum: `pending → packed → dispatched → delivered` plus `cancelled` (and dormant `paid` value not currently transitioned to). MVP delivery fee + tax hardcoded to 0.
+
+**Cart + order routes changed shape for service scoping**:
+- `DELETE /api/v1/carts/{store_id}/{service_id}` — clear a single sub-basket (replaces the old `DELETE /api/v1/carts/{store_id}` which cleared every sub-basket at a store).
+- `GET /api/v1/orders` — customer listing accepts optional `?service_id=` to filter to one service.
 
 **Seller signup flow**: register (multi-step wizard) → status `pending` → admin approves → status `approved` → can manage store/inventory. `/seller/signup/pending` blocks dashboard until approval. See `docs/seller_signup.md`.
 
