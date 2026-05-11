@@ -4,42 +4,25 @@
 
 import { use, useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { get } from "@/lib/api";
+import { useTranslations, useLocale } from "next-intl";
 import { formatAddress } from "@/lib/format-address";
 import {
   Store,
-  StoreInventory,
-  MasterProduct,
-  Category,
-  Service,
-  Subcategory,
+  InventoryWithProduct,
+  StorefrontCategory,
+  StorefrontResponse,
+  StorefrontService,
+  StorefrontSubcategory,
 } from "@/types";
+import {
+  loadStorefront,
+  readCachedStorefront,
+  readStaleStorefront,
+} from "@/lib/storefrontCache";
 import ProductCard from "@/components/ProductCard";
 import CategorySidebar from "@/components/CategorySidebar";
 import CartRail from "@/components/CartRail";
 import styles from "./page.module.css";
-
-interface InventoryWithProduct extends StoreInventory {
-  product: MasterProduct;
-}
-
-interface SubcategoryNode {
-  subcategory: Subcategory;
-  items: InventoryWithProduct[];
-}
-
-interface CategoryNode {
-  category: Category;
-  subcategories: SubcategoryNode[];
-  items: InventoryWithProduct[];
-}
-
-interface ServiceNode {
-  service: Service;
-  categories: CategoryNode[];
-  totalItems: number;
-}
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -55,10 +38,15 @@ const SERVICE_GLYPH: Record<string, string> = {
   pharmacy: "💊",
   electronics: "🔌",
   bakery: "🍞",
-  fresh: "🥬",
+  "meat-seafood": "🥩",
+  beauty: "💄",
+  stationery: "📚",
+  "pet-supplies": "🐾",
+  "home-kitchen": "🏠",
+  "flowers-plants": "🌸",
+  "sports-fitness": "🏋️",
 };
 
-/** Emoji per category — fallback uses service glyph. */
 const CATEGORY_GLYPH: Record<string, string> = {
   fruits: "🍅",
   vegetables: "🥦",
@@ -83,67 +71,6 @@ function categoryGlyph(name: string, serviceSlug?: string): string {
   return SERVICE_GLYPH[serviceSlug ?? ""] ?? "🛍️";
 }
 
-function buildTree(
-  inventory: InventoryWithProduct[],
-  services: Service[],
-  categories: Category[],
-  subcategories: Subcategory[]
-): ServiceNode[] {
-  const categoryById = new Map(categories.map((c) => [c.id, c]));
-  const subcategoryById = new Map(subcategories.map((s) => [s.id, s]));
-  const serviceById = new Map(services.map((s) => [s.id, s]));
-
-  const serviceNodes = new Map<number, ServiceNode>();
-
-  for (const item of inventory) {
-    const product = item.product;
-    const subcategory = subcategoryById.get(product.subcategory_id);
-    const category = categoryById.get(product.category_id);
-    if (!category) continue;
-    const service = serviceById.get(category.service_id);
-    if (!service) continue;
-
-    let serviceNode = serviceNodes.get(service.id);
-    if (!serviceNode) {
-      serviceNode = { service, categories: [], totalItems: 0 };
-      serviceNodes.set(service.id, serviceNode);
-    }
-
-    let categoryNode = serviceNode.categories.find((c) => c.category.id === category.id);
-    if (!categoryNode) {
-      categoryNode = { category, subcategories: [], items: [] };
-      serviceNode.categories.push(categoryNode);
-    }
-    categoryNode.items.push(item);
-    serviceNode.totalItems += 1;
-
-    if (subcategory) {
-      let subNode = categoryNode.subcategories.find(
-        (s) => s.subcategory.id === subcategory.id
-      );
-      if (!subNode) {
-        subNode = { subcategory, items: [] };
-        categoryNode.subcategories.push(subNode);
-      }
-      subNode.items.push(item);
-    }
-  }
-
-  const ordered = [...serviceNodes.values()].sort(
-    (a, b) =>
-      a.service.sort_order - b.service.sort_order || a.service.id - b.service.id
-  );
-  for (const sn of ordered) {
-    sn.categories.sort((a, b) => a.category.id - b.category.id);
-    for (const cn of sn.categories) {
-      cn.subcategories.sort(
-        (a, b) => a.subcategory.id - b.subcategory.id
-      );
-    }
-  }
-  return ordered;
-}
-
 function smoothScrollTo(id: string) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -151,69 +78,82 @@ function smoothScrollTo(id: string) {
   window.scrollTo({ top, behavior: "smooth" });
 }
 
+/** Sum of items across all subcategories in a category. */
+function categoryItemCount(cat: StorefrontCategory): number {
+  let n = 0;
+  for (const sub of cat.subcategories) n += sub.items.length;
+  return n;
+}
+
+/** Sum across the whole service tree. */
+function serviceItemCount(svc: StorefrontService): number {
+  let n = 0;
+  for (const cat of svc.categories) n += categoryItemCount(cat);
+  return n;
+}
+
 export default function StoreDetailPage({ params }: Props) {
   const t = useTranslations("StoreDetail");
+  const locale = useLocale();
   const { id } = use(params);
   const storeId = parseInt(id, 10);
 
-  const [store, setStore] = useState<Store | null>(null);
-  const [inventory, setInventory] = useState<InventoryWithProduct[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [fetching, setFetching] = useState(true);
+  const [storefront, setStorefront] = useState<StorefrontResponse | null>(
+    () => readStaleStorefront(storeId, locale),
+  );
+  const [fetching, setFetching] = useState(
+    () => readCachedStorefront(storeId, locale) === null,
+  );
+  const [notFound, setNotFound] = useState(false);
   const [activeServiceId, setActiveServiceId] = useState<number | null>(null);
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [subcategoryFilters, setSubcategoryFilters] = useState<
     Record<number, number | null>
   >({});
 
+  // Stale-while-revalidate: render cached data immediately if available
+  // (handled by the useState lazy initialiser above), then refresh in
+  // the background. The fresh-cache fast path is intentionally a no-op
+  // in this effect — the initial render already carries the cached
+  // value, so we only do work when the cache is empty or stale.
   useEffect(() => {
-    Promise.all([
-      get<Store>(`/api/v1/stores/${storeId}`),
-      get<StoreInventory[]>(`/api/v1/stores/${storeId}/inventory`),
-      get<MasterProduct[]>("/api/v1/catalog/products"),
-      get<Service[]>("/api/v1/catalog/services"),
-      get<Category[]>("/api/v1/catalog/categories"),
-      get<Subcategory[]>("/api/v1/catalog/subcategories").catch(
-        () => [] as Subcategory[]
-      ),
-    ])
-      .then(([storeData, invData, products, svcs, cats, subs]) => {
-        setStore(storeData);
-        setServices(svcs);
-        setCategories(cats);
-        setSubcategories(subs);
-        const productMap = new Map(products.map((p) => [p.id, p]));
-        const enriched = invData
-          .map((inv) => ({
-            ...inv,
-            product: productMap.get(inv.product_id)!,
-          }))
-          .filter((inv) => inv.product);
-        setInventory(enriched);
-      })
-      .catch(() => setStore(null))
-      .finally(() => setFetching(false));
-  }, [storeId]);
+    if (readCachedStorefront(storeId, locale)) return;
 
-  const tree = useMemo(
-    () => buildTree(inventory, services, categories, subcategories),
-    [inventory, services, categories, subcategories]
+    let cancelled = false;
+    loadStorefront(storeId, locale)
+      .then((data) => {
+        if (cancelled) return;
+        setStorefront(data);
+        setNotFound(false);
+      })
+      .catch(() => {
+        if (!cancelled) setNotFound(true);
+      })
+      .finally(() => {
+        if (!cancelled) setFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [storeId, locale]);
+
+  const services = useMemo(
+    () => storefront?.services ?? [],
+    [storefront],
   );
+  const store = storefront?.store ?? null;
 
   const activeServiceNode = useMemo(
-    () => tree.find((n) => n.service.id === activeServiceId) ?? tree[0] ?? null,
-    [tree, activeServiceId]
+    () => services.find((s) => s.id === activeServiceId) ?? services[0] ?? null,
+    [services, activeServiceId],
   );
 
-  // Sidebar items derive from active service's categories.
   const sidebarItems = useMemo(() => {
     if (!activeServiceNode) return [];
-    return activeServiceNode.categories.map((cn) => ({
-      id: cn.category.id,
-      icon: categoryGlyph(cn.category.name, activeServiceNode.service.slug),
-      label: cn.category.name,
+    return activeServiceNode.categories.map((cat) => ({
+      id: cat.id,
+      icon: categoryGlyph(cat.name, activeServiceNode.slug),
+      label: cat.name,
     }));
   }, [activeServiceNode]);
 
@@ -227,10 +167,9 @@ export default function StoreDetailPage({ params }: Props) {
     (categoryId: number, subcategoryId: number | null) => {
       setSubcategoryFilters((prev) => ({ ...prev, [categoryId]: subcategoryId }));
     },
-    []
+    [],
   );
 
-  // Track scroll-spy active category.
   useEffect(() => {
     if (!activeServiceNode || activeServiceNode.categories.length === 0) return;
     const observer = new IntersectionObserver(
@@ -245,16 +184,16 @@ export default function StoreDetailPage({ params }: Props) {
           }
         }
       },
-      { rootMargin: `-${SCROLL_OFFSET}px 0px -55% 0px`, threshold: 0 }
+      { rootMargin: `-${SCROLL_OFFSET}px 0px -55% 0px`, threshold: 0 },
     );
-    for (const cn of activeServiceNode.categories) {
-      const el = document.getElementById(CATEGORY_ANCHOR(cn.category.id));
+    for (const cat of activeServiceNode.categories) {
+      const el = document.getElementById(CATEGORY_ANCHOR(cat.id));
       if (el) observer.observe(el);
     }
     return () => observer.disconnect();
   }, [activeServiceNode]);
 
-  if (fetching) {
+  if (fetching && !storefront) {
     return (
       <div className={styles.page}>
         <div className={styles.shell}>
@@ -284,7 +223,7 @@ export default function StoreDetailPage({ params }: Props) {
     );
   }
 
-  if (!store) {
+  if (notFound || !store) {
     return (
       <div className={styles.page}>
         <div className={styles.shell}>
@@ -329,30 +268,36 @@ export default function StoreDetailPage({ params }: Props) {
             </div>
           </header>
 
-          {tree.length === 0 ? (
+          {services.length === 0 ? (
             <div className={styles.empty}>
               <div className={styles.emptyIcon} aria-hidden="true">🛒</div>
               <p className={styles.emptyText}>{t("noProductsYet")}</p>
             </div>
           ) : (
             <>
-              {tree.length > 1 && (
+              {services.length > 1 && (
                 <nav className={styles.serviceTabs} aria-label={t("navAriaLabel")}>
-                  {tree.map((sn) => (
+                  {services.map((svc) => (
                     <button
-                      key={sn.service.id}
+                      key={svc.id}
                       type="button"
                       className={`${styles.servicePill} ${
-                        sn.service.id === activeServiceId ? styles.servicePillActive : ""
+                        svc.id === (activeServiceNode?.id ?? null)
+                          ? styles.servicePillActive
+                          : ""
                       }`}
                       onClick={() => {
-                        setActiveServiceId(sn.service.id);
-                        setActiveCategoryId(sn.categories[0]?.category.id ?? null);
+                        setActiveServiceId(svc.id);
+                        setActiveCategoryId(svc.categories[0]?.id ?? null);
                       }}
-                      aria-current={sn.service.id === activeServiceId ? "true" : undefined}
+                      aria-current={
+                        svc.id === (activeServiceNode?.id ?? null) ? "true" : undefined
+                      }
                     >
-                      {sn.service.name}
-                      <span className={styles.servicePillCount}>{sn.totalItems}</span>
+                      {svc.name}
+                      <span className={styles.servicePillCount}>
+                        {serviceItemCount(svc)}
+                      </span>
                     </button>
                   ))}
                 </nav>
@@ -360,13 +305,13 @@ export default function StoreDetailPage({ params }: Props) {
 
               {activeServiceNode && (
                 <div>
-                  {activeServiceNode.categories.map((cn) => (
+                  {activeServiceNode.categories.map((cat) => (
                     <CategorySection
-                      key={cn.category.id}
-                      node={cn}
+                      key={cat.id}
                       store={store}
-                      service={activeServiceNode.service}
-                      activeSubcategoryId={subcategoryFilters[cn.category.id] ?? null}
+                      service={activeServiceNode}
+                      category={cat}
+                      activeSubcategoryId={subcategoryFilters[cat.id] ?? null}
                       onSubcategoryChange={handleSubcategoryChange}
                     />
                   ))}
@@ -378,7 +323,7 @@ export default function StoreDetailPage({ params }: Props) {
 
         <CartRail
           storeId={store.id}
-          serviceId={activeServiceNode?.service.id}
+          serviceId={activeServiceNode?.id}
         />
       </div>
     </div>
@@ -386,56 +331,65 @@ export default function StoreDetailPage({ params }: Props) {
 }
 
 interface CategorySectionProps {
-  node: CategoryNode;
   store: Store;
-  service: Service;
+  service: StorefrontService;
+  category: StorefrontCategory;
   activeSubcategoryId: number | null;
   onSubcategoryChange: (categoryId: number, subcategoryId: number | null) => void;
 }
 
 function CategorySection({
-  node,
   store,
   service,
+  category,
   activeSubcategoryId,
   onSubcategoryChange,
 }: CategorySectionProps) {
   const t = useTranslations("StoreDetail");
+
+  const totalItems = useMemo(() => categoryItemCount(category), [category]);
+
   const activeSubName = useMemo(() => {
     if (activeSubcategoryId == null) return null;
     return (
-      node.subcategories.find((s) => s.subcategory.id === activeSubcategoryId)
-        ?.subcategory.name ?? null
+      category.subcategories.find((s) => s.id === activeSubcategoryId)?.name ?? null
     );
-  }, [activeSubcategoryId, node.subcategories]);
+  }, [activeSubcategoryId, category.subcategories]);
 
-  const items = useMemo(() => {
-    if (activeSubcategoryId === null) return node.items;
-    return node.items.filter((i) => i.product.subcategory_id === activeSubcategoryId);
-  }, [activeSubcategoryId, node.items]);
+  const visibleSubs: StorefrontSubcategory[] = useMemo(() => {
+    if (activeSubcategoryId === null) return category.subcategories;
+    const match = category.subcategories.find((s) => s.id === activeSubcategoryId);
+    return match ? [match] : [];
+  }, [activeSubcategoryId, category.subcategories]);
+
+  const shownCount = useMemo(() => {
+    let n = 0;
+    for (const sub of visibleSubs) n += sub.items.length;
+    return n;
+  }, [visibleSubs]);
 
   return (
     <section
-      id={CATEGORY_ANCHOR(node.category.id)}
+      id={CATEGORY_ANCHOR(category.id)}
       className={styles.categorySection}
     >
       <div className={styles.categoryHeader}>
         <div className={styles.categoryHeadingWrap}>
-          <h3 className={styles.categoryHeading}>{node.category.name}</h3>
+          <h3 className={styles.categoryHeading}>{category.name}</h3>
           {activeSubName && (
             <span className={styles.activeFilterTag}>· {activeSubName}</span>
           )}
         </div>
         <span className={styles.categoryCount}>
-          {t("categoryCount", { shown: items.length, total: node.items.length })}
+          {t("categoryCount", { shown: shownCount, total: totalItems })}
         </span>
       </div>
 
-      {node.subcategories.length > 1 && (
+      {category.subcategories.length > 1 && (
         <div
           className={styles.inlineSubcategories}
           role="tablist"
-          aria-label={t("subcategoriesAriaLabel", { name: node.category.name })}
+          aria-label={t("subcategoriesAriaLabel", { name: category.name })}
         >
           <button
             type="button"
@@ -444,41 +398,71 @@ function CategorySection({
               activeSubcategoryId === null ? styles.subChipActive : ""
             }`}
             aria-selected={activeSubcategoryId === null}
-            onClick={() => onSubcategoryChange(node.category.id, null)}
+            onClick={() => onSubcategoryChange(category.id, null)}
           >
             {t("subAll")}
-            <span className={styles.subChipCount}>{node.items.length}</span>
+            <span className={styles.subChipCount}>{totalItems}</span>
           </button>
-          {node.subcategories.map((sn) => (
+          {category.subcategories.map((sub) => (
             <button
-              key={sn.subcategory.id}
+              key={sub.id}
               type="button"
               role="tab"
               className={`${styles.subChip} ${
-                activeSubcategoryId === sn.subcategory.id ? styles.subChipActive : ""
+                activeSubcategoryId === sub.id ? styles.subChipActive : ""
               }`}
-              aria-selected={activeSubcategoryId === sn.subcategory.id}
-              onClick={() => onSubcategoryChange(node.category.id, sn.subcategory.id)}
+              aria-selected={activeSubcategoryId === sub.id}
+              onClick={() => onSubcategoryChange(category.id, sub.id)}
             >
-              {sn.subcategory.name}
-              <span className={styles.subChipCount}>{sn.items.length}</span>
+              {sub.name}
+              <span className={styles.subChipCount}>{sub.items.length}</span>
             </button>
           ))}
         </div>
       )}
 
-      {items.length > 0 ? (
+      {shownCount > 0 ? (
         <div className={styles.productsGrid}>
-          {items.map((item) => (
-            <ProductCard
-              key={item.id}
-              item={item}
-              storeId={store.id}
-              storeName={store.name}
-              serviceId={service.id}
-              serviceName={service.name}
-            />
-          ))}
+          {visibleSubs.flatMap((sub) =>
+            sub.items.map((item) => {
+              // ProductCard was written against `InventoryWithProduct`
+              // (flat catalog era). Adapt the storefront tree node to
+              // that shape here so the card and its cart wiring stay
+              // unchanged.
+              const adapted: InventoryWithProduct = {
+                id: item.inventory_id,
+                store_id: store.id,
+                product_id: item.product_id,
+                price: item.price,
+                stock: item.stock,
+                is_available: item.stock > 0,
+                created_at: "",
+                updated_at: "",
+                product: {
+                  id: item.product_id,
+                  name: item.product_name,
+                  description: item.description ?? "",
+                  image_url: item.image_url ?? "",
+                  category_id: category.id,
+                  subcategory_id: sub.id,
+                  subcategory_name: sub.name,
+                  base_price: item.price,
+                  created_at: "",
+                  updated_at: "",
+                },
+              };
+              return (
+                <ProductCard
+                  key={item.inventory_id}
+                  item={adapted}
+                  storeId={store.id}
+                  storeName={store.name}
+                  serviceId={service.id}
+                  serviceName={service.name}
+                />
+              );
+            }),
+          )}
         </div>
       ) : (
         <div className={styles.emptyInline}>{t("noFilterMatch")}</div>
