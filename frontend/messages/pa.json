@@ -101,7 +101,7 @@
   },
   "Checkout": {
     "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
-    "loginPrompt": "ਚੈੱਕਆਊਟ ਕਰਨ ਲਈ {login}.",
+    "loginPrompt": "ਚੈੱਕਆਊਟ ਕਰਨ ਲਈ <login>ਲੌਗ ਇਨ ਕਰੋ</login>.",
     "loginLink": "ਲੌਗ ਇਨ ਕਰੋ",
     "customerLoginRequired": "ਗਾਹਕ ਲੌਗਇਨ ਜ਼ਰੂਰੀ ਹੈ.",
     "backToCart": "← ਕਾਰਟ ਵੱਲ ਵਾਪਸ",
