@@ -1080,6 +1080,11 @@ def _generate_extra_stores_and_owners() -> tuple[list[dict[str, Any]], list[dict
         store = {
             "name": name,
             "seller_idx": seller_idx,
+            # service_slugs is consumed by generate_extra_inventories so each
+            # store's inventory is restricted to products under services the
+            # owner actually offers. Without it, the cart-add 409s on
+            # service_unavailable / service_mismatch.
+            "service_slugs": service_slugs,
             "address_line1": line1,
             "address_line2": nbh_name,
             "landmark": None,
