@@ -35,7 +35,10 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
         <OrderStatusBadge status={order.status} />
       </div>
       {order.customer_name && (
-        <p className={styles.subtitle}>For {order.customer_name}</p>
+        <p className={styles.subtitle}>
+          For {order.customer_name}{" "}
+          <span className={styles.serviceChip}>· {order.service_name}</span>
+        </p>
       )}
 
       <section className={styles.section}>
