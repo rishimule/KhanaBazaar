@@ -365,6 +365,7 @@ export default function StoreDetailPage({ params }: Props) {
                       key={cn.category.id}
                       node={cn}
                       store={store}
+                      service={activeServiceNode.service}
                       activeSubcategoryId={subcategoryFilters[cn.category.id] ?? null}
                       onSubcategoryChange={handleSubcategoryChange}
                     />
@@ -384,6 +385,7 @@ export default function StoreDetailPage({ params }: Props) {
 interface CategorySectionProps {
   node: CategoryNode;
   store: Store;
+  service: Service;
   activeSubcategoryId: number | null;
   onSubcategoryChange: (categoryId: number, subcategoryId: number | null) => void;
 }
@@ -391,6 +393,7 @@ interface CategorySectionProps {
 function CategorySection({
   node,
   store,
+  service,
   activeSubcategoryId,
   onSubcategoryChange,
 }: CategorySectionProps) {
@@ -469,6 +472,8 @@ function CategorySection({
               item={item}
               storeId={store.id}
               storeName={store.name}
+              serviceId={service.id}
+              serviceName={service.name}
             />
           ))}
         </div>
