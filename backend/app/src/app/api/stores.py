@@ -23,12 +23,14 @@ from app.schemas.inventory import (
     BulkInventoryItem,
     BulkInventoryRequest,
 )
+from app.schemas.storefront import StorefrontResponse
 from app.schemas.stores import StoreCreate, StoreRead, StoreUpdate
 from app.services.inventory import (
     assert_products_in_seller_services,
     bulk_upsert_inventory,
 )
 from app.services.seller_services import list_profile_services
+from app.services.storefront import build_storefront
 
 _BULK_ROW_LIMIT = 200
 
@@ -272,6 +274,26 @@ async def list_store_inventory(
         )
     )
     return list(result.all())
+
+
+@router.get("/{store_id}/storefront", response_model=StorefrontResponse)
+async def get_store_storefront(
+    store_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
+) -> StorefrontResponse:
+    """Aggregated storefront payload: store metadata + its available
+    inventory grouped by service → category → subcategory, with localized
+    names. Replaces the 6-fetch fan-out the store-detail page used to do
+    (store + inventory + full master catalog + services + categories +
+    subcategories) with a single request.
+    """
+    store = await _get_store_with_relations(session, store_id)
+    if store is None or not store.is_active:
+        raise HTTPException(status_code=404, detail="Store not found or inactive")
+    store_read = await _store_read(session, store, lang)
+    assert store.id is not None
+    return await build_storefront(session, store_read, store.id, lang)
 
 
 @router.get("/{store_id}/inventory/all", response_model=List[StoreInventory])

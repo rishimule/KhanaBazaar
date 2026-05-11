@@ -127,6 +127,53 @@ export interface InventoryWithProduct extends StoreInventory {
   product: MasterProduct;
 }
 
+/* ------------------------------------------------------------------
+ * Storefront tree (server-aggregated; see GET /stores/{id}/storefront).
+ * Flat lists were retired in favour of this shape so the store-detail
+ * page can render in one round trip instead of joining four catalog
+ * fetches client-side.
+ * ------------------------------------------------------------------ */
+
+export interface StorefrontItem {
+  inventory_id: number;
+  product_id: number;
+  product_slug: string;
+  product_name: string;
+  image_url: string | null;
+  description: string | null;
+  price: number;
+  stock: number;
+}
+
+export interface StorefrontSubcategory {
+  id: number;
+  slug: string;
+  name: string;
+  sort_order: number;
+  items: StorefrontItem[];
+}
+
+export interface StorefrontCategory {
+  id: number;
+  slug: string;
+  name: string;
+  sort_order: number;
+  subcategories: StorefrontSubcategory[];
+}
+
+export interface StorefrontService {
+  id: number;
+  slug: string;
+  name: string;
+  sort_order: number;
+  categories: StorefrontCategory[];
+}
+
+export interface StorefrontResponse {
+  store: Store;
+  services: StorefrontService[];
+}
+
 /** A single item within a shopping cart. */
 export interface CartItem {
   product_id: number;
