@@ -141,8 +141,8 @@ export default function CheckoutPage() {
         }
       }
       if (
-        key === "service_unavailable" ||
-        key === "service_mismatch"
+        key === "Errors.service_unavailable" ||
+        key === "Errors.service_mismatch"
       ) {
         router.push("/cart");
       }
