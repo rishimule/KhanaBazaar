@@ -44,6 +44,34 @@ async def _product_names(
     return {row.master_product_id: row.name for row in result.all()}
 
 
+async def _service_names(
+    session: AsyncSession, service_ids: list[int]
+) -> dict[int, str]:
+    """Map service_id → display name. English translation, slug fallback."""
+    if not service_ids:
+        return {}
+    from sqlalchemy import and_
+
+    from app.models.catalog import Service, ServiceTranslation
+
+    result = await session.exec(
+        select(Service.id, Service.slug, ServiceTranslation.name)
+        .outerjoin(
+            ServiceTranslation,
+            and_(
+                ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+                ServiceTranslation.language_code == DEFAULT_LANG,  # type: ignore[arg-type]
+            ),
+        )
+        .where(Service.id.in_(service_ids))  # type: ignore[union-attr]
+    )
+    return {
+        sid: (name or slug)
+        for sid, slug, name in result.all()
+        if sid is not None
+    }
+
+
 async def _customer_profile_id(session: AsyncSession, user: User) -> int:
     assert user.id is not None
     result = await session.exec(
