@@ -384,15 +384,18 @@ async def _service_names(
     """Map service_id → display name. English translation, slug fallback."""
     if not service_ids:
         return {}
+    from sqlalchemy import and_
+
     from app.models.catalog import Service, ServiceTranslation
 
     result = await session.exec(
         select(Service.id, Service.slug, ServiceTranslation.name)
-        .join(  # type: ignore[arg-type]
+        .outerjoin(
             ServiceTranslation,
-            (ServiceTranslation.service_id == Service.id)
-            & (ServiceTranslation.language_code == DEFAULT_LANG),
-            isouter=True,
+            and_(
+                ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+                ServiceTranslation.language_code == DEFAULT_LANG,  # type: ignore[arg-type]
+            ),
         )
         .where(Service.id.in_(service_ids))  # type: ignore[union-attr]
     )
@@ -402,6 +405,8 @@ async def _service_names(
         if sid is not None
     }
 ```
+
+Mirrors the existing `_snapshot_product_names` pattern in `services/checkout.py` (outerjoin + `and_`), not the `.join(..., isouter=True)` shorthand.
 
 - [ ] **Step 2: Verify import resolves**
 
@@ -1383,11 +1388,12 @@ async def _snapshot_service_name(
     row = (
         await session.exec(
             select(Service.slug, ServiceTranslation.name)
-            .join(  # type: ignore[arg-type]
+            .outerjoin(
                 ServiceTranslation,
-                (ServiceTranslation.service_id == Service.id)
-                & (ServiceTranslation.language_code == "en"),
-                isouter=True,
+                and_(
+                    ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+                    ServiceTranslation.language_code == "en",  # type: ignore[arg-type]
+                ),
             )
             .where(Service.id == service_id)
         )
@@ -1397,6 +1403,8 @@ async def _snapshot_service_name(
     slug, name = row
     return name or slug
 ```
+
+`and_` is already imported at the top of `services/checkout.py` (`from sqlalchemy import and_, text`). No new top-level import needed.
 
 - [ ] **Step 4: Rebuild `place_order_for_sub_basket`**
 
@@ -1693,7 +1701,7 @@ from app.models.catalog import (
     Category, CategoryTranslation, MasterProduct, MasterProductTranslation,
     Service, ServiceTranslation, Subcategory, SubcategoryTranslation,
 )
-from app.models.commerce import Cart, CartItem, Order
+from app.models.commerce import Cart, CartItem
 from app.models.profile import (
     CustomerAddress, CustomerProfile, SellerProfile, SellerProfileService,
     VerificationStatus,
@@ -2107,13 +2115,30 @@ git commit -m "feat(emails): include service name in order email subject and bod
 
 **Files:** none (validation only)
 
+- [ ] **Step 0: Pre-emptively repair `test_orders_serviceability.py`**
+
+This file constructs `Cart(customer_profile_id=..., store_id=...)` and `CartItem(...)` rows directly and calls `POST /api/v1/orders` — it will break because Cart's `service_id` is now NOT NULL and the place-order payload requires `service_id`. Open the file and:
+
+1. After the `Service`/`SellerProfileService` rows are created, capture the service id (e.g. `service_id = grocery.id`).
+2. Pass `service_id=service_id` to every `Cart(...)` construction in the seed and in helper builders.
+3. Add `"service_id": service_id` to every `client.post("/api/v1/orders", json={...})` payload.
+4. If any test asserts response fields, expect `"service_id"` and `"service_name"` to appear in the body.
+
+Run:
+
+```bash
+cd backend/app && uv run pytest tests/test_orders_serviceability.py -v
+```
+
+Expected: all green.
+
 - [ ] **Step 1: Full backend test run**
 
 ```bash
 cd backend/app && uv run pytest -v
 ```
 
-Expected: every test passes. If `test_orders_serviceability.py` or `test_checkout.py` (if present) fails, update its payloads + assertions in the same way as Task 9 / Task 10 (thread `service_id`, expect new fields). Commit any such fix-ups under `test(orders): thread service_id through <file>` before proceeding.
+Expected: every test passes. If any other file fails because it constructs `Cart(...)` or `Order(...)` directly without the new service fields, repair it in the same way (thread `service_id`; for `Order(...)` also pass `service_name_snapshot`). Commit such fix-ups under `test(<scope>): thread service_id through <file>`.
 
 - [ ] **Step 2: Lint + types**
 
@@ -3727,25 +3752,41 @@ git rm 'frontend/src/app/(customer)/[locale]/checkout/[storeId]/page.tsx' \
        'frontend/src/app/(customer)/[locale]/checkout/[storeId]/page.module.css'
 ```
 
-- [ ] **Step 5: Lint**
+- [ ] **Step 5: Wire `service_unavailable` + `service_mismatch` into the error map**
+
+Open `frontend/src/lib/errors.ts` and add two new keys to the error-code → translation-key map (alongside `store_unavailable`, `item_unavailable`, etc.). The exact mapping function is named `apiErrorKey`. Add the two entries so that an `ApiError` whose `detail.detail` (or top-level `detail`) is `"service_unavailable"` resolves to the translation key `"Errors.service_unavailable"`, and likewise `"service_mismatch"` → `"Errors.service_mismatch"`.
+
+Then add the matching translation strings to every locale file in `frontend/messages/`:
+
+```jsonc
+// en.json
+"Errors": {
+  // ... existing entries ...
+  "service_unavailable": "This service is no longer offered by the store. Remove the items and try a different service.",
+  "service_mismatch": "An item in your cart no longer belongs to this service. Remove it and try again."
+}
+```
+
+Repeat for `gu.json`, `hi.json`, `mr.json`, `pa.json` using English text as a placeholder (translation cleanup is out of scope).
+
+- [ ] **Step 6: Lint**
 
 ```bash
 cd frontend && npm run lint
 ```
 
-Expected: no errors. If `apiErrorKey` does not return the `service_unavailable` or `service_mismatch` keys, ensure the corresponding entries exist in `frontend/src/lib/errors.ts` and the locale files — add them if missing.
+Expected: no errors.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add 'frontend/src/app/(customer)/[locale]/checkout/[storeId]/[serviceId]/page.tsx' \
         'frontend/src/app/(customer)/[locale]/checkout/[storeId]/[serviceId]/page.module.css' \
         frontend/src/lib/orders.ts \
-        frontend/src/lib/errors.ts 2>/dev/null || true
+        frontend/src/lib/errors.ts \
+        frontend/messages
 git commit -m "feat(checkout): relocate to /checkout/{storeId}/{serviceId} with service_id payload"
 ```
-
-The `|| true` keeps the commit running even if `errors.ts` did not need a change.
 
 ---
 
