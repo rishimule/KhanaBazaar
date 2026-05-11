@@ -147,6 +147,19 @@ export default function AddressPicker({
     );
   }
 
+  const hasAnyServiceable =
+    storeId === undefined ||
+    addresses.some((a) => serviceability[a.id] === true);
+
+  if (allSettled && !hasAnyServiceable) {
+    return (
+      <div className={styles.empty}>
+        {t("noServiceableTitle")}{" "}
+        <Link href="/account/settings" className={styles.link}>{t("pickerAddOne")}</Link>
+      </div>
+    );
+  }
+
   const isDisabled = (id: number) =>
     storeId !== undefined && serviceability[id] === false;
 
