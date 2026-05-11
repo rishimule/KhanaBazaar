@@ -84,12 +84,16 @@ async def _customer_profile_id(session: AsyncSession, user: User) -> int:
 
 
 async def _get_or_create_cart(
-    session: AsyncSession, customer_profile_id: int, store_id: int
+    session: AsyncSession,
+    customer_profile_id: int,
+    store_id: int,
+    service_id: int,
 ) -> Cart:
     result = await session.exec(
         select(Cart).where(
             Cart.customer_profile_id == customer_profile_id,
             Cart.store_id == store_id,
+            Cart.service_id == service_id,
         )
     )
     cart = result.first()
@@ -99,7 +103,11 @@ async def _get_or_create_cart(
         store = store_result.first()
         if store is None or not store.is_active:
             raise HTTPException(status_code=404, detail="Store not found or inactive")
-        cart = Cart(customer_profile_id=customer_profile_id, store_id=store_id)
+        cart = Cart(
+            customer_profile_id=customer_profile_id,
+            store_id=store_id,
+            service_id=service_id,
+        )
         session.add(cart)
         await session.flush()
     return cart
@@ -125,6 +133,7 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
             product_ids.add(product.id)
 
     name_by_product = await _product_names(session, list(product_ids))
+    name_by_service = await _service_names(session, [c.service_id for c in carts])
 
     out: list[CartRead] = []
     for cart in carts:
@@ -153,6 +162,8 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
             CartRead(
                 store_id=cart.store_id,
                 store_name=store_name,
+                service_id=cart.service_id,
+                service_name=name_by_service.get(cart.service_id, str(cart.service_id)),
                 items=items,
                 subtotal=sum(i.line_total for i in items),
             )
