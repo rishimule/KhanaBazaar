@@ -114,6 +114,7 @@
     "total": "કુલ",
     "errPlaceOrder": "ઓર્ડર આપી શકાયો નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
     "placing": "ઓર્ડર આપી રહ્યા છીએ…",
+    "checkingDeliveryArea": "ડિલિવરી વિસ્તાર તપાસી રહ્યાં છીએ…",
     "placeOrder": "ઓર્ડર આપો — ₹{total}"
   },
   "Login": {
@@ -276,6 +277,7 @@
     "deliverTo": "અહીં પહોંચાડો",
     "pickerLoading": "સરનામાં લોડ થઈ રહ્યાં છે…",
     "pickerEmpty": "કોઈ સાચવેલ સરનામું નથી.",
+    "noServiceableTitle": "આ સ્ટોરના ડિલિવરી વિસ્તારમાં કોઈ સાચવેલ સરનામું નથી.",
     "pickerAddOne": "એક ઉમેરો",
     "fallbackLabel": "સરનામું",
     "verifyAddress": "સરનામું ચકાસો",

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
@@ -31,96 +31,130 @@ interface CustomerProfileResponse {
   addresses: CustomerAddressApi[];
 }
 
+export interface PickerState {
+  selectedId: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  /** True when storeId is undefined OR the picked address is in-radius. */
+  serviceable: boolean;
+  /** True while profile is loading OR any serviceability check unresolved. */
+  loading: boolean;
+}
+
 interface Props {
   value: number | null;
   onChange: (id: number) => void;
   /** When set, each saved address is checked against this store's delivery
    *  radius via /api/v1/geo/serviceability and disabled if outside. */
   storeId?: number;
-  /** Optional callback that fires whenever the picked address resolves to
-   *  a row with concrete data (id, lat/lng, serviceability). Lets the
-   *  parent render a route map / serviceability hint. */
-  onSelectedAddress?: (addr: {
-    id: number;
-    latitude: number | null;
-    longitude: number | null;
-    serviceable: boolean;
-  } | null) => void;
+  /** Fires whenever the picker's effective state changes. Always called
+   *  (never null) so parents can gate on `loading` even before a selection
+   *  exists (e.g. zero-serviceable). */
+  onStateChange?: (state: PickerState) => void;
 }
 
 export default function AddressPicker({
-  value, onChange, storeId, onSelectedAddress,
+  value, onChange, storeId, onStateChange,
 }: Props) {
   const t = useTranslations("Address");
   const { token } = useAuth();
   const [addresses, setAddresses] = useState<CustomerAddressApi[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
   /** id → serviceable? Missing entry means "still checking" or "no lat/lng". */
   const [serviceability, setServiceability] = useState<Record<number, boolean>>({});
+  const didAutoSelect = useRef(false);
 
   useEffect(() => {
     if (!token) return;
     get<CustomerProfileResponse>("/api/v1/customers/me", token)
-      .then((data) => {
-        setAddresses(data.addresses);
-        if (value === null && data.addresses.length > 0) {
-          const def = data.addresses.find((a) => a.is_default) ?? data.addresses[0];
-          onChange(def.id);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [token, value, onChange]);
+      .then((data) => { setAddresses(data.addresses); })
+      .finally(() => setProfileLoading(false));
+  }, [token]);
 
   useEffect(() => {
     if (storeId === undefined || addresses.length === 0) return;
     let cancelled = false;
-    (async () => {
-      const map: Record<number, boolean> = {};
-      for (const a of addresses) {
-        if (a.address.latitude == null || a.address.longitude == null) {
-          map[a.id] = false;
-          continue;
-        }
-        try {
-          const r = await checkServiceability(
-            a.address.latitude, a.address.longitude, storeId,
-          );
-          map[a.id] = r.serviceable;
-        } catch {
-          map[a.id] = false;
-        }
+
+    const checks = addresses.map(async (a) => {
+      if (a.address.latitude == null || a.address.longitude == null) {
+        return [a.id, false] as const;
       }
-      if (!cancelled) setServiceability(map);
-    })();
+      try {
+        const r = await checkServiceability(
+          a.address.latitude, a.address.longitude, storeId,
+        );
+        return [a.id, r.serviceable] as const;
+      } catch {
+        return [a.id, false] as const;
+      }
+    });
+
+    Promise.all(checks).then((entries) => {
+      if (cancelled) return;
+      setServiceability(Object.fromEntries(entries));
+    });
+
     return () => { cancelled = true; };
   }, [addresses, storeId]);
 
-  // Emit the selected row + its serviceability up to the parent. Must run
-  // before any conditional early-return below — Rules of Hooks.
-  useEffect(() => {
-    if (!onSelectedAddress) return;
-    if (value == null) {
-      onSelectedAddress(null);
-      return;
-    }
-    const picked = addresses.find((a) => a.id === value);
-    if (!picked) {
-      onSelectedAddress(null);
-      return;
-    }
-    onSelectedAddress({
-      id: picked.id,
-      latitude: picked.address.latitude ?? null,
-      longitude: picked.address.longitude ?? null,
-      serviceable: storeId === undefined ? true : serviceability[picked.id] === true,
-    });
-  }, [value, addresses, serviceability, storeId, onSelectedAddress]);
+  const allSettled =
+    !profileLoading &&
+    (storeId === undefined || addresses.every((a) => a.id in serviceability));
 
-  if (loading) return <div className={styles.loading}>{t("pickerLoading")}</div>;
+  useEffect(() => {
+    if (!allSettled) return;
+    if (didAutoSelect.current) return;
+    if (value !== null) { didAutoSelect.current = true; return; }
+    if (addresses.length === 0) { didAutoSelect.current = true; return; }
+
+    const isOk = (id: number) =>
+      storeId === undefined || serviceability[id] === true;
+
+    const def = addresses.find((a) => a.is_default);
+    const pick =
+      (def && isOk(def.id) ? def : null) ??
+      addresses.find((a) => isOk(a.id)) ??
+      null;
+
+    if (pick) onChange(pick.id);
+    didAutoSelect.current = true;
+  }, [allSettled, addresses, serviceability, storeId, value, onChange]);
+
+  useEffect(() => {
+    if (!onStateChange) return;
+    const picked = value != null ? addresses.find((a) => a.id === value) : undefined;
+    onStateChange({
+      selectedId: picked?.id ?? null,
+      latitude: picked?.address.latitude ?? null,
+      longitude: picked?.address.longitude ?? null,
+      serviceable:
+        picked === undefined
+          ? false
+          : storeId === undefined
+            ? true
+            : serviceability[picked.id] === true,
+      loading: !allSettled,
+    });
+  }, [value, addresses, serviceability, storeId, allSettled, onStateChange]);
+
+  if (profileLoading) return <div className={styles.loading}>{t("pickerLoading")}</div>;
   if (addresses.length === 0) {
     return (
       <div className={styles.empty}>
         {t("pickerEmpty")}{" "}
+        <Link href="/account/settings" className={styles.link}>{t("pickerAddOne")}</Link>
+      </div>
+    );
+  }
+
+  const hasAnyServiceable =
+    storeId === undefined ||
+    addresses.some((a) => serviceability[a.id] === true);
+
+  if (allSettled && !hasAnyServiceable) {
+    return (
+      <div className={styles.empty}>
+        {t("noServiceableTitle")}{" "}
         <Link href="/account/settings" className={styles.link}>{t("pickerAddOne")}</Link>
       </div>
     );
