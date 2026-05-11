@@ -90,7 +90,7 @@
     "startShopping": "Start Shopping",
     "loginToCheckout": "Login to checkout",
     "customerLoginRequired": "Customer login required",
-    "checkoutCta": "Checkout · ₹{subtotal}",
+    "checkoutCta": "Checkout {service} — ₹{subtotal}",
     "yourLabel": "Your",
     "cartLabel": "Cart",
     "summary": "{stores, plural, one {# store} other {# stores}} · {items, plural, one {# item} other {# items}}",
