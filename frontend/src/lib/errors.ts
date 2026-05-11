@@ -35,6 +35,10 @@ export function apiErrorKey(err: unknown): string | null {
   const detail = typeof err.detail === "string" ? err.detail : "";
   const lower = detail.toLowerCase();
 
+  // Detail-string matches that should win over the generic status fallback.
+  if (lower === "service_unavailable") return "Errors.service_unavailable";
+  if (lower === "service_mismatch") return "Errors.service_mismatch";
+
   switch (err.status) {
     case 401:
       return "Errors.unauthorized";

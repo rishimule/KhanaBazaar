@@ -227,7 +227,9 @@
     "notFound": "नहीं मिला।",
     "conflict": "टकराव — कृपया रिफ़्रेश करें और फिर से कोशिश करें।",
     "validation": "अमान्य इनपुट।",
-    "serverError": "सर्वर त्रुटि। कृपया फिर से कोशिश करें।"
+    "serverError": "सर्वर त्रुटि। कृपया फिर से कोशिश करें।",
+    "service_unavailable": "This service is no longer offered by the store. Remove the items and try a different service.",
+    "service_mismatch": "An item in your cart no longer belongs to this service. Remove it and try again."
   },
   "Footer": {
     "tagline": "आपके पड़ोस के स्टोर, अब आपकी उँगलियों पर। स्थानीय विक्रेताओं से ताज़ा किराना और रोज़मर्रा की ज़रूरतें ख़रीदें और तुरंत UPI से भुगतान करें।",

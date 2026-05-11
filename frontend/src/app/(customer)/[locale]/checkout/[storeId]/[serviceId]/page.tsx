@@ -20,15 +20,19 @@ import styles from "./page.module.css";
 export default function CheckoutPage() {
   const t = useTranslations("Checkout");
   const tErr = useTranslations("Errors");
-  const params = useParams<{ storeId: string }>();
+  const params = useParams<{ storeId: string; serviceId: string }>();
   const storeId = Number(params.storeId);
+  const serviceId = Number(params.serviceId);
   const router = useRouter();
   const { dbUser, token, loading: authLoading } = useAuth();
   const { carts, loading: cartLoading, refresh, getTotal } = useCart();
 
   const [addressId, setAddressId] = useState<number | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<{
-    id: number; latitude: number | null; longitude: number | null; serviceable: boolean;
+    id: number;
+    latitude: number | null;
+    longitude: number | null;
+    serviceable: boolean;
   } | null>(null);
   const [storeDetails, setStoreDetails] = useState<Store | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
@@ -45,11 +49,14 @@ export default function CheckoutPage() {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  }, [storeId, serviceId]);
 
   const cart = useMemo(
-    () => carts.find((c) => c.store_id === storeId),
-    [carts, storeId]
+    () =>
+      carts.find(
+        (c) => c.store_id === storeId && c.service_id === serviceId,
+      ),
+    [carts, storeId, serviceId],
   );
 
   const isCustomer = dbUser?.role === "customer";
@@ -77,7 +84,9 @@ export default function CheckoutPage() {
           <p className={styles.loadingText}>
             {t.rich("loginPrompt", {
               login: () => (
-                <Link href={`/login?next=/checkout/${storeId}`}>{t("loginLink")}</Link>
+                <Link href={`/login?next=/checkout/${storeId}/${serviceId}`}>
+                  {t("loginLink")}
+                </Link>
               ),
             })}
           </p>
@@ -113,6 +122,7 @@ export default function CheckoutPage() {
       await placeOrder(token, {
         customerAddressId: addressId,
         storeId,
+        serviceId,
         paymentMethod,
       });
       router.push("/account/orders?placed=1");
@@ -130,6 +140,12 @@ export default function CheckoutPage() {
           setError(t("errPlaceOrder"));
         }
       }
+      if (
+        key === "service_unavailable" ||
+        key === "service_mismatch"
+      ) {
+        router.push("/cart");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -142,7 +158,9 @@ export default function CheckoutPage() {
           <Link href="/cart" className={styles.backLink}>
             {t("backToCart")}
           </Link>
-          <h1 className={styles.title}>{t("title", { store: cart.store_name })}</h1>
+          <h1 className={styles.title}>
+            {t("title", { store: cart.store_name })} · {cart.service_name}
+          </h1>
         </div>
 
         <section className={styles.section}>
@@ -152,7 +170,9 @@ export default function CheckoutPage() {
               <li key={item.product_id} className={styles.itemRow}>
                 <span className={styles.itemName}>{item.product_name}</span>
                 <span className={styles.itemQty}>× {item.quantity}</span>
-                <span className={styles.itemPrice}>₹{item.price * item.quantity}</span>
+                <span className={styles.itemPrice}>
+                  ₹{item.price * item.quantity}
+                </span>
               </li>
             ))}
           </ul>
@@ -166,30 +186,33 @@ export default function CheckoutPage() {
             storeId={storeId}
             onSelectedAddress={setSelectedAddress}
           />
-          {selectedAddress?.serviceable
-            && selectedAddress.latitude != null
-            && selectedAddress.longitude != null
-            && storeDetails?.address.latitude != null
-            && storeDetails?.address.longitude != null && (
-            <div className={styles.routeMap}>
-              <DeliveryRouteMap
-                store={{
-                  lat: storeDetails.address.latitude,
-                  lng: storeDetails.address.longitude,
-                  label: storeDetails.name,
-                }}
-                customer={{
-                  lat: selectedAddress.latitude,
-                  lng: selectedAddress.longitude,
-                  label: "Your address",
-                }}
-              />
-            </div>
-          )}
+          {selectedAddress?.serviceable &&
+            selectedAddress.latitude != null &&
+            selectedAddress.longitude != null &&
+            storeDetails?.address.latitude != null &&
+            storeDetails?.address.longitude != null && (
+              <div className={styles.routeMap}>
+                <DeliveryRouteMap
+                  store={{
+                    lat: storeDetails.address.latitude,
+                    lng: storeDetails.address.longitude,
+                    label: storeDetails.name,
+                  }}
+                  customer={{
+                    lat: selectedAddress.latitude,
+                    lng: selectedAddress.longitude,
+                    label: "Your address",
+                  }}
+                />
+              </div>
+            )}
         </section>
 
         <section className={styles.section}>
-          <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
+          <PaymentMethodPicker
+            value={paymentMethod}
+            onChange={setPaymentMethod}
+          />
         </section>
 
         <section className={styles.summary}>

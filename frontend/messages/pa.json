@@ -227,7 +227,9 @@
     "notFound": "ਨਹੀਂ ਮਿਲਿਆ.",
     "conflict": "ਟਕਰਾਅ — ਕਿਰਪਾ ਕਰਕੇ ਰਿਫ੍ਰੈਸ਼ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ.",
     "validation": "ਅਵੈਧ ਇਨਪੁੱਟ.",
-    "serverError": "ਸਰਵਰ ਗਲਤੀ. ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ."
+    "serverError": "ਸਰਵਰ ਗਲਤੀ. ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ.",
+    "service_unavailable": "This service is no longer offered by the store. Remove the items and try a different service.",
+    "service_mismatch": "An item in your cart no longer belongs to this service. Remove it and try again."
   },
   "Footer": {
     "tagline": "ਤੁਹਾਡੇ ਆਂਢ-ਗੁਆਂਢ ਦੇ ਸਟੋਰ, ਹੁਣ ਤੁਹਾਡੀਆਂ ਉਂਗਲੀਆਂ 'ਤੇ. ਸਥਾਨਕ ਵਿਕਰੇਤਾਵਾਂ ਤੋਂ ਤਾਜ਼ਾ ਕਰਿਆਨਾ ਅਤੇ ਜ਼ਰੂਰੀ ਚੀਜ਼ਾਂ ਖਰੀਦੋ ਅਤੇ UPI ਨਾਲ ਤੁਰੰਤ ਭੁਗਤਾਨ ਕਰੋ.",
