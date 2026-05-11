@@ -41,11 +41,18 @@ export default function CartRail({ storeId, serviceId }: Props) {
   const totalQty = items.reduce((n, i) => n + i.quantity, 0);
 
   const onCheckout = () => {
-    if (storeId != null && serviceId != null) {
-      router.push(`/checkout/${storeId}/${serviceId}`);
-    } else {
-      router.push("/cart");
+    const target =
+      storeId != null && serviceId != null
+        ? `/checkout/${storeId}/${serviceId}`
+        : "/cart";
+    // Guests can't place an order — send them to login first so they
+    // return to the right checkout (or cart) after auth instead of
+    // landing on a checkout page that only renders a login prompt.
+    if (!dbUser) {
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+      return;
     }
+    router.push(target);
   };
 
   return (

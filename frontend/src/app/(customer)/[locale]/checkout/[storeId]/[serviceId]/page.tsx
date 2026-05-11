@@ -83,9 +83,9 @@ export default function CheckoutPage() {
         <div className={styles.pageInner}>
           <p className={styles.loadingText}>
             {t.rich("loginPrompt", {
-              login: () => (
+              login: (chunks) => (
                 <Link href={`/login?next=/checkout/${storeId}/${serviceId}`}>
-                  {t("loginLink")}
+                  {chunks}
                 </Link>
               ),
             })}

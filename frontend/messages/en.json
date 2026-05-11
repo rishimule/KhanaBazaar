@@ -101,7 +101,7 @@
   },
   "Checkout": {
     "loading": "Loading…",
-    "loginPrompt": "{login} to check out.",
+    "loginPrompt": "<login>Log in</login> to check out.",
     "loginLink": "Log in",
     "customerLoginRequired": "Customer login required.",
     "backToCart": "← Back to cart",
