@@ -214,6 +214,7 @@ export default function CartPage() {
                   )}
                   {!showServiceHeader && (
                     <div className={styles.serviceHeader}>
+                      <span />
                       <button
                         className={styles.clearBtn}
                         onClick={() =>
