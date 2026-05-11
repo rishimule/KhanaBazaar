@@ -274,7 +274,7 @@ export default function CartPage() {
                       </div>
 
                       <div className={styles.itemTotal}>
-                        ₹{item.price * item.quantity}
+                        ₹{(item.price * item.quantity).toFixed(2)}
                       </div>
 
                       <button

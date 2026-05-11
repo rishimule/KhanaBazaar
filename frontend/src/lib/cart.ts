@@ -7,12 +7,14 @@
  */
 import type { Cart } from "@/types";
 
+const roundMoney = (n: number): number => Math.round(n * 100) / 100;
+
 export function getCartTotal(cart: Cart): number {
-  return cart.items.reduce((sum, i) => i.price * i.quantity + sum, 0);
+  return roundMoney(cart.items.reduce((sum, i) => i.price * i.quantity + sum, 0));
 }
 
 export function getGrandTotal(carts: Cart[]): number {
-  return carts.reduce((sum, c) => sum + getCartTotal(c), 0);
+  return roundMoney(carts.reduce((sum, c) => sum + getCartTotal(c), 0));
 }
 
 export function getCartCount(carts: Cart[]): number {
