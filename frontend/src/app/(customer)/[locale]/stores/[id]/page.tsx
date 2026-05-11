@@ -376,7 +376,10 @@ export default function StoreDetailPage({ params }: Props) {
           )}
         </div>
 
-        <CartRail storeId={store.id} />
+        <CartRail
+          storeId={store.id}
+          serviceId={activeServiceNode?.service.id}
+        />
       </div>
     </div>
   );

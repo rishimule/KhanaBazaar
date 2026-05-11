@@ -18,9 +18,10 @@ function CartThumb({ url }: { url?: string }) {
 
 interface Props {
   storeId?: number;
+  serviceId?: number;
 }
 
-export default function CartRail({ storeId }: Props) {
+export default function CartRail({ storeId, serviceId }: Props) {
   const { carts } = useCart();
   const { dbUser } = useAuth();
   const router = useRouter();
@@ -28,17 +29,23 @@ export default function CartRail({ storeId }: Props) {
   const role = dbUser?.role;
   if (role && role !== "customer") return null;
 
-  const cart = storeId != null
-    ? carts.find((c) => c.store_id === storeId)
-    : null;
+  const cart =
+    storeId != null && serviceId != null
+      ? carts.find(
+          (c) => c.store_id === storeId && c.service_id === serviceId,
+        )
+      : null;
 
   const items = cart?.items ?? [];
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const totalQty = items.reduce((n, i) => n + i.quantity, 0);
 
   const onCheckout = () => {
-    if (storeId != null) router.push(`/checkout/${storeId}`);
-    else router.push("/cart");
+    if (storeId != null && serviceId != null) {
+      router.push(`/checkout/${storeId}/${serviceId}`);
+    } else {
+      router.push("/cart");
+    }
   };
 
   return (
