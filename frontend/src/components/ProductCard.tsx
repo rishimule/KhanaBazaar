@@ -90,6 +90,8 @@ export default function ProductCard({
           <img
             src={product.image_url}
             alt={product.name}
+            loading="lazy"
+            decoding="async"
             onError={() => setImgFailed(true)}
           />
         ) : (

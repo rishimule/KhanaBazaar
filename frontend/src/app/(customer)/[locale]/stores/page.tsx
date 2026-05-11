@@ -4,15 +4,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { prefetchStorefront } from "@/lib/storefrontCache";
 import { Store } from "@/types";
 import styles from "./page.module.css";
 
 export default function StoresPage() {
   const t = useTranslations("Stores");
+  const locale = useLocale();
   const [stores, setStores] = useState<Store[]>([]);
   const [fetching, setFetching] = useState(true);
   const { location } = useDeliveryLocation();
@@ -62,6 +64,12 @@ export default function StoresPage() {
               href={`/stores/${store.id}`}
               className={styles.card}
               id={`store-card-${store.id}`}
+              // Warm the storefront cache the moment the user signals
+              // intent to open the store. By the time they click, the
+              // detail page paints synchronously from cache.
+              onMouseEnter={() => prefetchStorefront(store.id, locale)}
+              onFocus={() => prefetchStorefront(store.id, locale)}
+              onTouchStart={() => prefetchStorefront(store.id, locale)}
             >
               <div className={styles.cardTop}>
                 <span className={styles.cardIcon}>{store.name.charAt(0).toUpperCase()}</span>

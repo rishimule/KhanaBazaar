@@ -66,6 +66,21 @@ export function readStaleStorefront(
   return entry ? entry.data : null;
 }
 
+/** Warm the cache without throwing. Intended for `onMouseEnter` /
+ * `onFocus` / `onTouchStart` handlers on store cards — by the time the
+ * user clicks the link, the storefront has usually finished loading and
+ * the next page can paint synchronously from cache. Idempotent and
+ * cheap: if a fetch is already in flight or the data is fresh, this is
+ * a no-op.
+ */
+export function prefetchStorefront(storeId: number, locale: string): void {
+  if (readCachedStorefront(storeId, locale)) return;
+  loadStorefront(storeId, locale).catch(() => {
+    // Swallow — this is a speculative prefetch. The eventual real fetch
+    // on the destination page will surface any error.
+  });
+}
+
 export async function loadStorefront(
   storeId: number,
   locale: string,
