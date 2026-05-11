@@ -422,7 +422,7 @@ async def clear_sub_basket_cart(
 
 
 @router.post("/sync", response_model=CartSyncResponse)
-async def sync_carts(
+async def sync_carts(  # noqa: C901  # per-item validation branches; refactor tracked separately
     payload: CartSyncRequest,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
