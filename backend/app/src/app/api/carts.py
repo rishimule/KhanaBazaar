@@ -428,20 +428,33 @@ async def sync_carts(
     user: User = Depends(get_current_customer),
 ) -> CartSyncResponse:
     # TODO(perf): batch Store and StoreInventory lookups across the whole
-    # payload (one IN query each) before scaling sync beyond MVP-sized carts.
+    # payload before scaling sync beyond MVP-sized carts.
     profile_id = await _customer_profile_id(session, user)
     dropped: list[DroppedSyncItem] = []
 
     for cart_payload in payload.carts:
-        store_result = await session.exec(select(Store).where(Store.id == cart_payload.store_id))
+        store_result = await session.exec(
+            select(Store).where(Store.id == cart_payload.store_id)
+        )
         store = store_result.first()
         if store is None or not store.is_active:
             for it in cart_payload.items:
-                dropped.append(DroppedSyncItem(inventory_id=it.inventory_id, reason="store_unavailable"))
+                dropped.append(DroppedSyncItem(
+                    inventory_id=it.inventory_id, reason="store_unavailable",
+                ))
             continue
 
-        # Defer cart creation until at least one item validates so a payload
-        # whose items all drop does not leave an empty Cart row behind.
+        try:
+            await _validate_service_for_store(
+                session, cart_payload.store_id, cart_payload.service_id
+            )
+        except HTTPException:
+            for it in cart_payload.items:
+                dropped.append(DroppedSyncItem(
+                    inventory_id=it.inventory_id, reason="service_unavailable",
+                ))
+            continue
+
         cart: Cart | None = None
 
         for item_payload in cart_payload.items:
@@ -456,8 +469,20 @@ async def sync_carts(
                 ))
                 continue
 
+            try:
+                await _assert_inventory_service_match(
+                    session, item_payload.inventory_id, cart_payload.service_id
+                )
+            except HTTPException:
+                dropped.append(DroppedSyncItem(
+                    inventory_id=item_payload.inventory_id, reason="service_mismatch",
+                ))
+                continue
+
             if cart is None:
-                cart = await _get_or_create_cart(session, profile_id, cart_payload.store_id)
+                cart = await _get_or_create_cart(
+                    session, profile_id, cart_payload.store_id, cart_payload.service_id
+                )
 
             existing_result = await session.exec(
                 select(CartItem).where(
@@ -477,7 +502,6 @@ async def sync_carts(
 
     await session.commit()
 
-    # Return canonical cart state for the customer.
     result = await session.exec(
         select(Cart).where(Cart.customer_profile_id == profile_id)
     )
