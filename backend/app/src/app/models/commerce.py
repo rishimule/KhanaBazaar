@@ -39,9 +39,15 @@ class DeliveryStatus(str, enum.Enum):
 
 
 class Cart(BaseSchema, table=True):
-    __table_args__ = (UniqueConstraint("customer_profile_id", "store_id", name="uq_cart_customer_store"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "customer_profile_id", "store_id", "service_id",
+            name="uq_cart_customer_store_service",
+        ),
+    )
     customer_profile_id: int = Field(foreign_key="customerprofile.id", nullable=False)
     store_id: int = Field(foreign_key="store.id", nullable=False)
+    service_id: int = Field(foreign_key="service.id", nullable=False, index=True)
 
 
 class CartItem(BaseSchema, table=True):
@@ -56,6 +62,8 @@ class Order(BaseSchema, table=True):
     __tablename__ = "order"
     customer_profile_id: int = Field(foreign_key="customerprofile.id", nullable=False, index=True)
     store_id: int = Field(foreign_key="store.id", nullable=False, index=True)
+    service_id: int = Field(foreign_key="service.id", nullable=False, index=True)
+    service_name_snapshot: str = Field(nullable=False)
     delivery_address_id: int = Field(foreign_key="address.id", nullable=False)
     status: OrderStatus = Field(default=OrderStatus.Pending, nullable=False, index=True)
     subtotal: float = Field(nullable=False)
