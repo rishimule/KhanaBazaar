@@ -129,6 +129,7 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     "order_id": order.id,
                     "order_total": order.total,
                     "order_status": order.status.value,
+                    "service_name": order.service_name_snapshot,
                     "store_name": store.name if store is not None else None,
                     "seller_email": seller_user.email if seller_user is not None else None,
                     "customer_email": customer_user.email if customer_user is not None else None,
@@ -151,9 +152,12 @@ def send_order_placed_seller_async(order_id: int) -> None:
     ctx = _load_order_email_context(order_id)
     if not ctx or not ctx.get("seller_email"):
         return
-    subject = f"New order received at {ctx.get('store_name') or 'your store'}"
+    subject = (
+        f"New {ctx['service_name']} order received at "
+        f"{ctx.get('store_name') or 'your store'}"
+    )
     body = (
-        f"You have a new order #{ctx['order_id']} for "
+        f"You have a new {ctx['service_name']} order #{ctx['order_id']} for "
         f"{ctx.get('store_name') or 'your store'}.\n"
         f"Order total: {ctx['order_total']}.\n"
         f"Please prepare it for packing."
@@ -182,8 +186,8 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
         if customer_email is None and ctx.get("customer_email"):
             customer_email = ctx["customer_email"]
         parts.append(
-            f"Order #{ctx['order_id']} from {ctx.get('store_name') or 'a store'} "
-            f"- total {ctx['order_total']}"
+            f"Order #{ctx['order_id']} · {ctx['service_name']} "
+            f"from {ctx.get('store_name') or 'a store'} - total {ctx['order_total']}"
         )
     if not customer_email or not parts:
         return
@@ -211,9 +215,11 @@ def send_order_status_changed_async(
         to = ctx.get("customer_email")
     if not to:
         return
-    subject = f"Order #{ctx['order_id']} status: {new_status}"
+    subject = (
+        f"Order #{ctx['order_id']} · {ctx['service_name']} status: {new_status}"
+    )
     body = (
-        f"Order #{ctx['order_id']} from "
+        f"Order #{ctx['order_id']} ({ctx['service_name']}) from "
         f"{ctx.get('store_name') or 'a store'} is now '{new_status}'."
     )
     _resolve_email(to, subject, body)
