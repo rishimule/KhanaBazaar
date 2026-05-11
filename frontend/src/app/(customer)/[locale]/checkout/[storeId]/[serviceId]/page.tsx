@@ -172,7 +172,7 @@ export default function CheckoutPage() {
                 <span className={styles.itemName}>{item.product_name}</span>
                 <span className={styles.itemQty}>× {item.quantity}</span>
                 <span className={styles.itemPrice}>
-                  ₹{item.price * item.quantity}
+                  ₹{(item.price * item.quantity).toFixed(2)}
                 </span>
               </li>
             ))}
