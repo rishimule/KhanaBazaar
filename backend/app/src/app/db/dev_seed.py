@@ -34,6 +34,18 @@ from app.models.store import Store, StoreInventory
 from app.services.profiles import split_full_name
 from app.utils.digipin import encode as digipin_encode
 
+from app.db._dev_seed_data import (
+    EXTRA_APPLICATIONS,
+    EXTRA_CATEGORIES,
+    EXTRA_CUSTOMERS,
+    EXTRA_PRODUCTS,
+    EXTRA_SERVICES,
+    EXTRA_STORE_OWNER_PROFILES,
+    EXTRA_STORES,
+    EXTRA_SUBCATEGORIES,
+    generate_extra_inventories,
+)
+
 LANGUAGES = [
     ("en", "English", "English"),
     ("hi", "Hindi", "हिन्दी"),
@@ -47,6 +59,7 @@ SERVICES: list[dict[str, Any]] = [
     {"slug": "electronics", "name": "Electronics", "description": "Gadgets, accessories, and home electronics"},
     {"slug": "pharmacy", "name": "Pharmacy", "description": "Medicines, wellness, and personal care"},
 ]
+SERVICES.extend(EXTRA_SERVICES)
 DEFAULT_SUBCATEGORY_SLUG = "_default"  # legacy, retained for catalog admin endpoints
 
 TEST_USERS: list[dict[str, Any]] = [
@@ -60,8 +73,21 @@ TEST_USERS: list[dict[str, Any]] = [
     {"email": "seller7@khanabazaar.dev", "display_name": "Anjali Gupta", "role": UserRole.Seller},
     {"email": "seller8@khanabazaar.dev", "display_name": "Suresh Reddy", "role": UserRole.Seller},
     {"email": "seller9@khanabazaar.dev", "display_name": "Pooja Bhatt", "role": UserRole.Seller},
-    {"email": "customer@khanabazaar.dev", "display_name": "Priya Verma", "role": UserRole.Customer},
 ]
+# Append extra sellers BEFORE customers so STORE_ITEMS can index TEST_USERS by
+# `seller_idx` (anchor stores use 1..9; generated stores use 10..90). Customers
+# come after all sellers — order matters for the index-based store→seller link.
+TEST_USERS.extend(
+    {"email": owner["email"], "display_name": owner["full_name"], "role": UserRole.Seller}
+    for owner in EXTRA_STORE_OWNER_PROFILES
+)
+TEST_USERS.append(
+    {"email": "customer@khanabazaar.dev", "display_name": "Priya Verma", "role": UserRole.Customer},
+)
+TEST_USERS.extend(
+    {"email": cust["email"], "display_name": cust["full_name"], "role": UserRole.Customer}
+    for cust in EXTRA_CUSTOMERS
+)
 
 ADMIN: dict[str, Any] = {
     "email": "admin@khanabazaar.dev",
@@ -128,6 +154,10 @@ CUSTOMER: dict[str, Any] = {
         },
     ],
 }
+
+# Full customer roster: anchor Priya Verma first (keeps her at the same email
+# the test suite asserts), then 9 generated customers.
+CUSTOMERS: list[dict[str, Any]] = [CUSTOMER, *EXTRA_CUSTOMERS]
 
 APPLICATIONS: list[dict[str, Any]] = [
     {
@@ -197,6 +227,7 @@ APPLICATIONS: list[dict[str, Any]] = [
         "rejection_reason": "GST number does not match business address on record. Please update and resubmit.",
     },
 ]
+APPLICATIONS.extend(EXTRA_APPLICATIONS)
 
 CATEGORIES: list[dict[str, Any]] = [
     # Grocery
@@ -212,6 +243,11 @@ CATEGORIES: list[dict[str, Any]] = [
     {"service_slug": "pharmacy", "slug": "personal-care", "name": "Personal Care", "description": "Oral care, skincare, and haircare essentials"},
     {"service_slug": "pharmacy", "slug": "wellness-nutrition", "name": "Wellness & Nutrition", "description": "Vitamins, protein powders, and herbal supplements"},
 ]
+# Strip helper-only fields from extra categories before merging; _upsert_category
+# only reads service_slug/slug/name/description.
+CATEGORIES.extend(
+    {k: v for k, v in cat.items() if k != "brand_pool"} for cat in EXTRA_CATEGORIES
+)
 
 SUBCATEGORIES: list[dict[str, Any]] = [
     # Grocery → Fruits & Vegetables
@@ -251,6 +287,11 @@ SUBCATEGORIES: list[dict[str, Any]] = [
     {"category_slug": "wellness-nutrition", "slug": "protein-powders", "name": "Protein Powders", "description": "Whey, mass gainers, and malt drinks"},
     {"category_slug": "wellness-nutrition", "slug": "herbal-supplements", "name": "Herbal Supplements", "description": "Ayurvedic tonics, chyawanprash, and herbal tablets"},
 ]
+# Strip helper-only fields (noun/variants/price_range) before merging.
+SUBCATEGORIES.extend(
+    {k: v for k, v in sub.items() if k in ("category_slug", "slug", "name", "description")}
+    for sub in EXTRA_SUBCATEGORIES
+)
 
 PRODUCTS: list[dict[str, Any]] = [
     # ----- Grocery → Fruits & Vegetables → Leafy Greens -----
@@ -416,6 +457,7 @@ PRODUCTS: list[dict[str, Any]] = [
     {"subcategory_slug": "herbal-supplements", "slug": "zandu-pancharishta-450ml", "name": "Zandu Pancharishta (450ml)", "description": "Ayurvedic digestive tonic", "image_url": "/images/products/pancharishta.jpg", "base_price": 195},
     {"subcategory_slug": "herbal-supplements", "slug": "baidyanath-shilajit-20g", "name": "Baidyanath Shilajit Gold (20g)", "description": "Premium pure shilajit resin", "image_url": "/images/products/shilajit.jpg", "base_price": 1299},
 ]
+PRODUCTS.extend(EXTRA_PRODUCTS)
 
 # All 9 stores anchored in Mumbai with real addresses + radii baked at
 # authoring time via `scripts/bake_mumbai_seed.py`. Existing names preserved
@@ -576,6 +618,7 @@ STORES: list[dict[str, Any]] = [
         "pin_confirmed": True,
     },
 ]
+STORES.extend(EXTRA_STORES)
 
 
 _ADDRESS_KEYS = (
@@ -1036,28 +1079,83 @@ STORE_OWNER_PROFILES: list[dict[str, Any]] = [
         **{key: _STORES_BY_NAME["Bhatt Care Pharmacy"][key] for key in _ADDRESS_KEYS},
     },
 ]
+# Merge extra owners with their matching store's address fields. EXTRA_STORE_OWNER_PROFILES
+# carries business_name == store["name"], so the join is by name. _STORES_BY_NAME now spans
+# all 90 stores because STORES was extended before this dict was built.
+STORE_OWNER_PROFILES.extend(
+    {
+        **owner,
+        **{key: _STORES_BY_NAME[owner["business_name"]][key] for key in _ADDRESS_KEYS},
+    }
+    for owner in EXTRA_STORE_OWNER_PROFILES
+)
 
-EXPECTED_FULL_COUNTS = {
-    "users": 14,
-    "language": 5,
-    "customerprofile": 1,
-    "customeraddress": 5,
-    "adminprofile": 1,
-    "sellerprofile": 12,
-    "sellerprofile_service": 15,
-    # 21 prior addresses + 5 new customer addresses = 26.
-    "address": 26,
-    "service": 3,
-    "service_translation": 3,
-    "category": 9,
-    "category_translation": 9,
-    "subcategory": 27,
-    "subcategory_translation": 27,
-    "masterproduct": 135,
-    "masterproduct_translation": 135,
-    "store": 9,
-    "storeinventory": 237,
-}
+# Generate inventory rows for the 81 extra stores. Each store gets 30–50 SKUs
+# sampled from its services, with ±20% price jitter and ~8% out-of-stock for
+# QA coverage. Anchor stores live at indices 0..8; extras at 9..89.
+INVENTORIES.extend(
+    generate_extra_inventories(
+        all_services=SERVICES,
+        all_categories=CATEGORIES,
+        all_subcategories=SUBCATEGORIES,
+        all_products=PRODUCTS,
+        anchor_store_count=9,
+    )
+)
+# Rebuild INVENTORY_ITEMS to reflect the merged INVENTORIES list. (The earlier
+# comprehension fired before extension, so we replace it with a fresh build.)
+INVENTORY_ITEMS = [
+    {
+        "store_name": STORES[store_idx]["name"],
+        "product_slug": product_slug,
+        "price": price,
+        "stock": stock,
+    }
+    for store_idx, product_slug, price, stock in INVENTORIES
+]
+
+
+def _compute_expected_counts() -> dict[str, int]:
+    """Derive expected counts from the merged module-level data. Keeps the
+    EXPECTED_FULL_COUNTS dict honest if extra-data generation ever shifts
+    (e.g., new neighborhood entries, different RNG seed)."""
+    customer_address_count = sum(len(c.get("addresses", [])) for c in CUSTOMERS)
+    # Each store + customer-address + seller-profile (owner) + application carries 1 Address row.
+    address_count = (
+        len(STORES)
+        + customer_address_count
+        + len(STORE_OWNER_PROFILES)
+        + len(APPLICATIONS)
+    )
+    # SellerProfileService links: sum of len(service_slugs) across owners + applications.
+    seller_service_links = sum(len(p["service_slugs"]) for p in STORE_OWNER_PROFILES) + sum(
+        len(a["service_slugs"]) for a in APPLICATIONS
+    )
+    # Users: TEST_USERS roster (admin + sellers + customers) + APPLICATIONS sellers.
+    user_count = len(TEST_USERS) + len(APPLICATIONS)
+    return {
+        "users": user_count,
+        "language": len(LANGUAGES),
+        "customerprofile": len(CUSTOMERS),
+        "customeraddress": customer_address_count,
+        "adminprofile": 1,
+        "sellerprofile": len(STORE_OWNER_PROFILES) + len(APPLICATIONS),
+        "sellerprofile_service": seller_service_links,
+        "address": address_count,
+        "service": len(SERVICES),
+        "service_translation": len(SERVICES),
+        "category": len(CATEGORIES),
+        "category_translation": len(CATEGORIES),
+        "subcategory": len(SUBCATEGORIES),
+        "subcategory_translation": len(SUBCATEGORIES),
+        "masterproduct": len(PRODUCTS),
+        "masterproduct_translation": len(PRODUCTS),
+        "store": len(STORES),
+        "storeinventory": len(INVENTORIES),
+    }
+
+
+EXPECTED_FULL_COUNTS = _compute_expected_counts()
 
 
 def get_canonical_login_email_rows() -> list[tuple[str, str]]:
@@ -1526,12 +1624,13 @@ async def seed_demo_data(session: AsyncSession) -> None:
         users_by_email[user.email] = user
 
     await _upsert_admin_profile(session, users_by_email[ADMIN["email"]], ADMIN)
-    customer_profile = await _upsert_customer_profile(
-        session, users_by_email[CUSTOMER["email"]], CUSTOMER
-    )
-    await _upsert_customer_addresses(
-        session, customer_profile, CUSTOMER.get("addresses", []),
-    )
+    for customer_data in CUSTOMERS:
+        customer_profile = await _upsert_customer_profile(
+            session, users_by_email[customer_data["email"]], customer_data
+        )
+        await _upsert_customer_addresses(
+            session, customer_profile, customer_data.get("addresses", []),
+        )
 
     services_by_slug: dict[str, Service] = {}
     for sort_order, service_data in enumerate(SERVICES):
