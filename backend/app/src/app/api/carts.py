@@ -395,16 +395,19 @@ async def delete_cart_item(
     return Response(status_code=204)
 
 
-@router.delete("/{store_id}", status_code=204)
-async def clear_store_cart(
+@router.delete("/{store_id}/{service_id}", status_code=204)
+async def clear_sub_basket_cart(
     store_id: int,
+    service_id: int,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
 ) -> Response:
     profile_id = await _customer_profile_id(session, user)
     cart_result = await session.exec(
         select(Cart).where(
-            Cart.customer_profile_id == profile_id, Cart.store_id == store_id
+            Cart.customer_profile_id == profile_id,
+            Cart.store_id == store_id,
+            Cart.service_id == service_id,
         )
     )
     cart = cart_result.first()
