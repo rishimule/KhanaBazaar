@@ -74,24 +74,26 @@ export default function AddressPicker({
   useEffect(() => {
     if (storeId === undefined || addresses.length === 0) return;
     let cancelled = false;
-    (async () => {
-      const map: Record<number, boolean> = {};
-      for (const a of addresses) {
-        if (a.address.latitude == null || a.address.longitude == null) {
-          map[a.id] = false;
-          continue;
-        }
-        try {
-          const r = await checkServiceability(
-            a.address.latitude, a.address.longitude, storeId,
-          );
-          map[a.id] = r.serviceable;
-        } catch {
-          map[a.id] = false;
-        }
+
+    const checks = addresses.map(async (a) => {
+      if (a.address.latitude == null || a.address.longitude == null) {
+        return [a.id, false] as const;
       }
-      if (!cancelled) setServiceability(map);
-    })();
+      try {
+        const r = await checkServiceability(
+          a.address.latitude, a.address.longitude, storeId,
+        );
+        return [a.id, r.serviceable] as const;
+      } catch {
+        return [a.id, false] as const;
+      }
+    });
+
+    Promise.all(checks).then((entries) => {
+      if (cancelled) return;
+      setServiceability(Object.fromEntries(entries));
+    });
+
     return () => { cancelled = true; };
   }, [addresses, storeId]);
 
