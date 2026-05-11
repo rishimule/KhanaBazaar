@@ -105,11 +105,80 @@ async def _validate_stores_active(
             raise HTTPException(status_code=409, detail={"detail": "store_unavailable", "store_id": store_id})
 
 
+async def _validate_service_active_for_store(
+    session: AsyncSession, store_id: int, service_id: int
+) -> None:
+    """Raise 409 service_unavailable if seller no longer offers `service_id`
+    or if `Service.is_active` is false."""
+    from app.models.catalog import Service
+    from app.models.profile import SellerProfile, SellerProfileService
+
+    row = (
+        await session.exec(
+            select(SellerProfileService.id)
+            .join(
+                SellerProfile,
+                SellerProfile.id == SellerProfileService.seller_profile_id,  # type: ignore[arg-type]
+            )
+            .join(
+                Store,
+                Store.seller_profile_id == SellerProfile.id,  # type: ignore[arg-type]
+            )
+            .where(
+                Store.id == store_id,
+                SellerProfileService.service_id == service_id,
+            )
+        )
+    ).first()
+    active = (
+        await session.exec(select(Service.is_active).where(Service.id == service_id))
+    ).first()
+    if row is None or active is not True:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "detail": "service_unavailable",
+                "store_id": store_id,
+                "service_id": service_id,
+            },
+        )
+
+
+async def _assert_locked_inventory_matches_service(
+    session: AsyncSession, locked_inv_ids: list[int], service_id: int
+) -> None:
+    """After lock, assert every locked inventory's product resolves to
+    `service_id` via subcategory→category. Drift since add-to-cart raises
+    409 service_mismatch with the first offending inventory_id."""
+    from app.models.catalog import Category, Subcategory
+
+    rows = (
+        await session.exec(
+            select(StoreInventory.id, Category.service_id)
+            .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+            .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
+            .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+            .where(StoreInventory.id.in_(locked_inv_ids))  # type: ignore[union-attr]
+        )
+    ).all()
+    for inv_id, resolved in rows:
+        if resolved != service_id:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "detail": "service_mismatch",
+                    "inventory_id": inv_id,
+                    "service_id": service_id,
+                },
+            )
+
+
 def _build_order_for_cart(
     *, profile_id: int, address_id: int, address_snapshot: str,
     cart: Cart, items: list[CartItem],
     inv_by_id: dict[int, StoreInventory], name_by_inv: dict[int, str],
     payment_method: PaymentMethod,
+    service_id: int, service_name_snapshot: str,
 ) -> tuple[Order, list[OrderItem], Payment, Delivery]:
     """Pure builder. Returns the rows to add and computes the line decrements
     via inv_by_id. Caller does session.add + decrement_stock."""
@@ -118,6 +187,8 @@ def _build_order_for_cart(
     order = Order(
         customer_profile_id=profile_id,
         store_id=cart.store_id,
+        service_id=service_id,
+        service_name_snapshot=service_name_snapshot,
         delivery_address_id=address_id,
         delivery_address_snapshot=address_snapshot,
         status=OrderStatus.Pending,
@@ -167,16 +238,19 @@ async def _resolve_address(
     return address.id, format_address(address_to_payload(address))
 
 
-async def _load_cart_for_store(
-    session: AsyncSession, customer_profile_id: int, store_id: int
+async def _load_cart_for_sub_basket(
+    session: AsyncSession,
+    customer_profile_id: int,
+    store_id: int,
+    service_id: int,
 ) -> tuple[Cart, list[CartItem]]:
-    """Return (cart, items) for the customer's cart at this store. Raises
-    404 cart_not_found if the customer has no cart row for store_id; 400
-    cart_empty if the cart exists but has zero items."""
+    """Return (cart, items) for the customer's (store, service) sub-basket.
+    Raises 404 cart_not_found if no row; 400 cart_empty if items list is empty."""
     cart_result = await session.exec(
         select(Cart).where(
             Cart.customer_profile_id == customer_profile_id,
             Cart.store_id == store_id,
+            Cart.service_id == service_id,
         )
     )
     cart = cart_result.first()
@@ -217,11 +291,37 @@ async def _snapshot_product_names(
     }
 
 
-async def place_order_for_store(
+async def _snapshot_service_name(
+    session: AsyncSession, service_id: int
+) -> str:
+    """English service name; falls back to slug when no `en` translation."""
+    from app.models.catalog import Service, ServiceTranslation
+
+    row = (
+        await session.exec(
+            select(Service.slug, ServiceTranslation.name)
+            .outerjoin(
+                ServiceTranslation,
+                and_(
+                    ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+                    ServiceTranslation.language_code == "en",  # type: ignore[arg-type]
+                ),
+            )
+            .where(Service.id == service_id)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="service_not_found")
+    slug, name = row
+    return name or slug
+
+
+async def place_order_for_sub_basket(
     session: AsyncSession,
     user: User,
     customer_address_id: int,
     store_id: int,
+    service_id: int,
     payment_method: PaymentMethod,
 ) -> Order:
     profile = await _customer_profile(session, user)
@@ -231,7 +331,11 @@ async def place_order_for_store(
         session, customer_address_id, profile.id
     )
 
-    cart, cart_items = await _load_cart_for_store(session, profile.id, store_id)
+    await _validate_service_active_for_store(session, store_id, service_id)
+
+    cart, cart_items = await _load_cart_for_sub_basket(
+        session, profile.id, store_id, service_id
+    )
 
     await _assert_serviceable(session, store_id=store_id, address_id=address_id)
 
@@ -243,14 +347,17 @@ async def place_order_for_store(
 
     _validate_inventory_availability(cart_items, inv_by_id)
     await _validate_stores_active(session, [store_id])
+    await _assert_locked_inventory_matches_service(session, inv_ids, service_id)
 
     name_by_inv = await _snapshot_product_names(session, inv_ids)
+    service_name_snapshot = await _snapshot_service_name(session, service_id)
 
     order, order_items, payment, delivery = _build_order_for_cart(
         profile_id=profile.id, address_id=address_id,
         address_snapshot=address_snapshot, cart=cart, items=cart_items,
         inv_by_id=inv_by_id, name_by_inv=name_by_inv,
         payment_method=payment_method,
+        service_id=service_id, service_name_snapshot=service_name_snapshot,
     )
     session.add(order)
     await session.flush()
@@ -258,8 +365,6 @@ async def place_order_for_store(
     for oi in order_items:
         oi.order_id = order.id
         session.add(oi)
-        # Mutate the locked ORM instance — unit-of-work flushes the change
-        # while the row lock is still held by this transaction.
         assert oi.inventory_id is not None
         decrement_stock(inv_by_id[oi.inventory_id], oi.quantity)
     payment.order_id = order.id
@@ -267,7 +372,6 @@ async def place_order_for_store(
     session.add(payment)
     session.add(delivery)
 
-    # Clear only this store's cart (items first to satisfy the FK).
     for item in cart_items:
         await session.delete(item)
     await session.flush()
