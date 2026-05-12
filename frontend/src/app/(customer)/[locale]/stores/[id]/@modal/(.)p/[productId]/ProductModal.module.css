@@ -1,0 +1,49 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  padding: 24px;
+}
+.sheet {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-surface, #fff);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
+}
+.close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--color-text-muted, #71717a);
+}
+.close:hover {
+  background: var(--shade-cool-light-2, #f4f4f5);
+  color: var(--color-text-strong, #18181b);
+}
+@media (max-width: 720px) {
+  .backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .sheet {
+    border-radius: 16px 16px 0 0;
+    max-height: 95vh;
+    padding: 20px;
+  }
+}
