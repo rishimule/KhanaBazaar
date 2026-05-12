@@ -259,7 +259,14 @@
     "inStock": "स्टॉक में",
     "addToCart": "कार्ट में जोड़ें",
     "decreaseQty": "मात्रा कम करें",
-    "increaseQty": "मात्रा बढ़ाएँ"
+    "increaseQty": "मात्रा बढ़ाएँ",
+    "description": "विवरण",
+    "reviewsComingSoon": "समीक्षाएँ जल्द आ रही हैं",
+    "reviewsPlaceholder": "{storeName} पर इस उत्पाद की समीक्षा करने वाले पहले व्यक्ति बनें।",
+    "backToStore": "दुकान पर वापस",
+    "unavailable": "अभी उपलब्ध नहीं",
+    "closeModal": "बंद करें",
+    "loadError": "यह उत्पाद लोड नहीं हो सका।"
   },
   "Address": {
     "line1Label": "पता पंक्ति 1",

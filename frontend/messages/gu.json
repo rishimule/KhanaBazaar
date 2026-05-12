@@ -259,7 +259,14 @@
     "inStock": "સ્ટોકમાં",
     "addToCart": "કાર્ટમાં ઉમેરો",
     "decreaseQty": "જથ્થો ઘટાડો",
-    "increaseQty": "જથ્થો વધારો"
+    "increaseQty": "જથ્થો વધારો",
+    "description": "વર્ણન",
+    "reviewsComingSoon": "સમીક્ષાઓ ટૂંક સમયમાં",
+    "reviewsPlaceholder": "{storeName} પર આ ઉત્પાદનની સમીક્ષા કરનાર પ્રથમ બનો.",
+    "backToStore": "સ્ટોર પર પાછા",
+    "unavailable": "હાલમાં ઉપલબ્ધ નથી",
+    "closeModal": "બંધ કરો",
+    "loadError": "આ ઉત્પાદન લોડ થઈ શક્યું નહીં."
   },
   "Address": {
     "line1Label": "સરનામું લાઇન 1",

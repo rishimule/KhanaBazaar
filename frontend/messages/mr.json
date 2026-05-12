@@ -259,7 +259,14 @@
     "inStock": "साठ्यात",
     "addToCart": "कार्टमध्ये जोडा",
     "decreaseQty": "प्रमाण कमी करा",
-    "increaseQty": "प्रमाण वाढवा"
+    "increaseQty": "प्रमाण वाढवा",
+    "description": "वर्णन",
+    "reviewsComingSoon": "पुनरावलोकने लवकरच",
+    "reviewsPlaceholder": "{storeName} वर या उत्पादाची समीक्षा करणारे पहिले व्हा.",
+    "backToStore": "दुकानात परत",
+    "unavailable": "सध्या उपलब्ध नाही",
+    "closeModal": "बंद करा",
+    "loadError": "हे उत्पाद लोड होऊ शकले नाही."
   },
   "Address": {
     "line1Label": "पत्ता ओळ 1",
