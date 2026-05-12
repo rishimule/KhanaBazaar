@@ -3,7 +3,8 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import { InventoryWithProduct } from "@/types";
@@ -43,11 +44,14 @@ export default function ProductCard({
   item, storeId, storeName, serviceId, serviceName,
 }: Props) {
   const t = useTranslations("Product");
+  const locale = useLocale();
   const { carts, addItem, removeItem, updateQty } = useCart();
   const { dbUser } = useAuth();
   const { product, price, stock } = item;
   const [wishlist, setWishlist] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+
+  const productHref = `/${locale}/stores/${storeId}/p/${product.id}`;
 
   const role = dbUser?.role;
   const canShop = !role || role === "customer";
@@ -84,39 +88,44 @@ export default function ProductCard({
 
   return (
     <div className={styles.card}>
-      <div className={styles.imageWrap} style={{ background: accent }}>
-        {showImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={product.image_url}
-            alt={product.name}
-            loading="lazy"
-            decoding="async"
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <span className={styles.imagePlaceholder} aria-hidden>{glyph}</span>
-        )}
-        {stock === 0 && (
-          <div className={styles.badges}>
-            <span className="badge badge--neutral">SOLD OUT</span>
-          </div>
-        )}
-        {canShop && (
-          <button
-            type="button"
-            className={`${styles.heart} ${wishlist ? styles.heartActive : ""}`}
-            onClick={() => setWishlist((v) => !v)}
-            aria-label="Toggle wishlist"
-            aria-pressed={wishlist}
-          >
-            <HeartIcon filled={wishlist} />
-          </button>
-        )}
-      </div>
+      <Link href={productHref} prefetch className={styles.imageLink}>
+        <div className={styles.imageWrap} style={{ background: accent }}>
+          {showImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={product.image_url}
+              alt={product.name}
+              loading="lazy"
+              decoding="async"
+              onError={() => setImgFailed(true)}
+            />
+          ) : (
+            <span className={styles.imagePlaceholder} aria-hidden>{glyph}</span>
+          )}
+          {stock === 0 && (
+            <div className={styles.badges}>
+              <span className="badge badge--neutral">SOLD OUT</span>
+            </div>
+          )}
+        </div>
+      </Link>
+
+      {canShop && (
+        <button
+          type="button"
+          className={`${styles.heart} ${wishlist ? styles.heartActive : ""}`}
+          onClick={() => setWishlist((v) => !v)}
+          aria-label="Toggle wishlist"
+          aria-pressed={wishlist}
+        >
+          <HeartIcon filled={wishlist} />
+        </button>
+      )}
 
       <div className={styles.meta}>
-        <div className={styles.name}>{product.name}</div>
+        <Link href={productHref} prefetch className={styles.nameLink}>
+          <div className={styles.name}>{product.name}</div>
+        </Link>
         <div className={styles.priceRow}>
           <span className={styles.price}>
             ₹{Number(price).toFixed(2)}
