@@ -1,0 +1,17 @@
+.panel {
+  border: 1px dashed var(--color-border, #d4d4d8);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--shade-cool-light-2, #fafafa);
+}
+.title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-strong, #18181b);
+}
+.body {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted, #71717a);
+}
