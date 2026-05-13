@@ -294,3 +294,22 @@ def test_extra_products_use_cdn_image_urls() -> None:
         assert url in CATEGORY_IMAGE_POOLS[cat_slug], (
             f"extra product {product['slug']} url not in pool for {cat_slug}: {url}"
         )
+
+
+def test_anchor_products_use_cdn_image_urls() -> None:
+    """Every anchor product must have a non-empty CDN URL drawn from its parent
+    category's image pool. Anchor products are the 135 hand-curated entries in
+    PRODUCTS (everything before EXTRA_PRODUCTS gets appended)."""
+    from app.db._dev_seed_data import CATEGORY_IMAGE_POOLS, EXTRA_PRODUCTS
+    from app.db.dev_seed import PRODUCTS, SUBCATEGORIES
+
+    sub_to_cat = {sub["slug"]: sub["category_slug"] for sub in SUBCATEGORIES}
+    anchor_count = len(PRODUCTS) - len(EXTRA_PRODUCTS)
+    assert anchor_count == 135, f"expected 135 anchor products, got {anchor_count}"
+    for product in PRODUCTS[:anchor_count]:
+        url = product["image_url"]
+        assert url.startswith("http"), f"anchor product {product['slug']} has non-http url: {url}"
+        cat_slug = sub_to_cat[product["subcategory_slug"]]
+        assert url in CATEGORY_IMAGE_POOLS[cat_slug], (
+            f"anchor product {product['slug']} url not in pool for {cat_slug}: {url}"
+        )
