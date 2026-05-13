@@ -13,6 +13,15 @@
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Server-side fetches (RSC, route handlers) can't use Next.js rewrites — they
+// need an absolute URL. INTERNAL_API_URL is the in-cluster/in-host backend URL
+// used only on the server. Falls back to NEXT_PUBLIC_API_URL when that is
+// already absolute, otherwise localhost:8000 for local dev.
+const INTERNAL_API_BASE =
+  process.env.INTERNAL_API_URL ||
+  (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.startsWith("http")
+    ? process.env.NEXT_PUBLIC_API_URL
+    : "http://localhost:8000");
 const SUPPORTED_LOCALES = new Set(["en", "hi", "mr", "gu", "pa"]);
 const DEFAULT_LOCALE = "en";
 const COOKIE_NAME = "NEXT_LOCALE";
@@ -76,7 +85,8 @@ async function buildRequest(
   options: RequestInit = {},
   token?: string | null
 ): Promise<[string, RequestInit]> {
-  const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  const base = typeof window === "undefined" ? INTERNAL_API_BASE : API_BASE;
+  const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
   const locale = await resolveLocale();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
