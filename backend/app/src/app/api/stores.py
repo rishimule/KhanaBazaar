@@ -14,7 +14,16 @@ from app.core.security import get_current_seller
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.catalog import MasterProduct
+from app.models.catalog import (
+    Category,
+    CategoryTranslation,
+    MasterProduct,
+    MasterProductTranslation,
+    Service,
+    ServiceTranslation,
+    Subcategory,
+    SubcategoryTranslation,
+)
 from app.models.profile import SellerProfile
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_from_payload, address_to_payload
@@ -23,6 +32,14 @@ from app.schemas.inventory import (
     BulkInventoryItem,
     BulkInventoryRequest,
 )
+from app.schemas.store_product_detail import (
+    BreadcrumbPayload,
+    InventoryWithProductPayload,
+    MasterProductPayload,
+    ServiceLite,
+    StoreProductDetailResponse,
+    StoreSummary,
+)
 from app.schemas.storefront import StorefrontResponse
 from app.schemas.stores import StoreCreate, StoreRead, StoreUpdate
 from app.services.inventory import (
@@ -30,7 +47,7 @@ from app.services.inventory import (
     bulk_upsert_inventory,
 )
 from app.services.seller_services import list_profile_services
-from app.services.storefront import build_storefront
+from app.services.storefront import _translation_map, build_storefront
 
 _BULK_ROW_LIMIT = 200
 
@@ -294,6 +311,100 @@ async def get_store_storefront(
     store_read = await _store_read(session, store, lang)
     assert store.id is not None
     return await build_storefront(session, store_read, store.id, lang)
+
+
+@router.get(
+    "/{store_id}/products/{product_id}",
+    response_model=StoreProductDetailResponse,
+)
+async def get_store_product_detail(
+    store_id: int,
+    product_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
+) -> StoreProductDetailResponse:
+    """Per-store product detail. Powers the intercepted modal and the
+    shareable full page. 404 when the store is unknown/inactive, or when
+    the product is not stocked at this store. `is_available=false` and
+    `stock=0` are still returned (frontend disables the CTA).
+    """
+    store = await session.get(Store, store_id)
+    if store is None or not store.is_active:
+        raise HTTPException(status_code=404, detail="Product not found at this store")
+
+    join_stmt = (
+        select(  # type: ignore[call-overload]
+            StoreInventory, MasterProduct, Subcategory, Category, Service,
+        )
+        .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)
+        .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)
+        .join(Category, Category.id == Subcategory.category_id)
+        .join(Service, Service.id == Category.service_id)
+        .where(
+            StoreInventory.store_id == store_id,
+            StoreInventory.product_id == product_id,
+        )
+    )
+    row = (await session.exec(join_stmt)).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Product not found at this store")
+
+    inv, product, sub, cat, svc = row
+    assert inv.id is not None
+    assert product.id is not None
+    assert sub.id is not None
+    assert cat.id is not None
+    assert svc.id is not None
+    assert store.id is not None
+
+    product_t = await _translation_map(
+        session, MasterProductTranslation, "master_product_id", [product.id], lang,
+    )
+    sub_t = await _translation_map(
+        session, SubcategoryTranslation, "subcategory_id", [sub.id], lang,
+    )
+    cat_t = await _translation_map(
+        session, CategoryTranslation, "category_id", [cat.id], lang,
+    )
+    svc_t = await _translation_map(
+        session, ServiceTranslation, "service_id", [svc.id], lang,
+    )
+
+    product_translation = product_t.get(product.id)
+    service_name = getattr(svc_t.get(svc.id), "name", None) or svc.slug
+    category_name = getattr(cat_t.get(cat.id), "name", None) or cat.slug
+    subcategory_name = getattr(sub_t.get(sub.id), "name", None) or sub.slug
+
+    return StoreProductDetailResponse(
+        store=StoreSummary(id=store.id, name=store.name),
+        service=ServiceLite(id=svc.id, name=service_name),
+        inventory=InventoryWithProductPayload(
+            id=inv.id,
+            store_id=inv.store_id,
+            product_id=inv.product_id,
+            price=float(inv.price),
+            stock=inv.stock,
+            is_available=inv.is_available,
+            product=MasterProductPayload(
+                id=product.id,
+                name=getattr(product_translation, "name", None) or product.slug,
+                description=getattr(product_translation, "description", None) or "",
+                image_url=product.image_url,
+                category_id=cat.id,
+                subcategory_id=sub.id,
+                subcategory_name=subcategory_name,
+                base_price=float(product.base_price),
+            ),
+        ),
+        breadcrumb=BreadcrumbPayload(
+            service_id=svc.id,
+            service_name=service_name,
+            category_id=cat.id,
+            category_name=category_name,
+            subcategory_id=sub.id,
+            subcategory_name=subcategory_name,
+        ),
+    )
 
 
 @router.get("/{store_id}/inventory/all", response_model=List[StoreInventory])
