@@ -27,6 +27,147 @@ _RNG = random.Random(42)
 
 
 # ---------------------------------------------------------------------------
+# PRODUCT IMAGE POOLS (3 themed CDN URLs per category)
+# LoremFlickr is Flickr-backed; URLs are stable for fixed (keyword, lock) pairs
+# and require no API key. ProductCard already shows a graceful fallback on
+# image-load failure, so transient CDN blips degrade gracefully.
+# ---------------------------------------------------------------------------
+_CATEGORY_IMAGE_KEYWORDS: dict[str, str] = {
+    # Grocery
+    "fruits-vegetables": "fruits,vegetables",
+    "dairy-bakery": "dairy,bakery",
+    "staples-grains": "rice,flour,grains",
+    "beverages": "beverage,drink",
+    "snacks": "snacks,chips",
+    "frozen-foods": "frozen,food",
+    "breakfast-cereals": "cereal,breakfast",
+    "condiments-spices": "spices,sauce",
+    "sweets-desserts": "dessert,sweets",
+    "ready-to-eat": "ready,meal",
+    # Electronics
+    "laptops-computers": "laptop,computer",
+    "mobiles-tablets": "smartphone,tablet",
+    "audio-accessories": "headphones,audio",
+    "cameras": "camera,photography",
+    "gaming": "gaming,console",
+    "tv-entertainment": "television,tv",
+    "computer-accessories": "keyboard,mouse",
+    "smart-home": "smart,home",
+    "networking": "router,network",
+    "kitchen-electronics": "kitchen,appliance",
+    # Pharmacy
+    "medicines": "medicine,pharmacy",
+    "personal-care": "skincare,personal",
+    "wellness-nutrition": "vitamins,wellness",
+    "baby-care": "baby,care",
+    "womens-health": "womens,health",
+    "mens-grooming": "men,grooming",
+    "ayurveda": "ayurveda,herbs",
+    "first-aid": "first,aid",
+    "medical-devices": "medical,device",
+    "eye-ear-care": "eye,ear",
+    # Food
+    "north-indian": "indian,curry",
+    "south-indian": "dosa,idli",
+    "chinese": "chinese,noodles",
+    "italian-pizza": "pasta,pizza",
+    "fast-food": "burger,fries",
+    "biryani-rice": "biryani,rice",
+    "desserts-sweets": "dessert,cake",
+    "beverages-juices": "juice,coffee",
+    # Bakery
+    "cakes": "cake,bakery",
+    "pastries": "pastry,bakery",
+    "cookies-biscuits": "cookies,biscuits",
+    "breads-rolls": "bread,rolls",
+    "savouries-puffs": "puff,croissant",
+    "donuts": "donut,pastry",
+    "breakfast-bakes": "muffin,breakfast",
+    "festive-cakes": "celebration,cake",
+    # Meat & Seafood
+    "chicken": "chicken,meat",
+    "mutton": "mutton,meat",
+    "fish": "fish,seafood",
+    "prawns-shellfish": "prawns,shrimp",
+    "eggs": "eggs,carton",
+    "processed-meats": "sausage,bacon",
+    "marinated-cuts": "marinated,bbq",
+    "exotic-meats": "duck,exotic",
+    # Beauty
+    "makeup": "makeup,cosmetics",
+    "fragrances": "perfume,fragrance",
+    "premium-skincare": "skincare,beauty",
+    "mens-skincare": "men,grooming",
+    "hair-styling": "salon,hair",
+    "nail-care": "nails,polish",
+    "bath-body": "bath,body",
+    "ethnic-bridal": "bridal,jewellery",
+    "mom-baby-beauty": "baby,skincare",
+    "dermatologist": "dermatology,skin",
+    # Stationery
+    "notebooks": "notebook,diary",
+    "pens-pencils": "pen,pencil",
+    "school-bags": "backpack,school",
+    "art-supplies": "art,paint",
+    "office-supplies": "office,supplies",
+    "fiction-books": "books,novel",
+    "non-fiction": "books,library",
+    "textbooks-academic": "textbook,study",
+    "kids-learning": "kids,toys",
+    "exam-prep": "study,books",
+    # Pet
+    "dog-food": "dog,food",
+    "cat-food": "cat,food",
+    "fish-aquarium": "aquarium,fish",
+    "bird-supplies": "bird,cage",
+    "pet-grooming": "pet,grooming",
+    "pet-toys": "pet,toy",
+    "pet-medicines": "pet,veterinary",
+    "pet-accessories": "pet,accessory",
+    # Home & Kitchen
+    "cookware": "cookware,pan",
+    "dinnerware": "plates,tableware",
+    "storage-containers": "storage,container",
+    "small-appliances": "appliance,kitchen",
+    "cleaning": "cleaning,broom",
+    "home-decor": "decor,interior",
+    "bedding": "bedroom,linen",
+    "bath-essentials": "bathroom,towel",
+    "kitchen-tools": "utensils,kitchen",
+    "lighting-fixtures": "lamp,lighting",
+    # Flowers & Plants
+    "bouquets": "bouquet,flowers",
+    "indoor-plants": "plant,indoor",
+    "gardening": "garden,tools",
+    "occasion-arrangements": "wedding,flowers",
+    # Sports & Fitness
+    "gym-equipment": "gym,equipment",
+    "sports-gear": "sports,equipment",
+    "fitness-wearables": "fitness,watch",
+    "athletic-wear": "athletic,clothing",
+}
+
+
+def _build_image_pool(keyword: str) -> list[str]:
+    """3 LoremFlickr URLs sharing a keyword but with different `lock` seeds so each
+    one resolves to a different stable photo."""
+    return [f"https://loremflickr.com/400/400/{keyword}?lock={n}" for n in (1, 2, 3)]
+
+
+CATEGORY_IMAGE_POOLS: dict[str, list[str]] = {
+    slug: _build_image_pool(keyword) for slug, keyword in _CATEGORY_IMAGE_KEYWORDS.items()
+}
+
+
+def _image_for(category_slug: str, index: int) -> str:
+    """Round-robin pick from the category's image pool. Fail loud on missing
+    coverage so seed runs surface gaps immediately."""
+    pool = CATEGORY_IMAGE_POOLS[category_slug]
+    assert pool, f"empty image pool for category {category_slug}"
+    return pool[index % len(pool)]
+
+
+# ---------------------------------------------------------------------------
 # EXTRA SERVICES (9 → SERVICES total 12)
 # ---------------------------------------------------------------------------
 EXTRA_SERVICES: list[dict[str, Any]] = [

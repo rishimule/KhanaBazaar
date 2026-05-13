@@ -258,3 +258,23 @@ async def test_seed_seller_application_subset_creates_only_review_rows(
     assert statuses["rejected.seller@khanabazaar.dev"] == VerificationStatus.Rejected
     # Total profiles match the application roster.
     assert len(statuses) == len(APPLICATIONS)
+
+
+def test_category_image_pools_cover_every_category() -> None:
+    """Every category slug used in CATEGORIES must have a non-empty image pool."""
+    from app.db._dev_seed_data import CATEGORY_IMAGE_POOLS, _image_for
+    from app.db.dev_seed import CATEGORIES
+
+    for cat in CATEGORIES:
+        slug = cat["slug"]
+        assert slug in CATEGORY_IMAGE_POOLS, f"missing pool for category {slug}"
+        pool = CATEGORY_IMAGE_POOLS[slug]
+        assert isinstance(pool, list) and len(pool) >= 2, f"pool for {slug} must have >= 2 URLs, got {pool}"
+        for url in pool:
+            assert url.startswith("http"), f"non-http url in pool {slug}: {url}"
+
+    sample_slug = next(iter(CATEGORY_IMAGE_POOLS))
+    pool = CATEGORY_IMAGE_POOLS[sample_slug]
+    assert _image_for(sample_slug, 0) == pool[0]
+    assert _image_for(sample_slug, 1) == pool[1 % len(pool)]
+    assert _image_for(sample_slug, len(pool)) == pool[0]
