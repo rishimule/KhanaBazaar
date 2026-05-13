@@ -127,6 +127,36 @@ export interface InventoryWithProduct extends StoreInventory {
   product: MasterProduct;
 }
 
+/** Lightweight store summary returned by the product detail endpoint. */
+export interface StoreSummary {
+  id: number;
+  name: string;
+}
+
+/** Lightweight service summary returned by the product detail endpoint. */
+export interface ServiceLite {
+  id: number;
+  name: string;
+}
+
+/** Localized breadcrumb returned alongside the product detail payload. */
+export interface StoreProductBreadcrumb {
+  service_id: number;
+  service_name: string;
+  category_id: number;
+  category_name: string;
+  subcategory_id: number;
+  subcategory_name: string;
+}
+
+/** Full payload from GET /api/v1/stores/{store_id}/products/{product_id}. */
+export interface StoreProductDetail {
+  store: StoreSummary;
+  service: ServiceLite;
+  inventory: InventoryWithProduct;
+  breadcrumb: StoreProductBreadcrumb;
+}
+
 /* ------------------------------------------------------------------
  * Storefront tree (server-aggregated; see GET /stores/{id}/storefront).
  * Flat lists were retired in favour of this shape so the store-detail

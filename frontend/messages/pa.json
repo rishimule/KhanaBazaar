@@ -259,7 +259,14 @@
     "inStock": "ਸਟਾਕ ਵਿੱਚ",
     "addToCart": "ਕਾਰਟ ਵਿੱਚ ਜੋੜੋ",
     "decreaseQty": "ਮਾਤਰਾ ਘਟਾਓ",
-    "increaseQty": "ਮਾਤਰਾ ਵਧਾਓ"
+    "increaseQty": "ਮਾਤਰਾ ਵਧਾਓ",
+    "description": "ਵੇਰਵਾ",
+    "reviewsComingSoon": "ਸਮੀਖਿਆਵਾਂ ਜਲਦੀ",
+    "reviewsPlaceholder": "{storeName} 'ਤੇ ਇਸ ਉਤਪਾਦ ਦੀ ਸਮੀਖਿਆ ਕਰਨ ਵਾਲੇ ਪਹਿਲੇ ਬਣੋ।",
+    "backToStore": "ਸਟੋਰ ਤੇ ਵਾਪਸ",
+    "unavailable": "ਫਿਲਹਾਲ ਉਪਲਬਧ ਨਹੀਂ",
+    "closeModal": "ਬੰਦ ਕਰੋ",
+    "loadError": "ਇਹ ਉਤਪਾਦ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।"
   },
   "Address": {
     "line1Label": "ਪਤਾ ਲਾਈਨ 1",

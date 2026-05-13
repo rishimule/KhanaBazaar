@@ -27,6 +27,17 @@
   box-shadow: var(--shadow-card-hover);
 }
 
+/* ── Link wrappers (image + name → product detail) ── */
+.imageLink,
+.nameLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+.nameLink:hover .name {
+  text-decoration: underline;
+}
+
 /* ── Image ──────────────────────────── */
 .imageWrap {
   position: relative;

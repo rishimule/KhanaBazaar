@@ -259,7 +259,14 @@
     "inStock": "In stock",
     "addToCart": "Add to Cart",
     "decreaseQty": "Decrease quantity",
-    "increaseQty": "Increase quantity"
+    "increaseQty": "Increase quantity",
+    "description": "Description",
+    "reviewsComingSoon": "Reviews coming soon",
+    "reviewsPlaceholder": "Be the first to review this product at {storeName}.",
+    "backToStore": "Back to store",
+    "unavailable": "Currently unavailable",
+    "closeModal": "Close",
+    "loadError": "Couldn't load this product."
   },
   "Address": {
     "line1Label": "Address line 1",
