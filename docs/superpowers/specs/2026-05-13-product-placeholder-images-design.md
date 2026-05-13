@@ -26,16 +26,17 @@ Every seeded product resolves to one of 2–3 themed placeholder images, grouped
    - Value: list of 3 hand-picked Unsplash direct image URLs (`https://images.unsplash.com/photo-<id>?w=400&auto=format&fit=crop`). Direct URLs are stable, free, require no API key, and respect Unsplash's licensing for free use.
 2. **Helper** `_image_for(category_slug: str, index: int) -> str` in `_dev_seed_data.py`:
    - `pool = CATEGORY_IMAGE_POOLS[category_slug]`
+   - `assert pool, f"empty pool for {category_slug}"`
    - returns `pool[index % len(pool)]`
-   - raises if category slug missing — fail loud during seed so we catch coverage gaps.
+   - raises `KeyError` if category slug missing — fail loud during seed so we catch coverage gaps.
 3. **Extra product generation** (`_generate_extra_products` in `_dev_seed_data.py`):
    - Replace `f"/images/products/{unique_slug}.jpg"` with `_image_for(cat["slug"], i)` where `i` is the per-subcategory loop index (0..4).
-4. **Anchor products** (~135 hand-written entries in `dev_seed.py` `PRODUCTS` list):
+4. **Anchor products** (135 hand-written entries in `dev_seed.py` `PRODUCTS` list):
    - Remove the inline `"image_url": "/images/products/<slug>.jpg"` field from every entry.
-   - After `PRODUCTS` is fully constructed, run a post-process loop that:
-     - groups products by `subcategory_slug` (preserving original order),
-     - looks up each subcategory's parent category via `SUBCATEGORIES` (each entry already carries `category_slug`; build a `{sub["slug"]: sub["category_slug"]}` dict once),
-     - assigns `product["image_url"] = _image_for(category_slug, index_within_subcategory)`.
+   - **At module load time** (right after `PRODUCTS` is constructed, before `seed_demo_data` consumes it), run a post-process loop that:
+     - builds `SUBCAT_TO_CATEGORY = {sub["slug"]: sub["category_slug"] for sub in SUBCATEGORIES}` once,
+     - walks `PRODUCTS` in order, keeping a `defaultdict(int)` counter keyed by `subcategory_slug` for index-within-subcategory,
+     - sets `product["image_url"] = _image_for(SUBCAT_TO_CATEGORY[product["subcategory_slug"]], counter[sub_slug])` then increments the counter.
 5. **Coverage assertion (test):** extend `tests/test_dev_seed.py` with a check that every seeded `MasterProduct` has a non-null, non-empty `image_url`, and that every category slug in `SUBCATEGORIES` + anchor subcategory list has an entry in `CATEGORY_IMAGE_POOLS`.
 
 ## Round-robin example
@@ -52,6 +53,10 @@ Category `grocery` has pool `[A, B, C]`. Subcategory `everyday-vegetables` has 5
 - No licensing folder, no attribution file to maintain (Unsplash license permits free use without attribution; we'll note it in a comment near `CATEGORY_IMAGE_POOLS`).
 - The Unsplash `source.unsplash.com/?query=` keyword endpoint was retired in 2024; direct `images.unsplash.com/photo-<id>` URLs are the supported pattern.
 - ProductCard already shows graceful fallback on image load failure (`imgFailed` state in `frontend/src/components/ProductCard.tsx:87`).
+
+## Out of scope
+
+Test fixtures in `tests/test_store_product_detail.py`, `tests/test_storefront_endpoint.py`, and `tests/test_catalog.py` construct `MasterProduct` rows directly (bypassing seed) with hardcoded `/images/products/*.jpg` paths. These tests verify catalog/storefront logic, not image rendering; their fake URLs work for assertions regardless. Not touched by this change.
 
 ## Files touched
 
