@@ -1085,7 +1085,7 @@ def _generate_extra_products() -> list[dict[str, Any]]:
                 "slug": unique_slug,
                 "name": name,
                 "description": f"{name} — {sub['description'].lower()}",
-                "image_url": f"/images/products/{unique_slug}.jpg",
+                "image_url": _image_for(cat["slug"], i),
                 "base_price": price,
             })
     return products

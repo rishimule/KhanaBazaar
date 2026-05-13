@@ -278,3 +278,19 @@ def test_category_image_pools_cover_every_category() -> None:
     assert _image_for(sample_slug, 0) == pool[0]
     assert _image_for(sample_slug, 1) == pool[1 % len(pool)]
     assert _image_for(sample_slug, len(pool)) == pool[0]
+
+
+def test_extra_products_use_cdn_image_urls() -> None:
+    """Every generated extra product must have a non-empty CDN URL drawn from its
+    parent category's image pool."""
+    from app.db._dev_seed_data import CATEGORY_IMAGE_POOLS, EXTRA_PRODUCTS, EXTRA_SUBCATEGORIES
+
+    sub_to_cat = {sub["slug"]: sub["category_slug"] for sub in EXTRA_SUBCATEGORIES}
+    assert EXTRA_PRODUCTS, "EXTRA_PRODUCTS should be non-empty"
+    for product in EXTRA_PRODUCTS:
+        url = product["image_url"]
+        assert url.startswith("http"), f"extra product {product['slug']} has non-http url: {url}"
+        cat_slug = sub_to_cat[product["subcategory_slug"]]
+        assert url in CATEGORY_IMAGE_POOLS[cat_slug], (
+            f"extra product {product['slug']} url not in pool for {cat_slug}: {url}"
+        )
