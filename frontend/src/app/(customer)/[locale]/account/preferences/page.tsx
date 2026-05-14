@@ -1,14 +1,23 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
-import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useState, useTransition } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { get, patch } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
-import LocaleSwitcher from "@/components/LocaleSwitcher";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import type { CustomerProfile } from "@/types";
 import styles from "./page.module.css";
 
 const LANGS = ["en", "hi", "mr", "gu", "pa"] as const;
+type Lang = (typeof LANGS)[number];
+
+const LANG_LABELS: Record<Lang, string> = {
+  en: "English",
+  hi: "हिन्दी (Hindi)",
+  mr: "मराठी (Marathi)",
+  gu: "ગુજરાતી (Gujarati)",
+  pa: "ਪੰਜਾਬੀ (Punjabi)",
+};
 
 type PreferencesPatch = Partial<
   Pick<
@@ -23,6 +32,10 @@ type PreferencesPatch = Partial<
 export default function PreferencesPage() {
   const t = useTranslations("Account.preferences");
   const { token } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const locale = useLocale();
+  const [, startTransition] = useTransition();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +65,16 @@ export default function PreferencesPage() {
     }
   };
 
+  const onLanguageChange = async (value: string) => {
+    const next = (value || null) as Lang | null;
+    await save({ preferred_language: next });
+    if (next && next !== locale) {
+      startTransition(() => {
+        router.replace(pathname, { locale: next });
+      });
+    }
+  };
+
   if (!profile) {
     return (
       <div className={styles.page}>
@@ -60,6 +83,10 @@ export default function PreferencesPage() {
     );
   }
 
+  // The "active" language is the saved server preference; if absent, fall
+  // back to the URL locale (matches what the user sees right now).
+  const activeLang = profile.preferred_language ?? locale;
+
   return (
     <div className={styles.page}>
       <section className={styles.section}>
@@ -67,22 +94,17 @@ export default function PreferencesPage() {
         <p className={styles.subtitle}>{t("languageSubtitle")}</p>
         <select
           className={styles.select}
-          value={profile.preferred_language ?? ""}
-          onChange={(e) =>
-            save({ preferred_language: e.target.value || null })
-          }
+          value={activeLang}
+          onChange={(e) => onLanguageChange(e.target.value)}
           disabled={busy}
+          aria-label={t("languageTitle")}
         >
-          <option value="">{t("languageDefault")}</option>
           {LANGS.map((l) => (
             <option key={l} value={l}>
-              {t(`lang.${l}`)}
+              {LANG_LABELS[l]}
             </option>
           ))}
         </select>
-        <div style={{ marginTop: 16 }}>
-          <LocaleSwitcher />
-        </div>
       </section>
 
       <section className={styles.section}>
@@ -92,9 +114,7 @@ export default function PreferencesPage() {
             <input
               type="checkbox"
               checked={profile.notify_order_email}
-              onChange={(e) =>
-                save({ notify_order_email: e.target.checked })
-              }
+              onChange={(e) => save({ notify_order_email: e.target.checked })}
               disabled={busy}
             />
             {t("notifyOrderEmail")}
@@ -103,9 +123,7 @@ export default function PreferencesPage() {
             <input
               type="checkbox"
               checked={profile.notify_order_sms}
-              onChange={(e) =>
-                save({ notify_order_sms: e.target.checked })
-              }
+              onChange={(e) => save({ notify_order_sms: e.target.checked })}
               disabled={busy}
             />
             {t("notifyOrderSms")}
@@ -114,9 +132,7 @@ export default function PreferencesPage() {
             <input
               type="checkbox"
               checked={profile.marketing_opt_in}
-              onChange={(e) =>
-                save({ marketing_opt_in: e.target.checked })
-              }
+              onChange={(e) => save({ marketing_opt_in: e.target.checked })}
               disabled={busy}
             />
             {t("marketingOptIn")}

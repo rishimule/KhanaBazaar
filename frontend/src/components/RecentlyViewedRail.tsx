@@ -23,7 +23,7 @@ export default function RecentlyViewedRail() {
         {items.map((it) => (
           <Link
             key={it.product_id}
-            href={`/stores/${it.store_id}/products/${it.product_id}`}
+            href={`/stores/${it.store_id}/p/${it.product_id}`}
             className={styles.card}
           >
             {it.image_url && (

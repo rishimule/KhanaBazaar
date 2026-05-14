@@ -9,15 +9,25 @@ import type { CustomerProfile } from "@/types";
 import styles from "./PhoneVerifyModal.module.css";
 
 interface Props {
+  /** Phone already on the profile. If present, the modal skips the
+   *  "enter phone" step and asks the user to confirm + receive a code. */
+  currentPhone?: string | null;
   onClose: () => void;
   onVerified: (profile: CustomerProfile) => void;
 }
 
-export default function PhoneVerifyModal({ onClose, onVerified }: Props) {
+type Step = "confirm" | "edit" | "code";
+
+export default function PhoneVerifyModal({
+  currentPhone,
+  onClose,
+  onVerified,
+}: Props) {
   const t = useTranslations("Account.profile.phoneVerify");
   const { token } = useAuth();
-  const [step, setStep] = useState<"request" | "verify">("request");
-  const [phone, setPhone] = useState("+91");
+  const startStep: Step = currentPhone ? "confirm" : "edit";
+  const [step, setStep] = useState<Step>(startStep);
+  const [phone, setPhone] = useState(currentPhone ?? "+91");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +43,7 @@ export default function PhoneVerifyModal({ onClose, onVerified }: Props) {
     setError(null);
     try {
       await post("/api/v1/customers/me/phone/otp/request", { phone }, token);
-      setStep("verify");
+      setStep("code");
     } catch (e) {
       setError(t(`error.${errorKey(e)}`));
     } finally {
@@ -62,9 +72,36 @@ export default function PhoneVerifyModal({ onClose, onVerified }: Props) {
 
   return (
     <Modal title={t("title")} onClose={onClose}>
-      {step === "request" && (
+      {step === "confirm" && (
         <div className={styles.body}>
-          <label className={styles.label} htmlFor="kv-phone">{t("phoneLabel")}</label>
+          <p className={styles.muted}>{t("confirmPrompt")}</p>
+          <div className={styles.phoneRow}>
+            <span className={styles.phoneValue}>{phone}</span>
+            <button
+              type="button"
+              className={styles.linkBtn}
+              onClick={() => setStep("edit")}
+              disabled={busy}
+            >
+              {t("editPhone")}
+            </button>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy}
+            onClick={requestOtp}
+          >
+            {t("sendCode")}
+          </button>
+          {error && <div className={styles.error}>{error}</div>}
+        </div>
+      )}
+      {step === "edit" && (
+        <div className={styles.body}>
+          <label className={styles.label} htmlFor="kv-phone">
+            {t("phoneLabel")}
+          </label>
           <input
             id="kv-phone"
             className={styles.input}
@@ -73,6 +110,7 @@ export default function PhoneVerifyModal({ onClose, onVerified }: Props) {
             placeholder="+91XXXXXXXXXX"
             inputMode="tel"
             maxLength={20}
+            autoFocus
           />
           <button
             type="button"
@@ -85,10 +123,12 @@ export default function PhoneVerifyModal({ onClose, onVerified }: Props) {
           {error && <div className={styles.error}>{error}</div>}
         </div>
       )}
-      {step === "verify" && (
+      {step === "code" && (
         <div className={styles.body}>
           <p className={styles.muted}>{t("sentTo", { phone })}</p>
-          <label className={styles.label} htmlFor="kv-code">{t("codeLabel")}</label>
+          <label className={styles.label} htmlFor="kv-code">
+            {t("codeLabel")}
+          </label>
           <input
             id="kv-code"
             className={styles.input}
@@ -96,15 +136,29 @@ export default function PhoneVerifyModal({ onClose, onVerified }: Props) {
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             inputMode="numeric"
             maxLength={6}
+            autoFocus
           />
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy || code.length !== 6}
-            onClick={verifyOtp}
-          >
-            {t("verify")}
-          </button>
+          <div className={styles.actionsRow}>
+            <button
+              type="button"
+              className={styles.linkBtn}
+              onClick={() => {
+                setCode("");
+                setStep(currentPhone && phone === currentPhone ? "confirm" : "edit");
+              }}
+              disabled={busy}
+            >
+              {t("changePhone")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || code.length !== 6}
+              onClick={verifyOtp}
+            >
+              {t("verify")}
+            </button>
+          </div>
           {error && <div className={styles.error}>{error}</div>}
         </div>
       )}

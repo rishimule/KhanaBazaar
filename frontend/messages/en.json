@@ -502,7 +502,10 @@
           "phone_already_in_use": "That number is already linked to another account.",
           "otp_invalid": "That code is incorrect or expired.",
           "rate_limited": "Too many attempts. Try again later."
-        }
+        },
+        "confirmPrompt": "We'll send a 6-digit code to:",
+        "editPhone": "Change",
+        "changePhone": "Change number"
       }
     },
     "preferences": {

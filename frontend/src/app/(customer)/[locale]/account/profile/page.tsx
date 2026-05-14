@@ -343,6 +343,7 @@ export default function AccountProfilePage() {
 
       {verifyOpen && (
         <PhoneVerifyModal
+          currentPhone={profile.phone ?? profileForm.phone ?? null}
           onClose={() => setVerifyOpen(false)}
           onVerified={(next) => {
             setProfile(next);
