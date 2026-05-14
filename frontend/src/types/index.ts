@@ -354,3 +354,52 @@ export interface BulkInventoryError {
   code: BulkInventoryErrorCode;
   message: string;
 }
+
+// ---------------------------------------------------------------------------
+// Price comparison
+// ---------------------------------------------------------------------------
+
+export interface ComparisonItem {
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  inventory_id: number | null;
+  unit_price: number;
+  is_available: boolean;
+  stock: number;
+  line_total: number;
+  imputed: boolean;
+}
+
+export interface ComparisonAlternative {
+  id: number;
+  name: string;
+  distance_km: number;
+  covered_count: number;
+  missing_count: number;
+  covered_subtotal: number;
+  imputed_subtotal: number;
+  effective_total: number;
+  items: ComparisonItem[];
+}
+
+export interface CompareResponse {
+  alternatives: ComparisonAlternative[];
+}
+
+export type ReplaceAdjustmentReason =
+  | "stock_capped"
+  | "stock_exhausted"
+  | "item_unavailable";
+
+export interface ReplaceAdjustment {
+  inventory_id: number;
+  requested_quantity: number;
+  granted_quantity: number;
+  reason: ReplaceAdjustmentReason;
+}
+
+export interface ReplaceResponse {
+  cart: Cart;
+  adjustments: ReplaceAdjustment[];
+}
