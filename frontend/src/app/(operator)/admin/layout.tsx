@@ -12,8 +12,7 @@ const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
   { href: "/admin/orders", label: "Orders", icon: "📦" },
   { href: "/admin/sellers", label: "Sellers", icon: "✅" },
-  { href: "/admin/products", label: "Products", icon: "🛒" },
-  { href: "/admin/categories", label: "Categories", icon: "🏷️" },
+  { href: "/admin/catalog", label: "Catalog", icon: "🗂️" },
 ];
 
 export default function AdminLayout({
@@ -40,13 +39,11 @@ export default function AdminLayout({
       ? "Admin Dashboard"
       : pathname === "/admin/sellers"
         ? "Seller Applications"
-        : pathname === "/admin/products"
-          ? "Product Catalog"
-          : pathname === "/admin/categories"
-            ? "Category Management"
-            : pathname.startsWith("/admin/orders")
-              ? "All Orders"
-              : "Admin Panel";
+        : pathname.startsWith("/admin/catalog")
+          ? "Catalog"
+          : pathname.startsWith("/admin/orders")
+            ? "All Orders"
+            : "Admin Panel";
 
   return (
     <>
