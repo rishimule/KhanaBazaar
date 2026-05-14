@@ -190,6 +190,21 @@ async def list_services_admin(
     )
 
 
+@router.get("/services/{service_id}", response_model=ServiceAdminRead)
+async def get_service_admin(
+    service_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> ServiceAdminRead:
+    svc = await session.get(Service, service_id)
+    if svc is None:
+        raise HTTPException(status_code=404, detail="not_found")
+    trans = (await session.exec(
+        select(ServiceTranslation).where(ServiceTranslation.service_id == service_id)
+    )).all()
+    return _service_admin_read(svc, list(trans))
+
+
 @router.post("/services", response_model=ServiceAdminRead)
 async def create_service_admin(
     payload: ServiceCreate,
@@ -380,6 +395,21 @@ async def list_categories_admin(
     return PagedResponse[CategoryAdminRead](
         items=items, total=total, page=page, page_size=page_size
     )
+
+
+@router.get("/categories/{category_id}", response_model=CategoryAdminRead)
+async def get_category_admin(
+    category_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> CategoryAdminRead:
+    cat = await session.get(Category, category_id)
+    if cat is None:
+        raise HTTPException(status_code=404, detail="not_found")
+    trans = (await session.exec(
+        select(CategoryTranslation).where(CategoryTranslation.category_id == category_id)
+    )).all()
+    return _category_admin_read(cat, list(trans))
 
 
 @router.post("/categories", response_model=CategoryAdminRead)
@@ -594,6 +624,21 @@ async def list_subcategories_admin(
     )
 
 
+@router.get("/subcategories/{subcategory_id}", response_model=SubcategoryAdminRead)
+async def get_subcategory_admin(
+    subcategory_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> SubcategoryAdminRead:
+    sub = await session.get(Subcategory, subcategory_id)
+    if sub is None:
+        raise HTTPException(status_code=404, detail="not_found")
+    trans = (await session.exec(
+        select(SubcategoryTranslation).where(SubcategoryTranslation.subcategory_id == subcategory_id)
+    )).all()
+    return _subcategory_admin_read(sub, list(trans))
+
+
 @router.post("/subcategories", response_model=SubcategoryAdminRead)
 async def create_subcategory_admin(
     payload: SubcategoryCreate,
@@ -791,6 +836,21 @@ async def list_products_admin(
     return PagedResponse[ProductAdminRead](
         items=items, total=total, page=page, page_size=page_size
     )
+
+
+@router.get("/products/{product_id}", response_model=ProductAdminRead)
+async def get_product_admin(
+    product_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> ProductAdminRead:
+    prod = await session.get(MasterProduct, product_id)
+    if prod is None:
+        raise HTTPException(status_code=404, detail="not_found")
+    trans = (await session.exec(
+        select(MasterProductTranslation).where(MasterProductTranslation.master_product_id == product_id)
+    )).all()
+    return _product_admin_read(prod, list(trans))
 
 
 @router.post("/products", response_model=ProductAdminRead)

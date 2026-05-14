@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { listCatalog } from "@/lib/catalog";
+import { getCatalog, listCatalog } from "@/lib/catalog";
 import type { CatalogEntity, EntityKind } from "@/types";
 import styles from "./ParentPicker.module.css";
 
@@ -25,6 +25,7 @@ export function ParentPicker({
   const { token } = useAuth();
   const [q, setQ] = useState("");
   const [items, setItems] = useState<CatalogEntity[]>([]);
+  const [selectedItem, setSelectedItem] = useState<CatalogEntity | null>(null);
   const filterKey = JSON.stringify(filterParams);
   const reqIdRef = useRef(0);
 
@@ -49,6 +50,34 @@ export function ParentPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, parentEntity, filterKey, token]);
 
+  // Always resolve the currently-selected id so the option appears even if
+  // it falls outside the current search page. Otherwise the <select>
+  // shows "Select…" while state still holds a real id.
+  useEffect(() => {
+    if (!value) {
+      setSelectedItem(null);
+      return;
+    }
+    let cancelled = false;
+    getCatalog(parentEntity, value, token)
+      .then((item) => {
+        if (!cancelled) setSelectedItem(item);
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedItem(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [value, parentEntity, token]);
+
+  const options = (() => {
+    if (!selectedItem) return items;
+    return items.some((i) => i.id === selectedItem.id)
+      ? items
+      : [selectedItem, ...items];
+  })();
+
   return (
     <div className={styles.wrap}>
       <input
@@ -61,12 +90,15 @@ export function ParentPicker({
       <select
         className={styles.select}
         value={value ?? ""}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          if (v) onChange(v);
+        }}
       >
         <option value="" disabled>
           Select parent…
         </option>
-        {items.map((i) => (
+        {options.map((i) => (
           <option key={i.id} value={i.id}>
             {i.name} ({i.slug})
           </option>

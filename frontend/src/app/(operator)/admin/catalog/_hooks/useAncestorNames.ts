@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { listCatalog } from "@/lib/catalog";
+import { getCatalog } from "@/lib/catalog";
 import type { EntityKind } from "@/types";
 
 interface Ancestors {
@@ -13,15 +13,14 @@ interface Ancestors {
   subcategory?: string;
 }
 
-async function fetchOne(
+async function fetchName(
   entity: EntityKind,
   id: number,
   token: string | null,
 ): Promise<string | undefined> {
   try {
-    const res = await listCatalog(entity, { page_size: 100, is_active: null }, token);
-    const item = res.items.find((i) => i.id === id);
-    return item?.name;
+    const item = await getCatalog(entity, id, token);
+    return item.name;
   } catch {
     return undefined;
   }
@@ -45,10 +44,10 @@ export function useAncestorNames(
     let cancelled = false;
     async function load() {
       const next: Ancestors = {};
-      if (serviceId) next.service = await fetchOne("service", serviceId, token);
-      if (categoryId) next.category = await fetchOne("category", categoryId, token);
+      if (serviceId) next.service = await fetchName("service", serviceId, token);
+      if (categoryId) next.category = await fetchName("category", categoryId, token);
       if (subcategoryId)
-        next.subcategory = await fetchOne("subcategory", subcategoryId, token);
+        next.subcategory = await fetchName("subcategory", subcategoryId, token);
       if (!cancelled) setNames(next);
     }
     load();

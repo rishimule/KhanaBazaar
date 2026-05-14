@@ -75,23 +75,32 @@ def override_as_seller() -> Iterator[None]:
 @pytest.mark.asyncio
 async def test_admin_can_create_category_and_product(override_as_admin: Any) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        cat_data = {"name": "Dairy", "description": "Milk products"}
-        cat_resp = await ac.post("/api/v1/catalog/categories", json=cat_data)
-        assert cat_resp.status_code == 200
+        svc_resp = await ac.get("/api/v1/catalog/services")
+        assert svc_resp.status_code == 200
+        grocery = next(s for s in svc_resp.json() if s["slug"] == "grocery")
+
+        cat_data = {"service_id": grocery["id"], "name": "Dairy", "description": "Milk products"}
+        cat_resp = await ac.post("/api/v1/catalog/admin/categories", json=cat_data)
+        assert cat_resp.status_code == 200, cat_resp.text
         category = cat_resp.json()
         assert category["name"] == "Dairy"
 
+        sub_data = {"category_id": category["id"], "name": "Butter"}
+        sub_resp = await ac.post("/api/v1/catalog/admin/subcategories", json=sub_data)
+        assert sub_resp.status_code == 200, sub_resp.text
+        subcategory = sub_resp.json()
+
         prod_data = {
+            "subcategory_id": subcategory["id"],
             "name": "Amul Butter 100g",
             "description": "Delicious butter",
             "base_price": 55.0,
-            "category_id": category["id"]
         }
-        prod_resp = await ac.post("/api/v1/catalog/products", json=prod_data)
-        assert prod_resp.status_code == 200
+        prod_resp = await ac.post("/api/v1/catalog/admin/products", json=prod_data)
+        assert prod_resp.status_code == 200, prod_resp.text
         product = prod_resp.json()
         assert product["name"] == "Amul Butter 100g"
-        assert product["category_id"] == category["id"]
+        assert product["subcategory_id"] == subcategory["id"]
 
 
 @pytest.mark.asyncio

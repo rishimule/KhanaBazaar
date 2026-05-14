@@ -26,9 +26,14 @@ function ensure(rows: TranslationOut[], code: string): TranslationOut {
 export function TranslationsAccordion({
   value,
   onChange,
+  onTouch,
 }: {
   value: TranslationOut[];
   onChange: (next: TranslationOut[]) => void;
+  /** Fires once per language the user actually edits, so the parent can
+   * include emptied-out translations in the save flow (which deletes
+   * server-side). */
+  onTouch?: (code: string) => void;
 }) {
   const [open, setOpen] = useState(value.length > 0);
   const [active, setActive] = useState(LANGS[0].code);
@@ -38,6 +43,7 @@ export function TranslationsAccordion({
       l.code === code ? { ...ensure(value, l.code), ...patch } : ensure(value, l.code),
     );
     onChange(next);
+    onTouch?.(code);
   }
 
   if (!open) {

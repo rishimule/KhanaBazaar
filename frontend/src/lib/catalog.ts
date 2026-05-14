@@ -48,6 +48,14 @@ export async function listCatalog(
   return get(`${PATHS[entity]}${buildQuery(params)}`, token);
 }
 
+export async function getCatalog(
+  entity: EntityKind,
+  id: number,
+  token?: string | null,
+): Promise<CatalogEntity> {
+  return get(`${PATHS[entity]}/${id}`, token);
+}
+
 export async function createCatalog(
   entity: EntityKind,
   body: CatalogEntityWrite,

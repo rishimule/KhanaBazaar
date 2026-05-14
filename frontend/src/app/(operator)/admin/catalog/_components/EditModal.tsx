@@ -73,6 +73,7 @@ export function EditModal({
   const [translations, setTranslations] = useState<TranslationOut[]>(
     (initial?.translations || []).filter((t) => t.language_code !== "en"),
   );
+  const [touchedLangs, setTouchedLangs] = useState<Set<string>>(new Set());
 
   function handleNameChange(v: string) {
     setName(v);
@@ -107,9 +108,14 @@ export function EditModal({
         ? await mut.create(body)
         : await mut.update(initial!.id, body);
     if (!saved) return;
+    // Send every translation the user touched (empty values delete server-side).
+    // Untouched langs are skipped entirely.
     for (const t of translations) {
-      if (t.name.trim() || (t.description || "").trim()) {
-        await mut.upsertTrans(saved.id, t);
+      if (!touchedLangs.has(t.language_code)) continue;
+      const result = await mut.upsertTrans(saved.id, t);
+      if (result === null) {
+        // mut.error is populated; keep modal open so user sees it.
+        return;
       }
     }
     onSaved();
@@ -258,7 +264,18 @@ export function EditModal({
         </div>
 
         <div className={modalStyles.formGroup}>
-          <TranslationsAccordion value={translations} onChange={setTranslations} />
+          <TranslationsAccordion
+            value={translations}
+            onChange={setTranslations}
+            onTouch={(code) =>
+              setTouchedLangs((prev) => {
+                if (prev.has(code)) return prev;
+                const next = new Set(prev);
+                next.add(code);
+                return next;
+              })
+            }
+          />
         </div>
 
         {mut.error && !mut.error.field && (

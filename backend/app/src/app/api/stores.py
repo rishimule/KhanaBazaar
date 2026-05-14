@@ -318,10 +318,16 @@ async def list_store_inventory(
     result = await session.exec(
         select(StoreInventory)
         .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+        .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
+        .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+        .join(Service, Service.id == Category.service_id)  # type: ignore[arg-type]
         .where(
             StoreInventory.store_id == store_id,
             StoreInventory.is_available,
             MasterProduct.is_active == True,  # noqa: E712
+            Subcategory.is_active == True,  # noqa: E712
+            Category.is_active == True,  # noqa: E712
+            Service.is_active == True,  # noqa: E712
         )
     )
     return list(result.all())

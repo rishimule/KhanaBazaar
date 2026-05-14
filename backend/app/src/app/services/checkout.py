@@ -148,20 +148,30 @@ async def _assert_locked_inventory_matches_service(
     session: AsyncSession, locked_inv_ids: list[int], service_id: int
 ) -> None:
     """After lock, assert every locked inventory's product resolves to
-    `service_id` via subcategory→category. Drift since add-to-cart raises
-    409 service_mismatch with the first offending inventory_id."""
-    from app.models.catalog import Category, Subcategory
+    `service_id` via subcategory→category AND every catalog row in the
+    chain is still active. Catalog drift since add-to-cart raises 409
+    service_mismatch; a soft-deleted product/category/service/subcategory
+    raises 409 product_unavailable."""
+    from app.models.catalog import Category, Service, Subcategory
 
     rows = (
         await session.exec(
-            select(StoreInventory.id, Category.service_id)
+            select(
+                StoreInventory.id,
+                Category.service_id,
+                MasterProduct.is_active,
+                Subcategory.is_active,
+                Category.is_active,
+                Service.is_active,
+            )
             .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
             .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
             .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+            .join(Service, Service.id == Category.service_id)  # type: ignore[arg-type]
             .where(StoreInventory.id.in_(locked_inv_ids))  # type: ignore[union-attr]
         )
     ).all()
-    for inv_id, resolved in rows:
+    for inv_id, resolved, p_active, sub_active, cat_active, svc_active in rows:
         if resolved != service_id:
             raise HTTPException(
                 status_code=409,
@@ -169,6 +179,14 @@ async def _assert_locked_inventory_matches_service(
                     "detail": "service_mismatch",
                     "inventory_id": inv_id,
                     "service_id": service_id,
+                },
+            )
+        if not (p_active and sub_active and cat_active and svc_active):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "detail": "product_unavailable",
+                    "inventory_id": inv_id,
                 },
             )
 
