@@ -110,6 +110,10 @@ async def build_storefront(
         .where(
             StoreInventory.store_id == store_id,
             StoreInventory.is_available,
+            MasterProduct.is_active == True,  # noqa: E712
+            Subcategory.is_active == True,  # noqa: E712
+            Category.is_active == True,  # noqa: E712
+            Service.is_active == True,  # noqa: E712
         )
     )
     rows = list((await session.exec(join_stmt)).all())
