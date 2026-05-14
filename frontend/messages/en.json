@@ -568,6 +568,15 @@
       "labelPlaceholder": "Home, Work, Family",
       "makeDefault": "Make this the default delivery address",
       "saveAddress": "Save address"
+    },
+    "dashboard": {
+      "greeting": "Hi, {name}",
+      "there": "there",
+      "ordersThisMonth": "Orders this month",
+      "lifetimeSpend": "Lifetime spend",
+      "favoriteStore": "Favorite store",
+      "orderAgain": "Order again",
+      "recentlyViewed": "Recently viewed"
     }
   }
 }

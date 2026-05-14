@@ -568,6 +568,15 @@
       "labelPlaceholder": "ਘਰ, ਕੰਮ, ਪਰਿਵਾਰ",
       "makeDefault": "ਇਸ ਨੂੰ ਡਿਫਾਲਟ ਡਿਲਿਵਰੀ ਪਤਾ ਬਣਾਓ",
       "saveAddress": "ਪਤਾ ਸੰਭਾਲੋ"
+    },
+    "dashboard": {
+      "greeting": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ, {name}",
+      "there": "ਉੱਥੇ",
+      "ordersThisMonth": "ਇਸ ਮਹੀਨੇ ਦੇ ਆਰਡਰ",
+      "lifetimeSpend": "ਕੁੱਲ ਖਰਚ",
+      "favoriteStore": "ਪਸੰਦੀਦਾ ਦੁਕਾਨ",
+      "orderAgain": "ਦੁਬਾਰਾ ਆਰਡਰ ਕਰੋ",
+      "recentlyViewed": "ਹਾਲ ਹੀ ਵਿੱਚ ਦੇਖਿਆ"
     }
   }
 }

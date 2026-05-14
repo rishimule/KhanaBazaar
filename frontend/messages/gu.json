@@ -568,6 +568,15 @@
       "labelPlaceholder": "ઘર, કાર્યસ્થળ, કુટુંબ",
       "makeDefault": "આને ડિફોલ્ટ ડિલિવરી સરનામું બનાવો",
       "saveAddress": "સરનામું સાચવો"
+    },
+    "dashboard": {
+      "greeting": "નમસ્તે, {name}",
+      "there": "ત્યાં",
+      "ordersThisMonth": "આ મહિનાના ઓર્ડર",
+      "lifetimeSpend": "કુલ ખર્ચ",
+      "favoriteStore": "પ્રિય દુકાન",
+      "orderAgain": "ફરી ઓર્ડર કરો",
+      "recentlyViewed": "તાજેતરમાં જોયેલું"
     }
   }
 }

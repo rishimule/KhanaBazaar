@@ -568,6 +568,15 @@
       "labelPlaceholder": "घर, कार्यस्थळ, कुटुंब",
       "makeDefault": "हा डीफॉल्ट डिलिव्हरी पत्ता बनवा",
       "saveAddress": "पत्ता जतन करा"
+    },
+    "dashboard": {
+      "greeting": "नमस्कार, {name}",
+      "there": "तिथे",
+      "ordersThisMonth": "या महिन्याचे ऑर्डर",
+      "lifetimeSpend": "एकूण खर्च",
+      "favoriteStore": "आवडते दुकान",
+      "orderAgain": "पुन्हा ऑर्डर करा",
+      "recentlyViewed": "अलीकडे पाहिले"
     }
   }
 }
