@@ -22,7 +22,12 @@ from app.schemas.carts import (
     CartSyncResponse,
     DroppedSyncItem,
 )
-from app.schemas.price_comparison import CompareResponse
+from app.schemas.price_comparison import (
+    CompareResponse,
+    ReplaceAdjustment,
+    ReplaceRequest,
+    ReplaceResponse,
+)
 from app.services.price_comparison import find_alternatives
 
 router = APIRouter()
@@ -629,3 +634,85 @@ async def compare_prices(
         language_code=DEFAULT_LANG,
     )
     return CompareResponse(alternatives=alternatives)
+
+
+@router.post(
+    "/{store_id}/{service_id}/replace",
+    response_model=ReplaceResponse,
+)
+async def replace_sub_basket(
+    store_id: int,
+    service_id: int,
+    payload: ReplaceRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> ReplaceResponse:
+    """Atomically replace the customer's (store, service) sub-basket with
+    the given items. Per-item failures (stock cap, unavailable) drop with
+    adjustments. Whole-write failure returns 4xx."""
+    profile_id = await _customer_profile_id(session, user)
+
+    await _validate_service_for_store(session, store_id, service_id)
+
+    granted_items: list[tuple[int, int]] = []
+    adjustments: list[ReplaceAdjustment] = []
+
+    for entry in payload.items:
+        inv_result = await session.exec(
+            select(StoreInventory).where(StoreInventory.id == entry.inventory_id)
+        )
+        inv = inv_result.first()
+        if inv is None:
+            raise HTTPException(status_code=404, detail="inventory_not_found")
+        if inv.store_id != store_id:
+            raise HTTPException(status_code=400, detail="inventory_store_mismatch")
+        await _assert_inventory_service_match(session, entry.inventory_id, service_id)
+
+        if not inv.is_available:
+            adjustments.append(ReplaceAdjustment(
+                inventory_id=entry.inventory_id,
+                requested_quantity=entry.quantity,
+                granted_quantity=0,
+                reason="item_unavailable",
+            ))
+            continue
+        if inv.stock <= 0:
+            adjustments.append(ReplaceAdjustment(
+                inventory_id=entry.inventory_id,
+                requested_quantity=entry.quantity,
+                granted_quantity=0,
+                reason="stock_exhausted",
+            ))
+            continue
+        granted_qty = min(entry.quantity, inv.stock)
+        if granted_qty < entry.quantity:
+            adjustments.append(ReplaceAdjustment(
+                inventory_id=entry.inventory_id,
+                requested_quantity=entry.quantity,
+                granted_quantity=granted_qty,
+                reason="stock_capped",
+            ))
+        granted_items.append((entry.inventory_id, granted_qty))
+
+    if not granted_items:
+        raise HTTPException(status_code=400, detail="empty_items")
+
+    cart = await _get_or_create_cart(session, profile_id, store_id, service_id)
+    assert cart.id is not None
+    cart_id = cart.id
+    existing = (await session.exec(
+        select(CartItem).where(CartItem.cart_id == cart_id)
+    )).all()
+    for item in existing:
+        await session.delete(item)
+    await session.flush()
+    for inventory_id, quantity in granted_items:
+        session.add(CartItem(
+            cart_id=cart_id, inventory_id=inventory_id, quantity=quantity,
+        ))
+    await session.commit()
+
+    refreshed = await session.get(Cart, cart_id)
+    assert refreshed is not None
+    cart_payload = await _serialize_single_cart(session, refreshed)
+    return ReplaceResponse(cart=cart_payload, adjustments=adjustments)
