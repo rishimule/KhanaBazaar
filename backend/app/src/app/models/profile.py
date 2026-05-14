@@ -1,9 +1,10 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import enum
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
+from sqlalchemy import DateTime
 from sqlmodel import Field, Relationship, UniqueConstraint
 
 from app.models.address import Address
@@ -27,6 +28,14 @@ class CustomerProfile(BaseSchema, table=True):
     phone: Optional[str] = Field(default=None, max_length=20)
     date_of_birth: Optional[date] = Field(default=None)
     gender: Optional[str] = Field(default=None)
+    preferred_language: Optional[str] = Field(default=None, max_length=8)
+    marketing_opt_in: bool = Field(default=False, nullable=False)
+    notify_order_email: bool = Field(default=True, nullable=False)
+    notify_order_sms: bool = Field(default=False, nullable=False)
+    phone_verified_at: Optional[datetime] = Field(  # type: ignore[call-overload]
+        default=None,
+        sa_type=DateTime(timezone=True),
+    )
 
     user: User = Relationship()
 
