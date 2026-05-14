@@ -1,10 +1,11 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
+import { pushRecentlyViewed } from "@/lib/recentlyViewed";
 import type { StoreProductDetail } from "@/types";
 import ReviewsPanel from "./ReviewsPanel";
 import styles from "./ProductDetail.module.css";
@@ -22,6 +23,15 @@ export default function ProductDetail({ data, variant }: Props) {
 
   const { store, service, inventory } = data;
   const { product, price, stock, is_available: isAvailable } = inventory;
+
+  useEffect(() => {
+    pushRecentlyViewed({
+      product_id: product.id,
+      store_id: store.id,
+      name: product.name,
+      image_url: product.image_url ?? null,
+    });
+  }, [product.id, product.name, product.image_url, store.id]);
 
   const role = dbUser?.role;
   const canShop = !role || role === "customer";

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = ""
 
+    # Support inbox: where /customers/me/support messages get forwarded.
+    SUPPORT_EMAIL: str = "support@khanabazaar.example"
+
     # SMS: "console" (dev/test) or "twilio" (production)
     SMS_PROVIDER: str = "console"
     TWILIO_ACCOUNT_SID: str = ""

@@ -373,20 +373,50 @@
       "confirmCashCollected": "ਗਾਹਕ ਤੋਂ ਨਕਦ ਮਿਲੀ?",
       "confirmCancel": "ਇਹ ਆਰਡਰ ਰੱਦ ਕਰਨਾ ਹੈ? ਸਟਾਕ ਵਾਪਸ ਜਮ੍ਹਾਂ ਹੋ ਜਾਵੇਗਾ.",
       "errUpdate": "ਆਰਡਰ ਅੱਪਡੇਟ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
-      "errCancel": "ਆਰਡਰ ਰੱਦ ਨਹੀਂ ਹੋ ਸਕਿਆ."
+      "errCancel": "ਆਰਡਰ ਰੱਦ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
+      "rateOrder": "ਆਰਡਰ ਰੇਟ ਕਰੋ"
     },
     "active": {
       "title": "ਸਰਗਰਮ ਆਰਡਰ",
       "viewAll": "ਸਾਰੇ ਦੇਖੋ",
       "empty": "ਕੋਈ ਸਰਗਰਮ ਆਰਡਰ ਨਹੀਂ.",
       "errLoad": "ਆਰਡਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੇ."
+    },
+    "payment": {
+      "status": {
+        "pending": "ਬਕਾਇਆ",
+        "paid": "ਅਦਾ ਕੀਤਾ",
+        "failed": "ਅਸਫਲ",
+        "refunded": "ਵਾਪਸੀ"
+      }
+    },
+    "review": {
+      "submit": "ਰਿਵਿਊ ਸਬਮਿਟ ਕਰੋ",
+      "commentPlaceholder": "ਤੁਹਾਨੂੰ ਕਿਵੇਂ ਲੱਗਾ?",
+      "starAria": "{n} ਤਾਰੇ",
+      "yourRating": "ਤੁਹਾਡੀ ਰੇਟਿੰਗ: {rating}/5",
+      "error": {
+        "generic": "ਰਿਵਿਊ ਸਬਮਿਟ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
+        "order_not_delivered": "ਤੁਸੀਂ ਸਿਰਫ ਡਿਲੀਵਰ ਹੋਏ ਆਰਡਰ ਦਾ ਰਿਵਿਊ ਦੇ ਸਕਦੇ ਹੋ.",
+        "review_exists": "ਤੁਸੀਂ ਪਹਿਲਾਂ ਹੀ ਇਸ ਆਰਡਰ ਦਾ ਰਿਵਿਊ ਦੇ ਚੁੱਕੇ ਹੋ."
+      }
     }
   },
   "Account": {
     "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
-    "layoutTitle": "ਖਾਤਾ",
+    "layoutTitle": "ਡੈਸ਼ਬੋਰਡ",
+    "layoutOrdersTitle": "ਆਰਡਰ",
+    "layoutAddressesTitle": "ਪਤੇ",
+    "layoutProfileTitle": "ਪ੍ਰੋਫਾਈਲ",
+    "layoutPreferencesTitle": "ਤਰਜੀਹਾਂ",
+    "layoutSupportTitle": "ਮਦਦ",
     "layoutSettingsTitle": "ਖਾਤਾ ਸੈਟਿੰਗਾਂ",
+    "navDashboard": "ਡੈਸ਼ਬੋਰਡ",
     "navOrders": "ਆਰਡਰ",
+    "navAddresses": "ਪਤੇ",
+    "navProfile": "ਪ੍ਰੋਫਾਈਲ",
+    "navPreferences": "ਤਰਜੀਹਾਂ",
+    "navSupport": "ਮਦਦ",
     "navSettings": "ਸੈਟਿੰਗਾਂ",
     "dashboardTitle": "ਮੇਰਾ ਖਾਤਾ",
     "orders": {
@@ -396,7 +426,33 @@
       "tabHistory": "ਇਤਿਹਾਸ",
       "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
       "emptyActive": "ਕੋਈ ਸਰਗਰਮ ਆਰਡਰ ਨਹੀਂ.",
-      "emptyHistory": "ਇਤਿਹਾਸ ਵਿੱਚ ਕੋਈ ਆਰਡਰ ਨਹੀਂ."
+      "emptyHistory": "ਇਤਿਹਾਸ ਵਿੱਚ ਕੋਈ ਆਰਡਰ ਨਹੀਂ.",
+      "colOrderId": "ਆਰਡਰ #",
+      "colDate": "ਮਿਤੀ",
+      "colStore": "ਦੁਕਾਨ",
+      "colService": "ਸੇਵਾ",
+      "colItems": "ਆਈਟਮਾਂ",
+      "colTotal": "ਕੁੱਲ",
+      "colPayment": "ਭੁਗਤਾਨ",
+      "colStatus": "ਸਥਿਤੀ",
+      "itemCount": "{count, plural, one {# ਆਈਟਮ} other {# ਆਈਟਮਾਂ}}",
+      "allServices": "ਸਾਰੀਆਂ ਸੇਵਾਵਾਂ",
+      "fromDate": "ਤੋਂ ਮਿਤੀ",
+      "toDate": "ਤੱਕ ਮਿਤੀ",
+      "searchPlaceholder": "ਆਰਡਰ # ਜਾਂ ਦੁਕਾਨ ਖੋਜੋ…",
+      "loadMore": "ਹੋਰ ਦਿਖਾਓ",
+      "chip": {
+        "all": "ਸਾਰੇ",
+        "active": "ਕਿਰਿਆਸ਼ੀਲ",
+        "delivered": "ਡਿਲੀਵਰ",
+        "cancelled": "ਰੱਦ"
+      },
+      "sort": {
+        "dateDesc": "ਨਵੇਂ ਪਹਿਲਾਂ",
+        "dateAsc": "ਪੁਰਾਣੇ ਪਹਿਲਾਂ",
+        "totalDesc": "ਕੁੱਲ ↓",
+        "totalAsc": "ਕੁੱਲ ↑"
+      }
     },
     "orderDetail": {
       "title": "ਆਰਡਰ #{id}",
@@ -410,6 +466,132 @@
       "loadError": "ਆਰਡਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
       "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
       "amount": "₹{amount}"
+    },
+    "profile": {
+      "loading": "ਪ੍ਰੋਫਾਈਲ ਲੋਡ ਹੋ ਰਹੀ ਹੈ…",
+      "loadError": "ਤੁਹਾਡੀ ਪ੍ਰੋਫਾਈਲ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ.",
+      "saveProfileError": "ਬਦਲਾਵ ਸੇਵ ਨਹੀਂ ਹੋ ਸਕੇ.",
+      "profileSection": "ਪ੍ਰੋਫਾਈਲ",
+      "firstNameLabel": "ਪਹਿਲਾ ਨਾਮ",
+      "lastNameLabel": "ਅੰਤਮ ਨਾਮ",
+      "phoneLabel": "ਫ਼ੋਨ",
+      "emailLabel": "ਈਮੇਲ",
+      "firstNameRequired": "ਪਹਿਲਾ ਨਾਮ ਲਾਜ਼ਮੀ ਹੈ.",
+      "phoneInvalid": "7-20 ਅੰਕ, ਸਪੇਸ, +, -, ਜਾਂ ਬਰੈਕਟ ਵਰਤੋ.",
+      "saveProfile": "ਬਦਲਾਵ ਸੇਵ ਕਰੋ",
+      "saving": "ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…",
+      "verified": "ਤਸਦੀਕਸ਼ੁਦਾ",
+      "verifyPhone": "ਫ਼ੋਨ ਤਸਦੀਕ ਕਰੋ",
+      "dobLabel": "ਜਨਮ ਮਿਤੀ",
+      "statsTitle": "ਤੁਹਾਡੀ ਗਤੀਵਿਧੀ",
+      "statsSubtitle": "ਤੁਹਾਡੇ ਆਰਡਰਾਂ ਦਾ ਸਾਰ",
+      "ordersThisMonth": "ਇਸ ਮਹੀਨੇ ਦੇ ਆਰਡਰ",
+      "lifetimeSpend": "ਕੁੱਲ ਖਰਚ",
+      "favoriteStore": "ਪਸੰਦੀਦਾ ਦੁਕਾਨ",
+      "phoneVerifiedSince": "ਫ਼ੋਨ ਤਸਦੀਕਸ਼ੁਦਾ",
+      "phoneVerify": {
+        "title": "ਆਪਣਾ ਫ਼ੋਨ ਤਸਦੀਕ ਕਰੋ",
+        "phoneLabel": "ਫ਼ੋਨ (ਦੇਸ਼ ਕੋਡ ਨਾਲ)",
+        "codeLabel": "6-ਅੰਕੀ ਕੋਡ ਦਾਖਲ ਕਰੋ",
+        "sendCode": "ਕੋਡ ਭੇਜੋ",
+        "verify": "ਤਸਦੀਕ ਕਰੋ",
+        "sentTo": "ਅਸੀਂ {phone} ‘ਤੇ ਕੋਡ ਭੇਜਿਆ.",
+        "error": {
+          "generic": "ਕੁਝ ਗਲਤ ਹੋਇਆ. ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ.",
+          "phone_invalid": "ਇਹ ਫ਼ੋਨ ਨੰਬਰ ਸਹੀ ਨਹੀਂ ਲੱਗਦਾ.",
+          "phone_already_in_use": "ਇਹ ਨੰਬਰ ਪਹਿਲਾਂ ਹੀ ਕਿਸੇ ਹੋਰ ਖਾਤੇ ਨਾਲ ਜੁੜਿਆ ਹੈ.",
+          "otp_invalid": "ਕੋਡ ਗਲਤ ਹੈ ਜਾਂ ਮਿਆਦ ਖਤਮ ਹੋ ਗਈ ਹੈ.",
+          "rate_limited": "ਬਹੁਤ ਜ਼ਿਆਦਾ ਕੋਸ਼ਿਸ਼ਾਂ. ਬਾਅਦ ‘ਚ ਕੋਸ਼ਿਸ਼ ਕਰੋ."
+        },
+        "confirmPrompt": "ਅਸੀਂ 6-ਅੰਕੀ ਕੋਡ ਭੇਜਾਂਗੇ:",
+        "editPhone": "ਬਦਲੋ",
+        "changePhone": "ਨੰਬਰ ਬਦਲੋ"
+      }
+    },
+    "preferences": {
+      "languageTitle": "ਭਾਸ਼ਾ",
+      "languageSubtitle": "ਆਪਣੇ ਡੈਸ਼ਬੋਰਡ ਲਈ ਭਾਸ਼ਾ ਚੁਣੋ.",
+      "notificationsTitle": "ਸੂਚਨਾਵਾਂ",
+      "notificationsComingSoon": "ਸੂਚਨਾ ਤਰਜੀਹਾਂ ਜਲਦੀ ਆ ਰਹੀਆਂ ਹਨ.",
+      "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+      "loadError": "ਤਰਜੀਹਾਂ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀਆਂ.",
+      "saveError": "ਤਰਜੀਹ ਸੇਵ ਨਹੀਂ ਹੋ ਸਕੀ.",
+      "languageDefault": "ਸਾਈਟ ਡਿਫਾਲਟ ਵਰਤੋ",
+      "notifyOrderEmail": "ਮੇਰੇ ਆਰਡਰ ਦੀ ਸਥਿਤੀ ਬਾਰੇ ਮੈਨੂੰ ਈਮੇਲ ਕਰੋ",
+      "notifyOrderSms": "ਮੇਰੇ ਆਰਡਰ ਦੀ ਸਥਿਤੀ ਬਾਰੇ ਮੈਨੂੰ SMS ਕਰੋ",
+      "marketingOptIn": "ਮੈਨੂੰ ਪ੍ਰਚਾਰ ਅਤੇ ਨਵੇਂ-ਉਤਪਾਦ ਈਮੇਲ ਭੇਜੋ",
+      "lang": {
+        "en": "English",
+        "hi": "हिन्दी",
+        "mr": "मराठी",
+        "gu": "ગુજરાતી",
+        "pa": "ਪੰਜਾਬੀ"
+      }
+    },
+    "support": {
+      "faqTitle": "ਅਕਸਰ ਪੁੱਛੇ ਜਾਂਦੇ ਸਵਾਲ",
+      "faqSubtitle": "ਆਮ ਸਵਾਲਾਂ ਦੇ ਤੇਜ਼ ਜਵਾਬ.",
+      "faq": {
+        "q1": {
+          "question": "ਮੈਂ ਆਪਣਾ ਆਰਡਰ ਕਿਵੇਂ ਟਰੈਕ ਕਰਾਂ?",
+          "answer": "ਆਰਡਰ ਖੋਲ੍ਹ ਕੇ ਉਸਦੀ ਮੌਜੂਦਾ ਸਥਿਤੀ ਦੇਖੋ."
+        },
+        "q2": {
+          "question": "ਮੈਂ ਆਪਣਾ ਡਿਲੀਵਰੀ ਪਤਾ ਕਿਵੇਂ ਬਦਲਾਂ?",
+          "answer": "ਪਤੇ ਸੈਕਸ਼ਨ ਤੋਂ ਸੇਵ ਕੀਤੇ ਪਤੇ ਪ੍ਰਬੰਧਿਤ ਕਰੋ."
+        },
+        "q3": {
+          "question": "ਕਿਹੜੇ ਭੁਗਤਾਨ ਤਰੀਕੇ ਸਮਰਥਿਤ ਹਨ?",
+          "answer": "UPI ਅਤੇ ਕੈਸ਼ ਆਨ ਡਿਲੀਵਰੀ."
+        },
+        "q4": {
+          "question": "ਮੈਂ ਆਰਡਰ ਕਿਵੇਂ ਰੱਦ ਕਰਾਂ?",
+          "answer": "ਬਕਾਇਆ ਆਰਡਰ ਆਰਡਰ ਵੇਰਵੇ ਪੰਨੇ ਤੋਂ ਰੱਦ ਕੀਤੇ ਜਾ ਸਕਦੇ ਹਨ."
+        },
+        "q5": {
+          "question": "ਮੈਨੂੰ OTP ਕਿਉਂ ਨਹੀਂ ਮਿਲਿਆ?",
+          "answer": "ਸਪੈਮ ਫੋਲਡਰ ਚੈੱਕ ਕਰੋ ਜਾਂ 60 ਸਕਿੰਟ ਬਾਅਦ ਨਵਾਂ ਕੋਡ ਮੰਗੋ."
+        }
+      },
+      "contactTitle": "ਸਹਾਇਤਾ ਨਾਲ ਸੰਪਰਕ ਕਰੋ",
+      "contactSubtitle": "ਸਾਨੂੰ ਸੁਨੇਹਾ ਭੇਜੋ ਅਤੇ ਅਸੀਂ ਈਮੇਲ ਰਾਹੀਂ ਜਵਾਬ ਦੇਵਾਂਗੇ.",
+      "subjectLabel": "ਵਿਸ਼ਾ",
+      "messageLabel": "ਸੁਨੇਹਾ",
+      "send": "ਭੇਜੋ",
+      "sent": "ਸੁਨੇਹਾ ਭੇਜਿਆ. ਅਸੀਂ ਸੰਪਰਕ ਕਰਾਂਗੇ.",
+      "sendError": "ਤੁਹਾਡਾ ਸੁਨੇਹਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ. ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ."
+    },
+    "addresses": {
+      "loading": "ਪਤੇ ਲੋਡ ਹੋ ਰਹੇ ਹਨ…",
+      "loadError": "ਤੁਹਾਡੇ ਪਤੇ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੇ.",
+      "saveAddressError": "ਡਿਲੀਵਰੀ ਪਤਾ ਸੇਵ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
+      "setDefaultError": "ਡਿਫਾਲਟ ਪਤਾ ਸੈੱਟ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
+      "deleteAddressError": "ਪਤਾ ਡਿਲੀਟ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
+      "deleteConfirm": "{label} ਡਿਲੀਟ ਕਰਨਾ?",
+      "deleteFallbackLabel": "ਇਹ ਪਤਾ",
+      "addressesTitle": "ਸੇਵ ਕੀਤੇ ਡਿਲੀਵਰੀ ਪਤੇ",
+      "addressCount": "{count, plural, one {# ਸੇਵ ਕੀਤਾ ਪਤਾ} other {# ਸੇਵ ਕੀਤੇ ਪਤੇ}}",
+      "addAddress": "ਪਤਾ ਜੋੜੋ",
+      "noAddresses": "ਕੋਈ ਡਿਲੀਵਰੀ ਪਤਾ ਸੇਵ ਨਹੀਂ ਹੈ.",
+      "addressFallbackLabel": "ਪਤਾ",
+      "defaultBadge": "ਡਿਫਾਲਟ",
+      "edit": "ਸੰਪਾਦਿਤ ਕਰੋ",
+      "setDefault": "ਡਿਫਾਲਟ ਸੈੱਟ ਕਰੋ",
+      "delete": "ਡਿਲੀਟ ਕਰੋ",
+      "addAddressFormTitle": "ਡਿਲੀਵਰੀ ਪਤਾ ਜੋੜੋ",
+      "editAddressFormTitle": "ਡਿਲੀਵਰੀ ਪਤਾ ਸੰਪਾਦਿਤ ਕਰੋ",
+      "cancel": "ਰੱਦ ਕਰੋ",
+      "labelLabel": "ਲੇਬਲ",
+      "labelPlaceholder": "ਘਰ, ਦਫ਼ਤਰ, ਪਰਿਵਾਰ",
+      "makeDefault": "ਇਸਨੂੰ ਡਿਫਾਲਟ ਡਿਲੀਵਰੀ ਪਤਾ ਬਣਾਓ",
+      "saveAddress": "ਪਤਾ ਸੇਵ ਕਰੋ",
+      "saving": "ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…",
+      "useCurrentLocation": "ਮੌਜੂਦਾ ਟਿਕਾਣਾ ਵਰਤੋ",
+      "geolocating": "ਟਿਕਾਣਾ ਪ੍ਰਾਪਤ ਕਰ ਰਹੇ ਹਾਂ…",
+      "geolocationUnavailable": "ਇਸ ਬ੍ਰਾਊਜ਼ਰ ‘ਚ ਜੀਓਲੋਕੇਸ਼ਨ ਉਪਲਬਧ ਨਹੀਂ.",
+      "geolocationDenied": "ਤੁਹਾਡੇ ਟਿਕਾਣੇ ‘ਤੇ ਪਹੁੰਚ ਦੀ ਇਜਾਜ਼ਤ ਰੱਦ.",
+      "geolocationError": "ਤੁਹਾਡਾ ਟਿਕਾਣਾ ਨਹੀਂ ਮਿਲਿਆ. ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ.",
+      "geolocationGeocodeError": "ਟਿਕਾਣਾ ਮਿਲਿਆ ਪਰ ਪਤਾ ਨਹੀਂ ਲੱਭ ਸਕੇ — ਕਿਰਪਾ ਕਰਕੇ ਫੀਲਡ ਭਰੋ."
     },
     "settings": {
       "loading": "ਖਾਤਾ ਸੈਟਿੰਗਾਂ ਲੋਡ ਹੋ ਰਹੀਆਂ ਹਨ…",
@@ -445,6 +627,15 @@
       "labelPlaceholder": "ਘਰ, ਕੰਮ, ਪਰਿਵਾਰ",
       "makeDefault": "ਇਸ ਨੂੰ ਡਿਫਾਲਟ ਡਿਲਿਵਰੀ ਪਤਾ ਬਣਾਓ",
       "saveAddress": "ਪਤਾ ਸੰਭਾਲੋ"
+    },
+    "dashboard": {
+      "greeting": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ, {name}",
+      "there": "ਉੱਥੇ",
+      "ordersThisMonth": "ਇਸ ਮਹੀਨੇ ਦੇ ਆਰਡਰ",
+      "lifetimeSpend": "ਕੁੱਲ ਖਰਚ",
+      "favoriteStore": "ਪਸੰਦੀਦਾ ਦੁਕਾਨ",
+      "orderAgain": "ਦੁਬਾਰਾ ਆਰਡਰ ਕਰੋ",
+      "recentlyViewed": "ਹਾਲ ਹੀ ਵਿੱਚ ਦੇਖਿਆ"
     }
   }
 }

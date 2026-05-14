@@ -1,0 +1,65 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.label {
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-neutral-700);
+}
+.input {
+  padding: 10px 12px;
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-md);
+  font: inherit;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary-1);
+}
+.error {
+  margin-top: 8px;
+  color: var(--color-error);
+  font-size: var(--font-sm);
+}
+.muted {
+  color: var(--color-neutral-500);
+  font-size: var(--font-sm);
+}
+.phoneRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--shade-cool-light-1);
+  border-radius: var(--radius-md);
+}
+.phoneValue {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-base);
+  font-weight: 500;
+}
+.linkBtn {
+  background: none;
+  border: none;
+  color: var(--color-primary-1);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+}
+.linkBtn:disabled {
+  color: var(--color-neutral-400);
+  cursor: not-allowed;
+}
+.actionsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}

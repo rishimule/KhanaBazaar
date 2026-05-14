@@ -36,6 +36,18 @@ def send_otp_email_async(to: str, code: str) -> None:
         logging.getLogger(__name__).info("EMAIL to=%s code=%s", to, code)
 
 
+@celery_app.task(name="send_support_email")  # type: ignore[untyped-decorator]
+def send_support_email(customer_email: str, subject: str, message: str) -> None:
+    """Forward a customer support message to the configured SUPPORT_EMAIL inbox."""
+    from app.core.config import settings
+
+    _resolve_email(
+        settings.SUPPORT_EMAIL,
+        f"[Support] {subject}",
+        f"From: {customer_email}\n\n{message}",
+    )
+
+
 def _resolve_email(to: str, subject: str, body: str) -> None:
     """Send an email via the configured provider, mirroring the OTP email pattern."""
     from app.core.config import settings

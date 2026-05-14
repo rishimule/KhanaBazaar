@@ -1,0 +1,75 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ */
+.page {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+@media (min-width: 720px) {
+  .page {
+    grid-template-columns: 1fr 1fr;
+  }
+  .full {
+    grid-column: 1 / -1;
+  }
+}
+.greet {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+.greetTitle {
+  font-size: var(--font-xl);
+  font-weight: var(--weight-semibold);
+  margin: 0;
+}
+.greetSub {
+  color: var(--color-neutral-500);
+  font-size: var(--font-sm);
+  margin-top: 4px;
+}
+.statsStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.railTitle {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-semibold);
+  margin: 0;
+}
+.railList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.railCard {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.railCard:hover {
+  border-color: var(--color-accent-300);
+}
+.railStore {
+  font-weight: var(--weight-medium);
+}
+.railMeta {
+  font-size: var(--font-sm);
+  color: var(--color-neutral-500);
+}

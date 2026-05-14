@@ -373,20 +373,50 @@
       "confirmCashCollected": "ગ્રાહક પાસેથી રોકડ મળી?",
       "confirmCancel": "આ ઓર્ડર રદ કરવો છે? સ્ટોક પાછો જમા થશે.",
       "errUpdate": "ઓર્ડર અપડેટ કરી શકાયો નહીં.",
-      "errCancel": "ઓર્ડર રદ કરી શકાયો નહીં."
+      "errCancel": "ઓર્ડર રદ કરી શકાયો નહીં.",
+      "rateOrder": "ઓર્ડર રેટ કરો"
     },
     "active": {
       "title": "સક્રિય ઓર્ડર",
       "viewAll": "બધા જુઓ",
       "empty": "કોઈ સક્રિય ઓર્ડર નથી.",
       "errLoad": "ઓર્ડર લોડ થઈ શક્યા નહીં."
+    },
+    "payment": {
+      "status": {
+        "pending": "પેન્ડિંગ",
+        "paid": "ચૂકવાયું",
+        "failed": "નિષ્ફળ",
+        "refunded": "પાછું"
+      }
+    },
+    "review": {
+      "submit": "રિવ્યૂ સબમિટ કરો",
+      "commentPlaceholder": "તમને કેવું લાગ્યું?",
+      "starAria": "{n} તારા",
+      "yourRating": "તમારી રેટિંગ: {rating}/5",
+      "error": {
+        "generic": "રિવ્યૂ સબમિટ થઈ શક્યો નથી.",
+        "order_not_delivered": "ફક્ત ડિલિવર થયેલા ઓર્ડરનો રિવ્યૂ આપી શકો છો.",
+        "review_exists": "તમે પહેલેથી જ આ ઓર્ડરનો રિવ્યૂ આપ્યો છે."
+      }
     }
   },
   "Account": {
     "loading": "લોડ થઈ રહ્યું છે…",
-    "layoutTitle": "ખાતું",
+    "layoutTitle": "ડેશબોર્ડ",
+    "layoutOrdersTitle": "ઓર્ડર",
+    "layoutAddressesTitle": "સરનામાં",
+    "layoutProfileTitle": "પ્રોફાઇલ",
+    "layoutPreferencesTitle": "પસંદગીઓ",
+    "layoutSupportTitle": "મદદ",
     "layoutSettingsTitle": "ખાતા સેટિંગ્સ",
+    "navDashboard": "ડેશબોર્ડ",
     "navOrders": "ઓર્ડર",
+    "navAddresses": "સરનામાં",
+    "navProfile": "પ્રોફાઇલ",
+    "navPreferences": "પસંદગીઓ",
+    "navSupport": "મદદ",
     "navSettings": "સેટિંગ્સ",
     "dashboardTitle": "મારું ખાતું",
     "orders": {
@@ -396,7 +426,33 @@
       "tabHistory": "ઇતિહાસ",
       "loading": "લોડ થઈ રહ્યું છે…",
       "emptyActive": "કોઈ સક્રિય ઓર્ડર નથી.",
-      "emptyHistory": "ઇતિહાસમાં કોઈ ઓર્ડર નથી."
+      "emptyHistory": "ઇતિહાસમાં કોઈ ઓર્ડર નથી.",
+      "colOrderId": "ઓર્ડર #",
+      "colDate": "તારીખ",
+      "colStore": "દુકાન",
+      "colService": "સેવા",
+      "colItems": "વસ્તુઓ",
+      "colTotal": "કુલ",
+      "colPayment": "ચુકવણી",
+      "colStatus": "સ્થિતિ",
+      "itemCount": "{count, plural, one {# વસ્તુ} other {# વસ્તુઓ}}",
+      "allServices": "બધી સેવાઓ",
+      "fromDate": "તારીખથી",
+      "toDate": "તારીખ સુધી",
+      "searchPlaceholder": "ઓર્ડર # અથવા દુકાન શોધો…",
+      "loadMore": "વધુ બતાવો",
+      "chip": {
+        "all": "બધું",
+        "active": "સક્રિય",
+        "delivered": "વિતરિત",
+        "cancelled": "રદ"
+      },
+      "sort": {
+        "dateDesc": "નવીનતમ પ્રથમ",
+        "dateAsc": "જૂનું પ્રથમ",
+        "totalDesc": "કુલ ↓",
+        "totalAsc": "કુલ ↑"
+      }
     },
     "orderDetail": {
       "title": "ઓર્ડર #{id}",
@@ -410,6 +466,132 @@
       "loadError": "ઓર્ડર લોડ થઈ શક્યો નહીં.",
       "loading": "લોડ થઈ રહ્યું છે…",
       "amount": "₹{amount}"
+    },
+    "profile": {
+      "loading": "પ્રોફાઇલ લોડ થઈ રહી છે…",
+      "loadError": "તમારી પ્રોફાઇલ લોડ કરી શકાઈ નથી.",
+      "saveProfileError": "ફેરફારો સાચવી શકાયા નથી.",
+      "profileSection": "પ્રોફાઇલ",
+      "firstNameLabel": "પ્રથમ નામ",
+      "lastNameLabel": "છેલ્લું નામ",
+      "phoneLabel": "ફોન",
+      "emailLabel": "ઈમેલ",
+      "firstNameRequired": "પ્રથમ નામ આવશ્યક છે.",
+      "phoneInvalid": "7-20 અંક, સ્પેસ, +, -, અથવા કૌંસ વાપરો.",
+      "saveProfile": "ફેરફારો સાચવો",
+      "saving": "સાચવી રહ્યું છે…",
+      "verified": "ચકાસાયેલ",
+      "verifyPhone": "ફોન ચકાસો",
+      "dobLabel": "જન્મ તારીખ",
+      "statsTitle": "તમારી પ્રવૃત્તિ",
+      "statsSubtitle": "તમારા ઓર્ડરનો સારાંશ",
+      "ordersThisMonth": "આ મહિનાના ઓર્ડર",
+      "lifetimeSpend": "કુલ ખર્ચ",
+      "favoriteStore": "પ્રિય દુકાન",
+      "phoneVerifiedSince": "ફોન ચકાસાયેલ",
+      "phoneVerify": {
+        "title": "તમારો ફોન ચકાસો",
+        "phoneLabel": "ફોન (દેશ કોડ સાથે)",
+        "codeLabel": "6-અંકનો કોડ દાખલ કરો",
+        "sendCode": "કોડ મોકલો",
+        "verify": "ચકાસો",
+        "sentTo": "અમે {phone} પર કોડ મોકલ્યો.",
+        "error": {
+          "generic": "કંઇક ખોટું થયું. ફરી પ્રયાસ કરો.",
+          "phone_invalid": "આ ફોન નંબર બરાબર નથી લાગતો.",
+          "phone_already_in_use": "આ નંબર પહેલેથી જ બીજા ખાતા સાથે જોડાયેલ છે.",
+          "otp_invalid": "કોડ ખોટો છે અથવા સમાપ્ત થઈ ગયો છે.",
+          "rate_limited": "ઘણા પ્રયત્નો. પછી પ્રયાસ કરો."
+        },
+        "confirmPrompt": "અમે 6-અંકનો કોડ મોકલીશું:",
+        "editPhone": "બદલો",
+        "changePhone": "નંબર બદલો"
+      }
+    },
+    "preferences": {
+      "languageTitle": "ભાષા",
+      "languageSubtitle": "તમારા ડેશબોર્ડ માટે ભાષા પસંદ કરો.",
+      "notificationsTitle": "સૂચનાઓ",
+      "notificationsComingSoon": "સૂચના પસંદગીઓ ટૂંક સમયમાં આવી રહી છે.",
+      "loading": "લોડ થઈ રહ્યું છે…",
+      "loadError": "પસંદગીઓ લોડ થઈ શકી નથી.",
+      "saveError": "પસંદગી સાચવી શકાઈ નથી.",
+      "languageDefault": "સાઇટ ડિફોલ્ટ વાપરો",
+      "notifyOrderEmail": "મારા ઓર્ડરની સ્થિતિ વિશે મને ઇમેઇલ કરો",
+      "notifyOrderSms": "મારા ઓર્ડરની સ્થિતિ વિશે મને SMS કરો",
+      "marketingOptIn": "મને પ્રમોશન અને નવા-ઉત્પાદન ઇમેઇલ મોકલો",
+      "lang": {
+        "en": "English",
+        "hi": "हिन्दी",
+        "mr": "मराठी",
+        "gu": "ગુજરાતી",
+        "pa": "ਪੰਜਾਬੀ"
+      }
+    },
+    "support": {
+      "faqTitle": "વારંવાર પૂછાતા પ્રશ્નો",
+      "faqSubtitle": "સામાન્ય પ્રશ્નોના ઝડપી જવાબો.",
+      "faq": {
+        "q1": {
+          "question": "હું મારો ઓર્ડર કેવી રીતે ટ્રૅક કરું?",
+          "answer": "ઓર્ડર ખોલીને તેની વર્તમાન સ્થિતિ જુઓ."
+        },
+        "q2": {
+          "question": "હું મારું ડિલિવરી સરનામું કેવી રીતે બદલું?",
+          "answer": "સરનામાં વિભાગમાંથી સાચવેલા સરનામાં મેનેજ કરો."
+        },
+        "q3": {
+          "question": "કઈ ચુકવણી પદ્ધતિઓ સપોર્ટેડ છે?",
+          "answer": "UPI અને કેશ ઑન ડિલિવરી."
+        },
+        "q4": {
+          "question": "હું ઓર્ડર કેવી રીતે રદ કરું?",
+          "answer": "પેન્ડિંગ ઓર્ડર્સ ઓર્ડર વિગતો પૃષ્ઠ પરથી રદ કરી શકાય છે."
+        },
+        "q5": {
+          "question": "મને OTP કેમ ન મળ્યો?",
+          "answer": "સ્પામ ફોલ્ડર તપાસો અથવા 60 સેકન્ડ પછી નવો કોડ વિનંતી કરો."
+        }
+      },
+      "contactTitle": "સપોર્ટનો સંપર્ક કરો",
+      "contactSubtitle": "અમને સંદેશ મોકલો અને અમે ઇમેઇલ દ્વારા જવાબ આપીશું.",
+      "subjectLabel": "વિષય",
+      "messageLabel": "સંદેશ",
+      "send": "મોકલો",
+      "sent": "સંદેશ મોકલ્યો. અમે સંપર્ક કરીશું.",
+      "sendError": "તમારો સંદેશ મોકલી શકાયો નથી. કૃપા કરી ફરી પ્રયાસ કરો."
+    },
+    "addresses": {
+      "loading": "સરનામાં લોડ થઈ રહ્યાં છે…",
+      "loadError": "તમારાં સરનામાં લોડ કરી શકાયાં નથી.",
+      "saveAddressError": "ડિલિવરી સરનામું સાચવી શકાયું નથી.",
+      "setDefaultError": "ડિફોલ્ટ સરનામું સેટ કરી શકાયું નથી.",
+      "deleteAddressError": "સરનામું ડિલીટ કરી શકાયું નથી.",
+      "deleteConfirm": "{label} ડિલીટ કરવું?",
+      "deleteFallbackLabel": "આ સરનામું",
+      "addressesTitle": "સાચવેલા ડિલિવરી સરનામાં",
+      "addressCount": "{count, plural, one {# સાચવેલું સરનામું} other {# સાચવેલા સરનામાં}}",
+      "addAddress": "સરનામું ઉમેરો",
+      "noAddresses": "કોઈ ડિલિવરી સરનામું સાચવ્યું નથી.",
+      "addressFallbackLabel": "સરનામું",
+      "defaultBadge": "ડિફોલ્ટ",
+      "edit": "સંપાદિત કરો",
+      "setDefault": "ડિફોલ્ટ સેટ કરો",
+      "delete": "ડિલીટ કરો",
+      "addAddressFormTitle": "ડિલિવરી સરનામું ઉમેરો",
+      "editAddressFormTitle": "ડિલિવરી સરનામું સંપાદિત કરો",
+      "cancel": "રદ કરો",
+      "labelLabel": "લેબલ",
+      "labelPlaceholder": "ઘર, ઑફિસ, કુટુંબ",
+      "makeDefault": "આને ડિફોલ્ટ ડિલિવરી સરનામું બનાવો",
+      "saveAddress": "સરનામું સાચવો",
+      "saving": "સાચવી રહ્યું છે…",
+      "useCurrentLocation": "વર્તમાન સ્થાન વાપરો",
+      "geolocating": "સ્થાન મેળવી રહ્યું છે…",
+      "geolocationUnavailable": "આ બ્રાઉઝરમાં જિઓલોકેશન ઉપલબ્ધ નથી.",
+      "geolocationDenied": "તમારા સ્થાનને ઍક્સેસ કરવાની પરવાનગી નકારી.",
+      "geolocationError": "તમારું સ્થાન મેળવી શકાયું નથી. ફરી પ્રયાસ કરો.",
+      "geolocationGeocodeError": "સ્થાન મળ્યું પણ સરનામું શોધી શકાયું નથી — કૃપા કરી ફીલ્ડ ભરો."
     },
     "settings": {
       "loading": "ખાતા સેટિંગ્સ લોડ થઈ રહી છે…",
@@ -445,6 +627,15 @@
       "labelPlaceholder": "ઘર, કાર્યસ્થળ, કુટુંબ",
       "makeDefault": "આને ડિફોલ્ટ ડિલિવરી સરનામું બનાવો",
       "saveAddress": "સરનામું સાચવો"
+    },
+    "dashboard": {
+      "greeting": "નમસ્તે, {name}",
+      "there": "ત્યાં",
+      "ordersThisMonth": "આ મહિનાના ઓર્ડર",
+      "lifetimeSpend": "કુલ ખર્ચ",
+      "favoriteStore": "પ્રિય દુકાન",
+      "orderAgain": "ફરી ઓર્ડર કરો",
+      "recentlyViewed": "તાજેતરમાં જોયેલું"
     }
   }
 }

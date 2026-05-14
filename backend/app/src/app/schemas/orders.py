@@ -36,6 +36,11 @@ class DeliveryRead(BaseModel):
     delivered_at: Optional[datetime]
 
 
+class OrderReviewInOrder(BaseModel):
+    rating: int
+    comment: Optional[str] = None
+
+
 class OrderRead(BaseModel):
     id: int
     store_id: int
@@ -53,6 +58,7 @@ class OrderRead(BaseModel):
     items: List[OrderItemRead]
     payment: PaymentRead
     delivery: DeliveryRead
+    review: Optional[OrderReviewInOrder] = None
 
 
 class OrderListResponse(BaseModel):

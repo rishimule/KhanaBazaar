@@ -373,20 +373,50 @@
       "confirmCashCollected": "Cash collected from customer?",
       "confirmCancel": "Cancel this order? Stock will be restored.",
       "errUpdate": "Could not update order.",
-      "errCancel": "Could not cancel order."
+      "errCancel": "Could not cancel order.",
+      "rateOrder": "Rate order"
     },
     "active": {
       "title": "Active orders",
       "viewAll": "View all",
       "empty": "No active orders.",
       "errLoad": "Could not load orders."
+    },
+    "payment": {
+      "status": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "failed": "Failed",
+        "refunded": "Refunded"
+      }
+    },
+    "review": {
+      "submit": "Submit review",
+      "commentPlaceholder": "What did you think?",
+      "starAria": "{n} stars",
+      "yourRating": "Your rating: {rating}/5",
+      "error": {
+        "generic": "Could not submit your review. Try again.",
+        "order_not_delivered": "You can only review delivered orders.",
+        "review_exists": "You've already reviewed this order."
+      }
     }
   },
   "Account": {
     "loading": "Loading…",
-    "layoutTitle": "Account",
+    "layoutTitle": "Dashboard",
+    "layoutOrdersTitle": "Orders",
+    "layoutAddressesTitle": "Addresses",
+    "layoutProfileTitle": "Profile",
+    "layoutPreferencesTitle": "Preferences",
+    "layoutSupportTitle": "Help & Support",
     "layoutSettingsTitle": "Account settings",
+    "navDashboard": "Dashboard",
     "navOrders": "Orders",
+    "navAddresses": "Addresses",
+    "navProfile": "Profile",
+    "navPreferences": "Preferences",
+    "navSupport": "Support",
     "navSettings": "Settings",
     "dashboardTitle": "My account",
     "orders": {
@@ -396,7 +426,33 @@
       "tabHistory": "History",
       "loading": "Loading…",
       "emptyActive": "No active orders.",
-      "emptyHistory": "No history orders."
+      "emptyHistory": "No history orders.",
+      "colOrderId": "Order #",
+      "colDate": "Date",
+      "colStore": "Store",
+      "colService": "Service",
+      "colItems": "Items",
+      "colTotal": "Total",
+      "colPayment": "Payment",
+      "colStatus": "Status",
+      "itemCount": "{count, plural, one {# item} other {# items}}",
+      "allServices": "All services",
+      "fromDate": "From date",
+      "toDate": "To date",
+      "searchPlaceholder": "Search by order # or store…",
+      "loadMore": "Load more",
+      "chip": {
+        "all": "All",
+        "active": "Active",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled"
+      },
+      "sort": {
+        "dateDesc": "Newest first",
+        "dateAsc": "Oldest first",
+        "totalDesc": "Total ↓",
+        "totalAsc": "Total ↑"
+      }
     },
     "orderDetail": {
       "title": "Order #{id}",
@@ -410,6 +466,132 @@
       "loadError": "Could not load order.",
       "loading": "Loading…",
       "amount": "₹{amount}"
+    },
+    "profile": {
+      "loading": "Loading profile…",
+      "loadError": "Could not load your profile.",
+      "saveProfileError": "Could not save changes.",
+      "profileSection": "Profile",
+      "firstNameLabel": "First name",
+      "lastNameLabel": "Last name",
+      "phoneLabel": "Phone",
+      "emailLabel": "Email",
+      "firstNameRequired": "First name is required.",
+      "phoneInvalid": "Use 7-20 digits, spaces, +, -, or parentheses.",
+      "saveProfile": "Save changes",
+      "saving": "Saving…",
+      "verified": "Verified",
+      "verifyPhone": "Verify phone",
+      "dobLabel": "Date of birth",
+      "statsTitle": "Your activity",
+      "statsSubtitle": "Summary of your orders",
+      "ordersThisMonth": "Orders this month",
+      "lifetimeSpend": "Lifetime spend",
+      "favoriteStore": "Favorite store",
+      "phoneVerifiedSince": "Phone verified",
+      "phoneVerify": {
+        "title": "Verify your phone",
+        "phoneLabel": "Phone (with country code)",
+        "codeLabel": "Enter the 6-digit code",
+        "sendCode": "Send code",
+        "verify": "Verify",
+        "sentTo": "We sent a code to {phone}.",
+        "error": {
+          "generic": "Something went wrong. Try again.",
+          "phone_invalid": "That phone number doesn't look right.",
+          "phone_already_in_use": "That number is already linked to another account.",
+          "otp_invalid": "That code is incorrect or expired.",
+          "rate_limited": "Too many attempts. Try again later."
+        },
+        "confirmPrompt": "We'll send a 6-digit code to:",
+        "editPhone": "Change",
+        "changePhone": "Change number"
+      }
+    },
+    "preferences": {
+      "languageTitle": "Language",
+      "languageSubtitle": "Choose the language for your dashboard.",
+      "notificationsTitle": "Notifications",
+      "notificationsComingSoon": "Notification preferences coming soon.",
+      "loading": "Loading…",
+      "loadError": "Could not load preferences.",
+      "saveError": "Could not save preference.",
+      "languageDefault": "Use site default",
+      "notifyOrderEmail": "Email me about my order status",
+      "notifyOrderSms": "Text me about my order status",
+      "marketingOptIn": "Send me promos and new-product emails",
+      "lang": {
+        "en": "English",
+        "hi": "हिन्दी (Hindi)",
+        "mr": "मराठी (Marathi)",
+        "gu": "ગુજરાતી (Gujarati)",
+        "pa": "ਪੰਜਾਬੀ (Punjabi)"
+      }
+    },
+    "support": {
+      "faqTitle": "Frequently asked questions",
+      "faqSubtitle": "Quick answers to common questions.",
+      "faq": {
+        "q1": {
+          "question": "How do I track my order?",
+          "answer": "Open the order from Orders to see its current status and timeline."
+        },
+        "q2": {
+          "question": "How do I change my delivery address?",
+          "answer": "Manage saved addresses from the Addresses section; pick one at checkout."
+        },
+        "q3": {
+          "question": "What payment methods are supported?",
+          "answer": "UPI and Cash on Delivery."
+        },
+        "q4": {
+          "question": "How do I cancel an order?",
+          "answer": "Pending orders can be cancelled from the order detail page."
+        },
+        "q5": {
+          "question": "Why didn't I receive my OTP?",
+          "answer": "Check your spam folder or wait 60 seconds and request a new code."
+        }
+      },
+      "contactTitle": "Contact support",
+      "contactSubtitle": "Send us a message and we'll get back to you over email.",
+      "subjectLabel": "Subject",
+      "messageLabel": "Message",
+      "send": "Send",
+      "sent": "Message sent. We'll be in touch.",
+      "sendError": "Could not send your message. Please try again."
+    },
+    "addresses": {
+      "loading": "Loading addresses…",
+      "loadError": "Could not load your addresses.",
+      "saveAddressError": "Could not save delivery address.",
+      "setDefaultError": "Could not set default address.",
+      "deleteAddressError": "Could not delete address.",
+      "deleteConfirm": "Delete {label}?",
+      "deleteFallbackLabel": "this address",
+      "addressesTitle": "Saved delivery addresses",
+      "addressCount": "{count, plural, one {# saved address} other {# saved addresses}}",
+      "addAddress": "Add address",
+      "noAddresses": "No delivery addresses are saved.",
+      "addressFallbackLabel": "Address",
+      "defaultBadge": "Default",
+      "edit": "Edit",
+      "setDefault": "Set default",
+      "delete": "Delete",
+      "addAddressFormTitle": "Add delivery address",
+      "editAddressFormTitle": "Edit delivery address",
+      "cancel": "Cancel",
+      "labelLabel": "Label",
+      "labelPlaceholder": "Home, Work, Family",
+      "makeDefault": "Make this the default delivery address",
+      "saveAddress": "Save address",
+      "saving": "Saving…",
+      "useCurrentLocation": "Use current location",
+      "geolocating": "Getting location…",
+      "geolocationUnavailable": "Geolocation is not available in this browser.",
+      "geolocationDenied": "Permission to access your location was denied.",
+      "geolocationError": "Could not get your location. Try again.",
+      "geolocationGeocodeError": "Got your location but could not look up the address — please fill in the fields."
     },
     "settings": {
       "loading": "Loading account settings…",
@@ -445,6 +627,15 @@
       "labelPlaceholder": "Home, Work, Family",
       "makeDefault": "Make this the default delivery address",
       "saveAddress": "Save address"
+    },
+    "dashboard": {
+      "greeting": "Hi, {name}",
+      "there": "there",
+      "ordersThisMonth": "Orders this month",
+      "lifetimeSpend": "Lifetime spend",
+      "favoriteStore": "Favorite store",
+      "orderAgain": "Order again",
+      "recentlyViewed": "Recently viewed"
     }
   }
 }

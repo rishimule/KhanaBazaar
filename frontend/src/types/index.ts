@@ -97,6 +97,12 @@ export interface CustomerProfile {
   first_name: string;
   last_name: string | null;
   phone: string | null;
+  date_of_birth: string | null;
+  preferred_language: string | null;
+  marketing_opt_in: boolean;
+  notify_order_email: boolean;
+  notify_order_sms: boolean;
+  phone_verified_at: string | null;
   addresses: CustomerAddress[];
 }
 
@@ -297,6 +303,11 @@ export interface OrderDelivery {
   delivered_at: string | null;
 }
 
+export interface OrderReview {
+  rating: number;
+  comment: string | null;
+}
+
 export interface Order {
   id: number;
   store_id: number;
@@ -314,10 +325,29 @@ export interface Order {
   items: OrderItem[];
   payment: OrderPayment;
   delivery: OrderDelivery;
+  review: OrderReview | null;
 }
 
 export interface OrderListResponse {
   orders: Order[];
+}
+
+export interface CustomerOrderSummary {
+  id: number;
+  store_id: number;
+  store_name: string;
+  service_id: number;
+  service_name: string;
+  total: number;
+  placed_at: string;
+}
+
+export interface CustomerStats {
+  orders_this_month: number;
+  lifetime_spend: number;
+  favorite_store_id: number | null;
+  favorite_store_name: string | null;
+  recent_delivered: CustomerOrderSummary[];
 }
 
 export interface EligibleProduct {

@@ -373,20 +373,50 @@
       "confirmCashCollected": "ग्राहकाकडून रोख घेतली का?",
       "confirmCancel": "ही ऑर्डर रद्द करायची? साठा परत केला जाईल.",
       "errUpdate": "ऑर्डर अद्ययावत करता आली नाही.",
-      "errCancel": "ऑर्डर रद्द करता आली नाही."
+      "errCancel": "ऑर्डर रद्द करता आली नाही.",
+      "rateOrder": "ऑर्डर रेट करा"
     },
     "active": {
       "title": "सक्रिय ऑर्डर",
       "viewAll": "सर्व पहा",
       "empty": "कोणतीही सक्रिय ऑर्डर नाही.",
       "errLoad": "ऑर्डर लोड करता आल्या नाहीत."
+    },
+    "payment": {
+      "status": {
+        "pending": "प्रलंबित",
+        "paid": "भरले",
+        "failed": "अयशस्वी",
+        "refunded": "परत"
+      }
+    },
+    "review": {
+      "submit": "रिव्ह्यू सबमिट करा",
+      "commentPlaceholder": "तुम्हाला कसे वाटले?",
+      "starAria": "{n} तारे",
+      "yourRating": "तुमची रेटिंग: {rating}/5",
+      "error": {
+        "generic": "रिव्ह्यू सबमिट करता आला नाही.",
+        "order_not_delivered": "फक्त डिलिव्हर झालेल्या ऑर्डरचा रिव्ह्यू देता येतो.",
+        "review_exists": "तुम्ही आधीच या ऑर्डरचा रिव्ह्यू दिला आहे."
+      }
     }
   },
   "Account": {
     "loading": "लोड होत आहे…",
-    "layoutTitle": "खाते",
+    "layoutTitle": "डॅशबोर्ड",
+    "layoutOrdersTitle": "ऑर्डर",
+    "layoutAddressesTitle": "पत्ते",
+    "layoutProfileTitle": "प्रोफाइल",
+    "layoutPreferencesTitle": "प्राधान्ये",
+    "layoutSupportTitle": "मदत",
     "layoutSettingsTitle": "खाते सेटिंग्ज",
+    "navDashboard": "डॅशबोर्ड",
     "navOrders": "ऑर्डर",
+    "navAddresses": "पत्ते",
+    "navProfile": "प्रोफाइल",
+    "navPreferences": "प्राधान्ये",
+    "navSupport": "मदत",
     "navSettings": "सेटिंग्ज",
     "dashboardTitle": "माझे खाते",
     "orders": {
@@ -396,7 +426,33 @@
       "tabHistory": "इतिहास",
       "loading": "लोड होत आहे…",
       "emptyActive": "कोणतीही सक्रिय ऑर्डर नाही.",
-      "emptyHistory": "इतिहासात कोणतीही ऑर्डर नाही."
+      "emptyHistory": "इतिहासात कोणतीही ऑर्डर नाही.",
+      "colOrderId": "ऑर्डर #",
+      "colDate": "तारीख",
+      "colStore": "दुकान",
+      "colService": "सेवा",
+      "colItems": "वस्तू",
+      "colTotal": "एकूण",
+      "colPayment": "पेमेंट",
+      "colStatus": "स्थिती",
+      "itemCount": "{count, plural, one {# वस्तू} other {# वस्तू}}",
+      "allServices": "सर्व सेवा",
+      "fromDate": "तारखेपासून",
+      "toDate": "तारखेपर्यंत",
+      "searchPlaceholder": "ऑर्डर # किंवा दुकान शोधा…",
+      "loadMore": "अधिक दाखवा",
+      "chip": {
+        "all": "सर्व",
+        "active": "सक्रिय",
+        "delivered": "वितरित",
+        "cancelled": "रद्द"
+      },
+      "sort": {
+        "dateDesc": "नवीनतम आधी",
+        "dateAsc": "जुने आधी",
+        "totalDesc": "एकूण ↓",
+        "totalAsc": "एकूण ↑"
+      }
     },
     "orderDetail": {
       "title": "ऑर्डर #{id}",
@@ -410,6 +466,132 @@
       "loadError": "ऑर्डर लोड करता आली नाही.",
       "loading": "लोड होत आहे…",
       "amount": "₹{amount}"
+    },
+    "profile": {
+      "loading": "प्रोफाइल लोड होत आहे…",
+      "loadError": "तुमची प्रोफाइल लोड करता आली नाही.",
+      "saveProfileError": "बदल जतन करता आले नाहीत.",
+      "profileSection": "प्रोफाइल",
+      "firstNameLabel": "पहिले नाव",
+      "lastNameLabel": "आडनाव",
+      "phoneLabel": "फोन",
+      "emailLabel": "ईमेल",
+      "firstNameRequired": "पहिले नाव आवश्यक आहे.",
+      "phoneInvalid": "7-20 अंक, स्पेस, +, -, किंवा कंस वापरा.",
+      "saveProfile": "बदल जतन करा",
+      "saving": "जतन करत आहे…",
+      "verified": "सत्यापित",
+      "verifyPhone": "फोन सत्यापित करा",
+      "dobLabel": "जन्मतारीख",
+      "statsTitle": "तुमची क्रियाकलाप",
+      "statsSubtitle": "तुमच्या ऑर्डरचा सारांश",
+      "ordersThisMonth": "या महिन्याचे ऑर्डर",
+      "lifetimeSpend": "एकूण खर्च",
+      "favoriteStore": "आवडते दुकान",
+      "phoneVerifiedSince": "फोन सत्यापित",
+      "phoneVerify": {
+        "title": "तुमचा फोन सत्यापित करा",
+        "phoneLabel": "फोन (देश कोडसह)",
+        "codeLabel": "6-अंकी कोड टाका",
+        "sendCode": "कोड पाठवा",
+        "verify": "सत्यापित करा",
+        "sentTo": "आम्ही {phone} वर कोड पाठवला.",
+        "error": {
+          "generic": "काहीतरी चूक झाली. पुन्हा प्रयत्न करा.",
+          "phone_invalid": "हा फोन नंबर बरोबर वाटत नाही.",
+          "phone_already_in_use": "हा नंबर आधीच दुसऱ्या खात्याशी जोडलेला आहे.",
+          "otp_invalid": "कोड चुकीचा आहे किंवा कालबाह्य झाला आहे.",
+          "rate_limited": "खूप प्रयत्न. नंतर प्रयत्न करा."
+        },
+        "confirmPrompt": "आम्ही 6-अंकी कोड पाठवू:",
+        "editPhone": "बदला",
+        "changePhone": "नंबर बदला"
+      }
+    },
+    "preferences": {
+      "languageTitle": "भाषा",
+      "languageSubtitle": "तुमच्या डॅशबोर्डसाठी भाषा निवडा.",
+      "notificationsTitle": "सूचना",
+      "notificationsComingSoon": "सूचना प्राधान्ये लवकरच येत आहेत.",
+      "loading": "लोड होत आहे…",
+      "loadError": "प्राधान्ये लोड करता आली नाहीत.",
+      "saveError": "प्राधान्य जतन करता आले नाही.",
+      "languageDefault": "साइट डिफॉल्ट वापरा",
+      "notifyOrderEmail": "माझ्या ऑर्डर स्थितीबद्दल मला ईमेल करा",
+      "notifyOrderSms": "माझ्या ऑर्डर स्थितीबद्दल मला SMS करा",
+      "marketingOptIn": "मला प्रचार आणि नवीन-उत्पाद ईमेल पाठवा",
+      "lang": {
+        "en": "English",
+        "hi": "हिन्दी",
+        "mr": "मराठी",
+        "gu": "ગુજરાતી",
+        "pa": "ਪੰਜਾਬੀ"
+      }
+    },
+    "support": {
+      "faqTitle": "वारंवार विचारले जाणारे प्रश्न",
+      "faqSubtitle": "सामान्य प्रश्नांची जलद उत्तरे.",
+      "faq": {
+        "q1": {
+          "question": "मी माझा ऑर्डर कसा ट्रॅक करू?",
+          "answer": "ऑर्डर उघडून त्याची सद्यस्थिती पहा."
+        },
+        "q2": {
+          "question": "मी डिलिव्हरी पत्ता कसा बदलू?",
+          "answer": "पत्ते विभागातून जतन केलेले पत्ते व्यवस्थापित करा."
+        },
+        "q3": {
+          "question": "कोणत्या पेमेंट पद्धती समर्थित आहेत?",
+          "answer": "UPI आणि कॅश ऑन डिलिव्हरी."
+        },
+        "q4": {
+          "question": "मी ऑर्डर कसा रद्द करू?",
+          "answer": "प्रलंबित ऑर्डर ऑर्डर तपशील पानावरून रद्द करता येतात."
+        },
+        "q5": {
+          "question": "मला OTP का मिळाला नाही?",
+          "answer": "स्पॅम फोल्डर तपासा किंवा 60 सेकंदांनंतर नवीन कोड मागवा."
+        }
+      },
+      "contactTitle": "मदतीशी संपर्क साधा",
+      "contactSubtitle": "आम्हाला संदेश पाठवा आणि आम्ही ईमेलने उत्तर देऊ.",
+      "subjectLabel": "विषय",
+      "messageLabel": "संदेश",
+      "send": "पाठवा",
+      "sent": "संदेश पाठवला. आम्ही संपर्क साधू.",
+      "sendError": "तुमचा संदेश पाठवता आला नाही. कृपया पुन्हा प्रयत्न करा."
+    },
+    "addresses": {
+      "loading": "पत्ते लोड होत आहेत…",
+      "loadError": "तुमचे पत्ते लोड करता आले नाहीत.",
+      "saveAddressError": "डिलिव्हरी पत्ता जतन करता आला नाही.",
+      "setDefaultError": "डिफॉल्ट पत्ता सेट करता आला नाही.",
+      "deleteAddressError": "पत्ता हटवता आला नाही.",
+      "deleteConfirm": "{label} हटवायचा?",
+      "deleteFallbackLabel": "हा पत्ता",
+      "addressesTitle": "जतन केलेले डिलिव्हरी पत्ते",
+      "addressCount": "{count, plural, one {# जतन केलेला पत्ता} other {# जतन केलेले पत्ते}}",
+      "addAddress": "पत्ता जोडा",
+      "noAddresses": "कोणताही डिलिव्हरी पत्ता जतन केलेला नाही.",
+      "addressFallbackLabel": "पत्ता",
+      "defaultBadge": "डिफॉल्ट",
+      "edit": "संपादित करा",
+      "setDefault": "डिफॉल्ट सेट करा",
+      "delete": "हटवा",
+      "addAddressFormTitle": "डिलिव्हरी पत्ता जोडा",
+      "editAddressFormTitle": "डिलिव्हरी पत्ता संपादित करा",
+      "cancel": "रद्द करा",
+      "labelLabel": "लेबल",
+      "labelPlaceholder": "घर, कार्यालय, कुटुंब",
+      "makeDefault": "हा डिफॉल्ट डिलिव्हरी पत्ता बनवा",
+      "saveAddress": "पत्ता जतन करा",
+      "saving": "जतन करत आहे…",
+      "useCurrentLocation": "सध्याचे स्थान वापरा",
+      "geolocating": "स्थान मिळवत आहे…",
+      "geolocationUnavailable": "या ब्राउझरमध्ये जिओलोकेशन उपलब्ध नाही.",
+      "geolocationDenied": "तुमच्या स्थानावर प्रवेशास अनुमती नाकारली.",
+      "geolocationError": "तुमचे स्थान मिळवू शकलो नाही. पुन्हा प्रयत्न करा.",
+      "geolocationGeocodeError": "स्थान मिळाले पण पत्ता शोधू शकलो नाही — कृपया फील्ड भरा."
     },
     "settings": {
       "loading": "खाते सेटिंग्ज लोड होत आहेत…",
@@ -445,6 +627,15 @@
       "labelPlaceholder": "घर, कार्यस्थळ, कुटुंब",
       "makeDefault": "हा डीफॉल्ट डिलिव्हरी पत्ता बनवा",
       "saveAddress": "पत्ता जतन करा"
+    },
+    "dashboard": {
+      "greeting": "नमस्कार, {name}",
+      "there": "तिथे",
+      "ordersThisMonth": "या महिन्याचे ऑर्डर",
+      "lifetimeSpend": "एकूण खर्च",
+      "favoriteStore": "आवडते दुकान",
+      "orderAgain": "पुन्हा ऑर्डर करा",
+      "recentlyViewed": "अलीकडे पाहिले"
     }
   }
 }
