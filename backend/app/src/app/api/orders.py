@@ -20,6 +20,7 @@ from app.models.commerce import (
     OrderItem,
     OrderStatus,
     Payment,
+    Review,
 )
 from app.models.profile import CustomerProfile, SellerProfile
 from app.models.store import Store
@@ -28,10 +29,12 @@ from app.schemas.orders import (
     OrderItemRead,
     OrderListResponse,
     OrderRead,
+    OrderReviewInOrder,
     PaymentRead,
     PlaceOrderRequest,
     TransitionRequest,
 )
+from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
 from app.services.checkout import place_order_for_sub_basket
 from app.services.order_emails import (
     dispatch_order_placed,
@@ -64,6 +67,8 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
         raise HTTPException(status_code=500, detail="order_missing_delivery")
     store_result = await session.exec(select(Store).where(Store.id == order.store_id))
     store = store_result.first()
+    review_result = await session.exec(select(Review).where(Review.order_id == order.id))
+    review = review_result.first()
     customer_name: Optional[str] = None
     if include_customer_name:
         cust_result = await session.exec(
@@ -104,6 +109,9 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
             dispatched_at=delivery.dispatched_at,
             delivered_at=delivery.delivered_at,
         ),
+        review=OrderReviewInOrder(rating=review.rating, comment=review.comment)
+        if review is not None
+        else None,
     )
 
 
@@ -265,3 +273,37 @@ async def cancel(
     if order.id is not None:
         dispatch_order_status_changed(order.id, "cancelled", notify_seller=True)
     return await _serialize_order(session, order, include_customer_name=include_customer)
+
+
+@router.post("/{order_id}/review", response_model=OrderReviewRead)
+async def create_order_review(
+    order_id: int,
+    body: OrderReviewCreate,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> OrderReviewRead:
+    profile_id = await _customer_profile_id(session, user)
+    order_result = await session.exec(select(Order).where(Order.id == order_id))
+    order = order_result.first()
+    if order is None or order.customer_profile_id != profile_id:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.status != OrderStatus.Delivered:
+        raise HTTPException(
+            status_code=409, detail={"error": "order_not_delivered"}
+        )
+    existing_result = await session.exec(
+        select(Review).where(Review.order_id == order.id)
+    )
+    if existing_result.first() is not None:
+        raise HTTPException(status_code=409, detail={"error": "review_exists"})
+    review = Review(
+        customer_profile_id=profile_id,
+        order_id=order.id,
+        store_id=order.store_id,
+        rating=body.rating,
+        comment=body.comment,
+    )
+    session.add(review)
+    await session.commit()
+    await session.refresh(review)
+    return OrderReviewRead(rating=review.rating, comment=review.comment)
