@@ -100,17 +100,11 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
   if (!loading && (!role || role === "customer")) {
     navLinks.push({ href: "/sell", label: t("sell") });
   }
-  if (role === "customer" || role === "seller" || role === "admin") {
+  if (!role || role === "customer") {
     navLinks.push({ href: "/stores", label: t("stores") });
   }
   if (role === "customer") {
     navLinks.push({ href: "/account/orders", label: t("orders") });
-  }
-  if (role === "seller") {
-    navLinks.push({ href: "/seller", label: t("seller") });
-  }
-  if (role === "admin") {
-    navLinks.push({ href: "/admin", label: t("admin") });
   }
 
   const handleLogout = async () => {
