@@ -26,7 +26,7 @@ class Language(SQLModel, table=True):
 class Service(BaseSchema, table=True):
     slug: str = Field(nullable=False, unique=True, index=True)
     icon_url: Optional[str] = Field(default=None)
-    is_active: bool = Field(default=True, nullable=False)
+    is_active: bool = Field(default=True, nullable=False, index=True)
     sort_order: int = Field(default=0, nullable=False)
 
 
@@ -40,9 +40,11 @@ class ServiceTranslation(BaseSchema, table=True):
 
 
 class Category(BaseSchema, table=True):
-    __table_args__ = (UniqueConstraint("service_id", "slug", name="uq_category_service_slug"),)
+    # Partial unique on (service_id, slug) WHERE is_active applied in migration.
     service_id: int = Field(foreign_key="service.id", nullable=False, index=True)
     slug: str = Field(nullable=False)
+    image_url: Optional[str] = Field(default=None)
+    is_active: bool = Field(default=True, nullable=False, index=True)
     sort_order: int = Field(default=0, nullable=False)
 
     service: Service = Relationship()
@@ -58,9 +60,11 @@ class CategoryTranslation(BaseSchema, table=True):
 
 
 class Subcategory(BaseSchema, table=True):
-    __table_args__ = (UniqueConstraint("category_id", "slug", name="uq_subcategory_category_slug"),)
+    # Partial unique on (category_id, slug) WHERE is_active applied in migration.
     category_id: int = Field(foreign_key="category.id", nullable=False, index=True)
     slug: str = Field(nullable=False)
+    image_url: Optional[str] = Field(default=None)
+    is_active: bool = Field(default=True, nullable=False, index=True)
     sort_order: int = Field(default=0, nullable=False)
 
 
@@ -74,10 +78,15 @@ class SubcategoryTranslation(BaseSchema, table=True):
 
 
 class MasterProduct(BaseSchema, table=True):
+    # Partial unique on (subcategory_id, slug) WHERE is_active applied in migration.
+    # Global slug unique constraint is dropped — slugs are unique within a subcategory only.
     subcategory_id: int = Field(foreign_key="subcategory.id", nullable=False, index=True)
-    slug: str = Field(nullable=False, unique=True, index=True)
+    slug: str = Field(nullable=False, index=True)
     image_url: Optional[str] = Field(default=None)
     base_price: float = Field(nullable=False)
+    brand: Optional[str] = Field(default=None)
+    unit: Optional[str] = Field(default=None)
+    is_active: bool = Field(default=True, nullable=False, index=True)
 
 
 class MasterProductTranslation(BaseSchema, table=True):
