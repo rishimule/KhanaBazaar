@@ -16,6 +16,7 @@ from app.schemas.customer_stats import CustomerStatsResponse
 from app.schemas.customers import (
     CustomerAddressRead,
     CustomerAddressWrite,
+    CustomerPreferencesUpdate,
     CustomerProfileRead,
     CustomerProfileUpdate,
 )
@@ -64,6 +65,12 @@ async def _profile_response(
         first_name=profile.first_name,
         last_name=profile.last_name,
         phone=profile.phone,
+        date_of_birth=profile.date_of_birth,
+        preferred_language=profile.preferred_language,
+        marketing_opt_in=profile.marketing_opt_in,
+        notify_order_email=profile.notify_order_email,
+        notify_order_sms=profile.notify_order_sms,
+        phone_verified_at=profile.phone_verified_at,
         addresses=[
             CustomerAddressRead(
                 id=customer_address.id,
@@ -148,7 +155,39 @@ async def update_customer_profile(
         profile.last_name = body.last_name
     if "phone" in body.model_fields_set:
         profile.phone = body.phone
+    if "date_of_birth" in body.model_fields_set:
+        profile.date_of_birth = body.date_of_birth
 
+    session.add(profile)
+    await session.commit()
+    await session.refresh(profile)
+    return await _profile_response(session, current_user, profile)
+
+
+@router.patch("/me/preferences", response_model=CustomerProfileRead)
+async def update_customer_preferences(
+    body: CustomerPreferencesUpdate,
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> CustomerProfileRead:
+    assert current_user.id is not None
+    profile = await _customer_profile_for_user(session, current_user.id)
+    if "preferred_language" in body.model_fields_set:
+        profile.preferred_language = (
+            body.preferred_language.value if body.preferred_language else None
+        )
+    if "marketing_opt_in" in body.model_fields_set and body.marketing_opt_in is not None:
+        profile.marketing_opt_in = body.marketing_opt_in
+    if (
+        "notify_order_email" in body.model_fields_set
+        and body.notify_order_email is not None
+    ):
+        profile.notify_order_email = body.notify_order_email
+    if (
+        "notify_order_sms" in body.model_fields_set
+        and body.notify_order_sms is not None
+    ):
+        profile.notify_order_sms = body.notify_order_sms
     session.add(profile)
     await session.commit()
     await session.refresh(profile)
