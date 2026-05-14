@@ -439,3 +439,60 @@
   background: var(--hairline);
   margin: var(--space-2) 0;
 }
+
+/* ── Role variant: stripped & signup ─── */
+.navInnerStripped {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--nav-height);
+  padding: 0 var(--space-6);
+  max-width: var(--container-2xl);
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+@media (max-width: 767px) {
+  .navInnerStripped {
+    padding: 0 var(--space-4);
+    gap: var(--space-3);
+  }
+}
+
+.strippedSpacer {
+  flex: 1 1 auto;
+}
+
+.backToDashboard {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  color: var(--shade-cool-dark-7);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.backToDashboard:hover {
+  background: var(--shade-cool-light-1, #f5f7fa);
+  text-decoration: none;
+}
+
+.backToDashboardLabel {
+  display: inline;
+}
+
+@media (max-width: 380px) {
+  .backToDashboardLabel {
+    display: none;
+  }
+  .backToDashboard {
+    padding: 6px 10px;
+  }
+}
