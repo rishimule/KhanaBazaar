@@ -63,11 +63,16 @@
     "stores": "दुकाने",
     "subtitle": "तुमच्या जवळ काय उपलब्ध आहे ते पाहण्यासाठी दुकान निवडा",
     "openDot": "● उघडे",
-    "viewStore": "दुकान पहा →"
+    "viewStore": "दुकान पहा →",
+    "filteredHeader": "{service} दुकाने दाखवली जात आहेत",
+    "clearFilter": "साफ करा",
+    "emptyNoLocation": "सध्या {service} ची कोणतीही दुकान उपलब्ध नाही. वितरण स्थान सेट करून पाहा.",
+    "emptyWithLocation": "तुमच्या निवडलेल्या ठिकाणी {service} ची डिलिव्हरी कोणतीही दुकान करत नाही."
   },
   "StoreDetail": {
     "openNow": "आता उघडे",
     "noProductsYet": "या दुकानात अद्याप कोणतेही उत्पादन नाही.",
+    "noProductsForService": "या दुकानात अद्याप {service} ची कोणतीही उत्पादने नाहीत.",
     "notFoundTitle": "दुकान सापडले नाही",
     "notFoundBody": "हे दुकान अस्तित्वात नाही किंवा काढून टाकले गेले असेल.",
     "browseAllStores": "सर्व दुकाने ब्राउझ करा",

@@ -63,11 +63,16 @@
     "stores": "Stores",
     "subtitle": "Select a store to see what's available near you",
     "openDot": "● Open",
-    "viewStore": "View Store →"
+    "viewStore": "View Store →",
+    "filteredHeader": "Showing {service} stores",
+    "clearFilter": "Clear",
+    "emptyNoLocation": "No stores offer {service} yet. Try setting a delivery location.",
+    "emptyWithLocation": "No stores deliver {service} to your selected location yet."
   },
   "StoreDetail": {
     "openNow": "Open Now",
     "noProductsYet": "This store has no products yet.",
+    "noProductsForService": "No {service} products yet at this store.",
     "notFoundTitle": "Store Not Found",
     "notFoundBody": "This store doesn't exist or may have been removed.",
     "browseAllStores": "Browse All Stores",
