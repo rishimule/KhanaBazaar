@@ -244,7 +244,7 @@ export default function CheckoutPage() {
           sourceStoreName={cart.store_name}
           serviceId={serviceId}
           serviceName={cart.service_name}
-          customerAddressId={addressId}
+          customerAddressId={pickerState.selectedId}
           serviceable={pickerState.serviceable}
           pickerLoading={pickerState.loading}
           cart={cart}

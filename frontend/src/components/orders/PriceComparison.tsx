@@ -44,7 +44,7 @@ export default function PriceComparison({
   const t = useTranslations("Checkout.compare");
   const tErr = useTranslations("Errors");
   const { token } = useAuth();
-  const { carts, refresh, setReplaceAdjustments } = useCart();
+  const { carts, refresh, setReplaceAdjustments, clearReplaceAdjustments } = useCart();
   const router = useRouter();
 
   const [expanded, setExpanded] = useState(false);
@@ -121,6 +121,7 @@ export default function PriceComparison({
     } catch (e) {
       const key = apiErrorKey(e);
       if (key === "Errors.service_unavailable" || key === "Errors.service_mismatch") {
+        clearReplaceAdjustments();
         setChosen(null);
         router.push("/cart");
         return;
@@ -129,7 +130,7 @@ export default function PriceComparison({
     } finally {
       setSubmitting(false);
     }
-  }, [token, chosen, serviceId, setReplaceAdjustments, refresh, router]);
+  }, [token, chosen, serviceId, setReplaceAdjustments, clearReplaceAdjustments, refresh, router]);
 
   const preExistingCount = chosen
     ? (carts.find((c) => c.store_id === chosen.id && c.service_id === serviceId)?.items.length ?? 0)
@@ -179,6 +180,7 @@ export default function PriceComparison({
             <PriceComparisonTable
               sourceCart={cart}
               alternatives={status.alternatives}
+              shopDisabled={chosen !== null || submitting}
               onShopAt={(alt) => {
                 setChosen(alt);
                 setDialogErrorKey(null);

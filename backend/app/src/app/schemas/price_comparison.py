@@ -53,7 +53,10 @@ class ReplaceItemRequest(BaseModel):
 
 
 class ReplaceRequest(BaseModel):
-    items: List[ReplaceItemRequest] = Field(min_length=1)
+    # Upper bound matches the spec's MVP cart-size assumption and prevents
+    # an unauthenticated-cost amplification path on this endpoint (each
+    # item triggers two DB lookups). 200 is well past any realistic cart.
+    items: List[ReplaceItemRequest] = Field(min_length=1, max_length=200)
 
 
 ReplaceAdjustmentReason = Literal[

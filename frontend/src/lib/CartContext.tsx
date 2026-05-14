@@ -83,6 +83,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!dbUser) {
       lastSyncedUserId.current = null;
+      setLastReplaceAdjustments([]);
     }
   }, [dbUser]);
 

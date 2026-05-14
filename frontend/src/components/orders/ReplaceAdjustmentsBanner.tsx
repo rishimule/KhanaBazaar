@@ -2,6 +2,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 "use client";
 
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import styles from "./ReplaceAdjustmentsBanner.module.css";
@@ -9,6 +10,13 @@ import styles from "./ReplaceAdjustmentsBanner.module.css";
 export default function ReplaceAdjustmentsBanner() {
   const t = useTranslations("Checkout.compare");
   const { lastReplaceAdjustments, clearReplaceAdjustments } = useCart();
+
+  // Clear on unmount so the banner doesn't follow the customer to other
+  // pages (e.g. back to the source store's checkout). Banner is meant to
+  // be consumed once, on the destination page.
+  useEffect(() => {
+    return () => clearReplaceAdjustments();
+  }, [clearReplaceAdjustments]);
 
   if (lastReplaceAdjustments.length === 0) return null;
 

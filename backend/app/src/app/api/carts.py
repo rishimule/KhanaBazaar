@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.locale import get_request_locale
 from app.core.security import get_current_customer
 from app.db.session import get_db_session
 from app.models.address import Address
@@ -576,6 +577,7 @@ async def compare_prices(
     customer_address_id: int,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
+    lang: str = Depends(get_request_locale),
 ) -> CompareResponse:
     """Return ranked alternative stores for the customer's
     (store, service) cart."""
@@ -631,7 +633,7 @@ async def compare_prices(
         cart_items=cart_items,
         customer_latitude=address.latitude,
         customer_longitude=address.longitude,
-        language_code=DEFAULT_LANG,
+        language_code=lang,
     )
     return CompareResponse(alternatives=alternatives)
 

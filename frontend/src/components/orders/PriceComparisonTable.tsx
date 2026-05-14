@@ -10,6 +10,7 @@ interface Props {
   sourceCart: Cart;
   alternatives: ComparisonAlternative[];
   onShopAt: (alt: ComparisonAlternative) => void;
+  shopDisabled?: boolean;
 }
 
 function formatINR(value: number): string {
@@ -20,6 +21,7 @@ export default function PriceComparisonTable({
   sourceCart,
   alternatives,
   onShopAt,
+  shopDisabled = false,
 }: Props) {
   const t = useTranslations("Checkout.compare");
   const sourceItemByProductId = new Map(
@@ -126,6 +128,7 @@ export default function PriceComparisonTable({
                   type="button"
                   className={styles.shopBtn}
                   onClick={() => onShopAt(alt)}
+                  disabled={shopDisabled}
                 >
                   {t("shopAt", { store: alt.name })}
                 </button>

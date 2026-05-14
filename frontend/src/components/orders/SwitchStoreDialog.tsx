@@ -34,18 +34,20 @@ export default function SwitchStoreDialog({
 
   const errKey = errorKey?.startsWith("Errors.") ? errorKey.slice("Errors.".length) : errorKey;
 
+  const guardedClose = () => {
+    if (!submitting) onCancel();
+  };
+
   return (
     <Modal
       title={t("dialogTitle", { store: alternative.name })}
-      onClose={() => {
-        if (!submitting) onCancel();
-      }}
+      onClose={guardedClose}
       footer={
         <div className={styles.actions}>
           <button
             type="button"
             className={styles.btnGhost}
-            onClick={onCancel}
+            onClick={guardedClose}
             disabled={submitting}
           >
             {t("dialogCancel")}
