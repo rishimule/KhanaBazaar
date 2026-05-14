@@ -116,6 +116,8 @@ uv run python scripts/seed_database.py
 
 Seed is idempotent — re-running upserts.
 
+Product images use LoremFlickr CDN URLs (`https://loremflickr.com/400/400/<keyword>?lock=<n>`) drawn from `CATEGORY_IMAGE_POOLS` in `backend/app/src/app/db/_dev_seed_data.py` — 3 themed URLs per category, round-robin per subcategory. No local image files. If a new category is added without a `_CATEGORY_IMAGE_KEYWORDS` entry, seed fails loud with `KeyError: no image pool registered for category '<slug>'`. ProductCard renders the URL via raw `<img referrerPolicy="no-referrer">` and falls back to a category emoji glyph on load error.
+
 ### 4d. Run the API
 
 ```bash
