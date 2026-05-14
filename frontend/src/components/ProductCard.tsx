@@ -97,6 +97,7 @@ export default function ProductCard({
               alt={product.name}
               loading="lazy"
               decoding="async"
+              referrerPolicy="no-referrer"
               onError={() => setImgFailed(true)}
             />
           ) : (
