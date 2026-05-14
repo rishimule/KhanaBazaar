@@ -101,7 +101,11 @@ export default function Home() {
             </div>
             <div className={styles.svcGrid}>
               {services.map((s) => (
-                <Link key={s.id} href="/stores" className={styles.catTile}>
+                <Link
+                  key={s.id}
+                  href={`/stores?service=${encodeURIComponent(s.slug)}`}
+                  className={styles.catTile}
+                >
                   <span className={styles.catTileGlyph} aria-hidden>{serviceGlyph(s.slug)}</span>
                   <span className={styles.catTileLabel}>{s.name}</span>
                 </Link>
