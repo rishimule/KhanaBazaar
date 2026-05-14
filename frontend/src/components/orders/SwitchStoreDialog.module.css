@@ -1,0 +1,60 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 0.75rem);
+}
+.lead {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+}
+.warning {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-warning-soft, #fff4e0);
+  border-left: 3px solid var(--color-warning, #d97706);
+  border-radius: 0.25rem;
+  font-size: 0.9rem;
+}
+.note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.error {
+  margin: 0;
+  color: var(--color-danger, #b91c1c);
+  font-size: 0.9rem;
+}
+.actions {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+  justify-content: flex-end;
+}
+.btnGhost {
+  background: transparent;
+  border: 1px solid var(--color-border, #d1d5db);
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.btnPrimary {
+  background: var(--color-primary, #047857);
+  color: white;
+  border: none;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.btnPrimary:disabled,
+.btnGhost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

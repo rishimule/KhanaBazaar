@@ -1,0 +1,94 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.table th,
+.table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  vertical-align: top;
+}
+.table thead th {
+  text-align: left;
+  font-weight: 600;
+  background: var(--color-surface-muted, #f9fafb);
+}
+.subhead {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.itemCol {
+  width: 30%;
+}
+.itemName {
+  font-weight: 500;
+  text-align: left;
+}
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.missing {
+  color: var(--color-text-muted, #6b7280);
+  font-style: italic;
+  text-align: right;
+}
+.coverage {
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.8rem;
+}
+.combinedRow {
+  font-weight: 600;
+  background: var(--color-surface-muted, #f9fafb);
+}
+.currentLabel {
+  color: var(--color-text-muted, #6b7280);
+  font-style: italic;
+  text-align: center;
+}
+.shopBtn {
+  background: var(--color-primary, #047857);
+  color: white;
+  border: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .wrap {
+    overflow-x: visible;
+  }
+  .table,
+  .table thead,
+  .table tbody,
+  .table tfoot,
+  .table tr,
+  .table th,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+  .table thead {
+    display: none;
+  }
+  .table tr {
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding: 0.25rem 0;
+  }
+  .table th,
+  .table td {
+    border-bottom: none;
+    padding: 0.4rem 0.75rem;
+  }
+}

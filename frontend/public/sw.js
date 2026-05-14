@@ -40,6 +40,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Never intercept API calls. Per-customer data (carts, comparisons,
+  // sessions) must never be served from cache to a different visitor on
+  // the same device.
+  const url = new URL(request.url);
+  if (url.pathname.startsWith("/api/")) {
+    return;
+  }
+
   // Navigation requests: network-first
   if (request.mode === "navigate") {
     event.respondWith(

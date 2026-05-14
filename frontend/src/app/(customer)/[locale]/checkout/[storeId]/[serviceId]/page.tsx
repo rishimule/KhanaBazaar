@@ -14,6 +14,8 @@ import { placeOrder } from "@/lib/orders";
 import AddressPicker, { type PickerState } from "@/components/orders/AddressPicker";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import PaymentMethodPicker from "@/components/orders/PaymentMethodPicker";
+import PriceComparison from "@/components/orders/PriceComparison";
+import ReplaceAdjustmentsBanner from "@/components/orders/ReplaceAdjustmentsBanner";
 import type { PaymentMethod, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -164,6 +166,8 @@ export default function CheckoutPage() {
           </h1>
         </div>
 
+        <ReplaceAdjustmentsBanner />
+
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>{t("items")}</h2>
           <ul className={styles.itemList}>
@@ -234,6 +238,17 @@ export default function CheckoutPage() {
             <span>₹{total}</span>
           </div>
         </section>
+
+        <PriceComparison
+          sourceStoreId={storeId}
+          sourceStoreName={cart.store_name}
+          serviceId={serviceId}
+          serviceName={cart.service_name}
+          customerAddressId={pickerState.selectedId}
+          serviceable={pickerState.serviceable}
+          pickerLoading={pickerState.loading}
+          cart={cart}
+        />
 
         {error && <div className={styles.error}>{error}</div>}
 

@@ -4,12 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.locale import get_request_locale
 from app.core.security import get_current_customer
 from app.db.session import get_db_session
+from app.models.address import Address
 from app.models.base import User
 from app.models.catalog import MasterProduct, MasterProductTranslation
 from app.models.commerce import Cart, CartItem
-from app.models.profile import CustomerProfile
+from app.models.profile import CustomerAddress, CustomerProfile
 from app.models.store import Store, StoreInventory
 from app.schemas.carts import (
     CartItemAdd,
@@ -21,6 +23,13 @@ from app.schemas.carts import (
     CartSyncResponse,
     DroppedSyncItem,
 )
+from app.schemas.price_comparison import (
+    CompareResponse,
+    ReplaceAdjustment,
+    ReplaceRequest,
+    ReplaceResponse,
+)
+from app.services.price_comparison import find_alternatives
 
 router = APIRouter()
 
@@ -510,3 +519,202 @@ async def sync_carts(  # noqa: C901  # per-item validation branches; refactor tr
         carts=await _serialize_carts(session, carts),
         dropped=dropped,
     )
+
+
+# ---------------------------------------------------------------------------
+# Price comparison + cart-replace endpoints
+# ---------------------------------------------------------------------------
+
+
+async def _serialize_single_cart(
+    session: AsyncSession, cart: Cart
+) -> dict[str, object]:
+    """Build a CartRead-shaped dict for a single cart, mirroring the loop
+    in the existing list_carts handler."""
+    store = await session.get(Store, cart.store_id)
+    service_name = (await _service_names(session, [cart.service_id])).get(
+        cart.service_id, ""
+    )
+    items_result = await session.exec(
+        select(CartItem, StoreInventory)
+        .join(StoreInventory, StoreInventory.id == CartItem.inventory_id)  # type: ignore[arg-type]
+        .where(CartItem.cart_id == cart.id)
+    )
+    rows = items_result.all()
+    product_ids = [inv.product_id for _, inv in rows]
+    names = await _product_names(session, product_ids)
+    items: list[dict[str, object]] = []
+    subtotal = 0.0
+    for ci, inv in rows:
+        line_total = inv.price * ci.quantity
+        subtotal += line_total
+        items.append({
+            "id": ci.id,
+            "inventory_id": ci.inventory_id,
+            "product_id": inv.product_id,
+            "product_name": names.get(inv.product_id, ""),
+            "unit_price": inv.price,
+            "quantity": ci.quantity,
+            "line_total": line_total,
+        })
+    return {
+        "store_id": cart.store_id,
+        "store_name": store.name if store else "",
+        "service_id": cart.service_id,
+        "service_name": service_name,
+        "items": items,
+        "subtotal": round(subtotal, 2),
+    }
+
+
+@router.get(
+    "/{store_id}/{service_id}/compare",
+    response_model=CompareResponse,
+)
+async def compare_prices(
+    store_id: int,
+    service_id: int,
+    customer_address_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+    lang: str = Depends(get_request_locale),
+) -> CompareResponse:
+    """Return ranked alternative stores for the customer's
+    (store, service) cart."""
+    profile_id = await _customer_profile_id(session, user)
+
+    cart_result = await session.exec(
+        select(Cart).where(
+            Cart.customer_profile_id == profile_id,
+            Cart.store_id == store_id,
+            Cart.service_id == service_id,
+        )
+    )
+    cart = cart_result.first()
+    if cart is None:
+        raise HTTPException(status_code=404, detail="cart_not_found")
+
+    store_result = await session.exec(select(Store).where(Store.id == store_id))
+    store = store_result.first()
+    if store is None or not store.is_active:
+        raise HTTPException(status_code=404, detail="store_not_found")
+
+    await _validate_service_for_store(session, store_id, service_id)
+
+    addr_result = await session.exec(
+        select(CustomerAddress, Address)
+        .join(Address, Address.id == CustomerAddress.address_id)  # type: ignore[arg-type]
+        .where(CustomerAddress.id == customer_address_id)
+    )
+    addr_row = addr_result.first()
+    if addr_row is None:
+        raise HTTPException(status_code=400, detail="invalid_address")
+    customer_address, address = addr_row
+    if customer_address.customer_profile_id != profile_id:
+        raise HTTPException(status_code=400, detail="invalid_address")
+    if address.latitude is None or address.longitude is None:
+        raise HTTPException(status_code=400, detail="invalid_address")
+
+    items_result = await session.exec(
+        select(CartItem, StoreInventory)
+        .join(StoreInventory, StoreInventory.id == CartItem.inventory_id)  # type: ignore[arg-type]
+        .where(CartItem.cart_id == cart.id)
+    )
+    cart_items: list[tuple[int, int]] = [
+        (inv.product_id, ci.quantity) for ci, inv in items_result.all()
+    ]
+    if not cart_items:
+        raise HTTPException(status_code=400, detail="cart_empty")
+
+    alternatives = await find_alternatives(
+        session,
+        source_store_id=store_id,
+        service_id=service_id,
+        cart_items=cart_items,
+        customer_latitude=address.latitude,
+        customer_longitude=address.longitude,
+        language_code=lang,
+    )
+    return CompareResponse(alternatives=alternatives)
+
+
+@router.post(
+    "/{store_id}/{service_id}/replace",
+    response_model=ReplaceResponse,
+)
+async def replace_sub_basket(
+    store_id: int,
+    service_id: int,
+    payload: ReplaceRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> ReplaceResponse:
+    """Atomically replace the customer's (store, service) sub-basket with
+    the given items. Per-item failures (stock cap, unavailable) drop with
+    adjustments. Whole-write failure returns 4xx."""
+    profile_id = await _customer_profile_id(session, user)
+
+    await _validate_service_for_store(session, store_id, service_id)
+
+    granted_items: list[tuple[int, int]] = []
+    adjustments: list[ReplaceAdjustment] = []
+
+    for entry in payload.items:
+        inv_result = await session.exec(
+            select(StoreInventory).where(StoreInventory.id == entry.inventory_id)
+        )
+        inv = inv_result.first()
+        if inv is None:
+            raise HTTPException(status_code=404, detail="inventory_not_found")
+        if inv.store_id != store_id:
+            raise HTTPException(status_code=400, detail="inventory_store_mismatch")
+        await _assert_inventory_service_match(session, entry.inventory_id, service_id)
+
+        if not inv.is_available:
+            adjustments.append(ReplaceAdjustment(
+                inventory_id=entry.inventory_id,
+                requested_quantity=entry.quantity,
+                granted_quantity=0,
+                reason="item_unavailable",
+            ))
+            continue
+        if inv.stock <= 0:
+            adjustments.append(ReplaceAdjustment(
+                inventory_id=entry.inventory_id,
+                requested_quantity=entry.quantity,
+                granted_quantity=0,
+                reason="stock_exhausted",
+            ))
+            continue
+        granted_qty = min(entry.quantity, inv.stock)
+        if granted_qty < entry.quantity:
+            adjustments.append(ReplaceAdjustment(
+                inventory_id=entry.inventory_id,
+                requested_quantity=entry.quantity,
+                granted_quantity=granted_qty,
+                reason="stock_capped",
+            ))
+        granted_items.append((entry.inventory_id, granted_qty))
+
+    if not granted_items:
+        raise HTTPException(status_code=400, detail="empty_items")
+
+    cart = await _get_or_create_cart(session, profile_id, store_id, service_id)
+    assert cart.id is not None
+    cart_id = cart.id
+    existing = (await session.exec(
+        select(CartItem).where(CartItem.cart_id == cart_id)
+    )).all()
+    for item in existing:
+        await session.delete(item)
+    await session.flush()
+    for inventory_id, quantity in granted_items:
+        session.add(CartItem(
+            cart_id=cart_id, inventory_id=inventory_id, quantity=quantity,
+        ))
+    await session.commit()
+
+    refreshed = await session.get(Cart, cart_id)
+    assert refreshed is not None
+    cart_payload = await _serialize_single_cart(session, refreshed)
+    return ReplaceResponse(cart=cart_payload, adjustments=adjustments)
