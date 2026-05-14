@@ -4,9 +4,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
+import { useAuth } from "@/lib/AuthContext";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
@@ -35,9 +37,20 @@ function serviceGlyph(slug: string): string {
 
 export default function Home() {
   const t = useTranslations("Home");
+  const { dbUser, loading } = useAuth();
+  const router = useRouter();
   const [stores, setStores] = useState<Store[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const { location } = useDeliveryLocation();
+
+  useEffect(() => {
+    if (loading || !dbUser) return;
+    if (dbUser.role === "seller") {
+      router.replace("/seller");
+    } else if (dbUser.role === "admin") {
+      router.replace("/admin");
+    }
+  }, [loading, dbUser, router]);
 
   useEffect(() => {
     const url = location
@@ -59,6 +72,14 @@ export default function Home() {
       )
       .catch(() => setServices([]));
   }, []);
+
+  if (loading || (dbUser && dbUser.role !== "customer")) {
+    return (
+      <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
+        Loading…
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
