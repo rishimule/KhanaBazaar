@@ -6,7 +6,25 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from datetime import datetime, timezone
+
+from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
+
+from app.core.otp import (
+    CodeExpired,
+    InvalidCode,
+    InvalidPhoneNumber,
+    RateLimited,
+    TooManyAttempts,
+    consume_otp_key,
+    normalize_phone,
+    request_otp,
+    verify_otp,
+)
+from app.core.redis import get_redis
 from app.core.security import get_current_customer
+from app.core.sms import SMSSender, get_sms_sender
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User
@@ -190,6 +208,100 @@ async def update_customer_preferences(
         profile.notify_order_sms = body.notify_order_sms
     session.add(profile)
     await session.commit()
+    await session.refresh(profile)
+    return await _profile_response(session, current_user, profile)
+
+
+class PhoneOtpRequest(BaseModel):
+    phone: str = Field(min_length=8, max_length=20)
+
+
+class PhoneOtpVerify(BaseModel):
+    phone: str = Field(min_length=8, max_length=20)
+    code: str = Field(min_length=6, max_length=6)
+
+
+async def _phone_in_use_by_other(
+    session: AsyncSession, phone: str, current_profile_id: int
+) -> bool:
+    result = await session.exec(
+        select(CustomerProfile).where(
+            CustomerProfile.phone == phone,
+            CustomerProfile.id != current_profile_id,  # type: ignore[arg-type]
+        )
+    )
+    return result.first() is not None
+
+
+@router.post("/me/phone/otp/request")
+async def request_customer_phone_otp(
+    body: PhoneOtpRequest,
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+    sms_sender: SMSSender = Depends(get_sms_sender),
+) -> dict[str, bool]:
+    assert current_user.id is not None
+    try:
+        phone = normalize_phone(body.phone)
+    except InvalidPhoneNumber as exc:
+        raise HTTPException(
+            status_code=422, detail={"error": "phone_invalid"}
+        ) from exc
+    profile = await _customer_profile_for_user(session, current_user.id)
+    assert profile.id is not None
+    if await _phone_in_use_by_other(session, phone, profile.id):
+        raise HTTPException(
+            status_code=409, detail={"error": "phone_already_in_use"}
+        )
+    redis = await get_redis()
+    try:
+        code = await request_otp(phone, redis, namespace="customer_phone")
+    except RateLimited as exc:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limited", "retry_after": exc.retry_after},
+        ) from exc
+    await sms_sender.send(phone, f"Your verification code is {code}")
+    return {"sent": True}
+
+
+@router.post("/me/phone/otp/verify", response_model=CustomerProfileRead)
+async def verify_customer_phone_otp(
+    body: PhoneOtpVerify,
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> CustomerProfileRead:
+    assert current_user.id is not None
+    try:
+        phone = normalize_phone(body.phone)
+    except InvalidPhoneNumber as exc:
+        raise HTTPException(
+            status_code=422, detail={"error": "phone_invalid"}
+        ) from exc
+    profile = await _customer_profile_for_user(session, current_user.id)
+    assert profile.id is not None
+    if await _phone_in_use_by_other(session, phone, profile.id):
+        raise HTTPException(
+            status_code=409, detail={"error": "phone_already_in_use"}
+        )
+    redis = await get_redis()
+    try:
+        await verify_otp(phone, body.code, redis, namespace="customer_phone")
+    except (CodeExpired, InvalidCode, TooManyAttempts) as exc:
+        raise HTTPException(
+            status_code=422, detail={"error": "otp_invalid"}
+        ) from exc
+    profile.phone = phone
+    profile.phone_verified_at = datetime.now(timezone.utc)
+    session.add(profile)
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409, detail={"error": "phone_already_in_use"}
+        ) from exc
+    await consume_otp_key(phone, redis, namespace="customer_phone")
     await session.refresh(profile)
     return await _profile_response(session, current_user, profile)
 
