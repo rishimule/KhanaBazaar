@@ -57,7 +57,7 @@ export default function DataTable<T extends object>({
           {data.map((row) => {
             const rec = row as Record<string, unknown>;
             return (
-              <tr key={String(rec[keyField])}>
+              <tr key={String(rec[keyField])} data-order-id={String(rec[keyField])}>
                 {columns.map((col) => (
                   <td key={col.key}>
                     {col.render

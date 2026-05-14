@@ -414,7 +414,33 @@
       "tabHistory": "History",
       "loading": "Loading…",
       "emptyActive": "No active orders.",
-      "emptyHistory": "No history orders."
+      "emptyHistory": "No history orders.",
+      "colOrderId": "Order #",
+      "colDate": "Date",
+      "colStore": "Store",
+      "colService": "Service",
+      "colItems": "Items",
+      "colTotal": "Total",
+      "colPayment": "Payment",
+      "colStatus": "Status",
+      "itemCount": "{count, plural, one {# item} other {# items}}",
+      "allServices": "All services",
+      "fromDate": "From date",
+      "toDate": "To date",
+      "searchPlaceholder": "Search by order # or store…",
+      "loadMore": "Load more",
+      "chip": {
+        "all": "All",
+        "active": "Active",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled"
+      },
+      "sort": {
+        "dateDesc": "Newest first",
+        "dateAsc": "Oldest first",
+        "totalDesc": "Total ↓",
+        "totalAsc": "Total ↑"
+      }
     },
     "orderDetail": {
       "title": "Order #{id}",

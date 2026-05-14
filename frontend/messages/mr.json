@@ -414,7 +414,33 @@
       "tabHistory": "इतिहास",
       "loading": "लोड होत आहे…",
       "emptyActive": "कोणतीही सक्रिय ऑर्डर नाही.",
-      "emptyHistory": "इतिहासात कोणतीही ऑर्डर नाही."
+      "emptyHistory": "इतिहासात कोणतीही ऑर्डर नाही.",
+      "colOrderId": "ऑर्डर #",
+      "colDate": "तारीख",
+      "colStore": "दुकान",
+      "colService": "सेवा",
+      "colItems": "वस्तू",
+      "colTotal": "एकूण",
+      "colPayment": "पेमेंट",
+      "colStatus": "स्थिती",
+      "itemCount": "{count, plural, one {# वस्तू} other {# वस्तू}}",
+      "allServices": "सर्व सेवा",
+      "fromDate": "तारखेपासून",
+      "toDate": "तारखेपर्यंत",
+      "searchPlaceholder": "ऑर्डर # किंवा दुकान शोधा…",
+      "loadMore": "अधिक दाखवा",
+      "chip": {
+        "all": "सर्व",
+        "active": "सक्रिय",
+        "delivered": "वितरित",
+        "cancelled": "रद्द"
+      },
+      "sort": {
+        "dateDesc": "नवीनतम आधी",
+        "dateAsc": "जुने आधी",
+        "totalDesc": "एकूण ↓",
+        "totalAsc": "एकूण ↑"
+      }
     },
     "orderDetail": {
       "title": "ऑर्डर #{id}",
