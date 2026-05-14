@@ -18,6 +18,9 @@
   cursor: wait;
 }
 
+/* Source order matters: .select.disabled and .select:disabled have equal
+   specificity (class + class vs class + pseudo-class). This rule must
+   stay below so it wins when an operator route disables the switcher. */
 .select.disabled {
   opacity: 0.55;
   cursor: not-allowed;
