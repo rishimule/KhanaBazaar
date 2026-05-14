@@ -948,7 +948,8 @@ async def _upsert_translation(
     payload: TranslationUpsert,
 ) -> None:
     _validate_language(payload.language_code)
-    is_empty = not payload.name.strip() and not (payload.description or "").strip()
+    description_value = payload.description or ""
+    is_empty = not payload.name.strip() and not description_value.strip()
     fk_attr = getattr(model, fk_field)
     lang_attr = model.language_code  # noqa: B009 — model arg shape varies per entity
     existing_q = await session.exec(
@@ -962,7 +963,7 @@ async def _upsert_translation(
             await session.delete(existing)
         else:
             existing.name = payload.name
-            existing.description = payload.description
+            existing.description = description_value
         return
     if is_empty:
         return
@@ -970,7 +971,7 @@ async def _upsert_translation(
         fk_field: entity_id,
         "language_code": payload.language_code,
         "name": payload.name,
-        "description": payload.description,
+        "description": description_value,
     }
     session.add(model(**kwargs))
 
