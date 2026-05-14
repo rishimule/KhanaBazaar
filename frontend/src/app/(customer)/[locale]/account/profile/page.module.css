@@ -115,6 +115,96 @@
   margin-top: var(--space-2);
 }
 
+.avatarRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  grid-column: 1 / -1;
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+}
+
+.avatarLabel {
+  font-weight: 600;
+  font-size: var(--font-base);
+}
+
+.avatarEmail {
+  font-size: var(--font-sm);
+  color: var(--color-neutral-500);
+}
+
+.verifyRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.verifiedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--jade-green-light-1);
+  color: var(--jade-green-dark-1);
+  font-size: var(--font-xs);
+  font-weight: var(--weight-medium);
+}
+
+.unverifiedBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--mandarin-orange-light-1);
+  color: var(--mandarin-orange-base-4);
+  font-size: var(--font-xs);
+  font-weight: var(--weight-medium);
+}
+
+.statsCard {
+  background: var(--shade-cool-light-1);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statLabel {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.statValue {
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+
 @media (max-width: 640px) {
   .section,
   .panel {

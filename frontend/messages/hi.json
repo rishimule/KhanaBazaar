@@ -467,7 +467,31 @@
       "firstNameRequired": "पहला नाम आवश्यक है.",
       "phoneInvalid": "7-20 अंक, स्पेस, +, -, या कोष्ठक का प्रयोग करें.",
       "saveProfile": "परिवर्तन सहेजें",
-      "saving": "सहेजा जा रहा है…"
+      "saving": "सहेजा जा रहा है…",
+      "verified": "सत्यापित",
+      "verifyPhone": "फ़ोन सत्यापित करें",
+      "dobLabel": "जन्म तिथि",
+      "statsTitle": "आपकी गतिविधि",
+      "statsSubtitle": "आपके ऑर्डर का सार",
+      "ordersThisMonth": "इस माह के ऑर्डर",
+      "lifetimeSpend": "कुल खर्च",
+      "favoriteStore": "पसंदीदा स्टोर",
+      "phoneVerifiedSince": "फ़ोन सत्यापित",
+      "phoneVerify": {
+        "title": "अपना फ़ोन सत्यापित करें",
+        "phoneLabel": "फ़ोन (कंट्री कोड के साथ)",
+        "codeLabel": "6-अंकीय कोड दर्ज करें",
+        "sendCode": "कोड भेजें",
+        "verify": "सत्यापित करें",
+        "sentTo": "हमने {phone} पर कोड भेजा.",
+        "error": {
+          "generic": "कुछ गलत हुआ. पुनः प्रयास करें.",
+          "phone_invalid": "यह फ़ोन नंबर सही नहीं लगता.",
+          "phone_already_in_use": "यह नंबर पहले से किसी और खाते से जुड़ा है.",
+          "otp_invalid": "कोड गलत है या समाप्त हो गया है.",
+          "rate_limited": "बहुत सारे प्रयास. बाद में प्रयास करें."
+        }
+      }
     },
     "preferences": {
       "languageTitle": "भाषा",

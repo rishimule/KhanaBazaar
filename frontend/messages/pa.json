@@ -467,7 +467,31 @@
       "firstNameRequired": "ਪਹਿਲਾ ਨਾਮ ਲਾਜ਼ਮੀ ਹੈ.",
       "phoneInvalid": "7-20 ਅੰਕ, ਸਪੇਸ, +, -, ਜਾਂ ਬਰੈਕਟ ਵਰਤੋ.",
       "saveProfile": "ਬਦਲਾਵ ਸੇਵ ਕਰੋ",
-      "saving": "ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…"
+      "saving": "ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…",
+      "verified": "ਤਸਦੀਕਸ਼ੁਦਾ",
+      "verifyPhone": "ਫ਼ੋਨ ਤਸਦੀਕ ਕਰੋ",
+      "dobLabel": "ਜਨਮ ਮਿਤੀ",
+      "statsTitle": "ਤੁਹਾਡੀ ਗਤੀਵਿਧੀ",
+      "statsSubtitle": "ਤੁਹਾਡੇ ਆਰਡਰਾਂ ਦਾ ਸਾਰ",
+      "ordersThisMonth": "ਇਸ ਮਹੀਨੇ ਦੇ ਆਰਡਰ",
+      "lifetimeSpend": "ਕੁੱਲ ਖਰਚ",
+      "favoriteStore": "ਪਸੰਦੀਦਾ ਦੁਕਾਨ",
+      "phoneVerifiedSince": "ਫ਼ੋਨ ਤਸਦੀਕਸ਼ੁਦਾ",
+      "phoneVerify": {
+        "title": "ਆਪਣਾ ਫ਼ੋਨ ਤਸਦੀਕ ਕਰੋ",
+        "phoneLabel": "ਫ਼ੋਨ (ਦੇਸ਼ ਕੋਡ ਨਾਲ)",
+        "codeLabel": "6-ਅੰਕੀ ਕੋਡ ਦਾਖਲ ਕਰੋ",
+        "sendCode": "ਕੋਡ ਭੇਜੋ",
+        "verify": "ਤਸਦੀਕ ਕਰੋ",
+        "sentTo": "ਅਸੀਂ {phone} ‘ਤੇ ਕੋਡ ਭੇਜਿਆ.",
+        "error": {
+          "generic": "ਕੁਝ ਗਲਤ ਹੋਇਆ. ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ.",
+          "phone_invalid": "ਇਹ ਫ਼ੋਨ ਨੰਬਰ ਸਹੀ ਨਹੀਂ ਲੱਗਦਾ.",
+          "phone_already_in_use": "ਇਹ ਨੰਬਰ ਪਹਿਲਾਂ ਹੀ ਕਿਸੇ ਹੋਰ ਖਾਤੇ ਨਾਲ ਜੁੜਿਆ ਹੈ.",
+          "otp_invalid": "ਕੋਡ ਗਲਤ ਹੈ ਜਾਂ ਮਿਆਦ ਖਤਮ ਹੋ ਗਈ ਹੈ.",
+          "rate_limited": "ਬਹੁਤ ਜ਼ਿਆਦਾ ਕੋਸ਼ਿਸ਼ਾਂ. ਬਾਅਦ ‘ਚ ਕੋਸ਼ਿਸ਼ ਕਰੋ."
+        }
+      }
     },
     "preferences": {
       "languageTitle": "ਭਾਸ਼ਾ",

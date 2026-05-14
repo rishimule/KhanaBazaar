@@ -1,19 +1,21 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
-// This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import PhoneVerifyModal from "@/components/PhoneVerifyModal";
 import { get, patch } from "@/lib/api";
+import { getCustomerStats } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import { apiErrorKey } from "@/lib/errors";
-import type { CustomerProfile } from "@/types";
+import type { CustomerProfile, CustomerStats } from "@/types";
 import styles from "./page.module.css";
 
 interface ProfileForm {
   first_name: string;
   last_name: string;
   phone: string;
+  date_of_birth: string;
 }
 
 interface ProfileErrors {
@@ -34,6 +36,7 @@ function profileFormFrom(profile: CustomerProfile): ProfileForm {
     first_name: profile.first_name,
     last_name: profile.last_name ?? "",
     phone: profile.phone ?? "",
+    date_of_birth: profile.date_of_birth ?? "",
   };
 }
 
@@ -48,28 +51,20 @@ function apiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function validationErrorsForPrefix(
-  error: unknown,
-  prefix: string,
-): Record<string, string> {
-  const detail = (error as { detail?: unknown })?.detail;
-  if (!Array.isArray(detail)) return {};
-  return detail.reduce<Record<string, string>>(
-    (acc, issue: FastApiValidationIssue) => {
-      if (!Array.isArray(issue.loc) || typeof issue.msg !== "string") return acc;
-      const prefixIndex = issue.loc.indexOf(prefix);
-      if (prefixIndex === -1) return acc;
-      const field = issue.loc[prefixIndex + 1];
-      if (typeof field === "string") acc[field] = issue.msg;
-      return acc;
-    },
-    {},
-  );
-}
-
 function normalizeOptional(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function initialsAndColor(name: string, email: string): { initials: string; color: string } {
+  const parts = name.trim().split(/\s+/);
+  const initials =
+    (parts[0]?.charAt(0) ?? "") + (parts[1]?.charAt(0) ?? "");
+  const hue = [...email].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+  return {
+    initials: (initials || "U").toUpperCase(),
+    color: `hsl(${hue}deg 60% 50%)`,
+  };
 }
 
 export default function AccountProfilePage() {
@@ -87,15 +82,18 @@ export default function AccountProfilePage() {
   );
 
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [stats, setStats] = useState<CustomerStats | null>(null);
   const [profileForm, setProfileForm] = useState<ProfileForm>({
     first_name: "",
     last_name: "",
     phone: "",
+    date_of_birth: "",
   });
   const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
   const [sectionError, setSectionError] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -105,11 +103,15 @@ export default function AccountProfilePage() {
     }
     let active = true;
     setLoadingProfile(true);
-    get<CustomerProfile>("/api/v1/customers/me", token)
-      .then((data) => {
+    Promise.all([
+      get<CustomerProfile>("/api/v1/customers/me", token),
+      getCustomerStats(token).catch(() => null),
+    ])
+      .then(([data, s]) => {
         if (!active) return;
         setProfile(data);
         setProfileForm(profileFormFrom(data));
+        setStats(s);
       })
       .catch((error) => {
         if (!active) return;
@@ -150,6 +152,7 @@ export default function AccountProfilePage() {
           first_name: profileForm.first_name.trim(),
           last_name: normalizeOptional(profileForm.last_name),
           phone: normalizeOptional(profileForm.phone),
+          date_of_birth: normalizeOptional(profileForm.date_of_birth),
         },
         token,
       );
@@ -157,7 +160,6 @@ export default function AccountProfilePage() {
       setProfileForm(profileFormFrom(next));
       setProfileErrors({});
     } catch (error) {
-      setProfileErrors(validationErrorsForPrefix(error, "body") as ProfileErrors);
       setSectionError(localizedError(error, t("saveProfileError")));
     } finally {
       setSavingProfile(false);
@@ -176,6 +178,12 @@ export default function AccountProfilePage() {
     );
   }
 
+  const { initials, color } = initialsAndColor(
+    `${profile.first_name} ${profile.last_name ?? ""}`.trim(),
+    profile.email,
+  );
+  const memberSince = profile.phone_verified_at; // placeholder if you prefer createdAt
+
   return (
     <div className={styles.page}>
       {sectionError && <div className={styles.errorBanner}>{sectionError}</div>}
@@ -188,6 +196,18 @@ export default function AccountProfilePage() {
           </div>
         </div>
 
+        <div className={styles.avatarRow}>
+          <div className={styles.avatar} style={{ background: color }}>
+            {initials}
+          </div>
+          <div>
+            <div className={styles.avatarLabel}>
+              {profile.first_name} {profile.last_name ?? ""}
+            </div>
+            <div className={styles.avatarEmail}>{profile.email}</div>
+          </div>
+        </div>
+
         <form className={styles.profileForm} onSubmit={saveProfile}>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="first-name">
@@ -197,8 +217,8 @@ export default function AccountProfilePage() {
               id="first-name"
               className={`${styles.input} ${profileErrors.first_name ? styles.inputError : ""}`}
               value={profileForm.first_name}
-              onChange={(event) =>
-                setProfileForm((curr) => ({ ...curr, first_name: event.target.value }))
+              onChange={(e) =>
+                setProfileForm((c) => ({ ...c, first_name: e.target.value }))
               }
               maxLength={80}
               required
@@ -214,35 +234,61 @@ export default function AccountProfilePage() {
             </label>
             <input
               id="last-name"
-              className={`${styles.input} ${profileErrors.last_name ? styles.inputError : ""}`}
+              className={styles.input}
               value={profileForm.last_name}
-              onChange={(event) =>
-                setProfileForm((curr) => ({ ...curr, last_name: event.target.value }))
+              onChange={(e) =>
+                setProfileForm((c) => ({ ...c, last_name: e.target.value }))
               }
               maxLength={80}
             />
-            {profileErrors.last_name && (
-              <span className={styles.errorText}>{profileErrors.last_name}</span>
-            )}
           </div>
 
           <div className={styles.field}>
             <label className={styles.label} htmlFor="phone">
               {t("phoneLabel")}
             </label>
-            <input
-              id="phone"
-              className={`${styles.input} ${profileErrors.phone ? styles.inputError : ""}`}
-              value={profileForm.phone}
-              onChange={(event) =>
-                setProfileForm((curr) => ({ ...curr, phone: event.target.value }))
-              }
-              inputMode="tel"
-              maxLength={20}
-            />
+            <div className={styles.verifyRow}>
+              <input
+                id="phone"
+                className={`${styles.input} ${profileErrors.phone ? styles.inputError : ""}`}
+                value={profileForm.phone}
+                onChange={(e) =>
+                  setProfileForm((c) => ({ ...c, phone: e.target.value }))
+                }
+                inputMode="tel"
+                maxLength={20}
+                style={{ flex: 1 }}
+              />
+              {profile.phone_verified_at ? (
+                <span className={styles.verifiedBadge}>✓ {t("verified")}</span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setVerifyOpen(true)}
+                >
+                  {t("verifyPhone")}
+                </button>
+              )}
+            </div>
             {profileErrors.phone && (
               <span className={styles.errorText}>{profileErrors.phone}</span>
             )}
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="dob">
+              {t("dobLabel")}
+            </label>
+            <input
+              id="dob"
+              type="date"
+              className={styles.input}
+              value={profileForm.date_of_birth}
+              onChange={(e) =>
+                setProfileForm((c) => ({ ...c, date_of_birth: e.target.value }))
+              }
+            />
           </div>
 
           <div className={styles.field}>
@@ -259,6 +305,51 @@ export default function AccountProfilePage() {
           </div>
         </form>
       </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <h2 className={styles.sectionTitle}>{t("statsTitle")}</h2>
+            <p className={styles.sectionSubtitle}>{t("statsSubtitle")}</p>
+          </div>
+        </div>
+        <div className={styles.statsCard}>
+          <div className={styles.statItem}>
+            <span className={styles.statLabel}>{t("ordersThisMonth")}</span>
+            <span className={styles.statValue}>{stats?.orders_this_month ?? "—"}</span>
+          </div>
+          <div className={styles.statItem}>
+            <span className={styles.statLabel}>{t("lifetimeSpend")}</span>
+            <span className={styles.statValue}>
+              {stats ? `₹${stats.lifetime_spend.toFixed(0)}` : "—"}
+            </span>
+          </div>
+          <div className={styles.statItem}>
+            <span className={styles.statLabel}>{t("favoriteStore")}</span>
+            <span className={styles.statValue}>
+              {stats?.favorite_store_name ?? "—"}
+            </span>
+          </div>
+          {memberSince && (
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>{t("phoneVerifiedSince")}</span>
+              <span className={styles.statValue} suppressHydrationWarning>
+                {new Date(memberSince).toLocaleDateString()}
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {verifyOpen && (
+        <PhoneVerifyModal
+          onClose={() => setVerifyOpen(false)}
+          onVerified={(next) => {
+            setProfile(next);
+            setProfileForm(profileFormFrom(next));
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -467,7 +467,31 @@
       "firstNameRequired": "पहिले नाव आवश्यक आहे.",
       "phoneInvalid": "7-20 अंक, स्पेस, +, -, किंवा कंस वापरा.",
       "saveProfile": "बदल जतन करा",
-      "saving": "जतन करत आहे…"
+      "saving": "जतन करत आहे…",
+      "verified": "सत्यापित",
+      "verifyPhone": "फोन सत्यापित करा",
+      "dobLabel": "जन्मतारीख",
+      "statsTitle": "तुमची क्रियाकलाप",
+      "statsSubtitle": "तुमच्या ऑर्डरचा सारांश",
+      "ordersThisMonth": "या महिन्याचे ऑर्डर",
+      "lifetimeSpend": "एकूण खर्च",
+      "favoriteStore": "आवडते दुकान",
+      "phoneVerifiedSince": "फोन सत्यापित",
+      "phoneVerify": {
+        "title": "तुमचा फोन सत्यापित करा",
+        "phoneLabel": "फोन (देश कोडसह)",
+        "codeLabel": "6-अंकी कोड टाका",
+        "sendCode": "कोड पाठवा",
+        "verify": "सत्यापित करा",
+        "sentTo": "आम्ही {phone} वर कोड पाठवला.",
+        "error": {
+          "generic": "काहीतरी चूक झाली. पुन्हा प्रयत्न करा.",
+          "phone_invalid": "हा फोन नंबर बरोबर वाटत नाही.",
+          "phone_already_in_use": "हा नंबर आधीच दुसऱ्या खात्याशी जोडलेला आहे.",
+          "otp_invalid": "कोड चुकीचा आहे किंवा कालबाह्य झाला आहे.",
+          "rate_limited": "खूप प्रयत्न. नंतर प्रयत्न करा."
+        }
+      }
     },
     "preferences": {
       "languageTitle": "भाषा",

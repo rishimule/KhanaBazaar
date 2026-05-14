@@ -97,6 +97,12 @@ export interface CustomerProfile {
   first_name: string;
   last_name: string | null;
   phone: string | null;
+  date_of_birth: string | null;
+  preferred_language: string | null;
+  marketing_opt_in: boolean;
+  notify_order_email: boolean;
+  notify_order_sms: boolean;
+  phone_verified_at: string | null;
   addresses: CustomerAddress[];
 }
 

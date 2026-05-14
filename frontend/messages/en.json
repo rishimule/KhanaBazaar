@@ -467,7 +467,31 @@
       "firstNameRequired": "First name is required.",
       "phoneInvalid": "Use 7-20 digits, spaces, +, -, or parentheses.",
       "saveProfile": "Save changes",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "verified": "Verified",
+      "verifyPhone": "Verify phone",
+      "dobLabel": "Date of birth",
+      "statsTitle": "Your activity",
+      "statsSubtitle": "Summary of your orders",
+      "ordersThisMonth": "Orders this month",
+      "lifetimeSpend": "Lifetime spend",
+      "favoriteStore": "Favorite store",
+      "phoneVerifiedSince": "Phone verified",
+      "phoneVerify": {
+        "title": "Verify your phone",
+        "phoneLabel": "Phone (with country code)",
+        "codeLabel": "Enter the 6-digit code",
+        "sendCode": "Send code",
+        "verify": "Verify",
+        "sentTo": "We sent a code to {phone}.",
+        "error": {
+          "generic": "Something went wrong. Try again.",
+          "phone_invalid": "That phone number doesn't look right.",
+          "phone_already_in_use": "That number is already linked to another account.",
+          "otp_invalid": "That code is incorrect or expired.",
+          "rate_limited": "Too many attempts. Try again later."
+        }
+      }
     },
     "preferences": {
       "languageTitle": "Language",
