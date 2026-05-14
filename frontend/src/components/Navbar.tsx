@@ -97,7 +97,7 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
     { href: "/", label: t("home") },
   ];
 
-  if (!loading && (!role || role === "customer")) {
+  if (!loading && !role) {
     navLinks.push({ href: "/sell", label: t("sell") });
   }
   if (!role || role === "customer") {
