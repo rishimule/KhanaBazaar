@@ -133,7 +133,19 @@ export function CatalogTable({
                       <span aria-hidden className={styles.imgPlaceholder}>—</span>
                     )}
                   </td>
-                  <td className={styles.nameCell}>{row.name}</td>
+                  <td className={styles.nameCell}>
+                    {entity !== "product" && onRowOpen ? (
+                      <button
+                        type="button"
+                        className={styles.nameLink}
+                        onClick={() => onRowOpen(row)}
+                      >
+                        {row.name}
+                      </button>
+                    ) : (
+                      row.name
+                    )}
+                  </td>
                   <td className={styles.slugCell}>{row.slug}</td>
                   <td>
                     {row.is_active ? (
