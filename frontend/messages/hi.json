@@ -64,10 +64,13 @@
     "subtitle": "अपने पास उपलब्ध सामान देखने के लिए स्टोर चुनें",
     "openDot": "● खुला है",
     "viewStore": "स्टोर देखें →",
-    "filteredHeader": "{service} स्टोर दिखाए जा रहे हैं",
+    "filteredHeader": "{service} दुकानें दिखाई जा रही हैं",
     "clearFilter": "साफ़ करें",
+    "clearFilterAria": "{service} फ़िल्टर हटाएँ",
     "emptyNoLocation": "अभी {service} की कोई दुकान उपलब्ध नहीं है। डिलीवरी स्थान सेट करके देखें।",
-    "emptyWithLocation": "आपके चुने हुए स्थान पर {service} की डिलीवरी अभी कोई दुकान नहीं कर रही।"
+    "emptyWithLocation": "आपके चुने हुए स्थान पर {service} की डिलीवरी अभी कोई दुकान नहीं कर रही।",
+    "emptyAllNoLocation": "अभी कोई दुकान उपलब्ध नहीं है।",
+    "emptyAllWithLocation": "आपके चुने हुए स्थान पर अभी कोई दुकान डिलीवरी नहीं कर रही।"
   },
   "StoreDetail": {
     "openNow": "अभी खुला है",

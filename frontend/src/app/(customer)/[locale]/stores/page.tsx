@@ -68,7 +68,7 @@ function StoresPageInner() {
     get<Service[]>("/api/v1/catalog/services")
       .then(setServices)
       .catch(() => setServices([]));
-  }, [serviceSlug]);
+  }, [serviceSlug, locale]);
 
   const activeService = useMemo(
     () => services.find((s) => s.slug === serviceSlug) ?? null,
@@ -95,11 +95,19 @@ function StoresPageInner() {
           <h1 className={styles.title}>{t("browse")} {t("stores")}</h1>
           <p className={styles.subtitle}>{t("subtitle")}</p>
           {serviceSlug && (
-            <div className={styles.filteredChip}>
+            <div
+              className={styles.filteredChip}
+              role="status"
+              aria-live="polite"
+            >
               <span className={styles.filteredChipLabel}>
                 {t("filteredHeader", { service: activeServiceName })}
               </span>
-              <Link href="/stores" className={styles.filteredChipClear}>
+              <Link
+                href="/stores"
+                className={styles.filteredChipClear}
+                aria-label={t("clearFilterAria", { service: activeServiceName })}
+              >
                 {t("clearFilter")}
               </Link>
             </div>
@@ -116,8 +124,8 @@ function StoresPageInner() {
                 ? t("emptyWithLocation", { service: activeServiceName })
                 : t("emptyNoLocation", { service: activeServiceName })
               : location
-                ? "No stores deliver to your selected location yet."
-                : "No stores available."}
+                ? t("emptyAllWithLocation")
+                : t("emptyAllNoLocation")}
           </p>
         )}
 

@@ -66,8 +66,11 @@
     "viewStore": "View Store →",
     "filteredHeader": "Showing {service} stores",
     "clearFilter": "Clear",
+    "clearFilterAria": "Clear {service} filter",
     "emptyNoLocation": "No stores offer {service} yet. Try setting a delivery location.",
-    "emptyWithLocation": "No stores deliver {service} to your selected location yet."
+    "emptyWithLocation": "No stores deliver {service} to your selected location yet.",
+    "emptyAllNoLocation": "No stores available.",
+    "emptyAllWithLocation": "No stores deliver to your selected location yet."
   },
   "StoreDetail": {
     "openNow": "Open Now",

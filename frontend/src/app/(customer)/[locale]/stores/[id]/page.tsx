@@ -302,19 +302,23 @@ export default function StoreDetailPage({ params }: Props) {
             </div>
           </header>
 
-          {requestedMissingServiceId !== null ? (
-            <div className={styles.empty}>
-              <div className={styles.emptyIcon} aria-hidden="true">🛒</div>
-              <p className={styles.emptyText}>
-                {t("noProductsForService", {
-                  service:
-                    store.services.find(
-                      (s) => s.id === requestedMissingServiceId,
-                    )?.name ?? "",
-                })}
-              </p>
-            </div>
-          ) : services.length === 0 ? (
+          {requestedMissingServiceId !== null ? (() => {
+            const missingSvc = store.services.find(
+              (s) => s.id === requestedMissingServiceId,
+            );
+            return (
+              <div className={styles.empty}>
+                <div className={styles.emptyIcon} aria-hidden="true">
+                  {missingSvc ? SERVICE_GLYPH[missingSvc.slug] ?? "🛒" : "🛒"}
+                </div>
+                <p className={styles.emptyText}>
+                  {t("noProductsForService", {
+                    service: missingSvc?.name ?? "",
+                  })}
+                </p>
+              </div>
+            );
+          })() : services.length === 0 ? (
             <div className={styles.empty}>
               <div className={styles.emptyIcon} aria-hidden="true">🛒</div>
               <p className={styles.emptyText}>{t("noProductsYet")}</p>

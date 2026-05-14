@@ -66,8 +66,11 @@
     "viewStore": "दुकान पहा →",
     "filteredHeader": "{service} दुकाने दाखवली जात आहेत",
     "clearFilter": "साफ करा",
+    "clearFilterAria": "{service} फिल्टर काढा",
     "emptyNoLocation": "सध्या {service} ची कोणतीही दुकान उपलब्ध नाही. वितरण स्थान सेट करून पाहा.",
-    "emptyWithLocation": "तुमच्या निवडलेल्या ठिकाणी {service} ची डिलिव्हरी कोणतीही दुकान करत नाही."
+    "emptyWithLocation": "तुमच्या निवडलेल्या ठिकाणी {service} ची डिलिव्हरी कोणतीही दुकान करत नाही.",
+    "emptyAllNoLocation": "सध्या कोणतीही दुकान उपलब्ध नाही.",
+    "emptyAllWithLocation": "तुमच्या निवडलेल्या ठिकाणी अद्याप कोणतीही दुकान डिलिव्हरी करत नाही."
   },
   "StoreDetail": {
     "openNow": "आता उघडे",
