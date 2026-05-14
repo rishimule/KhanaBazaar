@@ -403,3 +403,66 @@ export interface ReplaceResponse {
   cart: Cart;
   adjustments: ReplaceAdjustment[];
 }
+
+// ─── Admin catalog ─────────────────────────────────────────────
+
+export type EntityKind = "service" | "category" | "subcategory" | "product";
+
+export interface PagedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface TranslationOut {
+  language_code: string;
+  name: string;
+  description: string | null;
+}
+
+export interface CatalogEntity {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  sort_order?: number;
+  child_count?: number;
+  translations: TranslationOut[];
+  // entity-specific fields
+  service_id?: number;
+  category_id?: number;
+  subcategory_id?: number;
+  base_price?: number;
+  brand?: string | null;
+  unit?: string | null;
+}
+
+export interface CatalogListParams {
+  q?: string;
+  is_active?: boolean | null;
+  page?: number;
+  page_size?: number;
+  service_id?: number;
+  category_id?: number;
+  subcategory_id?: number;
+}
+
+export interface CatalogEntityWrite {
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  image_url?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+  service_id?: number;
+  category_id?: number;
+  subcategory_id?: number;
+  base_price?: number;
+  brand?: string | null;
+  unit?: string | null;
+}
