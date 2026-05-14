@@ -54,3 +54,16 @@ export async function cancelOrder(token: string, orderId: number): Promise<Order
 export async function getCustomerStats(token: string): Promise<CustomerStats> {
   return get<CustomerStats>("/api/v1/customers/me/stats", token);
 }
+
+export async function submitOrderReview(
+  token: string,
+  orderId: number,
+  rating: number,
+  comment?: string | null,
+): Promise<{ rating: number; comment: string | null }> {
+  return post(
+    `/api/v1/orders/${orderId}/review`,
+    { rating, comment: comment ?? null },
+    token,
+  );
+}

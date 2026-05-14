@@ -373,7 +373,8 @@
       "confirmCashCollected": "Cash collected from customer?",
       "confirmCancel": "Cancel this order? Stock will be restored.",
       "errUpdate": "Could not update order.",
-      "errCancel": "Could not cancel order."
+      "errCancel": "Could not cancel order.",
+      "rateOrder": "Rate order"
     },
     "active": {
       "title": "Active orders",
@@ -387,6 +388,17 @@
         "paid": "Paid",
         "failed": "Failed",
         "refunded": "Refunded"
+      }
+    },
+    "review": {
+      "submit": "Submit review",
+      "commentPlaceholder": "What did you think?",
+      "starAria": "{n} stars",
+      "yourRating": "Your rating: {rating}/5",
+      "error": {
+        "generic": "Could not submit your review. Try again.",
+        "order_not_delivered": "You can only review delivered orders.",
+        "review_exists": "You've already reviewed this order."
       }
     }
   },

@@ -1,0 +1,40 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.stars {
+  display: flex;
+  gap: 4px;
+}
+.star,
+.starActive {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: var(--shade-cool-light-6);
+  padding: 0;
+  line-height: 1;
+}
+.starActive {
+  color: var(--mandarin-orange-base-4);
+}
+.textarea {
+  min-height: 80px;
+  padding: 8px 12px;
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-md);
+  font: inherit;
+}
+.error {
+  color: var(--color-error);
+  font-size: var(--font-sm);
+}
+.summary {
+  color: var(--color-neutral-700);
+  font-size: var(--font-sm);
+}

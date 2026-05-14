@@ -6,6 +6,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { cancelOrder, transitionOrder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
+import Modal from "@/components/Modal";
+import OrderReviewForm from "@/components/orders/OrderReviewForm";
 import type { Order, OrderStatus, UserRole } from "@/types";
 import styles from "./OrderActionButtons.module.css";
 
@@ -33,10 +35,13 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [reviewOpen, setReviewOpen] = useState(false);
   const canTransition = role === "seller" && NEXT_TRANSITION[order.status] !== undefined;
   const canCancelCustomer = role === "customer" && order.status === "pending";
   const canCancelStaff =
     role !== "customer" && order.status !== "delivered" && order.status !== "cancelled";
+  const canRate =
+    role === "customer" && order.status === "delivered" && order.review === null;
 
   const handleTransition = async () => {
     if (!token) return;
@@ -81,7 +86,27 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
           {t("cancelOrder")}
         </button>
       )}
+      {canRate && (
+        <button
+          type="button"
+          onClick={() => setReviewOpen(true)}
+          className={styles.primary}
+        >
+          {t("rateOrder")}
+        </button>
+      )}
       {error && <span className={styles.error}>{error}</span>}
+      {reviewOpen && (
+        <Modal title={t("rateOrder")} onClose={() => setReviewOpen(false)}>
+          <OrderReviewForm
+            order={order}
+            onSubmitted={(next) => {
+              onChange(next);
+              setReviewOpen(false);
+            }}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

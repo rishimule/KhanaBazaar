@@ -303,6 +303,11 @@ export interface OrderDelivery {
   delivered_at: string | null;
 }
 
+export interface OrderReview {
+  rating: number;
+  comment: string | null;
+}
+
 export interface Order {
   id: number;
   store_id: number;
@@ -320,6 +325,7 @@ export interface Order {
   items: OrderItem[];
   payment: OrderPayment;
   delivery: OrderDelivery;
+  review: OrderReview | null;
 }
 
 export interface OrderListResponse {
