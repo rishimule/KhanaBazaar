@@ -380,6 +380,14 @@
       "viewAll": "View all",
       "empty": "No active orders.",
       "errLoad": "Could not load orders."
+    },
+    "payment": {
+      "status": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "failed": "Failed",
+        "refunded": "Refunded"
+      }
     }
   },
   "Account": {
