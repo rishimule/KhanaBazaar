@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import ActiveOrdersWidget from "@/components/orders/ActiveOrdersWidget";
+import RecentlyViewedRail from "@/components/RecentlyViewedRail";
 import StatsCard from "@/components/StatsCard";
 import { get } from "@/lib/api";
 import { getCustomerStats } from "@/lib/orders";
@@ -87,6 +88,10 @@ export default function AccountHomePage() {
           </div>
         </section>
       )}
+
+      <div className={styles.full}>
+        <RecentlyViewedRail />
+      </div>
     </div>
   );
 }
