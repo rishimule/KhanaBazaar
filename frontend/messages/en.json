@@ -16,7 +16,8 @@
     "drawerCart": "Cart",
     "drawerSignOut": "Sign Out",
     "drawerSignIn": "Sign In",
-    "drawerUserFallback": "User"
+    "drawerUserFallback": "User",
+    "backToDashboard": "Back to dashboard"
   },
   "Home": {
     "badge": "Premium local grocery",

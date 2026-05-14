@@ -16,7 +16,8 @@
     "drawerCart": "कार्ट",
     "drawerSignOut": "साइन आउट",
     "drawerSignIn": "साइन इन",
-    "drawerUserFallback": "वापरकर्ता"
+    "drawerUserFallback": "वापरकर्ता",
+    "backToDashboard": "डॅशबोर्डवर परत"
   },
   "Home": {
     "badge": "प्रीमियम स्थानिक किराणा",
