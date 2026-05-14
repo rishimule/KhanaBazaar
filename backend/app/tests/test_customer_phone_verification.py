@@ -165,6 +165,25 @@ async def test_patching_phone_clears_verification(
     assert data["phone_verified_at"] is None
 
 
+async def test_patching_future_dob_rejected(
+    client: AsyncClient, session: AsyncSession
+):
+    from datetime import date, timedelta
+
+    ids = await _make_customer(session, email="future-dob@example.com")
+    await session.commit()
+    app.dependency_overrides[get_current_customer] = lambda: _user_for(ids)
+    try:
+        future = (date.today() + timedelta(days=1)).isoformat()
+        r = await client.patch(
+            "/api/v1/customers/me",
+            json={"date_of_birth": future},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_customer, None)
+    assert r.status_code == 422, r.text
+
+
 async def test_patching_phone_to_same_keeps_verification(
     client: AsyncClient, session: AsyncSession
 ):

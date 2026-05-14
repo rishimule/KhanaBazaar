@@ -44,6 +44,14 @@ class CustomerProfileUpdate(BaseModel):
             raise ValueError("first_name cannot be null")
         return self
 
+    @model_validator(mode="after")
+    def _dob_must_not_be_future(self) -> "CustomerProfileUpdate":
+        from datetime import date as _date
+
+        if self.date_of_birth is not None and self.date_of_birth > _date.today():
+            raise ValueError("date_of_birth cannot be in the future")
+        return self
+
 
 class CustomerPreferencesUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")

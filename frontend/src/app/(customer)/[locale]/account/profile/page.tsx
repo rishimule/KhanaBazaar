@@ -285,6 +285,7 @@ export default function AccountProfilePage() {
               type="date"
               className={styles.input}
               value={profileForm.date_of_birth}
+              max={new Date().toISOString().slice(0, 10)}
               onChange={(e) =>
                 setProfileForm((c) => ({ ...c, date_of_birth: e.target.value }))
               }
