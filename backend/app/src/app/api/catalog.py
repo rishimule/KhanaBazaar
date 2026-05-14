@@ -4,15 +4,13 @@ import re
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.locale import get_request_locale
-from app.core.security import get_current_admin
 from app.db.session import get_db_session
-from app.models.base import User
 from app.models.catalog import (
     Category,
     CategoryTranslation,
@@ -25,16 +23,11 @@ from app.models.catalog import (
 )
 from app.schemas.services import ServicePayload
 from app.services.catalog_translations import (
-    localized_category_translation as _localized_category_translation,
-)
-from app.services.catalog_translations import (
-    localized_product_translation as _localized_product_translation,
-)
-from app.services.catalog_translations import (
-    localized_service_translation as _localized_service_translation,
-)
-from app.services.catalog_translations import (
-    localized_subcategory_translation as _localized_subcategory_translation,
+    load_category_translations,
+    load_product_translations,
+    load_service_translations,
+    load_subcategory_translations,
+    pick_translation,
 )
 
 router = APIRouter()
@@ -229,12 +222,14 @@ async def list_services(
         .order_by(Service.sort_order, Service.id)  # type: ignore[arg-type]
     )
     result = await session.exec(stmt)
-    out: List[ServiceRead] = []
-    for service in result.all():
-        assert service.id is not None
-        translation = await _localized_service_translation(session, service.id, lang)
-        out.append(_service_read(service, translation))
-    return out
+    services = list(result.all())
+    ids = [s.id for s in services if s.id is not None]
+    translations = await load_service_translations(session, ids)
+    return [
+        _service_read(svc, pick_translation(translations.get(svc.id, []), lang))
+        for svc in services
+        if svc.id is not None
+    ]
 
 
 # ─── Categories ───────────────────────────────────────────────
@@ -245,89 +240,25 @@ async def list_categories(
     session: AsyncSession = Depends(get_db_session),
     lang: str = Depends(get_request_locale),
 ) -> List[CategoryRead]:
-    result = await session.exec(select(Category))
-    out: List[CategoryRead] = []
-    for category in result.all():
-        assert category.id is not None
-        translation = await _localized_category_translation(session, category.id, lang)
-        out.append(_category_read(category, translation))
-    return out
-
-
-@router.post("/categories", response_model=CategoryRead)
-async def create_category(
-    payload: CategoryCreate,
-    session: AsyncSession = Depends(get_db_session),
-    admin: User = Depends(get_current_admin),
-) -> CategoryRead:
-    if payload.service_id is not None:
-        service = await session.get(Service, payload.service_id)
-        if service is None:
-            raise HTTPException(status_code=400, detail="Service does not exist")
-    else:
-        service = await _ensure_default_service(session)
-    slug = _slugify(payload.name)
-    category = Category(service_id=service.id, slug=slug, sort_order=0)
-    session.add(category)
-    await session.flush()
-    translation = CategoryTranslation(
-        category_id=category.id,
-        language_code=_EN,
-        name=payload.name,
-        description=payload.description,
+    result = await session.exec(
+        select(Category)
+        .join(Service, Service.id == Category.service_id)  # type: ignore[arg-type]
+        .where(Category.is_active == True)  # noqa: E712
+        .where(Service.is_active == True)  # noqa: E712
     )
-    session.add(translation)
-    await session.flush()
-    response = _category_read(category, translation)
-    await session.commit()
-    return response
-
-
-@router.put("/categories/{category_id}", response_model=CategoryRead)
-async def update_category(
-    category_id: int,
-    payload: CategoryUpdate,
-    session: AsyncSession = Depends(get_db_session),
-    admin: User = Depends(get_current_admin),
-) -> CategoryRead:
-    cat = await session.get(Category, category_id)
-    if not cat:
-        raise HTTPException(status_code=404, detail="Category not found")
-    translation = await _localized_category_translation(session, category_id, _EN)
-    if translation is None:
-        translation = CategoryTranslation(
-            category_id=cat.id,
-            language_code=_EN,
-            name=payload.name or cat.slug,
-            description=payload.description,
-        )
-        session.add(translation)
-    else:
-        if payload.name is not None:
-            translation.name = payload.name
-        if payload.description is not None:
-            translation.description = payload.description
-    await session.flush()
-    response = _category_read(cat, translation)
-    await session.commit()
-    return response
-
-
-@router.delete("/categories/{category_id}")
-async def delete_category(
-    category_id: int,
-    session: AsyncSession = Depends(get_db_session),
-    admin: User = Depends(get_current_admin),
-) -> dict[str, str]:
-    cat = await session.get(Category, category_id)
-    if not cat:
-        raise HTTPException(status_code=404, detail="Category not found")
-    await session.delete(cat)
-    await session.commit()
-    return {"detail": "Category deleted"}
+    cats = list(result.all())
+    ids = [c.id for c in cats if c.id is not None]
+    translations = await load_category_translations(session, ids)
+    return [
+        _category_read(c, pick_translation(translations.get(c.id, []), lang))
+        for c in cats
+        if c.id is not None
+    ]
 
 
 # ─── Products ─────────────────────────────────────────────────
+# Admin CRUD for categories + products moved to /api/v1/catalog/admin/*
+# (see app/api/catalog_admin.py). Public reads stay here.
 
 
 @router.get("/products", response_model=List[ProductRead])
@@ -344,18 +275,31 @@ async def list_products(
     stmt = (
         select(MasterProduct, Subcategory)
         .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
+        .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+        .join(Service, Service.id == Category.service_id)  # type: ignore[arg-type]
+        .where(MasterProduct.is_active == True)  # noqa: E712
+        .where(Subcategory.is_active == True)  # noqa: E712
+        .where(Category.is_active == True)  # noqa: E712
+        .where(Service.is_active == True)  # noqa: E712
         .offset(skip)
         .limit(limit)
     )
     result = await session.exec(stmt)
-    out: List[ProductRead] = []
-    for product, subcategory in result.all():
-        assert product.id is not None
-        assert subcategory.id is not None
-        product_translation = await _localized_product_translation(session, product.id, lang)
-        sub_translation = await _localized_subcategory_translation(session, subcategory.id, lang)
-        out.append(_product_read(product, product_translation, subcategory, sub_translation))
-    return out
+    rows = list(result.all())
+    product_ids = [p.id for p, _ in rows if p.id is not None]
+    sub_ids = [s.id for _, s in rows if s.id is not None]
+    p_trans = await load_product_translations(session, product_ids)
+    s_trans = await load_subcategory_translations(session, sub_ids)
+    return [
+        _product_read(
+            product,
+            pick_translation(p_trans.get(product.id, []), lang),
+            subcategory,
+            pick_translation(s_trans.get(subcategory.id, []), lang),
+        )
+        for product, subcategory in rows
+        if product.id is not None and subcategory.id is not None
+    ]
 
 
 @router.get("/subcategories", response_model=List[SubcategoryRead])
@@ -363,108 +307,28 @@ async def list_subcategories(
     session: AsyncSession = Depends(get_db_session),
     lang: str = Depends(get_request_locale),
 ) -> List[SubcategoryRead]:
-    stmt = select(Subcategory).order_by(
-        Subcategory.category_id,  # type: ignore[arg-type]
-        Subcategory.sort_order,  # type: ignore[arg-type]
-        Subcategory.id,  # type: ignore[arg-type]
+    stmt = (
+        select(Subcategory)
+        .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+        .join(Service, Service.id == Category.service_id)  # type: ignore[arg-type]
+        .where(Subcategory.is_active == True)  # noqa: E712
+        .where(Category.is_active == True)  # noqa: E712
+        .where(Service.is_active == True)  # noqa: E712
+        .order_by(
+            Subcategory.category_id,  # type: ignore[arg-type]
+            Subcategory.sort_order,  # type: ignore[arg-type]
+            Subcategory.id,  # type: ignore[arg-type]
+        )
     )
     result = await session.exec(stmt)
-    out: List[SubcategoryRead] = []
-    for sub in result.all():
-        assert sub.id is not None
-        translation = await _localized_subcategory_translation(session, sub.id, lang)
-        out.append(_subcategory_read(sub, translation))
-    return out
+    subs = list(result.all())
+    ids = [s.id for s in subs if s.id is not None]
+    translations = await load_subcategory_translations(session, ids)
+    return [
+        _subcategory_read(s, pick_translation(translations.get(s.id, []), lang))
+        for s in subs
+        if s.id is not None
+    ]
 
 
-@router.post("/products", response_model=ProductRead)
-async def create_product(
-    payload: ProductCreate,
-    session: AsyncSession = Depends(get_db_session),
-    admin: User = Depends(get_current_admin),
-) -> ProductRead:
-    cat_check = await session.exec(select(Category).where(Category.id == payload.category_id))
-    if not cat_check.first():
-        raise HTTPException(status_code=400, detail="Category does not exist")
-    subcategory = await _ensure_default_subcategory(session, payload.category_id)
-    slug = _slugify(payload.name)
-    product = MasterProduct(
-        subcategory_id=subcategory.id,
-        slug=slug,
-        image_url=payload.image_url,
-        base_price=payload.base_price,
-    )
-    session.add(product)
-    await session.flush()
-    translation = MasterProductTranslation(
-        master_product_id=product.id,
-        language_code=_EN,
-        name=payload.name,
-        description=payload.description,
-    )
-    session.add(translation)
-    await session.flush()
-    response = _product_read(product, translation, subcategory)
-    await session.commit()
-    return response
-
-
-@router.put("/products/{product_id}", response_model=ProductRead)
-async def update_product(
-    product_id: int,
-    payload: ProductUpdate,
-    session: AsyncSession = Depends(get_db_session),
-    admin: User = Depends(get_current_admin),
-) -> ProductRead:
-    product = await session.get(MasterProduct, product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    if payload.category_id is not None:
-        subcategory = await _ensure_default_subcategory(session, payload.category_id)
-        assert subcategory.id is not None
-        product.subcategory_id = subcategory.id
-    else:
-        sub_lookup = await session.get(Subcategory, product.subcategory_id)
-        assert sub_lookup is not None
-        subcategory = sub_lookup
-
-    if payload.base_price is not None:
-        product.base_price = payload.base_price
-    if payload.image_url is not None:
-        product.image_url = payload.image_url
-
-    translation = await _localized_product_translation(session, product_id, _EN)
-    if translation is None:
-        translation = MasterProductTranslation(
-            master_product_id=product.id,
-            language_code=_EN,
-            name=payload.name or product.slug,
-            description=payload.description or "",
-        )
-        session.add(translation)
-    else:
-        if payload.name is not None:
-            translation.name = payload.name
-        if payload.description is not None:
-            translation.description = payload.description
-
-    session.add(product)
-    await session.flush()
-    response = _product_read(product, translation, subcategory)
-    await session.commit()
-    return response
-
-
-@router.delete("/products/{product_id}")
-async def delete_product(
-    product_id: int,
-    session: AsyncSession = Depends(get_db_session),
-    admin: User = Depends(get_current_admin),
-) -> dict[str, str]:
-    product = await session.get(MasterProduct, product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    await session.delete(product)
-    await session.commit()
-    return {"detail": "Product deleted"}
+# Admin product CRUD removed — use /api/v1/catalog/admin/products instead.

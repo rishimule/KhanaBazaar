@@ -130,7 +130,7 @@ async def test_create_category_with_explicit_service_id(
 ) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post(
-            "/api/v1/catalog/categories",
+            "/api/v1/catalog/admin/categories",
             json={"name": "Phones & Tablets", "service_id": seed["electronics"]},
         )
     assert resp.status_code == 200, resp.text
@@ -140,29 +140,16 @@ async def test_create_category_with_explicit_service_id(
 
 
 @pytest.mark.asyncio
-async def test_create_category_without_service_falls_back_to_grocery(
-    seed: dict[str, int], override_as_admin: None
-) -> None:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.post(
-            "/api/v1/catalog/categories",
-            json={"name": "Snacks"},
-        )
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["service_id"] == seed["grocery"]
-
-
-@pytest.mark.asyncio
-async def test_create_category_invalid_service_id_returns_400(
+async def test_create_category_invalid_service_id_returns_404(
     override_as_admin: None,
 ) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.post(
-            "/api/v1/catalog/categories",
+            "/api/v1/catalog/admin/categories",
             json={"name": "Bogus", "service_id": 9999},
         )
-    assert resp.status_code == 400
-    assert "Service" in resp.json()["detail"]
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "parent_not_found"
 
 
 @pytest.mark.asyncio
@@ -171,7 +158,7 @@ async def test_list_categories_returns_service_id(
 ) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         create = await ac.post(
-            "/api/v1/catalog/categories",
+            "/api/v1/catalog/admin/categories",
             json={"name": "OTC Medicines", "service_id": seed["pharmacy"]},
         )
         assert create.status_code == 200, create.text

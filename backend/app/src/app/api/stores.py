@@ -316,8 +316,18 @@ async def list_store_inventory(
         raise HTTPException(status_code=404, detail="Store not found or inactive")
 
     result = await session.exec(
-        select(StoreInventory).where(
-            StoreInventory.store_id == store_id, StoreInventory.is_available
+        select(StoreInventory)
+        .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+        .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
+        .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+        .join(Service, Service.id == Category.service_id)  # type: ignore[arg-type]
+        .where(
+            StoreInventory.store_id == store_id,
+            StoreInventory.is_available,
+            MasterProduct.is_active == True,  # noqa: E712
+            Subcategory.is_active == True,  # noqa: E712
+            Category.is_active == True,  # noqa: E712
+            Service.is_active == True,  # noqa: E712
         )
     )
     return list(result.all())
@@ -373,6 +383,10 @@ async def get_store_product_detail(
         .where(
             StoreInventory.store_id == store_id,
             StoreInventory.product_id == product_id,
+            MasterProduct.is_active == True,  # noqa: E712
+            Subcategory.is_active == True,  # noqa: E712
+            Category.is_active == True,  # noqa: E712
+            Service.is_active == True,  # noqa: E712
         )
     )
     row = (await session.exec(join_stmt)).first()
