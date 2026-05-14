@@ -45,11 +45,24 @@ export default function AccountLayout({
   }
 
   const customerNav = [
+    { href: "/account", label: t("navDashboard"), icon: "🏠" },
     { href: "/account/orders", label: t("navOrders"), icon: "📦" },
-    { href: "/account/settings", label: t("navSettings"), icon: "⚙️" },
+    { href: "/account/addresses", label: t("navAddresses"), icon: "📍" },
+    { href: "/account/profile", label: t("navProfile"), icon: "👤" },
+    { href: "/account/preferences", label: t("navPreferences"), icon: "⚙️" },
+    { href: "/account/support", label: t("navSupport"), icon: "💬" },
   ];
 
-  const title = pathname === "/account/settings" ? t("layoutSettingsTitle") : t("layoutTitle");
+  const PAGE_TITLE_KEY: Record<string, string> = {
+    "/account": "layoutTitle",
+    "/account/orders": "layoutOrdersTitle",
+    "/account/addresses": "layoutAddressesTitle",
+    "/account/profile": "layoutProfileTitle",
+    "/account/preferences": "layoutPreferencesTitle",
+    "/account/support": "layoutSupportTitle",
+  };
+
+  const title = t(PAGE_TITLE_KEY[pathname] ?? "layoutTitle");
   const roleName = dbUser.full_name || dbUser.email;
 
   return (
