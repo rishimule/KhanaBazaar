@@ -496,3 +496,11 @@
     padding: 6px 10px;
   }
 }
+
+/* Stripped/signup variants render inline on mobile — override the
+   default mobile-hidden state of .loginBtn and .authBtn so the Logout
+   and Sign In buttons remain visible without a hamburger drawer. */
+.navInnerStripped .loginBtn,
+.navInnerStripped .authBtn {
+  display: inline-flex;
+}
