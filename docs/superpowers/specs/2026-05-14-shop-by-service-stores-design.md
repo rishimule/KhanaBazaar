@@ -59,6 +59,7 @@ Add to `backend/app/tests/test_stores.py`:
 - `test_list_stores_filter_unknown_service` — `?service=does-not-exist` → 400.
 - `test_list_stores_filter_inactive_service` — flip `Service.is_active=false`, `?service=<slug>` → 400.
 - `test_list_stores_filter_with_distance_sort` — two Grocery sellers at different distances; `?service=grocery&lat=&lng=&sort=distance` returns both, ordered by distance, with `distance_km` populated.
+- `test_list_stores_filter_includes_stockless_offering` — seller has Grocery in `SellerProfileService` but zero `StoreInventory` rows. `?service=grocery` still returns the store. Locks in the non-goal that the list is offer-based, not stock-based.
 
 ### Frontend
 
@@ -135,6 +136,7 @@ Home tile (slug)
 - **Stale cache on store detail**: the seeding effect must wait for `storefront !== null`. The page already renders cached storefront synchronously when available; the effect runs against whichever payload is loaded (cached or fresh) and the storefront services list is identical for both within a session.
 - **Locale switch on the listing page**: service display name comes from the localized `/api/v1/catalog/services` payload; switching locales triggers re-fetch.
 - **Repeat clicks**: `router.replace` is idempotent; the ref guards re-runs.
+- **Storefront cache TTL**: per-service empty state can linger briefly after the seller adds stock for a previously-empty service, until `storefrontCache` revalidates. This is existing cache behavior, not introduced by this change.
 
 ## Open issues
 
