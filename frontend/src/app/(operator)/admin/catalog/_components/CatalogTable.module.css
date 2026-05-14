@@ -171,10 +171,18 @@
 
 .actionsCol {
   text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.actionsCell {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
 }
 
 .actions {
-  display: flex;
+  display: inline-flex;
   gap: 0.4rem;
   justify-content: flex-end;
   flex-wrap: wrap;

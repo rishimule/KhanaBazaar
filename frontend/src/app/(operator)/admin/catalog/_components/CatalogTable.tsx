@@ -159,7 +159,6 @@ export function CatalogTable({
                   )}
                   <td>
                     <span className={styles.chipRow}>
-                      <span className={styles.chip}>EN</span>
                       {row.translations.map((t) => (
                         <span key={t.language_code} className={styles.chip}>
                           {t.language_code.toUpperCase()}
@@ -167,43 +166,45 @@ export function CatalogTable({
                       ))}
                     </span>
                   </td>
-                  <td className={styles.actions}>
-                    {entity !== "product" && onRowOpen && (
+                  <td className={styles.actionsCell}>
+                    <div className={styles.actions}>
+                      {entity !== "product" && onRowOpen && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => onRowOpen(row)}
+                        >
+                          Open
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="btn btn-ghost"
-                        onClick={() => onRowOpen(row)}
+                        onClick={() => setModalState({ mode: "edit", row })}
                       >
-                        Open
+                        Edit
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      onClick={() => setModalState({ mode: "edit", row })}
-                    >
-                      Edit
-                    </button>
-                    {row.is_active ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() => setConfirmRow(row)}
-                      >
-                        Deactivate
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={async () => {
-                          await mut.update(row.id, { is_active: true });
-                          refetch();
-                        }}
-                      >
-                        Activate
-                      </button>
-                    )}
+                      {row.is_active ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => setConfirmRow(row)}
+                        >
+                          Deactivate
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={async () => {
+                            await mut.update(row.id, { is_active: true });
+                            refetch();
+                          }}
+                        >
+                          Activate
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
