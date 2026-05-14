@@ -7,15 +7,16 @@ already-in-inventory flag."""
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.catalog import Category, MasterProduct, Subcategory
+from app.models.catalog import Category, MasterProduct, Service, Subcategory
 from app.models.profile import SellerProfileService
 from app.models.store import StoreInventory
 from app.schemas.inventory import EligibleProduct
 from app.services.catalog_translations import (
-    localized_category_translation,
-    localized_product_translation,
-    localized_service_translation,
-    localized_subcategory_translation,
+    load_category_translations,
+    load_product_translations,
+    load_service_translations,
+    load_subcategory_translations,
+    pick_translation,
 )
 
 
@@ -38,13 +39,22 @@ async def list_eligible_products(
         select(MasterProduct, Subcategory, Category)
         .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
         .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+        .join(Service, Service.id == Category.service_id)  # type: ignore[arg-type]
         .where(Category.service_id.in_(approved_service_ids))  # type: ignore[attr-defined]
+        .where(MasterProduct.is_active == True)  # noqa: E712
+        .where(Subcategory.is_active == True)  # noqa: E712
+        .where(Category.is_active == True)  # noqa: E712
+        .where(Service.is_active == True)  # noqa: E712
     )
     rows = list((await session.exec(stmt)).all())
     if not rows:
         return []
 
     product_ids = [p.id for p, _s, _c in rows if p.id is not None]
+    sub_ids = [s.id for _p, s, _c in rows if s.id is not None]
+    cat_ids = [c.id for _p, _s, c in rows if c.id is not None]
+    svc_ids = list({c.service_id for _p, _s, c in rows})
+
     inv_result = await session.exec(
         select(StoreInventory.product_id).where(
             StoreInventory.store_id == store_id,
@@ -53,6 +63,11 @@ async def list_eligible_products(
     )
     in_inventory_ids = set(inv_result.all())
 
+    p_trans = await load_product_translations(session, product_ids)
+    s_trans = await load_subcategory_translations(session, sub_ids)
+    c_trans = await load_category_translations(session, cat_ids)
+    sv_trans = await load_service_translations(session, svc_ids)
+
     out: list[EligibleProduct] = []
     for product, subcategory, category in rows:
         assert (
@@ -60,12 +75,10 @@ async def list_eligible_products(
             and subcategory.id is not None
             and category.id is not None
         )
-        prod_t = await localized_product_translation(session, product.id, lang)
-        sub_t = await localized_subcategory_translation(session, subcategory.id, lang)
-        cat_t = await localized_category_translation(session, category.id, lang)
-        svc_t = await localized_service_translation(
-            session, category.service_id, lang
-        )
+        prod_t = pick_translation(p_trans.get(product.id, []), lang)
+        sub_t = pick_translation(s_trans.get(subcategory.id, []), lang)
+        cat_t = pick_translation(c_trans.get(category.id, []), lang)
+        svc_t = pick_translation(sv_trans.get(category.service_id, []), lang)
 
         out.append(
             EligibleProduct(

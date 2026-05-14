@@ -25,16 +25,17 @@ from app.models.catalog import (
 )
 from app.schemas.services import ServicePayload
 from app.services.catalog_translations import (
+    load_category_translations,
+    load_product_translations,
+    load_service_translations,
+    load_subcategory_translations,
+    pick_translation,
+)
+from app.services.catalog_translations import (
     localized_category_translation as _localized_category_translation,
 )
 from app.services.catalog_translations import (
     localized_product_translation as _localized_product_translation,
-)
-from app.services.catalog_translations import (
-    localized_service_translation as _localized_service_translation,
-)
-from app.services.catalog_translations import (
-    localized_subcategory_translation as _localized_subcategory_translation,
 )
 
 router = APIRouter()
@@ -229,12 +230,14 @@ async def list_services(
         .order_by(Service.sort_order, Service.id)  # type: ignore[arg-type]
     )
     result = await session.exec(stmt)
-    out: List[ServiceRead] = []
-    for service in result.all():
-        assert service.id is not None
-        translation = await _localized_service_translation(session, service.id, lang)
-        out.append(_service_read(service, translation))
-    return out
+    services = list(result.all())
+    ids = [s.id for s in services if s.id is not None]
+    translations = await load_service_translations(session, ids)
+    return [
+        _service_read(svc, pick_translation(translations.get(svc.id, []), lang))
+        for svc in services
+        if svc.id is not None
+    ]
 
 
 # ─── Categories ───────────────────────────────────────────────
@@ -245,13 +248,17 @@ async def list_categories(
     session: AsyncSession = Depends(get_db_session),
     lang: str = Depends(get_request_locale),
 ) -> List[CategoryRead]:
-    result = await session.exec(select(Category))
-    out: List[CategoryRead] = []
-    for category in result.all():
-        assert category.id is not None
-        translation = await _localized_category_translation(session, category.id, lang)
-        out.append(_category_read(category, translation))
-    return out
+    result = await session.exec(
+        select(Category).where(Category.is_active == True)  # noqa: E712
+    )
+    cats = list(result.all())
+    ids = [c.id for c in cats if c.id is not None]
+    translations = await load_category_translations(session, ids)
+    return [
+        _category_read(c, pick_translation(translations.get(c.id, []), lang))
+        for c in cats
+        if c.id is not None
+    ]
 
 
 @router.post("/categories", response_model=CategoryRead)
@@ -344,18 +351,27 @@ async def list_products(
     stmt = (
         select(MasterProduct, Subcategory)
         .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
+        .where(MasterProduct.is_active == True)  # noqa: E712
+        .where(Subcategory.is_active == True)  # noqa: E712
         .offset(skip)
         .limit(limit)
     )
     result = await session.exec(stmt)
-    out: List[ProductRead] = []
-    for product, subcategory in result.all():
-        assert product.id is not None
-        assert subcategory.id is not None
-        product_translation = await _localized_product_translation(session, product.id, lang)
-        sub_translation = await _localized_subcategory_translation(session, subcategory.id, lang)
-        out.append(_product_read(product, product_translation, subcategory, sub_translation))
-    return out
+    rows = list(result.all())
+    product_ids = [p.id for p, _ in rows if p.id is not None]
+    sub_ids = [s.id for _, s in rows if s.id is not None]
+    p_trans = await load_product_translations(session, product_ids)
+    s_trans = await load_subcategory_translations(session, sub_ids)
+    return [
+        _product_read(
+            product,
+            pick_translation(p_trans.get(product.id, []), lang),
+            subcategory,
+            pick_translation(s_trans.get(subcategory.id, []), lang),
+        )
+        for product, subcategory in rows
+        if product.id is not None and subcategory.id is not None
+    ]
 
 
 @router.get("/subcategories", response_model=List[SubcategoryRead])
@@ -363,18 +379,24 @@ async def list_subcategories(
     session: AsyncSession = Depends(get_db_session),
     lang: str = Depends(get_request_locale),
 ) -> List[SubcategoryRead]:
-    stmt = select(Subcategory).order_by(
-        Subcategory.category_id,  # type: ignore[arg-type]
-        Subcategory.sort_order,  # type: ignore[arg-type]
-        Subcategory.id,  # type: ignore[arg-type]
+    stmt = (
+        select(Subcategory)
+        .where(Subcategory.is_active == True)  # noqa: E712
+        .order_by(
+            Subcategory.category_id,  # type: ignore[arg-type]
+            Subcategory.sort_order,  # type: ignore[arg-type]
+            Subcategory.id,  # type: ignore[arg-type]
+        )
     )
     result = await session.exec(stmt)
-    out: List[SubcategoryRead] = []
-    for sub in result.all():
-        assert sub.id is not None
-        translation = await _localized_subcategory_translation(session, sub.id, lang)
-        out.append(_subcategory_read(sub, translation))
-    return out
+    subs = list(result.all())
+    ids = [s.id for s in subs if s.id is not None]
+    translations = await load_subcategory_translations(session, ids)
+    return [
+        _subcategory_read(s, pick_translation(translations.get(s.id, []), lang))
+        for s in subs
+        if s.id is not None
+    ]
 
 
 @router.post("/products", response_model=ProductRead)
