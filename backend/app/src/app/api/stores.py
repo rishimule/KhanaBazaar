@@ -24,7 +24,7 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
-from app.models.profile import SellerProfile
+from app.models.profile import SellerProfile, SellerProfileService
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.inventory import (
@@ -113,16 +113,36 @@ async def list_stores(
     lng: Optional[float] = Query(default=None, ge=-180.0, le=180.0),
     radius_km: Optional[float] = Query(default=None, gt=0, le=100),
     sort: Optional[str] = Query(default=None, pattern="^distance$"),
+    service: Optional[str] = Query(default=None, max_length=64),
     session: AsyncSession = Depends(get_db_session),
     lang: str = Depends(get_request_locale),
 ) -> List[StoreRead]:
+    service_id: Optional[int] = None
+    if service is not None:
+        svc_row = await session.exec(
+            select(Service.id).where(
+                Service.slug == service,
+                Service.is_active == True,  # noqa: E712
+            )
+        )
+        service_id = svc_row.first()
+        if service_id is None:
+            raise HTTPException(status_code=400, detail="unknown_service")
+
     if lat is None or lng is None:
         stmt = (
             _store_with_relations_stmt()
             .where(Store.is_active)
-            .offset(skip)
-            .limit(limit)
         )
+        if service_id is not None:
+            stmt = stmt.where(
+                Store.seller_profile_id.in_(  # type: ignore[attr-defined]
+                    select(SellerProfileService.seller_profile_id).where(
+                        SellerProfileService.service_id == service_id
+                    )
+                )
+            )
+        stmt = stmt.offset(skip).limit(limit)
         result = await session.exec(stmt)
         return [
             await _store_read(session, store, lang, distance_km=None)
@@ -142,10 +162,18 @@ async def list_stores(
     order_clause = (
         f"ST_Distance(a.geo, {point}) ASC" if sort == "distance" else "s.id ASC"
     )
+    service_clause = (
+        " AND EXISTS (SELECT 1 FROM sellerprofile_service sps "
+        "WHERE sps.seller_profile_id = s.seller_profile_id "
+        "AND sps.service_id = :service_id)"
+        if service_id is not None
+        else ""
+    )
     sql = text(
         f"SELECT s.id, ST_Distance(a.geo, {point}) / 1000.0 AS distance_km "
         "FROM store s JOIN address a ON a.id = s.address_id "
-        f"WHERE s.is_active AND a.geo IS NOT NULL AND {radius_clause} "
+        f"WHERE s.is_active AND a.geo IS NOT NULL AND {radius_clause}"
+        f"{service_clause} "
         f"ORDER BY {order_clause} "
         "OFFSET :skip LIMIT :limit"
     )
@@ -154,6 +182,8 @@ async def list_stores(
     }
     if radius_km is not None:
         bind_params["user_cap"] = radius_km
+    if service_id is not None:
+        bind_params["service_id"] = service_id
     rows = (
         await session.exec(sql.bindparams(**bind_params))  # type: ignore[call-overload]
     ).all()

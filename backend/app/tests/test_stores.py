@@ -13,6 +13,7 @@ from app.models.address import Address
 from app.models.base import User, UserRole
 from app.models.catalog import Service, ServiceTranslation
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
+from app.models.store import Store
 from tests._helpers import make_address
 
 mock_admin = User(id=1, email="admin@kb.com", role=UserRole.Admin, is_active=True)
@@ -212,3 +213,205 @@ async def test_seller_cannot_create_second_store(override_as_seller: Any) -> Non
         r2 = await ac.post("/api/v1/stores/", json=second)
     assert r2.status_code == 409
     assert "one" in r2.json()["detail"].lower()
+
+
+async def _seed_second_seller_with_services(
+    session: AsyncSession,
+    *,
+    email: str,
+    user_id: int,
+    service_slugs: list[str],
+    address_overrides: dict[str, object] | None = None,
+) -> int:
+    """Create a fresh user + seller profile, attach the given services, return the seller_profile_id.
+
+    `user_id` is explicit because the autouse fixture inserts mock_admin (id=1)
+    and mock_seller (id=2) with explicit ids, which does not advance the
+    Postgres sequence — letting the sequence allocate would collide.
+    """
+    new_user = User(id=user_id, email=email, role=UserRole.Seller, is_active=True)
+    session.add(new_user)
+    await session.flush()
+    assert new_user.id is not None
+
+    addr = Address(**make_address(**(address_overrides or {})))
+    session.add(addr)
+    await session.flush()
+    assert addr.id is not None
+
+    profile = SellerProfile(
+        user_id=new_user.id,
+        first_name="Seller",
+        last_name=None,
+        business_name=f"Biz {email}",
+        phone="+919800000000",
+        gst_number="06AAAAA1111A1Z1",
+        fssai_license="44556677889900",
+        bank_account_number="80100200300700",
+        bank_ifsc="HDFC0000001",
+        verification_status=VerificationStatus.Approved,
+        business_address_id=addr.id,
+    )
+    session.add(profile)
+    await session.flush()
+    assert profile.id is not None
+
+    for slug in service_slugs:
+        row = await session.exec(select(Service).where(Service.slug == slug))
+        svc = row.first()
+        if svc is None:
+            svc = Service(slug=slug)
+            session.add(svc)
+            await session.flush()
+            assert svc.id is not None
+            session.add(
+                ServiceTranslation(
+                    service_id=svc.id, language_code="en", name=slug.title()
+                )
+            )
+            await session.flush()
+        assert svc.id is not None
+        session.add(
+            SellerProfileService(seller_profile_id=profile.id, service_id=svc.id)
+        )
+    profile_id = profile.id
+    await session.commit()
+    return profile_id
+
+
+async def _create_store_for_profile(
+    session: AsyncSession,
+    *,
+    seller_profile_id: int,
+    name: str,
+    address_overrides: dict[str, object] | None = None,
+    delivery_radius_km: float = 100.0,
+) -> int:
+    addr = Address(**make_address(**(address_overrides or {})))
+    session.add(addr)
+    await session.flush()
+    assert addr.id is not None
+    store = Store(
+        name=name,
+        seller_profile_id=seller_profile_id,
+        address_id=addr.id,
+        delivery_radius_km=delivery_radius_km,
+    )
+    session.add(store)
+    await session.flush()
+    assert store.id is not None
+    store_id = store.id
+    await session.commit()
+    return store_id
+
+
+@pytest.mark.asyncio
+async def test_list_stores_filter_by_service(session: AsyncSession) -> None:
+    seller_a_profile_row = await session.exec(
+        select(SellerProfile).where(SellerProfile.user_id == mock_seller.id)
+    )
+    seller_a = seller_a_profile_row.first()
+    assert seller_a is not None and seller_a.id is not None
+    await _create_store_for_profile(
+        session, seller_profile_id=seller_a.id, name="Grocery Store"
+    )
+
+    seller_b_id = await _seed_second_seller_with_services(
+        session, email="pharma@kb.com", user_id=100, service_slugs=["pharmacy"]
+    )
+    await _create_store_for_profile(
+        session, seller_profile_id=seller_b_id, name="Pharma Mart",
+        address_overrides={"pincode": "400099"},
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        grocery_resp = await ac.get("/api/v1/stores/?service=grocery")
+        pharmacy_resp = await ac.get("/api/v1/stores/?service=pharmacy")
+
+    assert grocery_resp.status_code == 200, grocery_resp.text
+    grocery_bodies = grocery_resp.json()
+    assert [s["name"] for s in grocery_bodies] == ["Grocery Store"]
+
+    assert pharmacy_resp.status_code == 200, pharmacy_resp.text
+    pharmacy_bodies = pharmacy_resp.json()
+    assert [s["name"] for s in pharmacy_bodies] == ["Pharma Mart"]
+
+
+@pytest.mark.asyncio
+async def test_list_stores_filter_unknown_service() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/stores/?service=does-not-exist")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "unknown_service"
+
+
+@pytest.mark.asyncio
+async def test_list_stores_filter_inactive_service(session: AsyncSession) -> None:
+    row = await session.exec(select(Service).where(Service.slug == "grocery"))
+    grocery = row.first()
+    assert grocery is not None
+    grocery.is_active = False
+    session.add(grocery)
+    await session.commit()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/stores/?service=grocery")
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "unknown_service"
+
+
+@pytest.mark.asyncio
+async def test_list_stores_filter_includes_stockless_offering(session: AsyncSession) -> None:
+    seller_a_profile_row = await session.exec(
+        select(SellerProfile).where(SellerProfile.user_id == mock_seller.id)
+    )
+    seller_a = seller_a_profile_row.first()
+    assert seller_a is not None and seller_a.id is not None
+    store_id = await _create_store_for_profile(
+        session, seller_profile_id=seller_a.id, name="Empty Shelf Mart"
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/stores/?service=grocery")
+    assert resp.status_code == 200, resp.text
+    bodies = resp.json()
+    assert any(s["id"] == store_id for s in bodies)
+
+
+@pytest.mark.asyncio
+async def test_list_stores_filter_with_distance_sort(session: AsyncSession) -> None:
+    seller_a_profile_row = await session.exec(
+        select(SellerProfile).where(SellerProfile.user_id == mock_seller.id)
+    )
+    seller_a = seller_a_profile_row.first()
+    assert seller_a is not None and seller_a.id is not None
+    near_id = await _create_store_for_profile(
+        session,
+        seller_profile_id=seller_a.id,
+        name="Near Grocery",
+        address_overrides={"latitude": 28.4595, "longitude": 77.0266},
+    )
+
+    seller_b_id = await _seed_second_seller_with_services(
+        session, email="far-grocery@kb.com", user_id=101, service_slugs=["grocery"]
+    )
+    far_id = await _create_store_for_profile(
+        session,
+        seller_profile_id=seller_b_id,
+        name="Far Grocery",
+        address_overrides={
+            "latitude": 28.6000,
+            "longitude": 77.2500,
+            "pincode": "110001",
+        },
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/stores/?service=grocery&lat=28.4595&lng=77.0266"
+            "&sort=distance&radius_km=100"
+        )
+    assert resp.status_code == 200, resp.text
+    ids = [s["id"] for s in resp.json()]
+    assert ids[0] == near_id
+    assert far_id in ids
