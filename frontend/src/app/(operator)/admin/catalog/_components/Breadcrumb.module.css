@@ -1,0 +1,22 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #555);
+}
+
+.crumb a {
+  color: var(--color-link, #2563eb);
+  text-decoration: none;
+}
+
+.crumb a:hover {
+  text-decoration: underline;
+}
+
+.sep {
+  padding: 0 0.35rem;
+  color: var(--color-border, #ccc);
+}

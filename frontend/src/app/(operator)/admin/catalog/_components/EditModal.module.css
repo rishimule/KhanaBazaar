@@ -1,0 +1,28 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.fieldError {
+  margin: 0.3rem 0 0;
+  color: #b91c1c;
+  font-size: 0.8125rem;
+}
+
+.formError {
+  margin: 0.5rem 0 0;
+  color: #b91c1c;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  background: #fef2f2;
+  border-radius: 4px;
+}
