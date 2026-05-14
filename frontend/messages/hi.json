@@ -570,7 +570,8 @@
       "labelPlaceholder": "घर, कार्यालय, परिवार",
       "makeDefault": "इसे डिफ़ॉल्ट डिलीवरी पता बनाएं",
       "saveAddress": "पता सहेजें",
-      "saving": "सहेजा जा रहा है…"
+      "saving": "सहेजा जा रहा है…",
+      "useCurrentLocation": "वर्तमान स्थान का उपयोग करें"
     },
     "settings": {
       "loading": "खाता सेटिंग्स लोड हो रही हैं…",

@@ -102,6 +102,23 @@
   font-size: var(--font-sm);
 }
 
+.digipin,
+.coords {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+  margin-top: 4px;
+}
+
+.mono {
+  font-family: var(--font-mono, monospace);
+  color: var(--color-neutral-700);
+}
+
+.geolocateBtn {
+  align-self: flex-start;
+  margin-bottom: 8px;
+}
+
 .addressActions {
   display: flex;
   flex-wrap: wrap;

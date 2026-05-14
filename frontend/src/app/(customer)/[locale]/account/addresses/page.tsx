@@ -145,6 +145,59 @@ export default function AccountAddressesPage() {
     setAddressForm(addressFormFrom(customerAddress));
   };
 
+  const useCurrentLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const place = await get<{
+            address_line1?: string;
+            city?: string;
+            state?: string;
+            pincode?: string;
+            country?: string;
+            latitude: number;
+            longitude: number;
+          }>(`/api/v1/geo/reverse?lat=${latitude}&lng=${longitude}`, token);
+          setAddressForm((curr) =>
+            curr
+              ? {
+                  ...curr,
+                  address: {
+                    ...curr.address,
+                    address_line1: place.address_line1 ?? curr.address.address_line1,
+                    city: place.city ?? curr.address.city,
+                    state: place.state ?? curr.address.state,
+                    pincode: place.pincode ?? curr.address.pincode,
+                    country: place.country ?? curr.address.country,
+                    latitude,
+                    longitude,
+                    location_source: "geocoded",
+                  },
+                }
+              : curr,
+          );
+        } catch {
+          setAddressForm((curr) =>
+            curr
+              ? {
+                  ...curr,
+                  address: {
+                    ...curr.address,
+                    latitude,
+                    longitude,
+                    location_source: "geocoded",
+                  },
+                }
+              : curr,
+          );
+        }
+      },
+      () => {},
+    );
+  };
+
   const saveAddress = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token || !addressForm) return;
@@ -274,6 +327,18 @@ export default function AccountAddressesPage() {
                 <p className={styles.addressText}>
                   {formatAddress(customerAddress.address)}
                 </p>
+                {customerAddress.address.digipin && (
+                  <div className={styles.digipin}>
+                    DIGIPIN: <span className={styles.mono}>{customerAddress.address.digipin}</span>
+                  </div>
+                )}
+                {customerAddress.address.latitude !== null &&
+                  customerAddress.address.longitude !== null && (
+                  <div className={styles.coords}>
+                    {customerAddress.address.latitude.toFixed(5)},{" "}
+                    {customerAddress.address.longitude.toFixed(5)}
+                  </div>
+                )}
                 <div className={styles.addressActions}>
                   <button
                     className={styles.textButton}
@@ -344,6 +409,15 @@ export default function AccountAddressesPage() {
                 disabled={savingAddress}
               />
             </div>
+
+            <button
+              type="button"
+              className={`btn btn-outline ${styles.geolocateBtn}`}
+              onClick={useCurrentLocation}
+              disabled={savingAddress}
+            >
+              {t("useCurrentLocation")}
+            </button>
 
             <AddressFields
               value={addressForm.address}

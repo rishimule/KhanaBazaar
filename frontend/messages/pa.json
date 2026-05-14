@@ -570,7 +570,8 @@
       "labelPlaceholder": "ਘਰ, ਦਫ਼ਤਰ, ਪਰਿਵਾਰ",
       "makeDefault": "ਇਸਨੂੰ ਡਿਫਾਲਟ ਡਿਲੀਵਰੀ ਪਤਾ ਬਣਾਓ",
       "saveAddress": "ਪਤਾ ਸੇਵ ਕਰੋ",
-      "saving": "ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…"
+      "saving": "ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…",
+      "useCurrentLocation": "ਮੌਜੂਦਾ ਟਿਕਾਣਾ ਵਰਤੋ"
     },
     "settings": {
       "loading": "ਖਾਤਾ ਸੈਟਿੰਗਾਂ ਲੋਡ ਹੋ ਰਹੀਆਂ ਹਨ…",

@@ -570,7 +570,8 @@
       "labelPlaceholder": "Home, Work, Family",
       "makeDefault": "Make this the default delivery address",
       "saveAddress": "Save address",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "useCurrentLocation": "Use current location"
     },
     "settings": {
       "loading": "Loading account settings…",

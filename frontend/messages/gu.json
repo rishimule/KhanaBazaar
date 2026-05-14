@@ -570,7 +570,8 @@
       "labelPlaceholder": "ઘર, ઑફિસ, કુટુંબ",
       "makeDefault": "આને ડિફોલ્ટ ડિલિવરી સરનામું બનાવો",
       "saveAddress": "સરનામું સાચવો",
-      "saving": "સાચવી રહ્યું છે…"
+      "saving": "સાચવી રહ્યું છે…",
+      "useCurrentLocation": "વર્તમાન સ્થાન વાપરો"
     },
     "settings": {
       "loading": "ખાતા સેટિંગ્સ લોડ થઈ રહી છે…",
