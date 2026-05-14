@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { get, post } from "@/lib/api";
-import type { Order, OrderListResponse, PaymentMethod } from "@/types";
+import type { CustomerStats, Order, OrderListResponse, PaymentMethod } from "@/types";
 
 export async function listOrders(
   token: string,
@@ -49,4 +49,8 @@ export async function transitionOrder(
 
 export async function cancelOrder(token: string, orderId: number): Promise<Order> {
   return post<Order>(`/api/v1/orders/${orderId}/cancel`, {}, token);
+}
+
+export async function getCustomerStats(token: string): Promise<CustomerStats> {
+  return get<CustomerStats>("/api/v1/customers/me/stats", token);
 }

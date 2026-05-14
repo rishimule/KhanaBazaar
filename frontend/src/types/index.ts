@@ -320,6 +320,24 @@ export interface OrderListResponse {
   orders: Order[];
 }
 
+export interface CustomerOrderSummary {
+  id: number;
+  store_id: number;
+  store_name: string;
+  service_id: number;
+  service_name: string;
+  total: number;
+  placed_at: string;
+}
+
+export interface CustomerStats {
+  orders_this_month: number;
+  lifetime_spend: number;
+  favorite_store_id: number | null;
+  favorite_store_name: string | null;
+  recent_delivered: CustomerOrderSummary[];
+}
+
 export interface EligibleProduct {
   id: number;
   name: string;
