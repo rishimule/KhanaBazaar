@@ -583,7 +583,12 @@
       "makeDefault": "इसे डिफ़ॉल्ट डिलीवरी पता बनाएं",
       "saveAddress": "पता सहेजें",
       "saving": "सहेजा जा रहा है…",
-      "useCurrentLocation": "वर्तमान स्थान का उपयोग करें"
+      "useCurrentLocation": "वर्तमान स्थान का उपयोग करें",
+      "geolocating": "स्थान प्राप्त कर रहे हैं…",
+      "geolocationUnavailable": "इस ब्राउज़र में जियोलोकेशन उपलब्ध नहीं है.",
+      "geolocationDenied": "आपके स्थान तक पहुँच की अनुमति नहीं दी गई.",
+      "geolocationError": "आपका स्थान प्राप्त नहीं हो सका. पुनः प्रयास करें.",
+      "geolocationGeocodeError": "स्थान मिला लेकिन पता नहीं देख सकते — कृपया फ़ील्ड भरें."
     },
     "settings": {
       "loading": "खाता सेटिंग्स लोड हो रही हैं…",

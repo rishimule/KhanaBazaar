@@ -3,6 +3,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -304,6 +305,12 @@ async def create_order_review(
         comment=body.comment,
     )
     session.add(review)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409, detail={"error": "review_exists"}
+        ) from exc
     await session.refresh(review)
     return OrderReviewRead(rating=review.rating, comment=review.comment)

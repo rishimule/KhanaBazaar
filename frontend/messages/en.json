@@ -583,7 +583,12 @@
       "makeDefault": "Make this the default delivery address",
       "saveAddress": "Save address",
       "saving": "Saving…",
-      "useCurrentLocation": "Use current location"
+      "useCurrentLocation": "Use current location",
+      "geolocating": "Getting location…",
+      "geolocationUnavailable": "Geolocation is not available in this browser.",
+      "geolocationDenied": "Permission to access your location was denied.",
+      "geolocationError": "Could not get your location. Try again.",
+      "geolocationGeocodeError": "Got your location but could not look up the address — please fill in the fields."
     },
     "settings": {
       "loading": "Loading account settings…",

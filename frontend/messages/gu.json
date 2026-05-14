@@ -583,7 +583,12 @@
       "makeDefault": "આને ડિફોલ્ટ ડિલિવરી સરનામું બનાવો",
       "saveAddress": "સરનામું સાચવો",
       "saving": "સાચવી રહ્યું છે…",
-      "useCurrentLocation": "વર્તમાન સ્થાન વાપરો"
+      "useCurrentLocation": "વર્તમાન સ્થાન વાપરો",
+      "geolocating": "સ્થાન મેળવી રહ્યું છે…",
+      "geolocationUnavailable": "આ બ્રાઉઝરમાં જિઓલોકેશન ઉપલબ્ધ નથી.",
+      "geolocationDenied": "તમારા સ્થાનને ઍક્સેસ કરવાની પરવાનગી નકારી.",
+      "geolocationError": "તમારું સ્થાન મેળવી શકાયું નથી. ફરી પ્રયાસ કરો.",
+      "geolocationGeocodeError": "સ્થાન મળ્યું પણ સરનામું શોધી શકાયું નથી — કૃપા કરી ફીલ્ડ ભરો."
     },
     "settings": {
       "loading": "ખાતા સેટિંગ્સ લોડ થઈ રહી છે…",

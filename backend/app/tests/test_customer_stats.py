@@ -157,7 +157,11 @@ async def test_stats_aggregates(client: AsyncClient, session: AsyncSession):
     store_b = await _make_store(session, "Store B")
     await session.commit()
 
-    now = datetime.now(timezone.utc)
+    # Use a fixed mid-month "now" so the test isn't flaky around the 1st-2nd
+    # of the calendar month (when days=1/2 would fall in the previous month).
+    now = datetime.now(timezone.utc).replace(
+        day=15, hour=12, minute=0, second=0, microsecond=0
+    )
     for i in range(3):
         await _make_order(
             session,

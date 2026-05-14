@@ -22,6 +22,7 @@ from app.core.otp import (
     request_otp,
     verify_otp,
 )
+from app.core.rate_limit import incr_with_ttl
 from app.core.redis import get_redis
 from app.core.security import get_current_customer
 from app.core.sms import SMSSender, get_sms_sender
@@ -217,6 +218,9 @@ class SupportMessage(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
 
 
+SUPPORT_RATE_LIMIT_PER_HOUR = 5
+
+
 @router.post("/me/support", status_code=202)
 async def send_support_message(
     body: SupportMessage,
@@ -224,6 +228,14 @@ async def send_support_message(
 ) -> dict[str, bool]:
     from app.worker import send_support_email
 
+    assert current_user.id is not None
+    redis = await get_redis()
+    sent = await incr_with_ttl(redis, f"support:hourly:{current_user.id}", 3600)
+    if sent > SUPPORT_RATE_LIMIT_PER_HOUR:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limited"},
+        )
     send_support_email.delay(current_user.email, body.subject, body.message)
     return {"queued": True}
 
@@ -317,8 +329,8 @@ async def verify_customer_phone_otp(
         raise HTTPException(
             status_code=409, detail={"error": "phone_already_in_use"}
         ) from exc
-    await consume_otp_key(phone, redis, namespace="customer_phone")
     await session.refresh(profile)
+    await consume_otp_key(phone, redis, namespace="customer_phone")
     return await _profile_response(session, current_user, profile)
 
 

@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import desc, func
 from sqlalchemy import select as sa_select
@@ -10,9 +10,15 @@ from app.models.commerce import Order, OrderStatus
 from app.models.store import Store
 from app.schemas.customer_stats import CustomerStatsResponse, OrderSummary
 
+# IST is UTC+5:30 — month boundaries should match the customer's local calendar.
+_IST = timezone(timedelta(hours=5, minutes=30))
+
 
 def _start_of_month_utc(now: datetime) -> datetime:
-    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    """Return the first instant of the current IST month, expressed in UTC."""
+    ist_now = now.astimezone(_IST)
+    ist_start = ist_now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return ist_start.astimezone(timezone.utc)
 
 
 async def compute_stats(
@@ -55,7 +61,7 @@ async def compute_stats(
         select(Order)
         .where(Order.customer_profile_id == customer_profile_id)  # type: ignore[arg-type]
         .where(Order.status == OrderStatus.Delivered)  # type: ignore[arg-type]
-        .order_by(desc(Order.placed_at))  # type: ignore[arg-type]
+        .order_by(desc(Order.placed_at), desc(Order.id))  # type: ignore[arg-type]
         .limit(3)
     )
     recent_orders = list((await session.exec(recent_q)).all())

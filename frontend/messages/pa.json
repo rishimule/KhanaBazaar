@@ -583,7 +583,12 @@
       "makeDefault": "ਇਸਨੂੰ ਡਿਫਾਲਟ ਡਿਲੀਵਰੀ ਪਤਾ ਬਣਾਓ",
       "saveAddress": "ਪਤਾ ਸੇਵ ਕਰੋ",
       "saving": "ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…",
-      "useCurrentLocation": "ਮੌਜੂਦਾ ਟਿਕਾਣਾ ਵਰਤੋ"
+      "useCurrentLocation": "ਮੌਜੂਦਾ ਟਿਕਾਣਾ ਵਰਤੋ",
+      "geolocating": "ਟਿਕਾਣਾ ਪ੍ਰਾਪਤ ਕਰ ਰਹੇ ਹਾਂ…",
+      "geolocationUnavailable": "ਇਸ ਬ੍ਰਾਊਜ਼ਰ ‘ਚ ਜੀਓਲੋਕੇਸ਼ਨ ਉਪਲਬਧ ਨਹੀਂ.",
+      "geolocationDenied": "ਤੁਹਾਡੇ ਟਿਕਾਣੇ ‘ਤੇ ਪਹੁੰਚ ਦੀ ਇਜਾਜ਼ਤ ਰੱਦ.",
+      "geolocationError": "ਤੁਹਾਡਾ ਟਿਕਾਣਾ ਨਹੀਂ ਮਿਲਿਆ. ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ.",
+      "geolocationGeocodeError": "ਟਿਕਾਣਾ ਮਿਲਿਆ ਪਰ ਪਤਾ ਨਹੀਂ ਲੱਭ ਸਕੇ — ਕਿਰਪਾ ਕਰਕੇ ਫੀਲਡ ਭਰੋ."
     },
     "settings": {
       "loading": "ਖਾਤਾ ਸੈਟਿੰਗਾਂ ਲੋਡ ਹੋ ਰਹੀਆਂ ਹਨ…",

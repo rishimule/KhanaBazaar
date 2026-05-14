@@ -99,6 +99,7 @@ export default function AccountAddressesPage() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [savingAddress, setSavingAddress] = useState(false);
   const [busyAddressId, setBusyAddressId] = useState<number | null>(null);
+  const [geolocating, setGeolocating] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -146,7 +147,12 @@ export default function AccountAddressesPage() {
   };
 
   const useCurrentLocation = () => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setSectionError(t("geolocationUnavailable"));
+      return;
+    }
+    setSectionError(null);
+    setGeolocating(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
@@ -179,6 +185,7 @@ export default function AccountAddressesPage() {
               : curr,
           );
         } catch {
+          setSectionError(t("geolocationGeocodeError"));
           setAddressForm((curr) =>
             curr
               ? {
@@ -192,9 +199,18 @@ export default function AccountAddressesPage() {
                 }
               : curr,
           );
+        } finally {
+          setGeolocating(false);
         }
       },
-      () => {},
+      (err) => {
+        setGeolocating(false);
+        setSectionError(
+          err.code === err.PERMISSION_DENIED
+            ? t("geolocationDenied")
+            : t("geolocationError"),
+        );
+      },
     );
   };
 
@@ -414,9 +430,9 @@ export default function AccountAddressesPage() {
               type="button"
               className={`btn btn-outline ${styles.geolocateBtn}`}
               onClick={useCurrentLocation}
-              disabled={savingAddress}
+              disabled={savingAddress || geolocating}
             >
-              {t("useCurrentLocation")}
+              {geolocating ? t("geolocating") : t("useCurrentLocation")}
             </button>
 
             <AddressFields
