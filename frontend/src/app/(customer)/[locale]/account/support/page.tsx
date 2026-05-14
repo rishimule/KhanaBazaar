@@ -2,23 +2,37 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { post } from "@/lib/api";
+import { useAuth } from "@/lib/AuthContext";
 import styles from "./page.module.css";
 
 const FAQ_KEYS = ["q1", "q2", "q3", "q4", "q5"] as const;
 
 export default function SupportPage() {
   const t = useTranslations("Account.support");
+  const { token } = useAuth();
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Phase 1 stub — Phase 3 wires this to POST /api/v1/customers/me/support.
-    console.log("[support] would send", { subject, message });
-    setSent(true);
-    setSubject("");
-    setMessage("");
+    if (!token) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await post("/api/v1/customers/me/support", { subject, message }, token);
+      setSent(true);
+      setSubject("");
+      setMessage("");
+    } catch {
+      setError(t("sendError"));
+      setSent(false);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -61,8 +75,9 @@ export default function SupportPage() {
               maxLength={2000}
             />
           </div>
-          <button className="btn btn-primary" type="submit">{t("send")}</button>
+          <button className="btn btn-primary" type="submit" disabled={busy}>{t("send")}</button>
           {sent && <div className={styles.toast}>{t("sent")}</div>}
+          {error && <div className={styles.errorText}>{error}</div>}
         </form>
       </section>
     </div>
