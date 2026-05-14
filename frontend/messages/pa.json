@@ -16,7 +16,8 @@
     "drawerCart": "ਕਾਰਟ",
     "drawerSignOut": "ਸਾਈਨ ਆਊਟ",
     "drawerSignIn": "ਸਾਈਨ ਇਨ",
-    "drawerUserFallback": "ਉਪਭੋਗਤਾ"
+    "drawerUserFallback": "ਉਪਭੋਗਤਾ",
+    "backToDashboard": "ਡੈਸ਼ਬੋਰਡ ਤੇ ਵਾਪਸ"
   },
   "Home": {
     "badge": "ਪ੍ਰੀਮੀਅਮ ਸਥਾਨਕ ਕਰਿਆਨਾ",

@@ -5,6 +5,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import Navbar from "@/components/Navbar";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { Store, VerificationStatus } from "@/types";
@@ -34,7 +35,7 @@ export default function SellerLayout({
   useEffect(() => {
     if (isSignupRoute) return;
     if (!loading && (!dbUser || dbUser.role !== "seller")) {
-      router.push(dbUser ? "/" : "/login");
+      router.replace(dbUser ? "/" : "/login");
     }
   }, [loading, dbUser, router, isSignupRoute]);
 
@@ -58,7 +59,7 @@ export default function SellerLayout({
       .then((data) => {
         setVerificationStatus(data.verification_status);
         if (data.verification_status !== "approved") {
-          router.push("/seller/signup/pending");
+          router.replace("/seller/signup/pending");
         }
       })
       .catch(() => {
@@ -69,9 +70,14 @@ export default function SellerLayout({
 
   // --- All hooks above this line ---
 
-  // Signup routes: render children directly, no wrapper, no guard
+  // Signup routes: render minimal Navbar wrapper, no DashboardLayout, no guard
   if (isSignupRoute) {
-    return <>{children}</>;
+    return (
+      <>
+        <Navbar variant="signup" />
+        {children}
+      </>
+    );
   }
 
   // Loading / auth guard
@@ -103,13 +109,16 @@ export default function SellerLayout({
           : "Seller Portal";
 
   return (
-    <DashboardLayout
-      role="seller"
-      roleName={storeName}
-      title={title}
-      navItems={SELLER_NAV}
-    >
-      {children}
-    </DashboardLayout>
+    <>
+      <Navbar variant="dashboard" />
+      <DashboardLayout
+        role="seller"
+        roleName={storeName}
+        title={title}
+        navItems={SELLER_NAV}
+      >
+        {children}
+      </DashboardLayout>
+    </>
   );
 }

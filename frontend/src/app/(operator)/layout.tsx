@@ -5,8 +5,6 @@ import { Poppins } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 
 import "@/app/globals.css";
-import Footer from "@/components/Footer";
-import Navbar from "@/components/Navbar";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
@@ -56,9 +54,7 @@ export default function OperatorLayout({
           <AuthProvider>
             <DeliveryLocationProvider>
               <CartProvider>
-                <Navbar />
                 <main>{children}</main>
-                <Footer />
               </CartProvider>
             </DeliveryLocationProvider>
           </AuthProvider>
