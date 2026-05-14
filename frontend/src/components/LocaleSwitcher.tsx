@@ -6,6 +6,7 @@ import { useLocale } from "next-intl";
 import { useTransition } from "react";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
+import { isI18nUnsupported } from "@/i18n/unsupported-routes";
 import styles from "./LocaleSwitcher.module.css";
 
 const LABELS: Record<string, string> = {
@@ -22,18 +23,23 @@ export default function LocaleSwitcher() {
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
 
+  const unsupported = isI18nUnsupported(pathname);
+  const disabled = pending || unsupported;
+
   return (
     <select
-      className={styles.select}
+      className={`${styles.select} ${unsupported ? styles.disabled : ""}`}
       value={locale}
-      disabled={pending}
+      disabled={disabled}
+      title={unsupported ? "Translation coming soon" : undefined}
+      aria-disabled={unsupported}
+      aria-label="Change language"
       onChange={(e) => {
         const next = e.target.value;
         startTransition(() => {
           router.replace(pathname, { locale: next });
         });
       }}
-      aria-label="Change language"
     >
       {routing.locales.map((code) => (
         <option key={code} value={code}>
