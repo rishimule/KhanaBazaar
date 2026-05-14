@@ -72,7 +72,7 @@ function BackIcon() {
   );
 }
 
-type NavbarVariant = "auto" | "signup";
+type NavbarVariant = "auto" | "signup" | "dashboard";
 
 export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant } = {}) {
   const t = useTranslations("Nav");
@@ -86,12 +86,14 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
 
   const role = dbUser?.role ?? null;
 
-  const effectiveVariant: "customer" | "operator-stripped" | "signup" =
+  const effectiveVariant: "customer" | "operator-stripped" | "signup" | "dashboard" =
     variant === "signup"
       ? "signup"
-      : role === "seller" || role === "admin"
-        ? "operator-stripped"
-        : "customer";
+      : variant === "dashboard"
+        ? "dashboard"
+        : role === "seller" || role === "admin"
+          ? "operator-stripped"
+          : "customer";
 
   const navLinks: { href: string; label: string }[] = [
     { href: "/", label: t("home") },
@@ -131,6 +133,33 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
             <span className={styles.backToDashboardLabel}>{t("backToDashboard")}</span>
           </Link>
           <LocaleSwitcher />
+          {!loading && dbUser && (
+            <button
+              className={styles.authBtn}
+              onClick={handleLogout}
+              title={t("logoutTitleSignedIn", { who: dbUser.email ?? dbUser.full_name ?? "" })}
+            >
+              <span className={styles.authAvatar}>
+                {(dbUser.full_name ?? dbUser.email ?? "U").charAt(0).toUpperCase()}
+              </span>
+              <span>{t("logoutLabel")}</span>
+            </button>
+          )}
+        </div>
+      </nav>
+    );
+  }
+
+  if (effectiveVariant === "dashboard") {
+    const dashboardHref = role === "admin" ? "/admin" : "/seller";
+    return (
+      <nav className={styles.nav}>
+        <div className={styles.navInnerStripped}>
+          <Link href={dashboardHref} className={styles.logo} aria-label="khanabazaar dashboard">
+            <span>khanabazaar</span>
+            <span className={styles.logoDot} aria-hidden />
+          </Link>
+          <span className={styles.strippedSpacer} />
           {!loading && dbUser && (
             <button
               className={styles.authBtn}

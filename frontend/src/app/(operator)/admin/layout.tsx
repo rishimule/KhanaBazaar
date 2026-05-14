@@ -5,6 +5,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import Navbar from "@/components/Navbar";
 import { useAuth } from "@/lib/AuthContext";
 
 const ADMIN_NAV = [
@@ -48,13 +49,16 @@ export default function AdminLayout({
               : "Admin Panel";
 
   return (
-    <DashboardLayout
-      role="admin"
-      roleName="Platform Admin"
-      title={title}
-      navItems={ADMIN_NAV}
-    >
-      {children}
-    </DashboardLayout>
+    <>
+      <Navbar variant="dashboard" />
+      <DashboardLayout
+        role="admin"
+        roleName="Platform Admin"
+        title={title}
+        navItems={ADMIN_NAV}
+      >
+        {children}
+      </DashboardLayout>
+    </>
   );
 }

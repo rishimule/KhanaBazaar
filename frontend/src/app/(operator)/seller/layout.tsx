@@ -109,13 +109,16 @@ export default function SellerLayout({
           : "Seller Portal";
 
   return (
-    <DashboardLayout
-      role="seller"
-      roleName={storeName}
-      title={title}
-      navItems={SELLER_NAV}
-    >
-      {children}
-    </DashboardLayout>
+    <>
+      <Navbar variant="dashboard" />
+      <DashboardLayout
+        role="seller"
+        roleName={storeName}
+        title={title}
+        navItems={SELLER_NAV}
+      >
+        {children}
+      </DashboardLayout>
+    </>
   );
 }
