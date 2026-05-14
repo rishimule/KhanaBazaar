@@ -105,6 +105,104 @@ async def client_fixture() -> AsyncGenerator[AsyncClient, None]:
         yield ac
 
 
+# ─── Admin/customer dependency-override fixtures + seeded catalog rows ──
+# Used by the catalog-admin test suite. Plain pytest fixtures so each test
+# can pick which auth role it wants (admin / customer / anonymous) without
+# shipping JWTs.
+
+
+@pytest.fixture(name="admin_auth_headers")
+def admin_auth_headers_fixture() -> Generator[dict[str, str], None, None]:
+    from app.core.security import get_current_admin, get_current_user
+    from app.models.base import User, UserRole
+
+    admin = User(id=99001, email="admin-test@kb.com", role=UserRole.Admin, is_active=True)
+    app.dependency_overrides[get_current_admin] = lambda: admin
+    app.dependency_overrides[get_current_user] = lambda: admin
+    try:
+        yield {"X-Test-Role": "admin"}
+    finally:
+        app.dependency_overrides.pop(get_current_admin, None)
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture(name="customer_auth_headers")
+def customer_auth_headers_fixture() -> Generator[dict[str, str], None, None]:
+    from app.core.security import get_current_user
+    from app.models.base import User, UserRole
+
+    customer = User(id=99002, email="cust-test@kb.com", role=UserRole.Customer, is_active=True)
+    app.dependency_overrides[get_current_user] = lambda: customer
+    try:
+        yield {"X-Test-Role": "customer"}
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+class _Stub:
+    """Plain holder for ids returned from seed fixtures.
+
+    Returning live SQLModel rows past `commit()` would expire attributes;
+    a stub avoids touching the session again from test code.
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+
+@pytest.fixture(name="seeded_service")
+async def seeded_service_fixture(session: AsyncSession) -> _Stub:
+    from app.models.catalog import Service, ServiceTranslation
+
+    svc = Service(slug="seeded-svc", is_active=True, sort_order=0)
+    session.add(svc)
+    await session.flush()
+    assert svc.id is not None
+    svc_id = svc.id
+    session.add(ServiceTranslation(service_id=svc_id, language_code="en", name="Seeded Service"))
+    await session.commit()
+    return _Stub(id=svc_id, slug="seeded-svc")
+
+
+@pytest.fixture(name="seeded_category")
+async def seeded_category_fixture(
+    session: AsyncSession, seeded_service: _Stub
+) -> _Stub:
+    from app.models.catalog import Category, CategoryTranslation
+
+    cat = Category(
+        service_id=seeded_service.id, slug="seeded-cat", is_active=True, sort_order=0
+    )
+    session.add(cat)
+    await session.flush()
+    assert cat.id is not None
+    cat_id = cat.id
+    session.add(CategoryTranslation(category_id=cat_id, language_code="en", name="Seeded Category"))
+    await session.commit()
+    return _Stub(id=cat_id, slug="seeded-cat", service_id=seeded_service.id)
+
+
+@pytest.fixture(name="seeded_subcategory")
+async def seeded_subcategory_fixture(
+    session: AsyncSession, seeded_category: _Stub
+) -> _Stub:
+    from app.models.catalog import Subcategory, SubcategoryTranslation
+
+    sub = Subcategory(
+        category_id=seeded_category.id, slug="seeded-sub", is_active=True, sort_order=0
+    )
+    session.add(sub)
+    await session.flush()
+    assert sub.id is not None
+    sub_id = sub.id
+    session.add(
+        SubcategoryTranslation(subcategory_id=sub_id, language_code="en", name="Seeded Subcategory")
+    )
+    await session.commit()
+    return _Stub(id=sub_id, slug="seeded-sub", category_id=seeded_category.id)
+
+
 @pytest.fixture(autouse=True)
 def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, None, None]:
     """Mock order-email dispatchers as no-ops in every test except
