@@ -12,12 +12,14 @@ from app.models.address import Address
 from app.models.base import User
 from app.models.profile import CustomerAddress, CustomerProfile
 from app.schemas.address import address_from_payload, address_to_payload
+from app.schemas.customer_stats import CustomerStatsResponse
 from app.schemas.customers import (
     CustomerAddressRead,
     CustomerAddressWrite,
     CustomerProfileRead,
     CustomerProfileUpdate,
 )
+from app.services.customer_stats import compute_stats
 
 router = APIRouter()
 
@@ -118,6 +120,17 @@ async def get_customer_profile(
     assert current_user.id is not None
     profile = await _customer_profile_for_user(session, current_user.id)
     return await _profile_response(session, current_user, profile)
+
+
+@router.get("/me/stats", response_model=CustomerStatsResponse)
+async def customer_stats(
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> CustomerStatsResponse:
+    assert current_user.id is not None
+    profile = await _customer_profile_for_user(session, current_user.id)
+    assert profile.id is not None
+    return await compute_stats(session, profile.id)
 
 
 @router.patch("/me", response_model=CustomerProfileRead)
