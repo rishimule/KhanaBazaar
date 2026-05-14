@@ -2,6 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any
 
@@ -43,6 +44,7 @@ from app.db._dev_seed_data import (
     EXTRA_STORE_OWNER_PROFILES,
     EXTRA_STORES,
     EXTRA_SUBCATEGORIES,
+    _image_for,
     generate_extra_inventories,
 )
 
@@ -462,19 +464,15 @@ PRODUCTS: list[dict[str, Any]] = [
 # Round-robin by index-within-subcategory to evenly distribute the 3 URLs.
 # Must run before PRODUCTS.extend(EXTRA_PRODUCTS) so we touch anchor entries
 # only (extras already carry their URLs from _generate_extra_products).
-from collections import defaultdict as _defaultdict
-
-from app.db._dev_seed_data import _image_for as _seed_image_for
-
 _SUBCAT_TO_CATEGORY: dict[str, str] = {sub["slug"]: sub["category_slug"] for sub in SUBCATEGORIES}
-_anchor_sub_counter: dict[str, int] = _defaultdict(int)
+_anchor_sub_counter: dict[str, int] = defaultdict(int)
 for _product in PRODUCTS:
     _sub_slug = _product["subcategory_slug"]
     _cat_slug = _SUBCAT_TO_CATEGORY[_sub_slug]
-    _product["image_url"] = _seed_image_for(_cat_slug, _anchor_sub_counter[_sub_slug])
+    _product["image_url"] = _image_for(_cat_slug, _anchor_sub_counter[_sub_slug])
     _anchor_sub_counter[_sub_slug] += 1
 
-del _defaultdict, _seed_image_for, _SUBCAT_TO_CATEGORY, _anchor_sub_counter, _product, _sub_slug, _cat_slug
+del _SUBCAT_TO_CATEGORY, _anchor_sub_counter, _product, _sub_slug, _cat_slug
 
 PRODUCTS.extend(EXTRA_PRODUCTS)
 
