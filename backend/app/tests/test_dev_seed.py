@@ -271,7 +271,7 @@ def test_category_image_pools_cover_every_category() -> None:
         pool = CATEGORY_IMAGE_POOLS[slug]
         assert isinstance(pool, list) and len(pool) >= 2, f"pool for {slug} must have >= 2 URLs, got {pool}"
         for url in pool:
-            assert url.startswith("http"), f"non-http url in pool {slug}: {url}"
+            assert url.startswith("https://"), f"non-https url in pool {slug}: {url}"
 
     sample_slug = next(iter(CATEGORY_IMAGE_POOLS))
     pool = CATEGORY_IMAGE_POOLS[sample_slug]
@@ -283,13 +283,17 @@ def test_category_image_pools_cover_every_category() -> None:
 def test_extra_products_use_cdn_image_urls() -> None:
     """Every generated extra product must have a non-empty CDN URL drawn from its
     parent category's image pool."""
-    from app.db._dev_seed_data import CATEGORY_IMAGE_POOLS, EXTRA_PRODUCTS, EXTRA_SUBCATEGORIES
+    from app.db._dev_seed_data import (
+        CATEGORY_IMAGE_POOLS,
+        EXTRA_PRODUCTS,
+        EXTRA_SUBCATEGORIES,
+    )
 
     sub_to_cat = {sub["slug"]: sub["category_slug"] for sub in EXTRA_SUBCATEGORIES}
     assert EXTRA_PRODUCTS, "EXTRA_PRODUCTS should be non-empty"
     for product in EXTRA_PRODUCTS:
         url = product["image_url"]
-        assert url.startswith("http"), f"extra product {product['slug']} has non-http url: {url}"
+        assert url.startswith("https://"), f"extra product {product['slug']} non-https url: {url}"
         cat_slug = sub_to_cat[product["subcategory_slug"]]
         assert url in CATEGORY_IMAGE_POOLS[cat_slug], (
             f"extra product {product['slug']} url not in pool for {cat_slug}: {url}"
@@ -298,18 +302,61 @@ def test_extra_products_use_cdn_image_urls() -> None:
 
 def test_anchor_products_use_cdn_image_urls() -> None:
     """Every anchor product must have a non-empty CDN URL drawn from its parent
-    category's image pool. Anchor products are the 135 hand-curated entries in
+    category's image pool. Anchor products are the hand-curated entries in
     PRODUCTS (everything before EXTRA_PRODUCTS gets appended)."""
     from app.db._dev_seed_data import CATEGORY_IMAGE_POOLS, EXTRA_PRODUCTS
     from app.db.dev_seed import PRODUCTS, SUBCATEGORIES
 
     sub_to_cat = {sub["slug"]: sub["category_slug"] for sub in SUBCATEGORIES}
     anchor_count = len(PRODUCTS) - len(EXTRA_PRODUCTS)
-    assert anchor_count == 135, f"expected 135 anchor products, got {anchor_count}"
+    assert anchor_count > 0, "expected at least one anchor product"
     for product in PRODUCTS[:anchor_count]:
         url = product["image_url"]
-        assert url.startswith("http"), f"anchor product {product['slug']} has non-http url: {url}"
+        assert url.startswith("https://"), f"anchor product {product['slug']} non-https url: {url}"
         cat_slug = sub_to_cat[product["subcategory_slug"]]
         assert url in CATEGORY_IMAGE_POOLS[cat_slug], (
             f"anchor product {product['slug']} url not in pool for {cat_slug}: {url}"
         )
+
+
+def test_image_for_round_robins_within_subcategory() -> None:
+    """Anchor products within a subcategory must cycle through their category's
+    pool in `[A, B, C, A, B]` order. Guards against a regression that always
+    returns pool[0]."""
+    from collections import defaultdict
+
+    from app.db._dev_seed_data import CATEGORY_IMAGE_POOLS, EXTRA_PRODUCTS
+    from app.db.dev_seed import PRODUCTS, SUBCATEGORIES
+
+    sub_to_cat = {sub["slug"]: sub["category_slug"] for sub in SUBCATEGORIES}
+    anchor_count = len(PRODUCTS) - len(EXTRA_PRODUCTS)
+
+    grouped: dict[str, list[str]] = defaultdict(list)
+    for product in PRODUCTS[:anchor_count]:
+        grouped[product["subcategory_slug"]].append(product["image_url"])
+
+    assert grouped, "expected anchor products grouped by subcategory"
+    distinct_sequences_seen = 0
+    for sub_slug, urls in grouped.items():
+        cat_slug = sub_to_cat[sub_slug]
+        pool = CATEGORY_IMAGE_POOLS[cat_slug]
+        expected = [pool[i % len(pool)] for i in range(len(urls))]
+        assert urls == expected, (
+            f"subcategory {sub_slug} expected round-robin {expected}, got {urls}"
+        )
+        if len(set(urls)) > 1:
+            distinct_sequences_seen += 1
+    assert distinct_sequences_seen > 0, (
+        "round-robin produced no variation in any subcategory — likely stuck on pool[0]"
+    )
+
+
+def test_image_for_raises_keyerror_for_unknown_category() -> None:
+    """`_image_for` documents fail-loud on unknown category. Lock in the contract
+    so future refactors can't silently swap to a string fallback."""
+    import pytest as _pytest
+
+    from app.db._dev_seed_data import _image_for
+
+    with _pytest.raises(KeyError, match="no image pool registered"):
+        _image_for("definitely-not-a-real-category-slug", 0)

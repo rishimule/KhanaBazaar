@@ -162,6 +162,8 @@ CATEGORY_IMAGE_POOLS: dict[str, list[str]] = {
 def _image_for(category_slug: str, index: int) -> str:
     """Round-robin pick from the category's image pool. Fail loud on missing
     coverage so seed runs surface gaps immediately."""
+    if category_slug not in CATEGORY_IMAGE_POOLS:
+        raise KeyError(f"no image pool registered for category {category_slug!r}")
     pool = CATEGORY_IMAGE_POOLS[category_slug]
     assert pool, f"empty image pool for category {category_slug}"
     return pool[index % len(pool)]
