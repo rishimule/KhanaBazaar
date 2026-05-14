@@ -150,3 +150,31 @@
   align-items: center;
   gap: 4px;
 }
+
+.filteredChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  margin-top: 8px;
+  border-radius: var(--radius-badge);
+  background: var(--color-primary-1);
+  color: var(--white);
+  font-size: var(--body-xs);
+  font-weight: var(--weight-semibold);
+  width: fit-content;
+}
+
+.filteredChipLabel {
+  white-space: nowrap;
+}
+
+.filteredChipClear {
+  color: var(--white);
+  text-decoration: underline;
+  font-weight: var(--weight-semibold);
+}
+
+.filteredChipClear:hover {
+  opacity: 0.85;
+}
