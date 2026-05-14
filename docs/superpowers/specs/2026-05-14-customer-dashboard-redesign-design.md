@@ -9,7 +9,7 @@
 - Replace the two-item nav (Orders + Settings) with a discrete-section sidebar (Dashboard, Orders, Addresses, Profile, Preferences, Support).
 - Render orders in a sortable, filterable table instead of a card grid.
 - Expand profile beyond name/phone/email — verification, stats, optional DOB, language preference, notification toggles.
-- Add a useful dashboard landing (stats + active orders + reorder rail + recently viewed).
+- Add a useful dashboard landing (stats + active orders + "order again" rail + recently viewed).
 - Lift visual quality within the existing design-token system (no Tailwind).
 
 ## Non-goals (out of scope)
@@ -17,7 +17,7 @@
 - Avatar upload (initials only).
 - Sign-out-everywhere, account deletion, dark mode.
 - Wishlist/favorites, notifications inbox, saved payment methods, loyalty wallet, refer-a-friend.
-- One-click reorder endpoint (button routes to order detail where existing reorder action lives).
+- One-click reorder (no reorder feature exists today; deferred to its own spec).
 - Server-side order pagination.
 - Per-address serviceability badge.
 
@@ -105,7 +105,7 @@ Rewrite `account/orders/page.tsx` to use `components/DataTable.tsx`.
 | 6 | Total | `₹{total.toFixed(2)}`, right-aligned |
 | 7 | Payment | new `<PaymentStatusPill>` — method + paid/pending state |
 | 8 | Status | existing `<OrderStatusBadge>` |
-| 9 | Actions | kebab menu: View · Reorder (if delivered) · Cancel (if pending) · Rate (Phase 3, if delivered && no review) |
+| 9 | Actions | kebab menu: View · Cancel (if pending) · Rate (Phase 3, if delivered && no review) |
 
 Row click → `/account/orders/${id}`.
 
@@ -127,12 +127,12 @@ Rewrite `account/page.tsx`. CSS grid (1 column ≤ 720px, 2 columns above).
 1. Greeting card — "Hi, {first_name} 👋" + today's date.
 2. `<ActiveOrdersWidget />` (unchanged).
 3. Stats strip — three `<StatsCard>`s: Orders this month · Lifetime spend · Favorite store. Fed by `/customers/me/stats`.
-4. "Order again" rail — last 3 delivered orders rendered as compact cards linking to order detail.
+4. "Order again" rail — last 3 delivered orders rendered as compact cards linking to order detail. Pure navigation; no one-click reorder UX in this redesign (reorder is deferred — see Non-goals).
 5. "Recently viewed" rail (Phase 3) — last 5 viewed products from localStorage.
 
 ### Backend endpoint
 
-`GET /api/v1/customers/me/stats` (customer-only).
+`GET /api/v1/customers/me/stats` gated by `Depends(get_current_customer)` (guard at `core/security.py:79`).
 
 ```python
 class OrderSummary(BaseModel):
@@ -152,7 +152,7 @@ class CustomerStatsResponse(BaseModel):
     recent_delivered: list[OrderSummary]  # 3 most recent delivered orders, newest first
 ```
 
-Implementation: new `services/customer_stats.py` aggregating over `Order` rows filtered by `customer_profile_id`. Favorite store = `store_id` with the most delivered orders for this customer (ties broken by most recent delivered order). Route in `api/customers.py`.
+Implementation: new `services/customer_stats.py` aggregating over `order` rows joined to `customerprofile` and filtered by `customer_profile_id` resolved from the current user. Favorite store = `store_id` with the most delivered orders for this customer (ties broken by most recent delivered order). Route in `api/customers.py`. Reuse the helper `_customer_profile_for_user` already in that file.
 
 **Tests (backend):** `tests/test_customer_stats.py` — seed mixed orders for one customer; assert counts, spend, favorite store, recent list ordering, empty-state behavior (no orders → zeros, nulls, empty list).
 
@@ -160,27 +160,30 @@ Implementation: new `services/customer_stats.py` aggregating over `Order` rows f
 
 ### Alembic migration
 
+Real table name is `customerprofile` (SQLModel default — lowercased class name). `date_of_birth` and `gender` columns already exist on the model (defined but unused at API layer); the migration does not add them.
+
 ```python
-op.add_column("customer_profiles", sa.Column("date_of_birth", sa.Date(), nullable=True))
-op.add_column("customer_profiles", sa.Column("preferred_language", sa.String(8), nullable=True))
-op.add_column("customer_profiles", sa.Column("marketing_opt_in", sa.Boolean(), server_default=sa.text("false"), nullable=False))
-op.add_column("customer_profiles", sa.Column("notify_order_email", sa.Boolean(), server_default=sa.text("true"), nullable=False))
-op.add_column("customer_profiles", sa.Column("notify_order_sms", sa.Boolean(), server_default=sa.text("false"), nullable=False))
-op.add_column("customer_profiles", sa.Column("phone_verified_at", sa.DateTime(timezone=True), nullable=True))
+op.add_column("customerprofile", sa.Column("preferred_language", sa.String(8), nullable=True))
+op.add_column("customerprofile", sa.Column("marketing_opt_in", sa.Boolean(), server_default=sa.text("false"), nullable=False))
+op.add_column("customerprofile", sa.Column("notify_order_email", sa.Boolean(), server_default=sa.text("true"), nullable=False))
+op.add_column("customerprofile", sa.Column("notify_order_sms", sa.Boolean(), server_default=sa.text("false"), nullable=False))
+op.add_column("customerprofile", sa.Column("phone_verified_at", sa.DateTime(timezone=True), nullable=True))
 ```
 
-`preferred_language` validated against the `LanguageCode` set (`en|hi|mr|gu|pa`) at the Pydantic layer.
+`preferred_language` validated against the `LanguageCode` enum (`en|hi|mr|gu|pa`) at the Pydantic layer.
+
+**Phone uniqueness:** `customerprofile.phone` already carries a DB-level UNIQUE constraint (`ix_customerprofile_phone`). Verification flow must handle `IntegrityError` on a phone already linked to another account → return HTTP 409 `phone_already_in_use`.
 
 ### Backend changes
 
-- `models/profile.py`: add new columns to `CustomerProfile`.
-- `schemas/customers.py`: extend read schema; `CustomerProfileUpdate` accepts `date_of_birth`; new `CustomerPreferencesUpdate { preferred_language?, marketing_opt_in?, notify_order_email?, notify_order_sms? }`.
-- `api/customers.py`:
+- `models/profile.py`: add the five new columns to `CustomerProfile` (`date_of_birth` and `gender` already present on the model).
+- `schemas/customers.py`: extend `CustomerProfileRead` with `date_of_birth`, `phone_verified_at`; extend `CustomerProfileUpdate` with `date_of_birth`; new `CustomerPreferencesUpdate { preferred_language?, marketing_opt_in?, notify_order_email?, notify_order_sms? }`.
+- `api/customers.py` (all routes gated by `Depends(get_current_customer)` — guard already exists at `core/security.py:79`):
   - `PATCH /customers/me` extended with `date_of_birth`.
   - New `PATCH /customers/me/preferences`.
 - Phone-OTP verification (mirrors `/auth/seller/phone/otp/*`):
-  - `POST /customers/me/phone/otp/request` — body `{ phone }`. Uses `core/otp.py` with namespace `otp:customer_phone:*`, rate-limit 5/hour, cooldown 60s. Strict E.164 validation before dispatch.
-  - `POST /customers/me/phone/otp/verify` — body `{ phone, code }`. On success, set `phone_verified_at = utcnow()` and persist `phone`. Returns updated profile.
+  - `POST /customers/me/phone/otp/request` — body `{ phone }`. Uses `core/otp.py` with namespace `customer_phone` (so Redis keys are `otp:customer_phone:*`), rate-limit 5/hour, cooldown 60s. Strict E.164 validation before dispatch. Reject with 409 `phone_already_in_use` if another customerprofile already owns the verified phone.
+  - `POST /customers/me/phone/otp/verify` — body `{ phone, code }`. On success, set `phone_verified_at = utcnow()` and persist `phone`. Catch `IntegrityError` from the UNIQUE constraint → 409 `phone_already_in_use`. Returns updated profile.
 
 ### Frontend
 
@@ -220,37 +223,44 @@ No backend changes.
 
 ### Order rating + review
 
-**Backend migration:** new `order_reviews` table.
+**Reuse the existing `Review` model** in `backend/app/src/app/models/commerce.py` (line 121) — it already has `customer_profile_id`, `order_id` (nullable), `product_id` (nullable), `store_id` (nullable), `rating`, `comment`. The table name is `review` (SQLModel default). No new model.
+
+**Alembic migration** — tighten constraints on the existing table:
 
 ```python
-op.create_table(
-    "order_reviews",
-    sa.Column("id", sa.Integer(), primary_key=True),
-    sa.Column("order_id", sa.Integer(), sa.ForeignKey("orders.id", ondelete="CASCADE"), unique=True, nullable=False),
-    sa.Column("customer_profile_id", sa.Integer(), sa.ForeignKey("customer_profiles.id", ondelete="CASCADE"), nullable=False),
-    sa.Column("rating", sa.SmallInteger(), nullable=False),  # 1..5
-    sa.Column("comment", sa.Text(), nullable=True),
-    sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-    sa.CheckConstraint("rating BETWEEN 1 AND 5", name="rating_range"),
+# Partial unique on order_id so an order can have at most one review,
+# while allowing many product/store reviews that have no order linkage.
+op.create_index(
+    "uq_review_order_id",
+    "review",
+    ["order_id"],
+    unique=True,
+    postgresql_where=sa.text("order_id IS NOT NULL"),
+)
+op.create_check_constraint(
+    "ck_review_rating_range",
+    "review",
+    "rating BETWEEN 1 AND 5",
 )
 ```
 
 **Backend:**
 
-- `models/commerce.py` — `OrderReview` SQLModel.
-- Schemas: `OrderReviewCreate { rating: int, comment: str | None }`, `OrderReviewRead`.
+- Schemas in `schemas/orders.py` (or new `schemas/reviews.py`): `OrderReviewCreate { rating: int, comment: str | None }`, `OrderReviewRead`.
 - Routes in `api/orders.py`:
-  - `POST /orders/{id}/review` — customer-only.
-    - 404 if not owned, 409 if `status != "delivered"` or a review already exists, 422 if rating out of range.
-  - `GET /orders/{id}` response extended with `review: OrderReviewRead | null` for the owning customer (visible only to owner).
+  - `POST /orders/{id}/review` — gated by `Depends(get_current_customer)`.
+    - 404 if order not owned by this customer, 409 if `status != "delivered"` or a review already exists for this order, 422 if rating out of range (DB also enforces).
+  - `GET /orders/{id}` response extended with `review: OrderReviewRead | null` (only populated for the owning customer).
 
 **Frontend:**
 
-- `components/orders/OrderActionButtons.tsx` — "Rate order" button when `order.status === "delivered" && order.review === null`.
-- New `components/orders/OrderReviewForm.tsx` — 5-star input + comment textarea + submit. Renders inline on order detail and as a Modal trigger from the orders-table kebab.
+- `components/orders/OrderActionButtons.tsx` — "Rate order" button when `order.status === "delivered" && order.review === null`. After submit, parent refetches the order via the existing `onChange(next: Order)` prop so the `review` field updates.
+- New `components/orders/OrderReviewForm.tsx` — 5-star input + comment textarea + submit. Renders inline on order detail and as a `<Modal>` trigger from the orders-table kebab.
 - Orders-table "Rate" action item gated the same way.
 
-**Tests (backend):** `tests/test_order_reviews.py` — happy path; not-delivered → 409; duplicate → 409; not-owner → 404; rating <1 or >5 → 422; `GET /orders/{id}` returns review when present.
+**Tests (backend):** `tests/test_order_reviews.py` — happy path; not-delivered → 409; duplicate → 409; not-owner → 404; rating <1 or >5 → 422; `GET /orders/{id}` returns review when present and `null` otherwise.
+
+> **Note:** the existing `Favorite` model also lives in `commerce.py` (line 130). Wishlist DB infra is already in place; UI feature remains deferred.
 
 ### Help & Support
 
