@@ -435,6 +435,12 @@
       "saveProfile": "बदल जतन करा",
       "saving": "जतन करत आहे…"
     },
+    "preferences": {
+      "languageTitle": "भाषा",
+      "languageSubtitle": "तुमच्या डॅशबोर्डसाठी भाषा निवडा.",
+      "notificationsTitle": "सूचना",
+      "notificationsComingSoon": "सूचना प्राधान्ये लवकरच येत आहेत."
+    },
     "addresses": {
       "loading": "पत्ते लोड होत आहेत…",
       "loadError": "तुमचे पत्ते लोड करता आले नाहीत.",

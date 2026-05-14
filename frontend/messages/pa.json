@@ -435,6 +435,12 @@
       "saveProfile": "ਬਦਲਾਵ ਸੇਵ ਕਰੋ",
       "saving": "ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…"
     },
+    "preferences": {
+      "languageTitle": "ਭਾਸ਼ਾ",
+      "languageSubtitle": "ਆਪਣੇ ਡੈਸ਼ਬੋਰਡ ਲਈ ਭਾਸ਼ਾ ਚੁਣੋ.",
+      "notificationsTitle": "ਸੂਚਨਾਵਾਂ",
+      "notificationsComingSoon": "ਸੂਚਨਾ ਤਰਜੀਹਾਂ ਜਲਦੀ ਆ ਰਹੀਆਂ ਹਨ."
+    },
     "addresses": {
       "loading": "ਪਤੇ ਲੋਡ ਹੋ ਰਹੇ ਹਨ…",
       "loadError": "ਤੁਹਾਡੇ ਪਤੇ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੇ.",

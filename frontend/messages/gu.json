@@ -435,6 +435,12 @@
       "saveProfile": "ફેરફારો સાચવો",
       "saving": "સાચવી રહ્યું છે…"
     },
+    "preferences": {
+      "languageTitle": "ભાષા",
+      "languageSubtitle": "તમારા ડેશબોર્ડ માટે ભાષા પસંદ કરો.",
+      "notificationsTitle": "સૂચનાઓ",
+      "notificationsComingSoon": "સૂચના પસંદગીઓ ટૂંક સમયમાં આવી રહી છે."
+    },
     "addresses": {
       "loading": "સરનામાં લોડ થઈ રહ્યાં છે…",
       "loadError": "તમારાં સરનામાં લોડ કરી શકાયાં નથી.",

@@ -435,6 +435,12 @@
       "saveProfile": "परिवर्तन सहेजें",
       "saving": "सहेजा जा रहा है…"
     },
+    "preferences": {
+      "languageTitle": "भाषा",
+      "languageSubtitle": "अपने डैशबोर्ड के लिए भाषा चुनें.",
+      "notificationsTitle": "सूचनाएँ",
+      "notificationsComingSoon": "सूचना प्राथमिकताएँ जल्द ही आ रही हैं."
+    },
     "addresses": {
       "loading": "पते लोड हो रहे हैं…",
       "loadError": "आपके पते लोड नहीं किए जा सके.",

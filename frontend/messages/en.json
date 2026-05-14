@@ -435,6 +435,12 @@
       "saveProfile": "Save changes",
       "saving": "Saving…"
     },
+    "preferences": {
+      "languageTitle": "Language",
+      "languageSubtitle": "Choose the language for your dashboard.",
+      "notificationsTitle": "Notifications",
+      "notificationsComingSoon": "Notification preferences coming soon."
+    },
     "addresses": {
       "loading": "Loading addresses…",
       "loadError": "Could not load your addresses.",
