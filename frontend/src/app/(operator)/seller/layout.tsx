@@ -5,6 +5,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import Navbar from "@/components/Navbar";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { Store, VerificationStatus } from "@/types";
@@ -69,9 +70,14 @@ export default function SellerLayout({
 
   // --- All hooks above this line ---
 
-  // Signup routes: render children directly, no wrapper, no guard
+  // Signup routes: render minimal Navbar wrapper, no DashboardLayout, no guard
   if (isSignupRoute) {
-    return <>{children}</>;
+    return (
+      <>
+        <Navbar variant="signup" />
+        {children}
+      </>
+    );
   }
 
   // Loading / auth guard
