@@ -70,6 +70,7 @@ export default function ProductDetail({ data, variant }: Props) {
             alt={product.name}
             loading="lazy"
             decoding="async"
+            referrerPolicy="no-referrer"
             onError={() => setImgFailed(true)}
           />
         ) : (
