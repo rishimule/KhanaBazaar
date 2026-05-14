@@ -497,7 +497,21 @@
       "languageTitle": "ભાષા",
       "languageSubtitle": "તમારા ડેશબોર્ડ માટે ભાષા પસંદ કરો.",
       "notificationsTitle": "સૂચનાઓ",
-      "notificationsComingSoon": "સૂચના પસંદગીઓ ટૂંક સમયમાં આવી રહી છે."
+      "notificationsComingSoon": "સૂચના પસંદગીઓ ટૂંક સમયમાં આવી રહી છે.",
+      "loading": "લોડ થઈ રહ્યું છે…",
+      "loadError": "પસંદગીઓ લોડ થઈ શકી નથી.",
+      "saveError": "પસંદગી સાચવી શકાઈ નથી.",
+      "languageDefault": "સાઇટ ડિફોલ્ટ વાપરો",
+      "notifyOrderEmail": "મારા ઓર્ડરની સ્થિતિ વિશે મને ઇમેઇલ કરો",
+      "notifyOrderSms": "મારા ઓર્ડરની સ્થિતિ વિશે મને SMS કરો",
+      "marketingOptIn": "મને પ્રમોશન અને નવા-ઉત્પાદન ઇમેઇલ મોકલો",
+      "lang": {
+        "en": "English",
+        "hi": "हिन्दी",
+        "mr": "मराठी",
+        "gu": "ગુજરાતી",
+        "pa": "ਪੰਜਾਬੀ"
+      }
     },
     "support": {
       "faqTitle": "વારંવાર પૂછાતા પ્રશ્નો",

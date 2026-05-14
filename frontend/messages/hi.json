@@ -497,7 +497,21 @@
       "languageTitle": "भाषा",
       "languageSubtitle": "अपने डैशबोर्ड के लिए भाषा चुनें.",
       "notificationsTitle": "सूचनाएँ",
-      "notificationsComingSoon": "सूचना प्राथमिकताएँ जल्द ही आ रही हैं."
+      "notificationsComingSoon": "सूचना प्राथमिकताएँ जल्द ही आ रही हैं.",
+      "loading": "लोड हो रहा है…",
+      "loadError": "प्राथमिकताएँ लोड नहीं हो सकीं.",
+      "saveError": "प्राथमिकता सहेज नहीं सके.",
+      "languageDefault": "साइट डिफ़ॉल्ट का प्रयोग करें",
+      "notifyOrderEmail": "मुझे अपने ऑर्डर की स्थिति के बारे में ईमेल करें",
+      "notifyOrderSms": "मुझे अपने ऑर्डर की स्थिति के बारे में SMS करें",
+      "marketingOptIn": "मुझे प्रचार और नए-उत्पाद ईमेल भेजें",
+      "lang": {
+        "en": "English",
+        "hi": "हिन्दी",
+        "mr": "मराठी",
+        "gu": "ગુજરાતી",
+        "pa": "ਪੰਜਾਬੀ"
+      }
     },
     "support": {
       "faqTitle": "अक्सर पूछे जाने वाले प्रश्न",

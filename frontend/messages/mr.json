@@ -497,7 +497,21 @@
       "languageTitle": "भाषा",
       "languageSubtitle": "तुमच्या डॅशबोर्डसाठी भाषा निवडा.",
       "notificationsTitle": "सूचना",
-      "notificationsComingSoon": "सूचना प्राधान्ये लवकरच येत आहेत."
+      "notificationsComingSoon": "सूचना प्राधान्ये लवकरच येत आहेत.",
+      "loading": "लोड होत आहे…",
+      "loadError": "प्राधान्ये लोड करता आली नाहीत.",
+      "saveError": "प्राधान्य जतन करता आले नाही.",
+      "languageDefault": "साइट डिफॉल्ट वापरा",
+      "notifyOrderEmail": "माझ्या ऑर्डर स्थितीबद्दल मला ईमेल करा",
+      "notifyOrderSms": "माझ्या ऑर्डर स्थितीबद्दल मला SMS करा",
+      "marketingOptIn": "मला प्रचार आणि नवीन-उत्पाद ईमेल पाठवा",
+      "lang": {
+        "en": "English",
+        "hi": "हिन्दी",
+        "mr": "मराठी",
+        "gu": "ગુજરાતી",
+        "pa": "ਪੰਜਾਬੀ"
+      }
     },
     "support": {
       "faqTitle": "वारंवार विचारले जाणारे प्रश्न",

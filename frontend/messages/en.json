@@ -497,7 +497,21 @@
       "languageTitle": "Language",
       "languageSubtitle": "Choose the language for your dashboard.",
       "notificationsTitle": "Notifications",
-      "notificationsComingSoon": "Notification preferences coming soon."
+      "notificationsComingSoon": "Notification preferences coming soon.",
+      "loading": "Loading…",
+      "loadError": "Could not load preferences.",
+      "saveError": "Could not save preference.",
+      "languageDefault": "Use site default",
+      "notifyOrderEmail": "Email me about my order status",
+      "notifyOrderSms": "Text me about my order status",
+      "marketingOptIn": "Send me promos and new-product emails",
+      "lang": {
+        "en": "English",
+        "hi": "हिन्दी (Hindi)",
+        "mr": "मराठी (Marathi)",
+        "gu": "ગુજરાતી (Gujarati)",
+        "pa": "ਪੰਜਾਬੀ (Punjabi)"
+      }
     },
     "support": {
       "faqTitle": "Frequently asked questions",

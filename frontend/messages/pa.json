@@ -497,7 +497,21 @@
       "languageTitle": "ਭਾਸ਼ਾ",
       "languageSubtitle": "ਆਪਣੇ ਡੈਸ਼ਬੋਰਡ ਲਈ ਭਾਸ਼ਾ ਚੁਣੋ.",
       "notificationsTitle": "ਸੂਚਨਾਵਾਂ",
-      "notificationsComingSoon": "ਸੂਚਨਾ ਤਰਜੀਹਾਂ ਜਲਦੀ ਆ ਰਹੀਆਂ ਹਨ."
+      "notificationsComingSoon": "ਸੂਚਨਾ ਤਰਜੀਹਾਂ ਜਲਦੀ ਆ ਰਹੀਆਂ ਹਨ.",
+      "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+      "loadError": "ਤਰਜੀਹਾਂ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀਆਂ.",
+      "saveError": "ਤਰਜੀਹ ਸੇਵ ਨਹੀਂ ਹੋ ਸਕੀ.",
+      "languageDefault": "ਸਾਈਟ ਡਿਫਾਲਟ ਵਰਤੋ",
+      "notifyOrderEmail": "ਮੇਰੇ ਆਰਡਰ ਦੀ ਸਥਿਤੀ ਬਾਰੇ ਮੈਨੂੰ ਈਮੇਲ ਕਰੋ",
+      "notifyOrderSms": "ਮੇਰੇ ਆਰਡਰ ਦੀ ਸਥਿਤੀ ਬਾਰੇ ਮੈਨੂੰ SMS ਕਰੋ",
+      "marketingOptIn": "ਮੈਨੂੰ ਪ੍ਰਚਾਰ ਅਤੇ ਨਵੇਂ-ਉਤਪਾਦ ਈਮੇਲ ਭੇਜੋ",
+      "lang": {
+        "en": "English",
+        "hi": "हिन्दी",
+        "mr": "मराठी",
+        "gu": "ગુજરાતી",
+        "pa": "ਪੰਜਾਬੀ"
+      }
     },
     "support": {
       "faqTitle": "ਅਕਸਰ ਪੁੱਛੇ ਜਾਂਦੇ ਸਵਾਲ",
