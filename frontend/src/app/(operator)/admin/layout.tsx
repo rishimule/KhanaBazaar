@@ -26,7 +26,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (!loading && (!dbUser || dbUser.role !== "admin")) {
-      router.push(dbUser ? "/" : "/login");
+      router.replace(dbUser ? "/" : "/login");
     }
   }, [loading, dbUser, router]);
 

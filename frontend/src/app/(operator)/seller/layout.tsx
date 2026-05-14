@@ -35,7 +35,7 @@ export default function SellerLayout({
   useEffect(() => {
     if (isSignupRoute) return;
     if (!loading && (!dbUser || dbUser.role !== "seller")) {
-      router.push(dbUser ? "/" : "/login");
+      router.replace(dbUser ? "/" : "/login");
     }
   }, [loading, dbUser, router, isSignupRoute]);
 
@@ -59,7 +59,7 @@ export default function SellerLayout({
       .then((data) => {
         setVerificationStatus(data.verification_status);
         if (data.verification_status !== "approved") {
-          router.push("/seller/signup/pending");
+          router.replace("/seller/signup/pending");
         }
       })
       .catch(() => {
