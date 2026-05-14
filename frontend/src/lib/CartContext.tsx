@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/AuthContext";
 import * as localCart from "@/lib/localCart";
 import * as remoteCart from "@/lib/remoteCart";
 import { getCartCount, getCartTotal, getGrandTotal } from "@/lib/cart";
-import type { Cart, CartItem } from "@/types";
+import type { Cart, CartItem, ReplaceAdjustment } from "@/types";
 
 interface CartContextValue {
   carts: Cart[];
@@ -46,6 +46,9 @@ interface CartContextValue {
   refresh: () => Promise<void>;
   lastSyncDropped: number;
   clearSyncDropped: () => void;
+  lastReplaceAdjustments: ReplaceAdjustment[];
+  setReplaceAdjustments: (adjustments: ReplaceAdjustment[]) => void;
+  clearReplaceAdjustments: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -67,7 +70,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [carts, setCarts] = useState<Cart[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [lastSyncDropped, setLastSyncDropped] = useState<number>(0);
+  const [lastReplaceAdjustments, setLastReplaceAdjustments] = useState<ReplaceAdjustment[]>([]);
   const lastSyncedUserId = useRef<number | null>(null);
+
+  const setReplaceAdjustments = useCallback((adjustments: ReplaceAdjustment[]) => {
+    setLastReplaceAdjustments(adjustments);
+  }, []);
+  const clearReplaceAdjustments = useCallback(() => {
+    setLastReplaceAdjustments([]);
+  }, []);
 
   useEffect(() => {
     if (!dbUser) {
@@ -316,6 +327,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     refresh,
     lastSyncDropped,
     clearSyncDropped,
+    lastReplaceAdjustments,
+    setReplaceAdjustments,
+    clearReplaceAdjustments,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
