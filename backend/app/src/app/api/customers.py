@@ -212,6 +212,22 @@ async def update_customer_preferences(
     return await _profile_response(session, current_user, profile)
 
 
+class SupportMessage(BaseModel):
+    subject: str = Field(min_length=1, max_length=120)
+    message: str = Field(min_length=1, max_length=2000)
+
+
+@router.post("/me/support", status_code=202)
+async def send_support_message(
+    body: SupportMessage,
+    current_user: User = Depends(get_current_customer),
+) -> dict[str, bool]:
+    from app.worker import send_support_email
+
+    send_support_email.delay(current_user.email, body.subject, body.message)
+    return {"queued": True}
+
+
 class PhoneOtpRequest(BaseModel):
     phone: str = Field(min_length=8, max_length=20)
 
