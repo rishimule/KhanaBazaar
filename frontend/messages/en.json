@@ -441,6 +441,39 @@
       "notificationsTitle": "Notifications",
       "notificationsComingSoon": "Notification preferences coming soon."
     },
+    "support": {
+      "faqTitle": "Frequently asked questions",
+      "faqSubtitle": "Quick answers to common questions.",
+      "faq": {
+        "q1": {
+          "question": "How do I track my order?",
+          "answer": "Open the order from Orders to see its current status and timeline."
+        },
+        "q2": {
+          "question": "How do I change my delivery address?",
+          "answer": "Manage saved addresses from the Addresses section; pick one at checkout."
+        },
+        "q3": {
+          "question": "What payment methods are supported?",
+          "answer": "UPI and Cash on Delivery."
+        },
+        "q4": {
+          "question": "How do I cancel an order?",
+          "answer": "Pending orders can be cancelled from the order detail page."
+        },
+        "q5": {
+          "question": "Why didn't I receive my OTP?",
+          "answer": "Check your spam folder or wait 60 seconds and request a new code."
+        }
+      },
+      "contactTitle": "Contact support",
+      "contactSubtitle": "Send us a message and we'll get back to you over email.",
+      "subjectLabel": "Subject",
+      "messageLabel": "Message",
+      "send": "Send",
+      "sent": "Message sent. We'll be in touch.",
+      "sendError": "Could not send your message. Please try again."
+    },
     "addresses": {
       "loading": "Loading addresses…",
       "loadError": "Could not load your addresses.",
