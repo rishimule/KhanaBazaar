@@ -17,3 +17,8 @@
   opacity: 0.6;
   cursor: wait;
 }
+
+.select.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
