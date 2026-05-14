@@ -3,9 +3,10 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useAuth } from "@/lib/AuthContext";
 import styles from "./DashboardLayout.module.css";
 
 interface NavItem {
@@ -50,8 +51,17 @@ export default function DashboardLayout({
   navItems,
 }: Props) {
   const t = useTranslations("Dashboard");
+  const tNav = useTranslations("Nav");
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleLogout = async () => {
+    setSidebarOpen(false);
+    await logout();
+    router.replace("/");
+  };
 
   return (
     <div className={styles.dashboard}>
@@ -89,6 +99,18 @@ export default function DashboardLayout({
             </Link>
           ))}
         </nav>
+
+        <div className={styles.sidebarFooter}>
+          <button
+            type="button"
+            className={styles.logoutBtn}
+            onClick={handleLogout}
+            aria-label={tNav("logoutLabel")}
+          >
+            <span className={styles.logoutIcon}>⎋</span>
+            {tNav("logoutLabel")}
+          </button>
+        </div>
       </aside>
 
       {/* Main */}
