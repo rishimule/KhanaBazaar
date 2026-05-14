@@ -421,6 +421,20 @@
       "loading": "लोड होत आहे…",
       "amount": "₹{amount}"
     },
+    "profile": {
+      "loading": "प्रोफाइल लोड होत आहे…",
+      "loadError": "तुमची प्रोफाइल लोड करता आली नाही.",
+      "saveProfileError": "बदल जतन करता आले नाहीत.",
+      "profileSection": "प्रोफाइल",
+      "firstNameLabel": "पहिले नाव",
+      "lastNameLabel": "आडनाव",
+      "phoneLabel": "फोन",
+      "emailLabel": "ईमेल",
+      "firstNameRequired": "पहिले नाव आवश्यक आहे.",
+      "phoneInvalid": "7-20 अंक, स्पेस, +, -, किंवा कंस वापरा.",
+      "saveProfile": "बदल जतन करा",
+      "saving": "जतन करत आहे…"
+    },
     "settings": {
       "loading": "खाते सेटिंग्ज लोड होत आहेत…",
       "loadError": "खाते सेटिंग्ज लोड करता आल्या नाहीत.",

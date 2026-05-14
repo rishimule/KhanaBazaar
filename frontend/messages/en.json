@@ -421,6 +421,20 @@
       "loading": "Loading…",
       "amount": "₹{amount}"
     },
+    "profile": {
+      "loading": "Loading profile…",
+      "loadError": "Could not load your profile.",
+      "saveProfileError": "Could not save changes.",
+      "profileSection": "Profile",
+      "firstNameLabel": "First name",
+      "lastNameLabel": "Last name",
+      "phoneLabel": "Phone",
+      "emailLabel": "Email",
+      "firstNameRequired": "First name is required.",
+      "phoneInvalid": "Use 7-20 digits, spaces, +, -, or parentheses.",
+      "saveProfile": "Save changes",
+      "saving": "Saving…"
+    },
     "settings": {
       "loading": "Loading account settings…",
       "loadError": "Could not load account settings.",

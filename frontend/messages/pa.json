@@ -421,6 +421,20 @@
       "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
       "amount": "₹{amount}"
     },
+    "profile": {
+      "loading": "ਪ੍ਰੋਫਾਈਲ ਲੋਡ ਹੋ ਰਹੀ ਹੈ…",
+      "loadError": "ਤੁਹਾਡੀ ਪ੍ਰੋਫਾਈਲ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ.",
+      "saveProfileError": "ਬਦਲਾਵ ਸੇਵ ਨਹੀਂ ਹੋ ਸਕੇ.",
+      "profileSection": "ਪ੍ਰੋਫਾਈਲ",
+      "firstNameLabel": "ਪਹਿਲਾ ਨਾਮ",
+      "lastNameLabel": "ਅੰਤਮ ਨਾਮ",
+      "phoneLabel": "ਫ਼ੋਨ",
+      "emailLabel": "ਈਮੇਲ",
+      "firstNameRequired": "ਪਹਿਲਾ ਨਾਮ ਲਾਜ਼ਮੀ ਹੈ.",
+      "phoneInvalid": "7-20 ਅੰਕ, ਸਪੇਸ, +, -, ਜਾਂ ਬਰੈਕਟ ਵਰਤੋ.",
+      "saveProfile": "ਬਦਲਾਵ ਸੇਵ ਕਰੋ",
+      "saving": "ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…"
+    },
     "settings": {
       "loading": "ਖਾਤਾ ਸੈਟਿੰਗਾਂ ਲੋਡ ਹੋ ਰਹੀਆਂ ਹਨ…",
       "loadError": "ਖਾਤਾ ਸੈਟਿੰਗਾਂ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀਆਂ.",
