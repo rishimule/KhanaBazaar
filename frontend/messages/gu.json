@@ -63,11 +63,19 @@
     "stores": "દુકાનો",
     "subtitle": "તમારી નજીક શું ઉપલબ્ધ છે તે જોવા માટે દુકાન પસંદ કરો",
     "openDot": "● ખુલ્લી",
-    "viewStore": "દુકાન જુઓ →"
+    "viewStore": "દુકાન જુઓ →",
+    "filteredHeader": "{service} દુકાનો બતાવી રહ્યા છીએ",
+    "clearFilter": "સાફ કરો",
+    "clearFilterAria": "{service} ફિલ્ટર દૂર કરો",
+    "emptyNoLocation": "હાલમાં {service} ની કોઈ દુકાન ઉપલબ્ધ નથી. ડિલિવરી સ્થાન સેટ કરીને જુઓ.",
+    "emptyWithLocation": "તમારા પસંદ કરેલા સ્થાને {service} ની ડિલિવરી હાલમાં કોઈ દુકાન કરતી નથી.",
+    "emptyAllNoLocation": "હાલમાં કોઈ દુકાન ઉપલબ્ધ નથી.",
+    "emptyAllWithLocation": "તમારા પસંદ કરેલા સ્થાને હાલમાં કોઈ દુકાન ડિલિવરી કરતી નથી."
   },
   "StoreDetail": {
     "openNow": "હમણાં ખુલ્લી",
     "noProductsYet": "આ દુકાનમાં હજુ કોઈ ઉત્પાદનો નથી.",
+    "noProductsForService": "આ દુકાનમાં હાલમાં {service} ની કોઈ વસ્તુઓ નથી.",
     "notFoundTitle": "દુકાન મળી નથી",
     "notFoundBody": "આ દુકાન અસ્તિત્વમાં નથી અથવા દૂર કરવામાં આવી હોઈ શકે છે.",
     "browseAllStores": "બધી દુકાનો બ્રાઉઝ કરો",
