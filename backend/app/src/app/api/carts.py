@@ -6,10 +6,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_current_customer
 from app.db.session import get_db_session
+from app.models.address import Address
 from app.models.base import User
 from app.models.catalog import MasterProduct, MasterProductTranslation
 from app.models.commerce import Cart, CartItem
-from app.models.profile import CustomerProfile
+from app.models.profile import CustomerAddress, CustomerProfile
 from app.models.store import Store, StoreInventory
 from app.schemas.carts import (
     CartItemAdd,
@@ -21,6 +22,8 @@ from app.schemas.carts import (
     CartSyncResponse,
     DroppedSyncItem,
 )
+from app.schemas.price_comparison import CompareResponse
+from app.services.price_comparison import find_alternatives
 
 router = APIRouter()
 
@@ -510,3 +513,119 @@ async def sync_carts(  # noqa: C901  # per-item validation branches; refactor tr
         carts=await _serialize_carts(session, carts),
         dropped=dropped,
     )
+
+
+# ---------------------------------------------------------------------------
+# Price comparison + cart-replace endpoints
+# ---------------------------------------------------------------------------
+
+
+async def _serialize_single_cart(
+    session: AsyncSession, cart: Cart
+) -> dict[str, object]:
+    """Build a CartRead-shaped dict for a single cart, mirroring the loop
+    in the existing list_carts handler."""
+    store = await session.get(Store, cart.store_id)
+    service_name = (await _service_names(session, [cart.service_id])).get(
+        cart.service_id, ""
+    )
+    items_result = await session.exec(
+        select(CartItem, StoreInventory)
+        .join(StoreInventory, StoreInventory.id == CartItem.inventory_id)  # type: ignore[arg-type]
+        .where(CartItem.cart_id == cart.id)
+    )
+    rows = items_result.all()
+    product_ids = [inv.product_id for _, inv in rows]
+    names = await _product_names(session, product_ids)
+    items: list[dict[str, object]] = []
+    subtotal = 0.0
+    for ci, inv in rows:
+        line_total = inv.price * ci.quantity
+        subtotal += line_total
+        items.append({
+            "id": ci.id,
+            "inventory_id": ci.inventory_id,
+            "product_id": inv.product_id,
+            "product_name": names.get(inv.product_id, ""),
+            "unit_price": inv.price,
+            "quantity": ci.quantity,
+            "line_total": line_total,
+        })
+    return {
+        "store_id": cart.store_id,
+        "store_name": store.name if store else "",
+        "service_id": cart.service_id,
+        "service_name": service_name,
+        "items": items,
+        "subtotal": round(subtotal, 2),
+    }
+
+
+@router.get(
+    "/{store_id}/{service_id}/compare",
+    response_model=CompareResponse,
+)
+async def compare_prices(
+    store_id: int,
+    service_id: int,
+    customer_address_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> CompareResponse:
+    """Return ranked alternative stores for the customer's
+    (store, service) cart."""
+    profile_id = await _customer_profile_id(session, user)
+
+    cart_result = await session.exec(
+        select(Cart).where(
+            Cart.customer_profile_id == profile_id,
+            Cart.store_id == store_id,
+            Cart.service_id == service_id,
+        )
+    )
+    cart = cart_result.first()
+    if cart is None:
+        raise HTTPException(status_code=404, detail="cart_not_found")
+
+    store_result = await session.exec(select(Store).where(Store.id == store_id))
+    store = store_result.first()
+    if store is None or not store.is_active:
+        raise HTTPException(status_code=404, detail="store_not_found")
+
+    await _validate_service_for_store(session, store_id, service_id)
+
+    addr_result = await session.exec(
+        select(CustomerAddress, Address)
+        .join(Address, Address.id == CustomerAddress.address_id)  # type: ignore[arg-type]
+        .where(CustomerAddress.id == customer_address_id)
+    )
+    addr_row = addr_result.first()
+    if addr_row is None:
+        raise HTTPException(status_code=400, detail="invalid_address")
+    customer_address, address = addr_row
+    if customer_address.customer_profile_id != profile_id:
+        raise HTTPException(status_code=400, detail="invalid_address")
+    if address.latitude is None or address.longitude is None:
+        raise HTTPException(status_code=400, detail="invalid_address")
+
+    items_result = await session.exec(
+        select(CartItem, StoreInventory)
+        .join(StoreInventory, StoreInventory.id == CartItem.inventory_id)  # type: ignore[arg-type]
+        .where(CartItem.cart_id == cart.id)
+    )
+    cart_items: list[tuple[int, int]] = [
+        (inv.product_id, ci.quantity) for ci, inv in items_result.all()
+    ]
+    if not cart_items:
+        raise HTTPException(status_code=400, detail="cart_empty")
+
+    alternatives = await find_alternatives(
+        session,
+        source_store_id=store_id,
+        service_id=service_id,
+        cart_items=cart_items,
+        customer_latitude=address.latitude,
+        customer_longitude=address.longitude,
+        language_code=DEFAULT_LANG,
+    )
+    return CompareResponse(alternatives=alternatives)
