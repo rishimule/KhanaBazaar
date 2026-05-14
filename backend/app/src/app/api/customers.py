@@ -173,6 +173,11 @@ async def update_customer_profile(
     if "last_name" in body.model_fields_set:
         profile.last_name = body.last_name
     if "phone" in body.model_fields_set:
+        # Editing the phone via the profile form invalidates any prior
+        # verification — the user must re-verify the new number through
+        # the OTP flow before it's marked verified again.
+        if body.phone != profile.phone:
+            profile.phone_verified_at = None
         profile.phone = body.phone
     if "date_of_birth" in body.model_fields_set:
         profile.date_of_birth = body.date_of_birth

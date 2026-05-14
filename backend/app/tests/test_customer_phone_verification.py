@@ -131,6 +131,71 @@ async def test_phone_otp_invalid_phone(client: AsyncClient, session: AsyncSessio
     assert r.status_code == 422
 
 
+async def test_patching_phone_clears_verification(
+    client: AsyncClient, session: AsyncSession
+):
+    """Editing phone via PATCH /me must invalidate prior phone_verified_at."""
+    from datetime import datetime, timezone
+
+    ids = await _make_customer(session, email="patch@example.com")
+    other_profile = (
+        await session.exec(
+            __import__("sqlmodel").select(CustomerProfile).where(
+                CustomerProfile.id == ids.profile_id  # type: ignore[attr-defined]
+            )
+        )
+    ).first()
+    assert other_profile is not None
+    other_profile.phone = "+919876543200"
+    other_profile.phone_verified_at = datetime.now(timezone.utc)
+    session.add(other_profile)
+    await session.commit()
+
+    app.dependency_overrides[get_current_customer] = lambda: _user_for(ids)
+    try:
+        r = await client.patch(
+            "/api/v1/customers/me",
+            json={"phone": "+919876543201"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_customer, None)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["phone"] == "+919876543201"
+    assert data["phone_verified_at"] is None
+
+
+async def test_patching_phone_to_same_keeps_verification(
+    client: AsyncClient, session: AsyncSession
+):
+    from datetime import datetime, timezone
+
+    ids = await _make_customer(session, email="same@example.com")
+    other_profile = (
+        await session.exec(
+            __import__("sqlmodel").select(CustomerProfile).where(
+                CustomerProfile.id == ids.profile_id  # type: ignore[attr-defined]
+            )
+        )
+    ).first()
+    assert other_profile is not None
+    other_profile.phone = "+919876543202"
+    other_profile.phone_verified_at = datetime.now(timezone.utc)
+    session.add(other_profile)
+    await session.commit()
+
+    app.dependency_overrides[get_current_customer] = lambda: _user_for(ids)
+    try:
+        r = await client.patch(
+            "/api/v1/customers/me",
+            json={"phone": "+919876543202"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_customer, None)
+    assert r.status_code == 200, r.text
+    assert r.json()["phone_verified_at"] is not None
+
+
 async def test_phone_already_in_use(client: AsyncClient, session: AsyncSession):
     # Seed another customer with phone set.
     other = await _make_customer(session, email="other@example.com")
