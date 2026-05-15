@@ -229,6 +229,7 @@ No frontend tests configured.
 - **Keep merged branches** — do not pass `--delete-branch`.
 - All PRs: target `main`, must pass CI (lint + types + tests), **merge-commit** (`gh pr merge --merge`) — no squash, no rebase.
 - Always use `gh` CLI for GitHub ops (`gh pr create/list/merge`, `gh issue *`, `gh run list`). Never raw `git push` + manual PR.
+- **After merging a PR**: `git checkout main && git pull` to sync local with remote. Always land back on `main` before starting next task.
 
 **Forbidden**: `git push --force` on shared branches, `--amend` on pushed commits, committing `.env`/secrets, `--no-verify`, direct commits to `main`.
 
