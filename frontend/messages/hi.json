@@ -637,5 +637,37 @@
       "orderAgain": "फिर से ऑर्डर करें",
       "recentlyViewed": "हाल ही में देखा"
     }
+  },
+  "Search": {
+    "placeholder": "Search products, stores",
+    "recent": "Recent",
+    "suggestions": "Suggestions",
+    "products": "Products",
+    "stores": "Stores",
+    "seeAll": "See all results for \"{q}\"",
+    "inThisStore": "In this store",
+    "allStores": "All stores",
+    "clear": "Clear",
+    "clearAll": "Clear all",
+    "outOfStock": "Out of stock",
+    "notDeliverable": "Not deliverable to your location",
+    "notifyMe": "Notify me",
+    "noResults": "No results for \"{q}\"",
+    "unavailable": "Search temporarily unavailable",
+    "setLocation": "Set delivery location for accurate results",
+    "browseAnyway": "Browse anyway",
+    "startTyping": "Start typing to search",
+    "resultsTitle": "Search results: \"{q}\"",
+    "backToBrowse": "← Back to browse",
+    "loadMore": "Load more",
+    "loading": "Loading…",
+    "add": "Add",
+    "sort": "Sort",
+    "sortRelevance": "Relevance",
+    "sortPriceAsc": "Price: low to high",
+    "sortPriceDesc": "Price: high to low",
+    "sortDistance": "Distance",
+    "minPrice": "min ₹",
+    "maxPrice": "max ₹"
   }
 }
