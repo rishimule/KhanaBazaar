@@ -6,6 +6,9 @@ from typing import Any, Literal
 
 from app.core.celery_app import celery_app
 
+# Ensure search tasks are discovered by the worker.
+import app.search.tasks  # noqa: F401
+
 
 @celery_app.task(name="test_celery_task", bind=True)  # type: ignore[untyped-decorator]
 def test_celery_task(self: Any, word: str) -> str:

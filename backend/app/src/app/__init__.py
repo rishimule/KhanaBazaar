@@ -25,6 +25,9 @@ async def health_check() -> dict[str, str]:
     return {"status": "ok", "environment": settings.ENVIRONMENT}
 
 from app.api import api_router  # noqa: E402
+from app.search.hooks import register_search_hooks  # noqa: E402
+
+register_search_hooks()
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

@@ -99,6 +99,15 @@ async def override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 app.dependency_overrides[get_db_session] = override_get_db_session
 
+
+# Force `async_session_factory()` (used by Celery tasks + CLI tools) to bind to
+# the test engine so any code path that creates its own session inside a test
+# sees the same data the test seeded.
+from app.db import session as _db_session_mod  # noqa: E402
+
+_db_session_mod.engine = test_engine
+_db_session_mod.async_session_factory = lambda: AsyncSession(test_engine, expire_on_commit=False)
+
 @pytest.fixture(name="session")
 async def session_fixture() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSession(test_engine) as session:
@@ -206,6 +215,35 @@ async def seeded_subcategory_fixture(
     )
     await session.commit()
     return _Stub(id=sub_id, slug="seeded-sub", category_id=seeded_category.id)
+
+
+@pytest.fixture(autouse=True)
+def _stub_search_celery_delays() -> Generator[None, None, None]:
+    """Replace Celery `.delay()` on every search task with a no-op so listener
+    fan-out during seed flushes never tries to run async DB work on a different
+    event loop (eager-mode collision). Tests that need to assert .delay() was
+    called supply their own `patch()` inside the test body — the inner patch
+    overrides this autouse stub for the duration of the with-block.
+    """
+    from unittest.mock import patch
+
+    targets = [
+        "app.search.tasks.reindex_master_product.delay",
+        "app.search.tasks.reindex_store.delay",
+        "app.search.tasks.reindex_products_for_store.delay",
+        "app.search.tasks.reindex_products_by_subcategory.delay",
+        "app.search.tasks.reindex_products_by_category.delay",
+        "app.search.tasks.rebuild_search_terms.delay",
+        "app.search.tasks.prune_query_log.delay",
+    ]
+    patches = [patch(t, lambda *a, **kw: None) for t in targets]
+    for p in patches:
+        p.start()
+    try:
+        yield
+    finally:
+        for p in patches:
+            p.stop()
 
 
 @pytest.fixture(name="meili_test_client")
