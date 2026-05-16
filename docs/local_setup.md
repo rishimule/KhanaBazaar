@@ -248,3 +248,29 @@ docker compose down
 **Frontend can't reach API (localhost dev)** — confirm `NEXT_PUBLIC_API_URL` in `frontend/.env.local` is exactly `""` (empty string) and that the Next.js `rewrites()` block in `frontend/next.config.ts` proxies `/api/v1/:path*` to `http://localhost:8000/api/v1/:path*`. Restart `npm run dev` after editing either file.
 
 **Phone can't reach API (ngrok tunnel)** — check `./scripts/dev.sh logs ngrok` for auth or quota errors. If the URL loads HTML but `/api/v1/*` returns 404, the Next.js `rewrites()` block is missing or malformed — see `next.config.ts`.
+
+## Search (Meilisearch)
+
+`docker-compose.yml` includes the `meilisearch` service (port 7700) and a `meilisearch-test` profile (port 7701).
+
+```bash
+docker compose up -d meilisearch
+curl http://localhost:7700/health         # → {"status":"available"}
+```
+
+After `alembic upgrade head` + seed, populate the search indexes:
+
+```bash
+cd backend/app
+uv run python -m app.search.reindex --all
+```
+
+Useful flags: `--products` / `--stores` / `--search-terms` rebuild a single index; `--products --swap-on-finish` does a zero-downtime alias swap; `--products --since 1h` is incremental.
+
+For tests, the test instance lives behind `--profile test`:
+
+```bash
+docker compose --profile test up -d meilisearch-test
+```
+
+Dashboard: `http://localhost:7700`. Master key: `MEILI_MASTER_KEY` (default `dev-master-key-change-me`).

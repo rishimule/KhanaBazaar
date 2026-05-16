@@ -17,3 +17,11 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Dependency object for FastAPI endpoints."""
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
+
+
+def async_session_factory() -> AsyncSession:
+    """Async-session factory for code that doesn't use the FastAPI dep system
+    (Celery tasks, CLI commands, bulk reindex). Caller is responsible for
+    closing the session via `async with`.
+    """
+    return AsyncSession(engine, expire_on_commit=False)

@@ -36,6 +36,7 @@ from .profile import (
     SellerProfileService,
     VerificationStatus,
 )
+from .search_log import SearchQueryLog
 from .store import Store, StoreInventory
 
 __all__ = [
@@ -62,6 +63,7 @@ __all__ = [
     "PaymentMethod",
     "PaymentStatus",
     "Review",
+    "SearchQueryLog",
     "SellerProfile",
     "SellerProfileService",
     "Service",

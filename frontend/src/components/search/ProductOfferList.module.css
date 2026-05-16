@@ -1,0 +1,120 @@
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 8px;
+  background: var(--color-surface, #fff);
+}
+.storeMeta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.storeName {
+  font-weight: 500;
+}
+.subtext {
+  font-size: 0.8rem;
+  color: var(--color-muted, #6b7280);
+}
+.warning {
+  color: rgb(220, 38, 38);
+}
+.price {
+  font-weight: 600;
+  font-size: 1.1rem;
+  min-width: 80px;
+  text-align: right;
+}
+.addBtn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: var(--color-primary, #16a34a);
+  color: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.addBtn:disabled {
+  background: var(--color-muted, #9ca3af);
+  cursor: not-allowed;
+}
+
+.qtyControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--color-primary, #16a34a);
+  border-radius: 999px;
+  padding: 0.15rem;
+  background: var(--color-surface, #fff);
+}
+.qtyBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--color-primary, #16a34a);
+  color: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.qtyBtn:disabled {
+  background: var(--color-muted, #9ca3af);
+  cursor: not-allowed;
+}
+.qtyValue {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+
+.emptyServiceable {
+  padding: 1.25rem 1rem;
+  border: 1px dashed var(--color-border, rgba(0, 0, 0, 0.15));
+  border-radius: 8px;
+  color: var(--color-muted, #6b7280);
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.disclosure {
+  margin-top: 1rem;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  padding-top: 1rem;
+}
+.summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  color: var(--color-muted, #6b7280);
+  font-weight: 500;
+  user-select: none;
+}
+.summary::-webkit-details-marker {
+  display: none;
+}
+.summary:hover {
+  color: var(--color-text, #111);
+}
+.summaryChevron {
+  font-size: 0.85rem;
+}

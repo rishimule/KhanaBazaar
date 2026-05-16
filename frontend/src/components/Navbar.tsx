@@ -10,21 +10,13 @@ import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
+import { SearchBar } from "@/components/search/SearchBar";
 import LocaleSwitcher from "./LocaleSwitcher";
 import styles from "./Navbar.module.css";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname.startsWith(href);
-}
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="11" cy="11" r="7" />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
-  );
 }
 
 function CartIcon() {
@@ -218,15 +210,7 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
           </button>
         )}
 
-        <div className={styles.searchWrap}>
-          <span className={styles.searchIcon}><SearchIcon /></span>
-          <input
-            className={styles.searchInput}
-            type="search"
-            placeholder="Search ramen, dragon fruit, kimchi…"
-            aria-label="Search products"
-          />
-        </div>
+        <SearchBar />
 
         <div className={styles.navLinks}>
           {navLinks.map((link) => (

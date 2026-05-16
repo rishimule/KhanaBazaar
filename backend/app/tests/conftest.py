@@ -20,6 +20,11 @@ from app import app  # noqa: E402
 from app.core.celery_app import celery_app  # noqa: E402
 from app.db.session import get_db_session  # noqa: E402
 
+# Point search infra at the test Meilisearch instance before any test imports
+# app.search.client. The client is process-wide, so we override the env first.
+os.environ["MEILI_URL"] = os.environ.get("MEILI_TEST_URL", "http://localhost:7701")
+os.environ["MEILI_MASTER_KEY"] = os.environ.get("MEILI_TEST_KEY", "test-master-key")
+
 celery_app.conf.task_always_eager = True
 celery_app.conf.task_eager_propagates = True
 
@@ -68,6 +73,8 @@ async def _add_postgis_geo_column(conn: Any) -> None:
 
 @pytest.fixture(autouse=True, scope="function")
 async def setup_test_db() -> AsyncGenerator[None, None]:
+    # Reset fakeredis between tests so rate-limit + suggest cache stay isolated.
+    await _fake_redis.flushall()
     async with test_engine.begin() as conn:
         await _reset_schema(conn)
         await conn.run_sync(SQLModel.metadata.create_all)
@@ -93,6 +100,30 @@ async def override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 app.dependency_overrides[get_db_session] = override_get_db_session
+
+# Override Redis with a per-process fakeredis instance so rate-limit counters
+# and serviceable caches don't leak across tests (and don't depend on a real
+# Redis running on the host).
+from fakeredis.aioredis import FakeRedis  # noqa: E402
+from app.core.redis import get_redis  # noqa: E402
+
+_fake_redis = FakeRedis(decode_responses=True)
+
+
+async def _override_redis() -> FakeRedis:
+    return _fake_redis
+
+
+app.dependency_overrides[get_redis] = _override_redis
+
+
+# Force `async_session_factory()` (used by Celery tasks + CLI tools) to bind to
+# the test engine so any code path that creates its own session inside a test
+# sees the same data the test seeded.
+from app.db import session as _db_session_mod  # noqa: E402
+
+_db_session_mod.engine = test_engine
+_db_session_mod.async_session_factory = lambda: AsyncSession(test_engine, expire_on_commit=False)
 
 @pytest.fixture(name="session")
 async def session_fixture() -> AsyncGenerator[AsyncSession, None]:
@@ -201,6 +232,63 @@ async def seeded_subcategory_fixture(
     )
     await session.commit()
     return _Stub(id=sub_id, slug="seeded-sub", category_id=seeded_category.id)
+
+
+@pytest.fixture(autouse=True)
+def _stub_search_celery_delays() -> Generator[None, None, None]:
+    """Replace Celery `.delay()` on every search task with a no-op so listener
+    fan-out during seed flushes never tries to run async DB work on a different
+    event loop (eager-mode collision). Tests that need to assert .delay() was
+    called supply their own `patch()` inside the test body — the inner patch
+    overrides this autouse stub for the duration of the with-block.
+    """
+    from unittest.mock import patch
+
+    targets = [
+        "app.search.tasks.reindex_master_product.delay",
+        "app.search.tasks.reindex_store.delay",
+        "app.search.tasks.reindex_products_for_store.delay",
+        "app.search.tasks.reindex_products_by_subcategory.delay",
+        "app.search.tasks.reindex_products_by_category.delay",
+        "app.search.tasks.rebuild_search_terms.delay",
+        "app.search.tasks.prune_query_log.delay",
+    ]
+    patches = [patch(t, lambda *a, **kw: None) for t in targets]
+    for p in patches:
+        p.start()
+    try:
+        yield
+    finally:
+        for p in patches:
+            p.stop()
+
+
+@pytest.fixture(name="meili_test_client")
+async def meili_test_client_fixture() -> AsyncGenerator[Any, None]:
+    """Per-test Meilisearch client. Wipes known indexes and re-applies settings."""
+    from meilisearch_python_sdk import AsyncClient
+    from app.search.bootstrap import ensure_indexes
+    from app.search import client as client_mod
+    # Force re-creation so each test gets a fresh client pointed at the test URL.
+    if client_mod._client is not None:
+        await client_mod._client.aclose()
+        client_mod._client = None
+
+    ac = AsyncClient(os.environ["MEILI_URL"], os.environ["MEILI_MASTER_KEY"])
+    for uid in ("products", "stores", "search_terms"):
+        try:
+            task = await ac.index(uid).delete()
+            await ac.wait_for_task(task.task_uid)
+        except Exception:
+            pass
+    await ensure_indexes(ac)
+    # Make get_meili_client() return this same client during the test
+    client_mod._client = ac
+    try:
+        yield ac
+    finally:
+        await ac.aclose()
+        client_mod._client = None
 
 
 @pytest.fixture(autouse=True)
