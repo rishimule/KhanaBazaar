@@ -19,6 +19,7 @@ Production deployment plan for Khana Bazaar on Microsoft Azure. The stack favour
 | Next.js frontend (`khanabazaar-web`)  | Azure Container Apps (with public ingress)         | Consumption                  |
 | PostgreSQL 15                  | Azure Database for PostgreSQL — Flexible Server           | Burstable `B1ms`             |
 | Redis 7                        | Azure Cache for Redis                                      | Basic `C0` (250 MB)          |
+| Meilisearch v1.11              | Azure Container App + Azure Files (internal-only ingress)  | Consumption (1 vCPU / 2 GiB) |
 | Container images               | Azure Container Registry                                   | Basic                        |
 | Secrets (JWT, OTP pepper, Resend, DB) | Azure Key Vault                                     | Standard                     |
 | Logs / metrics / traces        | Azure Monitor + Application Insights + Log Analytics       | Pay-as-you-go                |
@@ -250,6 +251,42 @@ Env vars:
 - `maxmemory-policy = noeviction` (Celery requires it; eviction silently drops queued tasks).
 
 Connection string: `rediss://:<key>@kb-prod-redis-cin.redis.cache.windows.net:6380/0`.
+
+### 7.5b Meilisearch (`kb-prod-meili-cin`)
+
+- Azure Container App running `getmeili/meilisearch:v1.11`.
+- **Internal-only ingress** on TCP `:7700` — never exposed to the public Front Door. Only `kb-prod-api-cin` and `kb-prod-worker-cin` reach it.
+- 1 vCPU / 2 GiB starting; vertical scale if ~100k+ docs.
+- **Persistent storage**: Azure Files share `meili-data` mounted at `/meili_data` (Meilisearch's LMDB store needs durable disk; Container App ephemeral storage would lose data on restart).
+- Master key in Key Vault (`meili-master-key`), referenced by the API + worker apps as the `MEILI_MASTER_KEY` env var. The same key is supplied to the Meilisearch container via `secretRef`.
+- Replicas pinned to `1` — Meilisearch is single-writer, single-reader.
+- Health probe: `GET /health` returns `{"status":"available"}`.
+- See follow-up `infra/modules/meilisearch.bicep` (TODO) for the Bicep definition.
+
+**Backend env vars wired in `kb-prod-api-cin` and `kb-prod-worker-cin`:**
+
+```
+MEILI_URL=http://kb-prod-meili-cin:7700
+MEILI_MASTER_KEY=@Microsoft.KeyVault(...)
+SEARCH_RATE_LIMIT_SUGGEST_PER_MIN=60
+SEARCH_RATE_LIMIT_PRODUCTS_PER_MIN=30
+SEARCH_SUGGEST_CACHE_TTL_SECONDS=60
+SEARCH_SERVICEABLE_GRID_TTL_SECONDS=60
+```
+
+**First-deploy runbook:**
+
+1. Apply Bicep: `azd up` (provisions the Meilisearch Container App + Azure Files share).
+2. From a one-shot Container App job (or `az containerapp exec` into the API container), populate the indexes:
+   ```bash
+   uv run python -m app.search.reindex --all
+   ```
+3. Smoke: `curl -s 'http://kb-prod-meili-cin:7700/health'` returns `available`; `curl -s 'https://kb-prod-api-cin/api/v1/search/suggest?q=milk'` returns hits.
+4. Route public traffic. Until reindex finishes, `/api/v1/search/*` returns empty arrays.
+
+**Recovery from disk loss:** re-run step 2. The DB is the source of truth.
+
+**Sync drift mitigation:** `search.verify_drift` Celery beat task runs nightly at 04:30 UTC and re-enqueues any product whose Meilisearch doc has drifted from the DB. Safety net for missed `after_commit` events.
 
 ### 7.6 Azure Container Registry (`kbprodacrcin`)
 

@@ -22,7 +22,7 @@ Click the Docker Desktop icon in the Start menu. Wait until the whale icon appea
 
 ---
 
-## 2. Bring up Postgres and Redis
+## 2. Bring up Postgres, Redis, and Meilisearch
 
 **Run in: WSL2 Ubuntu terminal**
 
@@ -31,7 +31,7 @@ cd ~/projects/KhanaBazaar
 docker compose up -d
 ```
 
-This downloads two pre-built images and runs them as *[containers](./appendix-glossary.md#container)* — *[PostgreSQL](./appendix-glossary.md#postgresql)* (the *[database](./appendix-glossary.md#database)*) and *[Redis](./appendix-glossary.md#redis)* (the *[cache](./appendix-glossary.md#cache)* and *[Celery](./appendix-glossary.md#celery)* broker). Wait time: 1–3 minutes on first run while images download (about 400 MB).
+This downloads three pre-built images and runs them as *[containers](./appendix-glossary.md#container)* — *[PostgreSQL](./appendix-glossary.md#postgresql)* (the *[database](./appendix-glossary.md#database)*), *[Redis](./appendix-glossary.md#redis)* (the *[cache](./appendix-glossary.md#cache)* and *[Celery](./appendix-glossary.md#celery)* broker), and Meilisearch (the search engine powering the navbar search bar). Wait time: 1–3 minutes on first run while images download (about 500 MB).
 
 **What you should see:**
 
@@ -39,9 +39,11 @@ This downloads two pre-built images and runs them as *[containers](./appendix-gl
 [+] Pulling 14/14
  ✔ postgres Pulled
  ✔ redis Pulled
-[+] Running 2/2
- ✔ Container khanabazaar-postgres  Started
- ✔ Container khanabazaar-redis     Started
+ ✔ meilisearch Pulled
+[+] Running 3/3
+ ✔ Container khanabazaar-postgres     Started
+ ✔ Container khanabazaar-redis        Started
+ ✔ Container khanabazaar-meilisearch  Started
 ```
 
 **Wait for Postgres to finish starting before moving to the next step.** Running migrations against a half-started database fails with `connection refused`. Run this command and repeat it until the output shows `localhost:5432 - accepting connections`. Usually takes 5–20 seconds.
@@ -66,7 +68,7 @@ Verify both containers are running:
 docker compose ps
 ```
 
-**What you should see:** two rows — `khanabazaar-postgres` and `khanabazaar-redis` — both with `STATUS` showing `Up <duration>`.
+**What you should see:** three rows — `khanabazaar-postgres`, `khanabazaar-redis`, and `khanabazaar-meilisearch` — each with `STATUS` showing `Up <duration>`.
 
 **If it fails.** For "port already in use" errors, see [./06-troubleshooting.md#docker-compose-port-in-use](./06-troubleshooting.md#docker-compose-port-in-use). For download failures, see [./06-troubleshooting.md#docker-compose-pulls-fail](./06-troubleshooting.md#docker-compose-pulls-fail).
 
@@ -127,6 +129,24 @@ This fills the database with sample products, stores, and the demo accounts you 
 **What you should see:** a series of `Creating ...` and `Updating ...` lines, ending with `Seed complete.` (exact wording may differ).
 
 **If it fails.** See [./06-troubleshooting.md#seed-script-crashes](./06-troubleshooting.md#seed-script-crashes).
+
+---
+
+## 5b. Populate the search index
+
+**Run in: WSL2 Ubuntu terminal** (from `backend/app`)
+
+```
+uv run python -m app.search.reindex --all
+```
+
+This copies every product, store, and search term into Meilisearch (the search engine that powers the navbar search bar). The seed in step 5 only fills Postgres — without this step, typing in the search bar will return no results.
+
+**What you should see:** SQL log lines, then a single dict like `{'products': 1500, 'stores': 90, 'search_terms': 1900}`.
+
+**When to re-run.** Only after dropping the Meilisearch container's volume, or after a major catalog change while developing. Day-to-day, hot-reload-style sync runs automatically via Celery — you do not need to re-run this.
+
+**If it fails.** See [./06-troubleshooting.md#search-bar-shows-no-results](./06-troubleshooting.md#search-bar-shows-no-results).
 
 ---
 

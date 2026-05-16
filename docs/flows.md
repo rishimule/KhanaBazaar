@@ -241,6 +241,13 @@ Customer-facing reads:
 | `geo:auto:*` (Redis) | autocomplete cache by session_token | 60s |
 | `geo:rev:*` (Redis) | reverse-geocode cache by rounded lat/lng | 24h |
 | `rl:geo:*` (Redis) | per-IP rate-limit bucket for /geo/* | 60s |
+| `kb_recent_searches` (localStorage) | last 10 user search terms | until logout or explicit clear |
+| `suggest:*` (Redis) | search suggest response by sha1(q\|grid\|store\|locale) | 60s |
+| `serviceable:*` (Redis) | serviceable store IDs per ~500m grid cell | 60s |
+| `ratelim:search:*` (Redis) | per-IP rate-limit bucket for /search/* | 60s |
+| `meili_sync:product:*` / `meili_sync:store:*` (Redis) | sync coalesce lock | 5s |
+| `search_query_log` (Postgres) | search analytics rows | 90 days (Celery beat prune) |
+| Meilisearch `products` / `stores` / `search_terms` indexes | searchable docs | rebuilt from Postgres via reindex CLI or after_commit sync |
 | `cart`, `cartitem` (Postgres) | authenticated cart | until checkout or explicit clear |
 | `order`, `orderitem`, `payment`, `delivery` (Postgres) | placed orders | permanent |
 | `address.geo` (Postgres GENERATED column) | `geography(Point, 4326)` derived from lat/lng | auto-recomputed on insert/update |
@@ -354,3 +361,101 @@ celery -A app.core.celery_app call geo.backfill_store_addresses
 ```
 
 Forward-geocodes via Google for `Address` rows reachable through `Store.address_id` or `SellerProfile.business_address_id`, gated by `partial_match=false`. Customer addresses are NOT touched (they re-fill lazily on next user-driven save). Idempotent.
+
+## 11. Search (Meilisearch)
+
+### 11.1 Customer types in the navbar search bar
+
+```
+[User typing "naan"]
+   │  (debounce 180ms, AbortController cancels prior request)
+   ▼
+[SearchBar (frontend)]
+   ▼
+GET /api/v1/search/suggest?q=naan&lat=&lng=
+   │  Accept-Language: en|hi|mr|gu|pa
+   ▼
+[FastAPI search router]
+   ├── Redis GET suggest:<sha1(q|grid|store|locale)>   ─ cache HIT → return
+   ├── locality.get_serviceable_store_ids(lat,lng)     ─ PostGIS + 60s Redis grid
+   ├── Meilisearch search_terms.search(q, filter=locale)
+   ├── Meilisearch products.search(q, filter="store_ids IN [...]")
+   ├── Meilisearch stores.search(q, filter="is_active")
+   ├── Best-effort INSERT search_query_log
+   └── 200 OK { query_id, terms[], products[], stores[] }     X-Search-Query-ID header
+       │  cached in Redis 60s
+       ▼
+[Dropdown sections: Recent / Suggestions / Products / Stores / See-all]
+```
+
+### 11.2 Customer clicks a product result
+
+```
+[Click on product row]
+   ├── searchClient.logClick({ query_id, clicked_product_id, position })
+   │      POST /api/v1/search/click  → 204
+   │         └── UPDATE search_query_log SET clicked_product_id=… WHERE query_id=…
+   └── router.push("/{locale}/search/product/{productId}")
+        ▼
+GET /api/v1/search/products/{id}/stores?lat=&lng=
+   ├── Postgres join StoreInventory × Store × Address
+   ├── Annotate per-offer is_serviceable + distance_km via locality cache
+   └── Sort offers by price ascending
+       ▼
+[Render: deliverable stores first; <details> "Other stores (N)" collapsed]
+   ├── If item already in cart for (store, service) → render ± qty stepper
+   └── Else → render Add button
+```
+
+### 11.3 Customer searches inside a store page
+
+```
+[/stores/{id}?q=atta]
+   ▼
+Store page detects ?q=, swaps browse view for <SearchResultsGrid storeId={id} q=...>
+   ▼
+GET /api/v1/search/products?q=atta&store_id={id}
+   ├── locality skipped (store_id scope wins)
+   └── filter="store_ids = {id} AND is_active = true"
+   ▼
+Annotate per_store_offers with is_serviceable + distance, derive min_price_bucket facet
+   ▼
+Grid renders; "← Back to browse" link clears ?q=.
+```
+
+### 11.4 Sync from DB write to searchable
+
+```
+Seller / admin / customer write to the DB
+   │
+   ▼
+[SQLAlchemy session commit]
+   ├── search.hooks.after_flush  collects dirty IDs per kind
+   ├── search.hooks.after_commit fans out Celery .delay() calls
+   └── after_rollback drops the pending IDs
+        ▼
+[Celery worker process]
+   ├── Take Redis lock meili_sync:{kind}:{id} (5s, non-blocking)
+   │     └── concurrent worker for same id returns immediately (coalesce)
+   ├── Build doc via app.search.serialize.build_product_document
+   └── Upsert into Meilisearch
+        ▼ (~50–200 ms async)
+Searchable. p95 sync lag <2 s.
+```
+
+### 11.5 Periodic Celery beat (UTC)
+
+| Time | Task | What it does |
+|---|---|---|
+| 03:15 | `search.rebuild_search_terms` | Wipe + rebuild autocomplete corpus from current translations |
+| 04:00 | `search.prune_query_log` | `DELETE FROM search_query_log WHERE created_at < NOW() - INTERVAL '90 days'` |
+| 04:30 | `search.verify_drift` | Sample 1000 products, diff DB-built doc vs Meilisearch doc on a tight key subset, re-enqueue divergent ones |
+
+### 11.6 First-deploy bootstrap (one-shot)
+
+```
+$ uv run python -m app.search.reindex --all
+{'products': 1500, 'stores': 90, 'search_terms': 1900}
+```
+
+Required after the first migration + seed and after dropping the `meili_data` Docker volume. Meilisearch starts empty; bootstrap on app startup only ensures the indexes + settings exist — it does not populate documents.

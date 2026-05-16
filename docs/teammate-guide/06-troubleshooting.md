@@ -24,6 +24,7 @@ Look up your error by symptom. Each entry shows what you see, why it happens, an
 | `dialect 'postgres' is not supported` | [#dialect-not-supported](#dialect-not-supported) |
 | `Target database is not up to date` | [#alembic-not-up-to-date](#alembic-not-up-to-date) |
 | `IntegrityError` during seed script | [#seed-script-crashes](#seed-script-crashes) |
+| Navbar search bar returns no results | [#search-bar-shows-no-results](#search-bar-shows-no-results) |
 | `uv: command not found` | [#uv-not-found](#uv-not-found) |
 | `nvm: command not found` | [#nvm-not-found](#nvm-not-found) |
 | `uv sync` SSL error or `failed to fetch` | [#uv-sync-fails](#uv-sync-fails) |
@@ -710,6 +711,36 @@ or an SSL certificate verification error.
 4. Common causes: *[database](./appendix-glossary.md#database)* not running ([#asyncpg-password-error](#asyncpg-password-error)), missing `.env` ([#uv-sync-fails](#uv-sync-fails)), unapplied migration ([#alembic-not-up-to-date](#alembic-not-up-to-date)).
 
 **If the fix does not work.** Paste the full output of `./scripts/dev.sh logs backend | tail -30` into the message template at [#nothing-here-matches](#nothing-here-matches).
+
+---
+
+### Search bar shows no results {#search-bar-shows-no-results}
+
+**What you see.** You type a real product word (e.g. "naan", "milk", "atta") in the navbar search bar and the dropdown either stays empty or shows only "See all results for …" with no products underneath.
+
+**Why this happens.** Meilisearch is a separate container from PostgreSQL. The seed in chapter 4 step 5 fills Postgres but **does not** populate Meilisearch. The very first run after `docker compose up -d` therefore has an empty search index even though the catalog itself is fine.
+
+**Fix.**
+
+1. Confirm Meilisearch is up:
+   ```
+   docker compose ps khanabazaar-meilisearch
+   curl -s http://localhost:7700/health
+   ```
+   You want `STATUS: Up ...` and `{"status":"available"}`.
+2. Populate the indexes (one-time after seed):
+   ```
+   cd ~/projects/KhanaBazaar/backend/app
+   uv run python -m app.search.reindex --all
+   ```
+   Expected: prints a single dict like `{'products': 1500, 'stores': 90, 'search_terms': 1900}`.
+3. Hard-refresh the browser tab (`Ctrl+Shift+R`) and try the search bar again.
+
+**If `health` does not return `available`.** The Meilisearch container may have failed to start because port 7700 was already in use. See [#docker-compose-port-in-use](#docker-compose-port-in-use). Either stop whatever owns 7700, or change the host port in `docker-compose.yml` from `7700:7700` to e.g. `7710:7700` and also set `MEILI_URL=http://localhost:7710` in `backend/app/.env`.
+
+**If reindex prints `0` for `products`.** The DB seed in chapter 4 step 5 did not run successfully. Re-run `uv run python scripts/seed_database.py` from `backend/app`, then try the reindex again.
+
+**Day-to-day note.** After this one-time fix, you do not need to re-run the reindex. New products/stores added through the UI are sent to Meilisearch automatically by a Celery background task within ~2 seconds.
 
 ---
 

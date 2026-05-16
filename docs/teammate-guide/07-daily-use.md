@@ -157,10 +157,27 @@ Re-seed only when the demo data feels broken or the engineer tells you to.
 ```
 cd backend/app
 uv run python scripts/seed_database.py
+uv run python -m app.search.reindex --all
 cd ../..
 ```
 
-The script is idempotent — safe to re-run without duplicating data.
+The seed is idempotent — safe to re-run without duplicating data. The reindex copies the (re-)seeded products and stores into Meilisearch so the navbar search bar stays in sync; skipping it leaves the search bar showing stale or empty results.
+
+---
+
+## Reset Meilisearch only {#reset-search}
+
+If the navbar search bar is empty or showing stale products, but the rest of the app is fine, rebuild the search indexes without touching the database:
+
+**Run in: WSL2 Ubuntu terminal**
+
+```
+cd backend/app
+uv run python -m app.search.reindex --all
+cd ../..
+```
+
+Takes ~10 seconds on the demo dataset. The Celery worker normally keeps Meilisearch in sync automatically, so you should only need this after a fresh `docker compose up -d`, after deleting the `meili_data` Docker volume, or after the engineer adds a major catalog feature.
 
 ---
 
