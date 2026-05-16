@@ -20,6 +20,11 @@ from app import app  # noqa: E402
 from app.core.celery_app import celery_app  # noqa: E402
 from app.db.session import get_db_session  # noqa: E402
 
+# Point search infra at the test Meilisearch instance before any test imports
+# app.search.client. The client is process-wide, so we override the env first.
+os.environ["MEILI_URL"] = os.environ.get("MEILI_TEST_URL", "http://localhost:7701")
+os.environ["MEILI_MASTER_KEY"] = os.environ.get("MEILI_TEST_KEY", "test-master-key")
+
 celery_app.conf.task_always_eager = True
 celery_app.conf.task_eager_propagates = True
 
@@ -201,6 +206,34 @@ async def seeded_subcategory_fixture(
     )
     await session.commit()
     return _Stub(id=sub_id, slug="seeded-sub", category_id=seeded_category.id)
+
+
+@pytest.fixture(name="meili_test_client")
+async def meili_test_client_fixture() -> AsyncGenerator[Any, None]:
+    """Per-test Meilisearch client. Wipes known indexes and re-applies settings."""
+    from meilisearch_python_sdk import AsyncClient
+    from app.search.bootstrap import ensure_indexes
+    from app.search import client as client_mod
+    # Force re-creation so each test gets a fresh client pointed at the test URL.
+    if client_mod._client is not None:
+        await client_mod._client.aclose()
+        client_mod._client = None
+
+    ac = AsyncClient(os.environ["MEILI_URL"], os.environ["MEILI_MASTER_KEY"])
+    for uid in ("products", "stores", "search_terms"):
+        try:
+            task = await ac.index(uid).delete()
+            await ac.wait_for_task(task.task_uid)
+        except Exception:
+            pass
+    await ensure_indexes(ac)
+    # Make get_meili_client() return this same client during the test
+    client_mod._client = ac
+    try:
+        yield ac
+    finally:
+        await ac.aclose()
+        client_mod._client = None
 
 
 @pytest.fixture(autouse=True)
