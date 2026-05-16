@@ -34,6 +34,7 @@ This project has a `gemini-worker` subagent that wraps the Gemini CLI. It exists
 | ORM / Migrations | SQLModel 0.0.37+ + Alembic (asyncpg driver) |
 | Database | PostgreSQL 15 |
 | Cache / Broker | Redis 7 (Celery 5.6+ for background tasks) |
+| Search | Meilisearch v1.11 (Docker locally; Azure Container App in prod) |
 | Auth | Self-hosted email-OTP + JWT (PyJWT HS256). **No Firebase, no passwords.** |
 | Email | `EMAIL_PROVIDER=console` (dev) or `resend` (prod, raw httpx call — no SDK) |
 | Config | Pydantic-Settings (`.env` files) |
@@ -134,8 +135,9 @@ Mounted in `api/__init__.py`. All under `/api/v1`:
 | `/orders` | `orders.py` | Create, list, detail, status |
 | `/tasks` | `tasks.py` | Celery test endpoint |
 | `/meta` | `meta.py` | Health, languages |
+| `/search` | `search.py` | `/suggest` (dropdown), `/products` (results), `/products/{id}/stores` (compare), `/stores` (store-name), `/click` (analytics) |
 
-Public: catalog reads, store reads, health, languages.
+Public: catalog reads, store reads, health, languages, **search**.
 Seller-only: register, profile/services updates, applications.
 Admin-only: create categories/products, approve seller applications.
 
@@ -154,6 +156,9 @@ Admin-only: create categories/products, approve seller applications.
 - `GOOGLE_MAPS_SERVER_API_KEY` (server-only, IP-restricted in GCP — powers `/api/v1/geo/*`)
 - `GOOGLE_MAPS_BROWSER_API_KEY` (referrer-restricted, exposed to FE as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`)
 - `GEO_RATE_LIMIT_PER_MIN` (default 30), `GEO_AUTOCOMPLETE_CACHE_TTL_SECONDS` (60), `GEO_REVERSE_CACHE_TTL_SECONDS` (86400)
+- `MEILI_URL` (default `http://localhost:7700`), `MEILI_MASTER_KEY` (default `dev-master-key-change-me` for dev)
+- `SEARCH_RATE_LIMIT_SUGGEST_PER_MIN` (default 60), `SEARCH_RATE_LIMIT_PRODUCTS_PER_MIN` (default 30)
+- `SEARCH_SUGGEST_CACHE_TTL_SECONDS` (default 60), `SEARCH_SERVICEABLE_GRID_TTL_SECONDS` (default 60)
 
 ### Frontend `frontend/.env.local`
 - `NEXT_PUBLIC_API_URL` — backend base URL. Default `""` (empty). Empty means relative paths; Next.js `rewrites()` in `next.config.ts` proxies `/api/v1/:rest(.*)` to `http://localhost:8000`. Production overrides this with the absolute backend URL (inlined at build time).
@@ -215,6 +220,8 @@ No frontend tests configured.
 **Geo / PostGIS / DIGIPIN**: Address coordinates stored as `latitude`/`longitude` plus a Postgres-GENERATED `geo geography(Point, 4326) STORED` column with a GiST index — SQLModel does NOT declare `geo`; reads are raw SQL. `address.digipin` is auto-derived from lat/lng in `address_from_payload` via `app/utils/digipin.py` (India Post 4×4-grid algorithm, India bbox only). `Store` carries `delivery_radius_km` (default 5) and `pin_confirmed` (false until seller confirms map pin). Distance + filter via `GET /stores/?lat=&lng=&sort=distance` (PostGIS `ST_DWithin` + `ST_Distance`); order creation re-asserts `ST_DWithin` against the customer address. `/api/v1/geo/{autocomplete,place,reverse,serviceability}` proxies Google Maps server-side so the API key never reaches the browser; per-IP rate limit 30/min, Redis-cached. Local Postgres image: `postgis/postgis:15-3.4`. Alembic `migrations/env.py` skips PostGIS system tables AND the generated `geo` column during autogen — do not "clean up" those guards. Frontend: `<AddressAutocomplete>` + `<MapPicker>` (vis.gl/react-google-maps) used by `<AddressFields>`; `<DeliveryLocationContext>` persists guest location to `localStorage` (`kb_delivery_location`); navbar 'Deliver to' chip opens `<DeliveryLocationPicker>`. Browser key (`NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`) is referrer-restricted. See `docs/development_guide.md` §10 + `docs/superpowers/specs/2026-05-06-geo-stores-delivery-radius-design.md`.
 
 **Frontend → backend path is a Next.js rewrite, not a direct fetch**: `NEXT_PUBLIC_API_URL` is empty in dev so the browser hits `/api/v1/*` on the current origin and `next.config.ts` proxies server-side to `http://localhost:8000`. Same-origin from the browser means no CORS, and same-origin under ngrok means the backend never has to be exposed publicly. **Use `:rest(.*)` in the rewrite source**, not `:path*` — `:path*` silently strips a trailing slash, FastAPI then 307s to the slashed URL using the upstream Host header (`https://localhost:8000`), which is unreachable from a phone. Also keep `skipTrailingSlashRedirect: true` so Next.js itself doesn't 308 the slash off before the rewrite. Mobile testing: `./scripts/dev.sh start --tunnel` brings up the stack plus an ngrok agent (config at `~/.config/ngrok/ngrok.yml`) forwarding `:3000`. See `docs/local_setup.md` §6a.
+
+**Search (Meilisearch)**: Three indexes — `products`, `stores`, `search_terms`. All search proxies through `/api/v1/search/*`; **no browser-direct Meilisearch**. Sync via SQLAlchemy `after_commit` listeners in `app.search.hooks` → Celery tasks in `app.search.tasks` (each task takes Redis lock `meili_sync:product:<id>` for 5s to coalesce). PostGIS + Redis (500m grid, 60s TTL) drives serviceable-store filtering in `app.search.locality`. Bulk reindex: `uv run python -m app.search.reindex --all`. Settings + synonyms in `app.search.settings` and `app.search.synonyms.json`; bump `SETTINGS_VERSION` to re-push. Document-level fields are flat (`name_en`, `name_hi`, …) — adding a new locale requires extending `LanguageCode`, then rebuilding the products index. Async session in Celery tasks runs via a thread-bridged `asyncio.run` so eager-mode tests stay sane. p95 sync lag <2s; suggest cache TTL 60s in Redis.
 
 **CSS conventions**: Design tokens (CSS custom properties) in `frontend/src/styles/design-tokens.css`. Global utility classes (`btn`, `btn-primary`, etc.) in `frontend/src/app/globals.css`. Component scoping via `*.module.css`. **Never add Tailwind.**
 
