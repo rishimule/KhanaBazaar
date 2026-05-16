@@ -228,6 +228,49 @@ async def create_inventory(
     return inventory
 
 
+async def delete_inventory(
+    *,
+    session: AsyncSession,
+    store: Store,
+    inv: StoreInventory,
+    reason: Optional[str] = None,
+    acting_admin_id: Optional[int] = None,
+) -> None:
+    """Delete an inventory row. When ``acting_admin_id`` is set, ``reason``
+    must be at least 10 characters (after stripping) and an
+    ``inventory.delete`` audit row is committed in the same transaction.
+    """
+    if acting_admin_id is not None:
+        await _assert_seller_active(session, store.seller_profile_id)
+        if not reason or len(reason.strip()) < 10:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "reason_required",
+                    "message": "Reason of >=10 chars required for admin delete",
+                },
+            )
+
+    before = _inventory_snapshot(inv)
+    target_id = inv.id
+
+    if acting_admin_id is not None:
+        await audit_log(
+            session=session,
+            admin_user_id=acting_admin_id,
+            target_seller_id=store.seller_profile_id,
+            target_type=AdminActionTargetType.Inventory,
+            target_id=target_id,
+            action="inventory.delete",
+            before_json=before,
+            after_json=None,
+            reason=(reason or "").strip(),
+        )
+
+    await session.delete(inv)
+    await session.commit()
+
+
 async def update_inventory(
     *,
     session: AsyncSession,

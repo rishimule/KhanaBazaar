@@ -601,16 +601,28 @@ async def update_inventory(
 async def delete_inventory(
     store_id: int,
     inventory_id: int,
+    reason: Optional[str] = Query(default=None),
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller),
+    user: User = Depends(get_current_user),
 ) -> dict[str, str]:
-    """Remove a product from a store's inventory."""
-    await _authorize_store_ownership(session, store_id, seller)
+    """Remove a product from a store's inventory.
+
+    Sellers delete their own items unconditionally. Admins may delete on
+    behalf of any approved seller, but must supply ``?reason=`` (>=10 chars).
+    Admin deletes are audit-logged.
+    """
+    store = await _authorize_store_ownership(session, store_id, user)
 
     inv = await session.get(StoreInventory, inventory_id)
     if not inv or inv.store_id != store_id:
         raise HTTPException(status_code=404, detail="Inventory item not found")
 
-    await session.delete(inv)
-    await session.commit()
+    acting_admin_id = user.id if user.role == UserRole.Admin else None
+    await services_inventory.delete_inventory(
+        session=session,
+        store=store,
+        inv=inv,
+        reason=reason,
+        acting_admin_id=acting_admin_id,
+    )
     return {"detail": "Inventory item deleted"}
