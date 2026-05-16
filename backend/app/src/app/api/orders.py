@@ -155,12 +155,22 @@ async def _customer_profile_id(session: AsyncSession, user: User) -> int:
 async def list_orders(
     status: Optional[str] = Query(default=None),
     service_id: Optional[int] = Query(default=None, gt=0),
+    seller_id: Optional[int] = Query(default=None, gt=0),
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> OrderListResponse:
+    """List orders.
+
+    ``seller_id`` is an admin-only filter that scopes the listing to all
+    stores belonging to one seller. Non-admin callers passing ``seller_id``
+    receive 403.
+    """
     statuses = _status_filter_for(status)
     stmt = select(Order)
     include_customer = False
+
+    if seller_id is not None and user.role != UserRole.Admin:
+        raise HTTPException(status_code=403, detail="forbidden")
 
     if user.role == UserRole.Customer:
         # A logged-in customer with no CustomerProfile (incomplete onboarding)
@@ -182,6 +192,15 @@ async def list_orders(
         include_customer = True
     elif user.role == UserRole.Admin:
         include_customer = True
+        if seller_id is not None:
+            seller_store_ids = [
+                sid for sid in (await session.exec(
+                    select(Store.id).where(Store.seller_profile_id == seller_id)
+                )).all() if sid is not None
+            ]
+            if not seller_store_ids:
+                return OrderListResponse(orders=[])
+            stmt = stmt.where(Order.store_id.in_(seller_store_ids))  # type: ignore[attr-defined]
     else:
         raise HTTPException(status_code=403, detail="forbidden")
 

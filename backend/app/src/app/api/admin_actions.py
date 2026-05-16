@@ -18,14 +18,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from sqlalchemy import func
+
 from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.base import User
 from app.models.commerce import Order, OrderStatus
+from app.models.profile import SellerProfile
+from app.models.store import Store, StoreInventory
 from app.schemas.admin_actions import (
     OverrideDeliveryAddressRequest,
     RefundOrderRequest,
     RewindOrderRequest,
+    SellerHubSummary,
 )
 from app.services.order_emails import dispatch_admin_order_action
 from app.services.orders import (
@@ -35,6 +40,54 @@ from app.services.orders import (
 )
 
 router = APIRouter()
+
+
+@router.get("/sellers/{seller_id}", response_model=SellerHubSummary)
+async def admin_seller_hub_summary(
+    seller_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> SellerHubSummary:
+    """Header data for the per-seller admin hub: profile + store + counts."""
+    profile = await session.get(SellerProfile, seller_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="seller_not_found")
+    user = await session.get(User, profile.user_id)
+
+    store = (await session.exec(
+        select(Store).where(Store.seller_profile_id == seller_id)
+    )).first()
+
+    active_count = 0
+    product_count = 0
+    if store is not None:
+        active_count = int((await session.exec(
+            select(func.count(Order.id)).where(
+                Order.store_id == store.id,
+                Order.status.in_(  # type: ignore[attr-defined]
+                    [
+                        OrderStatus.Pending,
+                        OrderStatus.Packed,
+                        OrderStatus.Dispatched,
+                    ]
+                ),
+            )
+        )).first() or 0)
+        product_count = int((await session.exec(
+            select(func.count(StoreInventory.id)).where(
+                StoreInventory.store_id == store.id
+            )
+        )).first() or 0)
+
+    return SellerHubSummary(
+        seller_id=seller_id,
+        business_name=profile.business_name,
+        verification_status=profile.verification_status.value,
+        email=user.email if user else "",
+        store_id=store.id if store else None,
+        active_order_count=active_count,
+        total_product_count=product_count,
+    )
 
 
 @router.post("/orders/{order_id}/rewind")
