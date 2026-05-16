@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal from "@/components/Modal";
@@ -206,12 +207,23 @@ export default function AdminSellersPage() {
       key: "actions",
       label: "Actions",
       render: (row) => (
-        <button
-          className={styles.reviewBtn}
-          onClick={() => setReviewing(row)}
-        >
-          Review
-        </button>
+        <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+          <button
+            className={styles.reviewBtn}
+            onClick={() => setReviewing(row)}
+          >
+            Review
+          </button>
+          {row.verification_status === "approved" && (
+            <Link
+              href={`/admin/sellers/${row.seller_id}/products`}
+              className={styles.reviewBtn}
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            >
+              View store
+            </Link>
+          )}
+        </div>
       ),
     },
   ];
