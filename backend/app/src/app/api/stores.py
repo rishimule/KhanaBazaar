@@ -51,6 +51,7 @@ from app.services.seller_services import list_profile_services
 from app.services.storefront import _translation_map, build_storefront
 
 _BULK_ROW_LIMIT = 200
+_ADMIN_BULK_ROW_LIMIT = 100
 
 router = APIRouter()
 
@@ -532,18 +533,26 @@ async def bulk_upsert_store_inventory(
     store_id: int,
     payload: BulkInventoryRequest,
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller),
+    user: User = Depends(get_current_user),
 ) -> List[StoreInventory]:
+    """Bulk insert/update inventory rows.
+
+    Sellers may submit up to ``_BULK_ROW_LIMIT`` items per call. Admins may
+    bulk-edit any approved seller's store with a tighter cap of 100 items
+    to keep the per-row audit-log volume bounded.
+    """
     store = await _authorize_store_ownership(
-        session, store_id, seller, allow_admin=False
+        session, store_id, user, allow_admin=True
     )
 
-    if len(payload.items) > _BULK_ROW_LIMIT:
+    acting_admin_id = user.id if user.role == UserRole.Admin else None
+    row_cap = _ADMIN_BULK_ROW_LIMIT if acting_admin_id is not None else _BULK_ROW_LIMIT
+    if len(payload.items) > row_cap:
         raise HTTPException(
             status_code=422,
             detail={
                 "code": "ROW_LIMIT",
-                "message": f"At most {_BULK_ROW_LIMIT} items per request",
+                "message": f"At most {row_cap} items per request",
             },
         )
 
@@ -558,7 +567,13 @@ async def bulk_upsert_store_inventory(
     product_ids = [it.product_id for it in payload.items]
     await assert_products_in_seller_services(session, profile_id, product_ids)
 
-    rows = await bulk_upsert_inventory(session, store_id, payload.items)
+    rows = await bulk_upsert_inventory(
+        session,
+        store_id,
+        payload.items,
+        store=store,
+        acting_admin_id=acting_admin_id,
+    )
     await session.commit()
     for row in rows:
         await session.refresh(row)

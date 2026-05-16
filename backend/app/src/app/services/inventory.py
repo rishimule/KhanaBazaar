@@ -95,15 +95,30 @@ async def bulk_upsert_inventory(
     session: AsyncSession,
     store_id: int,
     items: list[BulkInventoryItem],
+    *,
+    store: Optional[Store] = None,
+    acting_admin_id: Optional[int] = None,
 ) -> list[StoreInventory]:
     """Insert new rows and update existing ones in a single transaction.
 
     Dedup by product_id (last write wins). Caller commits.
     Caller is responsible for service-membership and field validation
     BEFORE calling this — the service layer trusts its inputs.
+
+    When ``acting_admin_id`` is set, one ``inventory.bulk_update`` audit row
+    is emitted **per changed item**, in the same DB transaction. ``store``
+    must be provided in that case (used to read ``seller_profile_id`` for
+    the audit row).
     """
     if not items:
         return []
+
+    if acting_admin_id is not None:
+        if store is None:
+            raise RuntimeError(
+                "bulk_upsert_inventory(acting_admin_id=...) requires store"
+            )
+        await _assert_seller_active(session, store.seller_profile_id)
 
     # Dedup, preserving the LAST occurrence per product_id.
     deduped: dict[int, BulkInventoryItem] = {}
@@ -125,16 +140,21 @@ async def bulk_upsert_inventory(
     locked = await lock_inventory_rows(session, existing_ids)
     locked_by_product = {row.product_id: row for row in locked}
 
+    # Track before-snapshots per product_id for the audit log.
+    before_by_product: dict[int, Optional[dict[str, Any]]] = {}
+
     out: list[StoreInventory] = []
     for item in payload:
         existing = locked_by_product.get(item.product_id)
         if existing is not None:
+            before_by_product[item.product_id] = _inventory_snapshot(existing)
             existing.price = item.price
             existing.stock = item.stock
             existing.is_available = item.is_available
             session.add(existing)
             out.append(existing)
         else:
+            before_by_product[item.product_id] = None
             new_row = StoreInventory(
                 store_id=store_id,
                 product_id=item.product_id,
@@ -146,6 +166,20 @@ async def bulk_upsert_inventory(
             out.append(new_row)
 
     await session.flush()
+
+    if acting_admin_id is not None and store is not None:
+        for row in out:
+            await audit_log(
+                session=session,
+                admin_user_id=acting_admin_id,
+                target_seller_id=store.seller_profile_id,
+                target_type=AdminActionTargetType.Inventory,
+                target_id=row.id,
+                action="inventory.bulk_update",
+                before_json=before_by_product.get(row.product_id),
+                after_json=_inventory_snapshot(row),
+            )
+
     return out
 
 
