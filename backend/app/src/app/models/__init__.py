@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from .address import Address
+from .admin_audit import AdminActionLog, AdminActionTargetType
 from .base import BaseSchema, User, UserRole
 from .catalog import (
     Category,
@@ -41,6 +42,8 @@ from .store import Store, StoreInventory
 
 __all__ = [
     "Address",
+    "AdminActionLog",
+    "AdminActionTargetType",
     "AdminProfile",
     "BaseSchema",
     "Cart",
