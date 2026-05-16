@@ -427,3 +427,89 @@ Stores are filtered/sorted by lat/lng via `GET /api/v1/stores/?lat=&lng=&sort=di
 ### Backfill
 
 `worker.backfill_store_addresses_geocode` is a one-shot Celery task that forward-geocodes legacy `Store.address` and `SellerProfile.business_address` rows missing lat/lng. Customer addresses are NOT touched (saves Google quota; they re-fill lazily on user re-save). Idempotent. Confidence-gated (skips `partial_match=true`).
+
+## 11. Search (Meilisearch)
+
+Search is a separate subsystem in `app.search.*`. All search proxies through `/api/v1/search/*` — **no browser-direct Meilisearch**. See `docs/superpowers/specs/2026-05-15-search-design.md` for the full design.
+
+### Indexes
+
+Three Meilisearch indexes (settings + version managed by `app.search.settings`):
+
+| Index | One doc per | Searchable fields |
+|---|---|---|
+| `products` | `MasterProduct` | `name_{en,hi,mr,gu,pa}`, `brand`, `category_name_en`, `subcategory_name_en`, `description_*` |
+| `stores` | `Store` | `name` |
+| `search_terms` | one term/locale | `term` (autocomplete corpus) |
+
+Synonyms live in `backend/app/src/app/search/synonyms.json` (~50 Indian grocery pairs: `atta`↔`flour`, `dahi`↔`curd`, etc.). Bump `SETTINGS_VERSION` in `settings.py` to re-push settings on next app start. `_meta_vN` marker docs in each index track applied version.
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/v1/search/suggest` | Dropdown autocomplete (Recent / Suggestions / Products / Stores) |
+| GET | `/api/v1/search/products` | Full results page payload + facets + sort |
+| GET | `/api/v1/search/products/{id}/stores` | Per-product comparison across stores |
+| GET | `/api/v1/search/stores` | Store-name search (paginated) |
+| POST | `/api/v1/search/click` | Click-through analytics (no auth, best-effort) |
+
+Rate limits: 60 req/min/IP on `/suggest`, 30 req/min/IP on `/products`. **`X-Forwarded-For` is NOT yet honored** — behind a proxy, all requests share one IP bucket (open follow-up).
+
+### Sync pipeline
+
+`app.search.hooks` attaches SQLAlchemy **session-level** `after_commit` + `after_rollback` listeners. On commit, accumulated dirty/new/deleted target IDs are flushed to Celery tasks in `app.search.tasks`. Each task takes a Redis lock `meili_sync:{kind}:{id}` (5 s, non-blocking) to coalesce rapid writes.
+
+```
+DB commit ──after_commit──► flush pending IDs ──.delay()──► Celery worker
+                                                                │ thread-bridged asyncio.run
+                                                                ▼
+                                                        Meilisearch upsert
+```
+
+p95 sync lag <2 s. Rolled-back transactions drop their pending enqueues. The thread-bridged `_run_async` is in `tasks.py` — runs a fresh event loop per task so asyncpg connections don't cross-thread.
+
+### Bulk reindex
+
+```bash
+cd backend/app
+uv run python -m app.search.reindex --all                       # full rebuild
+uv run python -m app.search.reindex --products                  # one index
+uv run python -m app.search.reindex --products --swap-on-finish # zero-downtime alias swap
+uv run python -m app.search.reindex --products --since 1h       # incremental
+```
+
+**Run after first migration + seed.** Also after bumping `SETTINGS_VERSION` or editing `synonyms.json`. Bootstrap only creates the empty indexes — it does NOT populate them.
+
+### Celery beat jobs
+
+| Task | Schedule (UTC) | Purpose |
+|---|---|---|
+| `search.rebuild_search_terms` | 03:15 daily | Rebuild autocomplete corpus |
+| `search.prune_query_log` | 04:00 daily | Drop `search_query_log` rows older than 90 days |
+| `search.verify_drift` | 04:30 daily | Sample 1000 products, diff DB vs Meili, re-enqueue divergent ones |
+
+### Locality
+
+`app.search.locality.get_serviceable_store_ids(session, redis, lat, lng)` runs a PostGIS `ST_DWithin` query joining `store` × `address`, caches per ~500 m grid cell in Redis for 60 s, returns `list[int] | None`. `None` means "no locality filter" — all products visible.
+
+### Frontend
+
+- `frontend/src/lib/searchClient.ts` — debounced (180 ms) fetch wrapper with AbortController + sequence-drop + 60 s in-memory cache. Sends `Accept-Language` header.
+- `frontend/src/lib/recentSearches.ts` — localStorage helper (`kb_recent_searches`, cap 10). Cleared on logout.
+- `frontend/src/components/search/SearchBar.tsx` — navbar input; desktop inline + mobile full-screen overlay. Wires ↑/↓/Enter/Esc keyboard nav with `aria-activedescendant` on the listbox children.
+- Pages:
+  - `/[locale]/search?q=` — global results page with filter bar.
+  - `/[locale]/search/product/[productId]` — comparison page with deliverable-vs-other split + qty stepper when item already in that store/service cart.
+- Store-page integration: `/[locale]/stores/[id]?q=` swaps the browse view for `<SearchResultsGrid storeId=... />`.
+
+### Tests
+
+- `meilisearch-test` profile in `docker-compose.yml` (port 7701). Start with `docker compose --profile test up -d meilisearch-test`.
+- `meili_test_client` fixture in `tests/conftest.py` wipes + rebuilds the three indexes per test.
+- Autouse `_stub_search_celery_delays` patches every `reindex_*.delay()` to a no-op so seed flushes don't fan out async work onto the wrong event loop. Tests that want to assert `.delay()` was called layer their own `patch()` inside the test body — `unittest.mock.patch` is LIFO so the inner spy wins.
+- Search tests under `tests/test_search_*.py` (39 tests).
+
+### Schema gotcha
+
+`SearchQueryLog` declares `lat: Optional[float]` in SQLModel but the Alembic migration uses `NUMERIC(9,5)` for both lat and lng (to clamp to ~1 m precision and avoid runaway floats). If you run `alembic revision --autogenerate` you will see a spurious downgrade attempt back to `FLOAT` — discard those diffs and keep `Numeric(9,5)`. Same pattern as the geo `geo` column.

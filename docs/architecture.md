@@ -20,7 +20,8 @@ pieces fit together. Setup commands live in [CLAUDE.md](../CLAUDE.md) and
 | API              | FastAPI 0.135+ (Python 3.12), Uvicorn ASGI            | Async-native, OpenAPI-first, fast dev loop |
 | ORM / Migrations | SQLModel 0.0.37 + Alembic, asyncpg driver             | Pydantic + SQLAlchemy in one type; first-class async |
 | Database         | PostgreSQL 15 + PostGIS 3.4                           | Relational integrity for inventory + orders; PostGIS powers distance sort + per-store delivery radius (`ST_DWithin` / `ST_Distance` on a `geography(Point, 4326)` GENERATED column with GiST index); matches Azure Database for PostgreSQL Flexible Server target |
-| Cache / Broker   | Redis 7 (+ Celery 5.6)                                | OTP rate limits, Celery broker, future caching |
+| Cache / Broker   | Redis 7 (+ Celery 5.6)                                | OTP rate limits, Celery broker, suggest cache + serviceable-store grid |
+| Search           | Meilisearch v1.11 (Docker locally; Azure Container App in prod) | Typo-tolerant multi-language autocomplete with synonyms; ~30 ms p95 query; kept in sync via SQLAlchemy `after_commit` hooks → Celery |
 | Auth             | Self-hosted email-OTP + JWT (PyJWT HS256)             | No vendor lock-in, no passwords, low onboarding friction in India |
 | Email            | `EMAIL_PROVIDER=console` (dev) / `resend` (prod)      | Direct httpx POST to Resend REST API; no SDK dependency |
 | Frontend         | Next.js 16.1 (App Router), React 19.2, TypeScript 5   | RSC + streaming, single deploy unit, strong DX |
@@ -59,11 +60,19 @@ Three Container Apps + two managed data services in production, all in Azure
                                                          |       +-------------------------------+
                                                          +------ | Container App: worker         |
                                                                  | Celery (khanabazaar-worker)   |
-                                                                 | async email send, future jobs |
+                                                                 | email send, Meili sync, beats |
+                                                                 +---------------+---------------+
+                                                                                 │ HTTP
+                                                                                 ▼
+                                                                 +-------------------------------+
+                                                                 | Container App: meilisearch    |
+                                                                 | products / stores /           |
+                                                                 | search_terms indexes          |
+                                                                 | internal-only ingress :7700   |
                                                                  +-------------------------------+
 ```
 
-Local dev mirrors this: `docker-compose up` provisions Postgres and Redis;
+Local dev mirrors this: `docker-compose up` provisions Postgres, Redis, and Meilisearch;
 `uvicorn` and `next dev` run on the host.
 
 ## Request & Auth Flow

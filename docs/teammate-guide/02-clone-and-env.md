@@ -176,6 +176,17 @@ OTP_PEPPER="<your-32-char-hex>"
 
 The line `EMAIL_PROVIDER="console"` is correct for local development. In this mode, the app prints login codes to a log file instead of sending real emails — you will see how to read that log in chapter 5.
 
+### Leave the Meilisearch defaults
+
+You should see these lines:
+
+```
+MEILI_URL="http://localhost:7700"
+MEILI_MASTER_KEY="dev-master-key-change-me"
+```
+
+Leave both unchanged. Meilisearch runs as a Docker container alongside Postgres and Redis (see chapter 4) and the default master key is fine for local dev. **Never use this master key in production.**
+
 ### Save and exit
 
 Press `Ctrl+O`, then press `Enter` to confirm the filename. Then press `Ctrl+X` to quit.
