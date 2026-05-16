@@ -28,7 +28,6 @@ from app.search.tasks import (
 )
 from tests._helpers import make_address
 
-
 # Hooks register at import in app/__init__.py already; ensure idempotent re-call works.
 register_search_hooks()
 

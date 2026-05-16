@@ -20,7 +20,6 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from app.models.base import UserRole
 from app.models.profile import VerificationStatus
 
 _RNG = random.Random(42)

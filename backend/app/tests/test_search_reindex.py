@@ -81,7 +81,7 @@ async def _seed(session: AsyncSession, n_products: int = 3) -> dict[str, int]:
 
 @pytest.mark.asyncio
 async def test_reindex_all_populates_indexes(session: AsyncSession, meili_test_client):
-    ids = await _seed(session, n_products=3)
+    await _seed(session, n_products=3)
     counts = await reindex_all(session, meili_test_client)
     assert counts["products"] == 3
     assert counts["stores"] == 1

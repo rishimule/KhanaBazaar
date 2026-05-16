@@ -10,6 +10,18 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.db._dev_seed_data import (
+    EXTRA_APPLICATIONS,
+    EXTRA_CATEGORIES,
+    EXTRA_CUSTOMERS,
+    EXTRA_PRODUCTS,
+    EXTRA_SERVICES,
+    EXTRA_STORE_OWNER_PROFILES,
+    EXTRA_STORES,
+    EXTRA_SUBCATEGORIES,
+    _image_for,
+    generate_extra_inventories,
+)
 from app.models.address import Address, LocationSource
 from app.models.base import User, UserRole
 from app.models.catalog import (
@@ -34,19 +46,6 @@ from app.models.profile import (
 from app.models.store import Store, StoreInventory
 from app.services.profiles import split_full_name
 from app.utils.digipin import encode as digipin_encode
-
-from app.db._dev_seed_data import (
-    EXTRA_APPLICATIONS,
-    EXTRA_CATEGORIES,
-    EXTRA_CUSTOMERS,
-    EXTRA_PRODUCTS,
-    EXTRA_SERVICES,
-    EXTRA_STORE_OWNER_PROFILES,
-    EXTRA_STORES,
-    EXTRA_SUBCATEGORIES,
-    _image_for,
-    generate_extra_inventories,
-)
 
 LANGUAGES = [
     ("en", "English", "English"),

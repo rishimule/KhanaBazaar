@@ -16,7 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.db.session import async_session_factory
 from app.models.catalog import MasterProduct
 from app.models.store import Store
-from app.search.bootstrap import ensure_indexes, _to_settings_model
+from app.search.bootstrap import _to_settings_model, ensure_indexes
 from app.search.client import get_meili_client
 from app.search.serialize import (
     build_product_document,

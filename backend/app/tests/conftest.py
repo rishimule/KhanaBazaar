@@ -105,6 +105,7 @@ app.dependency_overrides[get_db_session] = override_get_db_session
 # and serviceable caches don't leak across tests (and don't depend on a real
 # Redis running on the host).
 from fakeredis.aioredis import FakeRedis  # noqa: E402
+
 from app.core.redis import get_redis  # noqa: E402
 
 _fake_redis = FakeRedis(decode_responses=True)
@@ -267,8 +268,9 @@ def _stub_search_celery_delays() -> Generator[None, None, None]:
 async def meili_test_client_fixture() -> AsyncGenerator[Any, None]:
     """Per-test Meilisearch client. Wipes known indexes and re-applies settings."""
     from meilisearch_python_sdk import AsyncClient
-    from app.search.bootstrap import ensure_indexes
+
     from app.search import client as client_mod
+    from app.search.bootstrap import ensure_indexes
     # Force re-creation so each test gets a fresh client pointed at the test URL.
     if client_mod._client is not None:
         await client_mod._client.aclose()

@@ -70,7 +70,7 @@ async def _translation_map(
         result = await session.exec(
             select(model).where(
                 getattr(model, fk_attr).in_(id_list),
-                getattr(model, "language_code") == lang,
+                model.language_code == lang,
             )
         )
         for row in result.all():
@@ -81,7 +81,7 @@ async def _translation_map(
         result = await session.exec(
             select(model).where(
                 getattr(model, fk_attr).in_(missing),
-                getattr(model, "language_code") == _EN,
+                model.language_code == _EN,
             )
         )
         for row in result.all():
