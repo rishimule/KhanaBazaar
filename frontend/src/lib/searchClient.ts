@@ -59,6 +59,7 @@ export type ProductCard = {
   brand: string | null;
   unit: string | null;
   service_id: number;
+  service_name: string | null;
   category_id: number;
   subcategory_id: number;
   min_price: number;

@@ -22,6 +22,8 @@ from app.models.catalog import (
     Category,
     MasterProduct,
     MasterProductTranslation,
+    Service,
+    ServiceTranslation,
     Subcategory,
 )
 from app.models.search_log import SearchQueryLog
@@ -529,6 +531,27 @@ async def compare_offers(
     cat = (
         await session.execute(select(Category).where(Category.id == subcat.category_id))
     ).scalar_one()
+    svc = (
+        await session.execute(select(Service).where(Service.id == cat.service_id))
+    ).scalar_one()
+    svc_t = (
+        await session.execute(
+            select(ServiceTranslation).where(
+                ServiceTranslation.service_id == svc.id,
+                ServiceTranslation.language_code == locale,
+            )
+        )
+    ).scalar_one_or_none()
+    if svc_t is None:
+        svc_t = (
+            await session.execute(
+                select(ServiceTranslation).where(
+                    ServiceTranslation.service_id == svc.id,
+                    ServiceTranslation.language_code == "en",
+                )
+            )
+        ).scalar_one_or_none()
+    svc_name = svc_t.name if svc_t else svc.slug
 
     rows = (
         await session.execute(
@@ -600,6 +623,7 @@ async def compare_offers(
         brand=product.brand,
         unit=product.unit,
         service_id=cat.service_id,
+        service_name=svc_name,
         category_id=cat.id,
         subcategory_id=subcat.id,
         min_price=min((o.price for o in offers), default=float(product.base_price)),

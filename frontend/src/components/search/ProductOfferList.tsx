@@ -13,16 +13,23 @@ type Props = {
 
 export function ProductOfferList({ data }: Props) {
   const t = useTranslations("Search");
-  const { addItem } = useCart();
+  const { carts, addItem, removeItem, updateQty } = useCart();
   const { product, offers } = data;
 
-  async function add(offer: CompareOffer) {
+  function qtyFor(storeId: number, serviceId: number): number {
+    const cart = carts.find(
+      (c) => c.store_id === storeId && c.service_id === serviceId,
+    );
+    return cart?.items.find((i) => i.product_id === product.id)?.quantity ?? 0;
+  }
+
+  async function handleAdd(offer: CompareOffer) {
     if (!offer.is_available || !offer.is_serviceable || offer.stock <= 0) return;
     await addItem(
       offer.store.id,
       offer.store.name,
       product.service_id,
-      "", // service name snapshot — backend re-snapshots from current locale on checkout
+      product.service_name ?? "",
       {
         product_id: product.id,
         inventory_id: offer.inventory_id,
@@ -30,13 +37,14 @@ export function ProductOfferList({ data }: Props) {
         quantity: 1,
         price: offer.price,
         image_url: product.image_url ?? undefined,
-      }
+      },
     );
   }
 
   return (
     <ul className={styles.list}>
       {offers.map((o) => {
+        const qty = qtyFor(o.store.id, product.service_id);
         const disabled = !o.is_available || !o.is_serviceable || o.stock <= 0;
         return (
           <li key={o.store.id} className={styles.row}>
@@ -44,12 +52,13 @@ export function ProductOfferList({ data }: Props) {
               <div className={styles.storeName}>{o.store.name}</div>
               <div className={styles.subtext}>
                 {o.store.distance_km !== null && (
-                  <span>{o.store.distance_km} km · </span>
+                  <span>{o.store.distance_km} km</span>
+                )}
+                {o.store.distance_km !== null && (!o.is_serviceable || (o.is_serviceable && !o.is_available)) && (
+                  <span> · </span>
                 )}
                 {!o.is_serviceable && (
-                  <span className={styles.warning}>
-                    {t("notDeliverable")}
-                  </span>
+                  <span className={styles.warning}>{t("notDeliverable")}</span>
                 )}
                 {o.is_serviceable && !o.is_available && (
                   <span className={styles.warning}>{t("outOfStock")}</span>
@@ -57,14 +66,48 @@ export function ProductOfferList({ data }: Props) {
               </div>
             </div>
             <div className={styles.price}>₹{o.price.toFixed(0)}</div>
-            <button
-              type="button"
-              className={styles.addBtn}
-              disabled={disabled}
-              onClick={() => add(o)}
-            >
-              {t("add")}
-            </button>
+            {qty === 0 ? (
+              <button
+                type="button"
+                className={styles.addBtn}
+                disabled={disabled}
+                onClick={() => handleAdd(o)}
+                aria-label={t("add")}
+              >
+                {t("add")}
+              </button>
+            ) : (
+              <div
+                className={styles.qtyControls}
+                role="group"
+                aria-label="Quantity"
+              >
+                <button
+                  type="button"
+                  className={styles.qtyBtn}
+                  onClick={() =>
+                    qty <= 1
+                      ? removeItem(o.store.id, product.service_id, product.id)
+                      : updateQty(o.store.id, product.service_id, product.id, qty - 1)
+                  }
+                  aria-label="Decrease quantity"
+                >
+                  −
+                </button>
+                <span className={styles.qtyValue}>{qty}</span>
+                <button
+                  type="button"
+                  className={styles.qtyBtn}
+                  onClick={() =>
+                    updateQty(o.store.id, product.service_id, product.id, qty + 1)
+                  }
+                  disabled={qty >= o.stock}
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+              </div>
+            )}
           </li>
         );
       })}

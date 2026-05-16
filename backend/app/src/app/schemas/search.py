@@ -62,6 +62,7 @@ class ProductCard(BaseModel):
     brand: Optional[str] = None
     unit: Optional[str] = None
     service_id: int
+    service_name: Optional[str] = None
     category_id: int
     subcategory_id: int
     min_price: float

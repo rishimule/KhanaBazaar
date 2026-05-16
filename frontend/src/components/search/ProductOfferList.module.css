@@ -49,3 +49,37 @@
   background: var(--color-muted, #9ca3af);
   cursor: not-allowed;
 }
+
+.qtyControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--color-primary, #16a34a);
+  border-radius: 999px;
+  padding: 0.15rem;
+  background: var(--color-surface, #fff);
+}
+.qtyBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--color-primary, #16a34a);
+  color: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.qtyBtn:disabled {
+  background: var(--color-muted, #9ca3af);
+  cursor: not-allowed;
+}
+.qtyValue {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
