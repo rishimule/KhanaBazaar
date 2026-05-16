@@ -1,0 +1,36 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  background: var(--color-surface, #fff);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+.backBtn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+}
+.input {
+  flex: 1;
+  height: 40px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.15));
+  border-radius: 8px;
+  font-size: 1rem;
+}
+.results {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}

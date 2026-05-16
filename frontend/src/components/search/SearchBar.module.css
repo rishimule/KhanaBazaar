@@ -1,0 +1,38 @@
+.wrap {
+  position: relative;
+  flex: 1 1 auto;
+  max-width: 600px;
+  margin: 0 var(--space-3, 0.75rem);
+  display: flex;
+  align-items: center;
+  background: var(--color-surface-alt, #f3f4f6);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.1));
+  border-radius: 999px;
+  padding: 0 0.75rem;
+  height: 40px;
+}
+.searchIcon {
+  color: var(--color-muted, #6b7280);
+  display: inline-flex;
+  margin-right: 0.5rem;
+}
+.input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.95rem;
+  color: inherit;
+  height: 100%;
+}
+.iconButton {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

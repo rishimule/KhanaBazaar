@@ -1,0 +1,136 @@
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.1));
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.15));
+  z-index: 50;
+  margin-top: 4px;
+}
+
+.scopeToggle {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+  padding: var(--space-2, 0.5rem);
+  border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+.scopeBtn,
+.scopeActive {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.15));
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.scopeActive {
+  background: var(--color-primary, #16a34a);
+  color: #fff;
+  border-color: var(--color-primary, #16a34a);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted, #6b7280);
+  background: var(--color-surface-alt, #f9fafb);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.clearAllBtn {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--color-primary, #16a34a);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 0.5rem);
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.row:hover {
+  background: var(--color-surface-alt, #f9fafb);
+}
+
+.removeBtn {
+  background: none;
+  border: none;
+  color: var(--color-muted, #6b7280);
+  cursor: pointer;
+}
+
+.productRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.productRow:hover {
+  background: var(--color-surface-alt, #f9fafb);
+}
+.thumb,
+.thumbFallback {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  background: var(--color-surface-alt, #f3f4f6);
+}
+.productMeta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.productName {
+  font-size: 0.9rem;
+  color: var(--color-text, #111);
+}
+.productSub {
+  font-size: 0.75rem;
+  color: var(--color-muted, #6b7280);
+}
+.price {
+  font-weight: 600;
+}
+
+.empty {
+  padding: var(--space-3, 0.75rem);
+  text-align: center;
+  color: var(--color-muted, #6b7280);
+}
+
+.seeAll {
+  padding: var(--space-3, 0.75rem);
+  text-align: center;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  cursor: pointer;
+  color: var(--color-primary, #16a34a);
+  font-weight: 500;
+}
