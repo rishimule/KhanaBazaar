@@ -234,6 +234,64 @@ async def rewind_order(
     return order
 
 
+async def refund_order(
+    *,
+    session: AsyncSession,
+    order: Order,
+    reason: str,
+    acting_admin_id: int,
+) -> Order:
+    """Admin-only refund marker.
+
+    Preconditions:
+    - Order status in ``{Cancelled, Delivered}`` (orders only refundable when
+      final).
+    - Payment exists and has status ``Paid``.
+    - Reason >= 10 chars.
+
+    Sets ``payment.status = Refunded`` and emits an ``order.refund`` audit row
+    in the same transaction. Does NOT integrate with a real refund gateway
+    (manual ledger marker for MVP).
+    """
+    if order.status not in (OrderStatus.Cancelled, OrderStatus.Delivered):
+        raise HTTPException(
+            status_code=409, detail={"code": "order_not_final"}
+        )
+    payment = (
+        await session.exec(select(Payment).where(Payment.order_id == order.id))
+    ).first()
+    if payment is None or payment.status != PaymentStatus.Paid:
+        raise HTTPException(
+            status_code=422, detail={"code": "payment_not_refundable"}
+        )
+    if not reason or len(reason.strip()) < 10:
+        raise HTTPException(
+            status_code=422, detail={"code": "reason_required"}
+        )
+
+    await _assert_seller_active_for_store(session, order.store_id)
+
+    before = _order_snapshot(order, payment)
+    payment.status = PaymentStatus.Refunded
+
+    target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)
+    await audit_log(
+        session=session,
+        admin_user_id=acting_admin_id,
+        target_seller_id=target_seller_id,
+        target_type=AdminActionTargetType.Order,
+        target_id=order.id,
+        action="order.refund",
+        before_json=before,
+        after_json=_order_snapshot(order, payment),
+        reason=reason.strip(),
+    )
+
+    await session.commit()
+    await session.refresh(order)
+    return order
+
+
 async def cancel_order(
     session: AsyncSession,
     order: Order,

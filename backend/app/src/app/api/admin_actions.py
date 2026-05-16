@@ -22,8 +22,8 @@ from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.base import User
 from app.models.commerce import Order, OrderStatus
-from app.schemas.admin_actions import RewindOrderRequest
-from app.services.orders import rewind_order
+from app.schemas.admin_actions import RefundOrderRequest, RewindOrderRequest
+from app.services.orders import refund_order, rewind_order
 
 router = APIRouter()
 
@@ -49,3 +49,24 @@ async def admin_rewind_order(
         acting_admin_id=admin.id,
     )
     return {"status": updated.status.value}
+
+
+@router.post("/orders/{order_id}/refund")
+async def admin_refund_order(
+    order_id: int,
+    payload: RefundOrderRequest,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> dict[str, str]:
+    order = (
+        await session.exec(select(Order).where(Order.id == order_id))
+    ).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="order_not_found")
+    await refund_order(
+        session=session,
+        order=order,
+        reason=payload.reason,
+        acting_admin_id=admin.id,
+    )
+    return {"status": "refunded"}
