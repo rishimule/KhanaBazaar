@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import OrderStatusBadge from "./OrderStatusBadge";
+import PaymentStatusBadge from "./PaymentStatusBadge";
 import type { Order, UserRole } from "@/types";
 import styles from "./OrderCard.module.css";
 
@@ -41,6 +42,9 @@ export default function OrderCard({ order, role }: Props) {
       <div className={styles.header}>
         <span className={styles.id}>#{order.id}</span>
         <OrderStatusBadge status={order.status} />
+        {order.payment.status === "refunded" && (
+          <PaymentStatusBadge status={order.payment.status} />
+        )}
       </div>
       <div className={styles.title}>
         {order.store_name} <span className={styles.serviceChip}>· {order.service_name}</span>
