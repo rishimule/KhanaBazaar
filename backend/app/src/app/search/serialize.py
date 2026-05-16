@@ -195,9 +195,40 @@ async def build_store_document(
     }
 
 
+_TERM_ID_RE = __import__("re").compile(r"[^a-zA-Z0-9_-]+")
+
+
+def _term_id(term: str, locale: str, kind_suffix: str = "") -> str:
+    """Meilisearch primary keys must match [a-zA-Z0-9_-]+. Slugify accordingly."""
+    slug = _TERM_ID_RE.sub("-", term.strip().lower()).strip("-")
+    if not slug:
+        slug = "x"
+    return f"{slug}_{locale}{kind_suffix}"
+
+
 async def build_search_term_docs(session: AsyncSession) -> list[dict[str, Any]]:
     """Collect product/category/subcategory names per locale as autocomplete terms."""
     docs: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    def push(term: str, locale: str, kind: str, weight: int, suffix: str = "") -> None:
+        term = term.strip().lower()
+        if not term:
+            return
+        doc_id = _term_id(term, locale, suffix)
+        if doc_id in seen_ids:
+            return
+        seen_ids.add(doc_id)
+        docs.append(
+            {
+                "id": doc_id,
+                "term": term,
+                "locale": locale,
+                "kind": kind,
+                "weight": weight,
+            }
+        )
+
     name_counts: dict[tuple[str, str], int] = {}
     for t in (await session.execute(select(MasterProductTranslation))).scalars():
         key = (t.name.strip().lower(), t.language_code)
@@ -205,39 +236,9 @@ async def build_search_term_docs(session: AsyncSession) -> list[dict[str, Any]]:
             continue
         name_counts[key] = name_counts.get(key, 0) + 1
     for (term, locale), weight in name_counts.items():
-        docs.append(
-            {
-                "id": f"{term}_{locale}",
-                "term": term,
-                "locale": locale,
-                "kind": "product_name",
-                "weight": weight,
-            }
-        )
+        push(term, locale, "product_name", weight)
     for t in (await session.execute(select(CategoryTranslation))).scalars():
-        term = t.name.strip().lower()
-        if not term:
-            continue
-        docs.append(
-            {
-                "id": f"{term}_{t.language_code}_cat",
-                "term": term,
-                "locale": t.language_code,
-                "kind": "category",
-                "weight": 1,
-            }
-        )
+        push(t.name, t.language_code, "category", 1, suffix="-cat")
     for t in (await session.execute(select(SubcategoryTranslation))).scalars():
-        term = t.name.strip().lower()
-        if not term:
-            continue
-        docs.append(
-            {
-                "id": f"{term}_{t.language_code}_sub",
-                "term": term,
-                "locale": t.language_code,
-                "kind": "subcategory",
-                "weight": 1,
-            }
-        )
+        push(t.name, t.language_code, "subcategory", 1, suffix="-sub")
     return docs
