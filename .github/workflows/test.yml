@@ -1,0 +1,102 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+
+name: backend-tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgis/postgis:15-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: khanabazaar_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      meilisearch:
+        image: getmeili/meilisearch:v1.11
+        env:
+          MEILI_MASTER_KEY: test-master-key
+          MEILI_ENV: development
+          MEILI_NO_ANALYTICS: "true"
+        ports:
+          - 7701:7700
+        options: >-
+          --health-cmd "wget -q --spider http://localhost:7700/health || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar_test
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-secret-do-not-use-in-prod
+      OTP_PEPPER: ci-pepper-do-not-use-in-prod
+      EMAIL_PROVIDER: console
+      SMS_PROVIDER: console
+      MEILI_URL: http://localhost:7700
+      MEILI_MASTER_KEY: dev-master-key-change-me
+      MEILI_TEST_URL: http://localhost:7701
+      MEILI_TEST_KEY: test-master-key
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.10.x"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend deps
+        working-directory: backend/app
+        run: uv sync --frozen
+
+      - name: Wait for Meilisearch
+        run: |
+          for i in {1..30}; do
+            curl -sf http://localhost:7701/health && break
+            sleep 1
+          done
+
+      - name: Lint (ruff)
+        working-directory: backend/app
+        run: uv run ruff check .
+
+      - name: Type check (mypy)
+        working-directory: backend/app
+        run: uv run mypy . || true   # mypy currently advisory; flip to hard fail once strict mode is clean
+
+      - name: Run pytest
+        working-directory: backend/app
+        run: uv run pytest -q
