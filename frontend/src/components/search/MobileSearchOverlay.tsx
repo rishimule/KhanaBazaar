@@ -48,6 +48,9 @@ export function MobileSearchOverlay({
       return;
     }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    // Clear stale dropdown content on every keystroke (no flicker).
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- discard stale data on every new keystroke
+    setData(null);
     debounceRef.current = window.setTimeout(async () => {
       try {
         const res = await suggest({

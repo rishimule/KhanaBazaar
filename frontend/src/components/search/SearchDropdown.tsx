@@ -14,6 +14,8 @@ type Props = {
   data: SuggestResponse | null;
   scopeStore: boolean;
   storeId: number | undefined;
+  activeIndex?: number;
+  listboxId?: string;
   onScopeChange: (v: boolean) => void;
   onClose: () => void;
   onSubmit: (term: string) => void;
@@ -24,6 +26,8 @@ export function SearchDropdown({
   data,
   scopeStore,
   storeId,
+  activeIndex = -1,
+  listboxId = "kb-search-listbox",
   onScopeChange,
   onClose,
   onSubmit,
@@ -57,7 +61,7 @@ export function SearchDropdown({
   const showEmptyPrompt = !query.trim() && recents.length === 0;
 
   return (
-    <div ref={ref} role="listbox" className={styles.dropdown}>
+    <div ref={ref} id={listboxId} role="listbox" className={styles.dropdown}>
       {storeId !== undefined && (
         <div className={styles.scopeToggle}>
           <button
@@ -153,10 +157,15 @@ export function SearchDropdown({
           {data.products.map((p, i) => (
             <Link
               key={p.id}
+              id={`kb-search-opt-${i}`}
               href={`/${locale}/search/product/${p.id}`}
               role="option"
-              aria-selected={false}
-              className={styles.productRow}
+              aria-selected={activeIndex === i}
+              className={
+                activeIndex === i
+                  ? `${styles.productRow} ${styles.rowActive}`
+                  : styles.productRow
+              }
               onClick={() => {
                 logClick({
                   query_id: data.query_id,
@@ -201,13 +210,20 @@ export function SearchDropdown({
       {data && data.stores.length > 0 && (
         <section>
           <header className={styles.sectionHeader}>{t("stores")}</header>
-          {data.stores.map((s, i) => (
+          {data.stores.map((s, i) => {
+            const flatIdx = (data?.products.length ?? 0) + i;
+            return (
             <Link
               key={s.id}
+              id={`kb-search-opt-${flatIdx}`}
               href={`/${locale}/stores/${s.id}`}
               role="option"
-              aria-selected={false}
-              className={styles.row}
+              aria-selected={activeIndex === flatIdx}
+              className={
+                activeIndex === flatIdx
+                  ? `${styles.row} ${styles.rowActive}`
+                  : styles.row
+              }
               onClick={() => {
                 logClick({
                   query_id: data.query_id,
@@ -219,7 +235,8 @@ export function SearchDropdown({
               <span>🏪 {s.name}</span>
               {s.distance_km !== null && <span>{s.distance_km} km</span>}
             </Link>
-          ))}
+            );
+          })}
         </section>
       )}
 

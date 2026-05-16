@@ -3,7 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useEffect, useState, use } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { compareProduct, type CompareResponse } from "@/lib/searchClient";
 import { ProductOfferList } from "@/components/search/ProductOfferList";
@@ -14,6 +14,7 @@ type Params = { productId: string; locale: string };
 export default function ComparePage({ params }: { params: Promise<Params> }) {
   const { productId } = use(params);
   const t = useTranslations("Search");
+  const locale = useLocale();
   const { location } = useDeliveryLocation();
   const [data, setData] = useState<CompareResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,7 @@ export default function ComparePage({ params }: { params: Promise<Params> }) {
     compareProduct(Number(productId), {
       lat: location?.lat,
       lng: location?.lng,
+      locale,
     })
       .then((res) => {
         if (!cancel) setData(res);
@@ -33,7 +35,7 @@ export default function ComparePage({ params }: { params: Promise<Params> }) {
     return () => {
       cancel = true;
     };
-  }, [productId, location, t]);
+  }, [productId, location, locale, t]);
 
   if (error) return <main className={styles.page}>{error}</main>;
   if (!data) return <main className={styles.page}>{t("loading")}</main>;

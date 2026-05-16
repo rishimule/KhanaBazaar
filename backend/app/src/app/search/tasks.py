@@ -213,3 +213,53 @@ async def _do_prune_query_log() -> None:
 @celery_app.task(name="search.prune_query_log")
 def prune_query_log() -> None:
     _run_async(_do_prune_query_log())
+
+
+async def _do_verify_drift(sample_size: int = 1000) -> int:
+    """Sample N random products, diff DB vs Meili, re-enqueue divergent ones."""
+    from sqlalchemy import func
+
+    from app.models.catalog import MasterProduct
+    from app.search.serialize import build_product_document
+
+    client = get_meili_client()
+    async with async_session_factory() as session:
+        rows = (
+            await session.execute(
+                select(MasterProduct.id)
+                .order_by(func.random())
+                .limit(sample_size)
+            )
+        ).all()
+        ids = [pid for (pid,) in rows]
+
+        index = client.index("products")
+        divergent = 0
+        for pid in ids:
+            db_doc = await build_product_document(session, pid)
+            try:
+                meili_doc = await index.get_document(pid)
+            except Exception:
+                meili_doc = None
+            if db_doc is None and meili_doc is None:
+                continue
+            if db_doc is None or meili_doc is None:
+                divergent += 1
+                reindex_master_product.delay(pid)
+                continue
+            # Compare a tight subset of fields — full equality fails on
+            # updated_at (built fresh each time).
+            keys = (
+                "name_en", "brand", "is_active", "min_price",
+                "in_stock_anywhere", "service_id", "category_id",
+                "subcategory_id", "store_ids",
+            )
+            if any(db_doc.get(k) != meili_doc.get(k) for k in keys):
+                divergent += 1
+                reindex_master_product.delay(pid)
+    return divergent
+
+
+@celery_app.task(name="search.verify_drift")
+def verify_drift() -> int:
+    return _run_async(_do_verify_drift())

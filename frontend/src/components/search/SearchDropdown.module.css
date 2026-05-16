@@ -71,6 +71,11 @@
 .row:hover {
   background: var(--color-surface-alt, #f9fafb);
 }
+.rowActive {
+  background: var(--color-surface-alt, #f9fafb);
+  outline: 2px solid var(--color-primary, #16a34a);
+  outline-offset: -2px;
+}
 
 .removeBtn {
   background: none;

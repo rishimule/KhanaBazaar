@@ -150,10 +150,10 @@ async def _log_query(
 async def suggest(
     response: Response,
     request: Request,
-    q: str = Query(..., min_length=0, max_length=100),
+    q: str = Query(..., min_length=1, max_length=100),
     lat: Optional[float] = Query(None),
     lng: Optional[float] = Query(None),
-    store_id: Optional[int] = Query(None),
+    store_id: Optional[int] = Query(None, ge=1),
     limit: int = Query(5, ge=1, le=10),
     locale: str = Depends(get_request_locale),
     session: AsyncSession = Depends(get_db_session),

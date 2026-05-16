@@ -127,12 +127,17 @@ function key(a: SuggestArgs): string {
 const cache = new Map<string, { v: SuggestResponse; t: number }>();
 const TTL_MS = 60_000;
 let seq = 0;
+let inflightCtrl: AbortController | null = null;
 
 export async function suggest(args: SuggestArgs): Promise<SuggestResponse | null> {
   const k = key(args);
   const cached = cache.get(k);
   if (cached && Date.now() - cached.t < TTL_MS) return cached.v;
 
+  // Abort any prior in-flight suggest request.
+  if (inflightCtrl !== null) inflightCtrl.abort();
+  const ctrl = new AbortController();
+  inflightCtrl = ctrl;
   const mySeq = ++seq;
   const params = new URLSearchParams({ q: args.q.trim() });
   if (args.lat !== undefined) params.set("lat", String(args.lat));
@@ -140,17 +145,23 @@ export async function suggest(args: SuggestArgs): Promise<SuggestResponse | null
   if (args.storeId !== undefined) params.set("store_id", String(args.storeId));
 
   try {
-    const res = await get<SuggestResponse>(`/api/v1/search/suggest?${params}`);
+    const res = await get<SuggestResponse>(`/api/v1/search/suggest?${params}`, null, {
+      headers: { "Accept-Language": args.locale },
+      signal: ctrl.signal,
+    });
     if (mySeq !== seq) return null;
     cache.set(k, { v: res, t: Date.now() });
     return res;
   } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") return null;
     if (e instanceof ApiError && e.status === 429) {
       await new Promise((r) => setTimeout(r, 1000));
       return suggest(args);
     }
     if (e instanceof ApiError && e.status === 400) return null;
     throw e;
+  } finally {
+    if (inflightCtrl === ctrl) inflightCtrl = null;
   }
 }
 
@@ -160,17 +171,11 @@ export function logClick(payload: {
   clicked_store_id?: number;
   position: number;
 }): void {
-  try {
-    const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-      navigator.sendBeacon("/api/v1/search/click", blob);
-      return;
-    }
-    // Fallback: fire-and-forget POST
-    post("/api/v1/search/click", payload).catch(() => undefined);
-  } catch {
-    /* analytics is best-effort */
-  }
+  // sendBeacon with `application/json` is blocked by browsers as a non-simple
+  // request (would require a preflight that sendBeacon can't make). Fall back
+  // to a fire-and-forget fetch which sets the correct CORS-allowed content
+  // type via the existing api.ts wrapper.
+  post("/api/v1/search/click", payload).catch(() => undefined);
 }
 
 // ─── Results page + comparison page ──────────────────────────────────────
@@ -189,7 +194,10 @@ export type SearchProductsArgs = {
   pageSize?: number;
 };
 
-export async function searchProducts(args: SearchProductsArgs): Promise<ProductsResponse> {
+export async function searchProducts(
+  args: SearchProductsArgs,
+  locale: string,
+): Promise<ProductsResponse> {
   const params = new URLSearchParams();
   if (args.q) params.set("q", args.q);
   if (args.lat !== undefined) params.set("lat", String(args.lat));
@@ -202,18 +210,22 @@ export async function searchProducts(args: SearchProductsArgs): Promise<Products
   if (args.sort) params.set("sort", args.sort);
   if (args.page) params.set("page", String(args.page));
   if (args.pageSize) params.set("page_size", String(args.pageSize));
-  return get<ProductsResponse>(`/api/v1/search/products?${params}`);
+  return get<ProductsResponse>(`/api/v1/search/products?${params}`, null, {
+    headers: { "Accept-Language": locale },
+  });
 }
 
 export async function compareProduct(
   productId: number,
-  args: { lat?: number; lng?: number }
+  args: { lat?: number; lng?: number; locale: string }
 ): Promise<CompareResponse> {
   const params = new URLSearchParams();
   if (args.lat !== undefined) params.set("lat", String(args.lat));
   if (args.lng !== undefined) params.set("lng", String(args.lng));
   const qs = params.toString();
   return get<CompareResponse>(
-    `/api/v1/search/products/${productId}/stores${qs ? `?${qs}` : ""}`
+    `/api/v1/search/products/${productId}/stores${qs ? `?${qs}` : ""}`,
+    null,
+    { headers: { "Accept-Language": args.locale } },
   );
 }

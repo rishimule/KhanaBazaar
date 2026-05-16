@@ -32,4 +32,8 @@ celery_app.conf.beat_schedule = {
         "task": "search.prune_query_log",
         "schedule": crontab(hour=4, minute=0),
     },
+    "search-verify-drift-nightly": {
+        "task": "search.verify_drift",
+        "schedule": crontab(hour=4, minute=30),
+    },
 }

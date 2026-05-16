@@ -54,6 +54,7 @@ export function SearchBar() {
   const [data, setData] = useState<SuggestResponse | null>(null);
   const [mobile, setMobile] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -72,6 +73,10 @@ export function SearchBar() {
       return;
     }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    // Clear stale dropdown content immediately so the user never sees previous
+    // query's results while the new request is in flight.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- discard stale data on every new keystroke
+    setData(null);
     debounceRef.current = window.setTimeout(async () => {
       try {
         const res = await suggest({
@@ -93,10 +98,47 @@ export function SearchBar() {
       scopeStore && storeId
         ? `/${locale}/stores/${storeId}?q=${encodeURIComponent(term)}`
         : `/${locale}/search?q=${encodeURIComponent(term)}`;
+    // Record this submission as a recent search.
+    import("@/lib/recentSearches").then((m) => m.add(term)).catch(() => undefined);
     router.push(target);
     setOpen(false);
     setShowOverlay(false);
     setQ("");
+  }
+
+  // Flat row count for keyboard navigation across the dropdown's
+  // products + stores sections. Suggestions and recents stay click-only.
+  const navProducts = data?.products ?? [];
+  const navStores = data?.stores ?? [];
+  const navTotal = navProducts.length + navStores.length;
+
+  function handleArrow(direction: 1 | -1) {
+    if (navTotal === 0) return;
+    setActiveIndex((idx) => {
+      const next = idx + direction;
+      if (next < 0) return navTotal - 1;
+      if (next >= navTotal) return 0;
+      return next;
+    });
+  }
+
+  function activateRow() {
+    if (activeIndex < 0) return false;
+    if (activeIndex < navProducts.length) {
+      const p = navProducts[activeIndex];
+      router.push(`/${locale}/search/product/${p.id}`);
+      setOpen(false);
+      setQ("");
+      return true;
+    }
+    const s = navStores[activeIndex - navProducts.length];
+    if (s) {
+      router.push(`/${locale}/stores/${s.id}`);
+      setOpen(false);
+      setQ("");
+      return true;
+    }
+    return false;
   }
 
   if (mobile) {
@@ -140,14 +182,38 @@ export function SearchBar() {
         value={q}
         maxLength={100}
         autoComplete="off"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls="kb-search-listbox"
+        aria-activedescendant={
+          activeIndex >= 0 ? `kb-search-opt-${activeIndex}` : undefined
+        }
         onChange={(e) => {
           setQ(e.target.value);
           setOpen(true);
+          setActiveIndex(-1);
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && q.trim()) submitFull(q.trim());
-          if (e.key === "Escape") setOpen(false);
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            handleArrow(1);
+            return;
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            handleArrow(-1);
+            return;
+          }
+          if (e.key === "Enter") {
+            if (activateRow()) return;
+            if (q.trim()) submitFull(q.trim());
+            return;
+          }
+          if (e.key === "Escape") {
+            setOpen(false);
+            setActiveIndex(-1);
+          }
         }}
       />
       {open && (
@@ -156,6 +222,8 @@ export function SearchBar() {
           data={data}
           scopeStore={scopeStore}
           storeId={storeId}
+          activeIndex={activeIndex}
+          listboxId="kb-search-listbox"
           onScopeChange={setScopeStore}
           onClose={() => setOpen(false)}
           onSubmit={submitFull}

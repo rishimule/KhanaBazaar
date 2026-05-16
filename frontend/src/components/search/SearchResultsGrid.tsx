@@ -51,19 +51,22 @@ export function SearchResultsGrid({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- start loading state synchronously to render skeleton
     setLoading(true);
     setError(null);
-    searchProducts({
-      q,
-      storeId,
-      serviceId,
-      categoryId,
-      minPrice,
-      maxPrice,
-      sort,
-      lat: location?.lat,
-      lng: location?.lng,
-      page,
-      pageSize: 24,
-    })
+    searchProducts(
+      {
+        q,
+        storeId,
+        serviceId,
+        categoryId,
+        minPrice,
+        maxPrice,
+        sort,
+        lat: location?.lat,
+        lng: location?.lng,
+        page,
+        pageSize: 24,
+      },
+      locale,
+    )
       .then((res) => {
         if (cancel) return;
         setItems((cur) => (page === 1 ? res.products : [...cur, ...res.products]));
@@ -78,7 +81,7 @@ export function SearchResultsGrid({
     return () => {
       cancel = true;
     };
-  }, [q, storeId, serviceId, categoryId, minPrice, maxPrice, sort, page, location, t]);
+  }, [q, storeId, serviceId, categoryId, minPrice, maxPrice, sort, page, location, t, locale]);
 
   if (error) {
     return <div className={styles.error}>{error}</div>;
