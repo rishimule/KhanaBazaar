@@ -10,7 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.locale import get_request_locale
-from app.core.security import get_current_seller
+from app.core.security import get_current_seller, get_current_user
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User, UserRole
@@ -42,6 +42,7 @@ from app.schemas.store_product_detail import (
 )
 from app.schemas.storefront import StorefrontResponse
 from app.schemas.stores import StoreCreate, StoreRead, StoreUpdate
+from app.services import inventory as services_inventory
 from app.services.inventory import (
     assert_products_in_seller_services,
     bulk_upsert_inventory,
@@ -584,26 +585,30 @@ async def update_inventory(
     inventory_id: int,
     payload: StoreInventory,
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller),
+    user: User = Depends(get_current_user),
 ) -> StoreInventory:
-    """Update price, stock, or availability of an inventory item."""
-    await _authorize_store_ownership(session, store_id, seller)
+    """Update price, stock, or availability of an inventory item.
+
+    Admins may update inventory on behalf of any approved seller. When an admin
+    performs the write, an :class:`AdminActionLog` row is committed in the same
+    transaction (see services.inventory.update_inventory).
+    """
+    store = await _authorize_store_ownership(session, store_id, user)
 
     inv = await session.get(StoreInventory, inventory_id)
     if not inv or inv.store_id != store_id:
         raise HTTPException(status_code=404, detail="Inventory item not found")
 
-    if payload.price is not None:
-        inv.price = payload.price
-    if payload.stock is not None:
-        inv.stock = payload.stock
-    if payload.is_available is not None:
-        inv.is_available = payload.is_available
-
-    session.add(inv)
-    await session.commit()
-    await session.refresh(inv)
-    return inv
+    acting_admin_id = user.id if user.role == UserRole.Admin else None
+    return await services_inventory.update_inventory(
+        session=session,
+        store=store,
+        inv=inv,
+        price=payload.price,
+        stock=payload.stock,
+        is_available=payload.is_available,
+        acting_admin_id=acting_admin_id,
+    )
 
 
 @router.delete("/{store_id}/inventory/{inventory_id}")

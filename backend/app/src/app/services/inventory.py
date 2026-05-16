@@ -1,15 +1,17 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-from typing import Iterable
+from typing import Any, Iterable, Optional
 
 from fastapi import HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models.admin_audit import AdminActionTargetType
 from app.models.catalog import Category, MasterProduct, Subcategory
-from app.models.profile import SellerProfileService
-from app.models.store import StoreInventory
+from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
+from app.models.store import Store, StoreInventory
 from app.schemas.inventory import BulkInventoryItem
+from app.services.admin_audit import log as audit_log
 
 
 async def lock_inventory_rows(
@@ -145,3 +147,66 @@ async def bulk_upsert_inventory(
 
     await session.flush()
     return out
+
+
+def _inventory_snapshot(inv: StoreInventory) -> dict[str, Any]:
+    return {
+        "id": inv.id,
+        "store_id": inv.store_id,
+        "product_id": inv.product_id,
+        "price": float(inv.price) if inv.price is not None else None,
+        "stock": inv.stock,
+        "is_available": inv.is_available,
+    }
+
+
+async def _assert_seller_active(
+    session: AsyncSession, seller_profile_id: int
+) -> None:
+    """Reject admin writes against pending/rejected sellers with 409."""
+    profile = await session.get(SellerProfile, seller_profile_id)
+    if profile is None or profile.verification_status != VerificationStatus.Approved:
+        raise HTTPException(
+            status_code=409, detail={"code": "seller_not_active"}
+        )
+
+
+async def update_inventory(
+    *,
+    session: AsyncSession,
+    store: Store,
+    inv: StoreInventory,
+    price: Optional[float],
+    stock: Optional[int],
+    is_available: Optional[bool],
+    acting_admin_id: Optional[int] = None,
+) -> StoreInventory:
+    """Update inventory fields. When ``acting_admin_id`` is set, emit an audit
+    row in the same DB transaction."""
+    if acting_admin_id is not None:
+        await _assert_seller_active(session, store.seller_profile_id)
+
+    before = _inventory_snapshot(inv)
+    if price is not None:
+        inv.price = price
+    if stock is not None:
+        inv.stock = stock
+    if is_available is not None:
+        inv.is_available = is_available
+    session.add(inv)
+
+    if acting_admin_id is not None:
+        await audit_log(
+            session=session,
+            admin_user_id=acting_admin_id,
+            target_seller_id=store.seller_profile_id,
+            target_type=AdminActionTargetType.Inventory,
+            target_id=inv.id,
+            action="inventory.update",
+            before_json=before,
+            after_json=_inventory_snapshot(inv),
+        )
+
+    await session.commit()
+    await session.refresh(inv)
+    return inv
