@@ -14,19 +14,26 @@ All routes are guarded by :func:`get_current_admin`. Every write emits an
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+import base64
+import json
+from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import and_, func, or_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-
-from sqlalchemy import func
 
 from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.base import User
 from app.models.commerce import Order, OrderStatus
+from app.models.admin_audit import AdminActionLog
 from app.models.profile import SellerProfile
 from app.models.store import Store, StoreInventory
 from app.schemas.admin_actions import (
+    ActivityLogPage,
+    AdminActionLogOut,
     OverrideDeliveryAddressRequest,
     RefundOrderRequest,
     RewindOrderRequest,
@@ -40,6 +47,85 @@ from app.services.orders import (
 )
 
 router = APIRouter()
+
+
+def _encode_cursor(created_at: datetime, row_id: str) -> str:
+    payload = json.dumps({"t": created_at.isoformat(), "i": row_id})
+    return base64.urlsafe_b64encode(payload.encode()).decode()
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, str]:
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
+        data = json.loads(raw)
+        return datetime.fromisoformat(data["t"]), data["i"]
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(
+            status_code=400, detail={"code": "invalid_cursor"}
+        ) from exc
+
+
+@router.get(
+    "/sellers/{seller_id}/activity",
+    response_model=ActivityLogPage,
+)
+async def admin_seller_activity(
+    seller_id: int,
+    cursor: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=100),
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> ActivityLogPage:
+    """Paginated admin audit log scoped to one seller.
+
+    Ordered ``created_at DESC, id DESC``. Cursor is a base64-encoded
+    ``(created_at_iso, id)`` tuple — id breaks ties on identical timestamps.
+    """
+    stmt = (
+        select(AdminActionLog, User.email)
+        .join(User, User.id == AdminActionLog.admin_user_id)  # type: ignore[arg-type]
+        .where(AdminActionLog.target_seller_id == seller_id)
+        .order_by(
+            AdminActionLog.created_at.desc(),  # type: ignore[attr-defined]
+            AdminActionLog.id.desc(),  # type: ignore[attr-defined]
+        )
+    )
+    if cursor:
+        ts, last_id = _decode_cursor(cursor)
+        stmt = stmt.where(
+            or_(
+                AdminActionLog.created_at < ts,
+                and_(
+                    AdminActionLog.created_at == ts,
+                    AdminActionLog.id < last_id,  # type: ignore[arg-type]
+                ),
+            )
+        )
+    rows = list((await session.exec(stmt.limit(limit + 1))).all())
+
+    next_cursor: Optional[str] = None
+    if len(rows) > limit:
+        rows = rows[:limit]
+        last_row, _ = rows[-1]
+        next_cursor = _encode_cursor(last_row.created_at, str(last_row.id))
+
+    items = [
+        AdminActionLogOut(
+            id=str(row.id),
+            admin_user_id=row.admin_user_id,
+            admin_email=email,
+            target_seller_id=row.target_seller_id,
+            target_type=row.target_type.value,
+            target_id=row.target_id,
+            action=row.action,
+            before_json=row.before_json,
+            after_json=row.after_json,
+            reason=row.reason,
+            created_at=row.created_at.isoformat(),
+        )
+        for row, email in rows
+    ]
+    return ActivityLogPage(items=items, next_cursor=next_cursor)
 
 
 @router.get("/sellers/{seller_id}", response_model=SellerHubSummary)
