@@ -23,6 +23,7 @@ import {
 import ProductCard from "@/components/ProductCard";
 import CategorySidebar from "@/components/CategorySidebar";
 import CartRail from "@/components/CartRail";
+import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
 import styles from "./page.module.css";
 
 interface Props {
@@ -271,6 +272,40 @@ export default function StoreDetailPage({ params }: Props) {
               </Link>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  const searchQuery = searchParams.get("q")?.trim() ?? "";
+
+  if (searchQuery) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.shell}>
+          <div className={styles.content}>
+            <header className={styles.storeHeader}>
+              <div className={styles.storeHeaderLeft}>
+                <div className={styles.storeIcon} aria-hidden="true">
+                  {store.name.charAt(0).toUpperCase()}
+                </div>
+                <div className={styles.storeInfo}>
+                  <h1 className={styles.storeName}>{store.name}</h1>
+                  <p className={styles.storeAddress}>
+                    {formatAddress(store.address)}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={`/${locale}/stores/${storeId}`}
+                className={styles.statusBadge}
+              >
+                ← Back
+              </Link>
+            </header>
+            <SearchResultsGrid q={searchQuery} storeId={Number(storeId)} />
+          </div>
+          <CartRail storeId={Number(storeId)} />
         </div>
       </div>
     );
