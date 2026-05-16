@@ -73,8 +73,24 @@ async def _add_postgis_geo_column(conn: Any) -> None:
 
 @pytest.fixture(autouse=True, scope="function")
 async def setup_test_db() -> AsyncGenerator[None, None]:
-    # Reset fakeredis between tests so rate-limit + suggest cache stay isolated.
-    await _fake_redis.flushall()
+    # Build a fresh fakeredis bound to this test's event loop. The previous
+    # instance (if any) was tied to a closed loop and would raise
+    # "Event loop is closed" on the next .incr/.set call.
+    _fake_redis_holder["r"] = FakeRedis(decode_responses=True)
+    # Same problem applies to the real-redis client lru-cached in
+    # app.core.redis._make_redis — tests that bypass the dep override (e.g.
+    # geo `_geo_rate_limit` which calls get_redis() directly) reuse the
+    # client bound to the first test's loop. Drop the cache so each test
+    # gets a fresh client bound to its own loop.
+    from app.core import redis as _redis_mod
+    _redis_mod._make_redis.cache_clear()
+    # Flush real-redis state too so rate-limit counters and cached values
+    # don't leak across tests / CI re-runs.
+    try:
+        _real_redis = _redis_mod._make_redis()
+        await _real_redis.flushdb()
+    except Exception:
+        pass
     async with test_engine.begin() as conn:
         await _reset_schema(conn)
         await conn.run_sync(SQLModel.metadata.create_all)
@@ -101,18 +117,27 @@ async def override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 app.dependency_overrides[get_db_session] = override_get_db_session
 
-# Override Redis with a per-process fakeredis instance so rate-limit counters
+# Override Redis with a per-test fakeredis instance so rate-limit counters
 # and serviceable caches don't leak across tests (and don't depend on a real
-# Redis running on the host).
+# Redis running on the host). A fresh FakeRedis is rebuilt by the autouse
+# `setup_test_db` fixture for each test function, then exposed to the
+# `get_redis` dependency override via this holder dict. Recreating per-test
+# avoids "Event loop is closed" errors that come from binding FakeRedis to
+# a now-dead loop when pytest-asyncio uses a per-function loop scope.
 from fakeredis.aioredis import FakeRedis  # noqa: E402
 
 from app.core.redis import get_redis  # noqa: E402
 
-_fake_redis = FakeRedis(decode_responses=True)
+_fake_redis_holder: dict[str, FakeRedis | None] = {"r": None}
 
 
 async def _override_redis() -> FakeRedis:
-    return _fake_redis
+    r = _fake_redis_holder["r"]
+    if r is None:
+        # Should only happen outside an autouse fixture window.
+        r = FakeRedis(decode_responses=True)
+        _fake_redis_holder["r"] = r
+    return r
 
 
 app.dependency_overrides[get_redis] = _override_redis
