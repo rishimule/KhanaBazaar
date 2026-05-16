@@ -83,3 +83,38 @@
   font-weight: 600;
   padding: 0 0.25rem;
 }
+
+.emptyServiceable {
+  padding: 1.25rem 1rem;
+  border: 1px dashed var(--color-border, rgba(0, 0, 0, 0.15));
+  border-radius: 8px;
+  color: var(--color-muted, #6b7280);
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.disclosure {
+  margin-top: 1rem;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  padding-top: 1rem;
+}
+.summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  color: var(--color-muted, #6b7280);
+  font-weight: 500;
+  user-select: none;
+}
+.summary::-webkit-details-marker {
+  display: none;
+}
+.summary:hover {
+  color: var(--color-text, #111);
+}
+.summaryChevron {
+  font-size: 0.85rem;
+}
