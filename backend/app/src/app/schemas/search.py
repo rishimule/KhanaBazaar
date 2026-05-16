@@ -46,6 +46,7 @@ class SuggestResponse(BaseModel):
 class PerStoreOffer(BaseModel):
     store_id: int
     store_name: str
+    inventory_id: Optional[int] = None
     price: float
     stock: int
     is_available: bool
@@ -98,6 +99,7 @@ class CompareStore(BaseModel):
 
 class CompareOffer(BaseModel):
     store: CompareStore
+    inventory_id: int
     price: float
     stock: int
     is_available: bool

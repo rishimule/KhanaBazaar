@@ -570,6 +570,7 @@ async def compare_offers(
                     distance_km=dist,
                     delivery_radius_km=float(store.delivery_radius_km),
                 ),
+                inventory_id=inv.id,
                 price=float(inv.price),
                 stock=int(inv.stock),
                 is_available=bool(inv.is_available),
@@ -580,6 +581,7 @@ async def compare_offers(
             PerStoreOffer(
                 store_id=store.id,
                 store_name=store.name,
+                inventory_id=inv.id,
                 price=float(inv.price),
                 stock=int(inv.stock),
                 is_available=bool(inv.is_available),
