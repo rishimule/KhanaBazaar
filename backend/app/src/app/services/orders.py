@@ -159,6 +159,81 @@ async def _authorize_cancel(session: AsyncSession, actor: User, order: Order) ->
         raise HTTPException(status_code=403, detail="forbidden")
 
 
+REWIND_TARGETS: dict[OrderStatus, set[OrderStatus]] = {
+    OrderStatus.Packed: {OrderStatus.Pending},
+    OrderStatus.Dispatched: {OrderStatus.Pending, OrderStatus.Packed},
+}
+
+
+async def rewind_order(
+    *,
+    session: AsyncSession,
+    order: Order,
+    to_status: OrderStatus,
+    reason: str,
+    acting_admin_id: int,
+) -> Order:
+    """Admin-only backward transition.
+
+    Allowed: Packed→Pending, Dispatched→{Pending, Packed}. Terminal statuses
+    (Delivered, Cancelled) reject. Reason >=10 chars required.
+    """
+    if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
+        raise HTTPException(status_code=409, detail={"code": "terminal_status"})
+    if to_status not in REWIND_TARGETS.get(order.status, set()):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "illegal_rewind",
+                "from": order.status.value,
+                "to": to_status.value,
+            },
+        )
+    if not reason or len(reason.strip()) < 10:
+        raise HTTPException(
+            status_code=422, detail={"code": "reason_required"}
+        )
+
+    await _assert_seller_active_for_store(session, order.store_id)
+
+    delivery_result = await session.exec(
+        select(Delivery).where(Delivery.order_id == order.id)
+    )
+    delivery = delivery_result.first()
+    payment_result = await session.exec(
+        select(Payment).where(Payment.order_id == order.id)
+    )
+    payment = payment_result.first()
+
+    before = _order_snapshot(order, payment)
+
+    order.status = to_status
+    if delivery is not None:
+        delivery.status = DeliveryStatus(to_status.value)
+        if to_status == OrderStatus.Pending:
+            delivery.packed_at = None
+            delivery.dispatched_at = None
+        elif to_status == OrderStatus.Packed:
+            delivery.dispatched_at = None
+
+    target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)
+    await audit_log(
+        session=session,
+        admin_user_id=acting_admin_id,
+        target_seller_id=target_seller_id,
+        target_type=AdminActionTargetType.Order,
+        target_id=order.id,
+        action="order.rewind",
+        before_json=before,
+        after_json=_order_snapshot(order, payment),
+        reason=reason.strip(),
+    )
+
+    await session.commit()
+    await session.refresh(order)
+    return order
+
+
 async def cancel_order(
     session: AsyncSession,
     order: Order,

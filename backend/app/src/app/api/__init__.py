@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api import (
+    admin_actions,
     auth,
     carts,
     catalog,
@@ -30,3 +31,4 @@ api_router.include_router(orders.router, prefix="/orders", tags=["orders"])
 api_router.include_router(meta.router, prefix="/meta", tags=["meta"])
 api_router.include_router(geo.router, prefix="/geo", tags=["geo"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
+api_router.include_router(admin_actions.router, prefix="/admin", tags=["admin"])
