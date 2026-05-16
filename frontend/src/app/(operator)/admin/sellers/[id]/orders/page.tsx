@@ -10,9 +10,10 @@ import { post } from "@/lib/api";
 import {
   adminRefundOrder,
   adminRewindOrder,
+  fetchSellerHub,
   fetchSellerOrders,
 } from "@/lib/adminActions";
-import type { Order } from "@/types";
+import type { Order, SellerHubSummary } from "@/types";
 
 type ActionKind = "cancel" | "rewind" | "refund";
 
@@ -38,13 +39,19 @@ export default function AdminOrdersTab({
   const { id } = use(params);
   const { token } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [hub, setHub] = useState<SellerHubSummary | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const resp = await fetchSellerOrders(Number(id), token);
+      const [h, resp] = await Promise.all([
+        fetchSellerHub(Number(id), token),
+        fetchSellerOrders(Number(id), token),
+      ]);
+      setHub(h);
       setOrders(resp.orders);
     } catch {
       setError("Failed to load orders");
@@ -58,6 +65,7 @@ export default function AdminOrdersTab({
   async function performAction(reason: string) {
     if (!pending || !token) return;
     const o = pending.order;
+    setActionError(null);
     try {
       if (pending.kind === "cancel") {
         await post(`/api/v1/orders/${o.id}/cancel`, { reason }, token);
@@ -69,15 +77,50 @@ export default function AdminOrdersTab({
       setPending(null);
       await load();
     } catch (e) {
-      alert(`Action failed: ${(e as Error).message}`);
+      const msg = (e as Error).message ?? "unknown_error";
+      setActionError(`Action failed: ${msg}`);
+      setPending(null);
     }
   }
 
   if (error) return <div>{error}</div>;
 
+  const writesBlocked =
+    hub !== null && hub.verification_status !== "approved";
+
   return (
     <div>
       <h2 style={{ marginBottom: "0.75rem" }}>Orders ({orders.length})</h2>
+      {writesBlocked && (
+        <div
+          style={{
+            padding: "0.6rem 0.9rem",
+            background: "rgba(245, 158, 11, 0.14)",
+            border: "1px solid var(--color-warning)",
+            borderRadius: 6,
+            marginBottom: "0.75rem",
+            color: "var(--color-neutral-900)",
+          }}
+        >
+          Seller is not active — destructive actions disabled.
+        </div>
+      )}
+      {actionError && (
+        <div
+          role="alert"
+          style={{
+            padding: "0.6rem 0.9rem",
+            background: "rgba(216, 60, 48, 0.12)",
+            border: "1px solid var(--color-error)",
+            borderRadius: 6,
+            marginBottom: "0.75rem",
+            color: "var(--color-error)",
+          }}
+        >
+          {actionError}
+        </div>
+      )}
+      <div style={{ overflowX: "auto" }}>
       <table
         style={{
           width: "100%",
@@ -117,6 +160,7 @@ export default function AdminOrdersTab({
                   {!terminal && (
                     <button
                       className="btn btn-danger"
+                      disabled={writesBlocked}
                       onClick={() =>
                         setPending({ order: o, kind: "cancel" })
                       }
@@ -128,6 +172,7 @@ export default function AdminOrdersTab({
                   {rewindTo && (
                     <button
                       className="btn btn-outline"
+                      disabled={writesBlocked}
                       onClick={() =>
                         setPending({ order: o, kind: "rewind", to: rewindTo })
                       }
@@ -139,6 +184,7 @@ export default function AdminOrdersTab({
                   {refundable && (
                     <button
                       className="btn btn-outline"
+                      disabled={writesBlocked}
                       onClick={() =>
                         setPending({ order: o, kind: "refund" })
                       }
@@ -152,6 +198,7 @@ export default function AdminOrdersTab({
           })}
         </tbody>
       </table>
+      </div>
 
       {pending && (
         <AdminReasonModal

@@ -1,7 +1,7 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { AdminActionLog } from "@/types";
 import styles from "./ActivityTable.module.css";
 
@@ -83,12 +83,13 @@ export default function ActivityTable({
         <tbody>
           {rows.map((row) => {
             const isOpen = expanded.has(row.id);
+            const pillCls = styles[row.target_type] ?? styles.unknown;
             return (
-              <>
-                <tr key={row.id} className={styles.row}>
+              <Fragment key={row.id}>
+                <tr className={styles.row}>
                   <td className={styles.time}>{shortTime(row.created_at)}</td>
                   <td>
-                    <span className={`${styles.pill} ${styles[row.target_type]}`}>
+                    <span className={`${styles.pill} ${pillCls}`}>
                       {actionLabel(row.action)}
                     </span>
                   </td>
@@ -106,7 +107,7 @@ export default function ActivityTable({
                   </td>
                 </tr>
                 {isOpen && (
-                  <tr key={`${row.id}-diff`} className={styles.diffRow}>
+                  <tr className={styles.diffRow}>
                     <td colSpan={6}>
                       <div className={styles.diffGrid}>
                         <pre className={styles.diff}>
@@ -123,7 +124,7 @@ export default function ActivityTable({
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             );
           })}
         </tbody>

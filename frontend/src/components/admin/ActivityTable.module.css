@@ -72,6 +72,10 @@
   background: rgba(59, 130, 246, 0.14);
   color: var(--color-info);
 }
+.pill.unknown {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-700);
+}
 
 .toggle {
   padding: 0.25rem 0.65rem;

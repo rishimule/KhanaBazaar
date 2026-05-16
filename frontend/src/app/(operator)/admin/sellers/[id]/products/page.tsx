@@ -106,6 +106,7 @@ export default function AdminProductsTab({
           Seller is not active — writes disabled.
         </div>
       )}
+      <div style={{ overflowX: "auto" }}>
       <table
         style={{
           width: "100%",
@@ -152,6 +153,7 @@ export default function AdminProductsTab({
           ))}
         </tbody>
       </table>
+      </div>
 
       {editing && (
         <EditModal
