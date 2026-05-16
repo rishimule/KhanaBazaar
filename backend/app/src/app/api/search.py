@@ -45,7 +45,7 @@ from app.schemas.search import (
     SuggestTerm,
 )
 from app.search.client import get_meili_client
-from app.search.locality import grid_cell_key, get_serviceable_store_ids
+from app.search.locality import get_serviceable_store_ids, grid_cell_key
 
 router = APIRouter()
 

@@ -60,6 +60,7 @@ ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults (fastapi Depends)
     "W191",  # indentation contains tabs
+    "C901",  # function too complex — request handlers + the seed script naturally have many branches; split out only when it genuinely hurts readability
 ]
 
 [tool.mypy]

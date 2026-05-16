@@ -1,15 +1,14 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy import desc
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-
-from datetime import datetime, timezone
-
-from pydantic import BaseModel, Field
-from sqlalchemy.exc import IntegrityError
 
 from app.core.otp import (
     CodeExpired,
