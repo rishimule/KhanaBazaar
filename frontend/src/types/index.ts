@@ -496,3 +496,37 @@ export interface CatalogEntityWrite {
   brand?: string | null;
   unit?: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Admin supervisor (see backend/app/src/app/api/admin_actions.py).
+// ---------------------------------------------------------------------------
+
+export interface AdminActionLog {
+  id: string;
+  admin_user_id: number;
+  admin_email: string;
+  target_seller_id: number;
+  target_type: "inventory" | "order" | "store" | "seller_profile";
+  target_id: number;
+  action: string;
+  before_json: Record<string, unknown> | null;
+  after_json: Record<string, unknown> | null;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface AdminActivityPage {
+  items: AdminActionLog[];
+  next_cursor: string | null;
+}
+
+export interface SellerHubSummary {
+  seller_id: number;
+  business_name: string;
+  verification_status: "pending" | "approved" | "rejected";
+  email: string;
+  store_id: number | null;
+  active_order_count: number;
+  total_product_count: number;
+}
+
