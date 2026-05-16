@@ -457,10 +457,14 @@ async def get_store_product_detail(
 async def list_store_inventory_all(
     store_id: int,
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller),
+    user: User = Depends(get_current_user),
 ) -> List[StoreInventory]:
-    """Return ALL inventory for a store (including unavailable) — seller only."""
-    await _authorize_store_ownership(session, store_id, seller)
+    """Return ALL inventory for a store (including unavailable).
+
+    Authorized for the seller who owns the store and for admins. No audit
+    log — this is a read-only path.
+    """
+    await _authorize_store_ownership(session, store_id, user, allow_admin=True)
     result = await session.exec(
         select(StoreInventory).where(StoreInventory.store_id == store_id)
     )
