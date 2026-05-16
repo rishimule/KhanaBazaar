@@ -48,6 +48,18 @@ class Settings(BaseSettings):
     GEO_AUTOCOMPLETE_CACHE_TTL_SECONDS: int = 60
     GEO_REVERSE_CACHE_TTL_SECONDS: int = 86400
 
+    # Meilisearch
+    MEILI_URL: str = "http://localhost:7700"
+    MEILI_MASTER_KEY: str = "dev-master-key-change-me"
+
+    # Search rate limits (per IP per minute)
+    SEARCH_RATE_LIMIT_SUGGEST_PER_MIN: int = 60
+    SEARCH_RATE_LIMIT_PRODUCTS_PER_MIN: int = 30
+
+    # Search cache TTLs
+    SEARCH_SUGGEST_CACHE_TTL_SECONDS: int = 60
+    SEARCH_SERVICEABLE_GRID_TTL_SECONDS: int = 60
+
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
 
     @property
