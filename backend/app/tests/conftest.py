@@ -73,6 +73,8 @@ async def _add_postgis_geo_column(conn: Any) -> None:
 
 @pytest.fixture(autouse=True, scope="function")
 async def setup_test_db() -> AsyncGenerator[None, None]:
+    # Reset fakeredis between tests so rate-limit + suggest cache stay isolated.
+    await _fake_redis.flushall()
     async with test_engine.begin() as conn:
         await _reset_schema(conn)
         await conn.run_sync(SQLModel.metadata.create_all)
@@ -98,6 +100,21 @@ async def override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 app.dependency_overrides[get_db_session] = override_get_db_session
+
+# Override Redis with a per-process fakeredis instance so rate-limit counters
+# and serviceable caches don't leak across tests (and don't depend on a real
+# Redis running on the host).
+from fakeredis.aioredis import FakeRedis  # noqa: E402
+from app.core.redis import get_redis  # noqa: E402
+
+_fake_redis = FakeRedis(decode_responses=True)
+
+
+async def _override_redis() -> FakeRedis:
+    return _fake_redis
+
+
+app.dependency_overrides[get_redis] = _override_redis
 
 
 # Force `async_session_factory()` (used by Celery tasks + CLI tools) to bind to

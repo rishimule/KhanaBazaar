@@ -11,6 +11,7 @@ from app.api import (
     geo,
     meta,
     orders,
+    search,
     sellers,
     stores,
     tasks,
@@ -28,3 +29,4 @@ api_router.include_router(carts.router, prefix="/carts", tags=["carts"])
 api_router.include_router(orders.router, prefix="/orders", tags=["orders"])
 api_router.include_router(meta.router, prefix="/meta", tags=["meta"])
 api_router.include_router(geo.router, prefix="/geo", tags=["geo"])
+api_router.include_router(search.router, prefix="/search", tags=["search"])
