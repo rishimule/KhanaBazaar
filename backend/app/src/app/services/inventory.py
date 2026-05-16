@@ -171,6 +171,63 @@ async def _assert_seller_active(
         )
 
 
+async def create_inventory(
+    *,
+    session: AsyncSession,
+    store: Store,
+    inventory: StoreInventory,
+    acting_admin_id: Optional[int] = None,
+) -> StoreInventory:
+    """Add a new inventory row. When ``acting_admin_id`` is set, emit
+    an ``inventory.create`` audit row in the same transaction. The new
+    inventory id is materialised via ``session.flush()`` so the audit
+    row carries the real ``target_id`` before commit.
+    """
+    if acting_admin_id is not None:
+        await _assert_seller_active(session, store.seller_profile_id)
+
+    product = await session.get(MasterProduct, inventory.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Master product not found")
+
+    await assert_products_in_seller_services(
+        session, store.seller_profile_id, [inventory.product_id]
+    )
+
+    existing = (await session.exec(
+        select(StoreInventory).where(
+            StoreInventory.store_id == store.id,
+            StoreInventory.product_id == inventory.product_id,
+        )
+    )).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="Product already exists in store inventory. Use PUT to update.",
+        )
+
+    inventory.id = None
+    inventory.store_id = store.id
+    session.add(inventory)
+    await session.flush()  # materialise inventory.id for audit row
+
+    if acting_admin_id is not None:
+        await audit_log(
+            session=session,
+            admin_user_id=acting_admin_id,
+            target_seller_id=store.seller_profile_id,
+            target_type=AdminActionTargetType.Inventory,
+            target_id=inventory.id,
+            action="inventory.create",
+            before_json=None,
+            after_json=_inventory_snapshot(inventory),
+        )
+
+    await session.commit()
+    await session.refresh(inventory)
+    return inventory
+
+
 async def update_inventory(
     *,
     session: AsyncSession,

@@ -471,37 +471,23 @@ async def add_inventory(
     store_id: int,
     inventory: StoreInventory,
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller),
+    user: User = Depends(get_current_user),
 ) -> StoreInventory:
+    """Add a product to a store's inventory.
+
+    Sellers can only add to their own store. Admins can add on behalf of any
+    approved seller; their write produces an ``inventory.create`` audit row.
+    """
     store = await _authorize_store_ownership(
-        session, store_id, seller, allow_admin=False
+        session, store_id, user, allow_admin=True
     )
-
-    product = await session.get(MasterProduct, inventory.product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Master product not found")
-
-    await assert_products_in_seller_services(
-        session, store.seller_profile_id, [inventory.product_id]
+    acting_admin_id = user.id if user.role == UserRole.Admin else None
+    return await services_inventory.create_inventory(
+        session=session,
+        store=store,
+        inventory=inventory,
+        acting_admin_id=acting_admin_id,
     )
-
-    check_stmt = select(StoreInventory).where(
-        StoreInventory.store_id == store_id,
-        StoreInventory.product_id == inventory.product_id,
-    )
-    existing = await session.exec(check_stmt)
-    if existing.first():
-        raise HTTPException(
-            status_code=400,
-            detail="Product already exists in store inventory. Use PUT to update.",
-        )
-
-    inventory.id = None
-    inventory.store_id = store_id
-    session.add(inventory)
-    await session.commit()
-    await session.refresh(inventory)
-    return inventory
 
 
 def _validate_bulk_items(
