@@ -92,6 +92,7 @@ export type CompareOffer = {
     distance_km: number | null;
     delivery_radius_km: number;
   };
+  inventory_id: number;
   price: number;
   stock: number;
   is_available: boolean;

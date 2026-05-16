@@ -2,13 +2,14 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SearchFilters } from "@/components/search/SearchFilters";
 import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
 import styles from "./page.module.css";
 
-export default function GlobalSearchPage() {
+function SearchPageInner() {
   const sp = useSearchParams();
   const t = useTranslations("Search");
   const q = sp.get("q") ?? "";
@@ -31,5 +32,13 @@ export default function GlobalSearchPage() {
         sort={sort}
       />
     </main>
+  );
+}
+
+export default function GlobalSearchPage() {
+  return (
+    <Suspense fallback={<main className={styles.page}>Loading…</main>}>
+      <SearchPageInner />
+    </Suspense>
   );
 }
