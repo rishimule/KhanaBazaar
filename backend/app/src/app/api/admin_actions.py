@@ -27,6 +27,7 @@ from app.schemas.admin_actions import (
     RefundOrderRequest,
     RewindOrderRequest,
 )
+from app.services.order_emails import dispatch_admin_order_action
 from app.services.orders import (
     override_delivery_address,
     refund_order,
@@ -56,6 +57,8 @@ async def admin_rewind_order(
         reason=payload.reason,
         acting_admin_id=admin.id,
     )
+    if updated.id is not None:
+        dispatch_admin_order_action(updated.id, "order.rewind", payload.reason)
     return {"status": updated.status.value}
 
 
@@ -77,6 +80,8 @@ async def admin_refund_order(
         reason=payload.reason,
         acting_admin_id=admin.id,
     )
+    if order.id is not None:
+        dispatch_admin_order_action(order.id, "order.refund", payload.reason)
     return {"status": "refunded"}
 
 
@@ -99,4 +104,8 @@ async def admin_override_delivery_address(
         reason=payload.reason,
         acting_admin_id=admin.id,
     )
+    if order.id is not None:
+        dispatch_admin_order_action(
+            order.id, "order.address_override", payload.reason
+        )
     return {"status": "updated"}

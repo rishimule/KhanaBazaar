@@ -38,6 +38,7 @@ from app.schemas.orders import (
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
 from app.services.checkout import place_order_for_sub_basket
 from app.services.order_emails import (
+    dispatch_admin_order_action,
     dispatch_order_placed,
     dispatch_order_status_changed,
 )
@@ -260,6 +261,10 @@ async def transition_order(
     order = await transition_order_status(session, order, payload.to, user)
     if order.id is not None:
         dispatch_order_status_changed(order.id, order.status.value)
+        if user.role == UserRole.Admin:
+            dispatch_admin_order_action(
+                order.id, "order.transition", f"to {order.status.value}"
+            )
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 
@@ -285,6 +290,10 @@ async def cancel(
     order = await cancel_order(session, order, user, reason=reason)
     if order.id is not None:
         dispatch_order_status_changed(order.id, "cancelled", notify_seller=True)
+        if user.role == UserRole.Admin:
+            dispatch_admin_order_action(
+                order.id, "order.cancel", reason or ""
+            )
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 

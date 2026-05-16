@@ -240,6 +240,30 @@ def send_order_status_changed_async(
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_admin_order_action_email",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_admin_order_action_email(
+    order_id: int, action: str, reason: str
+) -> None:
+    """Notify the seller that an admin took action on one of their orders."""
+    ctx = _load_order_email_context(order_id)
+    if not ctx or not ctx.get("seller_email"):
+        return
+    subject = f"Admin updated your order #{ctx['order_id']}"
+    body = (
+        f"Hi,\n\nAn admin updated your order #{ctx['order_id']} "
+        f"({ctx['service_name']}) at {ctx.get('store_name') or 'your store'}.\n"
+        f"Action: {action}\n"
+        f"Reason: {reason or '(none provided)'}\n\n"
+        "If you have questions, reply to this email."
+    )
+    _resolve_email(ctx["seller_email"], subject, body)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
     name="send_seller_approved_async",
     autoretry_for=(Exception,),
     max_retries=3,
