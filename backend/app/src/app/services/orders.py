@@ -4,9 +4,11 @@ from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
 from fastapi import HTTPException
+from sqlalchemy import text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models.address import Address
 from app.models.admin_audit import AdminActionTargetType
 from app.models.base import User, UserRole
 from app.models.commerce import (
@@ -284,6 +286,110 @@ async def refund_order(
         action="order.refund",
         before_json=before,
         after_json=_order_snapshot(order, payment),
+        reason=reason.strip(),
+    )
+
+    await session.commit()
+    await session.refresh(order)
+    return order
+
+
+async def override_delivery_address(
+    *,
+    session: AsyncSession,
+    order: Order,
+    address_payload: "AddressPayload",
+    reason: str,
+    acting_admin_id: int,
+) -> Order:
+    """Admin-only: replace the delivery address on a non-terminal order.
+
+    1. Validate ST_DWithin between the new coordinates and the store's
+       address inside the store's ``delivery_radius_km``.
+    2. Insert a new ``Address`` row from the payload (preserving the
+       original for audit).
+    3. Update ``Order.delivery_address_id`` and rewrite the formatted
+       ``delivery_address_snapshot`` string.
+    4. Emit an ``order.address_override`` audit row with the *original*
+       formatted snapshot in ``before_json`` (the immutable record of the
+       pre-override address). See spec §10 note 3.
+    """
+    # Local imports to avoid widening the module-level dependency surface.
+    from app.schemas.address import (
+        AddressPayload,  # noqa: F401  (used for typing only)
+        address_from_payload,
+    )
+    from app.utils.address import format_address
+
+    if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
+        raise HTTPException(
+            status_code=409, detail={"code": "order_not_mutable"}
+        )
+    if not reason or len(reason.strip()) < 10:
+        raise HTTPException(
+            status_code=422, detail={"code": "reason_required"}
+        )
+
+    await _assert_seller_active_for_store(session, order.store_id)
+
+    store = await session.get(Store, order.store_id)
+    if store is None:
+        raise HTTPException(status_code=500, detail="store_missing")
+    store_address = await session.get(Address, store.address_id)
+    if store_address is None or store_address.latitude is None or store_address.longitude is None:
+        raise HTTPException(status_code=409, detail={"code": "store_geo_missing"})
+    if address_payload.latitude is None or address_payload.longitude is None:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "delivery_geo_missing"},
+        )
+
+    radius_m = (store.delivery_radius_km or 5.0) * 1000.0
+    within_stmt = text(
+        "SELECT ST_DWithin("
+        " ST_SetSRID(ST_MakePoint(:slng, :slat), 4326)::geography,"
+        " ST_SetSRID(ST_MakePoint(:nlng, :nlat), 4326)::geography,"
+        " :radius) AS within"
+    )
+    result = await session.execute(
+        within_stmt,
+        {
+            "slng": store_address.longitude,
+            "slat": store_address.latitude,
+            "nlng": address_payload.longitude,
+            "nlat": address_payload.latitude,
+            "radius": radius_m,
+        },
+    )
+    if not result.scalar():
+        raise HTTPException(
+            status_code=422, detail={"code": "delivery_out_of_radius"}
+        )
+
+    # Preserve original snapshot for the audit row.
+    before_snapshot = order.delivery_address_snapshot
+
+    new_address = Address(**address_from_payload(address_payload))
+    session.add(new_address)
+    await session.flush()  # materialise new_address.id
+
+    order.delivery_address_id = new_address.id
+    order.delivery_address_snapshot = format_address(address_payload)
+
+    payment = (
+        await session.exec(select(Payment).where(Payment.order_id == order.id))
+    ).first()
+
+    target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)
+    await audit_log(
+        session=session,
+        admin_user_id=acting_admin_id,
+        target_seller_id=target_seller_id,
+        target_type=AdminActionTargetType.Order,
+        target_id=order.id,
+        action="order.address_override",
+        before_json={"delivery_address_snapshot": before_snapshot},
+        after_json={"delivery_address_snapshot": order.delivery_address_snapshot},
         reason=reason.strip(),
     )
 

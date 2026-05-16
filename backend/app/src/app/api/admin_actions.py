@@ -22,8 +22,16 @@ from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.base import User
 from app.models.commerce import Order, OrderStatus
-from app.schemas.admin_actions import RefundOrderRequest, RewindOrderRequest
-from app.services.orders import refund_order, rewind_order
+from app.schemas.admin_actions import (
+    OverrideDeliveryAddressRequest,
+    RefundOrderRequest,
+    RewindOrderRequest,
+)
+from app.services.orders import (
+    override_delivery_address,
+    refund_order,
+    rewind_order,
+)
 
 router = APIRouter()
 
@@ -70,3 +78,25 @@ async def admin_refund_order(
         acting_admin_id=admin.id,
     )
     return {"status": "refunded"}
+
+
+@router.patch("/orders/{order_id}/delivery-address")
+async def admin_override_delivery_address(
+    order_id: int,
+    payload: OverrideDeliveryAddressRequest,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> dict[str, str]:
+    order = (
+        await session.exec(select(Order).where(Order.id == order_id))
+    ).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="order_not_found")
+    await override_delivery_address(
+        session=session,
+        order=order,
+        address_payload=payload.address,
+        reason=payload.reason,
+        acting_admin_id=admin.id,
+    )
+    return {"status": "updated"}
