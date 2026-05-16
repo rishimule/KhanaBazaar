@@ -631,7 +631,12 @@ async def test_admin_cancels_dispatched_order(as_customer: Any, seed: dict[str, 
 
     app.dependency_overrides[get_current_user] = lambda: mock_admin
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.post(f"/api/v1/orders/{target}/cancel")
+        # Admin cancel on a non-Pending order now requires a reason (>=10 chars)
+        # per the admin-supervisor spec.
+        resp = await ac.post(
+            f"/api/v1/orders/{target}/cancel",
+            json={"reason": "customer support escalation"},
+        )
     assert resp.status_code == 200
     # Cancel from non-Pending status must still restock; this branch wasn't
     # exercised by the customer-cancels-Pending test.
