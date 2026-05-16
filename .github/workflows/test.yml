@@ -40,6 +40,9 @@ jobs:
           --health-retries 10
 
       meilisearch:
+        # Distroless image: no wget/curl, so we can't use --health-cmd here.
+        # Readiness is asserted from the runner via the "Wait for Meilisearch"
+        # step below before any test runs.
         image: getmeili/meilisearch:v1.11
         env:
           MEILI_MASTER_KEY: test-master-key
@@ -47,11 +50,6 @@ jobs:
           MEILI_NO_ANALYTICS: "true"
         ports:
           - 7701:7700
-        options: >-
-          --health-cmd "wget -q --spider http://localhost:7700/health || exit 1"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
 
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar_test
@@ -84,10 +82,16 @@ jobs:
 
       - name: Wait for Meilisearch
         run: |
-          for i in {1..30}; do
-            curl -sf http://localhost:7701/health && break
+          for i in {1..60}; do
+            if curl -sf http://localhost:7701/health >/dev/null; then
+              echo "meilisearch ready after ${i}s"
+              exit 0
+            fi
             sleep 1
           done
+          echo "meilisearch did not become ready" >&2
+          curl -v http://localhost:7701/health || true
+          exit 1
 
       - name: Lint (ruff)
         working-directory: backend/app
