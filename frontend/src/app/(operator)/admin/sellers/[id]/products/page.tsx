@@ -4,11 +4,11 @@
 import { use, useCallback, useEffect, useState } from "react";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
 import { useAuth } from "@/lib/AuthContext";
-import { del, get, put } from "@/lib/api";
-import { fetchSellerHub } from "@/lib/adminActions";
-import type { SellerHubSummary, StoreInventory } from "@/types";
+import { del, put } from "@/lib/api";
+import { fetchSellerHub, fetchSellerInventory } from "@/lib/adminActions";
+import type { AdminInventoryRow, SellerHubSummary } from "@/types";
 
-type Row = StoreInventory;
+type Row = AdminInventoryRow;
 
 export default function AdminProductsTab({
   params,
@@ -26,15 +26,12 @@ export default function AdminProductsTab({
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const h = await fetchSellerHub(Number(id), token);
+      const [h, inv] = await Promise.all([
+        fetchSellerHub(Number(id), token),
+        fetchSellerInventory(Number(id), token),
+      ]);
       setHub(h);
-      if (h.store_id) {
-        const inv = await get<Row[]>(
-          `/api/v1/stores/${h.store_id}/inventory/all`,
-          token,
-        );
-        setRows(inv);
-      }
+      setRows(inv);
     } catch {
       setError("Failed to load inventory");
     }
@@ -48,7 +45,12 @@ export default function AdminProductsTab({
     if (!hub?.store_id || !token) return;
     await put(
       `/api/v1/stores/${hub.store_id}/inventory/${row.id}`,
-      { ...row, price, stock },
+      {
+        product_id: row.product_id,
+        price,
+        stock,
+        is_available: row.is_available,
+      },
       token,
     );
     setEditing(null);
@@ -117,7 +119,7 @@ export default function AdminProductsTab({
         <thead>
           <tr style={{ background: "var(--color-neutral-50)" }}>
             <th style={cellHead}>Inv #</th>
-            <th style={cellHead}>Product ID</th>
+            <th style={cellHead}>Product</th>
             <th style={cellHead}>Price</th>
             <th style={cellHead}>Stock</th>
             <th style={cellHead}>Available</th>
@@ -128,7 +130,19 @@ export default function AdminProductsTab({
           {rows.map((r) => (
             <tr key={r.id}>
               <td style={cell}>{r.id}</td>
-              <td style={cell}>{r.product_id}</td>
+              <td style={cell}>
+                <div style={{ fontWeight: 500 }}>{r.product_name}</div>
+                <div
+                  style={{
+                    color: "var(--color-neutral-500)",
+                    fontSize: "0.78rem",
+                  }}
+                >
+                  #{r.product_id}
+                  {r.product_brand ? ` · ${r.product_brand}` : ""}
+                  {r.product_unit ? ` · ${r.product_unit}` : ""}
+                </div>
+              </td>
               <td style={cell}>₹{r.price.toFixed(2)}</td>
               <td style={cell}>{r.stock}</td>
               <td style={cell}>{r.is_available ? "✅" : "—"}</td>
@@ -165,8 +179,8 @@ export default function AdminProductsTab({
 
       {pendingDelete && (
         <AdminReasonModal
-          title={`Delete inventory #${pendingDelete.id}?`}
-          description="This removes the listing from the seller's store. Reason is recorded in the audit log."
+          title={`Delete ${pendingDelete.product_name}?`}
+          description={`Removes "${pendingDelete.product_name}" (inv #${pendingDelete.id}) from the seller's store. Reason is recorded in the audit log.`}
           confirmLabel="Delete"
           destructive
           onConfirm={doDelete}
@@ -224,7 +238,10 @@ function EditModal({
           gap: "0.75rem",
         }}
       >
-        <h3>Edit inventory #{row.id}</h3>
+        <h3>Edit {row.product_name}</h3>
+        <div style={{ color: "var(--color-neutral-500)", fontSize: "0.85rem" }}>
+          Inventory #{row.id} · Product #{row.product_id}
+        </div>
         <label>
           Price
           <input

@@ -11,6 +11,7 @@
 import { get, patch, post } from "./api";
 import type {
   AdminActivityPage,
+  AdminInventoryRow,
   Order,
   SellerHubSummary,
 } from "@/types";
@@ -27,6 +28,13 @@ export function fetchSellerActivity(
   const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
   return get<AdminActivityPage>(
     `/api/v1/admin/sellers/${sellerId}/activity${qs}`,
+    token,
+  );
+}
+
+export function fetchSellerInventory(sellerId: number, token: string) {
+  return get<AdminInventoryRow[]>(
+    `/api/v1/admin/sellers/${sellerId}/inventory`,
     token,
   );
 }

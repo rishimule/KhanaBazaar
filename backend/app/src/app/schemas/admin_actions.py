@@ -51,3 +51,17 @@ class SellerHubSummary(BaseModel):
     store_id: Optional[int] = None
     active_order_count: int
     total_product_count: int
+
+
+class AdminInventoryRow(BaseModel):
+    """Inventory row enriched with the master product name for admin UI display."""
+
+    id: int
+    store_id: int
+    product_id: int
+    product_name: str
+    product_brand: Optional[str] = None
+    product_unit: Optional[str] = None
+    price: float
+    stock: int
+    is_available: bool

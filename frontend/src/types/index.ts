@@ -530,3 +530,15 @@ export interface SellerHubSummary {
   total_product_count: number;
 }
 
+export interface AdminInventoryRow {
+  id: number;
+  store_id: number;
+  product_id: number;
+  product_name: string;
+  product_brand: string | null;
+  product_unit: string | null;
+  price: number;
+  stock: number;
+  is_available: boolean;
+}
+

@@ -29,11 +29,13 @@ from app.db.session import get_db_session
 from app.models.base import User
 from app.models.commerce import Order, OrderStatus
 from app.models.admin_audit import AdminActionLog
+from app.models.catalog import MasterProduct, MasterProductTranslation
 from app.models.profile import SellerProfile
 from app.models.store import Store, StoreInventory
 from app.schemas.admin_actions import (
     ActivityLogPage,
     AdminActionLogOut,
+    AdminInventoryRow,
     OverrideDeliveryAddressRequest,
     RefundOrderRequest,
     RewindOrderRequest,
@@ -203,6 +205,84 @@ async def admin_seller_hub_summary(
         active_order_count=active_count,
         total_product_count=product_count,
     )
+
+
+@router.get(
+    "/sellers/{seller_id}/inventory",
+    response_model=list[AdminInventoryRow],
+)
+async def admin_seller_inventory(
+    seller_id: int,
+    locale: str = Query(default="en", max_length=8),
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> list[AdminInventoryRow]:
+    """Return all inventory for the seller's store enriched with the master
+    product display name in the requested locale (falls back to ``en`` then
+    the slug). Powers the admin Products tab.
+
+    ``seller_id`` is the seller's ``User.id``.
+    """
+    profile = (
+        await session.exec(
+            select(SellerProfile).where(SellerProfile.user_id == seller_id)
+        )
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="seller_not_found")
+    store = (
+        await session.exec(
+            select(Store).where(Store.seller_profile_id == profile.id)
+        )
+    ).first()
+    if store is None:
+        return []
+
+    rows = list((await session.exec(
+        select(StoreInventory).where(StoreInventory.store_id == store.id)
+    )).all())
+    if not rows:
+        return []
+
+    product_ids = [r.product_id for r in rows]
+    products = list((await session.exec(
+        select(MasterProduct).where(MasterProduct.id.in_(product_ids))  # type: ignore[union-attr]
+    )).all())
+    by_id = {p.id: p for p in products}
+
+    # Look up names in requested locale, fall back to English, then slug.
+    translations_for = await session.exec(
+        select(MasterProductTranslation).where(
+            MasterProductTranslation.master_product_id.in_(product_ids),  # type: ignore[union-attr]
+            MasterProductTranslation.language_code.in_([locale, "en"]),  # type: ignore[union-attr]
+        )
+    )
+    tx_by_product: dict[int, dict[str, str]] = {}
+    for t in translations_for.all():
+        tx_by_product.setdefault(t.master_product_id, {})[t.language_code] = t.name
+
+    def name_for(product_id: int) -> str:
+        tx = tx_by_product.get(product_id, {})
+        return (
+            tx.get(locale)
+            or tx.get("en")
+            or by_id.get(product_id, MasterProduct(slug="?", subcategory_id=0, base_price=0)).slug
+        )
+
+    return [
+        AdminInventoryRow(
+            id=r.id,
+            store_id=r.store_id,
+            product_id=r.product_id,
+            product_name=name_for(r.product_id),
+            product_brand=by_id.get(r.product_id).brand if by_id.get(r.product_id) else None,
+            product_unit=by_id.get(r.product_id).unit if by_id.get(r.product_id) else None,
+            price=r.price,
+            stock=r.stock,
+            is_available=r.is_available,
+        )
+        for r in rows
+    ]
 
 
 @router.post("/orders/{order_id}/rewind")
