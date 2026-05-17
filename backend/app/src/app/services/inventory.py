@@ -1,15 +1,17 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-from typing import Iterable
+from typing import Any, Iterable, Optional
 
 from fastapi import HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models.admin_audit import AdminActionTargetType
 from app.models.catalog import Category, MasterProduct, Subcategory
-from app.models.profile import SellerProfileService
-from app.models.store import StoreInventory
+from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
+from app.models.store import Store, StoreInventory
 from app.schemas.inventory import BulkInventoryItem
+from app.services.admin_audit import log as audit_log
 
 
 async def lock_inventory_rows(
@@ -93,15 +95,30 @@ async def bulk_upsert_inventory(
     session: AsyncSession,
     store_id: int,
     items: list[BulkInventoryItem],
+    *,
+    store: Optional[Store] = None,
+    acting_admin_id: Optional[int] = None,
 ) -> list[StoreInventory]:
     """Insert new rows and update existing ones in a single transaction.
 
     Dedup by product_id (last write wins). Caller commits.
     Caller is responsible for service-membership and field validation
     BEFORE calling this — the service layer trusts its inputs.
+
+    When ``acting_admin_id`` is set, one ``inventory.bulk_update`` audit row
+    is emitted **per changed item**, in the same DB transaction. ``store``
+    must be provided in that case (used to read ``seller_profile_id`` for
+    the audit row).
     """
     if not items:
         return []
+
+    if acting_admin_id is not None:
+        if store is None:
+            raise RuntimeError(
+                "bulk_upsert_inventory(acting_admin_id=...) requires store"
+            )
+        await _assert_seller_active(session, store.seller_profile_id)
 
     # Dedup, preserving the LAST occurrence per product_id.
     deduped: dict[int, BulkInventoryItem] = {}
@@ -123,16 +140,21 @@ async def bulk_upsert_inventory(
     locked = await lock_inventory_rows(session, existing_ids)
     locked_by_product = {row.product_id: row for row in locked}
 
+    # Track before-snapshots per product_id for the audit log.
+    before_by_product: dict[int, Optional[dict[str, Any]]] = {}
+
     out: list[StoreInventory] = []
     for item in payload:
         existing = locked_by_product.get(item.product_id)
         if existing is not None:
+            before_by_product[item.product_id] = _inventory_snapshot(existing)
             existing.price = item.price
             existing.stock = item.stock
             existing.is_available = item.is_available
             session.add(existing)
             out.append(existing)
         else:
+            before_by_product[item.product_id] = None
             new_row = StoreInventory(
                 store_id=store_id,
                 product_id=item.product_id,
@@ -144,4 +166,181 @@ async def bulk_upsert_inventory(
             out.append(new_row)
 
     await session.flush()
+
+    if acting_admin_id is not None and store is not None:
+        for row in out:
+            await audit_log(
+                session=session,
+                admin_user_id=acting_admin_id,
+                target_seller_id=store.seller_profile_id,
+                target_type=AdminActionTargetType.Inventory,
+                target_id=row.id,
+                action="inventory.bulk_update",
+                before_json=before_by_product.get(row.product_id),
+                after_json=_inventory_snapshot(row),
+            )
+
     return out
+
+
+def _inventory_snapshot(inv: StoreInventory) -> dict[str, Any]:
+    return {
+        "id": inv.id,
+        "store_id": inv.store_id,
+        "product_id": inv.product_id,
+        "price": float(inv.price) if inv.price is not None else None,
+        "stock": inv.stock,
+        "is_available": inv.is_available,
+    }
+
+
+async def _assert_seller_active(
+    session: AsyncSession, seller_profile_id: int
+) -> None:
+    """Reject admin writes against pending/rejected sellers with 409."""
+    profile = await session.get(SellerProfile, seller_profile_id)
+    if profile is None or profile.verification_status != VerificationStatus.Approved:
+        raise HTTPException(
+            status_code=409, detail={"code": "seller_not_active"}
+        )
+
+
+async def create_inventory(
+    *,
+    session: AsyncSession,
+    store: Store,
+    inventory: StoreInventory,
+    acting_admin_id: Optional[int] = None,
+) -> StoreInventory:
+    """Add a new inventory row. When ``acting_admin_id`` is set, emit
+    an ``inventory.create`` audit row in the same transaction. The new
+    inventory id is materialised via ``session.flush()`` so the audit
+    row carries the real ``target_id`` before commit.
+    """
+    if acting_admin_id is not None:
+        await _assert_seller_active(session, store.seller_profile_id)
+
+    product = await session.get(MasterProduct, inventory.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Master product not found")
+
+    await assert_products_in_seller_services(
+        session, store.seller_profile_id, [inventory.product_id]
+    )
+
+    existing = (await session.exec(
+        select(StoreInventory).where(
+            StoreInventory.store_id == store.id,
+            StoreInventory.product_id == inventory.product_id,
+        )
+    )).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="Product already exists in store inventory. Use PUT to update.",
+        )
+
+    inventory.id = None
+    inventory.store_id = store.id
+    session.add(inventory)
+    await session.flush()  # materialise inventory.id for audit row
+
+    if acting_admin_id is not None:
+        await audit_log(
+            session=session,
+            admin_user_id=acting_admin_id,
+            target_seller_id=store.seller_profile_id,
+            target_type=AdminActionTargetType.Inventory,
+            target_id=inventory.id,
+            action="inventory.create",
+            before_json=None,
+            after_json=_inventory_snapshot(inventory),
+        )
+
+    await session.commit()
+    await session.refresh(inventory)
+    return inventory
+
+
+async def delete_inventory(
+    *,
+    session: AsyncSession,
+    store: Store,
+    inv: StoreInventory,
+    reason: Optional[str] = None,
+    acting_admin_id: Optional[int] = None,
+) -> None:
+    """Delete an inventory row. When ``acting_admin_id`` is set, ``reason``
+    must be at least 10 characters (after stripping) and an
+    ``inventory.delete`` audit row is committed in the same transaction.
+    """
+    if acting_admin_id is not None:
+        await _assert_seller_active(session, store.seller_profile_id)
+        if not reason or len(reason.strip()) < 10:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "reason_required",
+                    "message": "Reason of >=10 chars required for admin delete",
+                },
+            )
+
+    before = _inventory_snapshot(inv)
+    target_id = inv.id
+
+    if acting_admin_id is not None:
+        await audit_log(
+            session=session,
+            admin_user_id=acting_admin_id,
+            target_seller_id=store.seller_profile_id,
+            target_type=AdminActionTargetType.Inventory,
+            target_id=target_id,
+            action="inventory.delete",
+            before_json=before,
+            after_json=None,
+            reason=(reason or "").strip(),
+        )
+
+    await session.delete(inv)
+    await session.commit()
+
+
+async def update_inventory(
+    *,
+    session: AsyncSession,
+    store: Store,
+    inv: StoreInventory,
+    price: Optional[float],
+    stock: Optional[int],
+    is_available: Optional[bool],
+    acting_admin_id: Optional[int] = None,
+) -> StoreInventory:
+    """Update inventory fields. When ``acting_admin_id`` is set, emit an audit
+    row in the same DB transaction."""
+    if acting_admin_id is not None:
+        await _assert_seller_active(session, store.seller_profile_id)
+
+    before = _inventory_snapshot(inv)
+    if price is not None:
+        inv.price = price
+    if stock is not None:
+        inv.stock = stock
+    if is_available is not None:
+        inv.is_available = is_available
+    session.add(inv)
+
+    if acting_admin_id is not None:
+        await audit_log(
+            session=session,
+            admin_user_id=acting_admin_id,
+            target_seller_id=store.seller_profile_id,
+            target_type=AdminActionTargetType.Inventory,
+            target_id=inv.id,
+            action="inventory.update",
+            before_json=before,
+            after_json=_inventory_snapshot(inv),
+        )
+
+    await session.commit()
+    await session.refresh(inv)
+    return inv

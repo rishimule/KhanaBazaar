@@ -11,6 +11,7 @@ import OrderTimeline from "@/components/orders/OrderTimeline";
 import OrderItemList from "@/components/orders/OrderItemList";
 import OrderActionButtons from "@/components/orders/OrderActionButtons";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
+import PaymentStatusBadge from "@/components/orders/PaymentStatusBadge";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -67,7 +68,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("payment")}</h2>
-        <p>{order.payment.method.toUpperCase()} · {order.payment.status}</p>
+        <p>{order.payment.method.toUpperCase()} · <PaymentStatusBadge status={order.payment.status} /></p>
       </section>
 
       <section className={styles.section}>

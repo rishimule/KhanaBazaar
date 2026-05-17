@@ -2,7 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -38,6 +38,7 @@ from app.schemas.orders import (
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
 from app.services.checkout import place_order_for_sub_basket
 from app.services.order_emails import (
+    dispatch_admin_order_action,
     dispatch_order_placed,
     dispatch_order_status_changed,
 )
@@ -154,12 +155,22 @@ async def _customer_profile_id(session: AsyncSession, user: User) -> int:
 async def list_orders(
     status: Optional[str] = Query(default=None),
     service_id: Optional[int] = Query(default=None, gt=0),
+    seller_id: Optional[int] = Query(default=None, gt=0),
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> OrderListResponse:
+    """List orders.
+
+    ``seller_id`` is an admin-only filter that scopes the listing to all
+    stores belonging to one seller. Non-admin callers passing ``seller_id``
+    receive 403.
+    """
     statuses = _status_filter_for(status)
     stmt = select(Order)
     include_customer = False
+
+    if seller_id is not None and user.role != UserRole.Admin:
+        raise HTTPException(status_code=403, detail="forbidden")
 
     if user.role == UserRole.Customer:
         # A logged-in customer with no CustomerProfile (incomplete onboarding)
@@ -181,6 +192,25 @@ async def list_orders(
         include_customer = True
     elif user.role == UserRole.Admin:
         include_customer = True
+        if seller_id is not None:
+            # `seller_id` query param is the seller's User.id (matches the
+            # /admin/sellers/{seller_id}/* convention shared with the seller
+            # applications API). Resolve to SellerProfile.id, then to stores.
+            profile_id = (await session.exec(
+                select(SellerProfile.id).where(
+                    SellerProfile.user_id == seller_id
+                )
+            )).first()
+            if profile_id is None:
+                return OrderListResponse(orders=[])
+            seller_store_ids = [
+                sid for sid in (await session.exec(
+                    select(Store.id).where(Store.seller_profile_id == profile_id)
+                )).all() if sid is not None
+            ]
+            if not seller_store_ids:
+                return OrderListResponse(orders=[])
+            stmt = stmt.where(Order.store_id.in_(seller_store_ids))  # type: ignore[attr-defined]
     else:
         raise HTTPException(status_code=403, detail="forbidden")
 
@@ -260,19 +290,39 @@ async def transition_order(
     order = await transition_order_status(session, order, payload.to, user)
     if order.id is not None:
         dispatch_order_status_changed(order.id, order.status.value)
+        if user.role == UserRole.Admin:
+            dispatch_admin_order_action(
+                order.id, "order.transition", f"to {order.status.value}"
+            )
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 
 @router.post("/{order_id}/cancel", response_model=OrderRead)
 async def cancel(
     order_id: int,
+    body: Optional[dict] = Body(default=None),
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> OrderRead:
+    """Cancel an order.
+
+    Customer: only on pending orders. Seller: any non-terminal order on a
+    store they own. Admin: any non-terminal order — must supply
+    ``{"reason": "..."}`` (>=10 chars) when the order is not pending.
+    """
+    reason = None
+    if body and isinstance(body, dict):
+        raw = body.get("reason")
+        if isinstance(raw, str):
+            reason = raw
     order, include_customer = await _load_order_for_user(session, order_id, user)
-    order = await cancel_order(session, order, user)
+    order = await cancel_order(session, order, user, reason=reason)
     if order.id is not None:
         dispatch_order_status_changed(order.id, "cancelled", notify_seller=True)
+        if user.role == UserRole.Admin:
+            dispatch_admin_order_action(
+                order.id, "order.cancel", reason or ""
+            )
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 

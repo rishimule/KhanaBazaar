@@ -1,0 +1,138 @@
+.wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-neutral-500);
+  background: var(--color-neutral-50);
+  border-radius: 8px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table thead th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-700);
+  font-weight: 500;
+  border-bottom: 1px solid var(--color-neutral-200);
+}
+
+.row td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--color-neutral-100);
+  vertical-align: top;
+}
+
+.time {
+  white-space: nowrap;
+  color: var(--color-neutral-600);
+}
+
+.admin {
+  color: var(--color-neutral-700);
+}
+
+.reason {
+  max-width: 320px;
+  color: var(--color-neutral-800);
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-700);
+}
+
+.pill.inventory {
+  background: rgba(0, 130, 80, 0.12);
+  color: var(--color-success);
+}
+.pill.order {
+  background: rgba(216, 60, 48, 0.12);
+  color: var(--color-error);
+}
+.pill.store {
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--color-warning);
+}
+.pill.seller_profile {
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--color-info);
+}
+.pill.unknown {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-700);
+}
+
+.toggle {
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.diffRow {
+  background: var(--color-neutral-50);
+}
+
+.diffGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.diff {
+  margin: 0;
+  padding: 0.6rem;
+  background: #fff;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.loadMore {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.55rem 1.25rem;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .diffGrid {
+    grid-template-columns: 1fr;
+  }
+  .table thead {
+    display: none;
+  }
+  .row td {
+    display: block;
+    border-bottom: none;
+    padding: 0.25rem 0.75rem;
+  }
+  .row {
+    display: block;
+    border-bottom: 1px solid var(--color-neutral-100);
+    padding-block: 0.6rem;
+  }
+}

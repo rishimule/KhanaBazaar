@@ -10,7 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.locale import get_request_locale
-from app.core.security import get_current_seller
+from app.core.security import get_current_seller, get_current_user
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User, UserRole
@@ -42,6 +42,7 @@ from app.schemas.store_product_detail import (
 )
 from app.schemas.storefront import StorefrontResponse
 from app.schemas.stores import StoreCreate, StoreRead, StoreUpdate
+from app.services import inventory as services_inventory
 from app.services.inventory import (
     assert_products_in_seller_services,
     bulk_upsert_inventory,
@@ -50,6 +51,7 @@ from app.services.seller_services import list_profile_services
 from app.services.storefront import _translation_map, build_storefront
 
 _BULK_ROW_LIMIT = 200
+_ADMIN_BULK_ROW_LIMIT = 100
 
 router = APIRouter()
 
@@ -455,10 +457,14 @@ async def get_store_product_detail(
 async def list_store_inventory_all(
     store_id: int,
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller),
+    user: User = Depends(get_current_user),
 ) -> List[StoreInventory]:
-    """Return ALL inventory for a store (including unavailable) — seller only."""
-    await _authorize_store_ownership(session, store_id, seller)
+    """Return ALL inventory for a store (including unavailable).
+
+    Authorized for the seller who owns the store and for admins. No audit
+    log — this is a read-only path.
+    """
+    await _authorize_store_ownership(session, store_id, user, allow_admin=True)
     result = await session.exec(
         select(StoreInventory).where(StoreInventory.store_id == store_id)
     )
@@ -470,37 +476,23 @@ async def add_inventory(
     store_id: int,
     inventory: StoreInventory,
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller),
+    user: User = Depends(get_current_user),
 ) -> StoreInventory:
+    """Add a product to a store's inventory.
+
+    Sellers can only add to their own store. Admins can add on behalf of any
+    approved seller; their write produces an ``inventory.create`` audit row.
+    """
     store = await _authorize_store_ownership(
-        session, store_id, seller, allow_admin=False
+        session, store_id, user, allow_admin=True
     )
-
-    product = await session.get(MasterProduct, inventory.product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Master product not found")
-
-    await assert_products_in_seller_services(
-        session, store.seller_profile_id, [inventory.product_id]
+    acting_admin_id = user.id if user.role == UserRole.Admin else None
+    return await services_inventory.create_inventory(
+        session=session,
+        store=store,
+        inventory=inventory,
+        acting_admin_id=acting_admin_id,
     )
-
-    check_stmt = select(StoreInventory).where(
-        StoreInventory.store_id == store_id,
-        StoreInventory.product_id == inventory.product_id,
-    )
-    existing = await session.exec(check_stmt)
-    if existing.first():
-        raise HTTPException(
-            status_code=400,
-            detail="Product already exists in store inventory. Use PUT to update.",
-        )
-
-    inventory.id = None
-    inventory.store_id = store_id
-    session.add(inventory)
-    await session.commit()
-    await session.refresh(inventory)
-    return inventory
 
 
 def _validate_bulk_items(
@@ -545,18 +537,26 @@ async def bulk_upsert_store_inventory(
     store_id: int,
     payload: BulkInventoryRequest,
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller),
+    user: User = Depends(get_current_user),
 ) -> List[StoreInventory]:
+    """Bulk insert/update inventory rows.
+
+    Sellers may submit up to ``_BULK_ROW_LIMIT`` items per call. Admins may
+    bulk-edit any approved seller's store with a tighter cap of 100 items
+    to keep the per-row audit-log volume bounded.
+    """
     store = await _authorize_store_ownership(
-        session, store_id, seller, allow_admin=False
+        session, store_id, user, allow_admin=True
     )
 
-    if len(payload.items) > _BULK_ROW_LIMIT:
+    acting_admin_id = user.id if user.role == UserRole.Admin else None
+    row_cap = _ADMIN_BULK_ROW_LIMIT if acting_admin_id is not None else _BULK_ROW_LIMIT
+    if len(payload.items) > row_cap:
         raise HTTPException(
             status_code=422,
             detail={
                 "code": "ROW_LIMIT",
-                "message": f"At most {_BULK_ROW_LIMIT} items per request",
+                "message": f"At most {row_cap} items per request",
             },
         )
 
@@ -571,7 +571,13 @@ async def bulk_upsert_store_inventory(
     product_ids = [it.product_id for it in payload.items]
     await assert_products_in_seller_services(session, profile_id, product_ids)
 
-    rows = await bulk_upsert_inventory(session, store_id, payload.items)
+    rows = await bulk_upsert_inventory(
+        session,
+        store_id,
+        payload.items,
+        store=store,
+        acting_admin_id=acting_admin_id,
+    )
     await session.commit()
     for row in rows:
         await session.refresh(row)
@@ -584,42 +590,58 @@ async def update_inventory(
     inventory_id: int,
     payload: StoreInventory,
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller),
+    user: User = Depends(get_current_user),
 ) -> StoreInventory:
-    """Update price, stock, or availability of an inventory item."""
-    await _authorize_store_ownership(session, store_id, seller)
+    """Update price, stock, or availability of an inventory item.
+
+    Admins may update inventory on behalf of any approved seller. When an admin
+    performs the write, an :class:`AdminActionLog` row is committed in the same
+    transaction (see services.inventory.update_inventory).
+    """
+    store = await _authorize_store_ownership(session, store_id, user)
 
     inv = await session.get(StoreInventory, inventory_id)
     if not inv or inv.store_id != store_id:
         raise HTTPException(status_code=404, detail="Inventory item not found")
 
-    if payload.price is not None:
-        inv.price = payload.price
-    if payload.stock is not None:
-        inv.stock = payload.stock
-    if payload.is_available is not None:
-        inv.is_available = payload.is_available
-
-    session.add(inv)
-    await session.commit()
-    await session.refresh(inv)
-    return inv
+    acting_admin_id = user.id if user.role == UserRole.Admin else None
+    return await services_inventory.update_inventory(
+        session=session,
+        store=store,
+        inv=inv,
+        price=payload.price,
+        stock=payload.stock,
+        is_available=payload.is_available,
+        acting_admin_id=acting_admin_id,
+    )
 
 
 @router.delete("/{store_id}/inventory/{inventory_id}")
 async def delete_inventory(
     store_id: int,
     inventory_id: int,
+    reason: Optional[str] = Query(default=None),
     session: AsyncSession = Depends(get_db_session),
-    seller: User = Depends(get_current_seller),
+    user: User = Depends(get_current_user),
 ) -> dict[str, str]:
-    """Remove a product from a store's inventory."""
-    await _authorize_store_ownership(session, store_id, seller)
+    """Remove a product from a store's inventory.
+
+    Sellers delete their own items unconditionally. Admins may delete on
+    behalf of any approved seller, but must supply ``?reason=`` (>=10 chars).
+    Admin deletes are audit-logged.
+    """
+    store = await _authorize_store_ownership(session, store_id, user)
 
     inv = await session.get(StoreInventory, inventory_id)
     if not inv or inv.store_id != store_id:
         raise HTTPException(status_code=404, detail="Inventory item not found")
 
-    await session.delete(inv)
-    await session.commit()
+    acting_admin_id = user.id if user.role == UserRole.Admin else None
+    await services_inventory.delete_inventory(
+        session=session,
+        store=store,
+        inv=inv,
+        reason=reason,
+        acting_admin_id=acting_admin_id,
+    )
     return {"detail": "Inventory item deleted"}

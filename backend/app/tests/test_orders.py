@@ -631,9 +631,140 @@ async def test_admin_cancels_dispatched_order(as_customer: Any, seed: dict[str, 
 
     app.dependency_overrides[get_current_user] = lambda: mock_admin
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.post(f"/api/v1/orders/{target}/cancel")
+        # Admin cancel on a non-Pending order now requires a reason (>=10 chars)
+        # per the admin-supervisor spec.
+        resp = await ac.post(
+            f"/api/v1/orders/{target}/cancel",
+            json={"reason": "customer support escalation"},
+        )
     assert resp.status_code == 200
     # Cancel from non-Pending status must still restock; this branch wasn't
     # exercised by the customer-cancels-Pending test.
     post_stock = (await session.exec(select(StoreInventory.stock).where(StoreInventory.id == seed["inv_a"]))).first()
     assert post_stock == pre_stock + 2
+
+
+# ----------------------------------------------------------------------
+# Admin supervisor order actions: rewind / refund / address-override
+# ----------------------------------------------------------------------
+async def _advance_to_dispatched(target: int) -> None:
+    """Helper: walk an order Pending -> Packed -> Dispatched as the seller."""
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
+        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "dispatched"})
+
+
+async def test_admin_rewind_dispatched_to_packed(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+    await _advance_to_dispatched(target)
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        ok = await ac.post(
+            f"/api/v1/admin/orders/{target}/rewind",
+            json={"to_status": "packed", "reason": "delivery driver returned"},
+        )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["status"] == "packed"
+
+
+async def test_admin_rewind_from_terminal_status_rejected(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    # Cancel (terminal) then try to rewind.
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        await ac.post(f"/api/v1/orders/{target}/cancel")
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        terminal = await ac.post(
+            f"/api/v1/admin/orders/{target}/rewind",
+            json={"to_status": "pending", "reason": "post-cancel rewind"},
+        )
+    assert terminal.status_code == 409
+    assert terminal.json()["detail"]["code"] == "terminal_status"
+
+
+async def test_admin_refund_rejects_unpaid_payment(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    # Cancel pending order: order moves to Cancelled but payment stays Pending
+    # (only Paid -> Refunded auto-flips). Refund must reject.
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        await ac.post(f"/api/v1/orders/{target}/cancel")
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            f"/api/v1/admin/orders/{target}/refund",
+            json={"reason": "should reject on payment status"},
+        )
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "payment_not_refundable"
+
+
+async def test_admin_refund_delivered_order_marks_payment_refunded(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    # Walk to delivered (transition_order_status flips payment.status to Paid).
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
+        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "dispatched"})
+        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "delivered"})
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            f"/api/v1/admin/orders/{target}/refund",
+            json={"reason": "customer support refund request"},
+        )
+    assert resp.status_code == 200
+
+    payment = (await session.exec(
+        select(Payment).where(Payment.order_id == target)
+    )).first()
+    assert payment is not None
+    assert payment.status == PaymentStatus.Refunded
+
+
+async def test_admin_override_delivery_address_out_of_radius(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    # Provide a coordinate far outside any 5km radius from store_a (which
+    # uses the default seeded MG-Road / Gurugram lat-lng).
+    far_payload = make_address(
+        address_line1="999 Mars Drive",
+        latitude=12.9716,
+        longitude=77.5946,  # Bangalore — well outside Gurugram radius
+    )
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.patch(
+            f"/api/v1/admin/orders/{target}/delivery-address",
+            json={
+                "address": far_payload,
+                "reason": "customer relocated to wrong city",
+            },
+        )
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "delivery_out_of_radius"

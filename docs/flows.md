@@ -459,3 +459,32 @@ $ uv run python -m app.search.reindex --all
 ```
 
 Required after the first migration + seed and after dropping the `meili_data` Docker volume. Meilisearch starts empty; bootstrap on app startup only ensures the indexes + settings exist — it does not populate documents.
+
+## 12. Admin Seller Supervisor Flow
+
+Admin can drill into any approved seller's store and act on the seller's behalf — edit inventory, force-cancel/rewind/refund orders, override the delivery address — with every write captured in a full diff audit log.
+
+**Entry point**: `/admin/sellers` shows approved sellers with a "View store" action that opens `/admin/sellers/[id]/products` (the hub default). The hub layout (`frontend/src/app/(operator)/admin/sellers/[id]/layout.tsx`) mounts a sticky `<ImpersonationBanner>` and tabs for Profile / Products / Orders / Activity.
+
+**Backend endpoints used**:
+- `GET /api/v1/admin/sellers/{id}` — hub header summary (counts + verification status)
+- `GET /api/v1/admin/sellers/{id}/activity?cursor=&limit=` — paginated audit log (newest first; base64 cursor of `(created_at, id)`)
+- `GET /api/v1/stores/{store_id}/inventory/all` — full inventory (admin-allowed)
+- `POST/PUT/DELETE /api/v1/stores/{store_id}/inventory[/...]` — same routes the seller uses, but `allow_admin=True` flows through `services/inventory.{create,update,delete,bulk_upsert}_inventory(..., acting_admin_id=…)`
+- `GET /api/v1/orders?seller_id=` — admin-only filter to scope listing to one seller's stores
+- `POST /api/v1/orders/{id}/cancel` (with `{"reason": "..."}` when admin path + non-Pending status)
+- `POST /api/v1/admin/orders/{id}/rewind` — backward transition (Packed→Pending, Dispatched→{Pending,Packed})
+- `POST /api/v1/admin/orders/{id}/refund` — flips `payment.status` to `refunded` when order is `cancelled` or `delivered` AND payment is `paid`
+- `PATCH /api/v1/admin/orders/{id}/delivery-address` — recomputes ST_DWithin against the store radius, then writes a new `Address` row and updates `Order.delivery_address_id` + `delivery_address_snapshot`
+
+**Audit data flow**: every admin-triggered service function takes `acting_admin_id: int | None = None`. When set, the service calls `services.admin_audit.log(...)` to add an `AdminActionLog` row to the open session, then issues a single `session.commit()` covering both the mutation and the audit row. If the audit insert fails, the mutation rolls back. Seller-triggered writes (no admin id) emit zero audit rows.
+
+**Gating**:
+- All admin writes against a non-Approved seller reject with `409 seller_not_active`.
+- Destructive admin actions (`inventory.delete`, `order.cancel` on non-Pending, `order.rewind`, `order.refund`, `order.address_override`) require `reason >= 10 chars` — 422 otherwise. The frontend enforces the same via `<AdminReasonModal>`.
+
+**Notifications**: admin-path order mutations enqueue the `send_admin_order_action_email` Celery task ("Admin updated your order #X" → seller). Inventory edits are silent by design (admins curate catalog frequently — too noisy).
+
+**Out of scope** (MVP): real UPI refund gateway (manual ledger marker only), per-admin granular permissions, seller-side visibility of the activity log, audit-log filtering UI.
+
+See spec: `docs/superpowers/specs/2026-05-16-admin-seller-supervisor-design.md`. Implementation plan: `docs/superpowers/plans/2026-05-16-admin-seller-supervisor.md`.

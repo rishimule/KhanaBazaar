@@ -136,10 +136,11 @@ Mounted in `api/__init__.py`. All under `/api/v1`:
 | `/tasks` | `tasks.py` | Celery test endpoint |
 | `/meta` | `meta.py` | Health, languages |
 | `/search` | `search.py` | `/suggest` (dropdown), `/products` (results), `/products/{id}/stores` (compare), `/stores` (store-name), `/click` (analytics) |
+| `/admin` | `admin_actions.py` | Per-seller hub (`/sellers/{id}`), activity log (`/sellers/{id}/activity`), order force-rewind, force-refund, delivery-address override |
 
 Public: catalog reads, store reads, health, languages, **search**.
 Seller-only: register, profile/services updates, applications.
-Admin-only: create categories/products, approve seller applications.
+Admin-only: create categories/products, approve seller applications, **per-seller supervisor** actions (`/admin/*`).
 
 ## Environment Variables
 
@@ -226,6 +227,8 @@ No frontend tests configured.
 **CSS conventions**: Design tokens (CSS custom properties) in `frontend/src/styles/design-tokens.css`. Global utility classes (`btn`, `btn-primary`, etc.) in `frontend/src/app/globals.css`. Component scoping via `*.module.css`. **Never add Tailwind.**
 
 **Async DB everywhere**: All routes use async sessions (`get_db_session`). When writing services, use `await session.exec(...)`, `await session.commit()`, `await session.refresh(obj)`.
+
+**Admin seller supervisor + audit log**: Admins can act on a single seller's products and orders through `/admin/sellers/[id]/{profile,products,orders,activity}` (frontend) → `/api/v1/admin/*` + reused `/stores/{id}/inventory/*` and `/orders/{id}/{cancel,transition}` endpoints. Service functions accept `acting_admin_id: int | None = None`; when set, `admin_audit.log()` is called and the audit row commits in the **same transaction** as the mutation (no post-commit logging — rollback is atomic). Audit data lives in `admin_action_log` (new table, no FKs on `target_id` so deleted-row history survives). Admin order-mutating routes also enqueue `send_admin_order_action_email` Celery task to notify the seller. Admin writes against non-Approved sellers reject with `409 seller_not_active`. Frontend uses an `<ImpersonationBanner>` ("acting" vs "viewing" copy) + reason-required modal for destructive actions. See `docs/superpowers/specs/2026-05-16-admin-seller-supervisor-design.md`.
 
 ## Git & GitHub Workflow
 

@@ -96,7 +96,7 @@ export default function AdminDashboardPage() {
               </span>
             </div>
           </Link>
-          <Link href="/admin/sellers" className={styles.actionCard}>
+          <Link href="/admin/sellers/applications" className={styles.actionCard}>
             <div className={styles.actionIcon}>✅</div>
             <div className={styles.actionInfo}>
               <span className={styles.actionLabel}>
@@ -104,6 +104,15 @@ export default function AdminDashboardPage() {
               </span>
               <span className={styles.actionDescription}>
                 Approve, reject, or revoke seller accounts
+              </span>
+            </div>
+          </Link>
+          <Link href="/admin/sellers" className={styles.actionCard}>
+            <div className={styles.actionIcon}>🏪</div>
+            <div className={styles.actionInfo}>
+              <span className={styles.actionLabel}>Approved Sellers</span>
+              <span className={styles.actionDescription}>
+                Drill into any seller&apos;s store, edit inventory, manage orders
               </span>
             </div>
           </Link>
