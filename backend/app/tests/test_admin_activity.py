@@ -40,7 +40,8 @@ async def seed_activity(session: AsyncSession) -> AsyncGenerator[dict, None]:
     )
     session.add(profile)
     await session.flush()
-    seller_id = profile.id
+    seller_profile_id = profile.id
+    seller_user_id = mock_seller.id  # what the FE/URL uses
     admin_id = mock_admin.id
     await session.commit()
 
@@ -49,7 +50,7 @@ async def seed_activity(session: AsyncSession) -> AsyncGenerator[dict, None]:
         await audit_log(
             session=session,
             admin_user_id=admin_id,
-            target_seller_id=seller_id,
+            target_seller_id=seller_profile_id,
             target_type=(
                 AdminActionTargetType.Order
                 if action.startswith("order")
@@ -62,7 +63,11 @@ async def seed_activity(session: AsyncSession) -> AsyncGenerator[dict, None]:
         )
         await session.commit()
 
-    yield {"seller_id": seller_id, "admin_id": admin_id}
+    yield {
+        "seller_user_id": seller_user_id,
+        "seller_profile_id": seller_profile_id,
+        "admin_id": admin_id,
+    }
 
 
 @pytest.fixture
@@ -87,7 +92,7 @@ async def test_activity_returns_newest_first(
 ) -> None:
     s = seed_activity
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.get(f"/api/v1/admin/sellers/{s['seller_id']}/activity")
+        resp = await ac.get(f"/api/v1/admin/sellers/{s['seller_user_id']}/activity")
     assert resp.status_code == 200, resp.text
     body = resp.json()
     items = body["items"]
@@ -107,7 +112,7 @@ async def test_activity_cursor_paginates(
     s = seed_activity
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         r1 = await ac.get(
-            f"/api/v1/admin/sellers/{s['seller_id']}/activity",
+            f"/api/v1/admin/sellers/{s['seller_user_id']}/activity",
             params={"limit": 2},
         )
         body = r1.json()
@@ -116,7 +121,7 @@ async def test_activity_cursor_paginates(
         assert cursor is not None
 
         r2 = await ac.get(
-            f"/api/v1/admin/sellers/{s['seller_id']}/activity",
+            f"/api/v1/admin/sellers/{s['seller_user_id']}/activity",
             params={"limit": 2, "cursor": cursor},
         )
     page2 = r2.json()
@@ -131,5 +136,5 @@ async def test_activity_non_admin_forbidden(
 ) -> None:
     s = seed_activity
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        resp = await ac.get(f"/api/v1/admin/sellers/{s['seller_id']}/activity")
+        resp = await ac.get(f"/api/v1/admin/sellers/{s['seller_user_id']}/activity")
     assert resp.status_code == 403

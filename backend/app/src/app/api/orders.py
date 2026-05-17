@@ -193,9 +193,19 @@ async def list_orders(
     elif user.role == UserRole.Admin:
         include_customer = True
         if seller_id is not None:
+            # `seller_id` query param is the seller's User.id (matches the
+            # /admin/sellers/{seller_id}/* convention shared with the seller
+            # applications API). Resolve to SellerProfile.id, then to stores.
+            profile_id = (await session.exec(
+                select(SellerProfile.id).where(
+                    SellerProfile.user_id == seller_id
+                )
+            )).first()
+            if profile_id is None:
+                return OrderListResponse(orders=[])
             seller_store_ids = [
                 sid for sid in (await session.exec(
-                    select(Store.id).where(Store.seller_profile_id == seller_id)
+                    select(Store.id).where(Store.seller_profile_id == profile_id)
                 )).all() if sid is not None
             ]
             if not seller_store_ids:

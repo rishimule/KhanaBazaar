@@ -65,6 +65,22 @@ def _decode_cursor(cursor: str) -> tuple[datetime, str]:
         ) from exc
 
 
+async def _resolve_seller_profile_id(
+    session: AsyncSession, user_id: int
+) -> int:
+    """``/admin/sellers/{id}/*`` accept the seller's ``User.id`` (matches the
+    existing ``/sellers/admin/{seller_id}/verify`` convention used by the
+    sellers list page). Resolve to ``SellerProfile.id`` for internal joins."""
+    profile = (
+        await session.exec(
+            select(SellerProfile).where(SellerProfile.user_id == user_id)
+        )
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="seller_not_found")
+    return profile.id
+
+
 @router.get(
     "/sellers/{seller_id}/activity",
     response_model=ActivityLogPage,
@@ -78,13 +94,18 @@ async def admin_seller_activity(
 ) -> ActivityLogPage:
     """Paginated admin audit log scoped to one seller.
 
+    The ``{seller_id}`` path parameter is the seller's ``User.id`` (per the
+    convention shared with ``/sellers/admin/{seller_id}/verify``). It is
+    resolved to ``SellerProfile.id`` before the audit-log lookup.
+
     Ordered ``created_at DESC, id DESC``. Cursor is a base64-encoded
     ``(created_at_iso, id)`` tuple — id breaks ties on identical timestamps.
     """
+    profile_id = await _resolve_seller_profile_id(session, seller_id)
     stmt = (
         select(AdminActionLog, User.email)
         .join(User, User.id == AdminActionLog.admin_user_id)  # type: ignore[arg-type]
-        .where(AdminActionLog.target_seller_id == seller_id)
+        .where(AdminActionLog.target_seller_id == profile_id)
         .order_by(
             AdminActionLog.created_at.desc(),  # type: ignore[attr-defined]
             AdminActionLog.id.desc(),  # type: ignore[attr-defined]
@@ -134,14 +155,22 @@ async def admin_seller_hub_summary(
     session: AsyncSession = Depends(get_db_session),
     admin: User = Depends(get_current_admin),
 ) -> SellerHubSummary:
-    """Header data for the per-seller admin hub: profile + store + counts."""
-    profile = await session.get(SellerProfile, seller_id)
+    """Header data for the per-seller admin hub: profile + store + counts.
+
+    ``seller_id`` is the seller's ``User.id`` (matches the existing
+    ``/sellers/admin/{seller_id}/verify`` convention).
+    """
+    profile = (
+        await session.exec(
+            select(SellerProfile).where(SellerProfile.user_id == seller_id)
+        )
+    ).first()
     if profile is None:
         raise HTTPException(status_code=404, detail="seller_not_found")
     user = await session.get(User, profile.user_id)
 
     store = (await session.exec(
-        select(Store).where(Store.seller_profile_id == seller_id)
+        select(Store).where(Store.seller_profile_id == profile.id)
     )).first()
 
     active_count = 0
