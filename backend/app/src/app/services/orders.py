@@ -22,8 +22,10 @@ from app.models.commerce import (
 )
 from app.models.profile import CustomerProfile, SellerProfile, VerificationStatus
 from app.models.store import Store
+from app.schemas.address import AddressPayload, address_from_payload
 from app.services.admin_audit import log as audit_log
 from app.services.inventory import lock_inventory_rows, restock
+from app.utils.address import format_address
 
 LEGAL_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
     OrderStatus.Pending: {OrderStatus.Packed, OrderStatus.Cancelled},
@@ -298,7 +300,7 @@ async def override_delivery_address(
     *,
     session: AsyncSession,
     order: Order,
-    address_payload: "AddressPayload",
+    address_payload: AddressPayload,
     reason: str,
     acting_admin_id: int,
 ) -> Order:
@@ -314,13 +316,6 @@ async def override_delivery_address(
        formatted snapshot in ``before_json`` (the immutable record of the
        pre-override address). See spec §10 note 3.
     """
-    # Local imports to avoid widening the module-level dependency surface.
-    from app.schemas.address import (
-        AddressPayload,  # noqa: F401  (used for typing only)
-        address_from_payload,
-    )
-    from app.utils.address import format_address
-
     if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
         raise HTTPException(
             status_code=409, detail={"code": "order_not_mutable"}
@@ -375,10 +370,6 @@ async def override_delivery_address(
 
     order.delivery_address_id = new_address.id
     order.delivery_address_snapshot = format_address(address_payload)
-
-    payment = (
-        await session.exec(select(Payment).where(Payment.order_id == order.id))
-    ).first()
 
     target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)
     await audit_log(

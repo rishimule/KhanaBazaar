@@ -1,7 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Backend coverage for the admin activity log endpoint."""
-from datetime import datetime, timezone
 from typing import AsyncGenerator, Iterator
 
 import pytest
@@ -11,7 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import app
 from app.core.security import get_current_admin, get_current_user
 from app.models.address import Address
-from app.models.admin_audit import AdminActionLog, AdminActionTargetType
+from app.models.admin_audit import AdminActionTargetType
 from app.models.base import User, UserRole
 from app.models.profile import SellerProfile, VerificationStatus
 from app.services.admin_audit import log as audit_log
