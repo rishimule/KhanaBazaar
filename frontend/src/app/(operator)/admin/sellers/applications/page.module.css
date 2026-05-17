@@ -1,0 +1,192 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  color: var(--color-neutral-600);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.tab:hover {
+  background: var(--color-neutral-100);
+}
+
+.tabActive {
+  background: var(--color-primary-1);
+  color: var(--white);
+  border-color: var(--color-primary-1);
+}
+
+.tabBadge {
+  margin-left: 0.4rem;
+  background: rgba(255, 255, 255, 0.25);
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+}
+
+.tabBadgeInactive {
+  background: var(--color-neutral-200);
+  color: var(--color-neutral-700);
+}
+
+.categoryBadge {
+  display: inline-block;
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-700);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.statusPending { background: var(--mandarin-orange-light-1); color: var(--mandarin-orange-base-4); }
+.statusApproved { background: var(--jade-green-light-1); color: var(--jade-green-dark-1); }
+.statusRejected { background: var(--tomato-red-light-1); color: var(--tomato-red-dark-1); }
+
+.ownerCell { display: flex; flex-direction: column; }
+.ownerEmail { color: var(--color-neutral-500); font-size: 0.8rem; }
+
+.reviewBtn {
+  background: var(--color-btn-primary-bg);
+  color: var(--white);
+  border: none;
+  padding: 8px 14px;
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  transition: background var(--duration-fast), transform var(--duration-fast);
+}
+
+.reviewBtn:hover  { background: var(--color-btn-primary-hover); }
+.reviewBtn:active { transform: scale(0.97); }
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.detailsGroup { display: flex; flex-direction: column; gap: 0.5rem; }
+.detailsGroupTitle {
+  font-weight: 600;
+  color: var(--color-neutral-800);
+  margin-bottom: 0.25rem;
+}
+.detailsRow { display: flex; flex-direction: column; }
+.detailsLabel { font-size: 0.8rem; color: var(--color-neutral-500); }
+.detailsValue { color: var(--color-neutral-900); word-break: break-word; }
+
+.rejectionCallout {
+  background: var(--tomato-red-light-1);
+  color: var(--tomato-red-dark-1);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.rejectionHint {
+  font-size: 0.8rem;
+  color: var(--color-neutral-500);
+  margin-top: 0.35rem;
+}
+
+.dangerBtn {
+  background: var(--tomato-red-base-4);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.dangerBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.successBtn {
+  background: var(--jade-green-base-4);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex-shrink: 0;
+  }
+
+  .detailsGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .reviewBtn {
+    min-height: 44px;
+  }
+
+  .successBtn,
+  .dangerBtn {
+    min-height: 44px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
