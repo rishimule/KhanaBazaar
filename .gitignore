@@ -49,3 +49,4 @@ htmlcov/
 .dev/
 # Agent scratch
 .agents/
+docs/superpowers/
