@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import func
@@ -35,6 +36,16 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
+from app.models.commerce import (
+    Delivery,
+    DeliveryStatus,
+    Order,
+    OrderItem,
+    OrderStatus,
+    Payment,
+    PaymentMethod,
+    PaymentStatus,
+)
 from app.models.profile import (
     AdminProfile,
     CustomerAddress,
@@ -44,7 +55,9 @@ from app.models.profile import (
     VerificationStatus,
 )
 from app.models.store import Store, StoreInventory
+from app.schemas.address import address_to_payload
 from app.services.profiles import split_full_name
+from app.utils.address import format_address
 from app.utils.digipin import encode as digipin_encode
 
 LANGUAGES = [
@@ -1131,6 +1144,172 @@ INVENTORY_ITEMS = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# DEMO ORDERS — exercise every Order status and span multiple customers,
+# stores, and services. Idempotent: the seeder skips if any Order rows exist.
+# Each entry references customer/store/address by stable identifiers (email,
+# store name, address label) and lists items as (product_slug, quantity).
+# `days_ago` offsets `placed_at` backwards so order history looks lived-in.
+# ---------------------------------------------------------------------------
+DEMO_ORDERS: list[dict[str, Any]] = [
+    {
+        "customer_email": "customer@khanabazaar.dev",
+        "store_name": "Sharma General Store",
+        "service_slug": "grocery",
+        "address_label": "Home",
+        "status": "delivered",
+        "payment_method": "upi",
+        "days_ago": 7,
+        "items": [
+            ("fresh-tomatoes", 2),
+            ("amul-taza-milk-1l", 1),
+            ("britannia-bread-400g", 1),
+        ],
+    },
+    {
+        "customer_email": "customer@khanabazaar.dev",
+        "store_name": "Aditya Tech Hub",
+        "service_slug": "electronics",
+        "address_label": "Office",
+        "status": "dispatched",
+        "payment_method": "upi",
+        "days_ago": 1,
+        "items": [
+            ("sony-wh-1000xm5", 1),
+            ("anker-65w-gan-charger", 1),
+        ],
+    },
+    {
+        "customer_email": "customer@khanabazaar.dev",
+        "store_name": "Wellness First Pharmacy",
+        "service_slug": "pharmacy",
+        "address_label": "Home",
+        "status": "packed",
+        "payment_method": "cash",
+        "days_ago": 0,
+        "items": [
+            ("crocin-advance-500mg-15s", 2),
+            ("vicks-vaporub-50g", 1),
+        ],
+    },
+    {
+        "customer_email": "customer2@khanabazaar.dev",
+        "store_name": "Krishna Supermart",
+        "service_slug": "grocery",
+        "address_label": "Home",
+        "status": "delivered",
+        "payment_method": "upi",
+        "days_ago": 4,
+        "items": [
+            ("alphonso-mangoes-1kg", 1),
+            ("amul-paneer-200g", 1),
+            ("amul-taza-milk-1l", 2),
+        ],
+    },
+    {
+        "customer_email": "customer3@khanabazaar.dev",
+        "store_name": "Mehta Digital World",
+        "service_slug": "electronics",
+        "address_label": "Home",
+        "status": "pending",
+        "payment_method": "upi",
+        "days_ago": 0,
+        "items": [
+            ("boat-storm-pro", 1),
+        ],
+    },
+    {
+        "customer_email": "customer4@khanabazaar.dev",
+        "store_name": "Balaji Fresh Market",
+        "service_slug": "grocery",
+        "address_label": "Home",
+        "status": "delivered",
+        "payment_method": "cash",
+        "days_ago": 10,
+        "items": [
+            ("bananas-1dozen", 1),
+            ("fresh-tomatoes", 2),
+            ("potatoes-aloo-1kg", 1),
+        ],
+    },
+    {
+        "customer_email": "customer5@khanabazaar.dev",
+        "store_name": "Reddy MediMart",
+        "service_slug": "pharmacy",
+        "address_label": "Home",
+        "status": "cancelled",
+        "payment_method": "upi",
+        "days_ago": 6,
+        "items": [
+            ("crocin-advance-500mg-15s", 1),
+        ],
+    },
+    {
+        "customer_email": "customer6@khanabazaar.dev",
+        "store_name": "Iyer Electronics Bazaar",
+        "service_slug": "electronics",
+        "address_label": "Home",
+        "status": "dispatched",
+        "payment_method": "upi",
+        "days_ago": 2,
+        "items": [
+            ("apple-airpods-pro-2", 1),
+        ],
+    },
+    {
+        "customer_email": "customer7@khanabazaar.dev",
+        "store_name": "Bhatt Care Pharmacy",
+        "service_slug": "pharmacy",
+        "address_label": "Home",
+        "status": "delivered",
+        "payment_method": "cash",
+        "days_ago": 14,
+        "items": [
+            ("sensodyne-fresh-mint-150g", 1),
+            ("listerine-coolmint-500ml", 1),
+        ],
+    },
+    {
+        "customer_email": "customer8@khanabazaar.dev",
+        "store_name": "Sharma General Store",
+        "service_slug": "pharmacy",
+        "address_label": "Home",
+        "status": "packed",
+        "payment_method": "upi",
+        "days_ago": 0,
+        "items": [
+            ("colgate-strong-teeth-200g", 1),
+            ("eno-fruit-salt-100g", 1),
+        ],
+    },
+    {
+        "customer_email": "customer9@khanabazaar.dev",
+        "store_name": "Wellness First Pharmacy",
+        "service_slug": "pharmacy",
+        "address_label": "Home",
+        "status": "delivered",
+        "payment_method": "upi",
+        "days_ago": 5,
+        "items": [
+            ("patanjali-ashwagandha-60s", 2),
+            ("horlicks-classic-malt-1kg", 1),
+        ],
+    },
+    {
+        "customer_email": "customer10@khanabazaar.dev",
+        "store_name": "Aditya Tech Hub",
+        "service_slug": "electronics",
+        "address_label": "Home",
+        "status": "pending",
+        "payment_method": "cash",
+        "days_ago": 0,
+        "items": [
+            ("iphone-15-128gb", 1),
+        ],
+    },
+]
+
+
 def _compute_expected_counts() -> dict[str, int]:
     """Derive expected counts from the merged module-level data. Keeps the
     EXPECTED_FULL_COUNTS dict honest if extra-data generation ever shifts
@@ -1168,6 +1347,10 @@ def _compute_expected_counts() -> dict[str, int]:
         "masterproduct_translation": len(PRODUCTS),
         "store": len(STORES),
         "storeinventory": len(INVENTORIES),
+        "order": len(DEMO_ORDERS),
+        "orderitem": sum(len(o["items"]) for o in DEMO_ORDERS),
+        "payment": len(DEMO_ORDERS),
+        "delivery": len(DEMO_ORDERS),
     }
 
 
@@ -1620,6 +1803,212 @@ async def _upsert_inventory(
     return inventory
 
 
+async def _seed_demo_orders(session: AsyncSession) -> None:
+    """Build the DEMO_ORDERS roster: Order + OrderItem + Payment + Delivery
+    rows, with status-appropriate timestamps and stock decrements. Idempotent
+    — skips entirely if any Order rows already exist (the seed wipes nothing,
+    so a second call would otherwise duplicate the entire roster)."""
+    existing = await session.exec(select(func.count()).select_from(Order))
+    if int(existing.one()) > 0:
+        return
+
+    now = datetime.now(timezone.utc)
+
+    for spec in DEMO_ORDERS:
+        user_result = await session.exec(
+            select(User).where(User.email == spec["customer_email"])
+        )
+        user = user_result.first()
+        assert user is not None and user.id is not None, (
+            f"demo order references unknown customer {spec['customer_email']!r}"
+        )
+
+        profile_result = await session.exec(
+            select(CustomerProfile).where(CustomerProfile.user_id == user.id)
+        )
+        profile = profile_result.first()
+        assert profile is not None and profile.id is not None
+
+        address_row = await session.exec(
+            select(CustomerAddress, Address)
+            .join(Address, Address.id == CustomerAddress.address_id)  # type: ignore[arg-type]
+            .where(
+                CustomerAddress.customer_profile_id == profile.id,
+                CustomerAddress.label == spec["address_label"],
+            )
+        )
+        addr_pair = address_row.first()
+        assert addr_pair is not None, (
+            f"demo order: customer {spec['customer_email']} has no "
+            f"address with label {spec['address_label']!r}"
+        )
+        _, address = addr_pair
+        assert address.id is not None
+        address_snapshot = format_address(address_to_payload(address))
+
+        store_result = await session.exec(
+            select(Store).where(Store.name == spec["store_name"])
+        )
+        store = store_result.first()
+        assert store is not None and store.id is not None, (
+            f"demo order references unknown store {spec['store_name']!r}"
+        )
+
+        service_result = await session.exec(
+            select(Service).where(Service.slug == spec["service_slug"])
+        )
+        service = service_result.first()
+        assert service is not None and service.id is not None
+
+        service_name_row = await session.exec(
+            select(ServiceTranslation.name).where(
+                ServiceTranslation.service_id == service.id,
+                ServiceTranslation.language_code == "en",
+            )
+        )
+        service_name = service_name_row.first() or service.slug
+
+        placed_at = now - timedelta(days=int(spec["days_ago"]))
+        status = OrderStatus(spec["status"])
+        payment_method = PaymentMethod(spec["payment_method"])
+
+        order_items: list[tuple[OrderItem, StoreInventory, int]] = []
+        subtotal = 0.0
+        for product_slug, qty in spec["items"]:
+            product_row = await session.exec(
+                select(MasterProduct).where(MasterProduct.slug == product_slug)
+            )
+            product = product_row.first()
+            assert product is not None and product.id is not None, (
+                f"demo order references unknown product slug {product_slug!r}"
+            )
+
+            inv_row = await session.exec(
+                select(StoreInventory).where(
+                    StoreInventory.store_id == store.id,
+                    StoreInventory.product_id == product.id,
+                )
+            )
+            inventory = inv_row.first()
+            assert inventory is not None and inventory.id is not None, (
+                f"demo order: store {spec['store_name']!r} has no inventory "
+                f"row for product {product_slug!r}"
+            )
+
+            name_row = await session.exec(
+                select(MasterProductTranslation.name).where(
+                    MasterProductTranslation.master_product_id == product.id,
+                    MasterProductTranslation.language_code == "en",
+                )
+            )
+            product_name = name_row.first() or product.slug
+
+            line_total = float(inventory.price) * qty
+            subtotal += line_total
+            order_items.append((
+                OrderItem(
+                    inventory_id=inventory.id,
+                    product_name_snapshot=product_name,
+                    unit_price_snapshot=float(inventory.price),
+                    quantity=qty,
+                    line_total=line_total,
+                ),
+                inventory,
+                qty,
+            ))
+
+        order = Order(
+            customer_profile_id=profile.id,
+            store_id=store.id,
+            service_id=service.id,
+            service_name_snapshot=service_name,
+            delivery_address_id=address.id,
+            delivery_address_snapshot=address_snapshot,
+            status=status,
+            subtotal=subtotal,
+            delivery_fee=0.0,
+            tax=0.0,
+            total=subtotal,
+            placed_at=placed_at,
+        )
+        session.add(order)
+        await session.flush()
+        assert order.id is not None
+
+        for item, inventory, qty in order_items:
+            item.order_id = order.id
+            session.add(item)
+            # Cancelled orders don't consume stock.
+            if status is not OrderStatus.Cancelled:
+                inventory.stock = max(0, inventory.stock - qty)
+                inventory.is_available = inventory.stock > 0
+                session.add(inventory)
+
+        payment = _build_demo_payment(order, payment_method, status, placed_at)
+        session.add(payment)
+        delivery = _build_demo_delivery(order, status, placed_at)
+        session.add(delivery)
+        await session.flush()
+
+
+def _build_demo_payment(
+    order: Order, method: PaymentMethod, status: OrderStatus, placed_at: datetime,
+) -> Payment:
+    """Mirror the lifecycle the checkout service drives: payment only flips
+    to Paid once the order reaches Delivered (the production state machine
+    treats Packed/Dispatched as fulfillment progress, not settlement)."""
+    assert order.id is not None
+    payment_status = PaymentStatus.Pending
+    paid_at: datetime | None = None
+    gateway_txn_id: str | None = None
+    if status is OrderStatus.Delivered:
+        payment_status = PaymentStatus.Paid
+        paid_at = placed_at + timedelta(hours=6)
+        if method is PaymentMethod.Upi:
+            gateway_txn_id = f"DEMO-UPI-{order.id:06d}"
+    elif status is OrderStatus.Cancelled:
+        payment_status = PaymentStatus.Failed
+    return Payment(
+        order_id=order.id,
+        amount=order.total,
+        method=method,
+        status=payment_status,
+        gateway_txn_id=gateway_txn_id,
+        paid_at=paid_at,
+    )
+
+
+def _build_demo_delivery(
+    order: Order, status: OrderStatus, placed_at: datetime,
+) -> Delivery:
+    assert order.id is not None
+    packed_at: datetime | None = None
+    dispatched_at: datetime | None = None
+    delivered_at: datetime | None = None
+    delivery_status = DeliveryStatus.Pending
+    if status is OrderStatus.Packed:
+        delivery_status = DeliveryStatus.Packed
+        packed_at = placed_at + timedelta(minutes=30)
+    elif status is OrderStatus.Dispatched:
+        delivery_status = DeliveryStatus.Dispatched
+        packed_at = placed_at + timedelta(minutes=30)
+        dispatched_at = placed_at + timedelta(hours=2)
+    elif status is OrderStatus.Delivered:
+        delivery_status = DeliveryStatus.Delivered
+        packed_at = placed_at + timedelta(minutes=30)
+        dispatched_at = placed_at + timedelta(hours=2)
+        delivered_at = placed_at + timedelta(hours=6)
+    elif status is OrderStatus.Cancelled:
+        delivery_status = DeliveryStatus.Cancelled
+    return Delivery(
+        order_id=order.id,
+        status=delivery_status,
+        packed_at=packed_at,
+        dispatched_at=dispatched_at,
+        delivered_at=delivered_at,
+    )
+
+
 async def seed_seller_application_subset(session: AsyncSession) -> None:
     await _ensure_languages(session)
     admin_user = await _upsert_user(session, ADMIN["email"], ADMIN["role"])
@@ -1708,6 +2097,8 @@ async def seed_demo_data(session: AsyncSession) -> None:
             inventory_item["stock"],
         )
 
+    await _seed_demo_orders(session)
+
     await verify_expected_counts(session)
 
 
@@ -1730,6 +2121,10 @@ _COUNT_MODELS = {
     "masterproduct_translation": MasterProductTranslation,
     "store": Store,
     "storeinventory": StoreInventory,
+    "order": Order,
+    "orderitem": OrderItem,
+    "payment": Payment,
+    "delivery": Delivery,
 }
 
 
