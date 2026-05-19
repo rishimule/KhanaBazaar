@@ -1,5 +1,5 @@
 ---
-description: Run scripts/dev.sh to control local dev stack (postgres + redis + backend + celery + frontend + log viewer + ngrok)
+description: Run scripts/dev.sh to control local dev stack (postgres + redis + meilisearch + backend + celery + frontend + log viewer + ngrok)
 argument-hint: "[start [--tunnel] | stop [--all] | restart | status | logs [backend|celery|frontend|ngrok|log_viewer] | tunnel | tunnel-url]"
 allowed-tools: Bash(./scripts/dev.sh:*)
 ---
@@ -23,11 +23,12 @@ If `$ARGUMENTS` is empty, run `./scripts/dev.sh --help` to show usage.
 - **`start`** / **`restart`** — relay all URLs from the script's tail output:
   - Backend: `http://localhost:8000` (docs: `/docs`)
   - Frontend: `http://localhost:3000`
+  - Meilisearch: `http://localhost:7700`
   - Log viewer: `http://localhost:8001` (or `$LOG_VIEWER_PORT` if overridden)
   - Logs dir: `.dev/logs/`
 - **`start --tunnel`** — same as `start`, plus the ngrok public URL and `<url>/dev-logs/` (log viewer proxied through frontend rewrite). Useful for mobile testing.
-- **`stop`** — stops ngrok, log viewer, frontend, celery, backend. Leaves docker (postgres + redis) running.
-- **`stop --all`** — also stops docker postgres + redis.
+- **`stop`** — stops ngrok, log viewer, frontend, celery, backend. Leaves docker (postgres + redis + meilisearch) running.
+- **`stop --all`** — also stops docker postgres + redis + meilisearch.
 - **`status`** — relay pid table, docker compose ps, and the ngrok tunnel list verbatim. Includes inspector URL `http://localhost:4040` when ngrok is up.
 - **`tunnel`** — starts ngrok (and log viewer if needed). Surface the resolved public URL.
 - **`tunnel-url`** — prints current public URL on stdout. Non-zero exit means no tunnel running.

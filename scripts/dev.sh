@@ -101,6 +101,30 @@ status_proc() {
   fi
 }
 
+print_tunnels() {
+  # One-shot listing of every active ngrok tunnel. Prints indented lines:
+  # "    <name> (<proto>): <public_url>  ->  <addr>". Returns 1 if no tunnels.
+  local data
+  data="$(curl -s --max-time 1 "${NGROK_API}" 2>/dev/null)" || return 1
+  [ -z "${data}" ] && return 1
+  echo "${data}" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+tunnels = data.get("tunnels") or []
+if not tunnels:
+    sys.exit(1)
+for t in tunnels:
+    name = t.get("name", "?")
+    proto = t.get("proto", "?")
+    public = t.get("public_url", "?")
+    addr = (t.get("config") or {}).get("addr", "?")
+    print(f"      {name} ({proto}): {public}  ->  {addr}")
+' || return 1
+}
+
 fetch_tunnel_url() {
   # Polls ngrok's local agent API for up to ~10s and prints the public URL
   # for the named tunnel on stdout. Defaults to the first tunnel if no name
@@ -199,14 +223,22 @@ cmd_start() {
     exit 1
   fi
 
-  echo "Bringing up Postgres + Redis..."
-  (cd "${REPO_ROOT}" && docker compose up -d postgres redis)
+  echo "Bringing up Postgres + Redis + Meilisearch..."
+  (cd "${REPO_ROOT}" && docker compose up -d postgres redis meilisearch)
 
   for attempt in $(seq 1 60); do
     if (cd "${REPO_ROOT}" && docker compose exec -T postgres pg_isready -U postgres -d khanabazaar >/dev/null 2>&1); then
       break
     fi
     [ "${attempt}" -eq 60 ] && { echo "Postgres did not become ready" >&2; exit 1; }
+    sleep 1
+  done
+
+  for attempt in $(seq 1 60); do
+    if curl -fsS --max-time 1 http://localhost:7700/health >/dev/null 2>&1; then
+      break
+    fi
+    [ "${attempt}" -eq 60 ] && { echo "Meilisearch did not become ready" >&2; exit 1; }
     sleep 1
   done
 
@@ -228,9 +260,10 @@ cmd_start() {
 
   echo
   echo "All services up."
-  echo "  Backend:    http://localhost:8000  (docs: /docs)"
-  echo "  Frontend:   http://localhost:3000"
-  echo "  Log viewer: http://localhost:${LOG_VIEWER_PORT}"
+  echo "  Backend:     http://localhost:8000  (docs: /docs)"
+  echo "  Frontend:    http://localhost:3000"
+  echo "  Meilisearch: http://localhost:7700"
+  echo "  Log viewer:  http://localhost:${LOG_VIEWER_PORT}"
   if [ "${with_tunnel}" -eq 1 ] && is_running "${NGROK_PID}"; then
     local url
     if url="$(fetch_tunnel_url)"; then
@@ -251,7 +284,7 @@ cmd_stop() {
 
   if [ "${1:-}" = "--all" ]; then
     echo "Stopping Docker services..."
-    (cd "${REPO_ROOT}" && docker compose stop postgres redis)
+    (cd "${REPO_ROOT}" && docker compose stop postgres redis meilisearch)
   fi
 }
 
@@ -263,15 +296,31 @@ cmd_status() {
   status_proc "log_viewer" "${LOG_VIEWER_PID}"
   status_proc "ngrok"      "${NGROK_PID}"
   if is_running "${NGROK_PID}"; then
+    echo "    Inspector: http://localhost:4040"
+    echo "    Log file:  ${NGROK_LOG}"
+    echo "    Tunnels:"
+    if ! print_tunnels; then
+      echo "      (no tunnels reported; ngrok still starting?)"
+    fi
     local url
-    if url="$(fetch_tunnel_url)"; then
-      echo "    URL:      ${url}"
-      echo "    Logs URL: ${url}/dev-logs/"
+    if url="$(curl -s --max-time 1 "${NGROK_API}" 2>/dev/null \
+        | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+for t in (d.get("tunnels") or []):
+    if t.get("proto") == "https":
+        print(t.get("public_url", ""))
+        break
+' 2>/dev/null)" && [ -n "${url}" ]; then
+      echo "    Logs URL:  ${url}/dev-logs/"
     fi
   fi
   echo
   echo "Docker:"
-  (cd "${REPO_ROOT}" && docker compose ps postgres redis) || true
+  (cd "${REPO_ROOT}" && docker compose ps postgres redis meilisearch) || true
 }
 
 cmd_logs() {
@@ -297,10 +346,10 @@ usage() {
 Usage: $0 <command>
 
 Commands:
-  start              Start Postgres+Redis (docker), backend, celery, frontend
+  start              Start Postgres+Redis+Meilisearch (docker), backend, celery, frontend
   start --tunnel     Same as start, plus ngrok tunnels for :3000 + log viewer
   stop               Stop ngrok, log viewer, backend, celery, frontend (leaves docker running)
-  stop --all         Also stop docker postgres+redis
+  stop --all         Also stop docker postgres+redis+meilisearch
   restart            Stop then start app processes
   status             Show pids + docker status (incl. ngrok URL when running)
   logs [name]        Tail logs (name: backend|celery|frontend|ngrok|log_viewer; default: all app logs)
