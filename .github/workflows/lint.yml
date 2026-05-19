@@ -1,0 +1,42 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+
+name: backend-lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Pytest is excluded from automatic CI to keep PR feedback fast.
+  # Run the full suite locally before merging: `cd backend/app && uv run pytest -q`.
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.10.x"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend deps
+        working-directory: backend/app
+        run: uv sync --frozen
+
+      - name: Lint (ruff)
+        working-directory: backend/app
+        run: uv run ruff check .
+
+      - name: Type check (mypy)
+        working-directory: backend/app
+        run: uv run mypy . || true   # mypy currently advisory; flip to hard fail once strict mode is clean
