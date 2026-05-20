@@ -143,6 +143,7 @@ async def build_product_document(
         "category_name_en": cat_t_en.name if cat_t_en else cat.slug,
         "subcategory_name_en": sub_t_en.name if sub_t_en else subcat.slug,
         "updated_at": int(time.time()),
+        "db_updated_at": int(product.updated_at.timestamp()),
     }
     for locale in _LOCALES:
         doc[f"name_{locale}"] = name_for(locale)
@@ -192,6 +193,7 @@ async def build_store_document(
         "lng": float(address.longitude) if address.longitude is not None else None,
         "delivery_radius_km": float(store.delivery_radius_km),
         "is_active": bool(store.is_active),
+        "db_updated_at": int(store.updated_at.timestamp()),
     }
 
 

@@ -146,6 +146,38 @@ async def test_build_store_doc(session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_product_doc_carries_db_updated_at(session: AsyncSession):
+    from sqlalchemy import select
+
+    seed = await _seed_chain(session)
+    product = (
+        await session.execute(
+            select(MasterProduct).where(MasterProduct.id == seed["product_id"])
+        )
+    ).scalar_one()
+    doc = await build_product_document(session, seed["product_id"])
+    assert doc is not None
+    assert "db_updated_at" in doc
+    assert doc["db_updated_at"] == int(product.updated_at.timestamp())
+
+
+@pytest.mark.asyncio
+async def test_store_doc_carries_db_updated_at(session: AsyncSession):
+    from sqlalchemy import select
+
+    seed = await _seed_chain(session)
+    store = (
+        await session.execute(
+            select(Store).where(Store.id == seed["store_id"])
+        )
+    ).scalar_one()
+    doc = await build_store_document(session, seed["store_id"])
+    assert doc is not None
+    assert "db_updated_at" in doc
+    assert doc["db_updated_at"] == int(store.updated_at.timestamp())
+
+
+@pytest.mark.asyncio
 async def test_build_search_term_docs(session: AsyncSession):
     await _seed_chain(session)
     docs = await build_search_term_docs(session)

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-SETTINGS_VERSION = 1
+SETTINGS_VERSION = 2
 
 _SYNONYMS_PATH = Path(__file__).parent / "synonyms.json"
 
@@ -28,8 +28,9 @@ def products_index_settings() -> dict[str, Any]:
         "filterableAttributes": [
             "is_active", "service_id", "category_id", "subcategory_id",
             "store_ids", "min_price", "max_price", "in_stock_anywhere", "brand",
+            "db_updated_at",
         ],
-        "sortableAttributes": ["min_price", "updated_at"],
+        "sortableAttributes": ["min_price", "updated_at", "db_updated_at"],
         "rankingRules": [
             "words", "typo", "proximity", "attribute", "exactness",
             "in_stock_anywhere:desc", "updated_at:desc",
@@ -45,8 +46,8 @@ def products_index_settings() -> dict[str, Any]:
 def stores_index_settings() -> dict[str, Any]:
     return {
         "searchableAttributes": ["name"],
-        "filterableAttributes": ["service_ids", "is_active"],
-        "sortableAttributes": [],
+        "filterableAttributes": ["service_ids", "is_active", "db_updated_at"],
+        "sortableAttributes": ["db_updated_at"],
         "rankingRules": ["words", "typo", "proximity", "attribute", "exactness"],
     }
 
