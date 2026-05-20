@@ -3,6 +3,7 @@
  * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
  */
 .picker {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -13,22 +14,6 @@
   font-size: var(--body-sm);
   font-weight: var(--weight-medium);
   color: var(--shade-cool-dark-3);
-}
-
-.select {
-  padding: 12px 14px;
-  border-radius: var(--radius-card);
-  border: 1px solid var(--shade-cool-light-6);
-  font-family: var(--font-family-sans);
-  font-size: var(--body-sm);
-  background: var(--white);
-  color: var(--shade-cool-dark-7);
-}
-
-.select:focus {
-  outline: none;
-  border-color: var(--color-primary-1);
-  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
 }
 
 .loading,
@@ -43,3 +28,268 @@
   text-decoration: none;
 }
 .link:hover { text-decoration: underline; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.addBtn {
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary-1);
+  background: transparent;
+  border: 1px solid var(--color-primary-1);
+  border-radius: var(--radius-card);
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.addBtn:hover:not(:disabled) {
+  background: rgba(184, 71, 15, 0.06);
+}
+
+.addBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.emptyActions {
+  margin-top: var(--space-2);
+}
+
+.notice {
+  padding: 8px 12px;
+  border-radius: var(--radius-card);
+  background: var(--tomato-red-light-1);
+  border: 1px solid var(--tomato-red-light-2);
+  color: var(--color-error);
+  font-size: var(--body-sm);
+}
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.modalField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modalInput {
+  padding: 10px 12px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--shade-cool-light-6);
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
+  background: var(--white);
+  color: var(--shade-cool-dark-7);
+}
+
+.modalInput:focus {
+  outline: none;
+  border-color: var(--color-primary-1);
+  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
+}
+
+.modalCheckboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.modalError {
+  background: var(--tomato-red-light-1);
+  border: 1px solid var(--tomato-red-light-2);
+  color: var(--color-error);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+}
+
+.comboTrigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 12px 14px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--shade-cool-light-6);
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
+  background: var(--white);
+  color: var(--shade-cool-dark-7);
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  min-width: 0;
+}
+
+.comboTrigger:focus {
+  outline: none;
+  border-color: var(--color-primary-1);
+  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
+}
+
+.comboTrigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.comboLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comboPlaceholder {
+  color: var(--shade-cool-base-5);
+}
+
+.comboChevron {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--shade-cool-base-5);
+  transition: transform 120ms ease;
+}
+
+.comboTrigger[aria-expanded="true"] .comboChevron {
+  transform: rotate(180deg);
+}
+
+.listbox {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--white);
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-card);
+  box-shadow: 0 8px 24px rgba(7, 16, 26, 0.12);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 14px;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.option[data-active="true"] {
+  background: rgba(184, 71, 15, 0.08);
+}
+
+.optionSelected .optionCheck {
+  color: var(--color-primary-1);
+}
+
+.optionLabel {
+  flex: 0 0 auto;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--weight-semibold);
+}
+
+.optionAddress {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--shade-cool-base-5);
+}
+
+.optionCheck {
+  flex: 0 0 auto;
+  width: 16px;
+  display: inline-flex;
+  justify-content: center;
+  color: transparent;
+}
+
+.option[aria-disabled="true"] {
+  cursor: not-allowed;
+  color: var(--shade-cool-base-5);
+}
+
+.option[aria-disabled="true"] .optionAddress {
+  color: var(--shade-cool-base-4);
+}
+
+.optionBadge {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--shade-cool-light-5);
+  color: var(--shade-cool-dark-3);
+}
+
+.sectionHeader {
+  padding: 8px 14px 4px;
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--shade-cool-base-5);
+  border-top: 1px solid var(--shade-cool-light-6);
+  margin-top: 4px;
+}
+
+.sectionHeader:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+
+@media (max-width: 480px) {
+  .option {
+    flex-wrap: wrap;
+  }
+
+  .optionLabel {
+    max-width: 100%;
+  }
+
+  .optionAddress {
+    flex-basis: 100%;
+    padding-left: 24px;
+  }
+
+  .optionBadge {
+    margin-left: auto;
+  }
+}
