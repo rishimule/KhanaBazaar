@@ -326,6 +326,8 @@
     "pickerLoading": "पते लोड हो रहे हैं…",
     "pickerEmpty": "कोई सहेजा गया पता नहीं।",
     "noServiceableTitle": "इस स्टोर के डिलीवरी क्षेत्र में कोई सहेजा गया पता नहीं है।",
+    "outsideDeliveryAreaHeader": "डिलीवरी क्षेत्र के बाहर",
+    "outsideAreaBadge": "क्षेत्र के बाहर",
     "fallbackLabel": "पता",
     "verifyAddress": "पता सत्यापित करें",
     "verifyAgain": "दोबारा सत्यापित करें",

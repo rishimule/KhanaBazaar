@@ -326,6 +326,8 @@
     "pickerLoading": "Loading addresses…",
     "pickerEmpty": "No saved address.",
     "noServiceableTitle": "No saved address is within this store's delivery area.",
+    "outsideDeliveryAreaHeader": "Outside delivery area",
+    "outsideAreaBadge": "Outside area",
     "fallbackLabel": "Address",
     "verifyAddress": "Verify address",
     "verifyAgain": "Verify again",
