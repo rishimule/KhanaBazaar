@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -12,6 +12,8 @@ import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { prefetchStorefront } from "@/lib/storefrontCache";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
+
+const PAGE_SIZE = 12;
 
 export default function StoresPage() {
   const t = useTranslations("Stores");
@@ -41,27 +43,68 @@ function StoresPageInner() {
   const [stores, setStores] = useState<Store[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [skip, setSkip] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const requestIdRef = useRef(0);
   const { location } = useDeliveryLocation();
 
+  const fetchPage = useCallback(
+    async (skipValue: number, append: boolean): Promise<void> => {
+      const requestId = ++requestIdRef.current;
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setFetching(true);
+      }
+
+      const params = new URLSearchParams();
+      if (location) {
+        params.set("lat", String(location.lat));
+        params.set("lng", String(location.lng));
+        params.set("sort", "distance");
+      }
+      if (serviceSlug) {
+        params.set("service", serviceSlug);
+      }
+      params.set("skip", String(skipValue));
+      params.set("limit", String(PAGE_SIZE + 1));
+      const url = `/api/v1/stores/?${params.toString()}`;
+
+      try {
+        const result = await get<Store[]>(url);
+        if (requestIdRef.current !== requestId) return;
+        const nextHasMore = result.length > PAGE_SIZE;
+        const trimmed = nextHasMore ? result.slice(0, PAGE_SIZE) : result;
+        if (append) {
+          setStores((prev) => [...prev, ...trimmed]);
+        } else {
+          setStores(trimmed);
+        }
+        setSkip(skipValue + trimmed.length);
+        setHasMore(nextHasMore);
+      } catch {
+        if (requestIdRef.current !== requestId) return;
+        if (!append) {
+          setStores([]);
+          setHasMore(false);
+        }
+      } finally {
+        if (requestIdRef.current === requestId) {
+          if (append) {
+            setLoadingMore(false);
+          } else {
+            setFetching(false);
+          }
+        }
+      }
+    },
+    [location, serviceSlug],
+  );
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- show spinner while refetching after location/slug change
-    setFetching(true);
-    const params = new URLSearchParams();
-    if (location) {
-      params.set("lat", String(location.lat));
-      params.set("lng", String(location.lng));
-      params.set("sort", "distance");
-    }
-    if (serviceSlug) {
-      params.set("service", serviceSlug);
-    }
-    const qs = params.toString();
-    const url = `/api/v1/stores/${qs ? `?${qs}` : ""}`;
-    get<Store[]>(url)
-      .then(setStores)
-      .catch(() => setStores([]))
-      .finally(() => setFetching(false));
-  }, [location, serviceSlug]);
+    fetchPage(0, false);
+  }, [fetchPage]);
 
   useEffect(() => {
     if (!serviceSlug) return;
@@ -169,6 +212,20 @@ function StoresPageInner() {
             );
           })}
         </div>
+
+        {hasMore && stores.length > 0 && (
+          <div className={styles.loadMoreWrap}>
+            <button
+              type="button"
+              className={`btn btn-primary ${styles.loadMoreBtn}`}
+              onClick={() => fetchPage(skip, true)}
+              disabled={loadingMore}
+              aria-busy={loadingMore}
+            >
+              {loadingMore ? t("loadingMore") : t("loadMore")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

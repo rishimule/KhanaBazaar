@@ -65,8 +65,23 @@ async def list_profile_services(
     session: AsyncSession, seller_profile_id: int, language_code: str = "en"
 ) -> list[ServicePayload]:
     """Resolve a seller's services with translation, ordered by Service.sort_order."""
+    grouped = await list_profile_services_for_many(
+        session, [seller_profile_id], language_code=language_code
+    )
+    return grouped.get(seller_profile_id, [])
+
+
+async def list_profile_services_for_many(
+    session: AsyncSession,
+    seller_profile_ids: list[int],
+    language_code: str = "en",
+) -> dict[int, list[ServicePayload]]:
+    """Batched variant of list_profile_services keyed by seller_profile_id."""
+    if not seller_profile_ids:
+        return {}
+    deduped = list(dict.fromkeys(seller_profile_ids))
     stmt = (
-        select(Service, ServiceTranslation)
+        select(SellerProfileService.seller_profile_id, Service, ServiceTranslation)
         .join(
             SellerProfileService,
             SellerProfileService.service_id == Service.id,  # type: ignore[arg-type]
@@ -76,7 +91,7 @@ async def list_profile_services(
             ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
             isouter=True,
         )
-        .where(SellerProfileService.seller_profile_id == seller_profile_id)
+        .where(SellerProfileService.seller_profile_id.in_(deduped))  # type: ignore[attr-defined]
         .where(
             (ServiceTranslation.language_code == language_code)
             | (ServiceTranslation.id.is_(None))  # type: ignore[union-attr]
@@ -84,10 +99,10 @@ async def list_profile_services(
         .order_by(Service.sort_order, Service.id)  # type: ignore[arg-type]
     )
     result = await session.exec(stmt)
-    payloads: list[ServicePayload] = []
-    for service, translation in result.all():
+    grouped: dict[int, list[ServicePayload]] = {sid: [] for sid in deduped}
+    for profile_id, service, translation in result.all():
         assert service.id is not None
-        payloads.append(
+        grouped.setdefault(profile_id, []).append(
             ServicePayload(
                 id=service.id,
                 created_at=service.created_at,
@@ -99,4 +114,4 @@ async def list_profile_services(
                 sort_order=service.sort_order,
             )
         )
-    return payloads
+    return grouped

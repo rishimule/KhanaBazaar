@@ -71,7 +71,9 @@
     "emptyNoLocation": "No stores offer {service} yet. Try setting a delivery location.",
     "emptyWithLocation": "No stores deliver {service} to your selected location yet.",
     "emptyAllNoLocation": "No stores available.",
-    "emptyAllWithLocation": "No stores deliver to your selected location yet."
+    "emptyAllWithLocation": "No stores deliver to your selected location yet.",
+    "loadMore": "Load more stores",
+    "loadingMore": "Loading…"
   },
   "StoreDetail": {
     "openNow": "Open Now",

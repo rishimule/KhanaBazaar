@@ -178,3 +178,13 @@
 .filteredChipClear:hover {
   opacity: 0.85;
 }
+
+.loadMoreWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-6);
+}
+
+.loadMoreBtn {
+  min-width: 200px;
+}
