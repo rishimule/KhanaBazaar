@@ -3,8 +3,10 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import {
-  createContext, useCallback, useContext, useEffect, useMemo, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from "react";
+
+import { useAuth } from "@/lib/AuthContext";
 
 export interface DeliveryLocation {
   lat: number;
@@ -36,10 +38,28 @@ const DeliveryLocationContext =
 export function DeliveryLocationProvider(
   { children }: { children: React.ReactNode },
 ) {
+  const auth = useAuth();
   const [location, setLocationState] = useState<DeliveryLocation>(
     DEFAULT_DELIVERY_LOCATION,
   );
   const [hydrated, setHydrated] = useState(false);
+  const prevTokenRef = useRef<string | null>(auth.token);
+
+  // Same-tab logout reset: AuthContext.logout wipes `kb_delivery_location`
+  // from localStorage, but the `storage` event does NOT fire in the
+  // originating tab, so the in-memory location lingers. Detect the
+  // token truthy → null transition and snap back to the Mumbai fallback
+  // so a subsequent login on the same tab can auto-sync to the new
+  // customer's default saved address.
+  useEffect(() => {
+    const wasLoggedIn = prevTokenRef.current !== null;
+    const isLoggedOut = auth.token === null;
+    if (wasLoggedIn && isLoggedOut) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- react to auth identity transition
+      setLocationState(DEFAULT_DELIVERY_LOCATION);
+    }
+    prevTokenRef.current = auth.token;
+  }, [auth.token]);
 
   useEffect(() => {
     try {
