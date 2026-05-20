@@ -332,3 +332,56 @@ async def _do_reconcile(kind: str, force_deep: bool) -> None:
 @celery_app.task(name="search.reconcile_index")
 def reconcile_index(kind: str, force_deep: bool = False) -> None:
     _run_async(_do_reconcile(kind, force_deep))
+
+
+# ─── Schema-shape rebuild tasks ─────────────────────────────────────────────
+
+
+async def _do_swap_products() -> int:
+    from app.search.reindex import reindex_products_with_swap
+
+    async with async_session_factory() as session:
+        client = get_meili_client()
+        return await reindex_products_with_swap(session, client)
+
+
+@celery_app.task(name="search.swap_products")
+def swap_products() -> None:
+    lock = _sync_redis.lock(
+        "meili:swap:in_progress:products", timeout=1800, blocking_timeout=1
+    )
+    if not lock.acquire(blocking=False):
+        logger.info("search.swap_products.skipped already_running")
+        return
+    try:
+        _run_async(_do_swap_products())
+    finally:
+        try:
+            lock.release()
+        except Exception:
+            pass
+
+
+async def _do_rebuild_stores() -> int:
+    from app.search.reindex import reindex_stores as _reindex_stores
+
+    async with async_session_factory() as session:
+        client = get_meili_client()
+        return await _reindex_stores(session, client)
+
+
+@celery_app.task(name="search.rebuild_stores")
+def rebuild_stores() -> None:
+    lock = _sync_redis.lock(
+        "meili:swap:in_progress:stores", timeout=1800, blocking_timeout=1
+    )
+    if not lock.acquire(blocking=False):
+        logger.info("search.rebuild_stores.skipped already_running")
+        return
+    try:
+        _run_async(_do_rebuild_stores())
+    finally:
+        try:
+            lock.release()
+        except Exception:
+            pass
