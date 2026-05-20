@@ -71,7 +71,9 @@
     "emptyNoLocation": "अभी {service} की कोई दुकान उपलब्ध नहीं है। डिलीवरी स्थान सेट करके देखें।",
     "emptyWithLocation": "आपके चुने हुए स्थान पर {service} की डिलीवरी अभी कोई दुकान नहीं कर रही।",
     "emptyAllNoLocation": "अभी कोई दुकान उपलब्ध नहीं है।",
-    "emptyAllWithLocation": "आपके चुने हुए स्थान पर अभी कोई दुकान डिलीवरी नहीं कर रही।"
+    "emptyAllWithLocation": "आपके चुने हुए स्थान पर अभी कोई दुकान डिलीवरी नहीं कर रही।",
+    "loadMore": "और दुकानें लोड करें",
+    "loadingMore": "लोड हो रहा है…"
   },
   "StoreDetail": {
     "openNow": "अभी खुला है",
