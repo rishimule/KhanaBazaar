@@ -32,6 +32,7 @@ from app.schemas.inventory import (
     BulkInventoryItem,
     BulkInventoryRequest,
 )
+from app.schemas.services import ServicePayload
 from app.schemas.store_product_detail import (
     BreadcrumbPayload,
     InventoryWithProductPayload,
@@ -47,7 +48,10 @@ from app.services.inventory import (
     assert_products_in_seller_services,
     bulk_upsert_inventory,
 )
-from app.services.seller_services import list_profile_services
+from app.services.seller_services import (
+    list_profile_services,
+    list_profile_services_for_many,
+)
 from app.services.storefront import _translation_map, build_storefront
 
 _BULK_ROW_LIMIT = 200
@@ -72,11 +76,13 @@ async def _store_read(
     lang: str = "en",
     *,
     distance_km: Optional[float] = None,
+    services: Optional[list[ServicePayload]] = None,
 ) -> StoreRead:
     assert store.id is not None
-    services = await list_profile_services(
-        session, store.seller_profile_id, language_code=lang
-    )
+    if services is None:
+        services = await list_profile_services(
+            session, store.seller_profile_id, language_code=lang
+        )
     return StoreRead(
         id=store.id,
         name=store.name,
@@ -146,9 +152,21 @@ async def list_stores(
             )
         stmt = stmt.offset(skip).limit(limit)
         result = await session.exec(stmt)
+        stores = result.all()
+        services_by_profile = await list_profile_services_for_many(
+            session,
+            [s.seller_profile_id for s in stores],
+            language_code=lang,
+        )
         return [
-            await _store_read(session, store, lang, distance_km=None)
-            for store in result.all()
+            await _store_read(
+                session,
+                store,
+                lang,
+                distance_km=None,
+                services=services_by_profile.get(store.seller_profile_id, []),
+            )
+            for store in stores
         ]
 
     point = "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography"
@@ -200,9 +218,18 @@ async def list_stores(
     stores_unsorted = (await session.exec(stmt)).all()
     by_id = {s.id: s for s in stores_unsorted}
     ordered = [by_id[i] for i in distance_by_id.keys() if i in by_id]
+    services_by_profile = await list_profile_services_for_many(
+        session,
+        [s.seller_profile_id for s in ordered],
+        language_code=lang,
+    )
     return [
         await _store_read(
-            session, store, lang, distance_km=distance_by_id[store.id]
+            session,
+            store,
+            lang,
+            distance_km=distance_by_id[store.id],
+            services=services_by_profile.get(store.seller_profile_id, []),
         )
         for store in ordered
     ]
