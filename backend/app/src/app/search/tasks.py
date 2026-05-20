@@ -13,12 +13,17 @@ import logging
 import threading
 from typing import Any
 
+import httpx
 import redis
+from celery import Task
+from meilisearch_python_sdk.errors import MeilisearchApiError
 from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError, InterfaceError, OperationalError
 
 from app.core.celery_app import celery_app
 from app.core.config import settings
 from app.db.session import async_session_factory
+from app.search import dlq
 from app.search.client import get_meili_client
 from app.search.serialize import (
     build_product_document,
@@ -29,6 +34,42 @@ from app.search.serialize import (
 logger = logging.getLogger(__name__)
 
 _sync_redis = redis.Redis.from_url(settings.REDIS_URL)
+
+# Retry configuration shared by the per-id reindex tasks. Transient Meili 5xx,
+# network errors, and connection resets all autoretry with exponential backoff
+# up to ~5 minutes before the task hits max_retries and lands on the DLQ.
+_REINDEX_AUTORETRY = (
+    MeilisearchApiError,
+    httpx.HTTPError,
+    ConnectionError,
+    # Transient asyncpg/SQLAlchemy errors that show up under concurrent
+    # Celery worker fanout (shared engine, "another operation in progress").
+    # Retrying after a short backoff lets the next attempt grab a fresh
+    # connection from the pool.
+    InterfaceError,
+    OperationalError,
+    DBAPIError,
+)
+_REINDEX_MAX_RETRIES = 5
+_REINDEX_BACKOFF_MAX = 300
+
+
+class _DLQTask(Task):
+    """Celery base task that pushes the first positional arg onto a DLQ
+    when retries are exhausted. Subclasses set `_dlq_kind` after task
+    construction (Celery decorators don't pass kwargs to base.__init__)."""
+
+    abstract = True
+    _dlq_kind: dlq.DeadLetterKind | None = None
+
+    def on_failure(self, exc: Any, task_id: Any, args: Any, kwargs: Any, einfo: Any) -> None:  # noqa: ANN401
+        kind = self._dlq_kind
+        if kind is None or not args:
+            return
+        try:
+            dlq.push(kind, int(args[0]))
+        except Exception:  # noqa: BLE001 — DLQ push must never escalate
+            logger.exception("search.dlq.push_failed kind=%s args=%s", kind, args)
 
 
 def _run_async(coro: Any) -> Any:
@@ -70,8 +111,16 @@ async def _do_reindex_product(product_id: int) -> None:
         await client.wait_for_task(task.task_uid)
 
 
-@celery_app.task(name="search.reindex_master_product")
-def reindex_master_product(product_id: int) -> None:
+@celery_app.task(
+    base=_DLQTask,
+    bind=True,
+    name="search.reindex_master_product",
+    autoretry_for=_REINDEX_AUTORETRY,
+    retry_backoff=True,
+    retry_backoff_max=_REINDEX_BACKOFF_MAX,
+    max_retries=_REINDEX_MAX_RETRIES,
+)
+def reindex_master_product(self: Task, product_id: int) -> None:  # noqa: ARG001
     lock = _sync_redis.lock(
         f"meili_sync:product:{product_id}", timeout=5, blocking_timeout=1
     )
@@ -85,6 +134,9 @@ def reindex_master_product(product_id: int) -> None:
             lock.release()
         except Exception:
             pass
+
+
+reindex_master_product._dlq_kind = dlq.DEAD_LETTER_KIND_PRODUCT  # type: ignore[attr-defined]
 
 
 async def _do_reindex_store(store_id: int) -> None:
@@ -103,8 +155,16 @@ async def _do_reindex_store(store_id: int) -> None:
         await client.wait_for_task(task.task_uid)
 
 
-@celery_app.task(name="search.reindex_store")
-def reindex_store(store_id: int) -> None:
+@celery_app.task(
+    base=_DLQTask,
+    bind=True,
+    name="search.reindex_store",
+    autoretry_for=_REINDEX_AUTORETRY,
+    retry_backoff=True,
+    retry_backoff_max=_REINDEX_BACKOFF_MAX,
+    max_retries=_REINDEX_MAX_RETRIES,
+)
+def reindex_store(self: Task, store_id: int) -> None:  # noqa: ARG001
     lock = _sync_redis.lock(
         f"meili_sync:store:{store_id}", timeout=5, blocking_timeout=1
     )
@@ -117,6 +177,9 @@ def reindex_store(store_id: int) -> None:
             lock.release()
         except Exception:
             pass
+
+
+reindex_store._dlq_kind = dlq.DEAD_LETTER_KIND_STORE  # type: ignore[attr-defined]
 
 
 async def _do_reindex_products_for_store(store_id: int) -> list[int]:
@@ -182,15 +245,27 @@ def reindex_products_by_subcategory(subcategory_id: int) -> None:
 
 
 async def _do_rebuild_search_terms() -> None:
+    from app.search.bootstrap import _to_settings_model
+    from app.search.settings import INDEX_SETTINGS, SETTINGS_VERSION
+
     async with async_session_factory() as session:
         docs = await build_search_term_docs(session)
     client = get_meili_client()
     index = client.index("search_terms")
+    update_task = await index.update_settings(
+        _to_settings_model(INDEX_SETTINGS["search_terms"]())
+    )
+    await client.wait_for_task(update_task.task_uid)
     delete_task = await index.delete_all_documents()
     await client.wait_for_task(delete_task.task_uid)
     if docs:
         add_task = await index.add_documents(docs, primary_key="id")
         await client.wait_for_task(add_task.task_uid)
+    marker_task = await index.add_documents(
+        [{"id": f"_meta_v{SETTINGS_VERSION}", "_meta_version": SETTINGS_VERSION}],
+        primary_key="id",
+    )
+    await client.wait_for_task(marker_task.task_uid)
 
 
 @celery_app.task(name="search.rebuild_search_terms")
@@ -263,3 +338,90 @@ async def _do_verify_drift(sample_size: int = 1000) -> int:
 @celery_app.task(name="search.verify_drift")
 def verify_drift() -> int:
     return _run_async(_do_verify_drift())
+
+
+async def _do_reconcile(kind: str, force_deep: bool) -> None:
+    from app.search.reconcile import reconcile_products, reconcile_stores
+
+    async with async_session_factory() as session:
+        client = get_meili_client()
+        if kind == "product":
+            await reconcile_products(session, client, force_deep=force_deep)
+        elif kind == "store":
+            await reconcile_stores(session, client, force_deep=force_deep)
+        else:
+            raise ValueError(f"unknown reconcile kind: {kind}")
+
+
+@celery_app.task(name="search.reconcile_index")
+def reconcile_index(kind: str, force_deep: bool = False) -> None:
+    _run_async(_do_reconcile(kind, force_deep))
+
+
+# ─── Schema-shape rebuild tasks ─────────────────────────────────────────────
+
+
+async def _do_swap_products() -> int:
+    from app.search.reindex import reindex_products_with_swap
+
+    async with async_session_factory() as session:
+        client = get_meili_client()
+        return await reindex_products_with_swap(session, client)
+
+
+@celery_app.task(name="search.swap_products")
+def swap_products() -> None:
+    lock = _sync_redis.lock(
+        "meili:swap:in_progress:products", timeout=1800, blocking_timeout=1
+    )
+    if not lock.acquire(blocking=False):
+        logger.info("search.swap_products.skipped already_running")
+        return
+    try:
+        _run_async(_do_swap_products())
+    finally:
+        try:
+            lock.release()
+        except Exception:
+            pass
+
+
+async def _do_rebuild_stores() -> int:
+    from app.search.bootstrap import _to_settings_model
+    from app.search.reindex import reindex_stores as _reindex_stores
+    from app.search.settings import INDEX_SETTINGS, SETTINGS_VERSION
+
+    async with async_session_factory() as session:
+        client = get_meili_client()
+        # Push current settings so any sortable / filterable change ships
+        # alongside the rebuild, then write the marker so the next boot's
+        # ensure_indexes recognises this version as applied.
+        index = client.index("stores")
+        update_task = await index.update_settings(
+            _to_settings_model(INDEX_SETTINGS["stores"]())
+        )
+        await client.wait_for_task(update_task.task_uid)
+        n = await _reindex_stores(session, client)
+        marker_task = await index.add_documents(
+            [{"id": f"_meta_v{SETTINGS_VERSION}", "_meta_version": SETTINGS_VERSION}],
+            primary_key="id",
+        )
+        await client.wait_for_task(marker_task.task_uid)
+        return n
+
+
+@celery_app.task(name="search.rebuild_stores")
+def rebuild_stores() -> None:
+    lock = _sync_redis.lock(
+        "meili:swap:in_progress:stores", timeout=1800, blocking_timeout=1
+    )
+    if not lock.acquire(blocking=False):
+        logger.info("search.rebuild_stores.skipped already_running")
+        return
+    try:
+        _run_async(_do_rebuild_stores())
+    finally:
+        try:
+            lock.release()
+        except Exception:
+            pass

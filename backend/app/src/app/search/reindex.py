@@ -96,7 +96,12 @@ async def reindex_all(
 async def reindex_products_with_swap(
     session: AsyncSession, client: AsyncClient
 ) -> int:
-    """Build into products_vNext, swap with current alias, drop the old index."""
+    """Build into products_vNext, swap with current alias, drop the old index.
+
+    Also writes the `_meta_v{SETTINGS_VERSION}` marker into the new index
+    so the next `ensure_indexes` boot recognises the schema is current
+    and does NOT trigger another swap.
+    """
     start_ts = time.time()
     next_uid = f"products_v{SETTINGS_VERSION}_{int(start_ts)}"
     # SDK v7 returns the AsyncIndex directly (waits internally).
@@ -105,6 +110,12 @@ async def reindex_products_with_swap(
         _to_settings_model(INDEX_SETTINGS["products"]())
     )
     await client.wait_for_task(update_task.task_uid)
+
+    marker_task = await next_index.add_documents(
+        [{"id": f"_meta_v{SETTINGS_VERSION}", "_meta_version": SETTINGS_VERSION}],
+        primary_key="id",
+    )
+    await client.wait_for_task(marker_task.task_uid)
 
     ids = [pid for (pid,) in (await session.execute(select(MasterProduct.id))).all()]
     for i in range(0, len(ids), BATCH):

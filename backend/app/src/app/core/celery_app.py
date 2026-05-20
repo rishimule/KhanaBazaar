@@ -32,8 +32,31 @@ celery_app.conf.beat_schedule = {
         "task": "search.prune_query_log",
         "schedule": crontab(hour=4, minute=0),
     },
+    # verify_drift is kept wired for one transition release while the new
+    # reconciler proves itself. Remove once 7 days of clean reconcile runs
+    # accumulate (see specs/2026-05-20-search-index-production-design.md).
     "search-verify-drift-nightly": {
         "task": "search.verify_drift",
         "schedule": crontab(hour=4, minute=30),
+    },
+    "search-reconcile-products-hourly": {
+        "task": "search.reconcile_index",
+        "schedule": crontab(minute=7),
+        "args": ("product", False),
+    },
+    "search-reconcile-products-daily-deep": {
+        "task": "search.reconcile_index",
+        "schedule": crontab(hour=4, minute=30),
+        "args": ("product", True),
+    },
+    "search-reconcile-stores-hourly": {
+        "task": "search.reconcile_index",
+        "schedule": crontab(minute=22),
+        "args": ("store", False),
+    },
+    "search-reconcile-stores-daily-deep": {
+        "task": "search.reconcile_index",
+        "schedule": crontab(hour=4, minute=45),
+        "args": ("store", True),
     },
 }
