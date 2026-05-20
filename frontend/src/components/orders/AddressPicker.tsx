@@ -440,7 +440,7 @@ export default function AddressPicker({
       current >= 0 && visibleOptions[current]?.selectable
         ? current
         : firstSelectableIndex();
-    if (startAt >= 0) setActiveIndex(startAt);
+    setActiveIndex(startAt);
     setIsOpen(true);
   }, [indexById, value, visibleOptions, firstSelectableIndex]);
 
@@ -451,11 +451,11 @@ export default function AddressPicker({
   useEffect(() => {
     if (!isOpen) return;
     const onMouseDown = (e: MouseEvent) => {
-      const t = triggerRef.current;
+      const trigger = triggerRef.current;
       const lb = listboxRef.current;
       const target = e.target as Node | null;
       if (!target) return;
-      if (t && t.contains(target)) return;
+      if (trigger && trigger.contains(target)) return;
       if (lb && lb.contains(target)) return;
       setIsOpen(false);
     };
@@ -518,9 +518,6 @@ export default function AddressPicker({
             closeListbox();
           }
           break;
-        case "Tab":
-          if (isOpen) setIsOpen(false);
-          break;
         default:
           break;
       }
@@ -582,7 +579,9 @@ export default function AddressPicker({
   }
 
   const activeOptionId =
-    isOpen && visibleOptions[activeIndex]
+    isOpen &&
+    activeIndex >= 0 &&
+    visibleOptions[activeIndex]?.selectable
       ? `addr-opt-${visibleOptions[activeIndex].id}`
       : undefined;
 
@@ -639,16 +638,19 @@ export default function AddressPicker({
             tabIndex={-1}
             className={styles.listbox}
           >
-            {deliverableOptions.map((a) => {
-              const idx = visibleOptions.findIndex((o) => o.id === a.id);
+            {deliverableOptions.map((a, i) => {
+              const idx = i;
               const selected = a.id === value;
               const isActive = idx === activeIndex;
               return (
                 <li
                   key={a.id}
                   ref={(el) => {
-                    if (el) optionRefs.current.set(a.id, el);
-                    else optionRefs.current.delete(a.id);
+                    if (!el) return;
+                    optionRefs.current.set(a.id, el);
+                    return () => {
+                      optionRefs.current.delete(a.id);
+                    };
                   }}
                   id={`addr-opt-${a.id}`}
                   role="option"
@@ -675,23 +677,22 @@ export default function AddressPicker({
               );
             })}
             {outsideOptions.length > 0 && (
-              <li
-                role="presentation"
-                className={styles.sectionHeader}
-                aria-hidden="true"
-              >
+              <li role="presentation" className={styles.sectionHeader}>
                 {t("outsideDeliveryAreaHeader")}
               </li>
             )}
-            {outsideOptions.map((a) => {
-              const idx = visibleOptions.findIndex((o) => o.id === a.id);
+            {outsideOptions.map((a, i) => {
+              const idx = deliverableOptions.length + i;
               const isActive = idx === activeIndex;
               return (
                 <li
                   key={a.id}
                   ref={(el) => {
-                    if (el) optionRefs.current.set(a.id, el);
-                    else optionRefs.current.delete(a.id);
+                    if (!el) return;
+                    optionRefs.current.set(a.id, el);
+                    return () => {
+                      optionRefs.current.delete(a.id);
+                    };
                   }}
                   id={`addr-opt-${a.id}`}
                   role="option"
