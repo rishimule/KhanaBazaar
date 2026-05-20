@@ -314,3 +314,39 @@ async def test_reconcile_stores_smoke(
     await reindex_stores(session, meili_test_client)
     summary = await reconcile_stores(session, meili_test_client)
     assert summary.mode == "cheap_clean"
+
+
+def test_reconcile_index_task_routes_to_correct_kind() -> None:
+    from unittest.mock import AsyncMock
+
+    from app.search.tasks import reconcile_index
+
+    with patch("app.search.reconcile.reconcile_products", new_callable=AsyncMock) as p, \
+         patch("app.search.reconcile.reconcile_stores", new_callable=AsyncMock) as s:
+        reconcile_index.apply(args=["product", False]).get(disable_sync_subtasks=False)
+        reconcile_index.apply(args=["store", True]).get(disable_sync_subtasks=False)
+
+    assert p.await_count == 1
+    assert s.await_count == 1
+    # force_deep flag propagates.
+    assert s.await_args.kwargs == {"force_deep": True}
+    assert p.await_args.kwargs == {"force_deep": False}
+
+
+def test_reconcile_index_task_raises_on_unknown_kind() -> None:
+    from app.search.tasks import reconcile_index
+
+    with pytest.raises(ValueError, match="unknown reconcile kind"):
+        reconcile_index.apply(args=["bogus", False]).get(disable_sync_subtasks=False)
+
+
+def test_beat_schedule_includes_reconcile_jobs() -> None:
+    from app.core.celery_app import celery_app
+
+    schedule = celery_app.conf.beat_schedule
+    assert "search-reconcile-products-hourly" in schedule
+    assert "search-reconcile-products-daily-deep" in schedule
+    assert "search-reconcile-stores-hourly" in schedule
+    assert "search-reconcile-stores-daily-deep" in schedule
+    assert schedule["search-reconcile-products-hourly"]["args"] == ("product", False)
+    assert schedule["search-reconcile-products-daily-deep"]["args"] == ("product", True)

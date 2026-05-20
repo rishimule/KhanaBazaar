@@ -314,3 +314,21 @@ async def _do_verify_drift(sample_size: int = 1000) -> int:
 @celery_app.task(name="search.verify_drift")
 def verify_drift() -> int:
     return _run_async(_do_verify_drift())
+
+
+async def _do_reconcile(kind: str, force_deep: bool) -> None:
+    from app.search.reconcile import reconcile_products, reconcile_stores
+
+    async with async_session_factory() as session:
+        client = get_meili_client()
+        if kind == "product":
+            await reconcile_products(session, client, force_deep=force_deep)
+        elif kind == "store":
+            await reconcile_stores(session, client, force_deep=force_deep)
+        else:
+            raise ValueError(f"unknown reconcile kind: {kind}")
+
+
+@celery_app.task(name="search.reconcile_index")
+def reconcile_index(kind: str, force_deep: bool = False) -> None:
+    _run_async(_do_reconcile(kind, force_deep))
