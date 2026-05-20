@@ -159,5 +159,18 @@
   transition: background var(--duration-fast), transform var(--duration-fast);
 }
 
-.addAddressBtn:hover  { background: var(--color-btn-primary-hover); }
-.addAddressBtn:active { transform: scale(0.97); }
+.addAddressBtn:hover:not(:disabled)  { background: var(--color-btn-primary-hover); }
+.addAddressBtn:active:not(:disabled) { transform: scale(0.97); }
+
+.addAddressBtn:disabled {
+  background: var(--shade-cool-light-5);
+  color: var(--shade-cool-base-4);
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .visualMapBox,
+  .mapFallback {
+    height: 180px;
+  }
+}

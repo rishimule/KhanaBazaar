@@ -38,13 +38,17 @@ function VisualMap({ lat, lng }: { lat: number; lng: number }) {
   }
   return (
     <APIProvider apiKey={apiKey}>
-      <div className={styles.visualMapBox}>
+      <div
+        className={styles.visualMapBox}
+        aria-hidden="true"
+        tabIndex={-1}
+      >
         <Map
           key={`${lat},${lng}`}
           defaultCenter={{ lat, lng }}
           defaultZoom={15}
           mapId="kb-visual-map"
-          gestureHandling="auto"
+          gestureHandling="cooperative"
           disableDefaultUI={true}
           clickableIcons={false}
           style={{ width: "100%", height: "100%" }}
@@ -109,6 +113,7 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
           type="button"
           className={styles.addAddressBtn}
           onClick={onAddAddress}
+          disabled={auth.loading}
         >
           Add address
         </button>
@@ -157,7 +162,9 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
         ) : (
           <AddressAutocomplete onPlace={onAutocompletePick} />
         )}
-        <VisualMap lat={location.lat} lng={location.lng} />
+        {!auth.loading && (
+          <VisualMap lat={location.lat} lng={location.lng} />
+        )}
       </div>
     </Modal>
   );
