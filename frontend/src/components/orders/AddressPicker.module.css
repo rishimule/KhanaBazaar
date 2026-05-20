@@ -16,22 +16,6 @@
   color: var(--shade-cool-dark-3);
 }
 
-.select {
-  padding: 12px 14px;
-  border-radius: var(--radius-card);
-  border: 1px solid var(--shade-cool-light-6);
-  font-family: var(--font-family-sans);
-  font-size: var(--body-sm);
-  background: var(--white);
-  color: var(--shade-cool-dark-7);
-}
-
-.select:focus {
-  outline: none;
-  border-color: var(--color-primary-1);
-  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
-}
-
 .loading,
 .empty {
   font-size: var(--body-sm);
@@ -221,6 +205,10 @@
 
 .optionLabel {
   flex: 0 0 auto;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: var(--weight-semibold);
 }
 
@@ -276,4 +264,23 @@
 .sectionHeader:first-child {
   border-top: none;
   margin-top: 0;
+}
+
+@media (max-width: 480px) {
+  .option {
+    flex-wrap: wrap;
+  }
+
+  .optionLabel {
+    max-width: 100%;
+  }
+
+  .optionAddress {
+    flex-basis: 100%;
+    padding-left: 24px;
+  }
+
+  .optionBadge {
+    margin-left: auto;
+  }
 }
