@@ -2,11 +2,14 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { useState } from "react";
+import {
+  APIProvider,
+  AdvancedMarker,
+  Map,
+} from "@vis.gl/react-google-maps";
 
 import Modal from "@/components/Modal";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
-import { MapPicker } from "@/components/MapPicker";
 import {
   truncateLabel,
   type GeoPlace,
@@ -15,6 +18,7 @@ import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { useCustomerAddresses } from "@/lib/CustomerAddressesContext";
 import { useAuth } from "@/lib/AuthContext";
 import { formatAddress } from "@/lib/format-address";
+import { useRouter } from "@/i18n/navigation";
 import type { CustomerAddress } from "@/types";
 
 import styles from "./DeliveryLocationPicker.module.css";
@@ -24,63 +28,74 @@ interface Props {
   onClose: () => void;
 }
 
+/** Non-interactive map shown at the bottom of the picker. Pan + zoom only —
+ *  never used to commit a location. Re-centers when the chip's lat/lng
+ *  changes via the `key` reset (cheap remount, runs only on chip change). */
+function VisualMap({ lat, lng }: { lat: number; lng: number }) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? "";
+  if (!apiKey) {
+    return <div className={styles.mapFallback}>Map unavailable</div>;
+  }
+  return (
+    <APIProvider apiKey={apiKey}>
+      <div className={styles.visualMapBox}>
+        <Map
+          key={`${lat},${lng}`}
+          defaultCenter={{ lat, lng }}
+          defaultZoom={15}
+          mapId="kb-visual-map"
+          gestureHandling="auto"
+          disableDefaultUI={true}
+          clickableIcons={false}
+          style={{ width: "100%", height: "100%" }}
+        >
+          <AdvancedMarker position={{ lat, lng }} />
+        </Map>
+      </div>
+    </APIProvider>
+  );
+}
+
 export function DeliveryLocationPicker({ open, onClose }: Props) {
-  const { setLocation } = useDeliveryLocation();
+  const { location, setLocation } = useDeliveryLocation();
   const auth = useAuth();
   const { addresses } = useCustomerAddresses();
-
-  const savedRows: CustomerAddress[] =
-    auth.dbUser?.role === "customer"
-      ? addresses.filter(
-          (a) => a.address.latitude != null && a.address.longitude != null,
-        )
-      : [];
-
-  const [staged, setStaged] = useState<{
-    lat: number; lng: number; label: string;
-  } | null>(null);
-  /** Set when an autocomplete pick fires, telling MapPicker to pan there.
-   *  Cleared after the pan via setMapTarget(null) so a subsequent map drag
-   *  doesn't keep snapping back. Uses a fresh ref each pick (lat+lng+epoch)
-   *  so React detects identical-coord re-picks too. */
-  const [mapTarget, setMapTarget] = useState<{ lat: number; lng: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   if (!open) return null;
 
-  const onAutocompletePlace = (p: GeoPlace) => {
-    setStaged({ lat: p.latitude, lng: p.longitude, label: p.formatted_address });
-    setMapTarget({ lat: p.latitude, lng: p.longitude });
-    setError(null);
-  };
+  const isCustomer = !auth.loading && auth.dbUser?.role === "customer";
 
-  const onMapPlace = (p: GeoPlace) => {
-    setStaged({ lat: p.latitude, lng: p.longitude, label: p.formatted_address });
-    setError(null);
-  };
+  const savedRows: CustomerAddress[] = isCustomer
+    ? addresses.filter(
+        (a) => a.address.latitude != null && a.address.longitude != null,
+      )
+    : [];
 
   const onSavedAddress = (a: CustomerAddress) => {
     if (a.address.latitude == null || a.address.longitude == null) return;
-    // One-tap commit: saved addresses are a shortcut. Setting location and
-    // closing immediately matches the spec ("tap a saved row -> modal closes
-    // with that location in chip") and avoids the user-confusion of clicking
-    // a row with no visible state change.
     setLocation({
       lat: a.address.latitude,
       lng: a.address.longitude,
       label: truncateLabel(formatAddress(a.address), 40),
     });
-    setError(null);
     onClose();
   };
 
-  const confirm = () => {
-    if (!staged) return;
+  const onAutocompletePick = (p: GeoPlace) => {
     setLocation({
-      lat: staged.lat,
-      lng: staged.lng,
-      label: truncateLabel(staged.label),
+      lat: p.latitude,
+      lng: p.longitude,
+      label: truncateLabel(p.formatted_address),
     });
+    onClose();
+  };
+
+  const onAddAddress = () => {
+    const target = isCustomer
+      ? "/account/addresses"
+      : "/login?next=/account/addresses";
+    router.push(target);
     onClose();
   };
 
@@ -92,53 +107,57 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
       footer={
         <button
           type="button"
-          className={styles.confirm}
-          onClick={confirm}
-          disabled={!staged}
+          className={styles.addAddressBtn}
+          onClick={onAddAddress}
         >
-          Confirm location
+          Add address
         </button>
       }
     >
       <div className={styles.body}>
-        {savedRows.length > 0 && (
-          <div className={styles.savedSection}>
-            <p className={styles.savedHeading}>Saved addresses</p>
-            <ul className={styles.savedList}>
-              {savedRows.map((a) => (
-                <li key={a.id}>
-                  <button
-                    type="button"
-                    className={styles.savedRow}
-                    onClick={() => onSavedAddress(a)}
-                  >
-                    <span className={styles.savedTitle}>
-                      {a.label ?? "Address"}
-                      {a.is_default && (
-                        <span className={styles.defaultPill}>Default</span>
-                      )}
-                    </span>
-                    <span className={styles.savedBody}>
-                      {formatAddress(a.address)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+        {auth.loading ? (
+          <div className={styles.skeleton} aria-busy="true" aria-live="polite">
+            <div className={styles.skeletonRow} />
+            <div className={styles.skeletonRow} />
+            <div className={styles.skeletonRow} />
           </div>
+        ) : isCustomer ? (
+          <>
+            {savedRows.length > 0 ? (
+              <div className={styles.savedSection}>
+                <p className={styles.savedHeading}>Saved addresses</p>
+                <ul className={styles.savedList}>
+                  {savedRows.map((a) => (
+                    <li key={a.id}>
+                      <button
+                        type="button"
+                        className={styles.savedRow}
+                        onClick={() => onSavedAddress(a)}
+                      >
+                        <span className={styles.savedTitle}>
+                          {a.label ?? "Address"}
+                          {a.is_default && (
+                            <span className={styles.defaultPill}>Default</span>
+                          )}
+                        </span>
+                        <span className={styles.savedBody}>
+                          {formatAddress(a.address)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className={styles.emptyState}>
+                No saved addresses yet — tap Add address below.
+              </p>
+            )}
+          </>
+        ) : (
+          <AddressAutocomplete onPlace={onAutocompletePick} />
         )}
-        <AddressAutocomplete onPlace={onAutocompletePlace} />
-        <p className={styles.or}>
-          {savedRows.length > 0 ? "or pick a new location" : "or pin on map"}
-        </p>
-        <MapPicker
-          initialLat={staged?.lat}
-          initialLng={staged?.lng}
-          target={mapTarget}
-          onPlace={onMapPlace}
-          onError={setError}
-        />
-        {error && <span className={styles.error}>{error}</span>}
+        <VisualMap lat={location.lat} lng={location.lng} />
       </div>
     </Modal>
   );
