@@ -2,6 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -13,7 +14,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.core.indian_states import INDIAN_STATES
+from app.core.security import get_current_admin
 from app.db.session import get_db_session
+from app.models.base import User
 from app.models.catalog import MasterProduct, MasterProductTranslation
 from app.models.store import Store
 from app.schemas.search_health import (
@@ -78,28 +81,39 @@ async def _gather_index_health(
         client = get_meili_client()
         index = client.index(meili_uid)
         # Filter out `_meta_v*` marker docs by requiring is_active — only
-        # real catalog rows have it.
-        count_hits = await index.search(
-            "",
-            filter="is_active IN [true, false]",
-            limit=0,
+        # real catalog rows have it. asyncio.wait_for caps each call so a
+        # Meili outage can't tie up a worker connection for the SDK's
+        # default timeout (~30s) — a herd hitting cold cache during an
+        # outage would otherwise drain the asyncpg pool.
+        count_hits = await asyncio.wait_for(
+            index.search(
+                "",
+                filter="is_active IN [true, false]",
+                limit=0,
+            ),
+            timeout=2.0,
         )
         meili_count = int(
             count_hits.total_hits
             if count_hits.total_hits is not None
             else (count_hits.estimated_total_hits or 0)
         )
-        max_hits = await index.search(
-            "",
-            sort=["db_updated_at:desc"],
-            limit=1,
-            attributes_to_retrieve=["db_updated_at"],
+        max_hits = await asyncio.wait_for(
+            index.search(
+                "",
+                sort=["db_updated_at:desc"],
+                limit=1,
+                attributes_to_retrieve=["db_updated_at"],
+            ),
+            timeout=2.0,
         )
         if max_hits.hits and "db_updated_at" in max_hits.hits[0]:
             meili_max = int(max_hits.hits[0]["db_updated_at"])
     except Exception as exc:  # noqa: BLE001
         unreachable = True
-        logger.debug("search.health.meili_unreachable kind=%s err=%s", kind, exc)
+        logger.debug(
+            "search.health.meili_unreachable kind=%s err=%s", kind, type(exc).__name__
+        )
 
     summary_raw = _sync_redis_client().get(STATE_KEY_TEMPLATE.format(kind=kind))
     summary: ReconcileSummaryOut | None = None
@@ -132,7 +146,12 @@ async def _gather_index_health(
 @router.get("/search-health", response_model=SearchHealthResponse)
 async def search_health(
     session: AsyncSession = Depends(get_db_session),
+    _admin: User = Depends(get_current_admin),
 ) -> SearchHealthResponse:
+    """Operator-only probe. Exposes catalog counts, lag, DLQ size, and the
+    last reconcile summary — admin-gated because the same data set leaks
+    catalog size and outage windows to anyone who can read it.
+    """
     r = _sync_redis_client()
     cached = r.get(_HEALTH_CACHE_KEY)
     if cached is not None:
@@ -151,11 +170,15 @@ async def search_health(
     meili_term_count = 0
     terms_unreachable = False
     try:
-        st = await get_meili_client().index("search_terms").get_stats()
+        st = await asyncio.wait_for(
+            get_meili_client().index("search_terms").get_stats(), timeout=2.0
+        )
         meili_term_count = st.number_of_documents
     except Exception as exc:  # noqa: BLE001
         terms_unreachable = True
-        logger.debug("search.health.terms_meili_unreachable err=%s", exc)
+        logger.debug(
+            "search.health.terms_meili_unreachable err=%s", type(exc).__name__
+        )
 
     body = SearchHealthResponse(
         products=products,

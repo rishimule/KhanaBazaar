@@ -36,11 +36,19 @@ def push(kind: DeadLetterKind, id_: int) -> None:
     _client().sadd(_key(kind), id_)
 
 
-def drain(kind: DeadLetterKind) -> list[int]:
-    pipe = _client().pipeline()
-    pipe.smembers(_key(kind))
-    pipe.delete(_key(kind))
-    members, _ = pipe.execute()
+def drain(kind: DeadLetterKind, limit: int = 5000) -> list[int]:
+    """Pop up to `limit` ids from the DLQ atomically. Capping the drain
+    prevents a runaway DLQ from triggering tens of thousands of Celery
+    enqueues in a single reconcile pass — leftover ids stay in the set
+    and get drained on the next hourly run.
+    """
+    client = _client()
+    key = _key(kind)
+    pipe = client.pipeline()
+    pipe.srandmember(key, limit)
+    members = pipe.execute()[0] or []
+    if members:
+        client.srem(key, *members)
     return sorted(int(m) for m in members)
 
 

@@ -272,10 +272,15 @@ async def _deep_pass_products(
     index = client.index("products")
     deltas = ShardDeltas()
 
+    # Match the cheap pass denominator: only walk active rows. Inactive
+    # rows that linger in Meili will be flagged by the reverse pass as
+    # `extra` (DB-active set excludes them) and get cleaned up.
     db_ids = [
         pid for (pid,) in (
             await session.execute(
-                select(MasterProduct.id).where(MasterProduct.id % SHARDS == shard)
+                select(MasterProduct.id)
+                .where(MasterProduct.id % SHARDS == shard)
+                .where(MasterProduct.is_active.is_(True))
             )
         ).all()
     ]
@@ -296,7 +301,9 @@ async def _deep_pass_products(
         db_alive = {
             pid for (pid,) in (
                 await session.execute(
-                    select(MasterProduct.id).where(MasterProduct.id.in_(meili_in_shard))
+                    select(MasterProduct.id)
+                    .where(MasterProduct.id.in_(meili_in_shard))
+                    .where(MasterProduct.is_active.is_(True))
                 )
             ).all()
         }
@@ -318,7 +325,9 @@ async def _deep_pass_stores(
     db_ids = [
         sid for (sid,) in (
             await session.execute(
-                select(Store.id).where(Store.id % SHARDS == shard)
+                select(Store.id)
+                .where(Store.id % SHARDS == shard)
+                .where(Store.is_active.is_(True))
             )
         ).all()
     ]
@@ -339,7 +348,9 @@ async def _deep_pass_stores(
         db_alive = {
             sid for (sid,) in (
                 await session.execute(
-                    select(Store.id).where(Store.id.in_(meili_in_shard))
+                    select(Store.id)
+                    .where(Store.id.in_(meili_in_shard))
+                    .where(Store.is_active.is_(True))
                 )
             ).all()
         }
@@ -401,6 +412,10 @@ async def _reconcile(
     try:
         clean, db_count, _meili_count = await cheap(session, client)
     except Exception as exc:  # noqa: BLE001
+        # Record the exception *class* only — `str(exc)` from asyncpg /
+        # Meili / SQLAlchemy frequently embeds connection strings, host
+        # info, or SQL fragments which would then surface through the
+        # health endpoint.
         summary = ReconcileSummary(
             kind=kind,
             started_at=started,
@@ -409,7 +424,7 @@ async def _reconcile(
             shard=None,
             deltas=ShardDeltas(),
             dlq_drained=len(drained_ids),
-            error=str(exc),
+            error=type(exc).__name__,
         )
         write_summary(r, summary)
         raise

@@ -24,11 +24,19 @@ def _clear_cache_and_state() -> None:
 
 
 @pytest.mark.asyncio
-async def test_search_health_returns_expected_shape(
-    client: AsyncClient, meili_test_client
-) -> None:
+async def test_search_health_requires_admin(client: AsyncClient, meili_test_client) -> None:
     _clear_cache_and_state()
     res = await client.get("/api/v1/meta/search-health")
+    # Without admin headers / dependency override, the route rejects.
+    assert res.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_search_health_returns_expected_shape(
+    client: AsyncClient, admin_auth_headers, meili_test_client
+) -> None:
+    _clear_cache_and_state()
+    res = await client.get("/api/v1/meta/search-health", headers=admin_auth_headers)
     assert res.status_code == 200
     body = res.json()
     assert set(body.keys()) == {"products", "stores", "search_terms"}
@@ -44,14 +52,14 @@ async def test_search_health_returns_expected_shape(
 
 @pytest.mark.asyncio
 async def test_search_health_reflects_dlq_size(
-    client: AsyncClient, meili_test_client
+    client: AsyncClient, admin_auth_headers, meili_test_client
 ) -> None:
     _clear_cache_and_state()
     dlq.push("product", 1)
     dlq.push("product", 2)
     dlq.push("store", 99)
 
-    res = await client.get("/api/v1/meta/search-health")
+    res = await client.get("/api/v1/meta/search-health", headers=admin_auth_headers)
     assert res.status_code == 200
     body = res.json()
     assert body["products"]["dlq_size"] == 2
@@ -60,7 +68,7 @@ async def test_search_health_reflects_dlq_size(
 
 @pytest.mark.asyncio
 async def test_search_health_surfaces_last_reconcile(
-    client: AsyncClient, meili_test_client
+    client: AsyncClient, admin_auth_headers, meili_test_client
 ) -> None:
     _clear_cache_and_state()
     payload = {
@@ -77,7 +85,7 @@ async def test_search_health_surfaces_last_reconcile(
         STATE_KEY_TEMPLATE.format(kind="product"), json.dumps(payload)
     )
 
-    res = await client.get("/api/v1/meta/search-health")
+    res = await client.get("/api/v1/meta/search-health", headers=admin_auth_headers)
     body = res.json()
     last = body["products"]["last_reconcile"]
     assert last is not None
@@ -87,13 +95,13 @@ async def test_search_health_surfaces_last_reconcile(
 
 @pytest.mark.asyncio
 async def test_search_health_cached_on_second_call(
-    client: AsyncClient, meili_test_client
+    client: AsyncClient, admin_auth_headers, meili_test_client
 ) -> None:
     _clear_cache_and_state()
-    res1 = await client.get("/api/v1/meta/search-health")
+    res1 = await client.get("/api/v1/meta/search-health", headers=admin_auth_headers)
     assert res1.status_code == 200
     # Mutate DLQ; cached response should still show old value because the
     # 30s Redis cache absorbed the first body.
     dlq.push("product", 1234)
-    res2 = await client.get("/api/v1/meta/search-health")
+    res2 = await client.get("/api/v1/meta/search-health", headers=admin_auth_headers)
     assert res2.json()["products"]["dlq_size"] == res1.json()["products"]["dlq_size"]
