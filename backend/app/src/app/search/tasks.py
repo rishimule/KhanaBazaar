@@ -13,12 +13,16 @@ import logging
 import threading
 from typing import Any
 
+import httpx
 import redis
+from celery import Task
+from meilisearch_python_sdk.errors import MeilisearchApiError
 from sqlalchemy import select
 
 from app.core.celery_app import celery_app
 from app.core.config import settings
 from app.db.session import async_session_factory
+from app.search import dlq
 from app.search.client import get_meili_client
 from app.search.serialize import (
     build_product_document,
@@ -29,6 +33,31 @@ from app.search.serialize import (
 logger = logging.getLogger(__name__)
 
 _sync_redis = redis.Redis.from_url(settings.REDIS_URL)
+
+# Retry configuration shared by the per-id reindex tasks. Transient Meili 5xx,
+# network errors, and connection resets all autoretry with exponential backoff
+# up to ~5 minutes before the task hits max_retries and lands on the DLQ.
+_REINDEX_AUTORETRY = (MeilisearchApiError, httpx.HTTPError, ConnectionError)
+_REINDEX_MAX_RETRIES = 5
+_REINDEX_BACKOFF_MAX = 300
+
+
+class _DLQTask(Task):
+    """Celery base task that pushes the first positional arg onto a DLQ
+    when retries are exhausted. Subclasses set `_dlq_kind` after task
+    construction (Celery decorators don't pass kwargs to base.__init__)."""
+
+    abstract = True
+    _dlq_kind: dlq.DeadLetterKind | None = None
+
+    def on_failure(self, exc: Any, task_id: Any, args: Any, kwargs: Any, einfo: Any) -> None:  # noqa: ANN401
+        kind = self._dlq_kind
+        if kind is None or not args:
+            return
+        try:
+            dlq.push(kind, int(args[0]))
+        except Exception:  # noqa: BLE001 — DLQ push must never escalate
+            logger.exception("search.dlq.push_failed kind=%s args=%s", kind, args)
 
 
 def _run_async(coro: Any) -> Any:
@@ -70,8 +99,16 @@ async def _do_reindex_product(product_id: int) -> None:
         await client.wait_for_task(task.task_uid)
 
 
-@celery_app.task(name="search.reindex_master_product")
-def reindex_master_product(product_id: int) -> None:
+@celery_app.task(
+    base=_DLQTask,
+    bind=True,
+    name="search.reindex_master_product",
+    autoretry_for=_REINDEX_AUTORETRY,
+    retry_backoff=True,
+    retry_backoff_max=_REINDEX_BACKOFF_MAX,
+    max_retries=_REINDEX_MAX_RETRIES,
+)
+def reindex_master_product(self: Task, product_id: int) -> None:  # noqa: ARG001
     lock = _sync_redis.lock(
         f"meili_sync:product:{product_id}", timeout=5, blocking_timeout=1
     )
@@ -85,6 +122,9 @@ def reindex_master_product(product_id: int) -> None:
             lock.release()
         except Exception:
             pass
+
+
+reindex_master_product._dlq_kind = dlq.DEAD_LETTER_KIND_PRODUCT  # type: ignore[attr-defined]
 
 
 async def _do_reindex_store(store_id: int) -> None:
@@ -103,8 +143,16 @@ async def _do_reindex_store(store_id: int) -> None:
         await client.wait_for_task(task.task_uid)
 
 
-@celery_app.task(name="search.reindex_store")
-def reindex_store(store_id: int) -> None:
+@celery_app.task(
+    base=_DLQTask,
+    bind=True,
+    name="search.reindex_store",
+    autoretry_for=_REINDEX_AUTORETRY,
+    retry_backoff=True,
+    retry_backoff_max=_REINDEX_BACKOFF_MAX,
+    max_retries=_REINDEX_MAX_RETRIES,
+)
+def reindex_store(self: Task, store_id: int) -> None:  # noqa: ARG001
     lock = _sync_redis.lock(
         f"meili_sync:store:{store_id}", timeout=5, blocking_timeout=1
     )
@@ -117,6 +165,9 @@ def reindex_store(store_id: int) -> None:
             lock.release()
         except Exception:
             pass
+
+
+reindex_store._dlq_kind = dlq.DEAD_LETTER_KIND_STORE  # type: ignore[attr-defined]
 
 
 async def _do_reindex_products_for_store(store_id: int) -> list[int]:
