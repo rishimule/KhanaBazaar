@@ -61,12 +61,17 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
 
   const onSavedAddress = (a: CustomerAddress) => {
     if (a.address.latitude == null || a.address.longitude == null) return;
-    setStaged({
+    // One-tap commit: saved addresses are a shortcut. Setting location and
+    // closing immediately matches the spec ("tap a saved row -> modal closes
+    // with that location in chip") and avoids the user-confusion of clicking
+    // a row with no visible state change.
+    setLocation({
       lat: a.address.latitude,
       lng: a.address.longitude,
       label: truncateLabel(formatAddress(a.address), 40),
     });
     setError(null);
+    onClose();
   };
 
   const confirm = () => {
