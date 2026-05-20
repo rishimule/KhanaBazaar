@@ -15,6 +15,8 @@ export interface DeliveryLocation {
 
 interface DeliveryLocationContextValue {
   location: DeliveryLocation;
+  /** False until the initial localStorage hydration effect has completed. */
+  hydrated: boolean;
   setLocation: (loc: DeliveryLocation | null) => void;
   clear: () => void;
 }
@@ -37,6 +39,7 @@ export function DeliveryLocationProvider(
   const [location, setLocationState] = useState<DeliveryLocation>(
     DEFAULT_DELIVERY_LOCATION,
   );
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -46,6 +49,7 @@ export function DeliveryLocationProvider(
     } catch {
       // localStorage unavailable / corrupted JSON — ignore.
     }
+    setHydrated(true);
     // Sync state when another tab — or our own AuthContext.logout — wipes
     // the key. Without this listener, state lingers in this tab and the
     // store list keeps showing the previous user's location.
@@ -75,8 +79,8 @@ export function DeliveryLocationProvider(
   const clear = useCallback(() => setLocation(null), [setLocation]);
 
   const value = useMemo(
-    () => ({ location, setLocation, clear }),
-    [location, setLocation, clear],
+    () => ({ location, hydrated, setLocation, clear }),
+    [location, hydrated, setLocation, clear],
   );
 
   return (
@@ -101,4 +105,14 @@ export function useDeliveryLocation(): DeliveryLocationContextValue {
 export function clearStoredDeliveryLocation(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(STORAGE_KEY);
+}
+
+/** True when `loc` is exactly the Mumbai fallback. Used by
+ *  DeliveryLocationAutoSync to decide whether to overwrite. */
+export function isDefaultDeliveryLocation(loc: DeliveryLocation): boolean {
+  return (
+    loc.lat === DEFAULT_DELIVERY_LOCATION.lat &&
+    loc.lng === DEFAULT_DELIVERY_LOCATION.lng &&
+    loc.label === DEFAULT_DELIVERY_LOCATION.label
+  );
 }
