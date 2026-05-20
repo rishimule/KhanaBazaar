@@ -24,16 +24,25 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import asdict, dataclass, field
-from typing import Any, Iterable, Mapping, cast
+from typing import Any, Awaitable, Callable, Iterable, Mapping, cast
 
 import redis
+from meilisearch_python_sdk import AsyncClient
+from sqlalchemy import func, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+from app.models.catalog import MasterProduct
+from app.models.store import Store
+from app.search import dlq
 
 SHARDS = 24
 BATCH = 500
 MEILI_PAGE = 1000
 DELTA_CAP_FRACTION = 0.10
+# Cap applies only above this floor — tiny catalogs (dev / staging) should
+# still self-heal even when the delta ratio is large in relative terms.
+DELTA_CAP_FLOOR = 100
 STATE_KEY_TEMPLATE = "search:reconcile:last:{kind}"
 ABORT_KEY_TEMPLATE = "search:reconcile:abort:{kind}"
 
@@ -124,3 +133,359 @@ def read_summary(client: redis.Redis, kind: str) -> dict[str, Any] | None:
     if raw is None:
         return None
     return cast(dict[str, Any], json.loads(cast(bytes, raw)))
+
+
+# ─── Cheap pass ────────────────────────────────────────────────────────────
+
+
+async def _cheap_pass_products(
+    session: AsyncSession, client: AsyncClient
+) -> tuple[bool, int, int]:
+    db_count, db_max_ts = (
+        await session.execute(
+            select(func.count(MasterProduct.id), func.max(MasterProduct.updated_at))
+            .where(MasterProduct.is_active.is_(True))
+        )
+    ).one()
+    db_max_ts_int = int(db_max_ts.timestamp()) if db_max_ts else 0
+
+    index = client.index("products")
+    stats = await index.get_stats()
+    # Subtract one for the _meta_v* marker document.
+    meili_count = max(stats.number_of_documents - 1, 0)
+
+    hits = await index.search(
+        "",
+        sort=["db_updated_at:desc"],
+        limit=1,
+        attributes_to_retrieve=["db_updated_at"],
+    )
+    meili_max_ts = (
+        int(hits.hits[0]["db_updated_at"])
+        if hits.hits and "db_updated_at" in hits.hits[0]
+        else 0
+    )
+    clean = (db_count - meili_count) == 0 and abs(db_max_ts_int - meili_max_ts) < 60
+    return clean, db_count, meili_count
+
+
+async def _cheap_pass_stores(
+    session: AsyncSession, client: AsyncClient
+) -> tuple[bool, int, int]:
+    db_count, db_max_ts = (
+        await session.execute(
+            select(func.count(Store.id), func.max(Store.updated_at))
+            .where(Store.is_active.is_(True))
+        )
+    ).one()
+    db_max_ts_int = int(db_max_ts.timestamp()) if db_max_ts else 0
+
+    index = client.index("stores")
+    stats = await index.get_stats()
+    meili_count = max(stats.number_of_documents - 1, 0)
+
+    hits = await index.search(
+        "",
+        sort=["db_updated_at:desc"],
+        limit=1,
+        attributes_to_retrieve=["db_updated_at"],
+    )
+    meili_max_ts = (
+        int(hits.hits[0]["db_updated_at"])
+        if hits.hits and "db_updated_at" in hits.hits[0]
+        else 0
+    )
+    clean = (db_count - meili_count) == 0 and abs(db_max_ts_int - meili_max_ts) < 60
+    return clean, db_count, meili_count
+
+
+# ─── Deep pass ─────────────────────────────────────────────────────────────
+
+
+async def _fetch_meili_chunk(
+    index: Any, ids: list[int], fields: tuple[str, ...]
+) -> dict[int, dict[str, Any]]:
+    """Fetch a batch of docs by id. Returns {id: doc}.
+
+    Uses `filter='id IN [...]'` because the local Meili version we run
+    does not accept an `ids` parameter on the documents/fetch endpoint.
+    `id` must be in `filterableAttributes` for this to work.
+    """
+    if not ids:
+        return {}
+    filter_expr = f"id IN [{','.join(str(i) for i in ids)}]"
+    page = await index.get_documents(
+        fields=[*fields, "id"],
+        filter=filter_expr,
+        limit=len(ids),
+    )
+    out: dict[int, dict[str, Any]] = {}
+    for d in page.results:
+        try:
+            out[int(d["id"])] = d
+        except (TypeError, ValueError, KeyError):
+            continue
+    return out
+
+
+async def _list_meili_ids_in_shard(
+    index: Any, shard: int
+) -> set[int]:
+    """Page every Meili doc id, keep ones whose id % SHARDS == shard.
+
+    Meili has no server-side modulo filter, so we paginate ids only
+    (cheap) and partition in Python.
+    """
+    offset = 0
+    keep: set[int] = set()
+    while True:
+        page = await index.get_documents(fields=["id"], limit=MEILI_PAGE, offset=offset)
+        if not page.results:
+            break
+        for d in page.results:
+            raw_id = d.get("id")
+            try:
+                meili_id = int(raw_id)
+            except (TypeError, ValueError):
+                # _meta_v* marker docs have non-numeric ids — skip.
+                continue
+            if meili_id % SHARDS == shard:
+                keep.add(meili_id)
+        if len(page.results) < MEILI_PAGE:
+            break
+        offset += MEILI_PAGE
+    return keep
+
+
+async def _deep_pass_products(
+    session: AsyncSession, client: AsyncClient, shard: int
+) -> ShardDeltas:
+    from app.search.serialize import build_product_document
+
+    index = client.index("products")
+    deltas = ShardDeltas()
+
+    db_ids = [
+        pid for (pid,) in (
+            await session.execute(
+                select(MasterProduct.id).where(MasterProduct.id % SHARDS == shard)
+            )
+        ).all()
+    ]
+    for chunk_start in range(0, len(db_ids), BATCH):
+        chunk = db_ids[chunk_start : chunk_start + BATCH]
+        meili_docs = await _fetch_meili_chunk(index, chunk, COMPARE_FIELDS_PRODUCT)
+        db_docs: dict[int, dict[str, Any]] = {}
+        for pid in chunk:
+            doc = await build_product_document(session, pid)
+            if doc is not None:
+                db_docs[pid] = doc
+        chunk_deltas = diff_shard(db_docs, meili_docs, COMPARE_FIELDS_PRODUCT)
+        deltas.missing.extend(chunk_deltas.missing)
+        deltas.modified.extend(chunk_deltas.modified)
+
+    meili_in_shard = await _list_meili_ids_in_shard(index, shard)
+    if meili_in_shard:
+        db_alive = {
+            pid for (pid,) in (
+                await session.execute(
+                    select(MasterProduct.id).where(MasterProduct.id.in_(meili_in_shard))
+                )
+            ).all()
+        }
+        deltas.extra.extend(sorted(meili_in_shard - db_alive))
+
+    deltas.missing.sort()
+    deltas.modified.sort()
+    return deltas
+
+
+async def _deep_pass_stores(
+    session: AsyncSession, client: AsyncClient, shard: int
+) -> ShardDeltas:
+    from app.search.serialize import build_store_document
+
+    index = client.index("stores")
+    deltas = ShardDeltas()
+
+    db_ids = [
+        sid for (sid,) in (
+            await session.execute(
+                select(Store.id).where(Store.id % SHARDS == shard)
+            )
+        ).all()
+    ]
+    for chunk_start in range(0, len(db_ids), BATCH):
+        chunk = db_ids[chunk_start : chunk_start + BATCH]
+        meili_docs = await _fetch_meili_chunk(index, chunk, COMPARE_FIELDS_STORE)
+        db_docs: dict[int, dict[str, Any]] = {}
+        for sid in chunk:
+            doc = await build_store_document(session, sid)
+            if doc is not None:
+                db_docs[sid] = doc
+        chunk_deltas = diff_shard(db_docs, meili_docs, COMPARE_FIELDS_STORE)
+        deltas.missing.extend(chunk_deltas.missing)
+        deltas.modified.extend(chunk_deltas.modified)
+
+    meili_in_shard = await _list_meili_ids_in_shard(index, shard)
+    if meili_in_shard:
+        db_alive = {
+            sid for (sid,) in (
+                await session.execute(
+                    select(Store.id).where(Store.id.in_(meili_in_shard))
+                )
+            ).all()
+        }
+        deltas.extra.extend(sorted(meili_in_shard - db_alive))
+
+    deltas.missing.sort()
+    deltas.modified.sort()
+    return deltas
+
+
+# ─── Orchestration ─────────────────────────────────────────────────────────
+
+
+def _enqueue_reindex(kind: str, ids: list[int]) -> None:
+    # Late import: tasks.py imports reconcile (for the Celery wrapper), so
+    # we'd otherwise create a circular import at module load time.
+    from app.search.tasks import reindex_master_product, reindex_store
+
+    task = reindex_master_product if kind == "product" else reindex_store
+    for id_ in ids:
+        task.delay(id_)
+
+
+CheapPass = Callable[[AsyncSession, AsyncClient], Awaitable[tuple[bool, int, int]]]
+DeepPass = Callable[[AsyncSession, AsyncClient, int], Awaitable[ShardDeltas]]
+
+
+async def _reconcile(
+    *,
+    kind: str,
+    session: AsyncSession,
+    client: AsyncClient,
+    cheap: CheapPass,
+    deep: DeepPass,
+    dlq_kind: dlq.DeadLetterKind,
+    force_deep: bool,
+) -> ReconcileSummary:
+    started = time.time()
+    r = _redis_client()
+
+    if r.get(ABORT_KEY_TEMPLATE.format(kind=kind)) is not None:
+        summary = ReconcileSummary(
+            kind=kind,
+            started_at=started,
+            finished_at=time.time(),
+            mode="aborted_held",
+            shard=None,
+            deltas=ShardDeltas(),
+            dlq_drained=0,
+            error="abort flag set",
+        )
+        write_summary(r, summary)
+        return summary
+
+    drained_ids = dlq.drain(dlq_kind)
+    if drained_ids:
+        _enqueue_reindex("product" if dlq_kind == "product" else "store", drained_ids)
+
+    try:
+        clean, db_count, _meili_count = await cheap(session, client)
+    except Exception as exc:  # noqa: BLE001
+        summary = ReconcileSummary(
+            kind=kind,
+            started_at=started,
+            finished_at=time.time(),
+            mode="cheap_failed",
+            shard=None,
+            deltas=ShardDeltas(),
+            dlq_drained=len(drained_ids),
+            error=str(exc),
+        )
+        write_summary(r, summary)
+        raise
+
+    if clean and not force_deep:
+        summary = ReconcileSummary(
+            kind=kind,
+            started_at=started,
+            finished_at=time.time(),
+            mode="cheap_clean",
+            shard=None,
+            deltas=ShardDeltas(),
+            dlq_drained=len(drained_ids),
+        )
+        write_summary(r, summary)
+        return summary
+
+    shard = current_shard()
+    deltas = await deep(session, client, shard)
+
+    cap = max(db_count * DELTA_CAP_FRACTION, DELTA_CAP_FLOOR)
+    if db_count > 0 and total_deltas(deltas) > cap:
+        r.set(ABORT_KEY_TEMPLATE.format(kind=kind), "1", ex=86400)
+        summary = ReconcileSummary(
+            kind=kind,
+            started_at=started,
+            finished_at=time.time(),
+            mode="aborted_delta_cap",
+            shard=shard,
+            deltas=deltas,
+            dlq_drained=len(drained_ids),
+            error=f"delta {total_deltas(deltas)} exceeds {DELTA_CAP_FRACTION:.0%}",
+        )
+        write_summary(r, summary)
+        return summary
+
+    _enqueue_reindex(
+        "product" if dlq_kind == "product" else "store",
+        deltas.missing + deltas.modified + deltas.extra,
+    )
+
+    summary = ReconcileSummary(
+        kind=kind,
+        started_at=started,
+        finished_at=time.time(),
+        mode="deep",
+        shard=shard,
+        deltas=deltas,
+        dlq_drained=len(drained_ids),
+    )
+    write_summary(r, summary)
+    return summary
+
+
+async def reconcile_products(
+    session: AsyncSession,
+    client: AsyncClient,
+    *,
+    force_deep: bool = False,
+) -> ReconcileSummary:
+    return await _reconcile(
+        kind="product",
+        session=session,
+        client=client,
+        cheap=_cheap_pass_products,
+        deep=_deep_pass_products,
+        dlq_kind=dlq.DEAD_LETTER_KIND_PRODUCT,
+        force_deep=force_deep,
+    )
+
+
+async def reconcile_stores(
+    session: AsyncSession,
+    client: AsyncClient,
+    *,
+    force_deep: bool = False,
+) -> ReconcileSummary:
+    return await _reconcile(
+        kind="store",
+        session=session,
+        client=client,
+        cheap=_cheap_pass_stores,
+        deep=_deep_pass_stores,
+        dlq_kind=dlq.DEAD_LETTER_KIND_STORE,
+        force_deep=force_deep,
+    )
