@@ -557,26 +557,7 @@ export default function AddressPicker({
   const hasAnyServiceable =
     storeId === undefined ||
     addresses.some((a) => serviceability[a.id] === true);
-
-  if (allSettled && !hasAnyServiceable) {
-    return (
-      <>
-        <div className={styles.empty}>
-          {t("noServiceableTitle")}
-          <div className={styles.emptyActions}>
-            <button
-              type="button"
-              className={styles.addBtn}
-              onClick={openAddModal}
-            >
-              + {tAcc("addAddress")}
-            </button>
-          </div>
-        </div>
-        {addModalOpen && renderAddModal()}
-      </>
-    );
-  }
+  const showNoServiceableNotice = allSettled && !hasAnyServiceable;
 
   const activeOptionId =
     isOpen &&
@@ -604,6 +585,11 @@ export default function AddressPicker({
             + {tAcc("addAddress")}
           </button>
         </div>
+        {showNoServiceableNotice && (
+          <div className={styles.notice} role="status">
+            {t("noServiceableTitle")}
+          </div>
+        )}
         <button
           ref={triggerRef}
           type="button"

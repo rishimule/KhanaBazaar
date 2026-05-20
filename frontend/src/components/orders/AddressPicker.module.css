@@ -63,6 +63,15 @@
   margin-top: var(--space-2);
 }
 
+.notice {
+  padding: 8px 12px;
+  border-radius: var(--radius-card);
+  background: var(--tomato-red-light-1);
+  border: 1px solid var(--tomato-red-light-2);
+  color: var(--color-error);
+  font-size: var(--body-sm);
+}
+
 .modalBody {
   display: flex;
   flex-direction: column;
