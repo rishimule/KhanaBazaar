@@ -3,8 +3,10 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import {
-  createContext, useCallback, useContext, useEffect, useMemo, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from "react";
+
+import { useAuth } from "@/lib/AuthContext";
 
 export interface DeliveryLocation {
   lat: number;
@@ -15,6 +17,8 @@ export interface DeliveryLocation {
 
 interface DeliveryLocationContextValue {
   location: DeliveryLocation;
+  /** False until the initial localStorage hydration effect has completed. */
+  hydrated: boolean;
   setLocation: (loc: DeliveryLocation | null) => void;
   clear: () => void;
 }
@@ -34,9 +38,28 @@ const DeliveryLocationContext =
 export function DeliveryLocationProvider(
   { children }: { children: React.ReactNode },
 ) {
+  const auth = useAuth();
   const [location, setLocationState] = useState<DeliveryLocation>(
     DEFAULT_DELIVERY_LOCATION,
   );
+  const [hydrated, setHydrated] = useState(false);
+  const prevTokenRef = useRef<string | null>(auth.token);
+
+  // Same-tab logout reset: AuthContext.logout wipes `kb_delivery_location`
+  // from localStorage, but the `storage` event does NOT fire in the
+  // originating tab, so the in-memory location lingers. Detect the
+  // token truthy → null transition and snap back to the Mumbai fallback
+  // so a subsequent login on the same tab can auto-sync to the new
+  // customer's default saved address.
+  useEffect(() => {
+    const wasLoggedIn = prevTokenRef.current !== null;
+    const isLoggedOut = auth.token === null;
+    if (wasLoggedIn && isLoggedOut) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- react to auth identity transition
+      setLocationState(DEFAULT_DELIVERY_LOCATION);
+    }
+    prevTokenRef.current = auth.token;
+  }, [auth.token]);
 
   useEffect(() => {
     try {
@@ -46,6 +69,7 @@ export function DeliveryLocationProvider(
     } catch {
       // localStorage unavailable / corrupted JSON — ignore.
     }
+    setHydrated(true);
     // Sync state when another tab — or our own AuthContext.logout — wipes
     // the key. Without this listener, state lingers in this tab and the
     // store list keeps showing the previous user's location.
@@ -75,8 +99,8 @@ export function DeliveryLocationProvider(
   const clear = useCallback(() => setLocation(null), [setLocation]);
 
   const value = useMemo(
-    () => ({ location, setLocation, clear }),
-    [location, setLocation, clear],
+    () => ({ location, hydrated, setLocation, clear }),
+    [location, hydrated, setLocation, clear],
   );
 
   return (
@@ -101,4 +125,14 @@ export function useDeliveryLocation(): DeliveryLocationContextValue {
 export function clearStoredDeliveryLocation(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(STORAGE_KEY);
+}
+
+/** True when `loc` is exactly the Mumbai fallback. Used by
+ *  DeliveryLocationAutoSync to decide whether to overwrite. */
+export function isDefaultDeliveryLocation(loc: DeliveryLocation): boolean {
+  return (
+    loc.lat === DEFAULT_DELIVERY_LOCATION.lat &&
+    loc.lng === DEFAULT_DELIVERY_LOCATION.lng &&
+    loc.label === DEFAULT_DELIVERY_LOCATION.label
+  );
 }

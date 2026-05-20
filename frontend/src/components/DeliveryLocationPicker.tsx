@@ -12,6 +12,10 @@ import {
   type GeoPlace,
 } from "@/lib/geo";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { useCustomerAddresses } from "@/lib/CustomerAddressesContext";
+import { useAuth } from "@/lib/AuthContext";
+import { formatAddress } from "@/lib/format-address";
+import type { CustomerAddress } from "@/types";
 
 import styles from "./DeliveryLocationPicker.module.css";
 
@@ -22,6 +26,16 @@ interface Props {
 
 export function DeliveryLocationPicker({ open, onClose }: Props) {
   const { setLocation } = useDeliveryLocation();
+  const auth = useAuth();
+  const { addresses } = useCustomerAddresses();
+
+  const savedRows: CustomerAddress[] =
+    auth.dbUser?.role === "customer"
+      ? addresses.filter(
+          (a) => a.address.latitude != null && a.address.longitude != null,
+        )
+      : [];
+
   const [staged, setStaged] = useState<{
     lat: number; lng: number; label: string;
   } | null>(null);
@@ -43,6 +57,21 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
   const onMapPlace = (p: GeoPlace) => {
     setStaged({ lat: p.latitude, lng: p.longitude, label: p.formatted_address });
     setError(null);
+  };
+
+  const onSavedAddress = (a: CustomerAddress) => {
+    if (a.address.latitude == null || a.address.longitude == null) return;
+    // One-tap commit: saved addresses are a shortcut. Setting location and
+    // closing immediately matches the spec ("tap a saved row -> modal closes
+    // with that location in chip") and avoids the user-confusion of clicking
+    // a row with no visible state change.
+    setLocation({
+      lat: a.address.latitude,
+      lng: a.address.longitude,
+      label: truncateLabel(formatAddress(a.address), 40),
+    });
+    setError(null);
+    onClose();
   };
 
   const confirm = () => {
@@ -72,8 +101,36 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
       }
     >
       <div className={styles.body}>
+        {savedRows.length > 0 && (
+          <div className={styles.savedSection}>
+            <p className={styles.savedHeading}>Saved addresses</p>
+            <ul className={styles.savedList}>
+              {savedRows.map((a) => (
+                <li key={a.id}>
+                  <button
+                    type="button"
+                    className={styles.savedRow}
+                    onClick={() => onSavedAddress(a)}
+                  >
+                    <span className={styles.savedTitle}>
+                      {a.label ?? "Address"}
+                      {a.is_default && (
+                        <span className={styles.defaultPill}>Default</span>
+                      )}
+                    </span>
+                    <span className={styles.savedBody}>
+                      {formatAddress(a.address)}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <AddressAutocomplete onPlace={onAutocompletePlace} />
-        <p className={styles.or}>or pin on map</p>
+        <p className={styles.or}>
+          {savedRows.length > 0 ? "or pick a new location" : "or pin on map"}
+        </p>
         <MapPicker
           initialLat={staged?.lat}
           initialLng={staged?.lng}
