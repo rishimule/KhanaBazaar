@@ -147,6 +147,7 @@
 }
 
 .addAddressBtn {
+  width: 100%;
   padding: 14px 22px;
   background: var(--color-btn-primary-bg);
   color: var(--white);

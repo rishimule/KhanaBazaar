@@ -108,18 +108,16 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
       title="Set delivery location"
       onClose={onClose}
       size="wide"
-      footer={
+    >
+      <div className={styles.body}>
         <button
           type="button"
           className={styles.addAddressBtn}
           onClick={onAddAddress}
           disabled={auth.loading}
         >
-          Add address
+          + Add address
         </button>
-      }
-    >
-      <div className={styles.body}>
         {auth.loading ? (
           <div className={styles.skeleton} aria-busy="true" aria-live="polite">
             <div className={styles.skeletonRow} />
@@ -155,7 +153,7 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
               </div>
             ) : (
               <p className={styles.emptyState}>
-                No saved addresses yet — tap Add address below.
+                No saved addresses yet — use Add address above to get started.
               </p>
             )}
           </>
