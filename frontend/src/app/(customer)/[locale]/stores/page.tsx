@@ -220,6 +220,7 @@ function StoresPageInner() {
               className={`btn btn-primary ${styles.loadMoreBtn}`}
               onClick={() => fetchPage(skip, true)}
               disabled={loadingMore}
+              aria-busy={loadingMore}
             >
               {loadingMore ? t("loadingMore") : t("loadMore")}
             </button>
