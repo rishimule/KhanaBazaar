@@ -341,6 +341,133 @@ cmd_restart() {
   cmd_start
 }
 
+cmd_reset() {
+  # Hard reset: stop everything, wipe docker volumes, pull fresh images,
+  # recreate containers from scratch, re-apply migrations + reseed the DB,
+  # then restart all app processes. Destroys all local DB / Redis /
+  # Meilisearch state — interactive confirmation required unless --yes.
+  local with_tunnel=0
+  local assume_yes=0
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --tunnel) with_tunnel=1; shift ;;
+      --yes|-y) assume_yes=1; shift ;;
+      *) echo "Unknown reset arg: $1" >&2; exit 1 ;;
+    esac
+  done
+
+  require_command docker
+  require_command uv
+  require_command npm
+
+  if ! docker compose version >/dev/null 2>&1; then
+    echo "docker compose not available" >&2
+    exit 1
+  fi
+
+  if [ "${assume_yes}" -ne 1 ]; then
+    cat <<EOF
+About to HARD RESET local dev state. This will:
+  - Stop ngrok, log viewer, frontend, celery, backend
+  - 'docker compose down -v' (deletes postgres / redis / meilisearch volumes)
+  - 'docker compose pull' to refresh images
+  - Recreate containers from scratch
+  - Apply alembic migrations and reseed the dev DB
+  - Restart backend, celery, frontend, log viewer$([ "${with_tunnel}" -eq 1 ] && echo " (and ngrok)")
+
+ALL local data in those services will be lost.
+EOF
+    read -r -p "Type 'reset' to confirm: " confirm
+    if [ "${confirm}" != "reset" ]; then
+      echo "Aborted."
+      exit 1
+    fi
+  fi
+
+  # Guard against pointing this at a non-local DB/Redis URL.
+  (
+    cd "${BACKEND_APP_DIR}"
+    uv run python - <<'PY'
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.getcwd(), "src"))
+
+from app.core.config import settings
+from app.db.local_reset import validate_local_connection_urls
+
+validate_local_connection_urls(settings.DATABASE_URL, settings.REDIS_URL)
+PY
+  )
+
+  echo "Stopping app processes..."
+  cmd_stop
+
+  echo "Tearing down docker stack (volumes included)..."
+  (cd "${REPO_ROOT}" && docker compose down -v --remove-orphans)
+
+  # Belt-and-braces: nuke any stragglers that survived compose down (e.g. left
+  # behind by an aborted previous run with a stale project name).
+  for container_name in khanabazaar-postgres khanabazaar-redis khanabazaar-meilisearch; do
+    if docker container inspect "${container_name}" >/dev/null 2>&1; then
+      docker rm -f "${container_name}" >/dev/null
+    fi
+  done
+
+  echo "Pulling fresh images..."
+  (cd "${REPO_ROOT}" && docker compose pull postgres redis meilisearch)
+
+  echo "Recreating containers..."
+  (cd "${REPO_ROOT}" && docker compose up -d --force-recreate postgres redis meilisearch)
+
+  # Three-stage postgres readiness. pg_isready only checks the listener is up.
+  # Unix-socket psql becomes ready before the TCP listener stabilizes on a
+  # freshly-initialized volume — postmaster briefly restarts while initdb
+  # finishes. The migration step runs asyncpg over TCP from the host, so
+  # gate on a real TCP query (`psql -h 127.0.0.1`) to match that path.
+  for attempt in $(seq 1 60); do
+    if (cd "${REPO_ROOT}" && docker compose exec -T postgres pg_isready -U postgres -d khanabazaar >/dev/null 2>&1); then
+      break
+    fi
+    [ "${attempt}" -eq 60 ] && { echo "Postgres did not become ready (pg_isready)" >&2; exit 1; }
+    sleep 1
+  done
+
+  for attempt in $(seq 1 60); do
+    if (cd "${REPO_ROOT}" && PGPASSWORD=password docker compose exec -T postgres psql -h 127.0.0.1 -U postgres -d khanabazaar -tAc 'SELECT 1' >/dev/null 2>&1); then
+      break
+    fi
+    [ "${attempt}" -eq 60 ] && { echo "Postgres did not accept TCP queries" >&2; exit 1; }
+    sleep 1
+  done
+
+  for attempt in $(seq 1 60); do
+    if curl -fsS --max-time 1 http://localhost:7700/health >/dev/null 2>&1; then
+      break
+    fi
+    [ "${attempt}" -eq 60 ] && { echo "Meilisearch did not become ready" >&2; exit 1; }
+    sleep 1
+  done
+
+  echo "Applying migrations and reseeding..."
+  (
+    cd "${BACKEND_APP_DIR}"
+    uv run alembic upgrade head
+    uv run python scripts/seed_database.py
+    uv run python scripts/seed_database.py --verify-only
+  )
+
+  echo "Restarting app processes..."
+  if [ "${with_tunnel}" -eq 1 ]; then
+    cmd_start --tunnel
+  else
+    cmd_start
+  fi
+
+  echo
+  echo "Hard reset complete."
+}
+
 usage() {
   cat <<EOF
 Usage: $0 <command>
@@ -351,6 +478,10 @@ Commands:
   stop               Stop ngrok, log viewer, backend, celery, frontend (leaves docker running)
   stop --all         Also stop docker postgres+redis+meilisearch
   restart            Stop then start app processes
+  reset              HARD RESET: stop everything, wipe docker volumes, pull
+                     fresh images, recreate containers, re-apply migrations,
+                     reseed DB, then restart all app processes.
+                     Flags: --tunnel (also start ngrok), --yes / -y (skip prompt)
   status             Show pids + docker status (incl. ngrok URL when running)
   logs [name]        Tail logs (name: backend|celery|frontend|ngrok|log_viewer; default: all app logs)
   tunnel             Start ngrok tunnels (frontend + log viewer)
@@ -362,6 +493,7 @@ case "${1:-}" in
   start)      shift; cmd_start "$@" ;;
   stop)       shift; cmd_stop "$@" ;;
   restart)    cmd_restart ;;
+  reset)      shift; cmd_reset "$@" ;;
   status)     cmd_status ;;
   logs)       shift; cmd_logs "$@" ;;
   tunnel)     cmd_tunnel ;;

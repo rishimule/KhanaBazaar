@@ -1,6 +1,6 @@
 ---
 description: Run scripts/dev.sh to control local dev stack (postgres + redis + meilisearch + backend + celery + frontend + log viewer + ngrok)
-argument-hint: "[start [--tunnel] | stop [--all] | restart | status | logs [backend|celery|frontend|ngrok|log_viewer] | tunnel | tunnel-url]"
+argument-hint: "[start [--tunnel] | stop [--all] | restart | reset [--tunnel] [--yes] | status | logs [backend|celery|frontend|ngrok|log_viewer] | tunnel | tunnel-url]"
 allowed-tools: Bash(./scripts/dev.sh:*)
 ---
 
@@ -29,6 +29,7 @@ If `$ARGUMENTS` is empty, run `./scripts/dev.sh --help` to show usage.
 - **`start --tunnel`** — same as `start`, plus the ngrok public URL and `<url>/dev-logs/` (log viewer proxied through frontend rewrite). Useful for mobile testing.
 - **`stop`** — stops ngrok, log viewer, frontend, celery, backend. Leaves docker (postgres + redis + meilisearch) running.
 - **`stop --all`** — also stops docker postgres + redis + meilisearch.
+- **`reset`** — HARD RESET. Destructive. Stops every app process, runs `docker compose down -v --remove-orphans` (wipes postgres / redis / meilisearch volumes), pulls fresh images, recreates containers, applies alembic migrations, reseeds the dev DB via `scripts/seed_database.py`, then starts everything back up. **Interactive prompt requires typing `reset` to confirm** — pass `--yes` (or `-y`) to skip. Pass `--tunnel` to also start ngrok at the end. Warn the user before invoking that all local DB / Redis / Meili data will be lost; if running non-interactively (no terminal for the prompt), pass `--yes` only after explicit user approval.
 - **`status`** — relay pid table, docker compose ps, and the ngrok tunnel list verbatim. Includes inspector URL `http://localhost:4040` when ngrok is up.
 - **`tunnel`** — starts ngrok (and log viewer if needed). Surface the resolved public URL.
 - **`tunnel-url`** — prints current public URL on stdout. Non-zero exit means no tunnel running.
@@ -40,4 +41,5 @@ After a successful `start`, remind the user:
 - `/dev status` to check pids + tunnels
 - `/dev stop` to stop app processes
 - `/dev stop --all` to also stop postgres + redis
+- `/dev reset` for a destructive hard reset (wipes data, reseeds DB) — only when the user asks
 - `/dev tunnel-url` to reprint the current tunnel URL (when started with `--tunnel`)
