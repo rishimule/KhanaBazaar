@@ -12,17 +12,6 @@ import {
 } from "@/lib/DeliveryLocationContext";
 import { formatAddress } from "@/lib/format-address";
 import { truncateLabel } from "@/lib/geo";
-import type { CustomerAddress } from "@/types";
-
-function pickAutoSyncAddress(
-  defaultAddress: CustomerAddress | null,
-  addresses: CustomerAddress[],
-): CustomerAddress | null {
-  const hasCoords = (a: CustomerAddress) =>
-    a.address.latitude != null && a.address.longitude != null;
-  if (defaultAddress && hasCoords(defaultAddress)) return defaultAddress;
-  return addresses.find(hasCoords) ?? null;
-}
 
 /** Side-effect-only component. Runs once per (token, dbUser.id) when the
  *  logged-in customer's stored DeliveryLocation is still the Mumbai fallback,
@@ -45,9 +34,15 @@ export function DeliveryLocationAutoSync() {
     if (!auth.token || auth.dbUser?.role !== "customer") return;
     if (!isDefaultDeliveryLocation(location)) return;
 
-    const target = pickAutoSyncAddress(defaultAddress, addresses);
-    if (!target) return;
-    if (target.address.latitude == null || target.address.longitude == null) return;
+    const hasCoords = (a: typeof addresses[number]) =>
+      a.address.latitude != null && a.address.longitude != null;
+    const target =
+      (defaultAddress && hasCoords(defaultAddress) ? defaultAddress : null) ??
+      addresses.find(hasCoords) ??
+      null;
+    if (!target || target.address.latitude == null || target.address.longitude == null) {
+      return;
+    }
 
     setLocation({
       lat: target.address.latitude,

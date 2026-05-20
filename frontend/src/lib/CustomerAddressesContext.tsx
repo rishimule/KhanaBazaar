@@ -3,7 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import {
-  createContext, useCallback, useContext, useEffect, useMemo, useState,
+  createContext, useContext, useEffect, useMemo, useState,
 } from "react";
 
 import { get } from "@/lib/api";
@@ -19,17 +19,7 @@ interface CustomerAddressesContextValue {
   loading: boolean;
   /** Human-readable error from the last fetch attempt, else null. */
   error: string | null;
-  /** Trigger a re-fetch. No-op if the gate conditions aren't met. */
-  refetch: () => void;
 }
-
-const EMPTY: CustomerAddressesContextValue = {
-  addresses: [],
-  defaultAddress: null,
-  loading: false,
-  error: null,
-  refetch: () => {},
-};
 
 const CustomerAddressesContext =
   createContext<CustomerAddressesContextValue | null>(null);
@@ -41,7 +31,6 @@ export function CustomerAddressesProvider(
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fetchNonce, setFetchNonce] = useState(0);
 
   const role = auth.dbUser?.role ?? null;
   const token = auth.token;
@@ -76,11 +65,7 @@ export function CustomerAddressesProvider(
       });
 
     return () => { cancelled = true; };
-  }, [token, role, authLoading, fetchNonce]);
-
-  const refetch = useCallback(() => {
-    setFetchNonce((n) => n + 1);
-  }, []);
+  }, [token, role, authLoading]);
 
   const defaultAddress = useMemo(
     () => addresses.find((a) => a.is_default) ?? null,
@@ -88,8 +73,8 @@ export function CustomerAddressesProvider(
   );
 
   const value = useMemo<CustomerAddressesContextValue>(
-    () => ({ addresses, defaultAddress, loading, error, refetch }),
-    [addresses, defaultAddress, loading, error, refetch],
+    () => ({ addresses, defaultAddress, loading, error }),
+    [addresses, defaultAddress, loading, error],
   );
 
   return (
@@ -101,7 +86,10 @@ export function CustomerAddressesProvider(
 
 export function useCustomerAddresses(): CustomerAddressesContextValue {
   const ctx = useContext(CustomerAddressesContext);
-  // If the provider is not mounted (e.g. operator routes), degrade to empty.
-  if (!ctx) return EMPTY;
+  if (!ctx) {
+    throw new Error(
+      "useCustomerAddresses must be used inside CustomerAddressesProvider",
+    );
+  }
   return ctx;
 }
