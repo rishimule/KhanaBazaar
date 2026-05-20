@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-SETTINGS_VERSION = 2
+SETTINGS_VERSION = 3
 
 _SYNONYMS_PATH = Path(__file__).parent / "synonyms.json"
 
@@ -41,6 +41,9 @@ def products_index_settings() -> dict[str, Any]:
         },
         "synonyms": load_synonyms(),
         "stopWords": ["the", "a", "an"],
+        # Lift the default 1000-hit pagination cap so the reconciler and
+        # /meta/search-health can read accurate total counts.
+        "pagination": {"maxTotalHits": 1_000_000},
     }
 
 
@@ -52,6 +55,7 @@ def stores_index_settings() -> dict[str, Any]:
         "rankingRules": [
             "words", "typo", "proximity", "attribute", "sort", "exactness",
         ],
+        "pagination": {"maxTotalHits": 100_000},
     }
 
 
@@ -63,6 +67,7 @@ def search_terms_index_settings() -> dict[str, Any]:
         "rankingRules": [
             "words", "typo", "proximity", "attribute", "exactness", "weight:desc",
         ],
+        "pagination": {"maxTotalHits": 100_000},
     }
 
 

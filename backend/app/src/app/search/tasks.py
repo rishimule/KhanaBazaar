@@ -18,6 +18,7 @@ import redis
 from celery import Task
 from meilisearch_python_sdk.errors import MeilisearchApiError
 from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError, InterfaceError, OperationalError
 
 from app.core.celery_app import celery_app
 from app.core.config import settings
@@ -37,7 +38,18 @@ _sync_redis = redis.Redis.from_url(settings.REDIS_URL)
 # Retry configuration shared by the per-id reindex tasks. Transient Meili 5xx,
 # network errors, and connection resets all autoretry with exponential backoff
 # up to ~5 minutes before the task hits max_retries and lands on the DLQ.
-_REINDEX_AUTORETRY = (MeilisearchApiError, httpx.HTTPError, ConnectionError)
+_REINDEX_AUTORETRY = (
+    MeilisearchApiError,
+    httpx.HTTPError,
+    ConnectionError,
+    # Transient asyncpg/SQLAlchemy errors that show up under concurrent
+    # Celery worker fanout (shared engine, "another operation in progress").
+    # Retrying after a short backoff lets the next attempt grab a fresh
+    # connection from the pool.
+    InterfaceError,
+    OperationalError,
+    DBAPIError,
+)
 _REINDEX_MAX_RETRIES = 5
 _REINDEX_BACKOFF_MAX = 300
 
@@ -233,15 +245,27 @@ def reindex_products_by_subcategory(subcategory_id: int) -> None:
 
 
 async def _do_rebuild_search_terms() -> None:
+    from app.search.bootstrap import _to_settings_model
+    from app.search.settings import INDEX_SETTINGS, SETTINGS_VERSION
+
     async with async_session_factory() as session:
         docs = await build_search_term_docs(session)
     client = get_meili_client()
     index = client.index("search_terms")
+    update_task = await index.update_settings(
+        _to_settings_model(INDEX_SETTINGS["search_terms"]())
+    )
+    await client.wait_for_task(update_task.task_uid)
     delete_task = await index.delete_all_documents()
     await client.wait_for_task(delete_task.task_uid)
     if docs:
         add_task = await index.add_documents(docs, primary_key="id")
         await client.wait_for_task(add_task.task_uid)
+    marker_task = await index.add_documents(
+        [{"id": f"_meta_v{SETTINGS_VERSION}", "_meta_version": SETTINGS_VERSION}],
+        primary_key="id",
+    )
+    await client.wait_for_task(marker_task.task_uid)
 
 
 @celery_app.task(name="search.rebuild_search_terms")
@@ -363,11 +387,27 @@ def swap_products() -> None:
 
 
 async def _do_rebuild_stores() -> int:
+    from app.search.bootstrap import _to_settings_model
     from app.search.reindex import reindex_stores as _reindex_stores
+    from app.search.settings import INDEX_SETTINGS, SETTINGS_VERSION
 
     async with async_session_factory() as session:
         client = get_meili_client()
-        return await _reindex_stores(session, client)
+        # Push current settings so any sortable / filterable change ships
+        # alongside the rebuild, then write the marker so the next boot's
+        # ensure_indexes recognises this version as applied.
+        index = client.index("stores")
+        update_task = await index.update_settings(
+            _to_settings_model(INDEX_SETTINGS["stores"]())
+        )
+        await client.wait_for_task(update_task.task_uid)
+        n = await _reindex_stores(session, client)
+        marker_task = await index.add_documents(
+            [{"id": f"_meta_v{SETTINGS_VERSION}", "_meta_version": SETTINGS_VERSION}],
+            primary_key="id",
+        )
+        await client.wait_for_task(marker_task.task_uid)
+        return n
 
 
 @celery_app.task(name="search.rebuild_stores")

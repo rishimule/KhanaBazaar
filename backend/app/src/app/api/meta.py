@@ -77,16 +77,26 @@ async def _gather_index_health(
     try:
         client = get_meili_client()
         index = client.index(meili_uid)
-        stats = await index.get_stats()
-        meili_count = max(stats.number_of_documents - 1, 0)
-        hits = await index.search(
+        # Filter out `_meta_v*` marker docs by requiring is_active — only
+        # real catalog rows have it.
+        count_hits = await index.search(
+            "",
+            filter="is_active IN [true, false]",
+            limit=0,
+        )
+        meili_count = int(
+            count_hits.total_hits
+            if count_hits.total_hits is not None
+            else (count_hits.estimated_total_hits or 0)
+        )
+        max_hits = await index.search(
             "",
             sort=["db_updated_at:desc"],
             limit=1,
             attributes_to_retrieve=["db_updated_at"],
         )
-        if hits.hits and "db_updated_at" in hits.hits[0]:
-            meili_max = int(hits.hits[0]["db_updated_at"])
+        if max_hits.hits and "db_updated_at" in max_hits.hits[0]:
+            meili_max = int(max_hits.hits[0]["db_updated_at"])
     except Exception as exc:  # noqa: BLE001
         unreachable = True
         logger.debug("search.health.meili_unreachable kind=%s err=%s", kind, exc)

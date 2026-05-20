@@ -9,6 +9,7 @@ from meilisearch_python_sdk import AsyncClient
 from meilisearch_python_sdk.models.settings import (
     MeilisearchSettings,
     MinWordSizeForTypos,
+    Pagination,
     TypoTolerance,
 )
 
@@ -27,6 +28,8 @@ def _to_settings_model(raw: dict) -> MeilisearchSettings:
                 twoTypos=mw.get("twoTypos"),
             ) if mw else None,
         )
+    pag = raw.get("pagination")
+    pag_model = Pagination(maxTotalHits=pag["maxTotalHits"]) if pag else None
     return MeilisearchSettings(
         searchableAttributes=raw.get("searchableAttributes"),
         filterableAttributes=raw.get("filterableAttributes"),
@@ -35,6 +38,7 @@ def _to_settings_model(raw: dict) -> MeilisearchSettings:
         typoTolerance=typo_model,
         synonyms=raw.get("synonyms"),
         stopWords=raw.get("stopWords"),
+        pagination=pag_model,
     )
 
 logger = logging.getLogger(__name__)

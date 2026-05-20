@@ -138,6 +138,38 @@ def read_summary(client: redis.Redis, kind: str) -> dict[str, Any] | None:
 # ─── Cheap pass ────────────────────────────────────────────────────────────
 
 
+async def _count_real_docs(index: Any) -> int:
+    """Count documents that are real catalog rows, not `_meta_v*` markers.
+
+    Marker docs lack `is_active`, so a filter on it cleanly excludes them
+    without us needing to track the marker count across schema versions.
+    """
+    hits = await index.search(
+        "",
+        filter="is_active IN [true, false]",
+        limit=0,
+    )
+    if hits.total_hits is not None:
+        return int(hits.total_hits)
+    if hits.estimated_total_hits is not None:
+        return int(hits.estimated_total_hits)
+    return 0
+
+
+async def _max_db_updated_at(index: Any) -> int:
+    hits = await index.search(
+        "",
+        sort=["db_updated_at:desc"],
+        limit=1,
+        attributes_to_retrieve=["db_updated_at"],
+    )
+    return (
+        int(hits.hits[0]["db_updated_at"])
+        if hits.hits and "db_updated_at" in hits.hits[0]
+        else 0
+    )
+
+
 async def _cheap_pass_products(
     session: AsyncSession, client: AsyncClient
 ) -> tuple[bool, int, int]:
@@ -150,21 +182,8 @@ async def _cheap_pass_products(
     db_max_ts_int = int(db_max_ts.timestamp()) if db_max_ts else 0
 
     index = client.index("products")
-    stats = await index.get_stats()
-    # Subtract one for the _meta_v* marker document.
-    meili_count = max(stats.number_of_documents - 1, 0)
-
-    hits = await index.search(
-        "",
-        sort=["db_updated_at:desc"],
-        limit=1,
-        attributes_to_retrieve=["db_updated_at"],
-    )
-    meili_max_ts = (
-        int(hits.hits[0]["db_updated_at"])
-        if hits.hits and "db_updated_at" in hits.hits[0]
-        else 0
-    )
+    meili_count = await _count_real_docs(index)
+    meili_max_ts = await _max_db_updated_at(index)
     clean = (db_count - meili_count) == 0 and abs(db_max_ts_int - meili_max_ts) < 60
     return clean, db_count, meili_count
 
@@ -181,20 +200,8 @@ async def _cheap_pass_stores(
     db_max_ts_int = int(db_max_ts.timestamp()) if db_max_ts else 0
 
     index = client.index("stores")
-    stats = await index.get_stats()
-    meili_count = max(stats.number_of_documents - 1, 0)
-
-    hits = await index.search(
-        "",
-        sort=["db_updated_at:desc"],
-        limit=1,
-        attributes_to_retrieve=["db_updated_at"],
-    )
-    meili_max_ts = (
-        int(hits.hits[0]["db_updated_at"])
-        if hits.hits and "db_updated_at" in hits.hits[0]
-        else 0
-    )
+    meili_count = await _count_real_docs(index)
+    meili_max_ts = await _max_db_updated_at(index)
     clean = (db_count - meili_count) == 0 and abs(db_max_ts_int - meili_max_ts) < 60
     return clean, db_count, meili_count
 
