@@ -14,29 +14,8 @@ import {
   emptyAddress,
   type AddressFieldsErrors,
 } from "@/components/AddressFields";
-import type { Address, CustomerProfile } from "@/types";
+import type { Address, CustomerAddress, CustomerProfile } from "@/types";
 import styles from "./AddressPicker.module.css";
-
-interface CustomerAddressApi {
-  id: number;
-  label: string | null;
-  is_default: boolean;
-  // Backend AddressPayload uses flat snake_case fields — see
-  // backend/app/src/app/schemas/address.py.
-  address: {
-    address_line1: string;
-    address_line2?: string | null;
-    city: string;
-    state: string;
-    pincode: string;
-    latitude?: number | null;
-    longitude?: number | null;
-  };
-}
-
-interface CustomerProfileResponse {
-  addresses: CustomerAddressApi[];
-}
 
 export interface PickerState {
   selectedId: number | null;
@@ -67,7 +46,7 @@ export default function AddressPicker({
   const tAcc = useTranslations("Account.addresses");
   const tErr = useTranslations("Errors");
   const { token } = useAuth();
-  const [addresses, setAddresses] = useState<CustomerAddressApi[]>([]);
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
   /** id → serviceable? Missing entry means "still checking" or "no lat/lng". */
   const [serviceability, setServiceability] = useState<Record<number, boolean>>({});
@@ -86,7 +65,7 @@ export default function AddressPicker({
 
   useEffect(() => {
     if (!token) return;
-    get<CustomerProfileResponse>("/api/v1/customers/me", token)
+    get<CustomerProfile>("/api/v1/customers/me", token)
       .then((data) => { setAddresses(data.addresses); })
       .finally(() => setProfileLoading(false));
   }, [token]);
@@ -232,19 +211,22 @@ export default function AddressPicker({
   const validationErrorsForPrefix = (
     error: unknown,
     prefix: string,
-  ): Record<string, string> => {
+  ): AddressFieldsErrors => {
     const detail = (error as { detail?: unknown })?.detail;
     if (!Array.isArray(detail)) return {};
-    return detail.reduce<Record<string, string>>((acc, issue) => {
+    const result: AddressFieldsErrors = {};
+    for (const issue of detail) {
       const loc = (issue as { loc?: Array<string | number> }).loc;
       const msg = (issue as { msg?: string }).msg;
-      if (!Array.isArray(loc) || typeof msg !== "string") return acc;
+      if (!Array.isArray(loc) || typeof msg !== "string") continue;
       const i = loc.indexOf(prefix);
-      if (i === -1) return acc;
+      if (i === -1) continue;
       const field = loc[i + 1];
-      if (typeof field === "string") acc[field] = msg;
-      return acc;
-    }, {});
+      if (typeof field === "string") {
+        (result as Record<string, string>)[field] = msg;
+      }
+    }
+    return result;
   };
 
   const onSaveAddress = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -266,35 +248,23 @@ export default function AddressPicker({
         token,
       );
       const newId = next.addresses.find((a) => !prevIds.has(a.id))?.id ?? null;
-      setAddresses(
-        next.addresses.map((a) => ({
-          id: a.id,
-          label: a.label,
-          is_default: a.is_default,
-          address: {
-            address_line1: a.address.address_line1,
-            address_line2: a.address.address_line2 ?? null,
-            city: a.address.city,
-            state: a.address.state,
-            pincode: a.address.pincode,
-            latitude: a.address.latitude ?? null,
-            longitude: a.address.longitude ?? null,
-          },
-        })),
-      );
+      setAddresses(next.addresses);
       setAddModalOpen(false);
       if (newId != null) {
         onChange(newId);
       }
     } catch (error) {
-      setAddErrors(
-        validationErrorsForPrefix(error, "address") as AddressFieldsErrors,
-      );
+      setAddErrors(validationErrorsForPrefix(error, "address"));
       const key = apiErrorKey(error);
       if (key) {
         setModalError(tErr(key.replace(/^Errors\./, "")));
       } else {
-        setModalError(tAcc("saveAddressError"));
+        const detail = (error as { detail?: unknown })?.detail;
+        if (typeof detail === "string") {
+          setModalError(detail);
+        } else {
+          setModalError(tAcc("saveAddressError"));
+        }
       }
     } finally {
       setSaving(false);
