@@ -14,12 +14,19 @@ export interface DeliveryLocation {
 }
 
 interface DeliveryLocationContextValue {
-  location: DeliveryLocation | null;
+  location: DeliveryLocation;
   setLocation: (loc: DeliveryLocation | null) => void;
   clear: () => void;
 }
 
 const STORAGE_KEY = "kb_delivery_location";
+
+/** Fallback delivery location until the customer picks one explicitly. */
+export const DEFAULT_DELIVERY_LOCATION: DeliveryLocation = {
+  lat: 19.0760,
+  lng: 72.8777,
+  label: "Mumbai, Maharashtra, India",
+};
 
 const DeliveryLocationContext =
   createContext<DeliveryLocationContextValue | null>(null);
@@ -27,7 +34,9 @@ const DeliveryLocationContext =
 export function DeliveryLocationProvider(
   { children }: { children: React.ReactNode },
 ) {
-  const [location, setLocationState] = useState<DeliveryLocation | null>(null);
+  const [location, setLocationState] = useState<DeliveryLocation>(
+    DEFAULT_DELIVERY_LOCATION,
+  );
 
   useEffect(() => {
     try {
@@ -43,13 +52,13 @@ export function DeliveryLocationProvider(
     const onStorage = (e: StorageEvent) => {
       if (e.key !== STORAGE_KEY) return;
       if (!e.newValue) {
-        setLocationState(null);
+        setLocationState(DEFAULT_DELIVERY_LOCATION);
         return;
       }
       try {
         setLocationState(JSON.parse(e.newValue));
       } catch {
-        setLocationState(null);
+        setLocationState(DEFAULT_DELIVERY_LOCATION);
       }
     };
     window.addEventListener("storage", onStorage);
@@ -57,7 +66,7 @@ export function DeliveryLocationProvider(
   }, []);
 
   const setLocation = useCallback((loc: DeliveryLocation | null) => {
-    setLocationState(loc);
+    setLocationState(loc ?? DEFAULT_DELIVERY_LOCATION);
     if (typeof window === "undefined") return;
     if (loc) localStorage.setItem(STORAGE_KEY, JSON.stringify(loc));
     else localStorage.removeItem(STORAGE_KEY);
