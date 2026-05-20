@@ -45,7 +45,7 @@ Customers manage saved addresses under `/account/settings` (home, office, …), 
 |------|--------|
 | `frontend/src/lib/DeliveryLocationContext.tsx` | Add a `hydrated: boolean` flag that flips `true` once the initial `localStorage` read completes. Expose via context value. |
 | `frontend/src/components/DeliveryLocationPicker.tsx` | Render new "Saved addresses" section above the existing autocomplete + map. Source data from `useCustomerAddresses`. |
-| `frontend/src/app/(customer)/[locale]/layout.tsx` | Wrap children with `<CustomerAddressesProvider>` (inside `<AuthProvider>` and `<DeliveryLocationProvider>`) and mount `<DeliveryLocationAutoSync />` once. |
+| `frontend/src/app/(customer)/[locale]/layout.tsx` | Insert `<CustomerAddressesProvider>` between `<DeliveryLocationProvider>` and `<CartProvider>` (so the Navbar — which lives under `<CartProvider>` — can consume it), and mount `<DeliveryLocationAutoSync />` as the first child of `<CustomerAddressesProvider>` before `<CartProvider>`. Final tree: `AuthProvider → DeliveryLocationProvider → CustomerAddressesProvider → ( DeliveryLocationAutoSync, CartProvider → Navbar … )`. |
 
 ### Files left untouched
 
@@ -57,28 +57,17 @@ Customers manage saved addresses under `/account/settings` (home, office, …), 
 
 ### `CustomerAddressesContext`
 
+Reuses the existing `CustomerAddress` and `Address` types from `frontend/src/types/index.ts` (no new shape). The API response is the existing `CustomerProfile` shape from `GET /api/v1/customers/me`; the provider extracts `profile.addresses` and discards the rest.
+
 ```ts
-interface CustomerAddress {
-  id: number;
-  label: string | null;
-  is_default: boolean;
-  address: {
-    address_line1: string;
-    address_line2?: string | null;
-    city: string;
-    state: string;
-    pincode: string;
-    latitude?: number | null;
-    longitude?: number | null;
-  };
-}
+import type { CustomerAddress } from "@/types";
 
 interface CustomerAddressesContextValue {
-  addresses: CustomerAddress[];      // raw, full list from API
-  defaultAddress: CustomerAddress | null; // is_default first, else null
-  loading: boolean;                  // true while fetch in flight
-  error: string | null;              // last fetch error message
-  refetch: () => void;               // manual refresh hook
+  addresses: CustomerAddress[];           // full list as returned by API
+  defaultAddress: CustomerAddress | null; // addresses.find(is_default) ?? null
+  loading: boolean;                       // true while fetch in flight
+  error: string | null;                   // last fetch error message
+  refetch: () => void;                    // manual refresh hook
 }
 ```
 
@@ -123,7 +112,17 @@ function DeliveryLocationAutoSync() {
       label: truncateLabel(formatAddress(target.address), 40),
     });
     didSyncRef.current = true;
-  }, [/* all deps */]);
+  }, [
+    auth.loading,
+    auth.token,
+    auth.dbUser?.role,
+    hydrated,
+    loading,
+    location,
+    defaultAddress,
+    addresses,
+    setLocation,
+  ]);
 
   // Reset the one-shot when the auth identity changes so a second
   // customer signing in on the same tab also gets auto-synced.
@@ -137,7 +136,9 @@ function DeliveryLocationAutoSync() {
 
 `pickAutoSyncAddress(defaultAddress, addresses)` returns the default if it has both `latitude` and `longitude`, else the first address in `addresses` with both. Returns `null` if none qualify.
 
-`isDefaultDeliveryLocation(loc)` compares lat/lng/label against `DEFAULT_DELIVERY_LOCATION` exactly. Float compare is safe here because the values come from the constant; no arithmetic mutates them.
+`isDefaultDeliveryLocation(loc)` is a new exported helper in `frontend/src/lib/DeliveryLocationContext.tsx`, next to `DEFAULT_DELIVERY_LOCATION`. It compares `lat`, `lng`, and `label` against `DEFAULT_DELIVERY_LOCATION` with strict equality. Float compare is safe because the values come from the constant; no arithmetic mutates them.
+
+`pickAutoSyncAddress(defaultAddress, addresses)` is a local helper inside `DeliveryLocationAutoSync.tsx` (not exported).
 
 ### `DeliveryLocationPicker` — saved-address section
 
@@ -211,7 +212,7 @@ AuthContext.logout()
 | Default lacks coords; another address has coords. | Picker renders the coord-bearing one. Auto-sync picks the same. |
 | Hydration race: `localStorage` has a real value; auth resolves first. | AutoSync waits on `hydrated === true`, so it sees the stored value (not the fallback) and no-ops. |
 | Guest set a location, then logs in. | Stored value ≠ fallback → AutoSync no-ops. Manual pick still works. |
-| Customer logs in on tab A, then tab B. | Tab B's `useAuth` picks up the token via its own hydration; AutoSync fires there too on first eligible render. |
+| Customer logs in on tab A, then tab B. | `AuthContext` does not listen for cross-tab token changes, so tab B keeps its prior token state until reloaded. After a manual reload, tab B's mount-time hydration picks up the new token and AutoSync fires there too. Out of scope to add a token storage listener in this spec. |
 | Network error fetching `/customers/me`. | Provider sets `error`, leaves list empty. Picker hides saved section. Modal still functional. |
 | Customer adds a new default address while modal is open. | No live refresh; user reopens modal or refreshes. Acceptable for MVP. |
 | Customer logs out then logs in as a different customer. | Token change effect resets `didSyncRef`. New addresses fetched. Auto-sync runs again if location is still fallback. |
