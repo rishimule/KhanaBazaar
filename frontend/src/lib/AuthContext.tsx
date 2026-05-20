@@ -11,7 +11,6 @@ import React, {
   useState,
 } from "react";
 import { User, UserRole } from "@/types";
-import { clearStoredDeliveryLocation } from "@/lib/DeliveryLocationContext";
 
 interface AuthContextValue {
   dbUser: User | null;
@@ -121,8 +120,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     // Wipe the per-session "deliver to" pick so the next user on a shared
-    // device doesn't inherit the previous user's location.
-    clearStoredDeliveryLocation();
+    // device doesn't inherit the previous user's location. Inlined rather
+    // than calling DeliveryLocationContext.clearStoredDeliveryLocation()
+    // because DeliveryLocationContext now imports useAuth, and importing
+    // back here would create a circular module dependency that breaks
+    // Next.js HMR.
+    localStorage.removeItem("kb_delivery_location");
     // Wipe recent search history for the same reason.
     localStorage.removeItem("kb_recent_searches");
     setToken(null);
