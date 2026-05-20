@@ -43,3 +43,87 @@
   text-decoration: none;
 }
 .link:hover { text-decoration: underline; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.addBtn {
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary-1);
+  background: transparent;
+  border: 1px solid var(--color-primary-1);
+  border-radius: var(--radius-card);
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.addBtn:hover:not(:disabled) {
+  background: rgba(184, 71, 15, 0.06);
+}
+
+.addBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.emptyActions {
+  margin-top: var(--space-2);
+}
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.modalField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modalInput {
+  padding: 10px 12px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--shade-cool-light-6);
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
+  background: var(--white);
+  color: var(--shade-cool-dark-7);
+}
+
+.modalInput:focus {
+  outline: none;
+  border-color: var(--color-primary-1);
+  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
+}
+
+.modalCheckboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.modalError {
+  background: rgba(220, 38, 38, 0.08);
+  color: rgb(153, 27, 27);
+  padding: 8px 12px;
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+}
