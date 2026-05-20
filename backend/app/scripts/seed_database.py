@@ -24,6 +24,8 @@ from app.db.dev_seed import (
     seed_demo_data,
     verify_expected_counts,
 )
+from app.search.client import get_meili_client
+from app.search.reindex import reindex_all
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,6 +34,11 @@ def parse_args() -> argparse.Namespace:
         "--verify-only",
         action="store_true",
         help="Skip seeding and verify the current database matches expected counts",
+    )
+    parser.add_argument(
+        "--no-reindex",
+        action="store_true",
+        help="Skip the post-seed Meilisearch reindex step",
     )
     return parser.parse_args()
 
@@ -46,6 +53,18 @@ def print_seeded_emails() -> None:
     print("\nSeeded login emails:")
     for role, email in get_canonical_login_email_rows():
         print(f"  {role}: {email}")
+
+
+async def _reindex_meilisearch(session: AsyncSession) -> None:
+    # Bulk seeding inserts rows in raw SQL paths that don't always trigger the
+    # SQLAlchemy after_commit hooks search.hooks relies on, so the Meilisearch
+    # indexes drift from the freshly-seeded catalog. Push everything once at
+    # the end so /api/v1/search/* matches the new data.
+    client = get_meili_client()
+    counts = await reindex_all(session, client)
+    print("\nReindexed Meilisearch:")
+    for key, value in counts.items():
+        print(f"  {key}: {value}")
 
 
 async def main() -> None:
@@ -63,6 +82,8 @@ async def main() -> None:
 
             if not args.verify_only:
                 print_seeded_emails()
+                if not args.no_reindex:
+                    await _reindex_meilisearch(session)
     finally:
         await engine.dispose()
 
