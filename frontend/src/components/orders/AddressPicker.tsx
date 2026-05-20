@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { get, post } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
@@ -62,6 +62,12 @@ export default function AddressPicker({
   const [modalError, setModalError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [geolocating, setGeolocating] = useState(false);
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const listboxRef = useRef<HTMLUListElement | null>(null);
+  const optionRefs = useRef<Map<number, HTMLLIElement>>(new Map());
 
   useEffect(() => {
     if (!token) return;
@@ -344,6 +350,192 @@ export default function AddressPicker({
     </Modal>
   );
 
+  const { deliverableOptions, outsideOptions, visibleOptions } = useMemo(() => {
+    const def = addresses.find((a) => a.is_default);
+
+    const deliverable = !allSettled || storeId === undefined
+      ? [...addresses]
+      : addresses.filter((a) => serviceability[a.id] === true);
+    const outside = !allSettled || storeId === undefined
+      ? []
+      : addresses.filter((a) => serviceability[a.id] === false);
+
+    const deliverableOrdered = def && deliverable.includes(def)
+      ? [def, ...deliverable.filter((a) => a.id !== def.id)]
+      : deliverable;
+
+    const flat: { id: number; selectable: boolean }[] = [
+      ...deliverableOrdered.map((a) => ({ id: a.id, selectable: true })),
+      ...outside.map((a) => ({ id: a.id, selectable: false })),
+    ];
+    return {
+      deliverableOptions: deliverableOrdered,
+      outsideOptions: outside,
+      visibleOptions: flat,
+    };
+  }, [addresses, serviceability, storeId, allSettled]);
+
+  const selectedAddress = useMemo(
+    () => addresses.find((a) => a.id === value) ?? null,
+    [addresses, value],
+  );
+
+  const indexById = useCallback(
+    (id: number | null) => {
+      if (id == null) return -1;
+      return visibleOptions.findIndex((o) => o.id === id);
+    },
+    [visibleOptions],
+  );
+
+  const firstSelectableIndex = useCallback(() => {
+    return visibleOptions.findIndex((o) => o.selectable);
+  }, [visibleOptions]);
+
+  const moveActive = useCallback(
+    (dir: 1 | -1) => {
+      if (visibleOptions.length === 0) return;
+      let i = activeIndex;
+      for (let step = 0; step < visibleOptions.length; step += 1) {
+        i = (i + dir + visibleOptions.length) % visibleOptions.length;
+        if (visibleOptions[i].selectable) {
+          setActiveIndex(i);
+          return;
+        }
+      }
+    },
+    [activeIndex, visibleOptions],
+  );
+
+  const moveToFirst = useCallback(() => {
+    const i = firstSelectableIndex();
+    if (i >= 0) setActiveIndex(i);
+  }, [firstSelectableIndex]);
+
+  const moveToLast = useCallback(() => {
+    for (let i = visibleOptions.length - 1; i >= 0; i -= 1) {
+      if (visibleOptions[i].selectable) {
+        setActiveIndex(i);
+        return;
+      }
+    }
+  }, [visibleOptions]);
+
+  const closeListbox = useCallback(() => {
+    setIsOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  const selectActive = useCallback(() => {
+    const opt = visibleOptions[activeIndex];
+    if (!opt || !opt.selectable) return;
+    onChange(opt.id);
+    setIsOpen(false);
+    triggerRef.current?.focus();
+  }, [activeIndex, onChange, visibleOptions]);
+
+  const openListbox = useCallback(() => {
+    const current = indexById(value);
+    const startAt =
+      current >= 0 && visibleOptions[current]?.selectable
+        ? current
+        : firstSelectableIndex();
+    if (startAt >= 0) setActiveIndex(startAt);
+    setIsOpen(true);
+  }, [indexById, value, visibleOptions, firstSelectableIndex]);
+
+  useEffect(() => {
+    if (addModalOpen && isOpen) setIsOpen(false);
+  }, [addModalOpen, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      const t = triggerRef.current;
+      const lb = listboxRef.current;
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (t && t.contains(target)) return;
+      if (lb && lb.contains(target)) return;
+      setIsOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const opt = visibleOptions[activeIndex];
+    if (!opt) return;
+    const el = optionRefs.current.get(opt.id);
+    el?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, isOpen, visibleOptions]);
+
+  const onTriggerKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          if (!isOpen) {
+            openListbox();
+          } else {
+            moveActive(1);
+          }
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          if (!isOpen) {
+            openListbox();
+          } else {
+            moveActive(-1);
+          }
+          break;
+        case "Home":
+          if (isOpen) {
+            e.preventDefault();
+            moveToFirst();
+          }
+          break;
+        case "End":
+          if (isOpen) {
+            e.preventDefault();
+            moveToLast();
+          }
+          break;
+        case "Enter":
+        case " ":
+          if (isOpen) {
+            e.preventDefault();
+            selectActive();
+          } else {
+            e.preventDefault();
+            openListbox();
+          }
+          break;
+        case "Escape":
+          if (isOpen) {
+            e.preventDefault();
+            closeListbox();
+          }
+          break;
+        case "Tab":
+          if (isOpen) setIsOpen(false);
+          break;
+        default:
+          break;
+      }
+    },
+    [
+      isOpen,
+      openListbox,
+      moveActive,
+      moveToFirst,
+      moveToLast,
+      selectActive,
+      closeListbox,
+    ],
+  );
+
   if (profileLoading) return <div className={styles.loading}>{t("pickerLoading")}</div>;
   if (addresses.length === 0) {
     return (
@@ -389,14 +581,22 @@ export default function AddressPicker({
     );
   }
 
-  const isDisabled = (id: number) =>
-    storeId !== undefined && serviceability[id] === false;
+  const activeOptionId =
+    isOpen && visibleOptions[activeIndex]
+      ? `addr-opt-${visibleOptions[activeIndex].id}`
+      : undefined;
+
+  const triggerLabel = selectedAddress
+    ? `${selectedAddress.label ?? t("fallbackLabel")} — ${selectedAddress.address.address_line1}, ${selectedAddress.address.city} ${selectedAddress.address.pincode}`
+    : t("fallbackLabel");
 
   return (
     <>
       <div className={styles.picker}>
         <div className={styles.header}>
-          <label htmlFor="address-picker" className={styles.label}>{t("deliverTo")}</label>
+          <span id="addr-picker-label" className={styles.label}>
+            {t("deliverTo")}
+          </span>
           <button
             type="button"
             className={styles.addBtn}
@@ -405,19 +605,116 @@ export default function AddressPicker({
             + {tAcc("addAddress")}
           </button>
         </div>
-        <select
-          id="address-picker"
-          value={value ?? ""}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className={styles.select}
+        <button
+          ref={triggerRef}
+          type="button"
+          className={styles.comboTrigger}
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          aria-controls="addr-listbox"
+          aria-labelledby="addr-picker-label"
+          aria-activedescendant={activeOptionId}
+          onClick={() => (isOpen ? setIsOpen(false) : openListbox())}
+          onKeyDown={onTriggerKeyDown}
+          onBlur={(e) => {
+            const next = e.relatedTarget as Node | null;
+            const lb = listboxRef.current;
+            if (next && lb && lb.contains(next)) return;
+            if (isOpen) setIsOpen(false);
+          }}
         >
-          {addresses.map((a) => (
-            <option key={a.id} value={a.id} disabled={isDisabled(a.id)}>
-              {(a.label ?? t("fallbackLabel"))} — {a.address.address_line1}, {a.address.city} {a.address.pincode}
-              {isDisabled(a.id) ? " (Outside delivery area)" : ""}
-            </option>
-          ))}
-        </select>
+          <span
+            className={`${styles.comboLabel} ${selectedAddress ? "" : styles.comboPlaceholder}`}
+          >
+            {triggerLabel}
+          </span>
+          <span className={styles.comboChevron} aria-hidden="true">▾</span>
+        </button>
+        {isOpen && (
+          <ul
+            ref={listboxRef}
+            id="addr-listbox"
+            role="listbox"
+            tabIndex={-1}
+            className={styles.listbox}
+          >
+            {deliverableOptions.map((a) => {
+              const idx = visibleOptions.findIndex((o) => o.id === a.id);
+              const selected = a.id === value;
+              const isActive = idx === activeIndex;
+              return (
+                <li
+                  key={a.id}
+                  ref={(el) => {
+                    if (el) optionRefs.current.set(a.id, el);
+                    else optionRefs.current.delete(a.id);
+                  }}
+                  id={`addr-opt-${a.id}`}
+                  role="option"
+                  aria-selected={selected}
+                  data-active={isActive ? "true" : undefined}
+                  className={`${styles.option} ${selected ? styles.optionSelected : ""}`}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                  onClick={() => {
+                    onChange(a.id);
+                    setIsOpen(false);
+                    triggerRef.current?.focus();
+                  }}
+                >
+                  <span className={styles.optionCheck} aria-hidden="true">
+                    {selected ? "✓" : ""}
+                  </span>
+                  <span className={styles.optionLabel}>
+                    {a.label ?? t("fallbackLabel")}
+                  </span>
+                  <span className={styles.optionAddress}>
+                    {a.address.address_line1}, {a.address.city} {a.address.pincode}
+                  </span>
+                </li>
+              );
+            })}
+            {outsideOptions.length > 0 && (
+              <li
+                role="presentation"
+                className={styles.sectionHeader}
+                aria-hidden="true"
+              >
+                {t("outsideDeliveryAreaHeader")}
+              </li>
+            )}
+            {outsideOptions.map((a) => {
+              const idx = visibleOptions.findIndex((o) => o.id === a.id);
+              const isActive = idx === activeIndex;
+              return (
+                <li
+                  key={a.id}
+                  ref={(el) => {
+                    if (el) optionRefs.current.set(a.id, el);
+                    else optionRefs.current.delete(a.id);
+                  }}
+                  id={`addr-opt-${a.id}`}
+                  role="option"
+                  aria-selected={false}
+                  aria-disabled="true"
+                  data-active={isActive ? "true" : undefined}
+                  className={styles.option}
+                >
+                  <span className={styles.optionCheck} aria-hidden="true" />
+                  <span className={styles.optionLabel}>
+                    {a.label ?? t("fallbackLabel")}
+                  </span>
+                  <span className={styles.optionAddress}>
+                    {a.address.address_line1}, {a.address.city} {a.address.pincode}
+                  </span>
+                  <span className={styles.optionBadge}>
+                    {t("outsideAreaBadge")}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
       {addModalOpen && renderAddModal()}
     </>
