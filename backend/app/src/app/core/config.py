@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-from pydantic import field_validator
+import logging
+
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +30,11 @@ class Settings(BaseSettings):
 
     # Support inbox: where /customers/me/support messages get forwarded.
     SUPPORT_EMAIL: str = "support@khanabazaar.example"
+    # Reply-to header on customer-facing emails. Falls back to SUPPORT_EMAIL.
+    EMAIL_REPLY_TO: str | None = None
+    EMAIL_BRAND_NAME: str = "Khana Bazaar"
+    # Base URL used to build CTA links inside email templates.
+    EMAIL_FRONTEND_BASE_URL: str = "http://localhost:3000"
 
     # SMS: "console" (dev/test) or "twilio" (production)
     SMS_PROVIDER: str = "console"
@@ -65,6 +72,17 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.FRONTEND_ORIGIN.split(",") if o.strip()]
+
+    @model_validator(mode="after")
+    def _resolve_email_defaults(self) -> "Settings":
+        if self.EMAIL_REPLY_TO is None:
+            object.__setattr__(self, "EMAIL_REPLY_TO", self.SUPPORT_EMAIL)
+        if self.ENVIRONMENT == "production" and ".example" in self.SUPPORT_EMAIL:
+            logging.getLogger(__name__).warning(
+                "SUPPORT_EMAIL still uses the .example placeholder in production: %s",
+                self.SUPPORT_EMAIL,
+            )
+        return self
 
     @field_validator("DATABASE_URL", mode="after")
     @classmethod
