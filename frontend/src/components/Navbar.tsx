@@ -63,9 +63,12 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
           <LocaleSwitcher />
           {!loading && dbUser && (
             <button
+              type="button"
               className={styles.authBtn}
               onClick={handleLogout}
-              title={t("logoutTitleSignedIn", { who: dbUser.email ?? dbUser.full_name ?? "" })}
+              title={t("logoutTitleSignedIn", {
+                who: dbUser.email ?? dbUser.full_name ?? t("drawerUserFallback"),
+              })}
             >
               <span className={styles.authAvatar}>
                 {(dbUser.full_name ?? dbUser.email ?? "U").charAt(0).toUpperCase()}
@@ -90,9 +93,12 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
           <span className={styles.strippedSpacer} />
           {!loading && dbUser && (
             <button
+              type="button"
               className={styles.authBtn}
               onClick={handleLogout}
-              title={t("logoutTitleSignedIn", { who: dbUser.email ?? dbUser.full_name ?? "" })}
+              title={t("logoutTitleSignedIn", {
+                who: dbUser.email ?? dbUser.full_name ?? t("drawerUserFallback"),
+              })}
             >
               <span className={styles.authAvatar}>
                 {(dbUser.full_name ?? dbUser.email ?? "U").charAt(0).toUpperCase()}

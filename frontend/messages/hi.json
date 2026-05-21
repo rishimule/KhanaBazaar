@@ -21,7 +21,9 @@
     "tabHome": "होम",
     "tabStores": "दुकानें",
     "tabCart": "कार्ट",
-    "tabAccount": "खाता"
+    "tabAccount": "खाता",
+    "setDeliveryLocation": "डिलीवरी स्थान सेट करें",
+    "setLocation": "स्थान सेट करें"
   },
   "Home": {
     "badge": "प्रीमियम लोकल किराना",

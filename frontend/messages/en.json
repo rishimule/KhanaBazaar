@@ -21,7 +21,9 @@
     "tabHome": "Home",
     "tabStores": "Stores",
     "tabCart": "Cart",
-    "tabAccount": "Account"
+    "tabAccount": "Account",
+    "setDeliveryLocation": "Set delivery location",
+    "setLocation": "Set location"
   },
   "Home": {
     "badge": "Premium local grocery",

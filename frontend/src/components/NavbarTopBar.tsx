@@ -3,8 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
@@ -43,7 +42,7 @@ function CartIcon() {
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
-  return pathname.startsWith(href);
+  return pathname === href || pathname.startsWith(href + "/");
 }
 
 export default function NavbarTopBar() {
@@ -82,11 +81,11 @@ export default function NavbarTopBar() {
             type="button"
             className={styles.deliverChip}
             onClick={() => setPickerOpen(true)}
-            aria-label="Set delivery location"
+            aria-label={t("setDeliveryLocation")}
           >
             <PinIcon />
             <span className={styles.deliverChipText}>
-              {location?.label ?? "Set location"}
+              {location?.label ?? t("setLocation")}
             </span>
             <ChevronDown />
           </button>
@@ -120,7 +119,11 @@ export default function NavbarTopBar() {
           <Link href="/cart" className={styles.cartBtn} aria-label={t("cartAriaLabel")}>
             <CartIcon />
             <span className={styles.cartLabel}>Cart</span>
-            {cartCount > 0 && <span className={styles.cartBadge}>{cartCount}</span>}
+            {cartCount > 0 && (
+              <span className={styles.cartBadge}>
+                {cartCount > 99 ? "99+" : cartCount}
+              </span>
+            )}
           </Link>
         )}
 
@@ -129,9 +132,12 @@ export default function NavbarTopBar() {
         {!loading && (
           dbUser ? (
             <button
+              type="button"
               className={styles.authBtn}
               onClick={handleLogout}
-              title={t("logoutTitleSignedIn", { who: dbUser.email ?? dbUser.full_name ?? "" })}
+              title={t("logoutTitleSignedIn", {
+                who: dbUser.email ?? dbUser.full_name ?? t("drawerUserFallback"),
+              })}
             >
               <span className={styles.authAvatar}>
                 {(dbUser.full_name ?? dbUser.email ?? "U").charAt(0).toUpperCase()}
