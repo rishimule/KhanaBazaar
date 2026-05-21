@@ -13,7 +13,8 @@ from typing import Any
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from app.worker import (
-    send_admin_order_action_email,
+    send_admin_order_action_customer_async,
+    send_admin_order_action_seller_async,
     send_order_confirmed_customer_async,
     send_order_placed_seller_async,
     send_order_status_changed_async,
@@ -54,9 +55,18 @@ def dispatch_order_placed(order_ids: list[int]) -> None:
         _safe_delay(send_order_placed_seller_async, oid)
 
 
+_CUSTOMER_NOTIFY_ACTIONS = frozenset(
+    {"order.rewind", "order.refund", "order.cancel", "order.address_override"}
+)
+
+
 def dispatch_admin_order_action(order_id: int, action: str, reason: str) -> None:
-    """Notify the seller that an admin took action on their order."""
-    _safe_delay(send_admin_order_action_email, order_id, action, reason)
+    """Notify the seller (always) and the customer for impactful admin actions."""
+    _safe_delay(send_admin_order_action_seller_async, order_id, action, reason)
+    if action in _CUSTOMER_NOTIFY_ACTIONS:
+        _safe_delay(
+            send_admin_order_action_customer_async, order_id, action, reason
+        )
 
 
 def dispatch_order_status_changed(

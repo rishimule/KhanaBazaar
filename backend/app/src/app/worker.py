@@ -399,6 +399,44 @@ def send_admin_order_action_seller_async(
 send_admin_order_action_email = send_admin_order_action_seller_async
 
 
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_admin_order_action_customer_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_admin_order_action_customer_async(
+    order_id: int, action: str, reason: str
+) -> None:
+    """Notify the customer that an admin acted on their order."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    ctx = _load_order_email_context(order_id)
+    if not ctx or not ctx.get("customer_email"):
+        return
+    payload = render_email(
+        "admin_order_action_customer",
+        {
+            "order_id": ctx["order_id"],
+            "service_name": ctx["service_name"],
+            "customer_first_name": ctx.get("customer_first_name"),
+            "action": action,
+            "action_label": _action_label(action),
+            "reason": reason or "",
+            "delivery_address_snapshot": ctx.get("delivery_address_snapshot") or "",
+        },
+        lang=ctx.get("customer_lang") or "en",
+    )
+    _resolve_email(
+        ctx["customer_email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
+
+
 def _load_seller_application_context(seller_profile_id: int) -> dict[str, Any]:
     import asyncio
     import concurrent.futures

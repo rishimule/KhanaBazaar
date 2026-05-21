@@ -1,0 +1,1 @@
+[{{ brand_name }}] Update on your order #{{ order_id }}

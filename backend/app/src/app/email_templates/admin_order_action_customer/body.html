@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi {{ customer_first_name|default('there') }},</p>
+  <p>Our team made a change to your order <strong>#{{ order_id }}</strong> ({{ service_name }}).</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:16px 0;">
+    <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;width:140px;">What changed</td><td style="padding:6px 0;font-size:15px;font-weight:600;">{{ action_label }}</td></tr>
+    {% if reason %}
+      <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Reason</td><td style="padding:6px 0;font-size:15px;">{{ reason }}</td></tr>
+    {% endif %}
+    {% if action == 'order.address_override' %}
+      <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">New address</td><td style="padding:6px 0;font-size:15px;">{{ delivery_address_snapshot }}</td></tr>
+    {% endif %}
+  </table>
+  {% set cta_url = frontend_base_url ~ "/account/orders/" ~ order_id|string %}
+  {% set cta_label = "View order" %}
+  {% include "_partials/button.html" %}
+  <p style="color:#6b7280;font-size:14px;">Questions? Reply to this email.</p>
+{% endblock %}
