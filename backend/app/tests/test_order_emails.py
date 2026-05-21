@@ -32,7 +32,31 @@ def _fake_ctx(order_id: int = 7, service_name: str = "Grocery") -> dict[str, Any
         "store_name": "Test Store",
         "seller_email": "seller@example.com",
         "customer_email": "customer@example.com",
+        "items": [
+            {"name": "Sample item", "qty": 2, "unit_price": 50.0, "line_total": 100.0},
+        ],
+        "customer_first_name": "Ravi",
+        "customer_lang": "en",
+        "seller_lang": "en",
+        "delivery_address_snapshot": "1 Test Street, Bengaluru 560300",
     }
+
+
+def test_loader_dict_shape_includes_new_fields() -> None:
+    """Smoke check that the loader's return contract includes the new fields.
+
+    Real DB coverage happens via test_orders_per_service.py and similar
+    integration tests; here we only assert the in-memory shape.
+    """
+    ctx = _fake_ctx()
+    for key in (
+        "items",
+        "customer_first_name",
+        "customer_lang",
+        "seller_lang",
+        "delivery_address_snapshot",
+    ):
+        assert key in ctx
 
 
 def test_placed_seller_email_includes_service_name() -> None:

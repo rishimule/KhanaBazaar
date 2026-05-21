@@ -99,6 +99,8 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
     from app.models.store import Store
 
     async def _load() -> dict[str, Any]:
+        from app.models.commerce import OrderItem
+
         engine = create_async_engine(settings.DATABASE_URL, echo=False)
         try:
             async with AsyncSession(engine) as session:
@@ -139,6 +141,20 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                             select(User).where(User.id == customer_profile.user_id)
                         )
                     ).first()
+                items_rows = (
+                    await session.exec(
+                        select(OrderItem).where(OrderItem.order_id == order_id)
+                    )
+                ).all()
+                items = [
+                    {
+                        "name": row.product_name_snapshot,
+                        "qty": row.quantity,
+                        "unit_price": row.unit_price_snapshot,
+                        "line_total": row.line_total,
+                    }
+                    for row in items_rows
+                ]
                 return {
                     "order_id": order.id,
                     "order_total": order.total,
@@ -147,6 +163,17 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     "store_name": store.name if store is not None else None,
                     "seller_email": seller_user.email if seller_user is not None else None,
                     "customer_email": customer_user.email if customer_user is not None else None,
+                    "items": items,
+                    "customer_first_name": (
+                        customer_profile.first_name if customer_profile else None
+                    ),
+                    "customer_lang": (
+                        customer_user.preferred_language if customer_user else "en"
+                    ),
+                    "seller_lang": (
+                        seller_user.preferred_language if seller_user else "en"
+                    ),
+                    "delivery_address_snapshot": order.delivery_address_snapshot,
                 }
         finally:
             await engine.dispose()
