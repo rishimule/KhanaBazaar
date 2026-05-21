@@ -1,1 +1,1 @@
-Your one-time code: {{ code }} (expires in {{ ttl_minutes }} min).
+Use this code to finish signing in. Expires in {{ ttl_minutes }} min.

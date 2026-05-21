@@ -6,6 +6,7 @@ Templates live in the ``app.email_templates`` package and ship with the wheel.
 Loaded via ``PackageLoader`` so they resolve cleanly under Celery prefork.
 """
 
+import re
 from dataclasses import dataclass
 
 from jinja2 import (
@@ -18,6 +19,11 @@ from jinja2 import (
 
 from app.core.config import settings
 from app.utils.currency import format_inr
+
+# CR/LF stripped from rendered subjects to defeat email header injection from
+# user-controlled context vars (business_name, user_subject, customer name).
+_HEADER_CRLF_RE = re.compile(r"[\r\n]+")
+_SUBJECT_MAX_LEN = 200
 
 
 @dataclass(frozen=True)
@@ -70,7 +76,13 @@ def render_email(event: str, ctx: dict[str, object], lang: str = "en") -> EmailP
     base_ctx: dict[str, object] = {**_global_ctx(), "lang": lang, **ctx}
 
     dirname = _resolve_dir(event, lang)
-    subject = _text_env.get_template(f"{dirname}/subject.txt").render(base_ctx).strip()
+    raw_subject = (
+        _text_env.get_template(f"{dirname}/subject.txt").render(base_ctx).strip()
+    )
+    # Defense-in-depth: collapse CR/LF in case user-controlled context vars
+    # smuggle them in, then clamp length so an unbounded `business_name` or
+    # `user_subject` cannot blow out the Resend header.
+    subject = _HEADER_CRLF_RE.sub(" ", raw_subject)[:_SUBJECT_MAX_LEN]
     preheader = (
         _text_env.get_template(f"{dirname}/preheader.txt").render(base_ctx).strip()
     )

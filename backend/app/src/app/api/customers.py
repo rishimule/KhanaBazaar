@@ -240,6 +240,9 @@ async def send_support_message(
             status_code=429,
             detail={"error": "rate_limited"},
         )
+    # SECURITY: reply_to in send_support_email is derived from the
+    # authenticated user's email, NOT from request body. Do not switch this
+    # to `body.email` without re-evaluating reply-to spoofing.
     send_support_email.delay(current_user.email, body.subject, body.message)
     return {"queued": True}
 

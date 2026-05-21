@@ -1,14 +1,24 @@
 {% extends "base.html" %}
 {% block body %}
   <p>Hi {{ customer_first_name|default('there') }},</p>
-  <p>Our team made a change to your order <strong>#{{ order_id }}</strong> ({{ service_name }}).</p>
+  {% if action == 'order.cancel' %}
+    <p>We cancelled your order <strong>#{{ order_id }}</strong> ({{ service_name }}) and started a refund where applicable.</p>
+  {% elif action == 'order.refund' %}
+    <p>We issued a refund for your order <strong>#{{ order_id }}</strong> ({{ service_name }}).</p>
+  {% elif action == 'order.rewind' %}
+    <p>We reverted the status of your order <strong>#{{ order_id }}</strong> ({{ service_name }}) so the seller can re-do a step.</p>
+  {% elif action == 'order.address_override' %}
+    <p>We updated the delivery address on your order <strong>#{{ order_id }}</strong> ({{ service_name }}).</p>
+  {% else %}
+    <p>We updated your order <strong>#{{ order_id }}</strong> ({{ service_name }}).</p>
+  {% endif %}
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:16px 0;">
     <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;width:140px;">What changed</td><td style="padding:6px 0;font-size:15px;font-weight:600;">{{ action_label }}</td></tr>
     {% if reason %}
       <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Reason</td><td style="padding:6px 0;font-size:15px;">{{ reason }}</td></tr>
     {% endif %}
     {% if action == 'order.address_override' %}
-      <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">New address</td><td style="padding:6px 0;font-size:15px;">{{ delivery_address_snapshot }}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;vertical-align:top;">New address</td><td style="padding:6px 0;font-size:15px;white-space:pre-wrap;">{{ delivery_address_snapshot }}</td></tr>
     {% endif %}
   </table>
   {% set cta_url = frontend_base_url ~ "/account/orders/" ~ order_id|string %}

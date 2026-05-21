@@ -104,9 +104,16 @@ def _resolve_email(
         )
         resp.raise_for_status()
     else:
-        logging.getLogger(__name__).info(
-            "EMAIL to=%s subject=%s body=%s", to, subject, body
-        )
+        # Same PII-safety gating as ConsoleEmailSender.send: only log the body
+        # in development; non-dev environments see subject + recipient only.
+        if settings.ENVIRONMENT == "development":
+            logging.getLogger(__name__).info(
+                "EMAIL to=%s subject=%s body=%s", to, subject, body
+            )
+        else:
+            logging.getLogger(__name__).info(
+                "EMAIL to=%s subject=%s (body suppressed)", to, subject
+            )
 
 
 def _load_order_email_context(order_id: int) -> dict[str, Any]:
@@ -422,13 +429,58 @@ send_admin_order_action_email = send_admin_order_action_seller_async
     retry_backoff=True,
 )
 def send_order_review_request_async(order_id: int) -> None:
-    """Ask the customer for a review 24 hours after delivery."""
+    """Ask the customer for a review ~24 hours after delivery.
+
+    The Celery countdown is not exact (broker restart / retry may shift it),
+    so we pass the actual delivered-on date from `Delivery.delivered_at` if
+    available rather than the brittle copy "delivered yesterday".
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
     from app.core.config import settings
     from app.core.email_render import render_email
 
     ctx = _load_order_email_context(order_id)
     if not ctx or not ctx.get("customer_email"):
         return
+
+    # Best-effort: look up Delivery.delivered_at so the email can name the
+    # actual date instead of "yesterday".
+    delivered_on: str | None = None
+    try:
+        import asyncio
+        import concurrent.futures
+
+        from sqlmodel import select
+
+        from app.models.commerce import Delivery
+
+        async def _load_delivered_at() -> datetime | None:
+            engine = create_async_engine(settings.DATABASE_URL, echo=False)
+            try:
+                async with AsyncSession(engine) as session:
+                    delivery = (
+                        await session.exec(
+                            select(Delivery).where(Delivery.order_id == order_id)
+                        )
+                    ).first()
+                    return getattr(delivery, "delivered_at", None) if delivery else None
+            finally:
+                await engine.dispose()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            dt = executor.submit(lambda: asyncio.run(_load_delivered_at())).result()
+        if dt is not None:
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            delivered_on = dt.strftime("%-d %b %Y")
+    except Exception:
+        # Non-fatal — the template handles missing `delivered_on` gracefully.
+        delivered_on = None
+
     payload = render_email(
         "order_review_request",
         {
@@ -436,6 +488,7 @@ def send_order_review_request_async(order_id: int) -> None:
             "service_name": ctx["service_name"],
             "store_name": ctx.get("store_name") or "a store",
             "customer_first_name": ctx.get("customer_first_name"),
+            "delivered_on": delivered_on,
         },
         lang=ctx.get("customer_lang") or "en",
     )

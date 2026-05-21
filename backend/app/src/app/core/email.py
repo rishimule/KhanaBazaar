@@ -14,9 +14,12 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Dev-only HTML previews are written here when html is non-empty in console mode.
-# Tests monkeypatch this to a tmp dir; set to "" to disable.
-_DEV_PREVIEW_DIR = "/tmp"
+# Dev-only HTML previews are written here when html is non-empty in console
+# mode. Empty string disables the preview. We gate the default on
+# ``ENVIRONMENT == "development"`` so OTP plaintext does NOT leak to /tmp or
+# logs in staging / prod (where ``EMAIL_PROVIDER=resend+console`` would
+# otherwise mirror every email body to disk).
+_DEV_PREVIEW_DIR = "/tmp" if settings.ENVIRONMENT == "development" else ""
 _SUBJECT_SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 
@@ -46,14 +49,25 @@ class ConsoleEmailSender:
         html: str | None = None,
         reply_to: str | None = None,
     ) -> None:
-        logger.info(
-            "[EMAIL] to=%s reply_to=%s subject=%r\n%s",
-            to,
-            reply_to,
-            subject,
-            text,
-        )
-        print(f"[EMAIL] to={to}\n{text}")
+        # Mirror the body to stdout / logs only in development. In other
+        # environments, log subject + recipient metadata only — never the
+        # body, which may contain OTP codes or order PII.
+        if settings.ENVIRONMENT == "development":
+            logger.info(
+                "[EMAIL] to=%s reply_to=%s subject=%r\n%s",
+                to,
+                reply_to,
+                subject,
+                text,
+            )
+            print(f"[EMAIL] to={to}\n{text}")
+        else:
+            logger.info(
+                "[EMAIL] to=%s reply_to=%s subject=%r (body suppressed)",
+                to,
+                reply_to,
+                subject,
+            )
         if html and _DEV_PREVIEW_DIR:
             try:
                 path = Path(_DEV_PREVIEW_DIR) / (

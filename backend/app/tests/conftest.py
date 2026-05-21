@@ -337,6 +337,8 @@ def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, Non
 
     with patch("app.api.orders.dispatch_order_placed", lambda *a, **kw: None), \
          patch("app.api.orders.dispatch_order_status_changed", lambda *a, **kw: None), \
+         patch("app.api.orders.dispatch_admin_order_action", lambda *a, **kw: None), \
+         patch("app.api.admin_actions.dispatch_admin_order_action", lambda *a, **kw: None), \
          patch("app.api.sellers.dispatch_seller_approved", lambda *a, **kw: None), \
          patch("app.api.sellers.dispatch_seller_rejected", lambda *a, **kw: None), \
          patch("app.api.sellers.dispatch_seller_application_submitted", lambda *a, **kw: None), \

@@ -17,8 +17,10 @@ from app.schemas.services import ServicePayload
 
 class SellerRegisterBody(BaseModel):
     signup_token: str
-    full_name: str
-    business_name: str
+    # Bounded to defeat email-header injection / unbounded subject growth via
+    # `business_name` / `full_name` flowing into rendered email subjects.
+    full_name: str = Field(min_length=1, max_length=120)
+    business_name: str = Field(min_length=1, max_length=120)
     service_ids: list[int] = Field(min_length=1)
     address: AddressPayload
     gst_number: Optional[str] = None
@@ -39,8 +41,8 @@ class SellerPhoneOtpVerifyBody(BaseModel):
 
 
 class SellerProfileUpdateBody(BaseModel):
-    full_name: Optional[str] = None
-    business_name: str
+    full_name: Optional[str] = Field(default=None, max_length=120)
+    business_name: str = Field(min_length=1, max_length=120)
     service_ids: Optional[list[int]] = Field(default=None, min_length=1)
     address: AddressPayload
     phone: str

@@ -135,16 +135,17 @@ async def update_seller_profile(
     for key, value in address_from_payload(body.address).items():
         setattr(address, key, value)
 
+    # Capture status BEFORE the unconditional Pending reset so we can detect
+    # an actual state transition (Rejected/Approved → Pending = resubmit).
+    previous_status = profile.verification_status
     profile.verification_status = VerificationStatus.Pending
     profile.rejection_reason = None
 
     await session.commit()
     await session.refresh(profile)
 
-    if (
-        profile.verification_status == VerificationStatus.Pending
-        and profile.id is not None
-    ):
+    is_resubmit = previous_status != VerificationStatus.Pending
+    if is_resubmit and profile.id is not None:
         dispatch_seller_application_submitted(profile.id)
 
     return {

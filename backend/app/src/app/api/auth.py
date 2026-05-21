@@ -3,7 +3,7 @@
 import httpx
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -54,7 +54,10 @@ class OTPRequestBody(BaseModel):
 class OTPVerifyBody(BaseModel):
     email: EmailStr
     code: str
-    full_name: str | None = None
+    # Bounded so customer-controlled `full_name` cannot blow out the
+    # `customer_welcome` email subject. CRLF is additionally stripped by
+    # `core.email_render.render_email`.
+    full_name: str | None = Field(default=None, max_length=120)
 
 
 class SellerOtpVerifyBody(BaseModel):

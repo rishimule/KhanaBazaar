@@ -27,3 +27,23 @@ def test_render_email_raises_on_missing_required_var():
 def test_render_email_falls_back_to_default_lang_when_locale_dir_missing():
     payload = render_email("_smoke", {"name": "A", "total": 0}, lang="hi")
     assert "Hello A" in payload.html
+
+
+def test_render_email_strips_crlf_from_subject_for_header_injection():
+    # Smuggle CR/LF and BCC header through the {{ name }} interpolation in
+    # _smoke/subject.txt. They must not survive into the returned subject.
+    payload = render_email(
+        "_smoke",
+        {"name": "Ravi\r\nBCC: victim@example.com", "total": 0},
+        lang="en",
+    )
+    assert "\r" not in payload.subject
+    assert "\n" not in payload.subject
+    assert "BCC:" in payload.subject  # collapsed to a space, not stripped
+
+
+def test_render_email_clamps_overlong_subject():
+    payload = render_email(
+        "_smoke", {"name": "X" * 500, "total": 0}, lang="en"
+    )
+    assert len(payload.subject) <= 200
