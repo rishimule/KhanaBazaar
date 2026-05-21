@@ -58,6 +58,9 @@ Starts:
 
 - `khanabazaar-postgres` — Postgres 15 + PostGIS 3.4 on `localhost:5432` (user `postgres`, password `password`, db `khanabazaar`)
 - `khanabazaar-redis` — Redis 7 (alpine) on `localhost:6379`
+- `khanabazaar-meilisearch` — Meilisearch v1.11 on `localhost:7700` (master key `dev-master-key-change-me`)
+
+For tests, an isolated `khanabazaar-meilisearch-test` (port `7701`, master key `test-master-key`) lives behind the `test` profile — start with `docker compose --profile test up -d meilisearch-test`.
 
 ### PostGIS upgrade (May 2026 onward)
 
@@ -151,11 +154,12 @@ Open `http://localhost:3000`. Only env var is `NEXT_PUBLIC_API_URL` (defaults to
 ## 6. Verify the stack
 
 1. **Swagger** — `http://localhost:8000/docs` loads.
-2. **Public endpoint** — hit `GET /api/v1/products` from Swagger or:
+2. **Meilisearch health** — `curl http://localhost:7700/health` returns `{"status":"available"}`.
+3. **Public endpoint** — hit `GET /api/v1/products` from Swagger or:
    ```bash
    curl http://localhost:8000/api/v1/products
    ```
-3. **OTP login** — on the frontend, request an OTP for any email. With `EMAIL_PROVIDER=console`, the 6-digit code appears in the uvicorn stdout log. Enter it on the frontend to receive a JWT.
+4. **OTP login** — on the frontend, request an OTP for any email. With `EMAIL_PROVIDER=console`, the 6-digit code appears in the uvicorn stdout log. Enter it on the frontend to receive a JWT.
 
 ## 6a. Mobile testing via ngrok (optional)
 
@@ -245,7 +249,7 @@ docker compose down
 
 **Tests fail with `database "khanabazaar_test" does not exist`** — create it (see section 7).
 
-**Frontend can't reach API (localhost dev)** — confirm `NEXT_PUBLIC_API_URL` in `frontend/.env.local` is exactly `""` (empty string) and that the Next.js `rewrites()` block in `frontend/next.config.ts` proxies `/api/v1/:path*` to `http://localhost:8000/api/v1/:path*`. Restart `npm run dev` after editing either file.
+**Frontend can't reach API (localhost dev)** — confirm `NEXT_PUBLIC_API_URL` in `frontend/.env.local` is exactly `""` (empty string) and that the Next.js `rewrites()` block in `frontend/next.config.ts` proxies `/api/v1/:rest(.*)` to `http://localhost:8000/api/v1/:rest`. (`:rest(.*)` is required — `:path*` silently strips the trailing slash and FastAPI then 307s using the upstream host header, which breaks ngrok mobile testing.) Restart `npm run dev` after editing either file.
 
 **Phone can't reach API (ngrok tunnel)** — check `./scripts/dev.sh logs ngrok` for auth or quota errors. If the URL loads HTML but `/api/v1/*` returns 404, the Next.js `rewrites()` block is missing or malformed — see `next.config.ts`.
 

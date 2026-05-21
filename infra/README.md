@@ -24,11 +24,19 @@ module meilisearch './modules/meilisearch.bicep' = {
     environmentId: env.id
     environmentName: env.name
     logAnalyticsWorkspaceId: logAnalytics.id
+    // Bicep reads the value at deploy time via keyVault.getSecret(...).
+    // The module then re-stores it as a Container App secret and exposes
+    // it to the meili container via secretRef — the proper Container Apps
+    // pattern. NEVER use the App Service @Microsoft.KeyVault(...) syntax;
+    // Container Apps does not support it.
     meiliMasterKey: keyVault.getSecret('meili-master-key')
   }
 }
 
-// Pass to the api + worker apps as MEILI_URL / MEILI_MASTER_KEY env vars.
+// Downstream api / worker / beat apps reference the master key the same
+// way: declare a Container App secret of name `meili-master-key` with
+// `keyVaultUrl` + `identity`, then bind via `env: [{ name: 'MEILI_MASTER_KEY',
+// secretRef: 'meili-master-key' }]`.
 output meiliUrl string = meilisearch.outputs.meiliInternalUrl
 ```
 

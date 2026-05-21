@@ -33,12 +33,13 @@ pieces fit together. Setup commands live in [CLAUDE.md](../CLAUDE.md) and
 
 ## System Topology
 
-Three Container Apps + two managed data services in production, all in Azure
+Five Container Apps + two managed data services in production, all in Azure
 **Central India** (`centralindia`):
 
 ```
                                  ┌──────────────────────┐
        browser ────────────────► │  Azure Front Door    │  TLS, WAF, CDN
+                                 │  (Premium tier)      │
                                  └────────┬─────────────┘
                                           │
                 ┌─────────────────────────┴──────────────────────────┐
@@ -56,21 +57,24 @@ Three Container Apps + two managed data services in production, all in Azure
                                                   +------^------+  |  Celery broker       |
                                                          |         +----------+-----------+
                                                          |                    | broker
-                                                         |                    v
-                                                         |       +-------------------------------+
-                                                         +------ | Container App: worker         |
-                                                                 | Celery (khanabazaar-worker)   |
-                                                                 | email send, Meili sync, beats |
-                                                                 +---------------+---------------+
-                                                                                 │ HTTP
-                                                                                 ▼
-                                                                 +-------------------------------+
-                                                                 | Container App: meilisearch    |
-                                                                 | products / stores /           |
-                                                                 | search_terms indexes          |
-                                                                 | internal-only ingress :7700   |
-                                                                 +-------------------------------+
+                                                         |        ┌───────────┴─────────────┐
+                                                         |        ▼                          ▼
+                                                         |  +----------------+   +------------------+
+                                                         +- | CA: worker     |   | CA: beat         |
+                                                            | Celery worker  |   | Celery beat,     |
+                                                            | KEDA-scaled    |   | minReplicas=1    |
+                                                            +-------+--------+   +---------+--------+
+                                                                    │ HTTP                  │
+                                                                    ▼                       │
+                                                            +----------------------------+  │
+                                                            | CA: meilisearch            |  │
+                                                            | products / stores /        |◄─┘
+                                                            | search_terms indexes       |
+                                                            | internal-only TCP :7700    |
+                                                            +----------------------------+
 ```
+
+Beat must run in its own Container App (`kb-prod-beat-cin`, single replica) because Container Apps scales all containers in an app together — co-locating beat with the worker would double-fire scheduled tasks on every replica.
 
 Local dev mirrors this: `docker-compose up` provisions Postgres, Redis, and Meilisearch;
 `uvicorn` and `next dev` run on the host.
@@ -86,12 +90,14 @@ Local dev mirrors this: `docker-compose up` provisions Postgres, Redis, and Meil
 4. Frontend stores the JWT and sends `Authorization: Bearer <jwt>`.
 5. `app.core.security` decodes the token, loads the `User`, and exposes
    role-checked dependencies to routers (`UserRole.Admin/Seller/Customer`).
-6. CORS allowlists `localhost:3000` / `127.0.0.1:3000` in dev; prod origin
-   is supplied via `FRONTEND_ORIGIN`.
+6. CORS is fully driven by `FRONTEND_ORIGIN` (comma-separated). Default
+   in `core/config.py` is `http://localhost:3000,http://127.0.0.1:3000`
+   for dev; prod sets it to the public frontend URLs via `azd env`.
 
 API root is `/api/v1` (see `core/config.py`). Routers mounted in
-`api/__init__.py`: `auth`, `catalog`, `stores`, `tasks`, `sellers`,
-`customers`, `carts`, `orders`, `meta`.
+`api/__init__.py`: `auth`, `catalog`, `catalog_admin`, `stores`, `sellers`,
+`customers`, `carts`, `orders`, `search`, `geo`, `admin_actions`, `tasks`,
+`meta`.
 
 ## Data Model
 
@@ -133,9 +139,39 @@ Key invariants:
 ## Background Jobs
 
 Celery worker (`app.core.celery_app` + `app.worker`) consumes jobs off
-Redis. Current scope is small (e.g. async email dispatch, OTP send retries);
-the worker exists primarily so future order-lifecycle and notification work
-has a home without re-platforming.
+Redis. Live scope:
+
+- **OTP email dispatch** — `send_otp_email_async` (login + seller email
+  verification).
+- **Order-lifecycle emails** — placed / status-change notifications via
+  `app.services.order_emails`.
+- **Admin order-action emails** — `send_admin_order_action_email` fires
+  when an admin force-cancels, refunds, or transitions a seller's order
+  (loops the seller in on the supervisor activity).
+- **Seller onboarding emails** — `send_seller_approved_async` and
+  `send_seller_rejected_async` close the admin-approval loop (the
+  `/seller/signup/pending` status poll is now a fallback, not the only
+  signal).
+- **Customer support forwarding** — `send_support_email` ships
+  `/customers/me/support` messages to `SUPPORT_EMAIL`.
+- **Meilisearch sync** — SQLAlchemy `after_commit` listeners → Celery
+  tasks (`app.search.tasks`); see the search section below.
+- **One-shot geocode backfill** — `backfill_store_addresses_geocode`
+  forward-geocodes legacy seller/store addresses (idempotent, manually
+  triggered, skips low-confidence Google matches).
+
+Admin actions also write to `admin_action_log` **in the same DB
+transaction** as the mutation (see `app.services.admin_audit`) — not a
+background job, but the rollback-safe audit trail that the admin
+supervisor UI reads.
+
+Celery beat runs the scheduled side: `search.reconcile_index` hourly per
+kind (`product`, `store`) plus a daily deep pass, `search.verify_drift`
+nightly at 04:30 UTC (legacy safety net), `search.rebuild_search_terms`
+nightly at 03:15 UTC, and `search.prune_query_log` daily at 04:00 UTC.
+In prod, beat lives in its own Container App (see topology above).
+Failed Meilisearch sync attempts land in Redis sets
+`search:dlq:{product,store}` and are drained by the reconciler.
 
 ## Testing Strategy
 
@@ -148,8 +184,10 @@ test suite yet; type checking and ESLint are the safety net.
 ## Deployment
 
 Cloud infra lives in `infra/` as Bicep modules, orchestrated by the Azure
-Developer CLI (`azd up`). Single source of truth — every resource, role
-assignment, and Container App revision is declared there:
+Developer CLI (`azd up`). Today only `infra/modules/meilisearch.bicep` is
+committed; the rest of the modules below are the target shape (Phase 5).
+See [`azure_deployment.md`](azure_deployment.md) for what is built vs.
+planned and the deploy mechanics.
 
 | Resource (Azure name)           | Service                                  | Purpose                                       |
 |---------------------------------|------------------------------------------|-----------------------------------------------|
@@ -157,18 +195,24 @@ assignment, and Container App revision is declared there:
 | `kb-prod-redis-cin`             | Azure Cache for Redis (Basic C0)         | Cache + Celery broker, `noeviction`, TLS-only |
 | `kb-prod-api-cin`               | Container Apps (Consumption)             | FastAPI; image from ACR, public ingress       |
 | `kb-prod-worker-cin`            | Container Apps (Consumption)             | Celery worker, no ingress, KEDA Redis-scaled  |
-| `kb-prod-web-cin`               | Container Apps (Consumption)             | Next.js standalone build                      |
+| `kb-prod-beat-cin`              | Container Apps (Consumption)             | Celery beat scheduler, single replica         |
+| `kb-prod-meili-cin`             | Container Apps (Consumption)             | Meilisearch v1.11, internal TCP `:7700`, Azure Files for `/meili_data` |
+| `kb-prod-web-cin`               | Container Apps (Consumption)             | Next.js (add `output: "standalone"` before building) |
 | `kb-prod-migrate-cin`           | Container Apps Job                       | One-shot `alembic upgrade head` per deploy    |
 | `kbprodacrcin`                  | Azure Container Registry (Basic)         | Image hosting, pulled via managed identity    |
-| `kb-prod-kv-cin`                | Azure Key Vault                          | Secrets — JWT, OTP pepper, Resend, DB URL     |
-| `kb-prod-fd`                    | Azure Front Door (Standard)              | TLS, WAF, CDN, custom domain                  |
-| `kb-prod-appi-cin` + `kb-prod-law-cin` | App Insights + Log Analytics      | Telemetry, traces, structured logs            |
+| `kb-prod-kv-cin`                | Azure Key Vault                          | Secrets — JWT, OTP pepper, Resend, Twilio, DB URL, Meili master key, Google Maps keys |
+| `kb-prod-fd`                    | Azure Front Door (Premium)               | TLS, managed WAF rules, CDN, custom domain, Private Link to Container Apps |
+| `kb-prod-appi-cin` + `kb-prod-law-cin` | App Insights + Log Analytics      | Telemetry, traces, structured logs (SDK wiring is a launch-blocker — see `azure_deployment.md` §13) |
 
 `JWT_SECRET` and `OTP_PEPPER` are stored in Key Vault and referenced from
-each Container App via `secretRef`. Resend keys and `FRONTEND_ORIGIN` are
-also Key Vault secrets, populated by the GitHub Actions workflow on first
-deploy. `NEXT_PUBLIC_API_URL` is inlined at build time, so the `web`
-image must be rebuilt for any URL change.
+each Container App via the two-step `secrets[].keyVaultUrl` +
+`env[].secretRef` pattern (the App-Service `@Microsoft.KeyVault(...)`
+syntax is **not** supported on Container Apps). Resend, Twilio, and
+Google Maps keys are also Key Vault secrets, populated by the GitHub
+Actions workflow on first deploy. `FRONTEND_ORIGIN` is a plain env var
+(not secret) — backend reads it via `Settings.cors_origins`.
+`NEXT_PUBLIC_API_URL` is inlined at build time, so the `web` image must
+be rebuilt for any URL change.
 
 ## Non-obvious Decisions
 

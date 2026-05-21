@@ -78,7 +78,7 @@ frontend/
     styles/                           # design-tokens.css, globals.css
   public/                             # icons/, manifest.json, sw.js
 docs/                                 # architecture, flows, local_setup, development_guide, azure_deployment, seller_signup
-docker-compose.yml                    # Postgres + Redis
+docker-compose.yml                    # Postgres + Redis + Meilisearch (+ meilisearch-test under `--profile test`)
 infra/                                # Bicep modules + azure.yaml (azd)
 ```
 
@@ -86,7 +86,7 @@ infra/                                # Bicep modules + azure.yaml (azd)
 
 ### Infrastructure
 ```bash
-docker-compose up -d                                          # Postgres + Redis
+docker-compose up -d                                          # Postgres + Redis + Meilisearch
 ```
 
 ### Backend (from `backend/app/`)
@@ -150,10 +150,12 @@ Admin-only: create categories/products, approve seller applications, **per-selle
 - `ENVIRONMENT` (development/production)
 - `EMAIL_PROVIDER` (`console` default | `resend`)
 - `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (only when `EMAIL_PROVIDER=resend`)
+- `SUPPORT_EMAIL` (default `support@khanabazaar.example`) — destination inbox for `/customers/me/support` messages
 - `SMS_PROVIDER` (`console` default | `twilio`)
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` (only when `SMS_PROVIDER=twilio`)
 - `JWT_EXPIRES_HOURS` (default 24)
 - `OTP_TTL_SECONDS`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN`, `OTP_MAX_PER_HOUR`
+- `FRONTEND_ORIGIN` (default `http://localhost:3000,http://127.0.0.1:3000`) — comma-separated CORS allow-list; parsed by `Settings.cors_origins` and passed to `CORSMiddleware`
 - `GOOGLE_MAPS_SERVER_API_KEY` (server-only, IP-restricted in GCP — powers `/api/v1/geo/*`)
 - `GOOGLE_MAPS_BROWSER_API_KEY` (referrer-restricted, exposed to FE as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`)
 - `GEO_RATE_LIMIT_PER_MIN` (default 30), `GEO_AUTOCOMPLETE_CACHE_TTL_SECONDS` (60), `GEO_REVERSE_CACHE_TTL_SECONDS` (86400)
@@ -180,7 +182,7 @@ No frontend tests configured.
 | File | Purpose |
 |------|---------|
 | `backend/app/src/app/main.py` | Uvicorn entry |
-| `backend/app/src/app/__init__.py` | App factory, CORS (`localhost:3000`), router mount |
+| `backend/app/src/app/__init__.py` | App factory, CORS (env-driven via `FRONTEND_ORIGIN` → `settings.cors_origins`), router mount, search-index bootstrap on startup |
 | `backend/app/src/app/core/config.py` | Pydantic Settings, `API_V1_STR="/api/v1"` |
 | `backend/app/src/app/core/security.py` | JWT encode/decode, role guards |
 | `backend/app/src/app/db/session.py` | Async session factory |
@@ -237,7 +239,7 @@ No frontend tests configured.
 - **No AI co-author trailers** in commits/PRs.
 - **Wait for explicit user approval before opening PRs**. Use `gh pr create` only.
 - **Keep merged branches** — do not pass `--delete-branch`.
-- All PRs: target `main`, must pass CI (lint + types + tests), **merge-commit** (`gh pr merge --merge`) — no squash, no rebase.
+- All PRs: target `main`, must pass CI (Ruff + Mypy advisory — Pytest is intentionally **not** in CI; run the full suite locally with `uv run pytest -q` before merging), **merge-commit** (`gh pr merge --merge`) — no squash, no rebase.
 - Always use `gh` CLI for GitHub ops (`gh pr create/list/merge`, `gh issue *`, `gh run list`). Never raw `git push` + manual PR.
 - **After merging a PR**: `git checkout main && git pull` to sync local with remote. Always land back on `main` before starting next task.
 
@@ -256,6 +258,5 @@ No frontend tests configured.
 - `TODO.md` — Phase tracker (Phases 1–4 complete, Phase 5 deployment in progress)
 
 **Known TODOs surfaced during doc rewrite**:
-- CORS in `backend/app/src/app/__init__.py` is hardcoded to `localhost:3000` — Azure deploy plan provisions `FRONTEND_ORIGIN` via Key Vault but `config.py` does not read it. Wire up before production.
-- No seller-approval/rejection email — seller learns via 30s status poll on `/seller/signup/pending`.
 - `OrderStatus.Paid` defined but never assigned by state machine; `Payment.status` flips to `paid` only on `delivered`.
+- App Insights / OpenTelemetry not yet wired in `app/__init__.py` — `docs/azure_deployment.md` §13 calls this out as a launch blocker.

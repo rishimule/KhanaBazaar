@@ -37,11 +37,17 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 - [x] End-to-end testing of the complete order flow (simulated checkout).
 
 ## Phase 5: Deployment & CI/CD (Azure)
-- [ ] Provision Azure subscription + resource group, configure RBAC, and create core resources (Azure Container Apps environment, Azure Database for PostgreSQL Flexible Server, Azure Cache for Redis, Azure Container Registry, Azure Key Vault, Log Analytics + Application Insights).
-- [ ] Dockerize backend and frontend applications via `Dockerfile`.
-- [ ] Configure GitHub Actions with OIDC federated credentials to Azure for CI/CD pipelines (build → ACR → ACA).
-- [ ] Deploy database and services to Azure (Azure Database for PostgreSQL Flexible Server, Azure Container Apps).
-- [ ] Configure CDN for media assets via Azure Front Door in front of Azure Blob Storage.
+- [x] Author `infra/modules/meilisearch.bicep` (Meilisearch Container App + Azure Files share for `/meili_data`).
+- [ ] Write `Dockerfile` for `backend/app/` (api + worker share the image; beat reuses worker image with different entrypoint).
+- [ ] Write `Dockerfile` for `frontend/` and enable `output: "standalone"` in `next.config.ts`.
+- [ ] Author `infra/main.bicep` + `infra/main.parameters.json` + top-level `azure.yaml` (azd service map: api, worker, beat, web; references the committed Meilisearch module).
+- [ ] Author remaining Bicep modules: `network.bicep`, `container-env.bicep`, `acr.bicep`, `keyvault.bicep`, `postgres.bicep`, `redis.bicep`, `appinsights.bicep`, `container-app-{api,worker,beat,web}.bicep`, `migration-job.bicep`, `frontdoor.bicep`.
+- [ ] Provision Azure subscription + resource groups (`kb-prod-rg`, `kb-network-rg`) and bootstrap GitHub Actions OIDC federated credentials (push-to-main subject + `pull_request` subject).
+- [ ] First `azd up` against `centralindia`: ACA env + Postgres Flexible Server (B1ms, PostGIS extension) + Redis Basic C0 + ACR Basic + Key Vault + Log Analytics + App Insights.
+- [ ] Wire OpenTelemetry into `backend/app/src/app/__init__.py` (`azure-monitor-opentelemetry.configure_azure_monitor()` guarded on `APPLICATIONINSIGHTS_CONNECTION_STRING`).
+- [ ] Author `.github/workflows/deploy.yml` (lint + types + tests → `az acr build` → `containerapp job update + start` for migrations → `containerapp update` with `--revision-suffix` per service → smoke test).
+- [ ] Decide Front Door tier (Premium for managed WAF + Private Link to Container Apps, or Standard with app-layer `X-Azure-FDID` enforcement) and provision custom domain + managed TLS.
+- [ ] First production reindex: `uv run python -m app.search.reindex --all` from a one-shot Container Apps Job.
 
 ## Phase 6: Future Enhancements (Payments)
 - [ ] Integrate Razorpay (or other payment gateways) for UPI checkout intent flows.
