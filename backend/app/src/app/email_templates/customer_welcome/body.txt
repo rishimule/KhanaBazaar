@@ -1,0 +1,9 @@
+Hi {{ first_name }},
+
+Welcome to {{ brand_name }}! You can now shop from local grocery, food, and pharmacy stores near you, with delivery in hours.
+
+• Browse stores by service.
+• Compare prices across nearby stores.
+• Pay via UPI; track every order.
+
+Start shopping: {{ frontend_base_url }}/

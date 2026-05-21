@@ -157,6 +157,10 @@ async def otp_verify(
         await session.commit()
         await session.refresh(user)
         full_name = compose_full_name(first_name, last_name)
+        from app.services.seller_emails import dispatch_customer_welcome
+
+        if user.id is not None:
+            dispatch_customer_welcome(user.id)
     else:
         full_name = await _full_name_for_user(session, user)
 

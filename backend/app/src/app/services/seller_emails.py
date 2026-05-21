@@ -13,6 +13,7 @@ from typing import Any
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from app.worker import (
+    send_customer_welcome_async,
     send_seller_application_submitted_async,
     send_seller_approved_async,
     send_seller_rejected_async,
@@ -58,3 +59,8 @@ def dispatch_seller_rejected(
 def dispatch_seller_application_submitted(seller_profile_id: int) -> None:
     """Notify the support inbox of a new (or resubmitted) seller application."""
     _safe_delay(send_seller_application_submitted_async, seller_profile_id)
+
+
+def dispatch_customer_welcome(user_id: int) -> None:
+    """Greet a newly-registered customer."""
+    _safe_delay(send_customer_welcome_async, user_id)

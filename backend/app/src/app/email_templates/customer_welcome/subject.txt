@@ -1,0 +1,1 @@
+[{{ brand_name }}] Welcome, {{ first_name }}

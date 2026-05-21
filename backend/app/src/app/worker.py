@@ -470,6 +470,73 @@ def send_admin_order_action_customer_async(
     )
 
 
+def _load_customer_welcome_context(user_id: int) -> dict[str, Any]:
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.models.base import User
+    from app.models.profile import CustomerProfile
+
+    async def _load() -> dict[str, Any]:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                user = (
+                    await session.exec(select(User).where(User.id == user_id))
+                ).first()
+                if user is None or not user.email:
+                    return {}
+                profile = (
+                    await session.exec(
+                        select(CustomerProfile).where(
+                            CustomerProfile.user_id == user_id
+                        )
+                    )
+                ).first()
+                first_name = profile.first_name if profile else "there"
+                return {
+                    "email": user.email,
+                    "first_name": first_name,
+                    "lang": user.preferred_language or "en",
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_customer_welcome_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_customer_welcome_async(user_id: int) -> None:
+    """Greet a newly-registered customer (fires only on User row creation)."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    ctx = _load_customer_welcome_context(user_id)
+    if not ctx:
+        return
+    payload = render_email(
+        "customer_welcome", {"first_name": ctx["first_name"]}, lang=ctx["lang"]
+    )
+    _resolve_email(
+        ctx["email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
+
+
 def _load_seller_application_context(seller_profile_id: int) -> dict[str, Any]:
     import asyncio
     import concurrent.futures
