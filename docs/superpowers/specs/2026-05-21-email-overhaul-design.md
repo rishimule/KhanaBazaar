@@ -154,7 +154,7 @@ No DB migration. No new tables or columns.
 | `order_status_changed` | customer (always); seller on cancel | `[Khana Bazaar] Order #{order_id} is now {status}` | "View order" → `/account/orders/{id}` | Rewrite + progress bar + cancel reason |
 | `admin_order_action_seller` | seller | `[Khana Bazaar] Admin updated order #{order_id}` | "View order" → `/seller/orders/{id}` | Rewrite |
 | `admin_order_action_customer` | customer | `[Khana Bazaar] Update on your order #{order_id}` | "View order" → `/account/orders/{id}` | **New** — fires on refund/cancel/address_override |
-| `order_review_request` | customer | `[Khana Bazaar] How was order #{order_id}?` | "Rate your order" → `/account/orders/{id}/review` | **New** — Celery `apply_async(..., countdown=86400)` |
+| `order_review_request` | customer | `[Khana Bazaar] How was order #{order_id}?` | "Rate your order" → `/account/orders/{id}` (review form lives on order detail page) | **New** — Celery `apply_async(..., countdown=86400)`. Implementation plan must confirm the order-detail page exposes a review form for the recipient; if not, add it as part of the work. |
 | `customer_welcome` | customer | `[Khana Bazaar] Welcome, {first_name}` | "Start shopping" → `/` | **New** — only on User creation |
 | `support_message` | `SUPPORT_EMAIL` | `[Support] {subject}` | n/a (admin replies to customer) | Rewrite, `reply_to=customer.email` |
 
@@ -162,7 +162,7 @@ No DB migration. No new tables or columns.
 
 1. Delete dead `send_otp_email_async` body; replace with new template-rendering impl.
 2. Remove hardcoded "10 minutes"; interpolate `settings.OTP_TTL_SECONDS // 60`.
-3. `format_inr(Decimal) -> str` in `utils/currency.py`. Registered as Jinja filter `inr`. Renders `₹1,234.50` with comma grouping per Indian numbering convention (handled with `locale.format_string` or manual split — chosen for the implementation plan).
+3. `format_inr(value: float | Decimal) -> str` in `utils/currency.py`. Order monetary columns are SQLModel `float` (`models/commerce.py:69-72`), but the helper also accepts `Decimal` so future migration to `Numeric` doesn't break callers. Registered as Jinja filter `inr`. Renders `₹1,234.50` with comma grouping per Indian numbering convention. Implementation uses manual grouping (Python's `locale` module is process-global and unsafe to mutate in a server).
 4. `dispatch_order_status_changed(order_id, new_status, *, notify_seller=False, reason=None)` — accepts reason, threaded to the Celery task and into template ctx.
 5. Customer notification on admin action: `dispatch_admin_order_action` extended to enqueue `send_admin_order_action_customer_async` when `action in {"order.rewind", "order.refund", "order.cancel", "order.address_override"}`. `order.rewind` is included because `admin_actions.py::admin_rewind_order` does not fire `dispatch_order_status_changed` — without this the customer learns of the reverted state only by reopening the order page. `order.transition` is excluded because that path already calls `dispatch_order_status_changed(...)` separately. Both calls run inside `_safe_delay`.
 6. Reply-to: customer-facing emails use `EMAIL_REPLY_TO`. Support inbox email uses the customer's email as reply-to so admin reply lands on the customer.
@@ -181,9 +181,9 @@ No DB migration. No new tables or columns.
 Loaders extended in `worker.py`:
 
 - `_load_order_email_context(order_id)` extended to also fetch:
-  - `items: list[{name, qty, unit_price_inr, line_total_inr}]` — `OrderItem` rows joined to `MasterProduct` name (translated to recipient locale).
-  - `customer_first_name`, `customer_lang`, `seller_lang` — for personalization + template routing.
-  - `delivery_address` — formatted single-line, used in admin-action-customer template when `address_override` is the action.
+  - `items: list[{name, qty, unit_price, line_total}]` — straight `OrderItem` rows. `OrderItem` already stores `product_name_snapshot`, `unit_price_snapshot`, `quantity`, `line_total` at checkout time (`models/commerce.py:80-88`), so no `MasterProductTranslation` join is required. The item name reflects the catalog at order time, not the email recipient's current locale — that is correct for a receipt.
+  - `customer_first_name`, `customer_lang`, `seller_lang` — for personalization + template routing. `customer_lang` and `seller_lang` come from `User.preferred_language` (`models/base.py:33`, non-null default `"en"`). `CustomerProfile.preferred_language` (`models/profile.py:31`) also exists but is `Optional[str]` and currently unused by any code path; this spec ignores it.
+  - `delivery_address_after` — comes directly from `order.delivery_address_snapshot` after `override_delivery_address` mutates it (`services/orders.py:372`). No new formatter required.
 
 - New helper `_load_seller_application_context(seller_profile_id)` for `seller_application_submitted`:
   - `business_name`, `applicant_email`, `submitted_at`.
@@ -213,10 +213,10 @@ Template lookup order: `{event}.{lang}/` → `{event}/` (English base). Missing 
 
 ### §7 Testing
 
-- `tests/test_email_render.py` (new): for each event, build a fixture context, call `render_email`, assert subject/preheader/html contain the expected variables, no `jinja2.UndefinedError`, no template syntax leaks (no `{{ ` left in output).
-- `tests/test_order_emails.py` extended: assert the new dispatchers fire for the four new events. Patch the worker's `_resolve_email` and the `send_*` task `.delay` to capture args.
-- Snapshot tests: render each customer-facing event into `backend/app/tests/fixtures/emails/{event}.html`, byte-compare on subsequent runs. Regenerate via `pytest --snapshot-update`.
-- Console sender in dev writes HTML to `/tmp/khanabazaar_email_{event}_{ts}.html`; the developer opens the file in a browser for visual review. Documented in `docs/development_guide.md` (out of this spec, a follow-up doc PR).
+- `tests/test_email_render.py` (new): for each event, build a fixture context, call `render_email`, assert subject/preheader/html contain the expected variables, render under `jinja2.StrictUndefined` so missing keys raise instead of silently producing empty strings, and assert no template syntax leaks (no `{{ ` left in output).
+- `tests/test_order_emails.py` extended: assert the new dispatchers fire for the four new events. Patch the worker's `_resolve_email` and the `send_*` task `.delay` to capture args (same pattern as existing tests).
+- No snapshot library introduced. Tests assert that rendered HTML contains structural anchors (CTA URL, item name, status string, brand name) — robust to cosmetic template edits. Pure byte-equal snapshots would add churn without catching real regressions.
+- Console sender in dev optionally writes a copy to `/tmp/khanabazaar_email_{slug-of-subject}_{ts}.html` when `html` is non-empty, so the developer can open the file in a browser for visual review. The file path is logged at INFO level. Off in tests (no `/tmp` write).
 
 ### §8 Migration / breaking changes
 
@@ -241,6 +241,10 @@ Single PR. Behind no feature flag — every email path is upgraded together. Eas
 - Non-English templates (ship `en` only; add Indian languages in a follow-up).
 - Switching review-request scheduling from Celery `countdown` to a DB-scheduled job. MVP accepts the broker-restart risk.
 - MJML build pipeline.
+
+### §11 Failure modes for Celery email tasks
+
+`worker.py` order/seller tasks declare `autoretry_for=(Exception,)` with `max_retries=3` and `retry_backoff=True`. That intentionally retries on transient broker/Resend issues but also retries on template bugs (`jinja2.UndefinedError`, etc.). For MVP we accept that: template bugs surface in dev under `StrictUndefined` tests; in prod a template-bug task fails 3× then drops to Celery's failed-task log and surfaces in operator dashboards. We do not add a sentinel exception type or split the retry policy now; revisit if template errors become noisy post-launch.
 
 ## Risks and trade-offs
 
