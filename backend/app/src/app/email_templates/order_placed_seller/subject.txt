@@ -1,0 +1,1 @@
+[{{ brand_name }}] New {{ service_name }} order #{{ order_id }}

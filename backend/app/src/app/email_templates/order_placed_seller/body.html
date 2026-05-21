@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>You have a new <strong>{{ service_name }}</strong> order at <strong>{{ store_name }}</strong>.</p>
+  <div style="font-size:18px;font-weight:700;margin:8px 0;">Order #{{ order_id }}</div>
+  {% include "_partials/line_items.html" %}
+  {% set cta_url = frontend_base_url ~ "/seller/orders/" ~ order_id|string %}
+  {% set cta_label = "Open order" %}
+  {% include "_partials/button.html" %}
+{% endblock %}

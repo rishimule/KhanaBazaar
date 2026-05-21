@@ -85,9 +85,11 @@ def test_placed_seller_email_includes_service_name() -> None:
 
     assert captured["to"] == "seller@example.com"
     assert "Grocery" in captured["subject"]
-    assert "Test Store" in captured["subject"]
+    assert "#7" in captured["subject"]
+    assert "Test Store" in captured["html"]
     assert "Grocery" in captured["body"]
     assert "#7" in captured["body"]
+    assert "/seller/orders/7" in captured["html"]
 
 
 def test_confirmed_customer_email_includes_service_name() -> None:

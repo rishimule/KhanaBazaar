@@ -209,20 +209,30 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
 )
 def send_order_placed_seller_async(order_id: int) -> None:
     """Notify the seller that a new order was placed at their store."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     ctx = _load_order_email_context(order_id)
     if not ctx or not ctx.get("seller_email"):
         return
-    subject = (
-        f"New {ctx['service_name']} order received at "
-        f"{ctx.get('store_name') or 'your store'}"
+    payload = render_email(
+        "order_placed_seller",
+        {
+            "order_id": ctx["order_id"],
+            "service_name": ctx["service_name"],
+            "store_name": ctx.get("store_name") or "your store",
+            "items": ctx.get("items", []),
+            "order_total": ctx["order_total"],
+        },
+        lang=ctx.get("seller_lang") or "en",
     )
-    body = (
-        f"You have a new {ctx['service_name']} order #{ctx['order_id']} for "
-        f"{ctx.get('store_name') or 'your store'}.\n"
-        f"Order total: {ctx['order_total']}.\n"
-        f"Please prepare it for packing."
+    _resolve_email(
+        ctx["seller_email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
     )
-    _resolve_email(ctx["seller_email"], subject, body)
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
