@@ -51,6 +51,13 @@ body {
   padding-top: var(--nav-height);
 }
 
+@media (max-width: 1023px) {
+  body {
+    padding-top: var(--nav-height-mobile);
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  }
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-family-sans);
   font-weight: var(--weight-medium);
