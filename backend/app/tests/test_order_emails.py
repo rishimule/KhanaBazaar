@@ -168,6 +168,38 @@ def test_status_changed_email_includes_service_name(
     assert "#7" in captured["body"]
 
 
+def test_admin_order_action_seller_email_renders_action_and_reason() -> None:
+    from app import worker
+
+    captured: dict[str, str] = {}
+
+    def _capture(
+        to: str,
+        subject: str,
+        body: str,
+        *,
+        html: str | None = None,
+        reply_to: str | None = None,
+    ) -> None:
+        captured["to"] = to
+        captured["subject"] = subject
+        captured["body"] = body
+        captured["html"] = html or ""
+
+    with (
+        patch("app.worker._load_order_email_context", return_value=_fake_ctx()),
+        patch("app.worker._resolve_email", side_effect=_capture),
+    ):
+        worker.send_admin_order_action_seller_async(
+            7, "order.refund", "duplicate payment"
+        )
+
+    assert captured["to"] == "seller@example.com"
+    assert "Refunded" in captured["html"]
+    assert "duplicate payment" in captured["html"]
+    assert "/seller/orders/7" in captured["html"]
+
+
 @pytest.mark.parametrize("recipient,expected_to", [
     ("customer", "customer@example.com"),
     ("seller", "seller@example.com"),

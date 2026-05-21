@@ -345,28 +345,58 @@ def send_order_status_changed_async(
     )
 
 
+_ACTION_LABELS = {
+    "order.rewind": "Status reverted",
+    "order.refund": "Refunded",
+    "order.cancel": "Cancelled",
+    "order.address_override": "Delivery address updated",
+    "order.transition": "Status changed",
+}
+
+
+def _action_label(action: str) -> str:
+    return _ACTION_LABELS.get(action, action)
+
+
 @celery_app.task(  # type: ignore[untyped-decorator]
     name="send_admin_order_action_email",
     autoretry_for=(Exception,),
     max_retries=3,
     retry_backoff=True,
 )
-def send_admin_order_action_email(
+def send_admin_order_action_seller_async(
     order_id: int, action: str, reason: str
 ) -> None:
     """Notify the seller that an admin took action on one of their orders."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     ctx = _load_order_email_context(order_id)
     if not ctx or not ctx.get("seller_email"):
         return
-    subject = f"Admin updated your order #{ctx['order_id']}"
-    body = (
-        f"Hi,\n\nAn admin updated your order #{ctx['order_id']} "
-        f"({ctx['service_name']}) at {ctx.get('store_name') or 'your store'}.\n"
-        f"Action: {action}\n"
-        f"Reason: {reason or '(none provided)'}\n\n"
-        "If you have questions, reply to this email."
+    payload = render_email(
+        "admin_order_action_seller",
+        {
+            "order_id": ctx["order_id"],
+            "service_name": ctx["service_name"],
+            "store_name": ctx.get("store_name") or "your store",
+            "action_label": _action_label(action),
+            "reason": reason or "",
+        },
+        lang=ctx.get("seller_lang") or "en",
     )
-    _resolve_email(ctx["seller_email"], subject, body)
+    _resolve_email(
+        ctx["seller_email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
+
+
+# Back-compat alias so existing callers (tests, imports) keep working until
+# the Celery task name change is fully migrated.
+send_admin_order_action_email = send_admin_order_action_seller_async
 
 
 def _load_seller_application_context(seller_profile_id: int) -> dict[str, Any]:
