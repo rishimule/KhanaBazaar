@@ -1,0 +1,6 @@
+From: {{ customer_email }}
+Subject: {{ user_subject }}
+
+{{ message }}
+
+— Reply directly to this email to reach the customer.

@@ -46,13 +46,29 @@ def send_otp_email_async(to: str, code: str) -> None:
 
 @celery_app.task(name="send_support_email")  # type: ignore[untyped-decorator]
 def send_support_email(customer_email: str, subject: str, message: str) -> None:
-    """Forward a customer support message to the configured SUPPORT_EMAIL inbox."""
-    from app.core.config import settings
+    """Forward a customer support message to the configured SUPPORT_EMAIL inbox.
 
+    Sets ``reply_to`` to the customer's address so admin replies land back
+    on the customer directly.
+    """
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    payload = render_email(
+        "support_message",
+        {
+            "customer_email": customer_email,
+            "user_subject": subject,
+            "message": message,
+        },
+        lang="en",
+    )
     _resolve_email(
         settings.SUPPORT_EMAIL,
-        f"[Support] {subject}",
-        f"From: {customer_email}\n\n{message}",
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=customer_email,
     )
 
 
