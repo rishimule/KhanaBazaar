@@ -60,9 +60,17 @@ def dispatch_admin_order_action(order_id: int, action: str, reason: str) -> None
 
 
 def dispatch_order_status_changed(
-    order_id: int, new_status: str, *, notify_seller: bool = False
+    order_id: int,
+    new_status: str,
+    *,
+    notify_seller: bool = False,
+    reason: str | None = None,
 ) -> None:
     """Notify the customer (always) and optionally the seller of a status change."""
-    _safe_delay(send_order_status_changed_async, order_id, new_status, "customer")
+    _safe_delay(
+        send_order_status_changed_async, order_id, new_status, "customer", reason
+    )
     if notify_seller:
-        _safe_delay(send_order_status_changed_async, order_id, new_status, "seller")
+        _safe_delay(
+            send_order_status_changed_async, order_id, new_status, "seller", reason
+        )

@@ -318,7 +318,9 @@ async def cancel(
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await cancel_order(session, order, user, reason=reason)
     if order.id is not None:
-        dispatch_order_status_changed(order.id, "cancelled", notify_seller=True)
+        dispatch_order_status_changed(
+            order.id, "cancelled", notify_seller=True, reason=reason
+        )
         if user.role == UserRole.Admin:
             dispatch_admin_order_action(
                 order.id, "order.cancel", reason or ""

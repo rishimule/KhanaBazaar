@@ -1,0 +1,7 @@
+Order #{{ order_id }} — {{ service_name }} at {{ store_name }} — is now {{ current }}.
+
+{% if current == 'cancelled' and reason -%}
+Cancellation reason: {{ reason }}
+
+{% endif -%}
+View order: {{ frontend_base_url }}{{ '/seller/orders/' if recipient == 'seller' else '/account/orders/' }}{{ order_id }}

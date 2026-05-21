@@ -162,7 +162,46 @@ def test_status_changed_email_includes_service_name(
         worker.send_order_status_changed_async(7, "packed", recipient)
 
     assert captured["to"] == expected_to
-    assert "Grocery" in captured["subject"]
+    assert "#7" in captured["subject"]
     assert "packed" in captured["subject"]
     assert "Grocery" in captured["body"]
     assert "#7" in captured["body"]
+
+
+@pytest.mark.parametrize("recipient,expected_to", [
+    ("customer", "customer@example.com"),
+    ("seller", "seller@example.com"),
+])
+def test_cancelled_status_email_includes_reason(
+    recipient: str, expected_to: str,
+) -> None:
+    from app import worker
+
+    captured: dict[str, str] = {}
+
+    def _capture(
+        to: str,
+        subject: str,
+        body: str,
+        *,
+        html: str | None = None,
+        reply_to: str | None = None,
+    ) -> None:
+        captured["to"] = to
+        captured["subject"] = subject
+        captured["body"] = body
+        captured["html"] = html or ""
+
+    with (
+        patch("app.worker._load_order_email_context", return_value=_fake_ctx()),
+        patch("app.worker._resolve_email", side_effect=_capture),
+    ):
+        worker.send_order_status_changed_async(
+            7, "cancelled", recipient, "out of stock"
+        )
+
+    assert captured["to"] == expected_to
+    assert "cancelled" in captured["subject"]
+    assert "out of stock" in captured["html"]
+    assert "out of stock" in captured["body"]
+    assert "Cancellation reason" in captured["html"]

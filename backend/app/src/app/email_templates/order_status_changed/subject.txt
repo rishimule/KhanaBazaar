@@ -1,0 +1,1 @@
+[{{ brand_name }}] Order #{{ order_id }} is now {{ current }}

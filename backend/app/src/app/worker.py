@@ -304,26 +304,45 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
     retry_backoff=True,
 )
 def send_order_status_changed_async(
-    order_id: int, new_status: str, recipient: Literal["customer", "seller"] = "customer"
+    order_id: int,
+    new_status: str,
+    recipient: Literal["customer", "seller"] = "customer",
+    reason: str | None = None,
 ) -> None:
     """Notify the customer or seller that an order status changed."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     ctx = _load_order_email_context(order_id)
     if not ctx:
         return
     if recipient == "seller":
         to = ctx.get("seller_email")
+        lang = ctx.get("seller_lang") or "en"
     else:
         to = ctx.get("customer_email")
+        lang = ctx.get("customer_lang") or "en"
     if not to:
         return
-    subject = (
-        f"Order #{ctx['order_id']} · {ctx['service_name']} status: {new_status}"
+    payload = render_email(
+        "order_status_changed",
+        {
+            "order_id": ctx["order_id"],
+            "service_name": ctx["service_name"],
+            "store_name": ctx.get("store_name") or "a store",
+            "current": new_status,
+            "reason": reason,
+            "recipient": recipient,
+        },
+        lang=lang,
     )
-    body = (
-        f"Order #{ctx['order_id']} ({ctx['service_name']}) from "
-        f"{ctx.get('store_name') or 'a store'} is now '{new_status}'."
+    _resolve_email(
+        to,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
     )
-    _resolve_email(to, subject, body)
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
