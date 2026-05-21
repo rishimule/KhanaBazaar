@@ -6,12 +6,13 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { useSearchOverlay } from "@/lib/SearchOverlayContext";
 import { suggest, type SuggestResponse } from "@/lib/searchClient";
 import { SearchDropdown } from "./SearchDropdown";
 import { MobileSearchOverlay } from "./MobileSearchOverlay";
 import styles from "./SearchBar.module.css";
 
-const MOBILE_BREAK = 768;
+const MOBILE_BREAK = 1024;
 const DEBOUNCE_MS = 180;
 
 function SearchIcon() {
@@ -53,7 +54,7 @@ export function SearchBar() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<SuggestResponse | null>(null);
   const [mobile, setMobile] = useState(false);
-  const [showOverlay, setShowOverlay] = useState(false);
+  const { open: showOverlay, setOpen: setShowOverlay } = useSearchOverlay();
   const [activeIndex, setActiveIndex] = useState(-1);
   const debounceRef = useRef<number | null>(null);
 
@@ -147,10 +148,13 @@ export function SearchBar() {
         <button
           type="button"
           aria-label={t("placeholder")}
-          className={styles.iconButton}
+          className={styles.mobilePill}
           onClick={() => setShowOverlay(true)}
         >
-          <SearchIcon />
+          <span className={styles.mobilePillIcon}>
+            <SearchIcon />
+          </span>
+          <span className={styles.mobilePillPlaceholder}>{t("placeholder")}</span>
         </button>
         {showOverlay && (
           <MobileSearchOverlay
