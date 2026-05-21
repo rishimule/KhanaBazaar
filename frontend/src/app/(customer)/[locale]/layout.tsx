@@ -82,7 +82,7 @@ export default async function CustomerLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
-      <body>
+      <body className="kb-customer-root">
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
             <DeliveryLocationProvider>
@@ -91,10 +91,10 @@ export default async function CustomerLayout({
                 <CartProvider>
                   <SearchOverlayProvider>
                     <Navbar />
-                    <CartSyncBanner />
-                    <main>{children}</main>
-                    <Footer />
                   </SearchOverlayProvider>
+                  <CartSyncBanner />
+                  <main>{children}</main>
+                  <Footer />
                 </CartProvider>
               </CustomerAddressesProvider>
             </DeliveryLocationProvider>

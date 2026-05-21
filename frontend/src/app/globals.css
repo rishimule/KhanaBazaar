@@ -52,7 +52,7 @@ body {
 }
 
 @media (max-width: 1023px) {
-  body {
+  body.kb-customer-root {
     padding-top: var(--nav-height-mobile);
     padding-bottom: calc(56px + env(safe-area-inset-bottom));
   }
