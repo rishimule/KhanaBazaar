@@ -64,10 +64,18 @@ def test_placed_seller_email_includes_service_name() -> None:
 
     captured: dict[str, str] = {}
 
-    def _capture(to: str, subject: str, body: str) -> None:
+    def _capture(
+        to: str,
+        subject: str,
+        body: str,
+        *,
+        html: str | None = None,
+        reply_to: str | None = None,
+    ) -> None:
         captured["to"] = to
         captured["subject"] = subject
         captured["body"] = body
+        captured["html"] = html or ""
 
     with (
         patch("app.worker._load_order_email_context", return_value=_fake_ctx()),
@@ -87,10 +95,18 @@ def test_confirmed_customer_email_includes_service_name() -> None:
 
     captured: dict[str, str] = {}
 
-    def _capture(to: str, subject: str, body: str) -> None:
+    def _capture(
+        to: str,
+        subject: str,
+        body: str,
+        *,
+        html: str | None = None,
+        reply_to: str | None = None,
+    ) -> None:
         captured["to"] = to
         captured["subject"] = subject
         captured["body"] = body
+        captured["html"] = html or ""
 
     side_effect = iter([
         _fake_ctx(order_id=11, service_name="Grocery"),
@@ -124,10 +140,18 @@ def test_status_changed_email_includes_service_name(
 
     captured: dict[str, str] = {}
 
-    def _capture(to: str, subject: str, body: str) -> None:
+    def _capture(
+        to: str,
+        subject: str,
+        body: str,
+        *,
+        html: str | None = None,
+        reply_to: str | None = None,
+    ) -> None:
         captured["to"] = to
         captured["subject"] = subject
         captured["body"] = body
+        captured["html"] = html or ""
 
     with (
         patch("app.worker._load_order_email_context", return_value=_fake_ctx()),

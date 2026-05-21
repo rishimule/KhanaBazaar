@@ -235,25 +235,56 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
     """Notify the customer that their order(s) were confirmed.
 
     Accepts a list of order ids (a single checkout may produce multiple
-    per-store orders). Uses the customer email from the first resolvable order.
+    per-store orders). Renders one consolidated email with per-order line
+    items and a single CTA.
     """
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     customer_email: str | None = None
-    parts: list[str] = []
+    customer_first_name: str | None = None
+    customer_lang: str = "en"
+    orders: list[dict[str, Any]] = []
+    grand_total: float = 0.0
+
     for oid in order_ids:
         ctx = _load_order_email_context(oid)
         if not ctx:
             continue
-        if customer_email is None and ctx.get("customer_email"):
-            customer_email = ctx["customer_email"]
-        parts.append(
-            f"Order #{ctx['order_id']} · {ctx['service_name']} "
-            f"from {ctx.get('store_name') or 'a store'} - total {ctx['order_total']}"
+        if customer_email is None:
+            customer_email = ctx.get("customer_email")
+            customer_first_name = ctx.get("customer_first_name")
+            customer_lang = ctx.get("customer_lang") or "en"
+        orders.append(
+            {
+                "order_id": ctx["order_id"],
+                "service_name": ctx["service_name"],
+                "store_name": ctx.get("store_name") or "a store",
+                "line_items": ctx.get("items", []),
+                "order_total": ctx["order_total"],
+            }
         )
-    if not customer_email or not parts:
+        grand_total += float(ctx["order_total"])
+
+    if not customer_email or not orders:
         return
-    subject = "Your Khana Bazaar order is confirmed"
-    body = "Thanks for shopping with Khana Bazaar!\n\n" + "\n".join(parts)
-    _resolve_email(customer_email, subject, body)
+
+    payload = render_email(
+        "order_placed_customer",
+        {
+            "orders": orders,
+            "grand_total": grand_total,
+            "customer_first_name": customer_first_name,
+        },
+        lang=customer_lang,
+    )
+    _resolve_email(
+        customer_email,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]

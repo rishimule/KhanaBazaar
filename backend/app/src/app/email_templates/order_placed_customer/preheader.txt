@@ -1,0 +1,5 @@
+{% if orders|length == 1 -%}
+{{ orders[0].store_name }} · {{ orders[0].service_name }} · {{ orders[0].order_total|inr }}
+{%- else -%}
+You placed {{ orders|length }} orders. Total {{ grand_total|inr }}.
+{%- endif %}
