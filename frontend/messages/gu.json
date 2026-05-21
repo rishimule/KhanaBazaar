@@ -173,6 +173,8 @@
     "codeLabel": "એક વખતનો કોડ",
     "verifying": "ચકાસી રહ્યા છીએ…",
     "verifyCode": "કોડ ચકાસો",
+    "resendCode": "કોડ ફરીથી મોકલો",
+    "resendIn": "{seconds}s માં કોડ ફરી મોકલો",
     "useDifferentEmail": "અલગ ઈમેલ વાપરો",
     "nameLabel": "તમારું નામ",
     "namePlaceholder": "પ્રિયા વર્મા",

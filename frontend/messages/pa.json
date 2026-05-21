@@ -173,6 +173,8 @@
     "codeLabel": "ਇੱਕ-ਵਾਰੀ ਕੋਡ",
     "verifying": "ਪੁਸ਼ਟੀ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ…",
     "verifyCode": "ਕੋਡ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ",
+    "resendCode": "ਕੋਡ ਮੁੜ ਭੇਜੋ",
+    "resendIn": "{seconds}s ਵਿੱਚ ਕੋਡ ਮੁੜ ਭੇਜੋ",
     "useDifferentEmail": "ਵੱਖਰਾ ਈਮੇਲ ਵਰਤੋ",
     "nameLabel": "ਤੁਹਾਡਾ ਨਾਮ",
     "namePlaceholder": "ਪ੍ਰਿਆ ਵਰਮਾ",

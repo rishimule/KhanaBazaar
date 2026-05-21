@@ -153,6 +153,35 @@
   background: var(--hairline);
 }
 
+.resendRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  font-size: var(--body-sm);
+}
+
+.resendHint {
+  color: var(--shade-cool-base-5);
+}
+
+.resendBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary-1);
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-sm);
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--duration-fast);
+}
+
+.resendBtn:hover:not(:disabled) { color: var(--color-btn-primary-hover); }
+.resendBtn:disabled { color: var(--shade-cool-base-4); cursor: not-allowed; text-decoration: none; }
+
 .testAccounts {
   display: flex;
   flex-direction: column;
