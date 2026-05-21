@@ -16,6 +16,7 @@ import { CartProvider } from "@/lib/CartContext";
 import { CustomerAddressesProvider } from "@/lib/CustomerAddressesContext";
 import { DeliveryLocationAutoSync } from "@/components/DeliveryLocationAutoSync";
 import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
+import { SearchOverlayProvider } from "@/lib/SearchOverlayContext";
 import { alternateLanguages } from "@/i18n/metadata";
 import { routing } from "@/i18n/routing";
 
@@ -31,6 +32,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -87,10 +89,12 @@ export default async function CustomerLayout({
               <CustomerAddressesProvider>
                 <DeliveryLocationAutoSync />
                 <CartProvider>
-                  <Navbar />
-                  <CartSyncBanner />
-                  <main>{children}</main>
-                  <Footer />
+                  <SearchOverlayProvider>
+                    <Navbar />
+                    <CartSyncBanner />
+                    <main>{children}</main>
+                    <Footer />
+                  </SearchOverlayProvider>
                 </CartProvider>
               </CustomerAddressesProvider>
             </DeliveryLocationProvider>
