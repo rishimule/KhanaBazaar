@@ -317,14 +317,21 @@ def send_admin_order_action_email(
 )
 def send_seller_approved_async(to_email: str, business_name: str) -> None:
     """Notify a seller that their application has been approved."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     if not to_email:
         return
-    subject = "Your Khana Bazaar seller application is approved"
-    body = (
-        f"Congratulations! Your seller application for {business_name} has been approved.\n\n"
-        "Sign in to your seller dashboard to start managing your store inventory and accepting orders."
+    payload = render_email(
+        "seller_approved", {"business_name": business_name}, lang="en"
     )
-    _resolve_email(to_email, subject, body)
+    _resolve_email(
+        to_email,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
