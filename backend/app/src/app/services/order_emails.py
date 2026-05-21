@@ -17,6 +17,7 @@ from app.worker import (
     send_admin_order_action_seller_async,
     send_order_confirmed_customer_async,
     send_order_placed_seller_async,
+    send_order_review_request_async,
     send_order_status_changed_async,
 )
 
@@ -76,7 +77,11 @@ def dispatch_order_status_changed(
     notify_seller: bool = False,
     reason: str | None = None,
 ) -> None:
-    """Notify the customer (always) and optionally the seller of a status change."""
+    """Notify the customer (always) and optionally the seller of a status change.
+
+    When ``new_status == "delivered"``, also schedule the post-delivery
+    review-request email for 24h later.
+    """
     _safe_delay(
         send_order_status_changed_async, order_id, new_status, "customer", reason
     )
@@ -84,3 +89,12 @@ def dispatch_order_status_changed(
         _safe_delay(
             send_order_status_changed_async, order_id, new_status, "seller", reason
         )
+    if new_status == "delivered":
+        try:
+            send_order_review_request_async.apply_async(
+                args=[order_id], countdown=86400
+            )
+        except _BROKER_ERRORS:
+            logger.exception(
+                "Failed to schedule order_review_request for order_id=%s", order_id
+            )

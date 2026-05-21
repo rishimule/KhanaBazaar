@@ -400,6 +400,39 @@ send_admin_order_action_email = send_admin_order_action_seller_async
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_order_review_request_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_order_review_request_async(order_id: int) -> None:
+    """Ask the customer for a review 24 hours after delivery."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    ctx = _load_order_email_context(order_id)
+    if not ctx or not ctx.get("customer_email"):
+        return
+    payload = render_email(
+        "order_review_request",
+        {
+            "order_id": ctx["order_id"],
+            "service_name": ctx["service_name"],
+            "store_name": ctx.get("store_name") or "a store",
+            "customer_first_name": ctx.get("customer_first_name"),
+        },
+        lang=ctx.get("customer_lang") or "en",
+    )
+    _resolve_email(
+        ctx["customer_email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
     name="send_admin_order_action_customer_async",
     autoretry_for=(Exception,),
     max_retries=3,
