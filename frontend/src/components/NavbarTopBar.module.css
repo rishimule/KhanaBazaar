@@ -78,17 +78,21 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 10px;
+  padding: 10px 10px;
   background: transparent;
   border: none;
-  color: var(--shade-cool-dark-7);
+  color: var(--shade-cool-base-7);
   font-family: var(--font-family-sans);
   font-size: var(--body-sm);
   font-weight: var(--weight-medium);
   cursor: pointer;
   white-space: nowrap;
-  max-width: 60%;
+  min-width: 0;
   flex-shrink: 1;
+}
+
+.deliverChip svg:first-child {
+  color: var(--color-primary-1);
 }
 
 .deliverChip:hover { color: var(--color-primary-1); }
@@ -101,7 +105,8 @@
 }
 
 @media (min-width: 1024px) {
-  .deliverChip { max-width: 200px; flex-shrink: 0; }
+  .deliverChip { padding: 6px 10px; max-width: 200px; }
+  .deliverChip svg:first-child { color: currentColor; }
   .deliverChipText { max-width: 140px; }
 }
 
