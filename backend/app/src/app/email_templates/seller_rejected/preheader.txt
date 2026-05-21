@@ -1,0 +1,1 @@
+Your application was not approved. Reason: {{ reason|default('See email for details') }}.

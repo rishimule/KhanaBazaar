@@ -318,10 +318,16 @@ async def cancel(
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await cancel_order(session, order, user, reason=reason)
     if order.id is not None:
-        dispatch_order_status_changed(order.id, "cancelled", notify_seller=True)
         if user.role == UserRole.Admin:
+            # Admin emails (admin_order_action_*) deliver the cancellation
+            # notice to both audiences with reason + admin context, so the
+            # generic status-changed email would just duplicate them.
             dispatch_admin_order_action(
                 order.id, "order.cancel", reason or ""
+            )
+        else:
+            dispatch_order_status_changed(
+                order.id, "cancelled", notify_seller=True, reason=reason
             )
     return await _serialize_order(session, order, include_customer_name=include_customer)
 

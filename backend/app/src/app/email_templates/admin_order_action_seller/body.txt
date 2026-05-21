@@ -1,0 +1,8 @@
+Hi,
+
+An admin updated your order #{{ order_id }} ({{ service_name }}) at {{ store_name }}.
+
+Action : {{ action_label }}
+Reason : {{ reason|default('(none provided)', true) }}
+
+View order: {{ frontend_base_url }}/seller/orders/{{ order_id }}

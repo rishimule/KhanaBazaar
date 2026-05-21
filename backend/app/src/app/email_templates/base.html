@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="{{ lang|default('en') }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{{ subject }}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
+      {{ preheader }}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+    </div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f6f7f9;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 32px;background:#0b8457;color:#ffffff;">
+                <div style="font-size:20px;font-weight:700;letter-spacing:0.5px;">{{ brand_name }}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;font-size:16px;line-height:1.55;">
+                {% block body %}{% endblock %}
+              </td>
+            </tr>
+            {% include "_partials/footer.html" %}
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

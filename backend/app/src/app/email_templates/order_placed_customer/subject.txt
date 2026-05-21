@@ -1,0 +1,5 @@
+{% if orders|length == 1 -%}
+[{{ brand_name }}] Order #{{ orders[0].order_id }} confirmed
+{%- else -%}
+[{{ brand_name }}] {{ orders|length }} orders confirmed
+{%- endif %}

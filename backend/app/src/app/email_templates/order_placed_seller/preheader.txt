@@ -1,0 +1,1 @@
+{{ items|length }} item(s) — total {{ order_total|inr }}. Prepare for packing.

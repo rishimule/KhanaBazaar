@@ -1,0 +1,17 @@
+Hi {{ customer_first_name|default('there') }},
+
+Thanks for shopping with {{ brand_name }}.
+
+{% for o in orders -%}
+Order #{{ o.order_id }} — {{ o.service_name }} ({{ o.store_name }})
+{% for item in o.line_items -%}
+  - {{ item.name }} × {{ item.qty }} = {{ item.line_total|inr }}
+{% endfor -%}
+Total: {{ o.order_total|inr }}
+
+{% endfor -%}
+{% if orders|length == 1 -%}
+View order: {{ frontend_base_url }}/account/orders/{{ orders[0].order_id }}
+{%- else -%}
+View all orders: {{ frontend_base_url }}/account/orders
+{%- endif %}

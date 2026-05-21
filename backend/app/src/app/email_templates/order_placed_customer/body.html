@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi {{ customer_first_name|default('there') }},</p>
+  <p>Thanks for shopping with {{ brand_name }}. Here {{ 'is' if orders|length == 1 else 'are' }} your order details:</p>
+
+  {% for o in orders %}
+    <div style="margin-top:24px;padding:16px;border:1px solid #e5e7eb;border-radius:8px;">
+      <div style="font-size:16px;font-weight:600;">Order #{{ o.order_id }} — {{ o.service_name }}</div>
+      <div style="font-size:14px;color:#6b7280;margin-bottom:8px;">{{ o.store_name }}</div>
+      {% with items=o.line_items, order_total=o.order_total %}
+        {% include "_partials/line_items.html" %}
+      {% endwith %}
+    </div>
+  {% endfor %}
+
+  {% if orders|length == 1 %}
+    {% set cta_url = frontend_base_url ~ "/account/orders/" ~ orders[0].order_id|string %}
+    {% set cta_label = "View order" %}
+  {% else %}
+    {% set cta_url = frontend_base_url ~ "/account/orders" %}
+    {% set cta_label = "View all orders" %}
+  {% endif %}
+  {% include "_partials/button.html" %}
+
+  <p style="color:#6b7280;font-size:14px;">We will email you again when your {{ 'order is' if orders|length == 1 else 'orders are' }} packed and on the way.</p>
+{% endblock %}

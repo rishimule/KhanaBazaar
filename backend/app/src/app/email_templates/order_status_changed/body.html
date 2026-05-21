@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Order <strong>#{{ order_id }}</strong> — {{ service_name }} at {{ store_name }} — is now <strong style="text-transform:capitalize;">{{ current }}</strong>.</p>
+  {% include "_partials/progress_bar.html" %}
+  {% if current == 'cancelled' and reason %}
+    <div style="background:#fef2f2;border-left:4px solid #b91c1c;padding:12px 16px;margin:16px 0;border-radius:4px;">
+      <div style="font-size:13px;color:#7f1d1d;font-weight:600;margin-bottom:4px;">Cancellation reason</div>
+      <div style="font-size:15px;color:#1f2937;">{{ reason }}</div>
+    </div>
+  {% endif %}
+  {% set cta_url = frontend_base_url ~ ("/seller/orders/" if recipient == 'seller' else "/account/orders/") ~ order_id|string %}
+  {% set cta_label = "View order" %}
+  {% include "_partials/button.html" %}
+{% endblock %}

@@ -1,0 +1,13 @@
+Hi {{ customer_first_name|default('there') }},
+
+Our team made a change to your order #{{ order_id }} ({{ service_name }}).
+
+What changed : {{ action_label }}
+{% if reason -%}
+Reason       : {{ reason }}
+{% endif -%}
+{% if action == 'order.address_override' -%}
+New address  : {{ delivery_address_snapshot }}
+{% endif %}
+
+View order: {{ frontend_base_url }}/account/orders/{{ order_id }}

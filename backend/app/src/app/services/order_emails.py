@@ -13,9 +13,11 @@ from typing import Any
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from app.worker import (
-    send_admin_order_action_email,
+    send_admin_order_action_customer_async,
+    send_admin_order_action_seller_async,
     send_order_confirmed_customer_async,
     send_order_placed_seller_async,
+    send_order_review_request_async,
     send_order_status_changed_async,
 )
 
@@ -54,15 +56,45 @@ def dispatch_order_placed(order_ids: list[int]) -> None:
         _safe_delay(send_order_placed_seller_async, oid)
 
 
+_CUSTOMER_NOTIFY_ACTIONS = frozenset(
+    {"order.rewind", "order.refund", "order.cancel", "order.address_override"}
+)
+
+
 def dispatch_admin_order_action(order_id: int, action: str, reason: str) -> None:
-    """Notify the seller that an admin took action on their order."""
-    _safe_delay(send_admin_order_action_email, order_id, action, reason)
+    """Notify the seller (always) and the customer for impactful admin actions."""
+    _safe_delay(send_admin_order_action_seller_async, order_id, action, reason)
+    if action in _CUSTOMER_NOTIFY_ACTIONS:
+        _safe_delay(
+            send_admin_order_action_customer_async, order_id, action, reason
+        )
 
 
 def dispatch_order_status_changed(
-    order_id: int, new_status: str, *, notify_seller: bool = False
+    order_id: int,
+    new_status: str,
+    *,
+    notify_seller: bool = False,
+    reason: str | None = None,
 ) -> None:
-    """Notify the customer (always) and optionally the seller of a status change."""
-    _safe_delay(send_order_status_changed_async, order_id, new_status, "customer")
+    """Notify the customer (always) and optionally the seller of a status change.
+
+    When ``new_status == "delivered"``, also schedule the post-delivery
+    review-request email for 24h later.
+    """
+    _safe_delay(
+        send_order_status_changed_async, order_id, new_status, "customer", reason
+    )
     if notify_seller:
-        _safe_delay(send_order_status_changed_async, order_id, new_status, "seller")
+        _safe_delay(
+            send_order_status_changed_async, order_id, new_status, "seller", reason
+        )
+    if new_status == "delivered":
+        try:
+            send_order_review_request_async.apply_async(
+                args=[order_id], countdown=86400
+            )
+        except _BROKER_ERRORS:
+            logger.exception(
+                "Failed to schedule order_review_request for order_id=%s", order_id
+            )

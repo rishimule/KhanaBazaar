@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi {{ customer_first_name|default('there') }},</p>
+  <p>Your <strong>{{ service_name }}</strong> order #{{ order_id }} from <strong>{{ store_name }}</strong>{% if delivered_on %} was delivered on {{ delivered_on }}{% else %} was recently delivered{% endif %}. How did it go?</p>
+  <p style="margin:16px 0;">A rating and a short comment helps other shoppers find the right products and helps the seller improve.</p>
+  {% set cta_url = frontend_base_url ~ "/account/orders/" ~ order_id|string %}
+  {% set cta_label = "Rate your order" %}
+  {% include "_partials/button.html" %}
+  <p style="color:#6b7280;font-size:14px;">Takes less than a minute.</p>
+{% endblock %}

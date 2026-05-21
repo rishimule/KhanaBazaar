@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 import fakeredis.aioredis
+import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -13,12 +14,33 @@ from app.core.email import get_email_sender
 from app.core.redis import get_redis
 
 
+class _FailingEmailSender:
+    async def send(self, *args, **kwargs) -> None:
+        raise httpx.ConnectError("boom")
+
+
 class FakeEmailSender:
     def __init__(self) -> None:
-        self.sent: list[dict[str, str]] = []
+        self.sent: list[dict[str, str | None]] = []
 
-    async def send(self, to: str, subject: str, text: str) -> None:
-        self.sent.append({"to": to, "subject": subject, "text": text})
+    async def send(
+        self,
+        to: str,
+        subject: str,
+        *,
+        text: str,
+        html: str | None = None,
+        reply_to: str | None = None,
+    ) -> None:
+        self.sent.append(
+            {
+                "to": to,
+                "subject": subject,
+                "text": text,
+                "html": html,
+                "reply_to": reply_to,
+            }
+        )
 
 
 def _extract_code(text: str) -> str:
@@ -48,6 +70,35 @@ async def auth_client(
         yield {"client": client, "redis": fake_redis, "sender": fake_sender}
     app.dependency_overrides.pop(get_redis, None)
     app.dependency_overrides.pop(get_email_sender, None)
+
+
+async def test_otp_request_falls_back_to_celery_on_sender_failure(
+    fake_redis: fakeredis.aioredis.FakeRedis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the inline send raises httpx.HTTPError, the request still returns
+    200 and the Celery fallback task is enqueued with (email, code)."""
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+    app.dependency_overrides[get_email_sender] = lambda: _FailingEmailSender()
+
+    captured: list[tuple] = []
+    from app.worker import send_otp_email_async
+
+    monkeypatch.setattr(
+        send_otp_email_async, "delay", lambda *args: captured.append(args)
+    )
+
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/auth/otp/request", json={"email": "fallback@example.com"}
+            )
+        assert resp.status_code == 200
+        assert len(captured) == 1
+        assert captured[0][0] == "fallback@example.com"
+    finally:
+        app.dependency_overrides.pop(get_redis, None)
+        app.dependency_overrides.pop(get_email_sender, None)
 
 
 async def test_otp_request_returns_ok(auth_client: dict[str, Any]) -> None:

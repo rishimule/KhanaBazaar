@@ -1,13 +1,15 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import httpx
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.core.email import EmailSender, get_email_sender
+from app.core.email_render import render_email
 from app.core.otp import (
     CodeExpired,
     InvalidCode,
@@ -52,7 +54,10 @@ class OTPRequestBody(BaseModel):
 class OTPVerifyBody(BaseModel):
     email: EmailStr
     code: str
-    full_name: str | None = None
+    # Bounded so customer-controlled `full_name` cannot blow out the
+    # `customer_welcome` email subject. CRLF is additionally stripped by
+    # `core.email_render.render_email`.
+    full_name: str | None = Field(default=None, max_length=120)
 
 
 class SellerOtpVerifyBody(BaseModel):
@@ -100,11 +105,24 @@ async def otp_request(
             status_code=429,
             detail={"error": "rate_limited", "retry_after": exc.retry_after},
         ) from exc
-    await sender.send(
-        to=email,
-        subject="Your Khana Bazaar login code",
-        text=f"Your one-time login code is: {code}\n\nThis code expires in 10 minutes.",
+    ttl_minutes = settings.OTP_TTL_SECONDS // 60
+    payload = render_email(
+        "otp_login", {"code": code, "ttl_minutes": ttl_minutes}, lang="en"
     )
+    try:
+        await sender.send(
+            to=email,
+            subject=payload.subject,
+            text=payload.text,
+            html=payload.html,
+            reply_to=settings.EMAIL_REPLY_TO,
+        )
+    except httpx.HTTPError:
+        # Fall back to the Celery task so the request still returns 200 to the
+        # user; the worker will retry transient Resend errors with backoff.
+        from app.worker import send_otp_email_async
+
+        send_otp_email_async.delay(email, code)
     return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
 
 
@@ -142,6 +160,10 @@ async def otp_verify(
         await session.commit()
         await session.refresh(user)
         full_name = compose_full_name(first_name, last_name)
+        from app.services.seller_emails import dispatch_customer_welcome
+
+        if user.id is not None:
+            dispatch_customer_welcome(user.id)
     else:
         full_name = await _full_name_for_user(session, user)
 
@@ -241,6 +263,14 @@ async def seller_register(
 
     await session.commit()
     await session.refresh(user)
+    await session.refresh(profile)
+
+    if profile.id is not None:
+        from app.services.seller_emails import (
+            dispatch_seller_application_submitted,
+        )
+
+        dispatch_seller_application_submitted(profile.id)
 
     token = create_access_token(user)
     full_name = compose_full_name(first_name, last_name)

@@ -1,0 +1,9 @@
+You have a new {{ service_name }} order at {{ store_name }}.
+
+Order #{{ order_id }}
+{% for item in items -%}
+  - {{ item.name }} × {{ item.qty }} = {{ item.line_total|inr }}
+{% endfor %}
+Total: {{ order_total|inr }}
+
+Open order: {{ frontend_base_url }}/seller/orders/{{ order_id }}

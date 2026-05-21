@@ -1,0 +1,8 @@
+Congratulations!
+
+Your seller application for {{ business_name }} is approved.
+
+Open your seller dashboard:
+{{ frontend_base_url }}/seller
+
+Need help? Reply to this email or write to {{ support_email }}.

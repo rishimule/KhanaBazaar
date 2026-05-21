@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block body %}
+  <p style="color:#6b7280;font-size:14px;">From: <strong style="color:#1f2937;">{{ customer_email }}</strong></p>
+  <p style="color:#6b7280;font-size:14px;">Subject: <strong style="color:#1f2937;">{{ user_subject }}</strong></p>
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
+  <div style="white-space:pre-wrap;font-size:15px;line-height:1.6;">{{ message }}</div>
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
+  <p style="color:#6b7280;font-size:13px;">Reply directly to this email to reach the customer.</p>
+{% endblock %}

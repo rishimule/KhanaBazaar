@@ -1,0 +1,8 @@
+Hi,
+
+Your seller application for {{ business_name }} was not approved at this time.
+
+Reason: {{ reason }}
+
+You can update and resubmit:
+{{ frontend_base_url }}/seller/signup

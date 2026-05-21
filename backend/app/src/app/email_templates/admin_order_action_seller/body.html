@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi,</p>
+  <p>An admin updated your order <strong>#{{ order_id }}</strong> ({{ service_name }}) at <strong>{{ store_name }}</strong>.</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:16px 0;">
+    <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;width:120px;">Action</td><td style="padding:6px 0;font-size:15px;font-weight:600;">{{ action_label }}</td></tr>
+    <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Reason</td><td style="padding:6px 0;font-size:15px;">{{ reason|default('(none provided)', true) }}</td></tr>
+  </table>
+  {% set cta_url = frontend_base_url ~ "/seller/orders/" ~ order_id|string %}
+  {% set cta_label = "View order" %}
+  {% include "_partials/button.html" %}
+  <p style="color:#6b7280;font-size:14px;">If you have questions, reply to this email.</p>
+{% endblock %}

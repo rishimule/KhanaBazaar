@@ -15,63 +15,105 @@ def test_celery_task(self: Any, word: str) -> str:
     return f"Celery processed the word: {word}"
 
 
-@celery_app.task(name="send_otp_email_async")  # type: ignore[untyped-decorator]
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_otp_email_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
 def send_otp_email_async(to: str, code: str) -> None:
-    """Send an OTP code email via the configured provider (sync wrapper for Celery)."""
-    from app.core.config import settings
+    """Render the otp_login template and dispatch.
 
-    if settings.EMAIL_PROVIDER == "resend":
-        import httpx
-        resp = httpx.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
-            json={
-                "from": settings.RESEND_FROM_EMAIL,
-                "to": [to],
-                "subject": "Your Khana Bazaar login code",
-                "text": f"Your one-time login code is: {code}\n\nExpires in 10 minutes.",
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-    else:
-        logging.getLogger(__name__).info("EMAIL to=%s code=%s", to, code)
+    This task is the fallback path when the inline send in `/auth/otp/request`
+    raises an `httpx.HTTPError` (Resend timeout / 5xx / network).
+    """
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    payload = render_email(
+        "otp_login",
+        {"code": code, "ttl_minutes": settings.OTP_TTL_SECONDS // 60},
+        lang="en",
+    )
+    _resolve_email(
+        to,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
 
 
 @celery_app.task(name="send_support_email")  # type: ignore[untyped-decorator]
 def send_support_email(customer_email: str, subject: str, message: str) -> None:
-    """Forward a customer support message to the configured SUPPORT_EMAIL inbox."""
-    from app.core.config import settings
+    """Forward a customer support message to the configured SUPPORT_EMAIL inbox.
 
+    Sets ``reply_to`` to the customer's address so admin replies land back
+    on the customer directly.
+    """
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    payload = render_email(
+        "support_message",
+        {
+            "customer_email": customer_email,
+            "user_subject": subject,
+            "message": message,
+        },
+        lang="en",
+    )
     _resolve_email(
         settings.SUPPORT_EMAIL,
-        f"[Support] {subject}",
-        f"From: {customer_email}\n\n{message}",
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=customer_email,
     )
 
 
-def _resolve_email(to: str, subject: str, body: str) -> None:
+def _resolve_email(
+    to: str,
+    subject: str,
+    body: str,
+    *,
+    html: str | None = None,
+    reply_to: str | None = None,
+) -> None:
     """Send an email via the configured provider, mirroring the OTP email pattern."""
     from app.core.config import settings
 
     if settings.EMAIL_PROVIDER == "resend":
         import httpx
+
+        payload: dict[str, object] = {
+            "from": settings.RESEND_FROM_EMAIL,
+            "to": [to],
+            "subject": subject,
+            "text": body,
+        }
+        if html is not None:
+            payload["html"] = html
+        if reply_to is not None:
+            payload["reply_to"] = reply_to
         resp = httpx.post(
             "https://api.resend.com/emails",
             headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
-            json={
-                "from": settings.RESEND_FROM_EMAIL,
-                "to": [to],
-                "subject": subject,
-                "text": body,
-            },
+            json=payload,
             timeout=10,
         )
         resp.raise_for_status()
     else:
-        logging.getLogger(__name__).info(
-            "EMAIL to=%s subject=%s body=%s", to, subject, body
-        )
+        # Same PII-safety gating as ConsoleEmailSender.send: only log the body
+        # in development; non-dev environments see subject + recipient only.
+        if settings.ENVIRONMENT == "development":
+            logging.getLogger(__name__).info(
+                "EMAIL to=%s subject=%s body=%s", to, subject, body
+            )
+        else:
+            logging.getLogger(__name__).info(
+                "EMAIL to=%s subject=%s (body suppressed)", to, subject
+            )
 
 
 def _load_order_email_context(order_id: int) -> dict[str, Any]:
@@ -99,6 +141,8 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
     from app.models.store import Store
 
     async def _load() -> dict[str, Any]:
+        from app.models.commerce import OrderItem
+
         engine = create_async_engine(settings.DATABASE_URL, echo=False)
         try:
             async with AsyncSession(engine) as session:
@@ -139,6 +183,20 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                             select(User).where(User.id == customer_profile.user_id)
                         )
                     ).first()
+                items_rows = (
+                    await session.exec(
+                        select(OrderItem).where(OrderItem.order_id == order_id)
+                    )
+                ).all()
+                items = [
+                    {
+                        "name": row.product_name_snapshot,
+                        "qty": row.quantity,
+                        "unit_price": row.unit_price_snapshot,
+                        "line_total": row.line_total,
+                    }
+                    for row in items_rows
+                ]
                 return {
                     "order_id": order.id,
                     "order_total": order.total,
@@ -147,6 +205,17 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     "store_name": store.name if store is not None else None,
                     "seller_email": seller_user.email if seller_user is not None else None,
                     "customer_email": customer_user.email if customer_user is not None else None,
+                    "items": items,
+                    "customer_first_name": (
+                        customer_profile.first_name if customer_profile else None
+                    ),
+                    "customer_lang": (
+                        customer_user.preferred_language if customer_user else "en"
+                    ),
+                    "seller_lang": (
+                        seller_user.preferred_language if seller_user else "en"
+                    ),
+                    "delivery_address_snapshot": order.delivery_address_snapshot,
                 }
         finally:
             await engine.dispose()
@@ -163,20 +232,30 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
 )
 def send_order_placed_seller_async(order_id: int) -> None:
     """Notify the seller that a new order was placed at their store."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     ctx = _load_order_email_context(order_id)
     if not ctx or not ctx.get("seller_email"):
         return
-    subject = (
-        f"New {ctx['service_name']} order received at "
-        f"{ctx.get('store_name') or 'your store'}"
+    payload = render_email(
+        "order_placed_seller",
+        {
+            "order_id": ctx["order_id"],
+            "service_name": ctx["service_name"],
+            "store_name": ctx.get("store_name") or "your store",
+            "items": ctx.get("items", []),
+            "order_total": ctx["order_total"],
+        },
+        lang=ctx.get("seller_lang") or "en",
     )
-    body = (
-        f"You have a new {ctx['service_name']} order #{ctx['order_id']} for "
-        f"{ctx.get('store_name') or 'your store'}.\n"
-        f"Order total: {ctx['order_total']}.\n"
-        f"Please prepare it for packing."
+    _resolve_email(
+        ctx["seller_email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
     )
-    _resolve_email(ctx["seller_email"], subject, body)
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
@@ -189,25 +268,56 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
     """Notify the customer that their order(s) were confirmed.
 
     Accepts a list of order ids (a single checkout may produce multiple
-    per-store orders). Uses the customer email from the first resolvable order.
+    per-store orders). Renders one consolidated email with per-order line
+    items and a single CTA.
     """
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     customer_email: str | None = None
-    parts: list[str] = []
+    customer_first_name: str | None = None
+    customer_lang: str = "en"
+    orders: list[dict[str, Any]] = []
+    grand_total: float = 0.0
+
     for oid in order_ids:
         ctx = _load_order_email_context(oid)
         if not ctx:
             continue
-        if customer_email is None and ctx.get("customer_email"):
-            customer_email = ctx["customer_email"]
-        parts.append(
-            f"Order #{ctx['order_id']} · {ctx['service_name']} "
-            f"from {ctx.get('store_name') or 'a store'} - total {ctx['order_total']}"
+        if customer_email is None:
+            customer_email = ctx.get("customer_email")
+            customer_first_name = ctx.get("customer_first_name")
+            customer_lang = ctx.get("customer_lang") or "en"
+        orders.append(
+            {
+                "order_id": ctx["order_id"],
+                "service_name": ctx["service_name"],
+                "store_name": ctx.get("store_name") or "a store",
+                "line_items": ctx.get("items", []),
+                "order_total": ctx["order_total"],
+            }
         )
-    if not customer_email or not parts:
+        grand_total += float(ctx["order_total"])
+
+    if not customer_email or not orders:
         return
-    subject = "Your Khana Bazaar order is confirmed"
-    body = "Thanks for shopping with Khana Bazaar!\n\n" + "\n".join(parts)
-    _resolve_email(customer_email, subject, body)
+
+    payload = render_email(
+        "order_placed_customer",
+        {
+            "orders": orders,
+            "grand_total": grand_total,
+            "customer_first_name": customer_first_name,
+        },
+        lang=customer_lang,
+    )
+    _resolve_email(
+        customer_email,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
@@ -217,26 +327,58 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
     retry_backoff=True,
 )
 def send_order_status_changed_async(
-    order_id: int, new_status: str, recipient: Literal["customer", "seller"] = "customer"
+    order_id: int,
+    new_status: str,
+    recipient: Literal["customer", "seller"] = "customer",
+    reason: str | None = None,
 ) -> None:
     """Notify the customer or seller that an order status changed."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     ctx = _load_order_email_context(order_id)
     if not ctx:
         return
     if recipient == "seller":
         to = ctx.get("seller_email")
+        lang = ctx.get("seller_lang") or "en"
     else:
         to = ctx.get("customer_email")
+        lang = ctx.get("customer_lang") or "en"
     if not to:
         return
-    subject = (
-        f"Order #{ctx['order_id']} · {ctx['service_name']} status: {new_status}"
+    payload = render_email(
+        "order_status_changed",
+        {
+            "order_id": ctx["order_id"],
+            "service_name": ctx["service_name"],
+            "store_name": ctx.get("store_name") or "a store",
+            "current": new_status,
+            "reason": reason,
+            "recipient": recipient,
+        },
+        lang=lang,
     )
-    body = (
-        f"Order #{ctx['order_id']} ({ctx['service_name']}) from "
-        f"{ctx.get('store_name') or 'a store'} is now '{new_status}'."
+    _resolve_email(
+        to,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
     )
-    _resolve_email(to, subject, body)
+
+
+_ACTION_LABELS = {
+    "order.rewind": "Status reverted",
+    "order.refund": "Refunded",
+    "order.cancel": "Cancelled",
+    "order.address_override": "Delivery address updated",
+    "order.transition": "Status changed",
+}
+
+
+def _action_label(action: str) -> str:
+    return _ACTION_LABELS.get(action, action)
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
@@ -245,22 +387,290 @@ def send_order_status_changed_async(
     max_retries=3,
     retry_backoff=True,
 )
-def send_admin_order_action_email(
+def send_admin_order_action_seller_async(
     order_id: int, action: str, reason: str
 ) -> None:
     """Notify the seller that an admin took action on one of their orders."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     ctx = _load_order_email_context(order_id)
     if not ctx or not ctx.get("seller_email"):
         return
-    subject = f"Admin updated your order #{ctx['order_id']}"
-    body = (
-        f"Hi,\n\nAn admin updated your order #{ctx['order_id']} "
-        f"({ctx['service_name']}) at {ctx.get('store_name') or 'your store'}.\n"
-        f"Action: {action}\n"
-        f"Reason: {reason or '(none provided)'}\n\n"
-        "If you have questions, reply to this email."
+    payload = render_email(
+        "admin_order_action_seller",
+        {
+            "order_id": ctx["order_id"],
+            "service_name": ctx["service_name"],
+            "store_name": ctx.get("store_name") or "your store",
+            "action_label": _action_label(action),
+            "reason": reason or "",
+        },
+        lang=ctx.get("seller_lang") or "en",
     )
-    _resolve_email(ctx["seller_email"], subject, body)
+    _resolve_email(
+        ctx["seller_email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
+
+
+# Back-compat alias so existing callers (tests, imports) keep working until
+# the Celery task name change is fully migrated.
+send_admin_order_action_email = send_admin_order_action_seller_async
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_order_review_request_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_order_review_request_async(order_id: int) -> None:
+    """Ask the customer for a review ~24 hours after delivery.
+
+    The Celery countdown is not exact (broker restart / retry may shift it),
+    so we pass the actual delivered-on date from `Delivery.delivered_at` if
+    available rather than the brittle copy "delivered yesterday".
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    ctx = _load_order_email_context(order_id)
+    if not ctx or not ctx.get("customer_email"):
+        return
+
+    # Best-effort: look up Delivery.delivered_at so the email can name the
+    # actual date instead of "yesterday".
+    delivered_on: str | None = None
+    try:
+        import asyncio
+        import concurrent.futures
+
+        from sqlmodel import select
+
+        from app.models.commerce import Delivery
+
+        async def _load_delivered_at() -> datetime | None:
+            engine = create_async_engine(settings.DATABASE_URL, echo=False)
+            try:
+                async with AsyncSession(engine) as session:
+                    delivery = (
+                        await session.exec(
+                            select(Delivery).where(Delivery.order_id == order_id)
+                        )
+                    ).first()
+                    return getattr(delivery, "delivered_at", None) if delivery else None
+            finally:
+                await engine.dispose()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            dt = executor.submit(lambda: asyncio.run(_load_delivered_at())).result()
+        if dt is not None:
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            delivered_on = dt.strftime("%-d %b %Y")
+    except Exception:
+        # Non-fatal — the template handles missing `delivered_on` gracefully.
+        delivered_on = None
+
+    payload = render_email(
+        "order_review_request",
+        {
+            "order_id": ctx["order_id"],
+            "service_name": ctx["service_name"],
+            "store_name": ctx.get("store_name") or "a store",
+            "customer_first_name": ctx.get("customer_first_name"),
+            "delivered_on": delivered_on,
+        },
+        lang=ctx.get("customer_lang") or "en",
+    )
+    _resolve_email(
+        ctx["customer_email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_admin_order_action_customer_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_admin_order_action_customer_async(
+    order_id: int, action: str, reason: str
+) -> None:
+    """Notify the customer that an admin acted on their order."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    ctx = _load_order_email_context(order_id)
+    if not ctx or not ctx.get("customer_email"):
+        return
+    payload = render_email(
+        "admin_order_action_customer",
+        {
+            "order_id": ctx["order_id"],
+            "service_name": ctx["service_name"],
+            "customer_first_name": ctx.get("customer_first_name"),
+            "action": action,
+            "action_label": _action_label(action),
+            "reason": reason or "",
+            "delivery_address_snapshot": ctx.get("delivery_address_snapshot") or "",
+        },
+        lang=ctx.get("customer_lang") or "en",
+    )
+    _resolve_email(
+        ctx["customer_email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
+
+
+def _load_customer_welcome_context(user_id: int) -> dict[str, Any]:
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.models.base import User
+    from app.models.profile import CustomerProfile
+
+    async def _load() -> dict[str, Any]:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                user = (
+                    await session.exec(select(User).where(User.id == user_id))
+                ).first()
+                if user is None or not user.email:
+                    return {}
+                profile = (
+                    await session.exec(
+                        select(CustomerProfile).where(
+                            CustomerProfile.user_id == user_id
+                        )
+                    )
+                ).first()
+                first_name = profile.first_name if profile else "there"
+                return {
+                    "email": user.email,
+                    "first_name": first_name,
+                    "lang": user.preferred_language or "en",
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_customer_welcome_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_customer_welcome_async(user_id: int) -> None:
+    """Greet a newly-registered customer (fires only on User row creation)."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    ctx = _load_customer_welcome_context(user_id)
+    if not ctx:
+        return
+    payload = render_email(
+        "customer_welcome", {"first_name": ctx["first_name"]}, lang=ctx["lang"]
+    )
+    _resolve_email(
+        ctx["email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
+
+
+def _load_seller_application_context(seller_profile_id: int) -> dict[str, Any]:
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.models.base import User
+    from app.models.profile import SellerProfile
+
+    async def _load() -> dict[str, Any]:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                profile = (
+                    await session.exec(
+                        select(SellerProfile).where(SellerProfile.id == seller_profile_id)
+                    )
+                ).first()
+                if profile is None:
+                    return {}
+                user = (
+                    await session.exec(select(User).where(User.id == profile.user_id))
+                ).first()
+                submitted_at = (
+                    profile.updated_at.strftime("%Y-%m-%d %H:%M UTC")
+                    if profile.updated_at
+                    else ""
+                )
+                return {
+                    "business_name": profile.business_name,
+                    "applicant_email": user.email if user else "",
+                    "submitted_at": submitted_at,
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_seller_application_submitted_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_seller_application_submitted_async(seller_profile_id: int) -> None:
+    """Notify the support inbox that a new seller application is pending."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    ctx = _load_seller_application_context(seller_profile_id)
+    if not ctx:
+        return
+    payload = render_email("seller_application_submitted", ctx, lang="en")
+    _resolve_email(
+        settings.SUPPORT_EMAIL,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=ctx.get("applicant_email") or settings.EMAIL_REPLY_TO,
+    )
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
@@ -271,14 +681,21 @@ def send_admin_order_action_email(
 )
 def send_seller_approved_async(to_email: str, business_name: str) -> None:
     """Notify a seller that their application has been approved."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     if not to_email:
         return
-    subject = "Your Khana Bazaar seller application is approved"
-    body = (
-        f"Congratulations! Your seller application for {business_name} has been approved.\n\n"
-        "Sign in to your seller dashboard to start managing your store inventory and accepting orders."
+    payload = render_email(
+        "seller_approved", {"business_name": business_name}, lang="en"
     )
-    _resolve_email(to_email, subject, body)
+    _resolve_email(
+        to_email,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
@@ -291,15 +708,23 @@ def send_seller_rejected_async(
     to_email: str, business_name: str, reason: str
 ) -> None:
     """Notify a seller that their application has been rejected."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     if not to_email:
         return
-    subject = "Update on your Khana Bazaar seller application"
-    body = (
-        f"Your seller application for {business_name} was not approved at this time.\n\n"
-        f"Reason: {reason}\n\n"
-        "You may update your application details and resubmit for review."
+    payload = render_email(
+        "seller_rejected",
+        {"business_name": business_name, "reason": reason or "Not specified"},
+        lang="en",
     )
-    _resolve_email(to_email, subject, body)
+    _resolve_email(
+        to_email,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
 
 
 # ---------------------------------------------------------------------------

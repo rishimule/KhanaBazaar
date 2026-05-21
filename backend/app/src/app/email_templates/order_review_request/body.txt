@@ -1,0 +1,8 @@
+Hi {{ customer_first_name|default('there') }},
+
+Your {{ service_name }} order #{{ order_id }} from {{ store_name }}{% if delivered_on %} was delivered on {{ delivered_on }}{% else %} was recently delivered{% endif %}.
+
+Leave a quick rating + comment:
+{{ frontend_base_url }}/account/orders/{{ order_id }}
+
+Takes less than a minute.

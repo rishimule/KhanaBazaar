@@ -28,6 +28,7 @@ from app.schemas.sellers import (
 from app.services.eligible_products import list_eligible_products
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_emails import (
+    dispatch_seller_application_submitted,
     dispatch_seller_approved,
     dispatch_seller_rejected,
 )
@@ -134,11 +135,19 @@ async def update_seller_profile(
     for key, value in address_from_payload(body.address).items():
         setattr(address, key, value)
 
+    # Capture status BEFORE the unconditional Pending reset so we can detect
+    # an actual state transition (Rejected/Approved → Pending = resubmit).
+    previous_status = profile.verification_status
     profile.verification_status = VerificationStatus.Pending
     profile.rejection_reason = None
 
     await session.commit()
     await session.refresh(profile)
+
+    is_resubmit = previous_status != VerificationStatus.Pending
+    if is_resubmit and profile.id is not None:
+        dispatch_seller_application_submitted(profile.id)
+
     return {
         "verification_status": profile.verification_status,
         "rejection_reason": profile.rejection_reason,
