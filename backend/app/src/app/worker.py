@@ -344,15 +344,23 @@ def send_seller_rejected_async(
     to_email: str, business_name: str, reason: str
 ) -> None:
     """Notify a seller that their application has been rejected."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
     if not to_email:
         return
-    subject = "Update on your Khana Bazaar seller application"
-    body = (
-        f"Your seller application for {business_name} was not approved at this time.\n\n"
-        f"Reason: {reason}\n\n"
-        "You may update your application details and resubmit for review."
+    payload = render_email(
+        "seller_rejected",
+        {"business_name": business_name, "reason": reason or "Not specified"},
+        lang="en",
     )
-    _resolve_email(to_email, subject, body)
+    _resolve_email(
+        to_email,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
 
 
 # ---------------------------------------------------------------------------
