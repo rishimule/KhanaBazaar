@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>A new seller application is pending review.</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:16px 0;">
+    <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;width:140px;">Business name</td><td style="padding:6px 0;font-size:15px;font-weight:600;">{{ business_name }}</td></tr>
+    <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Applicant email</td><td style="padding:6px 0;font-size:15px;">{{ applicant_email }}</td></tr>
+    <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Submitted at</td><td style="padding:6px 0;font-size:15px;">{{ submitted_at }}</td></tr>
+  </table>
+  {% set cta_url = frontend_base_url ~ "/admin/sellers" %}
+  {% set cta_label = "Review applications" %}
+  {% include "_partials/button.html" %}
+{% endblock %}

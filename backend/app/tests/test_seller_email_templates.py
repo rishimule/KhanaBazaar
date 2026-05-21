@@ -54,6 +54,42 @@ def test_seller_rejected_email_renders_reason_and_resubmit_cta():
     assert "/seller/signup" in cap["body"]
 
 
+def test_seller_application_submitted_renders_to_support_inbox():
+    cap, fake = _capture()
+    fake_ctx = {
+        "business_name": "Sample Mart",
+        "applicant_email": "owner@example.com",
+        "submitted_at": "2026-05-21 10:00 UTC",
+    }
+    with (
+        patch("app.worker._resolve_email", side_effect=fake),
+        patch(
+            "app.worker._load_seller_application_context", return_value=fake_ctx
+        ),
+    ):
+        from app.worker import send_seller_application_submitted_async
+
+        send_seller_application_submitted_async(123)
+
+    assert "Sample Mart" in cap["subject"]
+    assert "owner@example.com" in cap["html"]
+    assert "/admin/sellers" in cap["html"]
+    assert cap["reply_to"] == "owner@example.com"
+
+
+def test_seller_application_submitted_skips_when_ctx_empty():
+    cap, fake = _capture()
+    with (
+        patch("app.worker._resolve_email", side_effect=fake),
+        patch("app.worker._load_seller_application_context", return_value={}),
+    ):
+        from app.worker import send_seller_application_submitted_async
+
+        send_seller_application_submitted_async(999)
+
+    assert cap == {}
+
+
 def test_seller_rejected_email_with_empty_reason_uses_fallback():
     cap, fake = _capture()
     with patch("app.worker._resolve_email", side_effect=fake):

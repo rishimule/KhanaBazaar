@@ -1,0 +1,7 @@
+New seller application is pending review.
+
+Business name : {{ business_name }}
+Applicant     : {{ applicant_email }}
+Submitted at  : {{ submitted_at }}
+
+Review queue: {{ frontend_base_url }}/admin/sellers

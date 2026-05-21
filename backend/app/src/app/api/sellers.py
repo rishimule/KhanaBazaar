@@ -28,6 +28,7 @@ from app.schemas.sellers import (
 from app.services.eligible_products import list_eligible_products
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_emails import (
+    dispatch_seller_application_submitted,
     dispatch_seller_approved,
     dispatch_seller_rejected,
 )
@@ -139,6 +140,13 @@ async def update_seller_profile(
 
     await session.commit()
     await session.refresh(profile)
+
+    if (
+        profile.verification_status == VerificationStatus.Pending
+        and profile.id is not None
+    ):
+        dispatch_seller_application_submitted(profile.id)
+
     return {
         "verification_status": profile.verification_status,
         "rejection_reason": profile.rejection_reason,

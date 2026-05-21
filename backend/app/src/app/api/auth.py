@@ -256,6 +256,14 @@ async def seller_register(
 
     await session.commit()
     await session.refresh(user)
+    await session.refresh(profile)
+
+    if profile.id is not None:
+        from app.services.seller_emails import (
+            dispatch_seller_application_submitted,
+        )
+
+        dispatch_seller_application_submitted(profile.id)
 
     token = create_access_token(user)
     full_name = compose_full_name(first_name, last_name)

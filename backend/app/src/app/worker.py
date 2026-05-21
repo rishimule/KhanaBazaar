@@ -309,6 +309,73 @@ def send_admin_order_action_email(
     _resolve_email(ctx["seller_email"], subject, body)
 
 
+def _load_seller_application_context(seller_profile_id: int) -> dict[str, Any]:
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.models.base import User
+    from app.models.profile import SellerProfile
+
+    async def _load() -> dict[str, Any]:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                profile = (
+                    await session.exec(
+                        select(SellerProfile).where(SellerProfile.id == seller_profile_id)
+                    )
+                ).first()
+                if profile is None:
+                    return {}
+                user = (
+                    await session.exec(select(User).where(User.id == profile.user_id))
+                ).first()
+                submitted_at = (
+                    profile.updated_at.strftime("%Y-%m-%d %H:%M UTC")
+                    if profile.updated_at
+                    else ""
+                )
+                return {
+                    "business_name": profile.business_name,
+                    "applicant_email": user.email if user else "",
+                    "submitted_at": submitted_at,
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_seller_application_submitted_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_seller_application_submitted_async(seller_profile_id: int) -> None:
+    """Notify the support inbox that a new seller application is pending."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    ctx = _load_seller_application_context(seller_profile_id)
+    if not ctx:
+        return
+    payload = render_email("seller_application_submitted", ctx, lang="en")
+    _resolve_email(
+        settings.SUPPORT_EMAIL,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=ctx.get("applicant_email") or settings.EMAIL_REPLY_TO,
+    )
+
+
 @celery_app.task(  # type: ignore[untyped-decorator]
     name="send_seller_approved_async",
     autoretry_for=(Exception,),
