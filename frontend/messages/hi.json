@@ -17,7 +17,11 @@
     "drawerSignOut": "साइन आउट",
     "drawerSignIn": "साइन इन",
     "drawerUserFallback": "उपयोगकर्ता",
-    "backToDashboard": "डैशबोर्ड पर वापस"
+    "backToDashboard": "डैशबोर्ड पर वापस",
+    "tabHome": "होम",
+    "tabStores": "दुकानें",
+    "tabCart": "कार्ट",
+    "tabAccount": "खाता"
   },
   "Home": {
     "badge": "प्रीमियम लोकल किराना",

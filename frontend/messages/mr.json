@@ -17,7 +17,11 @@
     "drawerSignOut": "साइन आउट",
     "drawerSignIn": "साइन इन",
     "drawerUserFallback": "वापरकर्ता",
-    "backToDashboard": "डॅशबोर्डवर परत"
+    "backToDashboard": "डॅशबोर्डवर परत",
+    "tabHome": "मुख्यपृष्ठ",
+    "tabStores": "दुकाने",
+    "tabCart": "कार्ट",
+    "tabAccount": "खाते"
   },
   "Home": {
     "badge": "प्रीमियम स्थानिक किराणा",
