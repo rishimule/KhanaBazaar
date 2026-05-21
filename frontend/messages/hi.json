@@ -173,6 +173,8 @@
     "codeLabel": "एक-बारगी कोड",
     "verifying": "सत्यापित हो रहा है…",
     "verifyCode": "कोड सत्यापित करें",
+    "resendCode": "कोड फिर से भेजें",
+    "resendIn": "{seconds}s में कोड फिर भेजें",
     "useDifferentEmail": "दूसरा ईमेल उपयोग करें",
     "nameLabel": "आपका नाम",
     "namePlaceholder": "प्रिया वर्मा",

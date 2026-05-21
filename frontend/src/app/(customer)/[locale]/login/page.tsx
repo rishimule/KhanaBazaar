@@ -12,6 +12,8 @@ import styles from "./page.module.css";
 
 type Step = "email" | "code" | "name";
 
+const RESEND_COOLDOWN_SECONDS = 60;
+
 function getRedirect(user: User): string {
   if (user.role === "admin") return "/admin";
   if (user.role === "seller") return "/seller";
@@ -44,11 +46,22 @@ function LoginPageInner() {
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
 
   useEffect(() => {
     if (!dbUser) return;
     router.push(resolveTarget(dbUser, nextParam));
   }, [dbUser, router, nextParam]);
+
+  useEffect(() => {
+    if (step !== "code") return;
+    if (resendIn <= 0) return;
+    const timer = window.setInterval(() => {
+      setResendIn((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [step, resendIn]);
 
   if (dbUser) {
     return null;
@@ -61,6 +74,7 @@ function LoginPageInner() {
     try {
       await requestOtp(email);
       setStep("code");
+      setResendIn(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       const key = apiErrorKey(err);
       if (key) {
@@ -70,6 +84,26 @@ function LoginPageInner() {
       }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (resendIn > 0 || resending) return;
+    setError(null);
+    setResending(true);
+    try {
+      await requestOtp(email);
+      setCode("");
+      setResendIn(RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      const key = apiErrorKey(err);
+      if (key) {
+        setError(tErr(key.replace(/^Errors\./, "")));
+      } else {
+        setError(err instanceof Error ? err.message : t("errSendCode"));
+      }
+    } finally {
+      setResending(false);
     }
   };
 
@@ -191,6 +225,22 @@ function LoginPageInner() {
             >
               {submitting ? t("verifying") : t("verifyCode")}
             </button>
+            <div className={styles.resendRow}>
+              {resendIn > 0 ? (
+                <span className={styles.resendHint}>
+                  {t("resendIn", { seconds: resendIn })}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.resendBtn}
+                  onClick={handleResendCode}
+                  disabled={resending}
+                >
+                  {resending ? t("sending") : t("resendCode")}
+                </button>
+              )}
+            </div>
             <button
               type="button"
               className={styles.testBtn}
@@ -198,6 +248,7 @@ function LoginPageInner() {
                 setStep("email");
                 setCode("");
                 setError(null);
+                setResendIn(0);
               }}
             >
               {t("useDifferentEmail")}

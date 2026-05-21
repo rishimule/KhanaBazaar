@@ -173,6 +173,8 @@
     "codeLabel": "One-time code",
     "verifying": "Verifying…",
     "verifyCode": "Verify code",
+    "resendCode": "Resend code",
+    "resendIn": "Resend code in {seconds}s",
     "useDifferentEmail": "Use a different email",
     "nameLabel": "Your name",
     "namePlaceholder": "Priya Verma",

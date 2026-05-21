@@ -173,6 +173,8 @@
     "codeLabel": "एक-वेळचा कोड",
     "verifying": "पडताळत आहे…",
     "verifyCode": "कोड पडताळा",
+    "resendCode": "कोड पुन्हा पाठवा",
+    "resendIn": "{seconds}s मध्ये कोड पुन्हा पाठवा",
     "useDifferentEmail": "वेगळा ईमेल वापरा",
     "nameLabel": "तुमचे नाव",
     "namePlaceholder": "प्रिया वर्मा",
