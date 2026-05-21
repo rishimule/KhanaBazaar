@@ -59,7 +59,8 @@ frontend/src/
 docs/                    architecture, flows, local_setup, development_guide, azure_deployment,
                           seller_signup, google_maps_setup, price_comparison
 scripts/                 dev.sh, reset_local_state.sh, log_viewer.py
-infra/                   Bicep modules + azure.yaml (azd)
+infra/                   Bicep modules (only `modules/meilisearch.bicep` committed today;
+                          `main.bicep` + `azure.yaml` TBD — see `docs/azure_deployment.md`)
 ```
 
 ## Prerequisites
@@ -218,6 +219,7 @@ npm run lint
 | `OTP_MAX_PER_HOUR` | no | `5` |
 | `EMAIL_PROVIDER` | no | `console` (`resend` for prod) |
 | `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | only if `resend` | — |
+| `SUPPORT_EMAIL` | no | `support@khanabazaar.example` (destination for `/customers/me/support` messages) |
 | `SMS_PROVIDER` | no | `console` (`twilio` for prod) — drives seller phone OTP |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | only if `twilio` | — |
 | `FRONTEND_ORIGIN` | no | `http://localhost:3000,http://127.0.0.1:3000` (comma-separated CORS allow-list) |
@@ -242,7 +244,7 @@ npm run lint
 
 ## Deployment
 
-Microsoft Azure — Container Apps (api, worker, web) + Postgres Flexible Server + Cache for Redis, fronted by Azure Front Door. Infra is Bicep + `azd up`; CI/CD is GitHub Actions with OIDC. See [`docs/azure_deployment.md`](docs/azure_deployment.md).
+Microsoft Azure — Container Apps (api, worker, beat, meili, web) + Postgres Flexible Server + Cache for Redis, fronted by Azure Front Door (Premium). Infra is Bicep + `azd up`; CI/CD is GitHub Actions with OIDC. Today only `infra/modules/meilisearch.bicep` is committed; the rest of Phase 5 is target spec. See [`docs/azure_deployment.md`](docs/azure_deployment.md).
 
 ## Documentation
 
@@ -260,7 +262,7 @@ Microsoft Azure — Container Apps (api, worker, web) + Postgres Flexible Server
 
 - Branch off `main`: `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`.
 - Conventional Commits — `<type>(<scope>): <summary>`, ≤72 chars, no trailing period.
-- PRs target `main`, must pass CI (lint + types + tests), merged via merge-commit (`gh pr merge --merge`).
+- PRs target `main`, must pass CI (Ruff lint + Mypy advisory; Pytest is intentionally **not** in CI — run `uv run pytest -q` locally before merging), merged via merge-commit (`gh pr merge --merge`).
 - Never commit `.env` / secrets; never `git push --force` on shared branches.
 
 ## Copyright

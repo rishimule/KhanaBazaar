@@ -4,7 +4,7 @@
 //
 // Meilisearch Container App + Azure Files share for persistent index data.
 // Internal-only ingress — reached over the managed environment's private
-// network by `kb-prod-api-cin` and `kb-prod-worker-cin`.
+// network by `kb-prod-api-cin`, `kb-prod-worker-cin`, and `kb-prod-beat-cin`.
 
 @description('Azure region (e.g. centralindia).')
 param location string
@@ -18,7 +18,7 @@ param logAnalyticsWorkspaceId string
 @description('Container Apps environment name (extracted for storage definition).')
 param environmentName string
 
-@description('Meilisearch master key. Pass from Key Vault via @Microsoft.KeyVault(...).')
+@description('Meilisearch master key. The parent (main.bicep) is expected to read this from Key Vault and pass it in as a secure parameter. Container Apps does NOT support the App Service @Microsoft.KeyVault(...) reference syntax — use the secrets[].keyVaultUrl + env[].secretRef pattern instead.')
 @secure()
 param meiliMasterKey string
 

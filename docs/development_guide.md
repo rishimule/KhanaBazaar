@@ -33,11 +33,26 @@ Lives at `backend/app/.env`. Template is `backend/app/.env.example`. Loader is t
 | `EMAIL_PROVIDER` | `console` | `console` prints OTPs to stdout. `resend` sends real email via raw httpx call. |
 | `RESEND_API_KEY` | `""` | Required when `EMAIL_PROVIDER=resend`. |
 | `RESEND_FROM_EMAIL` | `""` | Required when `EMAIL_PROVIDER=resend`. |
+| `SUPPORT_EMAIL` | `support@khanabazaar.example` | Destination inbox for `/customers/me/support` messages. Override per environment. |
+| `SMS_PROVIDER` | `console` | `console` logs codes to stdout. `twilio` does direct httpx POST (no SDK). Drives seller phone-OTP step. |
+| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | `""` | Required when `SMS_PROVIDER=twilio`. `TWILIO_FROM_NUMBER` is E.164 (e.g. `+15005550006`). |
 | `JWT_EXPIRES_HOURS` | `24` | Access-token TTL. |
 | `OTP_TTL_SECONDS` | `600` | OTP code lifetime in Redis. |
 | `OTP_MAX_ATTEMPTS` | `5` | Verify failures before key is purged. |
 | `OTP_RESEND_COOLDOWN` | `60` | Seconds between OTP requests for one email. |
 | `OTP_MAX_PER_HOUR` | `5` | Hourly OTP request cap per email. |
+| `FRONTEND_ORIGIN` | `http://localhost:3000,http://127.0.0.1:3000` | Comma-separated CORS allow-list. Exposed via `Settings.cors_origins` and fed to `CORSMiddleware`. Override for staging/prod with the public frontend URLs. |
+| `GOOGLE_MAPS_SERVER_API_KEY` | `""` | Required for `/api/v1/geo/*`. Server-only, IP-restricted in GCP console. |
+| `GOOGLE_MAPS_BROWSER_API_KEY` | `""` | Referrer-restricted; exposed to the frontend as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` at build time. |
+| `GEO_RATE_LIMIT_PER_MIN` | `30` | Per-IP rate limit on `/geo/*`. |
+| `GEO_AUTOCOMPLETE_CACHE_TTL_SECONDS` | `60` | Redis TTL for autocomplete cache. |
+| `GEO_REVERSE_CACHE_TTL_SECONDS` | `86400` | Redis TTL for reverse-geocode cache (24 h). |
+| `MEILI_URL` | `http://localhost:7700` | Meilisearch HTTP endpoint. |
+| `MEILI_MASTER_KEY` | `dev-master-key-change-me` | Master key. Change for non-dev environments. |
+| `SEARCH_RATE_LIMIT_SUGGEST_PER_MIN` | `60` | Per-IP rate limit on `/search/suggest`. |
+| `SEARCH_RATE_LIMIT_PRODUCTS_PER_MIN` | `30` | Per-IP rate limit on `/search/products`. |
+| `SEARCH_SUGGEST_CACHE_TTL_SECONDS` | `60` | Redis TTL for suggest cache. |
+| `SEARCH_SERVICEABLE_GRID_TTL_SECONDS` | `60` | Redis TTL for the ~500 m serviceable-store grid cache. |
 
 ### Frontend `.env.local`
 
@@ -483,11 +498,21 @@ uv run python -m app.search.reindex --products --since 1h       # incremental
 
 ### Celery beat jobs
 
+Defined in `app/core/celery_app.py:26-62`.
+
 | Task | Schedule (UTC) | Purpose |
 |---|---|---|
 | `search.rebuild_search_terms` | 03:15 daily | Rebuild autocomplete corpus |
 | `search.prune_query_log` | 04:00 daily | Drop `search_query_log` rows older than 90 days |
-| `search.verify_drift` | 04:30 daily | Sample 1000 products, diff DB vs Meili, re-enqueue divergent ones |
+| `search.verify_drift` | 04:30 daily | Sample 1000 products, diff DB vs Meili, re-enqueue divergent ones (legacy safety net; retiring once `reconcile_index` proves itself) |
+| `search.reconcile_index` (`product`, shallow) | hourly at `:07` | Walk DB → Meili, drain `search:dlq:product`, re-enqueue drifted ids |
+| `search.reconcile_index` (`product`, deep) | 04:30 daily | Full reconcile pass for products |
+| `search.reconcile_index` (`store`, shallow) | hourly at `:22` | Same as product but for stores |
+| `search.reconcile_index` (`store`, deep) | 04:45 daily | Full reconcile pass for stores |
+
+Reconciler state lives in Redis at `search:reconcile:last:{kind}` (latest summary) and `search:reconcile:abort:{kind}` (kill switch). Dead-letter sets: `search:dlq:{product,store}` (see `app/search/dlq.py`).
+
+Run locally: `uv run celery -A app.core.celery_app beat --loglevel=info` (in a third terminal alongside `worker`).
 
 ### Locality
 
