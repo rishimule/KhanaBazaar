@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import httpx
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -8,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.core.email import EmailSender, get_email_sender
+from app.core.email_render import render_email
 from app.core.otp import (
     CodeExpired,
     InvalidCode,
@@ -100,11 +102,24 @@ async def otp_request(
             status_code=429,
             detail={"error": "rate_limited", "retry_after": exc.retry_after},
         ) from exc
-    await sender.send(
-        to=email,
-        subject="Your Khana Bazaar login code",
-        text=f"Your one-time login code is: {code}\n\nThis code expires in 10 minutes.",
+    ttl_minutes = settings.OTP_TTL_SECONDS // 60
+    payload = render_email(
+        "otp_login", {"code": code, "ttl_minutes": ttl_minutes}, lang="en"
     )
+    try:
+        await sender.send(
+            to=email,
+            subject=payload.subject,
+            text=payload.text,
+            html=payload.html,
+            reply_to=settings.EMAIL_REPLY_TO,
+        )
+    except httpx.HTTPError:
+        # Fall back to the Celery task so the request still returns 200 to the
+        # user; the worker will retry transient Resend errors with backoff.
+        from app.worker import send_otp_email_async
+
+        send_otp_email_async.delay(email, code)
     return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
 
 

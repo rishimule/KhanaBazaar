@@ -15,27 +15,33 @@ def test_celery_task(self: Any, word: str) -> str:
     return f"Celery processed the word: {word}"
 
 
-@celery_app.task(name="send_otp_email_async")  # type: ignore[untyped-decorator]
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_otp_email_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
 def send_otp_email_async(to: str, code: str) -> None:
-    """Send an OTP code email via the configured provider (sync wrapper for Celery)."""
-    from app.core.config import settings
+    """Render the otp_login template and dispatch.
 
-    if settings.EMAIL_PROVIDER == "resend":
-        import httpx
-        resp = httpx.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
-            json={
-                "from": settings.RESEND_FROM_EMAIL,
-                "to": [to],
-                "subject": "Your Khana Bazaar login code",
-                "text": f"Your one-time login code is: {code}\n\nExpires in 10 minutes.",
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-    else:
-        logging.getLogger(__name__).info("EMAIL to=%s code=%s", to, code)
+    This task is the fallback path when the inline send in `/auth/otp/request`
+    raises an `httpx.HTTPError` (Resend timeout / 5xx / network).
+    """
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    payload = render_email(
+        "otp_login",
+        {"code": code, "ttl_minutes": settings.OTP_TTL_SECONDS // 60},
+        lang="en",
+    )
+    _resolve_email(
+        to,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )
 
 
 @celery_app.task(name="send_support_email")  # type: ignore[untyped-decorator]
@@ -50,21 +56,34 @@ def send_support_email(customer_email: str, subject: str, message: str) -> None:
     )
 
 
-def _resolve_email(to: str, subject: str, body: str) -> None:
+def _resolve_email(
+    to: str,
+    subject: str,
+    body: str,
+    *,
+    html: str | None = None,
+    reply_to: str | None = None,
+) -> None:
     """Send an email via the configured provider, mirroring the OTP email pattern."""
     from app.core.config import settings
 
     if settings.EMAIL_PROVIDER == "resend":
         import httpx
+
+        payload: dict[str, object] = {
+            "from": settings.RESEND_FROM_EMAIL,
+            "to": [to],
+            "subject": subject,
+            "text": body,
+        }
+        if html is not None:
+            payload["html"] = html
+        if reply_to is not None:
+            payload["reply_to"] = reply_to
         resp = httpx.post(
             "https://api.resend.com/emails",
             headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
-            json={
-                "from": settings.RESEND_FROM_EMAIL,
-                "to": [to],
-                "subject": subject,
-                "text": body,
-            },
+            json=payload,
             timeout=10,
         )
         resp.raise_for_status()
