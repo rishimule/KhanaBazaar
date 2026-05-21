@@ -4,8 +4,8 @@
  */
 /* ============================================================
    Navbar — KhanaBazaar
-   64px white bar with cobalt wordmark + teal dot, location chip,
-   pill search, right-side actions, red cart badge.
+   Shared nav shell + stripped/dashboard/signup variant styles.
+   Customer variant lives in NavbarTopBar.module.css.
    ============================================================ */
 
 .nav {
@@ -18,25 +18,7 @@
   border-bottom: 1px solid var(--hairline);
 }
 
-.navInner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-5);
-  height: var(--nav-height);
-  padding: 0 var(--space-6);
-  max-width: var(--container-2xl);
-  margin-inline: auto;
-  box-sizing: border-box;
-}
-
-@media (max-width: 767px) {
-  .navInner {
-    padding: 0 var(--space-4);
-    gap: var(--space-3);
-  }
-}
-
-/* ── Logo ────────────────────────────── */
+/* ── Logo (used by stripped/dashboard/signup variants) ── */
 .logo {
   display: inline-flex;
   align-items: center;
@@ -60,183 +42,9 @@
   display: inline-block;
 }
 
-/* ── Location chip ───────────────────── */
-.deliverChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  background: transparent;
-  border: none;
-  color: var(--shade-cool-dark-7);
-  font-family: var(--font-family-sans);
-  font-size: var(--body-sm);
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-  white-space: nowrap;
-  max-width: 200px;
-  flex-shrink: 0;
-}
-
-.deliverChip:hover { color: var(--color-primary-1); }
-
-.deliverChipText {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 140px;
-}
-
-@media (max-width: 1023px) {
-  .deliverChip { display: none; }
-}
-
-/* ── Search ──────────────────────────── */
-.searchWrap {
-  flex: 1;
-  max-width: 640px;
-  position: relative;
-}
-
-@media (max-width: 767px) {
-  .searchWrap { display: none; }
-}
-
-.searchIcon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--shade-cool-base-7);
-  pointer-events: none;
-}
-
-.searchInput {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--shade-cool-light-2);
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  padding: 11px 16px 11px 40px;
-  font-family: var(--font-family-sans);
-  font-size: var(--body-sm);
-  color: var(--shade-cool-dark-7);
-  outline: none;
-  transition: background var(--duration-fast), border-color var(--duration-fast), box-shadow var(--duration-fast);
-}
-
-.searchInput::placeholder { color: var(--shade-cool-base-5); }
-
-.searchInput:focus {
-  background: var(--white);
-  border-color: var(--color-primary-1);
-  box-shadow: var(--shadow-search);
-}
-
-/* ── Desktop nav links ───────────────── */
-.navLinks {
-  display: none;
-  align-items: center;
-  gap: var(--space-4);
-  margin-left: var(--space-2);
-}
-
-@media (min-width: 1024px) {
-  .navLinks { display: inline-flex; }
-}
-
-.navLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 4px;
-  font-family: var(--font-family-sans);
-  font-size: var(--body-sm);
-  font-weight: var(--weight-medium);
-  color: var(--shade-cool-base-7);
-  text-decoration: none;
-  white-space: nowrap;
-  border-bottom: 2px solid transparent;
-}
-
-.navLink:hover {
-  color: var(--color-primary-1);
-  text-decoration: none;
-}
-
-.navLinkActive {
-  color: var(--color-primary-1);
-  border-bottom-color: var(--color-primary-1);
-}
-
-/* ── Right actions ───────────────────── */
-.navActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-5);
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.actionLink {
-  font-family: var(--font-family-sans);
-  font-size: var(--body-sm);
-  font-weight: var(--weight-medium);
-  color: var(--color-primary-1);
-  text-decoration: none;
-  display: none;
-  align-items: center;
-  cursor: pointer;
-}
-
-.actionLink:hover { text-decoration: none; opacity: 0.85; }
-
-@media (min-width: 1024px) {
-  .actionLink { display: inline-flex; }
-}
-
-/* ── Cart ────────────────────────────── */
-.cartBtn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-primary-1);
-  font-family: var(--font-family-sans);
-  font-size: var(--body-sm);
-  font-weight: var(--weight-medium);
-  text-decoration: none;
-  padding: 8px 4px;
-}
-
-.cartBtn:hover { text-decoration: none; }
-
-.cartLabel { display: none; }
-@media (min-width: 1024px) { .cartLabel { display: inline; } }
-
-.cartBadge {
-  position: absolute;
-  top: 0;
-  right: -10px;
-  background: var(--tomato-red-base-4);
-  color: var(--white);
-  font-size: 11px;
-  font-weight: var(--weight-semibold);
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border-radius: 9px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  box-sizing: border-box;
-}
-
-/* ── Auth ─────────────────────────────── */
+/* ── Auth button (stripped/dashboard variants) ── */
 .loginBtn {
-  display: none;
+  display: inline-flex;
   align-items: center;
   font-family: var(--font-family-sans);
   font-size: var(--body-sm);
@@ -249,14 +57,13 @@
   white-space: nowrap;
 }
 
-.loginBtn:hover { background: var(--color-btn-primary-hover); text-decoration: none; }
-
-@media (min-width: 1024px) {
-  .loginBtn { display: inline-flex; }
+.loginBtn:hover {
+  background: var(--color-btn-primary-hover);
+  text-decoration: none;
 }
 
 .authBtn {
-  display: none;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   background: transparent;
@@ -269,10 +76,9 @@
   color: var(--color-primary-1);
 }
 
-.authBtn:hover { text-decoration: none; opacity: 0.85; }
-
-@media (min-width: 1024px) {
-  .authBtn { display: inline-flex; }
+.authBtn:hover {
+  text-decoration: none;
+  opacity: 0.85;
 }
 
 .authAvatar {
@@ -288,159 +94,7 @@
   justify-content: center;
 }
 
-/* ── Mobile hamburger ────────────────── */
-.hamburger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-primary-1);
-  border: none;
-  cursor: pointer;
-}
-
-.hamburger:hover { background: var(--shade-cool-light-1); }
-
-@media (min-width: 1024px) {
-  .hamburger { display: none; }
-}
-
-/* ── Mobile drawer ───────────────────── */
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-overlay);
-  background: var(--tint-black-54);
-  animation: fadeIn var(--duration-fast) var(--ease-out);
-}
-
-.drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: var(--z-modal);
-  width: 280px;
-  max-width: 80vw;
-  background: var(--white);
-  box-shadow: var(--shadow-modal);
-  padding: var(--space-6);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  animation: slideIn 220ms var(--ease-out);
-}
-
-@keyframes slideIn {
-  from { transform: translateX(100%); }
-  to   { transform: translateX(0); }
-}
-
-.drawerClose {
-  align-self: flex-end;
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-size: 18px;
-  color: var(--shade-cool-base-7);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  margin-bottom: var(--space-2);
-}
-
-.drawerClose:hover { background: var(--shade-cool-light-1); color: var(--color-primary-1); }
-
-.drawerLink {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 12px 16px;
-  font-family: var(--font-family-sans);
-  font-size: var(--body-base);
-  font-weight: var(--weight-medium);
-  color: var(--shade-cool-base-7);
-  border-radius: var(--radius-card);
-  text-decoration: none;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.drawerLink:hover {
-  background: var(--shade-cool-light-1);
-  color: var(--color-primary-1);
-  text-decoration: none;
-}
-
-.drawerLinkActive {
-  background: var(--shade-cool-light-2);
-  color: var(--color-primary-1);
-}
-
-.drawerUser {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 12px 16px;
-  margin-bottom: var(--space-2);
-  background: var(--shade-cool-light-1);
-  border-radius: var(--radius-card);
-}
-
-.drawerUserAvatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--color-primary-1);
-  color: var(--white);
-  font-size: var(--body-base);
-  font-weight: var(--weight-semibold);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.drawerUserInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.drawerUserName {
-  font-size: var(--body-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--shade-cool-dark-7);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.drawerUserRole {
-  font-size: var(--body-2xs);
-  color: var(--color-primary-1);
-  text-transform: capitalize;
-  font-weight: var(--weight-medium);
-}
-
-.drawerDivider {
-  height: 1px;
-  background: var(--hairline);
-  margin: var(--space-2) 0;
-}
-
-/* ── Role variant: stripped & signup ─── */
+/* ── Stripped & signup variants shell ── */
 .navInnerStripped {
   display: flex;
   align-items: center;
@@ -495,12 +149,4 @@
   .backToDashboard {
     padding: 6px 10px;
   }
-}
-
-/* Stripped/signup variants render inline on mobile — override the
-   default mobile-hidden state of .loginBtn and .authBtn so the Logout
-   and Sign In buttons remain visible without a hamburger drawer. */
-.navInnerStripped .loginBtn,
-.navInnerStripped .authBtn {
-  display: inline-flex;
 }
