@@ -149,4 +149,10 @@
   .backToDashboard {
     padding: 6px 10px;
   }
+  .navInnerStripped .authBtn span:last-child {
+    display: none;
+  }
+  .navInnerStripped .loginBtn {
+    padding: 8px 12px;
+  }
 }
