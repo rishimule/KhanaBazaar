@@ -1,0 +1,22 @@
+{# Four pills: pending → packed → dispatched → delivered.
+   `current` is the active status string. `cancelled` adds a red badge below. #}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:16px 0 24px;">
+  <tr>
+    {% set steps = ['pending', 'packed', 'dispatched', 'delivered'] %}
+    {% set current_idx = {'pending':0,'packed':1,'dispatched':2,'delivered':3}.get(current, -1) %}
+    {% for step in steps %}
+      {% set reached = loop.index0 <= current_idx %}
+      <td align="center" style="padding:4px;">
+        <div style="width:24px;height:24px;border-radius:50%;background:{{ '#0b8457' if reached else '#d1d5db' }};margin:0 auto 6px;"></div>
+        <div style="font-size:12px;color:{{ '#0b8457' if reached else '#9ca3af' }};text-transform:capitalize;">{{ step }}</div>
+      </td>
+    {% endfor %}
+  </tr>
+  {% if current == 'cancelled' %}
+    <tr>
+      <td colspan="4" align="center" style="padding-top:8px;color:#b91c1c;font-weight:600;">
+        Cancelled
+      </td>
+    </tr>
+  {% endif %}
+</table>
