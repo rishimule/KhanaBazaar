@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hello {{ name }}, your total is {{ total|inr }}.</p>
+  {% set cta_url = frontend_base_url ~ "/x" %}
+  {% set cta_label = "Click" %}
+  {% include "_partials/button.html" %}
+{% endblock %}

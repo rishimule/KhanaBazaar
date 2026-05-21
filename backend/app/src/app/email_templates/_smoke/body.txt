@@ -1,0 +1,2 @@
+Hello {{ name }}, your total is {{ total|inr }}.
+Click: {{ frontend_base_url }}/x
