@@ -17,7 +17,13 @@
     "drawerSignOut": "સાઇન આઉટ",
     "drawerSignIn": "સાઇન ઇન",
     "drawerUserFallback": "વપરાશકર્તા",
-    "backToDashboard": "ડેશબોર્ડ પર પાછા"
+    "backToDashboard": "ડેશબોર્ડ પર પાછા",
+    "tabHome": "હોમ",
+    "tabStores": "દુકાનો",
+    "tabCart": "કાર્ટ",
+    "tabAccount": "ખાતું",
+    "setDeliveryLocation": "ડિલિવરી સ્થાન સેટ કરો",
+    "setLocation": "સ્થાન સેટ કરો"
   },
   "Home": {
     "badge": "પ્રીમિયમ સ્થાનિક કરિયાણું",

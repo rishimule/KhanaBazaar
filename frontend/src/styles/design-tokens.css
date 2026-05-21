@@ -292,6 +292,7 @@
 
   /* Sticky navbar height */
   --nav-height: 64px;
+  --nav-height-mobile: 104px;
   --sidebar-width: 200px;
   --cart-rail-width: 360px;
 

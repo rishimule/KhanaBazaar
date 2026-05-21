@@ -17,7 +17,13 @@
     "drawerSignOut": "ਸਾਈਨ ਆਊਟ",
     "drawerSignIn": "ਸਾਈਨ ਇਨ",
     "drawerUserFallback": "ਉਪਭੋਗਤਾ",
-    "backToDashboard": "ਡੈਸ਼ਬੋਰਡ ਤੇ ਵਾਪਸ"
+    "backToDashboard": "ਡੈਸ਼ਬੋਰਡ ਤੇ ਵਾਪਸ",
+    "tabHome": "ਮੁੱਖ",
+    "tabStores": "ਦੁਕਾਨਾਂ",
+    "tabCart": "ਕਾਰਟ",
+    "tabAccount": "ਖਾਤਾ",
+    "setDeliveryLocation": "ਡਿਲਿਵਰੀ ਟਿਕਾਣਾ ਚੁਣੋ",
+    "setLocation": "ਟਿਕਾਣਾ ਚੁਣੋ"
   },
   "Home": {
     "badge": "ਪ੍ਰੀਮੀਅਮ ਸਥਾਨਕ ਕਰਿਆਨਾ",

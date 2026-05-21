@@ -1,0 +1,93 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+
+.bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  background: var(--white);
+  border-top: 1px solid var(--hairline);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (min-width: 1024px) {
+  .bar { display: none; }
+}
+
+.tab {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  padding: 8px 4px 6px;
+  min-height: 56px;
+  color: var(--shade-cool-base-7);
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  position: relative;
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+}
+
+.tab:hover {
+  color: var(--color-primary-1);
+  text-decoration: none;
+}
+
+.tabActive {
+  color: var(--color-primary-1);
+}
+
+.tabActive::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  background: var(--color-primary-1);
+  border-radius: 0 0 2px 2px;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  position: relative;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  line-height: 1.1;
+}
+
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -10px;
+  background: var(--tomato-red-base-4);
+  color: var(--white);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  box-sizing: border-box;
+}

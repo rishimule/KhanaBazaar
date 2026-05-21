@@ -16,6 +16,7 @@ import { CartProvider } from "@/lib/CartContext";
 import { CustomerAddressesProvider } from "@/lib/CustomerAddressesContext";
 import { DeliveryLocationAutoSync } from "@/components/DeliveryLocationAutoSync";
 import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
+import { SearchOverlayProvider } from "@/lib/SearchOverlayContext";
 import { alternateLanguages } from "@/i18n/metadata";
 import { routing } from "@/i18n/routing";
 
@@ -31,6 +32,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -80,14 +82,16 @@ export default async function CustomerLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
-      <body>
+      <body className="kb-customer-root">
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
             <DeliveryLocationProvider>
               <CustomerAddressesProvider>
                 <DeliveryLocationAutoSync />
                 <CartProvider>
-                  <Navbar />
+                  <SearchOverlayProvider>
+                    <Navbar />
+                  </SearchOverlayProvider>
                   <CartSyncBanner />
                   <main>{children}</main>
                   <Footer />
