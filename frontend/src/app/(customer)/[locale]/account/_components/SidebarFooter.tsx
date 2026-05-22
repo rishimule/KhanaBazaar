@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
@@ -15,7 +16,11 @@ export default function AccountSidebarFooter() {
 
   const handleConfirm = async () => {
     setPending(true);
-    await logout();
+    try {
+      await logout();
+    } finally {
+      setPending(false);
+    }
   };
 
   const handleClose = () => {
@@ -34,35 +39,37 @@ export default function AccountSidebarFooter() {
         <span className={styles.icon} aria-hidden>🚪</span>
         {t("navLogout")}
       </button>
-      {open && (
-        <Modal
-          title={t("logoutConfirmTitle")}
-          onClose={handleClose}
-          footer={
-            <>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={pending}
-                onClick={handleClose}
-              >
-                {t("logoutCancel")}
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                disabled={pending}
-                onClick={handleConfirm}
-                autoFocus
-              >
-                {t("logoutConfirmCta")}
-              </button>
-            </>
-          }
-        >
-          <p className={styles.modalBody}>{t("logoutConfirmBody")}</p>
-        </Modal>
-      )}
+      {open &&
+        createPortal(
+          <Modal
+            title={t("logoutConfirmTitle")}
+            onClose={handleClose}
+            footer={
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={pending}
+                  onClick={handleClose}
+                >
+                  {t("logoutCancel")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={pending}
+                  onClick={handleConfirm}
+                  autoFocus
+                >
+                  {t("logoutConfirmCta")}
+                </button>
+              </>
+            }
+          >
+            <p className={styles.modalBody}>{t("logoutConfirmBody")}</p>
+          </Modal>,
+          document.body,
+        )}
     </>
   );
 }
