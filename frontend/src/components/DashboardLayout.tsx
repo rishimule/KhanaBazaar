@@ -4,7 +4,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import styles from "./DashboardLayout.module.css";
 
@@ -22,6 +23,7 @@ interface Props {
   roleName: string;
   title: string;
   navItems: NavItem[];
+  footer?: React.ReactNode;
 }
 
 const ROLE_LABEL_KEYS: Record<DashboardRole, string> = {
@@ -48,14 +50,19 @@ export default function DashboardLayout({
   roleName,
   title,
   navItems,
+  footer,
 }: Props) {
   const t = useTranslations("Dashboard");
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  return (
-    <div className={styles.dashboard}>
-      {/* Sidebar */}
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const sidebar = (
+    <>
       {sidebarOpen && (
         <div className={styles.overlay} onClick={() => setSidebarOpen(false)} />
       )}
@@ -89,9 +96,15 @@ export default function DashboardLayout({
             </Link>
           ))}
         </nav>
+        {footer && <div className={styles.sidebarFooter}>{footer}</div>}
       </aside>
+    </>
+  );
 
-      {/* Main */}
+  return (
+    <div className={styles.dashboard}>
+      {mounted && createPortal(sidebar, document.body)}
+
       <div className={styles.main}>
         <div className={styles.topBar}>
           <div className={styles.topBarActions}>

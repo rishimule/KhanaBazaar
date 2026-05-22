@@ -429,6 +429,11 @@
     "navPreferences": "प्राथमिकताएँ",
     "navSupport": "सहायता",
     "navSettings": "सेटिंग्स",
+    "navLogout": "लॉग आउट",
+    "logoutConfirmTitle": "लॉग आउट करें?",
+    "logoutConfirmBody": "ऑर्डर और सहेजे गए पतों को देखने के लिए आपको दोबारा साइन इन करना होगा।",
+    "logoutConfirmCta": "लॉग आउट",
+    "logoutCancel": "रद्द करें",
     "dashboardTitle": "मेरा खाता",
     "orders": {
       "title": "आपके ऑर्डर",

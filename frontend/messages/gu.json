@@ -429,6 +429,11 @@
     "navPreferences": "પસંદગીઓ",
     "navSupport": "મદદ",
     "navSettings": "સેટિંગ્સ",
+    "navLogout": "લોગ આઉટ",
+    "logoutConfirmTitle": "લોગ આઉટ કરવું?",
+    "logoutConfirmBody": "ઓર્ડર અને સાચવેલા સરનામાં જોવા માટે તમારે ફરીથી સાઇન ઇન કરવું પડશે.",
+    "logoutConfirmCta": "લોગ આઉટ",
+    "logoutCancel": "રદ કરો",
     "dashboardTitle": "મારું ખાતું",
     "orders": {
       "title": "તમારા ઓર્ડર",
