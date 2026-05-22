@@ -2,7 +2,6 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
@@ -10,7 +9,6 @@ import styles from "./SidebarFooter.module.css";
 
 export default function AccountSidebarFooter() {
   const t = useTranslations("Account");
-  const router = useRouter();
   const { logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -18,7 +16,6 @@ export default function AccountSidebarFooter() {
   const handleConfirm = async () => {
     setPending(true);
     await logout();
-    router.push("/");
   };
 
   const handleClose = () => {
@@ -32,6 +29,7 @@ export default function AccountSidebarFooter() {
         className={styles.logoutBtn}
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
+        aria-expanded={open}
       >
         <span className={styles.icon} aria-hidden>🚪</span>
         {t("navLogout")}
