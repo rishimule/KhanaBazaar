@@ -5,6 +5,7 @@ import { Poppins } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 
 import "@/app/globals.css";
+import RouteProgressProvider from "@/components/RouteProgressProvider";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
@@ -50,15 +51,17 @@ export default function OperatorLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body>
-        <NextIntlClientProvider locale="en" messages={enMessages}>
-          <AuthProvider>
-            <DeliveryLocationProvider>
-              <CartProvider>
-                <main>{children}</main>
-              </CartProvider>
-            </DeliveryLocationProvider>
-          </AuthProvider>
-        </NextIntlClientProvider>
+        <RouteProgressProvider>
+          <NextIntlClientProvider locale="en" messages={enMessages}>
+            <AuthProvider>
+              <DeliveryLocationProvider>
+                <CartProvider>
+                  <main>{children}</main>
+                </CartProvider>
+              </DeliveryLocationProvider>
+            </AuthProvider>
+          </NextIntlClientProvider>
+        </RouteProgressProvider>
       </body>
     </html>
   );
