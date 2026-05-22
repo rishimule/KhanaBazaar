@@ -429,6 +429,11 @@
     "navPreferences": "Preferences",
     "navSupport": "Support",
     "navSettings": "Settings",
+    "navLogout": "Log out",
+    "logoutConfirmTitle": "Log out?",
+    "logoutConfirmBody": "You will need to sign in again to view orders and saved addresses.",
+    "logoutConfirmCta": "Log out",
+    "logoutCancel": "Cancel",
     "dashboardTitle": "My account",
     "orders": {
       "title": "Your orders",
