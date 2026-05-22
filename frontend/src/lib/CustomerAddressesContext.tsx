@@ -3,7 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import {
-  createContext, useContext, useEffect, useMemo, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useState,
 } from "react";
 
 import { get } from "@/lib/api";
@@ -19,6 +19,10 @@ interface CustomerAddressesContextValue {
   loading: boolean;
   /** Human-readable error from the last fetch attempt, else null. */
   error: string | null;
+  /** Push an updated list (e.g. after creating/editing/deleting an address)
+   *  so downstream consumers (navbar picker, autosync) see the change without
+   *  waiting for a re-fetch. */
+  setAddresses: (next: CustomerAddress[]) => void;
 }
 
 const CustomerAddressesContext =
@@ -72,9 +76,19 @@ export function CustomerAddressesProvider(
     [addresses],
   );
 
+  const setAddressesExternal = useCallback((next: CustomerAddress[]) => {
+    setAddresses(next);
+  }, []);
+
   const value = useMemo<CustomerAddressesContextValue>(
-    () => ({ addresses, defaultAddress, loading, error }),
-    [addresses, defaultAddress, loading, error],
+    () => ({
+      addresses,
+      defaultAddress,
+      loading,
+      error,
+      setAddresses: setAddressesExternal,
+    }),
+    [addresses, defaultAddress, loading, error, setAddressesExternal],
   );
 
   return (

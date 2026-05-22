@@ -7,8 +7,14 @@ import { useTranslations } from "next-intl";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import { del, get, post, put } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { useCustomerAddresses } from "@/lib/CustomerAddressesContext";
+import {
+  isDefaultDeliveryLocation,
+  useDeliveryLocation,
+} from "@/lib/DeliveryLocationContext";
 import { apiErrorKey } from "@/lib/errors";
 import { formatAddress } from "@/lib/format-address";
+import { truncateLabel } from "@/lib/geo";
 import type { AddressFieldsErrors } from "@/components/AddressFields";
 import type { Address, CustomerAddress, CustomerProfile } from "@/types";
 import styles from "./page.module.css";
@@ -80,6 +86,8 @@ function normalizeOptional(value: string): string | null {
 
 export default function AccountAddressesPage() {
   const { token } = useAuth();
+  const { setAddresses: pushAddresses } = useCustomerAddresses();
+  const { location, setLocation } = useDeliveryLocation();
   const t = useTranslations("Account.addresses");
   const tErr = useTranslations("Errors");
 
@@ -214,6 +222,36 @@ export default function AccountAddressesPage() {
     );
   };
 
+  // After a successful create/edit, push the navbar delivery chip to follow
+  // the change when (a) the address is the new default, or (b) the chip is
+  // still on the Mumbai fallback so any first real coords should claim it.
+  // Editing a non-default address leaves the chip alone.
+  const syncDeliveryChip = (
+    nextAddresses: CustomerAddress[],
+    payloadIsDefault: boolean,
+    editedId: number | null,
+  ) => {
+    const target =
+      editedId === null
+        // create — pick the new row by id absence in the prior list snapshot
+        ? nextAddresses.find(
+          (a) => !sortedAddresses.some((prev) => prev.id === a.id),
+        )
+        : nextAddresses.find((a) => a.id === editedId);
+    if (!target) return;
+    if (target.address.latitude == null || target.address.longitude == null) {
+      return;
+    }
+    const shouldFollow =
+      payloadIsDefault || isDefaultDeliveryLocation(location);
+    if (!shouldFollow) return;
+    setLocation({
+      lat: target.address.latitude,
+      lng: target.address.longitude,
+      label: truncateLabel(formatAddress(target.address), 40),
+    });
+  };
+
   const saveAddress = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token || !addressForm) return;
@@ -237,6 +275,8 @@ export default function AccountAddressesPage() {
               token,
             );
       setProfile(next);
+      pushAddresses(next.addresses);
+      syncDeliveryChip(next.addresses, payload.is_default, addressForm.id);
       setAddressForm(null);
       setAddressErrors({});
     } catch (error) {
@@ -260,6 +300,21 @@ export default function AccountAddressesPage() {
         token,
       );
       setProfile(next);
+      pushAddresses(next.addresses);
+      // User explicitly designated a new default → follow it with the chip
+      // when coords are available.
+      const newDefault = next.addresses.find((a) => a.id === customerAddress.id);
+      if (
+        newDefault
+        && newDefault.address.latitude != null
+        && newDefault.address.longitude != null
+      ) {
+        setLocation({
+          lat: newDefault.address.latitude,
+          lng: newDefault.address.longitude,
+          label: truncateLabel(formatAddress(newDefault.address), 40),
+        });
+      }
     } catch (error) {
       setSectionError(localizedError(error, t("setDefaultError")));
     } finally {
@@ -280,6 +335,7 @@ export default function AccountAddressesPage() {
         token,
       );
       setProfile(next);
+      pushAddresses(next.addresses);
       if (addressForm?.id === customerAddress.id) setAddressForm(null);
     } catch (error) {
       setSectionError(localizedError(error, t("deleteAddressError")));
