@@ -22,6 +22,7 @@ interface Props {
   roleName: string;
   title: string;
   navItems: NavItem[];
+  footer?: React.ReactNode;
 }
 
 const ROLE_LABEL_KEYS: Record<DashboardRole, string> = {
@@ -48,6 +49,7 @@ export default function DashboardLayout({
   roleName,
   title,
   navItems,
+  footer,
 }: Props) {
   const t = useTranslations("Dashboard");
   const pathname = usePathname();
@@ -89,6 +91,7 @@ export default function DashboardLayout({
             </Link>
           ))}
         </nav>
+        {footer && <div className={styles.sidebarFooter}>{footer}</div>}
       </aside>
 
       {/* Main */}

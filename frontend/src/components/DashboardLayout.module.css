@@ -140,6 +140,12 @@
   flex-shrink: 0;
 }
 
+.sidebarFooter {
+  margin-top: auto;
+  padding: var(--space-4);
+  border-top: 1px solid var(--hairline);
+}
+
 /* ── Main content ────────────────── */
 .main {
   flex: 1;
