@@ -178,7 +178,8 @@ cmd_tunnel() {
   fi
 
   start_proc "ngrok"   "${NGROK_PID}"   "${NGROK_LOG}"   "${REPO_ROOT}" \
-    ngrok http 3000 --log=stdout --log-format=logfmt
+    ngrok http 3000 --log=stdout --log-format=logfmt \
+      --traffic-policy-file "${SCRIPT_DIR}/ngrok-traffic-policy.yml"
 
   echo -n "Resolving tunnel URL"
   local url
