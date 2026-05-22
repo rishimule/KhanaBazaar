@@ -1,0 +1,20 @@
+# Traffic policy for the local dev ngrok tunnel.
+#
+# Why this exists:
+#   Next.js dev server (base-server.ts) defaults `x-forwarded-port` to its own
+#   listening port (3000) when no proxy supplies one. ngrok forwards
+#   `x-forwarded-proto: https` and `x-forwarded-host` but does NOT set
+#   `x-forwarded-port` by default. next-intl's locale-redirect logic reads
+#   `x-forwarded-port` and emits a `Location: https://<host>:3000/...` for
+#   `/en/*` -> `/*` redirects, which the phone can never resolve and the
+#   request hangs.
+#
+# Forcing `X-Forwarded-Port: 443` here makes Next.js (and next-intl) build
+# correct same-origin redirects.
+
+on_http_request:
+  - actions:
+      - type: add-headers
+        config:
+          headers:
+            X-Forwarded-Port: "443"
