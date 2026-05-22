@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/lib/AuthContext";
 import type { UserRole } from "@/types";
+import AccountSidebarFooter from "./_components/SidebarFooter";
 
 function redirectForRole(role: UserRole): string {
   if (role === "admin") return "/admin";
@@ -71,6 +72,7 @@ export default function AccountLayout({
       roleName={roleName}
       title={title}
       navItems={customerNav}
+      footer={<AccountSidebarFooter />}
     >
       {children}
     </DashboardLayout>
