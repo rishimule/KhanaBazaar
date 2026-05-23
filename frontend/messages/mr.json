@@ -161,7 +161,18 @@
       "bannerDismiss": "Dismiss",
       "adjStockCapped": "{count, plural, one {# item quantity reduced to match available stock.} other {# item quantities reduced to match available stock.}}",
       "adjStockExhausted": "{count, plural, one {# item is out of stock and was dropped.} other {# items are out of stock and were dropped.}}",
-      "adjItemUnavailable": "{count, plural, one {# item is currently unavailable and was dropped.} other {# items are currently unavailable and were dropped.}}"
+      "adjItemUnavailable": "{count, plural, one {# item is currently unavailable and was dropped.} other {# items are currently unavailable and were dropped.}}",
+      "currentStoreBadge": "Current store",
+      "itemCountLabel": "{count, plural, one {# item} other {# items}}",
+      "subtotalLabel": "Subtotal {amount}",
+      "saveDelta": "Save {amount}",
+      "moreDelta": "{amount} more",
+      "sameTotal": "Same total",
+      "stocksXofY": "Stocks {covered} of {total} items",
+      "onlyAtCurrent": "{count, plural, one {# item only at current store} other {# items only at current store}}",
+      "viewItemPrices": "View item prices",
+      "hideItemPrices": "Hide item prices",
+      "onlyAtSourceLabel": "Only at {store}"
     }
   },
   "Login": {
