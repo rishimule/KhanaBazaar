@@ -546,6 +546,47 @@
   margin-top: var(--space-4);
 }
 
+/* --------------------------------------------------------
+   Account notice banner (customer signed in)
+   -------------------------------------------------------- */
+
+.accountNotice {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary-50, #fff4e6);
+  border: 1px solid var(--color-primary-200, #ffd6ad);
+  border-radius: var(--radius-lg);
+  color: var(--color-neutral-800);
+  font-size: var(--font-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  text-align: left;
+}
+
+.accountNotice strong {
+  font-weight: var(--weight-semi, 600);
+}
+
+.accountNoticeAction {
+  flex-shrink: 0;
+  border: 1px solid var(--color-primary-500, #b8470f);
+  background: transparent;
+  color: var(--color-primary-500, #b8470f);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: var(--weight-medium, 500);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms ease;
+}
+
+.accountNoticeAction:hover {
+  background: var(--color-primary-50, #fff4e6);
+}
+
 @media (max-width: 480px) {
   .page {
     padding: var(--space-3);
@@ -598,6 +639,12 @@
 
   .btnRow {
     gap: var(--space-3);
+  }
+
+  .accountNotice {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
   }
 
   .otpInput {
