@@ -29,7 +29,22 @@ interface FastApiValidationIssue {
   msg?: string;
 }
 
-const PHONE_RE = /^[0-9+() -]{7,20}$/;
+const PHONE_RE = /^\+91\d{10}$/;
+const PHONE_PREFIX = "+91";
+
+function phoneDigitsFromIntl(phone: string): string {
+  if (!phone) return "";
+  const trimmed = phone.replace(/[\s\-()]/g, "");
+  const withoutPrefix = trimmed.startsWith(PHONE_PREFIX)
+    ? trimmed.slice(PHONE_PREFIX.length)
+    : trimmed.replace(/^\+?91/, "");
+  return withoutPrefix.replace(/\D/g, "").slice(0, 10);
+}
+
+function intlFromPhoneDigits(digits: string): string {
+  const cleaned = digits.replace(/\D/g, "").slice(0, 10);
+  return cleaned.length > 0 ? `${PHONE_PREFIX}${cleaned}` : "";
+}
 
 function profileFormFrom(profile: CustomerProfile): ProfileForm {
   return {
@@ -248,17 +263,28 @@ export default function AccountProfilePage() {
               {t("phoneLabel")}
             </label>
             <div className={styles.verifyRow}>
-              <input
-                id="phone"
-                className={`${styles.input} ${profileErrors.phone ? styles.inputError : ""}`}
-                value={profileForm.phone}
-                onChange={(e) =>
-                  setProfileForm((c) => ({ ...c, phone: e.target.value }))
-                }
-                inputMode="tel"
-                maxLength={20}
-                style={{ flex: 1 }}
-              />
+              <div className={styles.phoneInputWrap}>
+                <span className={styles.phonePrefix} aria-hidden="true">
+                  {PHONE_PREFIX}
+                </span>
+                <input
+                  id="phone"
+                  className={`${styles.input} ${styles.phoneInput} ${profileErrors.phone ? styles.inputError : ""}`}
+                  value={phoneDigitsFromIntl(profileForm.phone)}
+                  onChange={(e) =>
+                    setProfileForm((c) => ({
+                      ...c,
+                      phone: intlFromPhoneDigits(e.target.value),
+                    }))
+                  }
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={10}
+                  placeholder="9876543210"
+                  autoComplete="tel-national"
+                  aria-describedby="phone-prefix-hint"
+                />
+              </div>
               {profile.phone_verified_at ? (
                 <span className={styles.verifiedBadge}>✓ {t("verified")}</span>
               ) : (
@@ -271,6 +297,9 @@ export default function AccountProfilePage() {
                 </button>
               )}
             </div>
+            <span id="phone-prefix-hint" className={styles.phoneHint}>
+              {t("phoneIndiaHint")}
+            </span>
             {profileErrors.phone && (
               <span className={styles.errorText}>{profileErrors.phone}</span>
             )}

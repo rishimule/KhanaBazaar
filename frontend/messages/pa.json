@@ -497,7 +497,8 @@
       "phoneLabel": "ਫ਼ੋਨ",
       "emailLabel": "ਈਮੇਲ",
       "firstNameRequired": "ਪਹਿਲਾ ਨਾਮ ਲਾਜ਼ਮੀ ਹੈ.",
-      "phoneInvalid": "7-20 ਅੰਕ, ਸਪੇਸ, +, -, ਜਾਂ ਬਰੈਕਟ ਵਰਤੋ.",
+      "phoneInvalid": "10 ਅੰਕਾਂ ਦਾ ਭਾਰਤੀ ਮੋਬਾਈਲ ਨੰਬਰ ਦਰਜ ਕਰੋ.",
+      "phoneIndiaHint": "ਸਿਰਫ ਭਾਰਤੀ ਨੰਬਰ। +91 ਆਪਣੇ ਆਪ ਜੁੜਦਾ ਹੈ।",
       "saveProfile": "ਬਦਲਾਵ ਸੇਵ ਕਰੋ",
       "saving": "ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…",
       "verified": "ਤਸਦੀਕਸ਼ੁਦਾ",
@@ -651,12 +652,22 @@
     "dashboard": {
       "greeting": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ, {name}",
       "there": "ਉੱਥੇ",
+      "welcomeBack": "ਫਿਰ ਜੀ ਆਇਆਂ ਨੂੰ",
+      "heroBlurb": "{count, plural, =0 {ਤੁਹਾਡੇ ਲਈ ਤਿਆਰ।} =1 {ਇਸ ਮਹੀਨੇ # ਆਰਡਰ} other {ਇਸ ਮਹੀਨੇ # ਆਰਡਰ}}",
+      "heroBlurbSpend": "ਹੁਣ ਤੱਕ ₹{amount} ਖਰਚ",
       "ordersThisMonth": "ਇਸ ਮਹੀਨੇ ਦੇ ਆਰਡਰ",
       "lifetimeSpend": "ਕੁੱਲ ਖਰਚ",
-      "mostOrderedStore": "ਸਭ ਤੋਂ ਵੱਧ ਆਰਡਰ ਕੀਤੀ ਦੁਕਾਨ",
+      "mostOrderedStore": "ਪਸੰਦੀਦਾ ਦੁਕਾਨ",
       "favouritesCount": "ਪਸੰਦੀਦਾ",
       "orderAgain": "ਦੁਬਾਰਾ ਆਰਡਰ ਕਰੋ",
-      "recentlyViewed": "ਹਾਲ ਹੀ ਵਿੱਚ ਦੇਖਿਆ"
+      "recentlyViewed": "ਹਾਲ ਹੀ ਵਿੱਚ ਦੇਖਿਆ",
+      "quickActions": "ਤੁਰੰਤ ਕਾਰਵਾਈਆਂ",
+      "shortcutOrders": "ਆਰਡਰ",
+      "shortcutFavorites": "ਪਸੰਦੀਦਾ",
+      "shortcutAddresses": "ਪਤੇ",
+      "shortcutSupport": "ਸਹਾਇਤਾ",
+      "reorderCta": "ਫਿਰ ਆਰਡਰ",
+      "viewAll": "ਸਭ ਦੇਖੋ"
     }
   },
   "Favorites": {

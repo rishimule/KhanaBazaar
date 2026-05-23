@@ -1,80 +1,333 @@
 /*
  * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
  */
+
 .page {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-  max-width: 1120px;
-  margin: 0 auto;
-}
-@media (min-width: 720px) {
-  .page {
-    grid-template-columns: 1fr 1fr;
-  }
-  .full {
-    grid-column: 1 / -1;
-  }
-}
-.greet {
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-100);
-  border-radius: var(--radius-md);
-  padding: 20px;
-}
-.greetTitle {
-  font-size: var(--font-xl);
-  font-weight: var(--weight-semibold);
-  margin: 0;
-}
-.greetSub {
-  color: var(--color-neutral-500);
-  font-size: var(--font-sm);
-  margin-top: 4px;
-}
-.statsStrip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-}
-.rail {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-6);
+  max-width: 1120px;
+  margin: 0 auto;
+  width: 100%;
 }
-.railTitle {
-  font-size: var(--font-lg);
+
+/* ---------- HERO ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sheet);
+  background: var(--gradient-brand-sweep);
+  color: var(--white);
+  padding: clamp(20px, 4vw, 36px);
+  isolation: isolate;
+}
+
+.heroDecor {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 214, 0, 0.25), transparent 45%),
+    radial-gradient(circle at 0% 100%, rgba(255, 80, 38, 0.30), transparent 55%);
+}
+
+.heroInner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-circle);
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--display-lg);
   font-weight: var(--weight-semibold);
-  margin: 0;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
 }
-.railList {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-.railCard {
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-100);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  text-decoration: none;
-  color: inherit;
+
+.heroText {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+  flex: 1;
 }
-.railCard:hover {
-  border-color: var(--color-accent-300);
+
+.heroEyebrow {
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: rgba(255, 255, 255, 0.78);
 }
-.railStore {
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(var(--display-xl), 4.4vw, var(--display-2xl));
+  font-weight: var(--weight-semibold);
+  line-height: 1.1;
+  letter-spacing: var(--display-2xl-track);
+}
+
+.heroBlurb {
+  margin: 6px 0 0;
+  font-size: var(--body-base);
+  color: rgba(255, 255, 255, 0.88);
+  font-variant-numeric: tabular-nums;
+}
+
+.heroDot {
+  margin: 0 8px;
+  opacity: 0.7;
+}
+
+/* ---------- SHORTCUTS ---------- */
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+}
+
+.shortcut {
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--shade-cool-dark-7);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.shortcut:hover {
+  transform: translateY(-2px);
+  border-color: var(--saffron-base-1);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.shortcut:focus-visible {
+  outline: 2px solid var(--color-primary-1);
+  outline-offset: 2px;
+}
+
+.shortcutIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-circle);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: var(--saffron-light-1);
+  line-height: 1;
+}
+
+.shortcutLabel {
+  font-size: var(--body-sm);
   font-weight: var(--weight-medium);
+  letter-spacing: 0;
 }
-.railMeta {
-  font-size: var(--font-sm);
-  color: var(--color-neutral-500);
+
+/* ---------- STATS STRIP ---------- */
+.statsStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
 }
+
 .statLink {
   text-decoration: none;
   color: inherit;
   display: block;
+  height: 100%;
+  border-radius: var(--radius-card);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.statLink:hover { transform: translateY(-1px); }
+.statLink:focus-visible {
+  outline: 2px solid var(--color-primary-1);
+  outline-offset: 2px;
+}
+
+/* ---------- ACTIVE / RECENTLY VIEWED WRAPPERS ---------- */
+.activeBlock,
+.recentlyBlock {
+  width: 100%;
+}
+
+/* ---------- ORDER AGAIN RAIL ---------- */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.railHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.railTitle {
+  margin: 0;
+  font-size: var(--display-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  color: var(--shade-cool-dark-7);
+}
+
+.railLink {
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-link);
+  text-decoration: none;
+}
+.railLink:hover { text-decoration: underline; }
+
+.railList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-3);
+}
+
+.railCard {
+  position: relative;
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+}
+
+.railCard:hover {
+  transform: translateY(-1px);
+  border-color: var(--saffron-base-1);
+  box-shadow: var(--shadow-card-hover);
+}
+.railCard:focus-visible {
+  outline: 2px solid var(--color-primary-1);
+  outline-offset: 2px;
+}
+
+.railThumb {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-circle);
+  background: var(--gradient-brand-sweep);
+  color: var(--white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-lg);
+  line-height: 1;
+}
+
+.railBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.railStore {
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-base);
+  color: var(--shade-cool-dark-7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.railService {
+  font-size: var(--body-xs);
+  color: var(--shade-cool-base-5);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: var(--weight-semibold);
+}
+
+.railMeta {
+  font-size: var(--body-xs);
+  color: var(--shade-cool-base-7);
+  font-variant-numeric: tabular-nums;
+}
+
+.railCta {
+  font-size: var(--body-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-link);
+  white-space: nowrap;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 640px) {
+  .shortcuts {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .shortcut {
+    padding: 12px 6px;
+  }
+  .shortcutIcon {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+  }
+  .shortcutLabel {
+    font-size: var(--body-xs);
+  }
+  .avatar {
+    width: 52px;
+    height: 52px;
+    font-size: var(--display-sm);
+  }
+  .heroInner {
+    gap: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shortcut,
+  .railCard,
+  .statLink {
+    transition: none;
+  }
+  .shortcut:hover,
+  .railCard:hover,
+  .statLink:hover {
+    transform: none;
+  }
 }

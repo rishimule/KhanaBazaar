@@ -497,7 +497,8 @@
       "phoneLabel": "ફોન",
       "emailLabel": "ઈમેલ",
       "firstNameRequired": "પ્રથમ નામ આવશ્યક છે.",
-      "phoneInvalid": "7-20 અંક, સ્પેસ, +, -, અથવા કૌંસ વાપરો.",
+      "phoneInvalid": "10 અંકનો ભારતીય મોબાઇલ નંબર દાખલ કરો.",
+      "phoneIndiaHint": "ફક્ત ભારતીય નંબર. +91 આપમેળે ઉમેરાય છે.",
       "saveProfile": "ફેરફારો સાચવો",
       "saving": "સાચવી રહ્યું છે…",
       "verified": "ચકાસાયેલ",
@@ -651,12 +652,22 @@
     "dashboard": {
       "greeting": "નમસ્તે, {name}",
       "there": "ત્યાં",
+      "welcomeBack": "ફરી સ્વાગત છે",
+      "heroBlurb": "{count, plural, =0 {તમારા માટે તૈયાર.} =1 {આ મહિને # ઓર્ડર} other {આ મહિને # ઓર્ડર}}",
+      "heroBlurbSpend": "અત્યાર સુધી ₹{amount} ખર્ચ",
       "ordersThisMonth": "આ મહિનાના ઓર્ડર",
       "lifetimeSpend": "કુલ ખર્ચ",
-      "mostOrderedStore": "સૌથી વધુ ઓર્ડર થયેલી દુકાન",
+      "mostOrderedStore": "પ્રિય દુકાન",
       "favouritesCount": "પ્રિય",
       "orderAgain": "ફરી ઓર્ડર કરો",
-      "recentlyViewed": "તાજેતરમાં જોયેલું"
+      "recentlyViewed": "તાજેતરમાં જોયેલું",
+      "quickActions": "ઝડપી ક્રિયાઓ",
+      "shortcutOrders": "ઓર્ડર",
+      "shortcutFavorites": "પ્રિય",
+      "shortcutAddresses": "સરનામાં",
+      "shortcutSupport": "સહાય",
+      "reorderCta": "ફરી ઓર્ડર",
+      "viewAll": "બધું જુઓ"
     }
   },
   "Favorites": {
