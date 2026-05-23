@@ -2,6 +2,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import FooterInstallLink from "@/components/pwa/FooterInstallLink";
 import styles from "./Footer.module.css";
 
 export default function Footer() {
@@ -38,6 +39,7 @@ export default function Footer() {
           </Link>
           <span className={styles.footerLink}>{t("privacy")}</span>
           <span className={styles.footerLink}>{t("terms")}</span>
+          <FooterInstallLink className={styles.footerLink} />
         </div>
       </div>
 
