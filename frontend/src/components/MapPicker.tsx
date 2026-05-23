@@ -166,7 +166,7 @@ export function MapPicker({
             defaultCenter={initial}
             defaultZoom={16}
             mapId="kb-map-picker"
-            gestureHandling="greedy"
+            gestureHandling="cooperative"
             disableDefaultUI={false}
             style={{ width: "100%", height: "100%" }}
           >
