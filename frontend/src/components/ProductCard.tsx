@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
+import { useFavorites } from "@/lib/FavoritesContext";
 import { InventoryWithProduct } from "@/types";
 import styles from "./ProductCard.module.css";
 
@@ -47,9 +48,11 @@ export default function ProductCard({
   const locale = useLocale();
   const { carts, addItem, removeItem, updateQty } = useCart();
   const { dbUser } = useAuth();
+  const { isFavorite, toggle } = useFavorites();
   const { product, price, stock } = item;
-  const [wishlist, setWishlist] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  const isCustomer = dbUser?.role === "customer";
+  const wishlist = isCustomer && isFavorite(product.id);
 
   const productHref = `/${locale}/stores/${storeId}/p/${product.id}`;
 
@@ -111,12 +114,16 @@ export default function ProductCard({
         </div>
       </Link>
 
-      {canShop && (
+      {isCustomer && (
         <button
           type="button"
           className={`${styles.heart} ${wishlist ? styles.heartActive : ""}`}
-          onClick={() => setWishlist((v) => !v)}
-          aria-label="Toggle wishlist"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void toggle(product.id);
+          }}
+          aria-label={wishlist ? t("removeFromFavorites") : t("addToFavorites")}
           aria-pressed={wishlist}
         >
           <HeartIcon filled={wishlist} />
