@@ -1,8 +1,10 @@
 {
+  "id": "/",
   "name": "Khana Bazaar",
   "short_name": "KhanaBazaar",
   "description": "Your hyperlocal Indian marketplace — shop from nearby stores, pay with UPI.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#e8611a",

@@ -3,7 +3,7 @@
 // Khana Bazaar — Service Worker
 // Provides offline-capable PWA shell caching.
 
-const CACHE_NAME = "khanabazaar-v1";
+const CACHE_NAME = "khanabazaar-v2";
 const SHELL_ASSETS = [
   "/",
   "/manifest.json",

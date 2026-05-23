@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 
 import "@/app/globals.css";
 import RouteProgressProvider from "@/components/RouteProgressProvider";
+import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
@@ -33,8 +34,11 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   icons: {
-    icon: "/icons/icon-192x192.png",
-    apple: "/icons/icon-192x192.png",
+    icon: [
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: { url: "/icons/icon-180x180.png", sizes: "180x180", type: "image/png" },
   },
 };
 
@@ -62,6 +66,7 @@ export default function OperatorLayout({
             </AuthProvider>
           </NextIntlClientProvider>
         </RouteProgressProvider>
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );
