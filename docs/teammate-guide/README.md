@@ -39,6 +39,7 @@ KhanaBazaar is an online grocery and food marketplace for Indian neighbourhoods.
 | [6 — When things break](./06-troubleshooting.md) | Look up errors by symptom and fix them. |
 | [7 — Day-to-day after install](./07-daily-use.md) | Start, stop, update, and reset the app. |
 | [Appendix — Phone testing (optional)](./appendix-mobile-ngrok.md) | Open the dev app on your phone via ngrok. |
+| [Appendix — How nearby stores are picked for comparison](./appendix-store-comparison-picking.md) | Plain-English walkthrough of the checkout price-comparison selection logic. |
 | [Appendix — Glossary](./appendix-glossary.md) | Plain-English definitions for every technical term. |
 
 ## If you get stuck
