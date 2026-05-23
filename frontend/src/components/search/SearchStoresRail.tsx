@@ -3,14 +3,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { searchStores, type StoreHit } from "@/lib/searchClient";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import styles from "./SearchStoresRail.module.css";
 
 export function SearchStoresRail({ q }: { q: string }) {
   const locale = useLocale();
-  const t = useTranslations("Search");
   const { location } = useDeliveryLocation();
   const [stores, setStores] = useState<StoreHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -47,7 +46,7 @@ export function SearchStoresRail({ q }: { q: string }) {
   if (loading || stores.length === 0) return null;
 
   return (
-    <section className={styles.section} aria-label={t("storesHeading", { defaultValue: "Stores" })}>
+    <section className={styles.section} aria-label="Stores">
       <h2 className={styles.heading}>Stores matching &quot;{q}&quot;</h2>
       <div className={styles.row}>
         {stores.map((s) => (
