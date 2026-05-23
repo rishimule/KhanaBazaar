@@ -88,7 +88,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
               customer={{
                 lat: order.delivery_latitude,
                 lng: order.delivery_longitude,
-                label: t("yourAddress", { defaultValue: "Your address" }),
+                label: "Your address",
               }}
             />
           )}
