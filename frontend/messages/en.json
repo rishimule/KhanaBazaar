@@ -686,6 +686,8 @@
       "shortcutFavorites": "Favourites",
       "shortcutAddresses": "Addresses",
       "shortcutSupport": "Support",
+      "installAppTitle": "Install Khana Bazaar",
+      "installAppSubtitle": "Quick access from your home screen",
       "reorderCta": "Reorder",
       "viewAll": "View all"
     }
@@ -732,5 +734,21 @@
     "sortDistance": "Distance",
     "minPrice": "min ₹",
     "maxPrice": "max ₹"
+  },
+  "PWAInstall": {
+    "iosSheet": {
+      "title": "Install Khana Bazaar",
+      "subtitle": "Add it to your home screen in 3 steps",
+      "step1": "Tap the Share button below",
+      "step2": "Choose \"Add to Home Screen\"",
+      "step3": "Tap Add to confirm",
+      "footnote": "Khana Bazaar will appear on your home screen like any app.",
+      "dismiss": "Got it"
+    },
+    "fallbackSheet": {
+      "title": "Open your browser menu",
+      "body": "Tap the ⋮ menu, then \"Install app\" or \"Add to Home screen\".",
+      "dismiss": "Got it"
+    }
   }
 }

@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import AccountInstallBanner from "@/components/pwa/AccountInstallBanner";
 import ActiveOrdersWidget from "@/components/orders/ActiveOrdersWidget";
 import RecentlyViewedRail from "@/components/RecentlyViewedRail";
 import StatsCard from "@/components/StatsCard";
@@ -87,6 +88,8 @@ export default function AccountHomePage() {
           </Link>
         ))}
       </section>
+
+      <AccountInstallBanner />
 
       <section className={styles.activeBlock}>
         <ActiveOrdersWidget role="customer" limit={5} />
