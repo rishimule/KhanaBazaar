@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SearchFilters } from "@/components/search/SearchFilters";
 import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
+import { SearchStoresRail } from "@/components/search/SearchStoresRail";
 import styles from "./page.module.css";
 
 function SearchPageInner() {
@@ -22,6 +23,7 @@ function SearchPageInner() {
   return (
     <main className={styles.page}>
       <h1 className={styles.title}>{t("resultsTitle", { q })}</h1>
+      <SearchStoresRail q={q} />
       <SearchFilters />
       <SearchResultsGrid
         q={q}

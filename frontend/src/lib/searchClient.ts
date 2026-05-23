@@ -166,6 +166,35 @@ export async function suggest(args: SuggestArgs): Promise<SuggestResponse | null
   }
 }
 
+export type StoreHit = {
+  id: number;
+  name: string;
+  service_ids: number[];
+  distance_km: number | null;
+};
+
+export type StoresResponse = {
+  total: number;
+  page: number;
+  page_size: number;
+  stores: StoreHit[];
+};
+
+export async function searchStores(args: {
+  q: string;
+  lat?: number;
+  lng?: number;
+  page?: number;
+  pageSize?: number;
+}): Promise<StoresResponse> {
+  const params = new URLSearchParams({ q: args.q.trim() });
+  if (args.lat !== undefined) params.set("lat", String(args.lat));
+  if (args.lng !== undefined) params.set("lng", String(args.lng));
+  if (args.page !== undefined) params.set("page", String(args.page));
+  if (args.pageSize !== undefined) params.set("page_size", String(args.pageSize));
+  return get<StoresResponse>(`/api/v1/search/stores?${params}`);
+}
+
 export function logClick(payload: {
   query_id: string;
   clicked_product_id?: number;
