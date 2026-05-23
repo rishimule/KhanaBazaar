@@ -11,7 +11,7 @@ type SheetKind = null | "ios" | "fallback";
 export type PwaInstallContextValue = {
   canShowEntry: boolean;
   platform: PwaPlatform;
-  install: (surface: "account_shortcut" | "footer_link") => Promise<void>;
+  install: (surface: "account_shortcut") => Promise<void>;
 };
 
 export const PwaInstallContext = createContext<PwaInstallContextValue | null>(null);
@@ -38,7 +38,7 @@ export default function PWAInstallProvider({ children }: { children: React.React
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const mq = window.matchMedia("(max-width: 768px)");
+    const mq = window.matchMedia("(max-width: 767px)");
     const onMqChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     setIsMobile(mq.matches);
     mq.addEventListener("change", onMqChange);
@@ -56,12 +56,16 @@ export default function PWAInstallProvider({ children }: { children: React.React
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
       deferredPromptRef.current = e as BeforeInstallPromptEvent;
+      // Late arrival: user already opened the fallback sheet. Close it so a
+      // re-tap of the install entry reaches the captured native prompt.
+      setSheet((s) => (s === "fallback" ? null : s));
     };
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
 
     const onAppInstalled = () => {
       setIsInstalled(true);
       deferredPromptRef.current = null;
+      setSheet(null);
       logPwaEvent("appinstalled");
     };
     window.addEventListener("appinstalled", onAppInstalled);

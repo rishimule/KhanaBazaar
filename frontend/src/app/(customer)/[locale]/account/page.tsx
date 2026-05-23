@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import AccountInstallShortcut from "@/components/pwa/AccountInstallShortcut";
+import AccountInstallBanner from "@/components/pwa/AccountInstallBanner";
 import ActiveOrdersWidget from "@/components/orders/ActiveOrdersWidget";
 import RecentlyViewedRail from "@/components/RecentlyViewedRail";
 import StatsCard from "@/components/StatsCard";
@@ -87,12 +87,9 @@ export default function AccountHomePage() {
             <span className={styles.shortcutLabel}>{t(s.labelKey)}</span>
           </Link>
         ))}
-        <AccountInstallShortcut
-          shortcutClassName={styles.shortcut}
-          iconClassName={styles.shortcutIcon}
-          labelClassName={styles.shortcutLabel}
-        />
       </section>
+
+      <AccountInstallBanner />
 
       <section className={styles.activeBlock}>
         <ActiveOrdersWidget role="customer" limit={5} />

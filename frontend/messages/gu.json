@@ -303,8 +303,6 @@
     "forSellers": "વિક્રેતાઓ માટે",
     "privacy": "ગોપનીયતા નીતિ",
     "terms": "સેવાની શરતો",
-    "getApp": "Get the app",
-    "installApp": "Install Khana Bazaar",
     "copyright": "© {year} Khana Bazaar. તમામ અધિકારો સુરક્ષિત.",
     "madeWith": "ભારતના સ્થાનિક વિક્રેતાઓ માટે 🧡 થી બનાવેલ"
   },
@@ -688,7 +686,8 @@
       "shortcutFavorites": "પ્રિય",
       "shortcutAddresses": "સરનામાં",
       "shortcutSupport": "સહાય",
-      "shortcutInstallApp": "Install app",
+      "installAppTitle": "Install Khana Bazaar",
+      "installAppSubtitle": "Faster reorders, works offline",
       "reorderCta": "ફરી ઓર્ડર",
       "viewAll": "બધું જુઓ"
     }
