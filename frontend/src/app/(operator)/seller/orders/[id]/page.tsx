@@ -9,6 +9,7 @@ import OrderTimeline from "@/components/orders/OrderTimeline";
 import OrderItemList from "@/components/orders/OrderItemList";
 import OrderActionButtons from "@/components/orders/OrderActionButtons";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
+import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -64,6 +65,23 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Delivery to</h2>
         <p>{order.delivery_address_snapshot}</p>
+        {order.store_latitude != null &&
+          order.store_longitude != null &&
+          order.delivery_latitude != null &&
+          order.delivery_longitude != null && (
+            <DeliveryRouteMap
+              store={{
+                lat: order.store_latitude,
+                lng: order.store_longitude,
+                label: order.store_name,
+              }}
+              customer={{
+                lat: order.delivery_latitude,
+                lng: order.delivery_longitude,
+                label: order.customer_name ?? "Customer",
+              }}
+            />
+          )}
       </section>
 
       <section className={styles.section}>

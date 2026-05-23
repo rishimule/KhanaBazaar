@@ -14,6 +14,7 @@ const SELLER_NAV = [
   { href: "/seller", label: "Dashboard", icon: "📊" },
   { href: "/seller/orders", label: "Orders", icon: "📦" },
   { href: "/seller/inventory", label: "Inventory", icon: "🏷️" },
+  { href: "/seller/settings", label: "Settings", icon: "⚙️" },
 ];
 
 export default function SellerLayout({
@@ -106,7 +107,9 @@ export default function SellerLayout({
         ? "Inventory Management"
         : pathname.startsWith("/seller/orders")
           ? "Store Orders"
-          : "Seller Portal";
+          : pathname.startsWith("/seller/settings")
+            ? "Settings"
+            : "Seller Portal";
 
   return (
     <>

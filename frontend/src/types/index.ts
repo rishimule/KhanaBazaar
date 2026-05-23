@@ -322,6 +322,10 @@ export interface Order {
   total: number;
   placed_at: string;
   delivery_address_snapshot: string;
+  store_latitude: number | null;
+  store_longitude: number | null;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
   items: OrderItem[];
   payment: OrderPayment;
   delivery: OrderDelivery;
