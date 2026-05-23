@@ -62,7 +62,7 @@
 
 .dismissBtn {
   padding: 10px 18px;
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-pill);
   border: none;
   background: var(--color-primary-1);
   color: var(--white);
@@ -73,6 +73,11 @@
 /* --color-primary-2 does not exist in design tokens; darken via filter instead */
 .dismissBtn:hover {
   filter: brightness(0.92);
+}
+
+.dismissBtn:focus-visible {
+  outline: 2px solid var(--color-primary-1);
+  outline-offset: 2px;
 }
 
 .shortcut {
