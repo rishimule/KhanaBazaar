@@ -214,6 +214,7 @@ export default function AccountProfilePage() {
               type="button"
               className="btn btn-outline"
               onClick={() => {
+                setSaveSuccess(false);
                 setSnapshot(profileForm);
                 setProfileErrors({});
                 setMode("edit");
@@ -274,6 +275,7 @@ export default function AccountProfilePage() {
                 }
                 maxLength={80}
                 required
+                autoFocus
               />
               {profileErrors.first_name && (
                 <span className={styles.errorText}>{profileErrors.first_name}</span>
