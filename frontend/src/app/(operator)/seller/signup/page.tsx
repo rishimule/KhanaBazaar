@@ -70,7 +70,7 @@ function SellerSignupPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isResubmit = searchParams.get("resubmit") === "true";
-  const { token, dbUser } = useAuth();
+  const { token, dbUser, logout } = useAuth();
 
   /* ---- wizard data state ---- */
   const [currentStep, setCurrentStep] = useState(1);
@@ -169,6 +169,17 @@ function SellerSignupPageInner() {
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setToast(null);
+    if (
+      dbUser?.email &&
+      email.trim().toLowerCase() === dbUser.email.toLowerCase()
+    ) {
+      setFieldErrors((p) => ({
+        ...p,
+        email:
+          "This email is already on your customer account. Use a different email, or sign out to register with it.",
+      }));
+      return;
+    }
     setSubmitting(true);
     const ok = await sendOtpRequest();
     setSubmitting(false);
@@ -436,6 +447,26 @@ function SellerSignupPageInner() {
         {/* Step indicator */}
         <StepIndicator current={currentStep} />
 
+        {/* Banner: customer-account session active — step 1 only (relevant before email is locked in) */}
+        {dbUser && !isResubmit && currentStep === 1 && (
+          <div className={styles.accountNotice} role="status">
+            <span className={styles.accountNoticeText}>
+              Signed in as <strong>{dbUser.email}</strong>. Use a different
+              email for your seller account, or sign out.
+            </span>
+            <button
+              type="button"
+              className={styles.accountNoticeAction}
+              onClick={async () => {
+                await logout();
+                router.refresh();
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+        )}
+
         {/* ---- Step 1: Email ---- */}
         {currentStep === 1 && (
           <form className={styles.form} onSubmit={handleRequestOtp}>
@@ -455,13 +486,23 @@ function SellerSignupPageInner() {
               <input
                 id="email"
                 type="email"
-                className={styles.input}
+                className={
+                  fieldErrors.email
+                    ? `${styles.input} ${styles.inputError}`
+                    : styles.input
+                }
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) clearError("email");
+                }}
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
               />
+              {fieldErrors.email && (
+                <p className={styles.fieldError}>{fieldErrors.email}</p>
+              )}
             </div>
             <button
               type="submit"
