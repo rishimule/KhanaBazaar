@@ -3,7 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import LocaleSwitcher from "./LocaleSwitcher";
@@ -24,6 +24,7 @@ type NavbarVariant = "auto" | "signup" | "dashboard";
 export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant } = {}) {
   const t = useTranslations("Nav");
   const router = useRouter();
+  const pathname = usePathname();
   const { dbUser, loading, logout } = useAuth();
 
   const role = dbUser?.role ?? null;
@@ -112,6 +113,11 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
   }
 
   if (effectiveVariant === "signup") {
+    // On the wizard itself (/seller/signup) the wizard owns the sign-out UX
+    // (banner button for signed-in customers; resubmit users navigate out via
+    // the dashboard once approved). The post-submit /seller/signup/pending
+    // page keeps the navbar logout so pending sellers can sign out.
+    const isWizard = pathname === "/seller/signup";
     return (
       <nav className={styles.nav}>
         <div className={styles.navInnerStripped}>
@@ -121,7 +127,7 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
           </Link>
           <span className={styles.strippedSpacer} />
           <LocaleSwitcher />
-          {!loading && dbUser && (
+          {!isWizard && !loading && dbUser && (
             <button
               type="button"
               className={styles.authBtn}
