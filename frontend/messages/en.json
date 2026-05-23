@@ -497,7 +497,8 @@
       "phoneLabel": "Phone",
       "emailLabel": "Email",
       "firstNameRequired": "First name is required.",
-      "phoneInvalid": "Use 7-20 digits, spaces, +, -, or parentheses.",
+      "phoneInvalid": "Enter a 10-digit Indian mobile number.",
+      "phoneIndiaHint": "Indian numbers only. We add the +91 prefix automatically.",
       "saveProfile": "Save changes",
       "saving": "Saving…",
       "verified": "Verified",
@@ -651,12 +652,22 @@
     "dashboard": {
       "greeting": "Hi, {name}",
       "there": "there",
+      "welcomeBack": "Welcome back",
+      "heroBlurb": "{count, plural, =0 {Ready when you are.} =1 {# order this month} other {# orders this month}}",
+      "heroBlurbSpend": "₹{amount} spent so far",
       "ordersThisMonth": "Orders this month",
       "lifetimeSpend": "Lifetime spend",
-      "mostOrderedStore": "Most ordered store",
+      "mostOrderedStore": "Top store",
       "favouritesCount": "Favourites",
       "orderAgain": "Order again",
-      "recentlyViewed": "Recently viewed"
+      "recentlyViewed": "Recently viewed",
+      "quickActions": "Quick actions",
+      "shortcutOrders": "Orders",
+      "shortcutFavorites": "Favourites",
+      "shortcutAddresses": "Addresses",
+      "shortcutSupport": "Support",
+      "reorderCta": "Reorder",
+      "viewAll": "View all"
     }
   },
   "Favorites": {

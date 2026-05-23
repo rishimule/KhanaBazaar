@@ -497,7 +497,8 @@
       "phoneLabel": "फ़ोन",
       "emailLabel": "ईमेल",
       "firstNameRequired": "पहला नाम आवश्यक है.",
-      "phoneInvalid": "7-20 अंक, स्पेस, +, -, या कोष्ठक का प्रयोग करें.",
+      "phoneInvalid": "10 अंकों का भारतीय मोबाइल नंबर दर्ज करें.",
+      "phoneIndiaHint": "केवल भारतीय नंबर। +91 स्वतः जोड़ा जाता है।",
       "saveProfile": "परिवर्तन सहेजें",
       "saving": "सहेजा जा रहा है…",
       "verified": "सत्यापित",
@@ -651,12 +652,22 @@
     "dashboard": {
       "greeting": "नमस्ते, {name}",
       "there": "वहाँ",
+      "welcomeBack": "वापस स्वागत है",
+      "heroBlurb": "{count, plural, =0 {आपके लिए तैयार है।} =1 {इस महीने # ऑर्डर} other {इस महीने # ऑर्डर}}",
+      "heroBlurbSpend": "अब तक ₹{amount} खर्च",
       "ordersThisMonth": "इस माह के ऑर्डर",
       "lifetimeSpend": "कुल खर्च",
-      "mostOrderedStore": "सबसे ज़्यादा ऑर्डर किया स्टोर",
+      "mostOrderedStore": "पसंदीदा दुकान",
       "favouritesCount": "पसंदीदा",
       "orderAgain": "फिर से ऑर्डर करें",
-      "recentlyViewed": "हाल ही में देखा"
+      "recentlyViewed": "हाल ही में देखा",
+      "quickActions": "त्वरित क्रियाएँ",
+      "shortcutOrders": "ऑर्डर",
+      "shortcutFavorites": "पसंदीदा",
+      "shortcutAddresses": "पते",
+      "shortcutSupport": "सहायता",
+      "reorderCta": "फिर ऑर्डर करें",
+      "viewAll": "सभी देखें"
     }
   },
   "Favorites": {

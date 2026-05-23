@@ -18,6 +18,22 @@ interface Props {
 
 type Step = "confirm" | "edit" | "code";
 
+const PHONE_PREFIX = "+91";
+
+function digitsFromIntl(phone: string): string {
+  if (!phone) return "";
+  const trimmed = phone.replace(/[\s\-()]/g, "");
+  const withoutPrefix = trimmed.startsWith(PHONE_PREFIX)
+    ? trimmed.slice(PHONE_PREFIX.length)
+    : trimmed.replace(/^\+?91/, "");
+  return withoutPrefix.replace(/\D/g, "").slice(0, 10);
+}
+
+function intlFromDigits(digits: string): string {
+  const cleaned = digits.replace(/\D/g, "").slice(0, 10);
+  return cleaned.length > 0 ? `${PHONE_PREFIX}${cleaned}` : PHONE_PREFIX;
+}
+
 export default function PhoneVerifyModal({
   currentPhone,
   onClose,
@@ -27,7 +43,9 @@ export default function PhoneVerifyModal({
   const { token } = useAuth();
   const startStep: Step = currentPhone ? "confirm" : "edit";
   const [step, setStep] = useState<Step>(startStep);
-  const [phone, setPhone] = useState(currentPhone ?? "+91");
+  const [phone, setPhone] = useState(
+    currentPhone ? intlFromDigits(digitsFromIntl(currentPhone)) : PHONE_PREFIX,
+  );
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,20 +120,27 @@ export default function PhoneVerifyModal({
           <label className={styles.label} htmlFor="kv-phone">
             {t("phoneLabel")}
           </label>
-          <input
-            id="kv-phone"
-            className={styles.input}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+91XXXXXXXXXX"
-            inputMode="tel"
-            maxLength={20}
-            autoFocus
-          />
+          <div className={styles.phoneInputWrap}>
+            <span className={styles.phonePrefix} aria-hidden="true">
+              {PHONE_PREFIX}
+            </span>
+            <input
+              id="kv-phone"
+              className={`${styles.input} ${styles.phoneInput}`}
+              value={digitsFromIntl(phone)}
+              onChange={(e) => setPhone(intlFromDigits(e.target.value))}
+              placeholder="9876543210"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={10}
+              autoComplete="tel-national"
+              autoFocus
+            />
+          </div>
           <button
             type="button"
             className="btn btn-primary"
-            disabled={busy || phone.length < 8}
+            disabled={busy || digitsFromIntl(phone).length !== 10}
             onClick={requestOtp}
           >
             {t("sendCode")}

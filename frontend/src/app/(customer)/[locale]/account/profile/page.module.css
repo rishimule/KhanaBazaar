@@ -153,6 +153,54 @@
   flex-wrap: wrap;
 }
 
+.phoneInputWrap {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-0);
+  overflow: hidden;
+  transition: all var(--duration-fast) var(--ease-default);
+}
+
+.phoneInputWrap:focus-within {
+  border-color: var(--color-primary-1);
+  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
+}
+
+.phonePrefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  background: var(--shade-cool-light-1);
+  border-right: 1px solid var(--shade-cool-light-6);
+  color: var(--color-neutral-700);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.phoneInput {
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-variant-numeric: tabular-nums;
+  flex: 1;
+}
+
+.phoneInput:focus {
+  box-shadow: none !important;
+}
+
+.phoneHint {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+}
+
 .verifiedBadge {
   display: inline-flex;
   align-items: center;

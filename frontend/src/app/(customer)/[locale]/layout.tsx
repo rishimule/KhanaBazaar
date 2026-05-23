@@ -8,7 +8,7 @@ import { notFound } from "next/navigation";
 
 import "@/app/globals.css";
 import CartSyncBanner from "@/components/CartSyncBanner";
-import Footer from "@/components/Footer";
+import FooterGate from "@/components/FooterGate";
 import Navbar from "@/components/Navbar";
 import RouteProgressProvider from "@/components/RouteProgressProvider";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
@@ -98,7 +98,7 @@ export default async function CustomerLayout({
                       </SearchOverlayProvider>
                       <CartSyncBanner />
                       <main>{children}</main>
-                      <Footer />
+                      <FooterGate />
                     </CartProvider>
                   </FavoritesProvider>
                 </CustomerAddressesProvider>
