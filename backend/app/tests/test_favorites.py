@@ -302,6 +302,8 @@ async def test_grouped_serviceable_and_unavailable(
     assert g["store_name"] == "Near Store"
     assert g["distance_km"] < 0.1
     assert [it["product_id"] for it in g["items"]] == [cat.product_a_id]
+    assert g["items"][0]["service_id"] == cat.service_id
+    assert g["items"][0]["service_name"] == "grocery"
     assert [p["product_id"] for p in body["unavailable"]] == [cat.product_b_id]
 
 
@@ -385,6 +387,76 @@ async def test_non_customer_forbidden(
     finally:
         app.dependency_overrides.pop(get_current_customer, None)
     assert r.status_code == 403
+
+
+async def test_add_inactive_product_404(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    cust = await _make_customer(session)
+    cat = await _make_catalog(session)
+    # Soft-deactivate product A.
+    prod = await session.get(MasterProduct, cat.product_a_id)
+    assert prod is not None
+    prod.is_active = False
+    session.add(prod)
+    await session.commit()
+
+    app.dependency_overrides[get_current_customer] = lambda: _user_for_override(cust)
+    try:
+        r = await client.post(f"/api/v1/favorites/{cat.product_a_id}")
+    finally:
+        app.dependency_overrides.pop(get_current_customer, None)
+    assert r.status_code == 404
+
+
+async def test_grouped_excludes_unavailable_inventory(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    cust = await _make_customer(session)
+    cat = await _make_catalog(session)
+    store = await _make_store_with_loc(session, "Store", 18.5204, 73.8567)
+    inv_id = await _stock(session, store.id, cat.product_a_id)
+    inv = await session.get(StoreInventory, inv_id)
+    assert inv is not None
+    inv.is_available = False
+    session.add(inv)
+    await session.commit()
+
+    app.dependency_overrides[get_current_customer] = lambda: _user_for_override(cust)
+    try:
+        await client.post(f"/api/v1/favorites/{cat.product_a_id}")
+        r = await client.get(
+            "/api/v1/favorites/", params={"lat": 18.5204, "lng": 73.8567}
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_customer, None)
+
+    body = r.json()
+    assert body["groups"] == []
+    assert [p["product_id"] for p in body["unavailable"]] == [cat.product_a_id]
+
+
+async def test_grouped_excludes_zero_stock(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    cust = await _make_customer(session)
+    cat = await _make_catalog(session)
+    store = await _make_store_with_loc(session, "Store", 18.5204, 73.8567)
+    await _stock(session, store.id, cat.product_a_id, stock=0)
+    await session.commit()
+
+    app.dependency_overrides[get_current_customer] = lambda: _user_for_override(cust)
+    try:
+        await client.post(f"/api/v1/favorites/{cat.product_a_id}")
+        r = await client.get(
+            "/api/v1/favorites/", params={"lat": 18.5204, "lng": 73.8567}
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_customer, None)
+
+    body = r.json()
+    assert body["groups"] == []
+    assert [p["product_id"] for p in body["unavailable"]] == [cat.product_a_id]
 
 
 async def test_cross_customer_isolation(

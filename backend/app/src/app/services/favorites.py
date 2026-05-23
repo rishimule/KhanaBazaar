@@ -19,10 +19,11 @@ async def add_favorite(
 ) -> None:
     """Idempotent insert. No-op if (customer, product) already exists.
 
-    Raises ValueError("product_not_found") if the master product does not exist.
+    Raises ValueError("product_not_found") when the master product is missing
+    or has been deactivated.
     """
-    exists = await session.get(MasterProduct, product_id)
-    if exists is None:
+    product = await session.get(MasterProduct, product_id)
+    if product is None or not product.is_active:
         raise ValueError("product_not_found")
 
     stmt = pg_insert(Favorite).values(
@@ -61,12 +62,17 @@ async def list_favorite_ids(
     return [int(r) for r in rows]
 
 
+# Mirrors the active/available filter chain used by services/storefront.py so
+# the favourites views agree with the rest of the storefront on what is
+# actually shoppable.
 _GROUPED_SQL = text(
     """
     SELECT f.product_id, f.created_at AS favourited_at,
            COALESCE(mpt.name, mp.slug) AS name,
            mp.image_url,
            sub.category_id,
+           svc.id AS service_id,
+           COALESCE(st.name, svc.slug) AS service_name,
            i.id AS inventory_id, i.price, i.stock,
            s.id AS store_id, s.name AS store_name,
            ST_Distance(
@@ -74,22 +80,28 @@ _GROUPED_SQL = text(
              ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
            ) / 1000.0 AS distance_km
     FROM   favorite f
-    JOIN   masterproduct mp ON mp.id = f.product_id
-    JOIN   subcategory sub ON sub.id = mp.subcategory_id
+    JOIN   masterproduct mp ON mp.id = f.product_id AND mp.is_active = true
+    JOIN   subcategory sub ON sub.id = mp.subcategory_id AND sub.is_active = true
+    JOIN   category cat ON cat.id = sub.category_id AND cat.is_active = true
+    JOIN   service svc ON svc.id = cat.service_id AND svc.is_active = true
     LEFT JOIN masterproduct_translation mpt
               ON mpt.master_product_id = mp.id
              AND mpt.language_code = 'en'
+    LEFT JOIN service_translation st
+              ON st.service_id = svc.id
+             AND st.language_code = 'en'
     JOIN   storeinventory i ON i.product_id = f.product_id
-    JOIN   store s ON s.id = i.store_id
+                            AND i.is_available = true
+                            AND i.stock > 0
+    JOIN   store s ON s.id = i.store_id AND s.is_active = true
     JOIN   address s_addr ON s_addr.id = s.address_id
     WHERE  f.customer_profile_id = :cid
-    AND    s.is_active = true
     AND    ST_DWithin(
              s_addr.geo,
              ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
              s.delivery_radius_km * 1000
            )
-    ORDER BY distance_km ASC, f.created_at DESC
+    ORDER BY distance_km ASC, s.id ASC, f.created_at DESC
     """
 )
 
@@ -108,6 +120,7 @@ _UNAVAILABLE_SQL = text(
              AND mpt.language_code = 'en'
     WHERE  f.customer_profile_id = :cid
     AND    f.product_id NOT IN :served_ids
+    ORDER BY f.created_at DESC
     """
 ).bindparams(bindparam("served_ids", expanding=True))
 
@@ -125,6 +138,7 @@ _ALL_FAV_PRODUCTS_SQL = text(
               ON mpt.master_product_id = mp.id
              AND mpt.language_code = 'en'
     WHERE  f.customer_profile_id = :cid
+    ORDER BY f.created_at DESC
     """
 )
 
@@ -159,6 +173,8 @@ async def list_grouped_favorites(
                 name=r["name"],
                 image_url=r["image_url"],
                 category_id=int(r["category_id"]),
+                service_id=int(r["service_id"]),
+                service_name=r["service_name"],
                 inventory_id=int(r["inventory_id"]),
                 price=float(r["price"]),
                 stock=int(r["stock"]),
@@ -198,14 +214,23 @@ _STORE_FAV_SQL = text(
            COALESCE(mpt.name, mp.slug) AS name,
            mp.image_url,
            sub.category_id,
+           svc.id AS service_id,
+           COALESCE(st.name, svc.slug) AS service_name,
            i.id AS inventory_id, i.price, i.stock
     FROM   favorite f
-    JOIN   masterproduct mp ON mp.id = f.product_id
-    JOIN   subcategory sub ON sub.id = mp.subcategory_id
+    JOIN   masterproduct mp ON mp.id = f.product_id AND mp.is_active = true
+    JOIN   subcategory sub ON sub.id = mp.subcategory_id AND sub.is_active = true
+    JOIN   category cat ON cat.id = sub.category_id AND cat.is_active = true
+    JOIN   service svc ON svc.id = cat.service_id AND svc.is_active = true
     LEFT JOIN masterproduct_translation mpt
               ON mpt.master_product_id = mp.id
              AND mpt.language_code = 'en'
+    LEFT JOIN service_translation st
+              ON st.service_id = svc.id
+             AND st.language_code = 'en'
     JOIN   storeinventory i ON i.product_id = f.product_id
+                            AND i.is_available = true
+                            AND i.stock > 0
     WHERE  f.customer_profile_id = :cid
     AND    i.store_id = :sid
     ORDER BY f.created_at DESC
@@ -229,6 +254,8 @@ async def list_store_favorites(
             name=r["name"],
             image_url=r["image_url"],
             category_id=int(r["category_id"]),
+            service_id=int(r["service_id"]),
+            service_name=r["service_name"],
             inventory_id=int(r["inventory_id"]),
             price=float(r["price"]),
             stock=int(r["stock"]),

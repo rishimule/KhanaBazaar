@@ -20,6 +20,8 @@ class FavoriteAtStore(BaseModel):
     name: str
     image_url: str | None
     category_id: int
+    service_id: int
+    service_name: str
     inventory_id: int
     price: float
     stock: int
