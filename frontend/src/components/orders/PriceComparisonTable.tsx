@@ -187,12 +187,14 @@ function MobileComparison({
     });
   }
 
+  const sourceHeaderId = "source-store-name";
+
   return (
     <div className={styles.mobileStack}>
       {/* Source card */}
-      <aside className={styles.sourceCard} aria-label={t("currentStoreBadge")}>
+      <section className={styles.sourceCard} aria-labelledby={sourceHeaderId}>
         <span className={styles.currentBadge}>{t("currentStoreBadge")}</span>
-        <div className={styles.cardName} title={sourceCart.store_name}>
+        <div id={sourceHeaderId} className={styles.cardName}>
           {sourceCart.store_name}
         </div>
         <div className={styles.cardSubMeta}>
@@ -200,7 +202,7 @@ function MobileComparison({
           {" · "}
           {t("itemCountLabel", { count: totalCartItems })}
         </div>
-      </aside>
+      </section>
 
       {/* Alt cards */}
       {alternatives.map((alt) => {
@@ -219,9 +221,6 @@ function MobileComparison({
             : diff > 0
             ? t("moreDelta", { amount: formatINR(absDiff) })
             : t("sameTotal");
-        const deltaSrPrefix =
-          diff < 0 ? "saves " : diff > 0 ? "costs " : "";
-        const noCoverage = alt.covered_count === 0;
         const headerId = `alt-${alt.id}-name`;
         const panelId = `alt-items-${alt.id}`;
 
@@ -232,11 +231,7 @@ function MobileComparison({
             aria-labelledby={headerId}
           >
             <div className={styles.cardHeader}>
-              <span
-                id={headerId}
-                className={styles.cardName}
-                title={alt.name}
-              >
+              <span id={headerId} className={styles.cardName}>
                 {alt.name}
               </span>
               <span className={styles.cardDistance}>
@@ -244,19 +239,14 @@ function MobileComparison({
               </span>
             </div>
 
-            {!noCoverage && (
-              <div className={styles.cardTotal}>
-                <span className={styles.cardAmount}>
-                  {formatINR(alt.effective_total)}
-                </span>
-                <span className={`${styles.deltaChip} ${deltaChipClass}`}>
-                  {deltaSrPrefix && (
-                    <span className="sr-only">{deltaSrPrefix}</span>
-                  )}
-                  {deltaText}
-                </span>
-              </div>
-            )}
+            <div className={styles.cardTotal}>
+              <span className={styles.cardAmount}>
+                {formatINR(alt.effective_total)}
+              </span>
+              <span className={`${styles.deltaChip} ${deltaChipClass}`}>
+                {deltaText}
+              </span>
+            </div>
 
             <div className={styles.coverageLine}>
               {t("stocksXofY", {
@@ -271,61 +261,56 @@ function MobileComparison({
               </div>
             )}
 
-            {noCoverage ? (
-              <div className={styles.emptyAltNote}>{t("emptyState")}</div>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className={styles.expandToggle}
-                  onClick={() => toggle(alt.id)}
-                  aria-expanded={expanded}
-                  aria-controls={panelId}
-                >
-                  {expanded
-                    ? `${t("hideItemPrices")} ▴`
-                    : `${t("viewItemPrices")} ▾`}
-                </button>
+            <button
+              type="button"
+              className={styles.expandToggle}
+              onClick={() => toggle(alt.id)}
+              aria-expanded={expanded}
+              aria-controls={panelId}
+            >
+              <span>
+                {expanded ? t("hideItemPrices") : t("viewItemPrices")}
+              </span>
+              <span className={styles.chev} aria-hidden="true">
+                {expanded ? "▴" : "▾"}
+              </span>
+            </button>
 
-                {expanded && (
-                  <div id={panelId} className={styles.itemList}>
-                    {sourceCart.items.map((src) => {
-                      const item = alt.items.find(
-                        (i) => i.product_id === src.product_id,
-                      );
-                      const missing = !item || item.imputed;
-                      return (
-                        <div key={src.product_id} className={styles.itemRow}>
-                          <span className={styles.itemName2}>
-                            {src.product_name}
-                          </span>
-                          {missing ? (
-                            <span className={styles.itemMissing}>
-                              {t("onlyAtSourceLabel", {
-                                store: sourceCart.store_name,
-                              })}
-                            </span>
-                          ) : (
-                            <span className={styles.itemPrice}>
-                              {formatINR(item.unit_price)} × {item.quantity}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
+            <div id={panelId} className={styles.itemList} hidden={!expanded}>
+              {sourceCart.items.map((src) => {
+                const item = alt.items.find(
+                  (i) => i.product_id === src.product_id,
+                );
+                const missing = !item || item.imputed;
+                return (
+                  <div key={src.product_id} className={styles.itemRow}>
+                    <span className={styles.mobileItemName}>
+                      {src.product_name}
+                    </span>
+                    {missing ? (
+                      <span className={styles.itemMissing}>
+                        {t("onlyAtSourceLabel", {
+                          store: sourceCart.store_name,
+                        })}
+                      </span>
+                    ) : (
+                      <span className={styles.itemPrice}>
+                        {formatINR(item.unit_price)} × {item.quantity}
+                      </span>
+                    )}
                   </div>
-                )}
+                );
+              })}
+            </div>
 
-                <button
-                  type="button"
-                  className={styles.shopBtnMobile}
-                  onClick={() => onShopAt(alt)}
-                  disabled={shopDisabled}
-                >
-                  {t("shopAt", { store: alt.name })}
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              className={styles.shopBtnMobile}
+              onClick={() => onShopAt(alt)}
+              disabled={shopDisabled}
+            >
+              {t("shopAt", { store: alt.name })}
+            </button>
           </article>
         );
       })}
