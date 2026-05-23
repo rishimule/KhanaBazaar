@@ -447,8 +447,8 @@ function SellerSignupPageInner() {
         {/* Step indicator */}
         <StepIndicator current={currentStep} />
 
-        {/* Banner: customer-account session active */}
-        {dbUser && !isResubmit && (
+        {/* Banner: customer-account session active — step 1 only (relevant before email is locked in) */}
+        {dbUser && !isResubmit && currentStep === 1 && (
           <div className={styles.accountNotice} role="status">
             <span className={styles.accountNoticeText}>
               Signed in as <strong>{dbUser.email}</strong>. Use a different
