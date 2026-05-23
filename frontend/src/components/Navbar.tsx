@@ -121,9 +121,26 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
           </Link>
           <span className={styles.strippedSpacer} />
           <LocaleSwitcher />
-          <Link href="/login" className={styles.loginBtn}>
-            {t("signIn")}
-          </Link>
+          {!loading && dbUser && (
+            <button
+              type="button"
+              className={styles.authBtn}
+              onClick={handleLogout}
+              title={t("logoutTitleSignedIn", {
+                who: dbUser.email ?? dbUser.full_name ?? t("drawerUserFallback"),
+              })}
+            >
+              <span className={styles.authAvatar}>
+                {(dbUser.full_name ?? dbUser.email ?? "U").charAt(0).toUpperCase()}
+              </span>
+              <span>{t("logoutLabel")}</span>
+            </button>
+          )}
+          {!loading && !dbUser && (
+            <Link href="/login" className={styles.loginBtn}>
+              {t("signIn")}
+            </Link>
+          )}
         </div>
       </nav>
     );
