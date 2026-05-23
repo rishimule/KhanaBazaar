@@ -1,0 +1,119 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+
+.subtitle {
+  margin: 0 0 14px;
+  color: var(--shade-cool-base-7);
+  font-size: var(--body-sm);
+}
+
+.stepList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 28px 28px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.stepNumber {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary-1);
+  color: var(--white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--weight-medium);
+  font-size: var(--body-sm);
+}
+
+.stepGlyph {
+  color: var(--shade-cool-dark-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepText {
+  color: var(--shade-cool-dark-7);
+  font-size: var(--body-base);
+}
+
+.footnote {
+  margin: 0;
+  color: var(--shade-cool-base-7);
+  font-size: var(--body-xs);
+}
+
+.fallbackBody {
+  margin: 0;
+  color: var(--shade-cool-dark-7);
+  font-size: var(--body-base);
+  line-height: 1.5;
+}
+
+.dismissBtn {
+  padding: 10px 18px;
+  border-radius: var(--radius-card);
+  border: none;
+  background: var(--color-primary-1);
+  color: var(--white);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+/* --color-primary-2 does not exist in design tokens; darken via filter instead */
+.dismissBtn:hover {
+  filter: brightness(0.92);
+}
+
+.shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 8px;
+  background: var(--white);
+  /* --shade-cool-light-3 does not exist; using --shade-cool-light-6 (input borders) as closest equivalent */
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  text-align: center;
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.shortcut:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0, 0, 0, 0.06));
+}
+
+.shortcutIcon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.shortcutLabel {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+}
+
+.footerLink {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
