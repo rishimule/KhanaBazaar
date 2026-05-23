@@ -73,3 +73,8 @@
   font-size: var(--font-sm);
   color: var(--color-neutral-500);
 }
+.statLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}

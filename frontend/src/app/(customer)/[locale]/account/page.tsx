@@ -3,19 +3,22 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import ActiveOrdersWidget from "@/components/orders/ActiveOrdersWidget";
 import RecentlyViewedRail from "@/components/RecentlyViewedRail";
 import StatsCard from "@/components/StatsCard";
 import { get } from "@/lib/api";
 import { getCustomerStats } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
+import { useFavorites } from "@/lib/FavoritesContext";
 import type { CustomerProfile, CustomerStats } from "@/types";
 import styles from "./page.module.css";
 
 export default function AccountHomePage() {
   const t = useTranslations("Account.dashboard");
+  const locale = useLocale();
   const { token } = useAuth();
+  const { count: favCount } = useFavorites();
   const [stats, setStats] = useState<CustomerStats | null>(null);
   const [firstName, setFirstName] = useState<string>("");
 
@@ -63,6 +66,13 @@ export default function AccountHomePage() {
             label={t("mostOrderedStore")}
             value={stats.most_ordered_store_name ?? "—"}
           />
+          <Link href={`/${locale}/account/favorites`} className={styles.statLink}>
+            <StatsCard
+              icon="❤️"
+              label={t("favouritesCount")}
+              value={String(favCount)}
+            />
+          </Link>
         </section>
       )}
 
