@@ -9,9 +9,13 @@ import type { CustomerProfile } from "@/types";
 import styles from "./PhoneVerifyModal.module.css";
 
 interface Props {
-  /** Phone already on the profile. If present, the modal skips the
-   *  "enter phone" step and asks the user to confirm + receive a code. */
+  /** Phone already on the profile. If present and no `initialStep` override,
+   *  the modal opens at the "confirm" step. */
   currentPhone?: string | null;
+  /** Force a specific entry step regardless of currentPhone. Used by callers
+   *  that want a "Change number" flow (force `"edit"` so the modal opens
+   *  with an empty input) even when a verified phone exists. */
+  initialStep?: "confirm" | "edit";
   onClose: () => void;
   onVerified: (profile: CustomerProfile) => void;
 }
@@ -36,12 +40,13 @@ function intlFromDigits(digits: string): string {
 
 export default function PhoneVerifyModal({
   currentPhone,
+  initialStep,
   onClose,
   onVerified,
 }: Props) {
   const t = useTranslations("Account.profile.phoneVerify");
   const { token } = useAuth();
-  const startStep: Step = currentPhone ? "confirm" : "edit";
+  const startStep: Step = initialStep ?? (currentPhone ? "confirm" : "edit");
   const [step, setStep] = useState<Step>(startStep);
   const [phone, setPhone] = useState(
     currentPhone ? intlFromDigits(digitsFromIntl(currentPhone)) : PHONE_PREFIX,
