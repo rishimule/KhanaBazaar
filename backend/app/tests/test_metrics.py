@@ -36,7 +36,6 @@ from app.models.profile import (
 from app.models.store import Store, StoreInventory
 from tests._helpers import make_address
 
-
 admin_user = User(id=701, email="metrics-admin@kb.com", role=UserRole.Admin, is_active=True)
 seller_user = User(id=702, email="metrics-seller@kb.com", role=UserRole.Seller, is_active=True)
 customer_user = User(id=703, email="metrics-cust@kb.com", role=UserRole.Customer, is_active=True)
