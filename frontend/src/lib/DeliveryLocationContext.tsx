@@ -19,6 +19,12 @@ interface DeliveryLocationContextValue {
   location: DeliveryLocation;
   /** False until the initial localStorage hydration effect has completed. */
   hydrated: boolean;
+  /** True iff the customer has explicitly picked a location (vs sitting on
+   *  the Mumbai fallback). Used by surfaces that want to gate on "real"
+   *  location data — for example, the favourites page banner. Survives the
+   *  edge case where a Mumbai-resident picks coordinates identical to the
+   *  fallback. */
+  userSet: boolean;
   setLocation: (loc: DeliveryLocation | null) => void;
   clear: () => void;
 }
@@ -43,6 +49,7 @@ export function DeliveryLocationProvider(
     DEFAULT_DELIVERY_LOCATION,
   );
   const [hydrated, setHydrated] = useState(false);
+  const [userSet, setUserSet] = useState(false);
   const prevTokenRef = useRef<string | null>(auth.token);
 
   // Same-tab logout reset: AuthContext.logout wipes `kb_delivery_location`
@@ -57,6 +64,7 @@ export function DeliveryLocationProvider(
     if (wasLoggedIn && isLoggedOut) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- react to auth identity transition
       setLocationState(DEFAULT_DELIVERY_LOCATION);
+      setUserSet(false);
     }
     prevTokenRef.current = auth.token;
   }, [auth.token]);
@@ -64,8 +72,11 @@ export function DeliveryLocationProvider(
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from localStorage on mount
-      if (raw) setLocationState(JSON.parse(raw));
+      if (raw) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from localStorage on mount
+        setLocationState(JSON.parse(raw));
+        setUserSet(true);
+      }
     } catch {
       // localStorage unavailable / corrupted JSON — ignore.
     }
@@ -77,12 +88,15 @@ export function DeliveryLocationProvider(
       if (e.key !== STORAGE_KEY) return;
       if (!e.newValue) {
         setLocationState(DEFAULT_DELIVERY_LOCATION);
+        setUserSet(false);
         return;
       }
       try {
         setLocationState(JSON.parse(e.newValue));
+        setUserSet(true);
       } catch {
         setLocationState(DEFAULT_DELIVERY_LOCATION);
+        setUserSet(false);
       }
     };
     window.addEventListener("storage", onStorage);
@@ -91,6 +105,7 @@ export function DeliveryLocationProvider(
 
   const setLocation = useCallback((loc: DeliveryLocation | null) => {
     setLocationState(loc ?? DEFAULT_DELIVERY_LOCATION);
+    setUserSet(loc !== null);
     if (typeof window === "undefined") return;
     if (loc) localStorage.setItem(STORAGE_KEY, JSON.stringify(loc));
     else localStorage.removeItem(STORAGE_KEY);
@@ -99,8 +114,8 @@ export function DeliveryLocationProvider(
   const clear = useCallback(() => setLocation(null), [setLocation]);
 
   const value = useMemo(
-    () => ({ location, hydrated, setLocation, clear }),
-    [location, hydrated, setLocation, clear],
+    () => ({ location, hydrated, userSet, setLocation, clear }),
+    [location, hydrated, userSet, setLocation, clear],
   );
 
   return (

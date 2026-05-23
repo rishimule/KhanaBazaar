@@ -2,59 +2,31 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import ProductCard from "@/components/ProductCard";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
-import {
-  isDefaultDeliveryLocation,
-  useDeliveryLocation,
-} from "@/lib/DeliveryLocationContext";
+import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { useFavorites } from "@/lib/FavoritesContext";
+import { favoriteToInventoryItem } from "@/lib/favorites";
 import type {
-  FavoriteAtStore,
   FavoriteProductPreview,
   FavoritesGroupedResponse,
-  InventoryWithProduct,
 } from "@/types";
 import styles from "./page.module.css";
 
-function toInventoryItem(
-  it: FavoriteAtStore,
-  storeId: number,
-): InventoryWithProduct {
-  return {
-    id: it.inventory_id,
-    store_id: storeId,
-    product_id: it.product_id,
-    price: it.price,
-    stock: it.stock,
-    is_available: it.stock > 0,
-    created_at: it.favourited_at,
-    updated_at: it.favourited_at,
-    product: {
-      id: it.product_id,
-      name: it.name,
-      description: "",
-      category_id: it.category_id,
-      subcategory_id: 0,
-      subcategory_name: "",
-      image_url: it.image_url ?? undefined,
-      base_price: it.price,
-      created_at: it.favourited_at,
-      updated_at: it.favourited_at,
-    },
-  };
+function formatDistance(km: number): string {
+  return km < 0.1 ? "< 0.1 km" : `${km.toFixed(1)} km`;
 }
 
 export default function FavoritesPage() {
   const t = useTranslations("Favorites");
   const locale = useLocale();
   const { dbUser, token } = useAuth();
-  const { location } = useDeliveryLocation();
-  const { count: favCount } = useFavorites();
-  const needsLocation = isDefaultDeliveryLocation(location);
+  const { location, userSet } = useDeliveryLocation();
+  const { isFavorite } = useFavorites();
+  const needsLocation = !userSet;
 
   const [data, setData] = useState<FavoritesGroupedResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,7 +38,10 @@ export default function FavoritesPage() {
   const refetch = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   useEffect(() => {
-    if (!isCustomer || !token || needsLocation) return;
+    if (!isCustomer || !token || needsLocation) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -89,9 +64,28 @@ export default function FavoritesPage() {
     };
   }, [isCustomer, token, needsLocation, location.lat, location.lng, t, refreshKey]);
 
+  // Drop items the customer just unfavourited via the context (optimistic
+  // local filter) and collapse store groups that empty out as a result.
+  // Server-truth catches up on the next refetch.
+  const filteredGroups = useMemo(() => {
+    if (!data) return [];
+    return data.groups
+      .map((g) => ({
+        ...g,
+        items: g.items.filter((it) => isFavorite(it.product_id)),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [data, isFavorite]);
+
+  const filteredUnavailable = useMemo(() => {
+    if (!data) return [] as FavoriteProductPreview[];
+    return data.unavailable.filter((p) => isFavorite(p.product_id));
+  }, [data, isFavorite]);
+
   if (needsLocation) {
     return (
       <section className={styles.banner}>
+        <h1>{t("title")}</h1>
         <p>{t("setLocation")}</p>
         <Link href={`/${locale}/stores`} className="btn btn-primary">
           {t("browseStores")}
@@ -115,9 +109,8 @@ export default function FavoritesPage() {
 
   if (!data) return null;
 
-  const total =
-    data.groups.reduce((n, g) => n + g.items.length, 0) +
-    data.unavailable.length;
+  const total = filteredGroups.reduce((n, g) => n + g.items.length, 0)
+    + filteredUnavailable.length;
 
   if (total === 0) {
     return <FavoritesEmpty locale={locale} />;
@@ -129,44 +122,44 @@ export default function FavoritesPage() {
         <h1>{t("title")}</h1>
         <p>
           {t("subtitle", {
-            count: favCount || total,
+            count: total,
             city: location.label || "—",
           })}
         </p>
       </header>
 
-      {data.groups.map((g) => (
+      {filteredGroups.map((g) => (
         <section key={g.store_id} className={styles.storeSection}>
           <header className={styles.storeHeader}>
             <Link href={`/${locale}/stores/${g.store_id}`}>
               <h2>{g.store_name}</h2>
             </Link>
             <span className={styles.distance}>
-              {g.distance_km.toFixed(1)} km
+              {formatDistance(g.distance_km)}
             </span>
           </header>
           <div className={styles.grid}>
             {g.items.map((it) => (
               <ProductCard
                 key={`${g.store_id}-${it.product_id}`}
-                item={toInventoryItem(it, g.store_id)}
+                item={favoriteToInventoryItem(it, g.store_id)}
                 storeId={g.store_id}
                 storeName={g.store_name}
-                serviceId={0}
-                serviceName=""
+                serviceId={it.service_id}
+                serviceName={it.service_name}
               />
             ))}
           </div>
         </section>
       ))}
 
-      {data.unavailable.length > 0 && (
+      {filteredUnavailable.length > 0 && (
         <details className={styles.unavailable}>
           <summary>
-            {t("unavailableSection", { count: data.unavailable.length })}
+            {t("unavailableSection", { count: filteredUnavailable.length })}
           </summary>
           <div className={styles.unavailableGrid}>
-            {data.unavailable.map((p) => (
+            {filteredUnavailable.map((p) => (
               <UnavailableCard key={p.product_id} product={p} />
             ))}
           </div>

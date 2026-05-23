@@ -118,11 +118,7 @@ export default function ProductCard({
         <button
           type="button"
           className={`${styles.heart} ${wishlist ? styles.heartActive : ""}`}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            void toggle(product.id);
-          }}
+          onClick={() => void toggle(product.id)}
           aria-label={wishlist ? t("removeFromFavorites") : t("addToFavorites")}
           aria-pressed={wishlist}
         >

@@ -562,6 +562,8 @@ export interface FavoriteAtStore {
   name: string;
   image_url: string | null;
   category_id: number;
+  service_id: number;
+  service_name: string;
   inventory_id: number;
   price: number;
   stock: number;

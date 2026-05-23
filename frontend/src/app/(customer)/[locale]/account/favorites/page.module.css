@@ -13,6 +13,12 @@
   text-align: center;
   color: var(--color-neutral-500);
 }
+.banner h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+}
 .empty h2 {
   margin: 8px 0 0;
   color: var(--color-neutral-900);
@@ -69,7 +75,7 @@
   padding: 8px;
   background: var(--color-neutral-50);
   border-radius: 8px;
-  opacity: 0.7;
+  color: var(--color-neutral-700);
   font-size: 13px;
   text-align: center;
 }
@@ -78,6 +84,7 @@
   height: 64px;
   object-fit: cover;
   border-radius: 4px;
+  opacity: 0.6;
 }
 
 .skeleton .skelStore { margin-bottom: 24px; }
