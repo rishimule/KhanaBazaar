@@ -136,3 +136,31 @@
   letter-spacing: 0.04em;
   color: var(--color-text-muted, #71717a);
 }
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.titleRow .name {
+  flex: 1;
+  min-width: 0;
+}
+.heart {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 999px;
+  color: var(--color-text-muted, #71717a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.heart:hover {
+  color: #e11d48;
+  background: var(--color-neutral-50, #fafafa);
+}
+.heartActive {
+  color: #e11d48;
+}

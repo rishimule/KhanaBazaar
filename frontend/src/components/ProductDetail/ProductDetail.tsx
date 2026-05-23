@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
+import { useFavorites } from "@/lib/FavoritesContext";
 import { pushRecentlyViewed } from "@/lib/recentlyViewed";
 import type { StoreProductDetail } from "@/types";
 import ReviewsPanel from "./ReviewsPanel";
@@ -19,6 +20,7 @@ export default function ProductDetail({ data, variant }: Props) {
   const t = useTranslations("Product");
   const { carts, addItem, removeItem, updateQty } = useCart();
   const { dbUser } = useAuth();
+  const { isFavorite, toggle: toggleFav } = useFavorites();
   const [imgFailed, setImgFailed] = useState(false);
 
   const { store, service, inventory } = data;
@@ -89,7 +91,25 @@ export default function ProductDetail({ data, variant }: Props) {
       </div>
 
       <div className={styles.body}>
-        <h1 className={styles.name}>{product.name}</h1>
+        <div className={styles.titleRow}>
+          <h1 className={styles.name}>{product.name}</h1>
+          {dbUser?.role === "customer" && (
+            <button
+              type="button"
+              className={`${styles.heart} ${isFavorite(product.id) ? styles.heartActive : ""}`}
+              onClick={() => void toggleFav(product.id)}
+              aria-label={isFavorite(product.id) ? t("removeFromFavorites") : t("addToFavorites")}
+              aria-pressed={isFavorite(product.id)}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24"
+                fill={isFavorite(product.id) ? "currentColor" : "none"}
+                stroke="currentColor" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            </button>
+          )}
+        </div>
         <p className={styles.context}>
           {store.name} · {service.name}
         </p>
