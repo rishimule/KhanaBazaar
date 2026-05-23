@@ -315,7 +315,9 @@
     "backToStore": "दुकानात परत",
     "unavailable": "सध्या उपलब्ध नाही",
     "closeModal": "बंद करा",
-    "loadError": "हे उत्पाद लोड होऊ शकले नाही."
+    "loadError": "हे उत्पाद लोड होऊ शकले नाही.",
+    "addToFavorites": "आवडत्यांमध्ये जोडा",
+    "removeFromFavorites": "आवडत्यांमधून काढा"
   },
   "Address": {
     "line1Label": "पत्ता ओळ 1",
@@ -422,8 +424,10 @@
     "layoutPreferencesTitle": "प्राधान्ये",
     "layoutSupportTitle": "मदत",
     "layoutSettingsTitle": "खाते सेटिंग्ज",
+    "layoutFavoritesTitle": "तुमचे आवडते",
     "navDashboard": "डॅशबोर्ड",
     "navOrders": "ऑर्डर",
+    "navFavorites": "आवडते",
     "navAddresses": "पत्ते",
     "navProfile": "प्रोफाइल",
     "navPreferences": "प्राधान्ये",
@@ -503,7 +507,7 @@
       "statsSubtitle": "तुमच्या ऑर्डरचा सारांश",
       "ordersThisMonth": "या महिन्याचे ऑर्डर",
       "lifetimeSpend": "एकूण खर्च",
-      "favoriteStore": "आवडते दुकान",
+      "mostOrderedStore": "सर्वाधिक ऑर्डर केलेले दुकान",
       "phoneVerifiedSince": "फोन सत्यापित",
       "phoneVerify": {
         "title": "तुमचा फोन सत्यापित करा",
@@ -649,10 +653,22 @@
       "there": "तिथे",
       "ordersThisMonth": "या महिन्याचे ऑर्डर",
       "lifetimeSpend": "एकूण खर्च",
-      "favoriteStore": "आवडते दुकान",
+      "mostOrderedStore": "सर्वाधिक ऑर्डर केलेले दुकान",
+      "favouritesCount": "आवडते",
       "orderAgain": "पुन्हा ऑर्डर करा",
       "recentlyViewed": "अलीकडे पाहिले"
     }
+  },
+  "Favorites": {
+    "title": "तुमचे आवडते",
+    "subtitle": "{count} जतन केले · {city} मध्ये डिलिव्हरी",
+    "emptyHeading": "अद्याप काहीही जतन नाही",
+    "emptyBody": "कोणत्याही उत्पादनावर ह्रदय टॅप करा.",
+    "browseStores": "दुकाने पाहा",
+    "unavailableSection": "{count} जवळ उपलब्ध नाहीत",
+    "setLocation": "तुमचा डिलिव्हरी पत्ता सेट करा",
+    "favouritesHere": "येथे तुमचे आवडते",
+    "errorRetry": "आवडते लोड होऊ शकले नाहीत. पुन्हा प्रयत्न करा."
   },
   "Search": {
     "placeholder": "उत्पादने, दुकाने शोधा",
