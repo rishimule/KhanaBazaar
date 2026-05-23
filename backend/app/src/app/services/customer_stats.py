@@ -55,7 +55,7 @@ async def compute_stats(
         .limit(1)
     )
     fav_row = (await session.execute(fav_q)).first()
-    favorite_store_id: int | None = fav_row[0] if fav_row else None
+    most_ordered_store_id: int | None = fav_row[0] if fav_row else None
 
     recent_q = (
         select(Order)
@@ -67,8 +67,8 @@ async def compute_stats(
     recent_orders = list((await session.exec(recent_q)).all())
 
     store_ids: set[int] = {o.store_id for o in recent_orders}
-    if favorite_store_id is not None:
-        store_ids.add(favorite_store_id)
+    if most_ordered_store_id is not None:
+        store_ids.add(most_ordered_store_id)
 
     name_by_store: dict[int, str] = {}
     if store_ids:
@@ -81,15 +81,15 @@ async def compute_stats(
             if sid is not None:
                 name_by_store[sid] = nm
 
-    favorite_store_name = (
-        name_by_store.get(favorite_store_id) if favorite_store_id is not None else None
+    most_ordered_store_name = (
+        name_by_store.get(most_ordered_store_id) if most_ordered_store_id is not None else None
     )
 
     return CustomerStatsResponse(
         orders_this_month=int(orders_this_month),
         lifetime_spend=lifetime_spend,
-        favorite_store_id=favorite_store_id,
-        favorite_store_name=favorite_store_name,
+        most_ordered_store_id=most_ordered_store_id,
+        most_ordered_store_name=most_ordered_store_name,
         recent_delivered=[
             OrderSummary(
                 id=int(o.id) if o.id is not None else 0,

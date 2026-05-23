@@ -145,8 +145,8 @@ async def test_stats_empty(client: AsyncClient, session: AsyncSession):
     data = r.json()
     assert data["orders_this_month"] == 0
     assert data["lifetime_spend"] == 0
-    assert data["favorite_store_id"] is None
-    assert data["favorite_store_name"] is None
+    assert data["most_ordered_store_id"] is None
+    assert data["most_ordered_store_name"] is None
     assert data["recent_delivered"] == []
 
 
@@ -197,8 +197,8 @@ async def test_stats_aggregates(client: AsyncClient, session: AsyncSession):
     data = r.json()
     assert data["orders_this_month"] == 4
     assert data["lifetime_spend"] == 1800
-    assert data["favorite_store_id"] == store_a.id  # type: ignore[attr-defined]
-    assert data["favorite_store_name"] == "Store A"
+    assert data["most_ordered_store_id"] == store_a.id  # type: ignore[attr-defined]
+    assert data["most_ordered_store_name"] == "Store A"
     assert len(data["recent_delivered"]) == 3
     assert data["recent_delivered"][0]["total"] == 500
     assert data["recent_delivered"][0]["store_name"] == "Store A"

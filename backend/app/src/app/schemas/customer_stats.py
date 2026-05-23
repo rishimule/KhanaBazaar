@@ -17,6 +17,6 @@ class OrderSummary(BaseModel):
 class CustomerStatsResponse(BaseModel):
     orders_this_month: int
     lifetime_spend: float
-    favorite_store_id: int | None
-    favorite_store_name: str | None
+    most_ordered_store_id: int | None
+    most_ordered_store_name: str | None
     recent_delivered: list[OrderSummary]
