@@ -88,3 +88,15 @@ class SellerApplicationPayload(BaseModel):
 
 class AdminSetServicesBody(BaseModel):
     service_ids: list[int] = Field(min_length=1)
+
+
+class SellerMetricsRead(BaseModel):
+    active_orders: int
+    orders_today: int
+    orders_this_month: int
+    revenue_this_month: float
+    total_products: int
+    out_of_stock: int
+    unavailable: int
+    store_active: bool
+    pin_confirmed: bool

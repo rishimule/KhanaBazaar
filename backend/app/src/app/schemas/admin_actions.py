@@ -53,6 +53,18 @@ class SellerHubSummary(BaseModel):
     total_product_count: int
 
 
+class AdminMetricsRead(BaseModel):
+    active_orders: int
+    orders_today: int
+    orders_this_month: int
+    gmv_this_month: float
+    active_master_products: int
+    active_categories: int
+    active_stores: int
+    pending_applications: int
+    approved_sellers: int
+
+
 class AdminInventoryRow(BaseModel):
     """Inventory row enriched with the master product name for admin UI display."""
 

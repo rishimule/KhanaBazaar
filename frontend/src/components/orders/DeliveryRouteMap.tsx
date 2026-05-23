@@ -81,10 +81,6 @@ export function DeliveryRouteMap({ store, customer }: DeliveryRouteMapProps) {
   return (
     <APIProvider apiKey={apiKey}>
       <div className={styles.wrapper}>
-        <div className={styles.legend}>
-          <span><span className={styles.dotStore} /> Store: {store.label}</span>
-          <span><span className={styles.dotCustomer} /> Delivers to: {customer.label}</span>
-        </div>
         <div className={styles.mapBox}>
           <Map
             defaultCenter={{ lat: store.lat, lng: store.lng }}
@@ -103,6 +99,10 @@ export function DeliveryRouteMap({ store, customer }: DeliveryRouteMapProps) {
               <div className={styles.markerCustomer}>📍</div>
             </AdvancedMarker>
           </Map>
+        </div>
+        <div className={styles.legend}>
+          <span><span className={styles.markerIconStore} aria-hidden>🏪</span> Store: {store.label}</span>
+          <span><span className={styles.markerIconCustomer} aria-hidden>📍</span> Delivers to: {customer.label}</span>
         </div>
       </div>
     </APIProvider>

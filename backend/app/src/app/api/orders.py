@@ -14,6 +14,7 @@ from app.core.security import (  # noqa: F401
     get_current_user,
 )
 from app.db.session import get_db_session
+from app.models.address import Address
 from app.models.base import User, UserRole
 from app.models.commerce import (
     Delivery,
@@ -69,6 +70,22 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
         raise HTTPException(status_code=500, detail="order_missing_delivery")
     store_result = await session.exec(select(Store).where(Store.id == order.store_id))
     store = store_result.first()
+    store_lat: Optional[float] = None
+    store_lng: Optional[float] = None
+    if store is not None:
+        store_addr_result = await session.exec(
+            select(Address).where(Address.id == store.address_id)
+        )
+        store_addr = store_addr_result.first()
+        if store_addr is not None:
+            store_lat = store_addr.latitude
+            store_lng = store_addr.longitude
+    delivery_addr_result = await session.exec(
+        select(Address).where(Address.id == order.delivery_address_id)
+    )
+    delivery_addr = delivery_addr_result.first()
+    delivery_lat = delivery_addr.latitude if delivery_addr else None
+    delivery_lng = delivery_addr.longitude if delivery_addr else None
     review_result = await session.exec(select(Review).where(Review.order_id == order.id))
     review = review_result.first()
     customer_name: Optional[str] = None
@@ -94,6 +111,10 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
         total=order.total,
         placed_at=order.placed_at,
         delivery_address_snapshot=order.delivery_address_snapshot,
+        store_latitude=store_lat,
+        store_longitude=store_lng,
+        delivery_latitude=delivery_lat,
+        delivery_longitude=delivery_lng,
         items=[OrderItemRead(
             id=i.id,
             inventory_id=i.inventory_id,

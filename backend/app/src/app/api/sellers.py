@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+from datetime import datetime, timezone
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -15,13 +17,15 @@ from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
 from app.models.address import Address, LocationSource
 from app.models.base import User
+from app.models.commerce import Delivery, Order, OrderStatus
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
-from app.models.store import Store
+from app.models.store import Store, StoreInventory
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.inventory import EligibleProduct
 from app.schemas.sellers import (
     AdminSetServicesBody,
     SellerApplicationPayload,
+    SellerMetricsRead,
     SellerProfilePayload,
     SellerProfileUpdateBody,
 )
@@ -51,6 +55,102 @@ async def _seller_profile_with_address(
     )
     result = await session.exec(stmt)
     return result.first()
+
+
+@router.get("/me/metrics", response_model=SellerMetricsRead)
+async def get_seller_metrics(
+    current_user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> SellerMetricsRead:
+    """Counts powering the seller dashboard. One round-trip; no caching."""
+    profile_res = await session.exec(
+        select(SellerProfile.id).where(SellerProfile.user_id == current_user.id)
+    )
+    profile_id = profile_res.first()
+    if profile_id is None:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+
+    store_res = await session.exec(
+        select(Store).where(Store.seller_profile_id == profile_id)
+    )
+    store = store_res.first()
+    if store is None:
+        return SellerMetricsRead(
+            active_orders=0,
+            orders_today=0,
+            orders_this_month=0,
+            revenue_this_month=0.0,
+            total_products=0,
+            out_of_stock=0,
+            unavailable=0,
+            store_active=False,
+            pin_confirmed=False,
+        )
+
+    ist = ZoneInfo("Asia/Kolkata")
+    now_ist = datetime.now(ist)
+    today_start = now_ist.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    month_start = (
+        now_ist.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        .astimezone(timezone.utc)
+    )
+    active = (OrderStatus.Pending, OrderStatus.Packed, OrderStatus.Dispatched)
+
+    active_orders = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(Order)
+        .where(Order.store_id == store.id, Order.status.in_(active))  # type: ignore[attr-defined]
+    )).one()
+    orders_today = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(Order)
+        .where(Order.store_id == store.id, Order.placed_at >= today_start)
+    )).one()
+    orders_this_month = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(Order)
+        .where(Order.store_id == store.id, Order.placed_at >= month_start)
+    )).one()
+    # Revenue counts orders DELIVERED this month (Delivery.delivered_at window),
+    # not orders placed this month — matches accounting expectations even when
+    # an order placed last month is fulfilled this month.
+    revenue_this_month_raw = (await session.exec(
+        select(func.coalesce(func.sum(Order.total), 0.0))  # type: ignore[arg-type]
+        .select_from(Order)
+        .join(Delivery, Delivery.order_id == Order.id)  # type: ignore[arg-type]
+        .where(
+            Order.store_id == store.id,
+            Order.status == OrderStatus.Delivered,
+            Delivery.delivered_at >= month_start,
+        )
+    )).one()
+    total_products = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(StoreInventory)
+        .where(StoreInventory.store_id == store.id)
+    )).one()
+    out_of_stock = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(StoreInventory)
+        .where(StoreInventory.store_id == store.id, StoreInventory.stock == 0)
+    )).one()
+    unavailable = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(StoreInventory)
+        .where(StoreInventory.store_id == store.id, StoreInventory.is_available.is_(False))  # type: ignore[attr-defined]
+    )).one()
+
+    return SellerMetricsRead(
+        active_orders=int(active_orders),
+        orders_today=int(orders_today),
+        orders_this_month=int(orders_this_month),
+        revenue_this_month=float(revenue_this_month_raw or 0.0),
+        total_products=int(total_products),
+        out_of_stock=int(out_of_stock),
+        unavailable=int(unavailable),
+        store_active=bool(store.is_active),
+        pin_confirmed=bool(store.pin_confirmed),
+    )
 
 
 @router.get("/me/status")

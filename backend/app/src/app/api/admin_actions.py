@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, or_
@@ -28,14 +29,15 @@ from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.admin_audit import AdminActionLog
 from app.models.base import User
-from app.models.catalog import MasterProduct, MasterProductTranslation
-from app.models.commerce import Order, OrderStatus
-from app.models.profile import SellerProfile
+from app.models.catalog import Category, MasterProduct, MasterProductTranslation
+from app.models.commerce import Delivery, Order, OrderStatus
+from app.models.profile import SellerProfile, VerificationStatus
 from app.models.store import Store, StoreInventory
 from app.schemas.admin_actions import (
     ActivityLogPage,
     AdminActionLogOut,
     AdminInventoryRow,
+    AdminMetricsRead,
     OverrideDeliveryAddressRequest,
     RefundOrderRequest,
     RewindOrderRequest,
@@ -49,6 +51,86 @@ from app.services.orders import (
 )
 
 router = APIRouter()
+
+
+@router.get("/metrics", response_model=AdminMetricsRead)
+async def admin_metrics(
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> AdminMetricsRead:
+    """Counts powering the admin dashboard. One round-trip; no caching."""
+    ist = ZoneInfo("Asia/Kolkata")
+    now_ist = datetime.now(ist)
+    today_start = now_ist.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    month_start = (
+        now_ist.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        .astimezone(timezone.utc)
+    )
+    active = (OrderStatus.Pending, OrderStatus.Packed, OrderStatus.Dispatched)
+
+    active_orders = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(Order)
+        .where(Order.status.in_(active))  # type: ignore[attr-defined]
+    )).one()
+    orders_today = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(Order)
+        .where(Order.placed_at >= today_start)
+    )).one()
+    orders_this_month = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(Order)
+        .where(Order.placed_at >= month_start)
+    )).one()
+    # GMV counts orders DELIVERED this month (Delivery.delivered_at), not
+    # orders placed this month.
+    gmv_this_month = (await session.exec(
+        select(func.coalesce(func.sum(Order.total), 0.0))  # type: ignore[arg-type]
+        .select_from(Order)
+        .join(Delivery, Delivery.order_id == Order.id)  # type: ignore[arg-type]
+        .where(
+            Order.status == OrderStatus.Delivered,
+            Delivery.delivered_at >= month_start,
+        )
+    )).one()
+    active_products = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(MasterProduct)
+        .where(MasterProduct.is_active.is_(True))  # type: ignore[attr-defined]
+    )).one()
+    active_categories = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(Category)
+        .where(Category.is_active.is_(True))  # type: ignore[attr-defined]
+    )).one()
+    active_stores = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(Store)
+        .where(Store.is_active.is_(True))  # type: ignore[attr-defined]
+    )).one()
+    pending_apps = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(SellerProfile)
+        .where(SellerProfile.verification_status == VerificationStatus.Pending)
+    )).one()
+    approved_sellers = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(SellerProfile)
+        .where(SellerProfile.verification_status == VerificationStatus.Approved)
+    )).one()
+
+    return AdminMetricsRead(
+        active_orders=int(active_orders),
+        orders_today=int(orders_today),
+        orders_this_month=int(orders_this_month),
+        gmv_this_month=float(gmv_this_month or 0.0),
+        active_master_products=int(active_products),
+        active_categories=int(active_categories),
+        active_stores=int(active_stores),
+        pending_applications=int(pending_apps),
+        approved_sellers=int(approved_sellers),
+    )
 
 
 def _encode_cursor(created_at: datetime, row_id: str) -> str:

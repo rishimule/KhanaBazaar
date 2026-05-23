@@ -1,0 +1,156 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 820px;
+  margin: 0 auto;
+  font-family: var(--font-family-sans);
+}
+
+.title {
+  font-size: var(--display-lg);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--display-lg-track);
+  color: var(--shade-cool-dark-7);
+  margin: 0;
+}
+
+.empty {
+  color: var(--shade-cool-base-7);
+  padding: 48px 24px;
+  text-align: center;
+  background: var(--shade-cool-light-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  font-size: var(--body-base);
+}
+
+.pinBanner {
+  background: var(--saffron-yellow-light-1, #fffbeb);
+  border: 1px solid var(--saffron-yellow-base-3, #f59e0b);
+  color: var(--shade-cool-dark-7);
+  padding: 12px 16px;
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+}
+
+.bannerLink {
+  color: var(--color-primary-1);
+  text-decoration: underline;
+  margin-left: 6px;
+  font-weight: var(--weight-medium);
+}
+
+.errorBanner {
+  background: var(--vermillion-red-light-1, #fef2f2);
+  border: 1px solid var(--vermillion-red-base-3, #b91c1c);
+  color: var(--vermillion-red-dark-1, #7f1d1d);
+  padding: 10px 14px;
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+}
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cardTitle {
+  font-size: var(--body-xl);
+  font-weight: var(--weight-medium);
+  margin: 0;
+}
+
+.cardCaption {
+  margin: 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
+.radiusRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stepBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--shade-cool-light-6);
+  background: var(--white);
+  font-size: 18px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.radiusInput {
+  width: 100px;
+  padding: 8px 10px;
+  font-size: var(--body-base);
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-md);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-family-sans);
+}
+
+.unit {
+  font-size: var(--body-base);
+  color: var(--shade-cool-base-7);
+}
+
+.savingChip {
+  font-size: var(--font-xs);
+  background: var(--shade-cool-light-2);
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--shade-cool-dark-5);
+  margin-left: 8px;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: minmax(140px, max-content) 1fr;
+  gap: 10px 18px;
+  margin: 0;
+  font-size: var(--body-sm);
+}
+
+.detailGrid dt {
+  color: var(--shade-cool-base-7);
+  font-weight: var(--weight-medium);
+}
+
+.detailGrid dd {
+  margin: 0;
+  color: var(--shade-cool-dark-7);
+}
+
+.linkRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

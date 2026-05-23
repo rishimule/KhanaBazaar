@@ -55,6 +55,10 @@ class OrderRead(BaseModel):
     total: float
     placed_at: datetime
     delivery_address_snapshot: str
+    store_latitude: Optional[float] = None
+    store_longitude: Optional[float] = None
+    delivery_latitude: Optional[float] = None
+    delivery_longitude: Optional[float] = None
     items: List[OrderItemRead]
     payment: PaymentRead
     delivery: DeliveryRead
