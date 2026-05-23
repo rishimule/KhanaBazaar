@@ -303,6 +303,8 @@
     "forSellers": "विक्रेताओं के लिए",
     "privacy": "गोपनीयता नीति",
     "terms": "सेवा की शर्तें",
+    "getApp": "Get the app",
+    "installApp": "Install Khana Bazaar",
     "copyright": "© {year} Khana Bazaar. सर्वाधिकार सुरक्षित।",
     "madeWith": "भारत के स्थानीय विक्रेताओं के लिए 🧡 से बनाया गया"
   },
@@ -686,6 +688,7 @@
       "shortcutFavorites": "पसंदीदा",
       "shortcutAddresses": "पते",
       "shortcutSupport": "सहायता",
+      "shortcutInstallApp": "Install app",
       "reorderCta": "फिर ऑर्डर करें",
       "viewAll": "सभी देखें"
     }
@@ -732,5 +735,22 @@
     "sortDistance": "दूरी",
     "minPrice": "न्यूनतम ₹",
     "maxPrice": "अधिकतम ₹"
+  },
+  "PWAInstall": {
+    "__translatorNote": "All PWAInstall, Footer.getApp/installApp, and Account.dashboard.shortcutInstallApp values are English fallbacks pending translation.",
+    "iosSheet": {
+      "title": "Install Khana Bazaar",
+      "subtitle": "Add it to your home screen in 3 steps",
+      "step1": "Tap the Share button below",
+      "step2": "Choose \"Add to Home Screen\"",
+      "step3": "Tap Add to confirm",
+      "footnote": "Khana Bazaar will appear on your home screen like any app.",
+      "dismiss": "Got it"
+    },
+    "fallbackSheet": {
+      "title": "Open your browser menu",
+      "body": "Tap the ⋮ menu, then \"Install app\" or \"Add to Home screen\".",
+      "dismiss": "Got it"
+    }
   }
 }
