@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `81ccebe49ed1`. Regenerate this file when the head changes.
+-- migration head `c6af6b06e7dd`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole              : 'Customer', 'Seller', 'Admin'
@@ -493,6 +493,9 @@ CREATE UNIQUE INDEX "uq_review_order_id"
 
 CREATE UNIQUE INDEX "uq_favorite_customer_product"
   ON "favorite" ("customer_profile_id", "product_id");
+-- Recent-first listing index for /account/favorites and dashboard rail.
+CREATE INDEX "ix_favorite_customer_created"
+  ON "favorite" ("customer_profile_id", "created_at" DESC);
 
 CREATE INDEX "ix_search_query_log_created_at"
   ON "search_query_log" ("created_at");

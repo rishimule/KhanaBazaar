@@ -39,6 +39,7 @@ from app.models.catalog import (
 from app.models.commerce import (
     Delivery,
     DeliveryStatus,
+    Favorite,
     Order,
     OrderItem,
     OrderStatus,
@@ -1442,6 +1443,20 @@ DEMO_ORDERS: list[dict[str, Any]] = [
     },
 ]
 
+# Favourites for Priya Verma (customer@khanabazaar.dev). Powers the dashboard
+# rail + /account/favorites page during manual QA. Mix of Grocery + Electronics
+# so the page exercises grouping and the "unavailable nearby" segment.
+FAVORITES: list[dict[str, Any]] = [
+    {"customer_email": "customer@khanabazaar.dev", "product_slug": "alphonso-mangoes-1kg"},
+    {"customer_email": "customer@khanabazaar.dev", "product_slug": "amul-taza-milk-1l"},
+    {"customer_email": "customer@khanabazaar.dev", "product_slug": "amul-paneer-200g"},
+    {"customer_email": "customer@khanabazaar.dev", "product_slug": "basmati-rice-5kg"},
+    {"customer_email": "customer@khanabazaar.dev", "product_slug": "britannia-bread-400g"},
+    {"customer_email": "customer@khanabazaar.dev", "product_slug": "amul-cow-ghee-1l"},
+    {"customer_email": "customer@khanabazaar.dev", "product_slug": "lenovo-yoga-7i-2in1"},
+    {"customer_email": "customer@khanabazaar.dev", "product_slug": "hp-pavilion-x360-14"},
+]
+
 
 def _compute_expected_counts() -> dict[str, int]:
     """Derive expected counts from the merged module-level data. Keeps the
@@ -1484,6 +1499,7 @@ def _compute_expected_counts() -> dict[str, int]:
         "orderitem": sum(len(o["items"]) for o in DEMO_ORDERS),
         "payment": len(DEMO_ORDERS),
         "delivery": len(DEMO_ORDERS),
+        "favorite": len(FAVORITES),
     }
 
 
@@ -2153,6 +2169,43 @@ async def seed_seller_application_subset(session: AsyncSession) -> None:
         await _upsert_seller_profile(session, user, application)
 
 
+async def _seed_favorites(session: AsyncSession) -> None:
+    """Insert Favorite rows for QA. Idempotent — skipped when any favourites
+    already exist so a second seed run does not duplicate rows."""
+    existing = await session.exec(select(func.count()).select_from(Favorite))
+    if int(existing.one()) > 0:
+        return
+
+    for spec in FAVORITES:
+        user_row = await session.exec(
+            select(User).where(User.email == spec["customer_email"])
+        )
+        user = user_row.first()
+        assert user is not None and user.id is not None, (
+            f"favorite references unknown customer {spec['customer_email']!r}"
+        )
+
+        profile_row = await session.exec(
+            select(CustomerProfile).where(CustomerProfile.user_id == user.id)
+        )
+        profile = profile_row.first()
+        assert profile is not None and profile.id is not None
+
+        product_row = await session.exec(
+            select(MasterProduct).where(MasterProduct.slug == spec["product_slug"])
+        )
+        product = product_row.first()
+        assert product is not None and product.id is not None, (
+            f"favorite references unknown product slug {spec['product_slug']!r}"
+        )
+
+        session.add(
+            Favorite(customer_profile_id=profile.id, product_id=product.id)
+        )
+
+    await session.commit()
+
+
 async def seed_demo_data(session: AsyncSession) -> None:
     await _ensure_languages(session)
 
@@ -2231,6 +2284,7 @@ async def seed_demo_data(session: AsyncSession) -> None:
         )
 
     await _seed_demo_orders(session)
+    await _seed_favorites(session)
 
     await verify_expected_counts(session)
 
@@ -2258,6 +2312,7 @@ _COUNT_MODELS = {
     "orderitem": OrderItem,
     "payment": Payment,
     "delivery": Delivery,
+    "favorite": Favorite,
 }
 
 
