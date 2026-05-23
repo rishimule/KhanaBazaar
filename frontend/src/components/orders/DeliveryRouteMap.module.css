@@ -22,16 +22,12 @@
   gap: var(--space-2);
 }
 
-.dotStore,
-.dotCustomer {
+.markerIconStore,
+.markerIconCustomer {
   display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
 }
-
-.dotStore { background: var(--color-primary-1); }
-.dotCustomer { background: var(--eggplant-purple-base-4); }
 
 .mapBox {
   position: relative;
