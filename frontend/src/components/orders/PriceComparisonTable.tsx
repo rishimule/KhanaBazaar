@@ -92,7 +92,7 @@ export default function PriceComparisonTable({
           <tfoot>
             <tr>
               <th scope="row">{t("footAtStore")}</th>
-              <td className={styles.num}>{formatINR(sourceSubtotal)}</td>
+              <td className={styles.num}>—</td>
               {alternatives.map((alt) => (
                 <td key={alt.id} className={styles.num}>
                   {formatINR(alt.covered_subtotal)}{" "}
@@ -118,12 +118,16 @@ export default function PriceComparisonTable({
               <td className={styles.num}>{formatINR(sourceSubtotal)}</td>
               {alternatives.map((alt) => (
                 <td key={alt.id} className={styles.num}>
-                  {formatINR(alt.effective_total)}
+                  {formatINR(alt.effective_total)}{" "}
+                  <DeltaChip
+                    effectiveTotal={alt.effective_total}
+                    sourceSubtotal={sourceSubtotal}
+                  />
                 </td>
               ))}
             </tr>
             <tr>
-              <th scope="row">{t("footAction")}</th>
+              <th scope="row"><span className="sr-only">{t("footAction")}</span></th>
               <td className={styles.currentLabel}>{t("currentBadge")}</td>
               {alternatives.map((alt) => (
                 <td key={alt.id}>
@@ -207,20 +211,6 @@ function MobileComparison({
       {/* Alt cards */}
       {alternatives.map((alt) => {
         const expanded = expandedIds.has(alt.id);
-        const diff = alt.effective_total - sourceSubtotal;
-        const absDiff = Math.abs(diff);
-        const deltaChipClass =
-          diff < 0
-            ? styles.deltaSave
-            : diff > 0
-            ? styles.deltaMore
-            : styles.deltaSame;
-        const deltaText =
-          diff < 0
-            ? t("saveDelta", { amount: formatINR(absDiff) })
-            : diff > 0
-            ? t("moreDelta", { amount: formatINR(absDiff) })
-            : t("sameTotal");
         const headerId = `alt-${alt.id}-name`;
         const panelId = `alt-items-${alt.id}`;
 
@@ -243,9 +233,10 @@ function MobileComparison({
               <span className={styles.cardAmount}>
                 {formatINR(alt.effective_total)}
               </span>
-              <span className={`${styles.deltaChip} ${deltaChipClass}`}>
-                {deltaText}
-              </span>
+              <DeltaChip
+                effectiveTotal={alt.effective_total}
+                sourceSubtotal={sourceSubtotal}
+              />
             </div>
 
             <div className={styles.coverageLine}>
@@ -315,5 +306,31 @@ function MobileComparison({
         );
       })}
     </div>
+  );
+}
+
+interface DeltaChipProps {
+  effectiveTotal: number;
+  sourceSubtotal: number;
+}
+
+function DeltaChip({ effectiveTotal, sourceSubtotal }: DeltaChipProps) {
+  const t = useTranslations("Checkout.compare");
+  const diff = effectiveTotal - sourceSubtotal;
+  const absDiff = Math.abs(diff);
+  const chipClass =
+    diff < 0
+      ? styles.deltaSave
+      : diff > 0
+      ? styles.deltaMore
+      : styles.deltaSame;
+  const chipText =
+    diff < 0
+      ? t("saveDelta", { amount: formatINR(absDiff) })
+      : diff > 0
+      ? t("moreDelta", { amount: formatINR(absDiff) })
+      : t("sameTotal");
+  return (
+    <span className={`${styles.deltaChip} ${chipClass}`}>{chipText}</span>
   );
 }
