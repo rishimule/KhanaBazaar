@@ -14,6 +14,7 @@ import RouteProgressProvider from "@/components/RouteProgressProvider";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
+import { FavoritesProvider } from "@/lib/FavoritesContext";
 import { CustomerAddressesProvider } from "@/lib/CustomerAddressesContext";
 import { DeliveryLocationAutoSync } from "@/components/DeliveryLocationAutoSync";
 import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
@@ -90,14 +91,16 @@ export default async function CustomerLayout({
               <DeliveryLocationProvider>
                 <CustomerAddressesProvider>
                   <DeliveryLocationAutoSync />
-                  <CartProvider>
-                    <SearchOverlayProvider>
-                      <Navbar />
-                    </SearchOverlayProvider>
-                    <CartSyncBanner />
-                    <main>{children}</main>
-                    <Footer />
-                  </CartProvider>
+                  <FavoritesProvider>
+                    <CartProvider>
+                      <SearchOverlayProvider>
+                        <Navbar />
+                      </SearchOverlayProvider>
+                      <CartSyncBanner />
+                      <main>{children}</main>
+                      <Footer />
+                    </CartProvider>
+                  </FavoritesProvider>
                 </CustomerAddressesProvider>
               </DeliveryLocationProvider>
             </AuthProvider>
