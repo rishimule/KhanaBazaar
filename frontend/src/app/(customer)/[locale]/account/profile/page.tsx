@@ -192,12 +192,16 @@ export default function AccountProfilePage() {
     `${profile.first_name} ${profile.last_name ?? ""}`.trim(),
     profile.email,
   );
-  const memberSince = profile.phone_verified_at; // placeholder if you prefer createdAt
+  const phoneVerifiedAt = profile.phone_verified_at;
 
   return (
     <div className={styles.page}>
       {sectionError && <div className={styles.errorBanner}>{sectionError}</div>}
-      {saveSuccess && <div className={styles.successBanner}>{t("saved")}</div>}
+      {saveSuccess && (
+        <div className={styles.successBanner} role="status" aria-live="polite">
+          {t("saved")}
+        </div>
+      )}
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -355,9 +359,13 @@ export default function AccountProfilePage() {
                     : styles.phoneBadgeUnverified
                 }
               >
+                <span aria-hidden="true">
+                  {profile.phone_verified_at ? "✓" : "⚠"}
+                </span>
+                {" "}
                 {profile.phone_verified_at
-                  ? `✓ ${t("phoneStatusVerified")}`
-                  : `⚠ ${t("phoneStatusUnverified")}`}
+                  ? t("phoneStatusVerified")
+                  : t("phoneStatusUnverified")}
               </span>
             )}
           </div>
@@ -365,13 +373,9 @@ export default function AccountProfilePage() {
             type="button"
             className="btn btn-outline"
             onClick={() => {
-              if (!profile.phone) {
-                setPhoneModal({ open: true, initialStep: "edit" });
-              } else if (profile.phone_verified_at) {
-                setPhoneModal({ open: true, initialStep: "edit" });
-              } else {
-                setPhoneModal({ open: true, initialStep: "confirm" });
-              }
+              const step =
+                profile.phone && !profile.phone_verified_at ? "confirm" : "edit";
+              setPhoneModal({ open: true, initialStep: step });
             }}
           >
             {!profile.phone
@@ -407,11 +411,11 @@ export default function AccountProfilePage() {
               {stats?.most_ordered_store_name ?? "—"}
             </span>
           </div>
-          {memberSince && (
+          {phoneVerifiedAt && (
             <div className={styles.statItem}>
               <span className={styles.statLabel}>{t("phoneVerifiedSince")}</span>
               <span className={styles.statValue} suppressHydrationWarning>
-                {new Date(memberSince).toLocaleDateString()}
+                {new Date(phoneVerifiedAt).toLocaleDateString()}
               </span>
             </div>
           )}
