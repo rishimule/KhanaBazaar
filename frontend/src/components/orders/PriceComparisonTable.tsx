@@ -92,7 +92,7 @@ export default function PriceComparisonTable({
           <tfoot>
             <tr>
               <th scope="row">{t("footAtStore")}</th>
-              <td className={styles.num}>{formatINR(sourceSubtotal)}</td>
+              <td className={styles.num}>—</td>
               {alternatives.map((alt) => (
                 <td key={alt.id} className={styles.num}>
                   {formatINR(alt.covered_subtotal)}{" "}
@@ -127,7 +127,7 @@ export default function PriceComparisonTable({
               ))}
             </tr>
             <tr>
-              <th scope="row" aria-label="actions" />
+              <th scope="row"><span className="sr-only">{t("footAction")}</span></th>
               <td className={styles.currentLabel}>{t("currentBadge")}</td>
               {alternatives.map((alt) => (
                 <td key={alt.id}>

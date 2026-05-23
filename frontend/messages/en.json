@@ -145,7 +145,7 @@
       "notStocked": "— Not stocked",
       "footAtStore": "Items in stock",
       "footStaysAtA": "+ Bought at {store}",
-      "footCombined": "= You'd pay",
+      "footCombined": "= Total",
       "footAction": "Action",
       "currentBadge": "current",
       "shopAt": "Shop at {store}",
