@@ -444,13 +444,15 @@ function SellerSignupPageInner() {
           </p>
         </div>
 
+        {/* Step indicator */}
+        <StepIndicator current={currentStep} />
+
         {/* Banner: customer-account session active */}
         {dbUser && !isResubmit && (
           <div className={styles.accountNotice} role="status">
-            <span>
-              Signed in as <strong>{dbUser.email}</strong>. Seller accounts are
-              separate and need a different email. To register with this email,
-              sign out first.
+            <span className={styles.accountNoticeText}>
+              Signed in as <strong>{dbUser.email}</strong>. Use a different
+              email for your seller account, or sign out.
             </span>
             <button
               type="button"
@@ -464,9 +466,6 @@ function SellerSignupPageInner() {
             </button>
           </div>
         )}
-
-        {/* Step indicator */}
-        <StepIndicator current={currentStep} />
 
         {/* ---- Step 1: Email ---- */}
         {currentStep === 1 && (
