@@ -23,6 +23,7 @@ import {
 import ProductCard from "@/components/ProductCard";
 import CategorySidebar from "@/components/CategorySidebar";
 import CartRail from "@/components/CartRail";
+import FavoritesHere from "@/components/FavoritesHere";
 import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
 import styles from "./page.module.css";
 
@@ -336,6 +337,8 @@ export default function StoreDetailPage({ params }: Props) {
               {t("openNow")}
             </div>
           </header>
+
+          <FavoritesHere storeId={Number(storeId)} storeName={store.name} />
 
           {requestedMissingServiceId !== null ? (() => {
             const missingSvc = store.services.find(
