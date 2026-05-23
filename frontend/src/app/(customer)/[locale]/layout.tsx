@@ -11,6 +11,7 @@ import CartSyncBanner from "@/components/CartSyncBanner";
 import FooterGate from "@/components/FooterGate";
 import Navbar from "@/components/Navbar";
 import RouteProgressProvider from "@/components/RouteProgressProvider";
+import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
@@ -51,8 +52,11 @@ export const metadata: Metadata = {
     title: "Khana Bazaar",
   },
   icons: {
-    icon: "/icons/icon-192x192.png",
-    apple: "/icons/icon-192x192.png",
+    icon: [
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: { url: "/icons/icon-180x180.png", sizes: "180x180", type: "image/png" },
   },
   alternates: {
     languages: alternateLanguages("/"),
@@ -112,18 +116,3 @@ export default async function CustomerLayout({
   );
 }
 
-function ServiceWorkerRegistrar() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-          if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-              navigator.serviceWorker.register('/sw.js').catch(() => {});
-            });
-          }
-        `,
-      }}
-    />
-  );
-}
