@@ -315,7 +315,9 @@
     "backToStore": "Back to store",
     "unavailable": "Currently unavailable",
     "closeModal": "Close",
-    "loadError": "Couldn't load this product."
+    "loadError": "Couldn't load this product.",
+    "addToFavorites": "Add to favourites",
+    "removeFromFavorites": "Remove from favourites"
   },
   "Address": {
     "line1Label": "Address line 1",
@@ -422,8 +424,10 @@
     "layoutPreferencesTitle": "Preferences",
     "layoutSupportTitle": "Help & Support",
     "layoutSettingsTitle": "Account settings",
+    "layoutFavoritesTitle": "Your favourites",
     "navDashboard": "Dashboard",
     "navOrders": "Orders",
+    "navFavorites": "Favourites",
     "navAddresses": "Addresses",
     "navProfile": "Profile",
     "navPreferences": "Preferences",
@@ -503,7 +507,7 @@
       "statsSubtitle": "Summary of your orders",
       "ordersThisMonth": "Orders this month",
       "lifetimeSpend": "Lifetime spend",
-      "favoriteStore": "Favorite store",
+      "mostOrderedStore": "Most ordered store",
       "phoneVerifiedSince": "Phone verified",
       "phoneVerify": {
         "title": "Verify your phone",
@@ -649,10 +653,22 @@
       "there": "there",
       "ordersThisMonth": "Orders this month",
       "lifetimeSpend": "Lifetime spend",
-      "favoriteStore": "Favorite store",
+      "mostOrderedStore": "Most ordered store",
+      "favouritesCount": "Favourites",
       "orderAgain": "Order again",
       "recentlyViewed": "Recently viewed"
     }
+  },
+  "Favorites": {
+    "title": "Your favourites",
+    "subtitle": "{count} saved · delivering to {city}",
+    "emptyHeading": "Nothing saved yet",
+    "emptyBody": "Tap the heart on any product to save it here.",
+    "browseStores": "Browse stores",
+    "unavailableSection": "{count} not available nearby",
+    "setLocation": "Set your delivery location",
+    "favouritesHere": "Your favourites here",
+    "errorRetry": "Couldn't load favourites. Retry."
   },
   "Search": {
     "placeholder": "Search products, stores",

@@ -9,6 +9,7 @@ from app.api import (
     catalog,
     catalog_admin,
     customers,
+    favorites,
     geo,
     meta,
     orders,
@@ -32,3 +33,4 @@ api_router.include_router(meta.router, prefix="/meta", tags=["meta"])
 api_router.include_router(geo.router, prefix="/geo", tags=["geo"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(admin_actions.router, prefix="/admin", tags=["admin"])
+api_router.include_router(favorites.router, prefix="/favorites", tags=["favorites"])

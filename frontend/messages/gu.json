@@ -315,7 +315,9 @@
     "backToStore": "સ્ટોર પર પાછા",
     "unavailable": "હાલમાં ઉપલબ્ધ નથી",
     "closeModal": "બંધ કરો",
-    "loadError": "આ ઉત્પાદન લોડ થઈ શક્યું નહીં."
+    "loadError": "આ ઉત્પાદન લોડ થઈ શક્યું નહીં.",
+    "addToFavorites": "પ્રિયમાં ઉમેરો",
+    "removeFromFavorites": "પ્રિયમાંથી દૂર કરો"
   },
   "Address": {
     "line1Label": "સરનામું લાઇન 1",
@@ -422,8 +424,10 @@
     "layoutPreferencesTitle": "પસંદગીઓ",
     "layoutSupportTitle": "મદદ",
     "layoutSettingsTitle": "ખાતા સેટિંગ્સ",
+    "layoutFavoritesTitle": "તમારા પ્રિય",
     "navDashboard": "ડેશબોર્ડ",
     "navOrders": "ઓર્ડર",
+    "navFavorites": "પ્રિય",
     "navAddresses": "સરનામાં",
     "navProfile": "પ્રોફાઇલ",
     "navPreferences": "પસંદગીઓ",
@@ -503,7 +507,7 @@
       "statsSubtitle": "તમારા ઓર્ડરનો સારાંશ",
       "ordersThisMonth": "આ મહિનાના ઓર્ડર",
       "lifetimeSpend": "કુલ ખર્ચ",
-      "favoriteStore": "પ્રિય દુકાન",
+      "mostOrderedStore": "સૌથી વધુ ઓર્ડર થયેલી દુકાન",
       "phoneVerifiedSince": "ફોન ચકાસાયેલ",
       "phoneVerify": {
         "title": "તમારો ફોન ચકાસો",
@@ -649,10 +653,22 @@
       "there": "ત્યાં",
       "ordersThisMonth": "આ મહિનાના ઓર્ડર",
       "lifetimeSpend": "કુલ ખર્ચ",
-      "favoriteStore": "પ્રિય દુકાન",
+      "mostOrderedStore": "સૌથી વધુ ઓર્ડર થયેલી દુકાન",
+      "favouritesCount": "પ્રિય",
       "orderAgain": "ફરી ઓર્ડર કરો",
       "recentlyViewed": "તાજેતરમાં જોયેલું"
     }
+  },
+  "Favorites": {
+    "title": "તમારા પ્રિય",
+    "subtitle": "{count} સાચવ્યું · {city} માં ડિલિવરી",
+    "emptyHeading": "હજુ સુધી કંઈ સાચવ્યું નથી",
+    "emptyBody": "કોઈપણ ઉત્પાદન પર હૃદય પર ટેપ કરો.",
+    "browseStores": "દુકાનો જુઓ",
+    "unavailableSection": "{count} નજીકમાં ઉપલબ્ધ નથી",
+    "setLocation": "તમારું ડિલિવરી સ્થાન સેટ કરો",
+    "favouritesHere": "અહીં તમારા પ્રિય",
+    "errorRetry": "પ્રિય લોડ થઈ શક્યા નથી. ફરી પ્રયત્ન કરો."
   },
   "Search": {
     "placeholder": "ઉત્પાદનો, દુકાનો શોધો",

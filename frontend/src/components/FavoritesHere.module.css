@@ -1,0 +1,20 @@
+.rail {
+  margin: 16px 0 24px;
+}
+.title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-neutral-900);
+}
+.scroller {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+}
+.card {
+  flex: 0 0 200px;
+  scroll-snap-align: start;
+}

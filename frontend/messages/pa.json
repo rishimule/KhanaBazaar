@@ -315,7 +315,9 @@
     "backToStore": "ਸਟੋਰ ਤੇ ਵਾਪਸ",
     "unavailable": "ਫਿਲਹਾਲ ਉਪਲਬਧ ਨਹੀਂ",
     "closeModal": "ਬੰਦ ਕਰੋ",
-    "loadError": "ਇਹ ਉਤਪਾਦ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।"
+    "loadError": "ਇਹ ਉਤਪਾਦ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।",
+    "addToFavorites": "ਪਸੰਦੀਦਾ ਵਿੱਚ ਜੋੜੋ",
+    "removeFromFavorites": "ਪਸੰਦੀਦਾ ਤੋਂ ਹਟਾਓ"
   },
   "Address": {
     "line1Label": "ਪਤਾ ਲਾਈਨ 1",
@@ -422,8 +424,10 @@
     "layoutPreferencesTitle": "ਤਰਜੀਹਾਂ",
     "layoutSupportTitle": "ਮਦਦ",
     "layoutSettingsTitle": "ਖਾਤਾ ਸੈਟਿੰਗਾਂ",
+    "layoutFavoritesTitle": "ਤੁਹਾਡੇ ਪਸੰਦੀਦਾ",
     "navDashboard": "ਡੈਸ਼ਬੋਰਡ",
     "navOrders": "ਆਰਡਰ",
+    "navFavorites": "ਪਸੰਦੀਦਾ",
     "navAddresses": "ਪਤੇ",
     "navProfile": "ਪ੍ਰੋਫਾਈਲ",
     "navPreferences": "ਤਰਜੀਹਾਂ",
@@ -503,7 +507,7 @@
       "statsSubtitle": "ਤੁਹਾਡੇ ਆਰਡਰਾਂ ਦਾ ਸਾਰ",
       "ordersThisMonth": "ਇਸ ਮਹੀਨੇ ਦੇ ਆਰਡਰ",
       "lifetimeSpend": "ਕੁੱਲ ਖਰਚ",
-      "favoriteStore": "ਪਸੰਦੀਦਾ ਦੁਕਾਨ",
+      "mostOrderedStore": "ਸਭ ਤੋਂ ਵੱਧ ਆਰਡਰ ਕੀਤੀ ਦੁਕਾਨ",
       "phoneVerifiedSince": "ਫ਼ੋਨ ਤਸਦੀਕਸ਼ੁਦਾ",
       "phoneVerify": {
         "title": "ਆਪਣਾ ਫ਼ੋਨ ਤਸਦੀਕ ਕਰੋ",
@@ -649,10 +653,22 @@
       "there": "ਉੱਥੇ",
       "ordersThisMonth": "ਇਸ ਮਹੀਨੇ ਦੇ ਆਰਡਰ",
       "lifetimeSpend": "ਕੁੱਲ ਖਰਚ",
-      "favoriteStore": "ਪਸੰਦੀਦਾ ਦੁਕਾਨ",
+      "mostOrderedStore": "ਸਭ ਤੋਂ ਵੱਧ ਆਰਡਰ ਕੀਤੀ ਦੁਕਾਨ",
+      "favouritesCount": "ਪਸੰਦੀਦਾ",
       "orderAgain": "ਦੁਬਾਰਾ ਆਰਡਰ ਕਰੋ",
       "recentlyViewed": "ਹਾਲ ਹੀ ਵਿੱਚ ਦੇਖਿਆ"
     }
+  },
+  "Favorites": {
+    "title": "ਤੁਹਾਡੇ ਪਸੰਦੀਦਾ",
+    "subtitle": "{count} ਸੰਭਾਲੇ · {city} ਵਿੱਚ ਡਿਲਿਵਰੀ",
+    "emptyHeading": "ਅਜੇ ਕੁਝ ਨਹੀਂ ਸੰਭਾਲਿਆ",
+    "emptyBody": "ਕਿਸੇ ਵੀ ਉਤਪਾਦ 'ਤੇ ਦਿਲ ਨੂੰ ਟੈਪ ਕਰੋ।",
+    "browseStores": "ਦੁਕਾਨਾਂ ਵੇਖੋ",
+    "unavailableSection": "{count} ਨੇੜੇ ਉਪਲਬਧ ਨਹੀਂ",
+    "setLocation": "ਆਪਣਾ ਡਿਲਿਵਰੀ ਟਿਕਾਣਾ ਸੈੱਟ ਕਰੋ",
+    "favouritesHere": "ਇੱਥੇ ਤੁਹਾਡੇ ਪਸੰਦੀਦਾ",
+    "errorRetry": "ਪਸੰਦੀਦਾ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੇ। ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
   },
   "Search": {
     "placeholder": "ਉਤਪਾਦ, ਦੁਕਾਨਾਂ ਖੋਜੋ",
