@@ -345,8 +345,8 @@ export interface CustomerOrderSummary {
 export interface CustomerStats {
   orders_this_month: number;
   lifetime_spend: number;
-  favorite_store_id: number | null;
-  favorite_store_name: string | null;
+  most_ordered_store_id: number | null;
+  most_ordered_store_name: string | null;
   recent_delivered: CustomerOrderSummary[];
 }
 
@@ -540,5 +540,47 @@ export interface AdminInventoryRow {
   price: number;
   stock: number;
   is_available: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Favourites
+// ---------------------------------------------------------------------------
+
+export interface FavoriteIdsResponse {
+  ids: number[];
+}
+
+export interface FavoriteProductPreview {
+  product_id: number;
+  name: string;
+  image_url: string | null;
+  category_id: number;
+}
+
+export interface FavoriteAtStore {
+  product_id: number;
+  name: string;
+  image_url: string | null;
+  category_id: number;
+  inventory_id: number;
+  price: number;
+  stock: number;
+  favourited_at: string;
+}
+
+export interface StoreFavGroup {
+  store_id: number;
+  store_name: string;
+  distance_km: number;
+  items: FavoriteAtStore[];
+}
+
+export interface FavoritesGroupedResponse {
+  groups: StoreFavGroup[];
+  unavailable: FavoriteProductPreview[];
+}
+
+export interface FavoriteToggleResponse {
+  favourited: boolean;
 }
 

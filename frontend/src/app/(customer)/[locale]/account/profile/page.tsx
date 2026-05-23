@@ -326,9 +326,9 @@ export default function AccountProfilePage() {
             </span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statLabel}>{t("favoriteStore")}</span>
+            <span className={styles.statLabel}>{t("mostOrderedStore")}</span>
             <span className={styles.statValue}>
-              {stats?.favorite_store_name ?? "—"}
+              {stats?.most_ordered_store_name ?? "—"}
             </span>
           </div>
           {memberSince && (

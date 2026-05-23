@@ -60,8 +60,8 @@ export default function AccountHomePage() {
           />
           <StatsCard
             icon="⭐"
-            label={t("favoriteStore")}
-            value={stats.favorite_store_name ?? "—"}
+            label={t("mostOrderedStore")}
+            value={stats.most_ordered_store_name ?? "—"}
           />
         </section>
       )}
