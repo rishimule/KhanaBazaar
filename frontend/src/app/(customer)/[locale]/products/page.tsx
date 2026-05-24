@@ -145,6 +145,9 @@ function ProductsInner() {
             >
               ‹ {activeService.name}
             </Link>
+            {activeCategory && (
+              <h2 className={styles.categoryTitle}>{activeCategory.name}</h2>
+            )}
             {activeCategory && activeCategory.subcategories.length > 0 && (
               <div className={styles.chipRow}>
                 <ScrollRail

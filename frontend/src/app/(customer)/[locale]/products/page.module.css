@@ -68,6 +68,14 @@
 }
 .svcTileActive .svcTileLabel { color: var(--color-primary-1); }
 
+.categoryTitle {
+  font-size: 24px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.20px;
+  color: var(--shade-cool-dark-7);
+  margin: 4px 0 14px;
+}
+
 .chipRow { margin-bottom: 12px; }
 
 .chip {
