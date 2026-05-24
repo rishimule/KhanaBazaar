@@ -3,6 +3,7 @@
     "home": "હોમ",
     "sell": "વેચો",
     "stores": "દુકાનો",
+    "products": "ઉત્પાદનો",
     "orders": "ઓર્ડર",
     "account": "ખાતું",
     "seller": "વિક્રેતા",
@@ -755,5 +756,15 @@
       "body": "Tap the ⋮ menu, then \"Install app\" or \"Add to Home screen\".",
       "dismiss": "Got it"
     }
+  },
+  "Products": {
+    "title": "ઉત્પાદનો જુઓ",
+    "seeAll": "બધું જુઓ",
+    "setLocationBanner": "તમારે ત્યાં શું ડિલિવર થાય છે તે જોવા સ્થાન સેટ કરો",
+    "setLocationCta": "સ્થાન સેટ કરો",
+    "empty": "અહીં હજુ કોઈ ઉત્પાદન ઉપલબ્ધ નથી.",
+    "loading": "લોડ થઈ રહ્યું છે…",
+    "scrollLeft": "ડાબે સ્ક્રોલ કરો",
+    "scrollRight": "જમણે સ્ક્રોલ કરો"
   }
 }

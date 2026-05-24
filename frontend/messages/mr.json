@@ -3,6 +3,7 @@
     "home": "मुख्यपृष्ठ",
     "sell": "विक्री करा",
     "stores": "दुकाने",
+    "products": "उत्पादने",
     "orders": "ऑर्डर",
     "account": "खाते",
     "seller": "विक्रेता",
@@ -755,5 +756,15 @@
       "body": "Tap the ⋮ menu, then \"Install app\" or \"Add to Home screen\".",
       "dismiss": "Got it"
     }
+  },
+  "Products": {
+    "title": "उत्पादने पाहा",
+    "seeAll": "सर्व पहा",
+    "setLocationBanner": "तुमच्याकडे काय डिलिव्हर होते ते पाहण्यासाठी स्थान सेट करा",
+    "setLocationCta": "स्थान सेट करा",
+    "empty": "इथे अद्याप कोणतेही उत्पादन उपलब्ध नाही.",
+    "loading": "लोड होत आहे…",
+    "scrollLeft": "डावीकडे स्क्रोल करा",
+    "scrollRight": "उजवीकडे स्क्रोल करा"
   }
 }
