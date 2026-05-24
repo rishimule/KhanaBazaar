@@ -48,6 +48,34 @@
 
 .railItem { flex: 0 0 160px; }
 
+.seeAllCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  min-height: 160px;
+  border: 1px dashed var(--hairline);
+  border-radius: 8px;
+  background: var(--shade-cool-light-1);
+  color: var(--color-primary-1);
+  text-decoration: none;
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-sm);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.seeAllCard:hover {
+  background: var(--white);
+  border-color: var(--color-primary-1);
+  text-decoration: none;
+}
+.seeAllCardArrow {
+  font-size: 28px;
+  line-height: 1;
+}
+.seeAllCardLabel { text-align: center; }
+
 .rowMsg {
   padding: 24px 0;
   color: var(--shade-cool-base-7);

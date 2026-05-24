@@ -153,6 +153,17 @@ export function CategoryCarousel({ category, serviceId, serviceSlug }: Props) {
               />
             </div>
           ))}
+          <div className={styles.railItem}>
+            <Link
+              href={`/products?service=${encodeURIComponent(serviceSlug)}&category=${category.id}`}
+              className={styles.seeAllCard}
+            >
+              <span className={styles.seeAllCardArrow} aria-hidden>
+                →
+              </span>
+              <span className={styles.seeAllCardLabel}>{t("seeAll")}</span>
+            </Link>
+          </div>
         </ScrollRail>
       )}
     </section>
