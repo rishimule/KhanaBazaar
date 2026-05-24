@@ -259,3 +259,45 @@ export async function compareProduct(
     { headers: { "Accept-Language": args.locale } },
   );
 }
+
+// ─── Browse (per-service category carousels) ─────────────────────────────
+
+export type BrowseProductCard = {
+  id: number;
+  slug: string;
+  name: string;
+  image_url: string | null;
+  brand: string | null;
+  unit: string | null;
+  min_price: number;
+  max_price: number;
+  in_stock_anywhere: boolean;
+  category_id: number;
+};
+
+export type BrowseCategory = {
+  id: number;
+  slug: string;
+  name: string;
+  products: BrowseProductCard[];
+};
+
+export type BrowseResponse = {
+  service_id: number;
+  service_name: string;
+  categories: BrowseCategory[];
+};
+
+export async function browseProducts(
+  args: { serviceId: number; lat?: number; lng?: number; perCategory?: number },
+  locale: string,
+): Promise<BrowseResponse> {
+  const params = new URLSearchParams({ service_id: String(args.serviceId) });
+  if (args.lat !== undefined) params.set("lat", String(args.lat));
+  if (args.lng !== undefined) params.set("lng", String(args.lng));
+  if (args.perCategory !== undefined)
+    params.set("per_category", String(args.perCategory));
+  return get<BrowseResponse>(`/api/v1/search/browse?${params}`, null, {
+    headers: { "Accept-Language": locale },
+  });
+}
