@@ -9,6 +9,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
 import { apiErrorKey } from "@/lib/errors";
 import type { Cart } from "@/types";
+import ReplaceAdjustmentsBanner from "@/components/orders/ReplaceAdjustmentsBanner";
+import CartAddedToast from "@/components/orders/CartAddedToast";
 import styles from "./page.module.css";
 
 interface StoreGroup {
@@ -162,6 +164,8 @@ export default function CartPage() {
   return (
     <div className={styles.page}>
       <div className={styles.pageInner}>
+        <CartAddedToast />
+        <ReplaceAdjustmentsBanner />
         <div className={styles.header}>
           <h1 className={styles.title}>
             {t("yourLabel")}{" "}

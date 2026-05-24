@@ -1,7 +1,13 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { get, post } from "@/lib/api";
-import type { CustomerStats, Order, OrderListResponse, PaymentMethod } from "@/types";
+import type {
+  CustomerStats,
+  Order,
+  OrderListResponse,
+  PaymentMethod,
+  ReorderResolveResponse,
+} from "@/types";
 
 export async function listOrders(
   token: string,
@@ -14,6 +20,13 @@ export async function listOrders(
 
 export async function getOrder(token: string, orderId: number): Promise<Order> {
   return get<Order>(`/api/v1/orders/${orderId}`, token);
+}
+
+export async function reorder(
+  token: string,
+  orderId: number
+): Promise<ReorderResolveResponse> {
+  return post<ReorderResolveResponse>(`/api/v1/orders/${orderId}/reorder`, undefined, token);
 }
 
 export interface PlaceOrderArgs {

@@ -438,6 +438,24 @@ export interface ReplaceResponse {
   adjustments: ReplaceAdjustment[];
 }
 
+export interface ResolvedReorderItem {
+  product_id: number;
+  inventory_id: number;
+  product_name: string;
+  image_url?: string | null;
+  unit_price: number;
+  quantity: number;
+}
+
+export interface ReorderResolveResponse {
+  store_id: number;
+  store_name: string;
+  service_id: number;
+  service_name: string;
+  items: ResolvedReorderItem[];
+  adjustments: ReplaceAdjustment[];
+}
+
 // ─── Admin catalog ─────────────────────────────────────────────
 
 export type EntityKind = "service" | "category" | "subcategory" | "product";

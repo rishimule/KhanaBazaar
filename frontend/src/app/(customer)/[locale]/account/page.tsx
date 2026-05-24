@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import AccountInstallBanner from "@/components/pwa/AccountInstallBanner";
 import ActiveOrdersWidget from "@/components/orders/ActiveOrdersWidget";
+import ReorderButton from "@/components/orders/ReorderButton";
 import RecentlyViewedRail from "@/components/RecentlyViewedRail";
 import StatsCard from "@/components/StatsCard";
 import { get } from "@/lib/api";
@@ -136,25 +137,21 @@ export default function AccountHomePage() {
           </header>
           <div className={styles.railList}>
             {stats.recent_delivered.map((o) => (
-              <Link
-                key={o.id}
-                href={`/account/orders/${o.id}`}
-                className={styles.railCard}
-              >
-                <div className={styles.railThumb} aria-hidden="true">
-                  {o.store_name.charAt(0).toUpperCase()}
-                </div>
-                <div className={styles.railBody}>
-                  <span className={styles.railStore}>{o.store_name}</span>
-                  <span className={styles.railService}>{o.service_name}</span>
-                  <span className={styles.railMeta} suppressHydrationWarning>
-                    {new Date(o.placed_at).toLocaleDateString()} · ₹{o.total.toFixed(0)}
-                  </span>
-                </div>
-                <span className={styles.railCta} aria-hidden="true">
-                  {t("reorderCta")} →
-                </span>
-              </Link>
+              <div key={o.id} className={styles.railCard}>
+                <Link href={`/account/orders/${o.id}`} className={styles.railInfo}>
+                  <div className={styles.railThumb} aria-hidden="true">
+                    {o.store_name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className={styles.railBody}>
+                    <span className={styles.railStore}>{o.store_name}</span>
+                    <span className={styles.railService}>{o.service_name}</span>
+                    <span className={styles.railMeta} suppressHydrationWarning>
+                      {new Date(o.placed_at).toLocaleDateString()} · ₹{o.total.toFixed(0)}
+                    </span>
+                  </div>
+                </Link>
+                <ReorderButton orderId={o.id} />
+              </div>
             ))}
           </div>
         </section>

@@ -236,9 +236,21 @@
   border-color: var(--saffron-base-1);
   box-shadow: var(--shadow-card-hover);
 }
-.railCard:focus-visible {
+/* The card is a <div>; its clickable child is the .railInfo link (which uses
+   display:contents and so cannot paint its own outline). focus-within lets the
+   card show the focus ring when the inner link receives keyboard focus. */
+.railCard:focus-within {
   outline: 2px solid var(--color-primary-1);
   outline-offset: 2px;
+}
+
+/* display:contents keeps railThumb + railBody as direct grid items of
+   railCard, so the 44px 1fr auto layout is preserved with the link wrapping
+   the info area and ReorderButton occupying the third column. */
+.railInfo {
+  display: contents;
+  text-decoration: none;
+  color: inherit;
 }
 
 .railThumb {

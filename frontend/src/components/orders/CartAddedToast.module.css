@@ -1,0 +1,57 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: var(--z-toast, 600);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: var(--jade-green-dark-1, #018260);
+  color: #fff;
+  font-size: var(--body-sm, 0.9rem);
+  font-weight: var(--weight-semibold, 600);
+  box-shadow: var(--shadow-card-hover, 0 8px 24px rgba(0, 0, 0, 0.18));
+  animation: toast-in 200ms var(--ease-out, ease-out);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-circle, 50%);
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 12px;
+  line-height: 1;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* The MobileTabBar (fixed, bottom:0, ~70px tall) shows below 1024px and would
+   cover a bottom:24px toast. Lift the toast above it on those viewports. */
+@media (max-width: 1023px) {
+  .toast {
+    bottom: calc(86px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
