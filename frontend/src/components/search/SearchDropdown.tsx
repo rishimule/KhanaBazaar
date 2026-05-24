@@ -16,6 +16,8 @@ type Props = {
   storeId: number | undefined;
   activeIndex?: number;
   listboxId?: string;
+  /** Render in document flow (mobile overlay) instead of an absolute dropdown. */
+  inline?: boolean;
   onScopeChange: (v: boolean) => void;
   onClose: () => void;
   onSubmit: (term: string) => void;
@@ -28,6 +30,7 @@ export function SearchDropdown({
   storeId,
   activeIndex = -1,
   listboxId = "kb-search-listbox",
+  inline = false,
   onScopeChange,
   onClose,
   onSubmit,
@@ -43,6 +46,9 @@ export function SearchDropdown({
   }, [query]);
 
   useEffect(() => {
+    // The mobile overlay owns its own dismissal (back button / popstate); the
+    // outside-click + scroll-to-close handlers are desktop-dropdown behavior.
+    if (inline) return;
     function handleOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     }
@@ -55,13 +61,18 @@ export function SearchDropdown({
       document.removeEventListener("mousedown", handleOutside);
       document.removeEventListener("scroll", handleScroll, true);
     };
-  }, [onClose]);
+  }, [onClose, inline]);
 
   const showRecents = !query.trim() && recents.length > 0;
   const showEmptyPrompt = !query.trim() && recents.length === 0;
 
   return (
-    <div ref={ref} id={listboxId} role="listbox" className={styles.dropdown}>
+    <div
+      ref={ref}
+      id={listboxId}
+      role="listbox"
+      className={inline ? `${styles.dropdown} ${styles.dropdownInline}` : styles.dropdown}
+    >
       {storeId !== undefined && (
         <div className={styles.scopeToggle}>
           <button

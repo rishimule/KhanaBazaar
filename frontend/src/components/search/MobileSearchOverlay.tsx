@@ -97,6 +97,7 @@ export function MobileSearchOverlay({
           data={data}
           scopeStore={scopeStore}
           storeId={storeId}
+          inline
           onScopeChange={onScopeChange}
           onClose={onClose}
           onSubmit={onSubmit}
