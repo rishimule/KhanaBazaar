@@ -16,6 +16,13 @@ from app.core.security import (  # noqa: F401
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User, UserRole
+from app.models.catalog import (
+    Category,
+    MasterProduct,
+    MasterProductTranslation,
+    Service,
+    Subcategory,
+)
 from app.models.commerce import (
     Delivery,
     Order,
@@ -24,8 +31,8 @@ from app.models.commerce import (
     Payment,
     Review,
 )
-from app.models.profile import CustomerProfile, SellerProfile
-from app.models.store import Store
+from app.models.profile import CustomerProfile, SellerProfile, SellerProfileService
+from app.models.store import Store, StoreInventory
 from app.schemas.orders import (
     DeliveryRead,
     OrderItemRead,
@@ -36,6 +43,8 @@ from app.schemas.orders import (
     PlaceOrderRequest,
     TransitionRequest,
 )
+from app.schemas.price_comparison import ReplaceAdjustment
+from app.schemas.reorder import ReorderResolveResponse, ResolvedReorderItem
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
 from app.services.checkout import place_order_for_sub_basket
 from app.services.order_emails import (
@@ -46,6 +55,8 @@ from app.services.order_emails import (
 from app.services.orders import cancel_order, transition_order_status
 
 router = APIRouter()
+
+REORDER_LANG = "en"
 
 ACTIVE_STATUSES = (OrderStatus.Pending, OrderStatus.Packed, OrderStatus.Dispatched)
 HISTORY_STATUSES = (OrderStatus.Delivered, OrderStatus.Cancelled)
@@ -391,3 +402,128 @@ async def create_order_review(
         ) from exc
     await session.refresh(review)
     return OrderReviewRead(rating=review.rating, comment=review.comment)
+
+
+async def _store_offers_service(
+    session: AsyncSession, store_id: int, service_id: int
+) -> bool:
+    """True if the store's seller offers `service_id` and the service is active."""
+    row = (
+        await session.exec(
+            select(SellerProfileService.id)
+            .join(
+                SellerProfile,
+                SellerProfile.id == SellerProfileService.seller_profile_id,  # type: ignore[arg-type]
+            )
+            .join(Store, Store.seller_profile_id == SellerProfile.id)  # type: ignore[arg-type]
+            .where(
+                Store.id == store_id,
+                SellerProfileService.service_id == service_id,
+            )
+        )
+    ).first()
+    active = (
+        await session.exec(select(Service.is_active).where(Service.id == service_id))
+    ).first()
+    return row is not None and active is True
+
+
+@router.post("/{order_id}/reorder", response_model=ReorderResolveResponse)
+async def reorder(
+    order_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> ReorderResolveResponse:
+    """Resolve a past order's items against current inventory (read-only).
+
+    Returns cart-ready lines plus per-item adjustments for anything that is
+    out of stock, capped, removed, or otherwise unavailable. Performs no
+    writes — the frontend populates the cart from the response.
+    """
+    order, _ = await _load_order_for_user(session, order_id, user)
+
+    store = await session.get(Store, order.store_id)
+    store_name = store.name if store is not None else ""
+
+    if not await _store_offers_service(session, order.store_id, order.service_id):
+        raise HTTPException(status_code=409, detail="service_unavailable")
+
+    order_items = (
+        await session.exec(select(OrderItem).where(OrderItem.order_id == order_id))
+    ).all()
+
+    inv_ids = [i.inventory_id for i in order_items if i.inventory_id is not None]
+    by_inv: dict[int, tuple] = {}
+    if inv_ids:
+        rows = (
+            await session.exec(
+                select(
+                    StoreInventory.id,
+                    StoreInventory.product_id,
+                    StoreInventory.price,
+                    StoreInventory.stock,
+                    StoreInventory.is_available,
+                    Category.service_id,
+                    MasterProduct.image_url,
+                    MasterProduct.slug,
+                    MasterProductTranslation.name,
+                )
+                .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+                .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
+                .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+                .join(
+                    MasterProductTranslation,
+                    (MasterProductTranslation.master_product_id == MasterProduct.id)
+                    & (MasterProductTranslation.language_code == REORDER_LANG),
+                    isouter=True,
+                )
+                .where(
+                    StoreInventory.id.in_(inv_ids),  # type: ignore[attr-defined]
+                    StoreInventory.store_id == order.store_id,
+                )
+            )
+        ).all()
+        by_inv = {r[0]: r for r in rows}
+
+    items: list[ResolvedReorderItem] = []
+    adjustments: list[ReplaceAdjustment] = []
+
+    for it in order_items:
+        inv_id = it.inventory_id
+        row = by_inv.get(inv_id) if inv_id is not None else None
+        if row is None:
+            adjustments.append(ReplaceAdjustment(
+                inventory_id=inv_id or 0, requested_quantity=it.quantity,
+                granted_quantity=0, reason="item_unavailable",
+            ))
+            continue
+        (_, product_id, price, stock, is_available, svc_id, image_url, slug, name) = row
+        if svc_id != order.service_id or not is_available:
+            adjustments.append(ReplaceAdjustment(
+                inventory_id=inv_id, requested_quantity=it.quantity,
+                granted_quantity=0, reason="item_unavailable",
+            ))
+            continue
+        if stock <= 0:
+            adjustments.append(ReplaceAdjustment(
+                inventory_id=inv_id, requested_quantity=it.quantity,
+                granted_quantity=0, reason="stock_exhausted",
+            ))
+            continue
+        granted = min(it.quantity, stock)
+        if granted < it.quantity:
+            adjustments.append(ReplaceAdjustment(
+                inventory_id=inv_id, requested_quantity=it.quantity,
+                granted_quantity=granted, reason="stock_capped",
+            ))
+        items.append(ResolvedReorderItem(
+            product_id=product_id, inventory_id=inv_id,
+            product_name=name or slug, image_url=image_url,
+            unit_price=price, quantity=granted,
+        ))
+
+    return ReorderResolveResponse(
+        store_id=order.store_id, store_name=store_name,
+        service_id=order.service_id, service_name=order.service_name_snapshot,
+        items=items, adjustments=adjustments,
+    )
