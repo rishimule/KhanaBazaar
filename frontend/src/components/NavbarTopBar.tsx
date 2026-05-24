@@ -60,7 +60,10 @@ export default function NavbarTopBar() {
     { href: "/", label: t("home") },
   ];
   if (!loading && !role) navLinks.push({ href: "/sell", label: t("sell") });
-  if (!role || role === "customer") navLinks.push({ href: "/stores", label: t("stores") });
+  if (!role || role === "customer") {
+    navLinks.push({ href: "/products", label: t("products") });
+    navLinks.push({ href: "/stores", label: t("stores") });
+  }
   if (role === "customer") navLinks.push({ href: "/account/orders", label: t("orders") });
 
   const handleLogout = async () => {

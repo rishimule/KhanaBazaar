@@ -70,7 +70,10 @@ export default function Home() {
           <h1 className={styles.heroTitle}>{t("heroTitle")}</h1>
           <p className={styles.heroSub}>{t("heroDescription")}</p>
           <div className={styles.heroCta}>
-            <Link href="/stores" className={styles.heroBtnPrimary}>
+            <Link href="/products" className={styles.heroBtnPrimary}>
+              {t("ctaExploreProducts")}
+            </Link>
+            <Link href="/stores" className={styles.heroBtnGhost}>
               {t("ctaStartShopping")}
             </Link>
             <Link href="/sell" className={styles.heroBtnGhost}>
