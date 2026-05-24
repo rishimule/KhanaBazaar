@@ -773,6 +773,7 @@
     "loading": "Adding…",
     "nothingAvailable": "Nothing from this order is available right now.",
     "serviceUnavailable": "This store no longer offers this service.",
-    "failed": "Couldn't reorder. Please try again."
+    "failed": "Couldn't reorder. Please try again.",
+    "addedToast": "{count, plural, one {# item added to cart} other {# items added to cart}}"
   }
 }

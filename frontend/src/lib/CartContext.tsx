@@ -49,6 +49,9 @@ interface CartContextValue {
   lastReplaceAdjustments: ReplaceAdjustment[];
   setReplaceAdjustments: (adjustments: ReplaceAdjustment[]) => void;
   clearReplaceAdjustments: () => void;
+  lastReorderAdded: number;
+  setReorderAdded: (count: number) => void;
+  clearReorderAdded: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -71,6 +74,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
   const [lastSyncDropped, setLastSyncDropped] = useState<number>(0);
   const [lastReplaceAdjustments, setLastReplaceAdjustments] = useState<ReplaceAdjustment[]>([]);
+  const [lastReorderAdded, setLastReorderAdded] = useState<number>(0);
   const lastSyncedUserId = useRef<number | null>(null);
 
   const setReplaceAdjustments = useCallback((adjustments: ReplaceAdjustment[]) => {
@@ -78,6 +82,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
   const clearReplaceAdjustments = useCallback(() => {
     setLastReplaceAdjustments([]);
+  }, []);
+  const setReorderAdded = useCallback((count: number) => {
+    setLastReorderAdded(count);
+  }, []);
+  const clearReorderAdded = useCallback(() => {
+    setLastReorderAdded(0);
   }, []);
 
   useEffect(() => {
@@ -331,6 +341,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     lastReplaceAdjustments,
     setReplaceAdjustments,
     clearReplaceAdjustments,
+    lastReorderAdded,
+    setReorderAdded,
+    clearReorderAdded,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

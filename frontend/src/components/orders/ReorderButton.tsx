@@ -18,7 +18,7 @@ export default function ReorderButton({
 }) {
   const t = useTranslations("Reorder");
   const { token } = useAuth();
-  const { addItem, setReplaceAdjustments } = useCart();
+  const { addItem, setReplaceAdjustments, setReorderAdded } = useCart();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -45,6 +45,7 @@ export default function ReorderButton({
       if (res.items.length === 0) {
         setMsg(t("nothingAvailable"));
       } else {
+        setReorderAdded(res.items.length);
         router.push("/cart");
       }
     } catch (err) {
