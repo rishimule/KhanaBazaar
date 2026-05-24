@@ -32,3 +32,71 @@ async def test_browse_groups_by_category(
     assert prod["min_price"] == 68.0
     # Lean card: no per-store offers leaked into the browse payload
     assert "per_store_offers" not in prod
+
+
+@pytest.mark.asyncio
+async def test_browse_serviceable_filter_in_area(
+    client: AsyncClient, session: AsyncSession, meili_test_client
+):
+    ids = await _seed_chain(session)
+    await reindex_all(session, meili_test_client)
+    # Store seeded at lat 19.07, lng 72.87, radius 5 km → query nearby
+    r = await client.get(
+        "/api/v1/search/browse",
+        params={"service_id": ids["service_id"], "lat": 19.07, "lng": 72.87},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert len(body["categories"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_browse_serviceable_filter_out_of_area(
+    client: AsyncClient, session: AsyncSession, meili_test_client
+):
+    ids = await _seed_chain(session)
+    await reindex_all(session, meili_test_client)
+    # Far away (Delhi-ish) → no serviceable store → empty categories
+    r = await client.get(
+        "/api/v1/search/browse",
+        params={"service_id": ids["service_id"], "lat": 28.61, "lng": 77.20},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["categories"] == []
+
+
+@pytest.mark.asyncio
+async def test_browse_no_location_returns_all(
+    client: AsyncClient, session: AsyncSession, meili_test_client
+):
+    ids = await _seed_chain(session)
+    await reindex_all(session, meili_test_client)
+    r = await client.get(
+        "/api/v1/search/browse", params={"service_id": ids["service_id"]}
+    )
+    assert len(r.json()["categories"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_browse_unknown_service_404(
+    client: AsyncClient, session: AsyncSession, meili_test_client
+):
+    await _seed_chain(session)
+    await reindex_all(session, meili_test_client)
+    r = await client.get("/api/v1/search/browse", params={"service_id": 999999})
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_browse_locale_hindi(
+    client: AsyncClient, session: AsyncSession, meili_test_client
+):
+    ids = await _seed_chain(session)
+    await reindex_all(session, meili_test_client)
+    r = await client.get(
+        "/api/v1/search/browse",
+        params={"service_id": ids["service_id"]},
+        headers={"Accept-Language": "hi"},
+    )
+    body = r.json()
+    assert body["categories"][0]["products"][0]["name"] == "अमूल गोल्ड दूध"

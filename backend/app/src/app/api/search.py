@@ -10,6 +10,7 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from meilisearch_python_sdk.models.search import SearchParams
 from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -50,7 +51,6 @@ from app.schemas.search import (
 )
 from app.search.client import get_meili_client
 from app.search.locality import get_serviceable_store_ids, grid_cell_key
-from meilisearch_python_sdk.models.search import SearchParams
 
 router = APIRouter()
 
@@ -551,6 +551,19 @@ async def browse(
         ).scalar_one_or_none()
     svc_name = svc_t.name if svc_t else svc.slug
 
+    # Location set but no store delivers here → nothing to show (distinct from
+    # `serviceable is None`, which means no/invalid location → show everything).
+    if serviceable is not None and not serviceable:
+        body = BrowseResponse(
+            service_id=service_id, service_name=svc_name, categories=[]
+        )
+        await redis.set(
+            cache_key,
+            body.model_dump_json(),
+            ex=settings.SEARCH_BROWSE_CACHE_TTL_SECONDS,
+        )
+        return body
+
     cat_rows = (
         await session.execute(
             select(Category)
@@ -605,7 +618,7 @@ async def browse(
     if queries:
         results = await client.multi_search(queries)
         # multi_search preserves query order → align with cat_rows
-        for cat, res in zip(cat_rows, results):
+        for cat, res in zip(cat_rows, results, strict=True):
             cards: list[BrowseProductCard] = []
             for hit in res.hits:
                 cards.append(
