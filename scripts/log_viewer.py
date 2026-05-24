@@ -66,12 +66,33 @@ const status = document.getElementById('status');
 const follow = document.getElementById('follow');
 document.getElementById('clear').onclick = () => { out.textContent = ''; };
 const otpRe = /otp|verification|code\\s*[:=]/i;
-function append(text) {
-  const div = document.createElement('span');
-  if (otpRe.test(text)) div.className = 'line-otp';
-  div.textContent = text + '\\n';
-  out.appendChild(div);
+// Cap the rendered buffer. Unbounded node growth plus a forced full-page
+// scroll on every incoming line saturates the main thread and freezes the tab
+// after a long streaming session. Keep at most MAX_LINES nodes (dropping the
+// oldest) and coalesce rendering into a single rAF per frame so verbose log
+// bursts don't trigger one reflow per line.
+const MAX_LINES = 2000;
+let pending = [];
+let frame = 0;
+function flush() {
+  frame = 0;
+  if (!pending.length) return;
+  const frag = document.createDocumentFragment();
+  for (const text of pending) {
+    const div = document.createElement('span');
+    if (otpRe.test(text)) div.className = 'line-otp';
+    div.textContent = text + '\\n';
+    frag.appendChild(div);
+  }
+  pending = [];
+  out.appendChild(frag);
+  let over = out.childNodes.length - MAX_LINES;
+  while (over-- > 0 && out.firstChild) out.removeChild(out.firstChild);
   if (follow.checked) window.scrollTo(0, document.body.scrollHeight);
+}
+function append(text) {
+  pending.push(text);
+  if (!frame) frame = requestAnimationFrame(flush);
 }
 function connect() {
   status.textContent = ' connecting...';
