@@ -1,0 +1,208 @@
+"use client";
+// Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+// This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+
+import { Suspense, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { get } from "@/lib/api";
+import { browseProducts, type BrowseResponse } from "@/lib/searchClient";
+import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { serviceGlyph } from "@/lib/serviceGlyph";
+import { ScrollRail } from "@/components/ScrollRail";
+import { ProductMiniCard } from "@/components/ProductMiniCard";
+import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
+import { SearchFilters } from "@/components/search/SearchFilters";
+import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
+import { Service } from "@/types";
+import styles from "./page.module.css";
+
+function ProductsInner() {
+  const t = useTranslations("Products");
+  const locale = useLocale();
+  const sp = useSearchParams();
+  const { location } = useDeliveryLocation();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const serviceSlug = sp.get("service");
+  const categoryId = sp.get("category");
+
+  const [services, setServices] = useState<Service[]>([]);
+  const [browse, setBrowse] = useState<BrowseResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    get<Service[]>("/api/v1/catalog/services")
+      .then((rows) =>
+        setServices(
+          rows
+            .filter((s) => s.is_active !== false)
+            .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id),
+        ),
+      )
+      .catch(() => setServices([]));
+  }, [locale]);
+
+  const activeSlug = serviceSlug ?? services[0]?.slug ?? null;
+  const activeService = useMemo(
+    () => services.find((s) => s.slug === activeSlug) ?? null,
+    [services, activeSlug],
+  );
+
+  const seeAllMode = Boolean(categoryId && activeService);
+
+  // Carousel data — only in carousel (non see-all) mode.
+  useEffect(() => {
+    if (categoryId) return;
+    if (!activeService) return;
+    let cancel = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- show skeleton synchronously while fetching
+    setLoading(true);
+    browseProducts(
+      { serviceId: activeService.id, lat: location?.lat, lng: location?.lng },
+      locale,
+    )
+      .then((res) => {
+        if (!cancel) setBrowse(res);
+      })
+      .catch(() => {
+        if (!cancel) setBrowse(null);
+      })
+      .finally(() => {
+        if (!cancel) setLoading(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [activeService, categoryId, location, locale]);
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.inner}>
+        <h1 className={styles.title}>{t("title")}</h1>
+
+        {!location && (
+          <div className={styles.banner}>
+            <span>⚠ {t("setLocationBanner")}</span>
+            <button
+              type="button"
+              className={styles.bannerBtn}
+              onClick={() => setPickerOpen(true)}
+            >
+              {t("setLocationCta")}
+            </button>
+          </div>
+        )}
+
+        {services.length > 0 && (
+          <div className={styles.svcSection}>
+            <ScrollRail
+              ariaLabel={t("title")}
+              leftLabel={t("scrollLeft")}
+              rightLabel={t("scrollRight")}
+            >
+              {services.map((s) => {
+                const active = s.slug === activeSlug;
+                return (
+                  <Link
+                    key={s.id}
+                    href={`/products?service=${encodeURIComponent(s.slug)}`}
+                    className={`${styles.svcTile} ${active ? styles.svcTileActive : ""}`}
+                    aria-current={active ? "true" : undefined}
+                  >
+                    <span className={styles.svcTileGlyph} aria-hidden>
+                      {serviceGlyph(s.slug)}
+                    </span>
+                    <span className={styles.svcTileLabel}>{s.name}</span>
+                  </Link>
+                );
+              })}
+            </ScrollRail>
+          </div>
+        )}
+
+        {seeAllMode && activeService ? (
+          <>
+            <Link
+              href={`/products?service=${encodeURIComponent(activeService.slug)}`}
+              className={styles.backLink}
+            >
+              ‹ {activeService.name}
+            </Link>
+            <SearchFilters />
+            <div className={styles.gridWrap}>
+              <SearchResultsGrid
+                q=""
+                serviceId={activeService.id}
+                categoryId={Number(categoryId)}
+                minPrice={sp.get("min_price") ? Number(sp.get("min_price")) : undefined}
+                maxPrice={sp.get("max_price") ? Number(sp.get("max_price")) : undefined}
+                sort={sp.get("sort") ?? "relevance"}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            {loading && <div className={styles.empty}>{t("loading")}</div>}
+            {!loading && browse && browse.categories.length === 0 && (
+              <div className={styles.empty}>{t("empty")}</div>
+            )}
+            {!loading &&
+              browse &&
+              browse.categories.map((cat) => (
+                <section key={cat.id} className={styles.carousel}>
+                  <div className={styles.carouselHead}>
+                    <h2 className={styles.carouselTitle}>{cat.name}</h2>
+                    {activeService && (
+                      <Link
+                        href={`/products?service=${encodeURIComponent(
+                          activeService.slug,
+                        )}&category=${cat.id}`}
+                        className={styles.seeAll}
+                      >
+                        {t("seeAll")} ›
+                      </Link>
+                    )}
+                  </div>
+                  <ScrollRail
+                    ariaLabel={cat.name}
+                    leftLabel={t("scrollLeft")}
+                    rightLabel={t("scrollRight")}
+                  >
+                    {cat.products.map((p) => (
+                      <div key={p.id} className={styles.railItem}>
+                        <ProductMiniCard
+                          href={`/${locale}/search/product/${p.id}`}
+                          name={p.name}
+                          imageUrl={p.image_url}
+                          brand={p.brand}
+                          minPrice={p.min_price}
+                          maxPrice={p.max_price}
+                          inStock={p.in_stock_anywhere}
+                          outOfStockLabel={t("empty")}
+                        />
+                      </div>
+                    ))}
+                  </ScrollRail>
+                </section>
+              ))}
+          </>
+        )}
+
+        <DeliveryLocationPicker
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className={styles.page} />}>
+      <ProductsInner />
+    </Suspense>
+  );
+}
