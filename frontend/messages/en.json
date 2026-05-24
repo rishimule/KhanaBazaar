@@ -760,6 +760,7 @@
   "Products": {
     "title": "Explore products",
     "seeAll": "See all",
+    "allSubcategories": "All",
     "setLocationBanner": "Set your location to see what delivers to you",
     "setLocationCta": "Set location",
     "empty": "No products available here yet.",

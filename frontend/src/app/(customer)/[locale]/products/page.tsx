@@ -11,7 +11,7 @@ import { browseProducts, type BrowseResponse } from "@/lib/searchClient";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
-import { ProductMiniCard } from "@/components/ProductMiniCard";
+import { CategoryCarousel } from "@/components/CategoryCarousel";
 import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
 import { SearchFilters } from "@/components/search/SearchFilters";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
@@ -150,42 +150,14 @@ function ProductsInner() {
             )}
             {!loading &&
               browse &&
+              activeService &&
               browse.categories.map((cat) => (
-                <section key={cat.id} className={styles.carousel}>
-                  <div className={styles.carouselHead}>
-                    <h2 className={styles.carouselTitle}>{cat.name}</h2>
-                    {activeService && (
-                      <Link
-                        href={`/products?service=${encodeURIComponent(
-                          activeService.slug,
-                        )}&category=${cat.id}`}
-                        className={styles.seeAll}
-                      >
-                        {t("seeAll")} ›
-                      </Link>
-                    )}
-                  </div>
-                  <ScrollRail
-                    ariaLabel={cat.name}
-                    leftLabel={t("scrollLeft")}
-                    rightLabel={t("scrollRight")}
-                  >
-                    {cat.products.map((p) => (
-                      <div key={p.id} className={styles.railItem}>
-                        <ProductMiniCard
-                          href={`/${locale}/search/product/${p.id}`}
-                          name={p.name}
-                          imageUrl={p.image_url}
-                          brand={p.brand}
-                          minPrice={p.min_price}
-                          maxPrice={p.max_price}
-                          inStock={p.in_stock_anywhere}
-                          outOfStockLabel={t("empty")}
-                        />
-                      </div>
-                    ))}
-                  </ScrollRail>
-                </section>
+                <CategoryCarousel
+                  key={cat.id}
+                  category={cat}
+                  serviceId={activeService.id}
+                  serviceSlug={activeService.slug}
+                />
               ))}
           </>
         )}

@@ -68,28 +68,6 @@
 }
 .svcTileActive .svcTileLabel { color: var(--color-primary-1); }
 
-/* Carousels */
-.carousel { margin-bottom: var(--space-6); }
-.carouselHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.carouselTitle {
-  font-size: var(--body-lg);
-  font-weight: var(--weight-semibold);
-  color: var(--shade-cool-dark-7);
-  margin: 0;
-}
-.seeAll {
-  font-size: var(--body-sm);
-  font-weight: var(--weight-medium);
-  color: var(--color-primary-1);
-  text-decoration: none;
-}
-.railItem { flex: 0 0 160px; }
-
 .empty {
   text-align: center;
   padding: 48px 0;
