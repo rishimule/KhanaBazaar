@@ -10,6 +10,7 @@ import { apiErrorKey } from "@/lib/errors";
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import OrderItemList from "@/components/orders/OrderItemList";
 import OrderActionButtons from "@/components/orders/OrderActionButtons";
+import ReorderButton from "@/components/orders/ReorderButton";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusBadge from "@/components/orders/PaymentStatusBadge";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
@@ -95,6 +96,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <section className={styles.section}>
+        <ReorderButton orderId={order.id} />
         <OrderActionButtons order={order} role="customer" onChange={setOrder} />
       </section>
     </div>
