@@ -85,7 +85,13 @@ async def _seed_chain(session: AsyncSession, *, with_inventory: bool = True):
             price=68.0, stock=12, is_available=True,
         ))
     # Capture IDs BEFORE commit so attributes don't expire afterwards.
-    ids = {"store_id": store.id, "product_id": product.id, "service_id": svc.id}
+    ids = {
+        "store_id": store.id,
+        "product_id": product.id,
+        "service_id": svc.id,
+        "category_id": cat.id,
+        "subcategory_id": sub.id,
+    }
     await session.commit()
     return ids
 

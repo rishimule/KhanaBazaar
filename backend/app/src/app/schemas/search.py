@@ -139,10 +139,17 @@ class BrowseProductCard(BaseModel):
     category_id: int
 
 
+class BrowseSubcategory(BaseModel):
+    id: int
+    slug: str
+    name: str
+
+
 class BrowseCategory(BaseModel):
     id: int
     slug: str
     name: str
+    subcategories: list[BrowseSubcategory]
     products: list[BrowseProductCard]
 
 

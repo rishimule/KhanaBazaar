@@ -27,6 +27,7 @@ from app.models.catalog import (
     Service,
     ServiceTranslation,
     Subcategory,
+    SubcategoryTranslation,
 )
 from app.models.search_log import SearchQueryLog
 from app.models.store import Store, StoreInventory
@@ -34,6 +35,7 @@ from app.schemas.search import (
     BrowseCategory,
     BrowseProductCard,
     BrowseResponse,
+    BrowseSubcategory,
     ClickPayload,
     CompareOffer,
     CompareResponse,
@@ -323,6 +325,7 @@ async def products(
     store_id: Optional[int] = Query(None),
     service_id: Optional[int] = Query(None),
     category_id: Optional[int] = Query(None),
+    subcategory_id: Optional[int] = Query(None),
     min_price: Optional[float] = Query(None),
     max_price: Optional[float] = Query(None),
     sort: str = Query("relevance"),
@@ -351,6 +354,8 @@ async def products(
         filters.append(f"service_id = {service_id}")
     if category_id is not None:
         filters.append(f"category_id = {category_id}")
+    if subcategory_id is not None:
+        filters.append(f"subcategory_id = {subcategory_id}")
     if min_price is not None:
         filters.append(f"min_price >= {min_price}")
     if max_price is not None:
@@ -609,12 +614,17 @@ async def browse(
                 f"AND category_id = {cat.id}{serviceable_clause}"
             ),
             limit=per_category,
+            facets=["subcategory_id"],
             attributes_to_retrieve=_BROWSE_CARD_ATTRS + [f"name_{locale}", "name_en"],
         )
         for cat in cat_rows
     ]
 
-    categories: list[BrowseCategory] = []
+    # First pass: collect cards + the subcategory ids that actually have
+    # in-area products (from the facet distribution, which counts the full
+    # match set — not just the returned sample).
+    pending: list[tuple[Category, list[BrowseProductCard], list[int]]] = []
+    all_sub_ids: set[int] = set()
     if queries:
         results = await client.multi_search(queries)
         # multi_search preserves query order → align with cat_rows
@@ -637,15 +647,61 @@ async def browse(
                         category_id=hit["category_id"],
                     )
                 )
-            if cards:
-                categories.append(
-                    BrowseCategory(
-                        id=cat.id,
-                        slug=cat.slug,
-                        name=cat_names[cat.id],
-                        products=cards,
+            if not cards:
+                continue
+            facet = res.facet_distribution or {}
+            sub_dist = facet.get("subcategory_id") or {}
+            sub_ids = [int(k) for k, count in sub_dist.items() if count]
+            all_sub_ids.update(sub_ids)
+            pending.append((cat, cards, sub_ids))
+
+    # Resolve subcategory metadata (slug, sort_order, localized name) in bulk.
+    sub_meta: dict[int, tuple[str, int]] = {}
+    sub_names: dict[int, str] = {}
+    if all_sub_ids:
+        for sub in (
+            await session.execute(
+                select(Subcategory).where(Subcategory.id.in_(all_sub_ids))
+            )
+        ).scalars():
+            sub_meta[sub.id] = (sub.slug, sub.sort_order)
+        for sid in all_sub_ids:
+            st = (
+                await session.execute(
+                    select(SubcategoryTranslation).where(
+                        SubcategoryTranslation.subcategory_id == sid,
+                        SubcategoryTranslation.language_code == locale,
                     )
                 )
+            ).scalar_one_or_none()
+            if st is None:
+                st = (
+                    await session.execute(
+                        select(SubcategoryTranslation).where(
+                            SubcategoryTranslation.subcategory_id == sid,
+                            SubcategoryTranslation.language_code == "en",
+                        )
+                    )
+                ).scalar_one_or_none()
+            sub_names[sid] = st.name if st else sub_meta.get(sid, ("", 0))[0]
+
+    categories: list[BrowseCategory] = []
+    for cat, cards, sub_ids in pending:
+        subs = [
+            BrowseSubcategory(id=sid, slug=sub_meta[sid][0], name=sub_names[sid])
+            for sid in sub_ids
+            if sid in sub_meta
+        ]
+        subs.sort(key=lambda b: (sub_meta[b.id][1], b.id))
+        categories.append(
+            BrowseCategory(
+                id=cat.id,
+                slug=cat.slug,
+                name=cat_names[cat.id],
+                subcategories=subs,
+                products=cards,
+            )
+        )
 
     body = BrowseResponse(
         service_id=service_id, service_name=svc_name, categories=categories

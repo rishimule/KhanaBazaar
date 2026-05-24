@@ -35,6 +35,25 @@ async def test_browse_groups_by_category(
 
 
 @pytest.mark.asyncio
+async def test_browse_includes_subcategories(
+    client: AsyncClient, session: AsyncSession, meili_test_client
+):
+    ids = await _seed_chain(session)
+    await reindex_all(session, meili_test_client)
+    r = await client.get(
+        "/api/v1/search/browse", params={"service_id": ids["service_id"]}
+    )
+    assert r.status_code == 200, r.text
+    cat = r.json()["categories"][0]
+    assert "subcategories" in cat
+    subs = cat["subcategories"]
+    # Only subcategories with in-area products appear; seeded "Milk" must.
+    assert any(
+        s["id"] == ids["subcategory_id"] and s["name"] == "Milk" for s in subs
+    )
+
+
+@pytest.mark.asyncio
 async def test_browse_serviceable_filter_in_area(
     client: AsyncClient, session: AsyncSession, meili_test_client
 ):
