@@ -235,3 +235,33 @@ async def test_null_inventory_is_unavailable(client: AsyncClient, seed: dict[str
         assert adj["granted_quantity"] == 0
     finally:
         _clear_auth()
+
+
+@pytest.mark.asyncio
+async def test_service_unavailable_returns_409(client: AsyncClient, seed: dict[str, int], session: AsyncSession) -> None:
+    # Seller drops the service.
+    from sqlmodel import select as _select
+    link = (await session.exec(
+        _select(SellerProfileService).where(SellerProfileService.service_id == seed["service_id"])
+    )).first()
+    assert link is not None
+    await session.delete(link)
+    await session.commit()
+
+    await _auth(mock_customer)
+    try:
+        resp = await client.post(f"/api/v1/orders/{seed['order_id']}/reorder")
+        assert resp.status_code == 409, resp.text
+        assert resp.json()["detail"] == "service_unavailable"
+    finally:
+        _clear_auth()
+
+
+@pytest.mark.asyncio
+async def test_other_customers_order_forbidden(client: AsyncClient, seed: dict[str, int]) -> None:
+    await _auth(mock_other)
+    try:
+        resp = await client.post(f"/api/v1/orders/{seed['order_id']}/reorder")
+        assert resp.status_code == 403, resp.text
+    finally:
+        _clear_auth()

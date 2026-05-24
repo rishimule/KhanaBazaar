@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
@@ -453,11 +453,11 @@ async def reorder(
     ).all()
 
     inv_ids = [i.inventory_id for i in order_items if i.inventory_id is not None]
-    by_inv: dict[int, tuple] = {}
+    by_inv: dict[int, tuple[Any, ...]] = {}
     if inv_ids:
         rows = (
             await session.exec(
-                select(
+                select(  # type: ignore[call-overload]
                     StoreInventory.id,
                     StoreInventory.product_id,
                     StoreInventory.price,
@@ -468,9 +468,9 @@ async def reorder(
                     MasterProduct.slug,
                     MasterProductTranslation.name,
                 )
-                .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
-                .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
-                .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+                .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)
+                .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)
+                .join(Category, Category.id == Subcategory.category_id)
                 .join(
                     MasterProductTranslation,
                     (MasterProductTranslation.master_product_id == MasterProduct.id)
@@ -478,7 +478,7 @@ async def reorder(
                     isouter=True,
                 )
                 .where(
-                    StoreInventory.id.in_(inv_ids),  # type: ignore[attr-defined]
+                    StoreInventory.id.in_(inv_ids),  # type: ignore[union-attr]
                     StoreInventory.store_id == order.store_id,
                 )
             )
