@@ -52,9 +52,24 @@ function ProductsInner() {
 
   const seeAllMode = Boolean(categoryId && activeService);
 
-  // Carousel data — only in carousel (non see-all) mode.
+  // See-all grid: subcategory chips come from the active category in the
+  // browse payload (only subcategories with in-area products).
+  const activeCategory =
+    browse?.categories.find((c) => String(c.id) === categoryId) ?? null;
+  const activeSubId = sp.get("subcategory")
+    ? Number(sp.get("subcategory"))
+    : null;
+
+  function subHref(subId: number | null): string {
+    const params = new URLSearchParams(Array.from(sp.entries()));
+    if (subId === null) params.delete("subcategory");
+    else params.set("subcategory", String(subId));
+    return `/products?${params.toString()}`;
+  }
+
+  // Browse data for the active service — drives carousels, and supplies the
+  // category's subcategory list for the see-all grid's filter chips.
   useEffect(() => {
-    if (categoryId) return;
     if (!activeService) return;
     let cancel = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- show skeleton synchronously while fetching
@@ -130,12 +145,40 @@ function ProductsInner() {
             >
               ‹ {activeService.name}
             </Link>
+            {activeCategory && activeCategory.subcategories.length > 0 && (
+              <div className={styles.chipRow}>
+                <ScrollRail
+                  ariaLabel={activeCategory.name}
+                  leftLabel={t("scrollLeft")}
+                  rightLabel={t("scrollRight")}
+                >
+                  <Link
+                    href={subHref(null)}
+                    className={`${styles.chip} ${activeSubId === null ? styles.chipActive : ""}`}
+                    aria-current={activeSubId === null ? "true" : undefined}
+                  >
+                    {t("allSubcategories")}
+                  </Link>
+                  {activeCategory.subcategories.map((s) => (
+                    <Link
+                      key={s.id}
+                      href={subHref(s.id)}
+                      className={`${styles.chip} ${activeSubId === s.id ? styles.chipActive : ""}`}
+                      aria-current={activeSubId === s.id ? "true" : undefined}
+                    >
+                      {s.name}
+                    </Link>
+                  ))}
+                </ScrollRail>
+              </div>
+            )}
             <SearchFilters />
             <div className={styles.gridWrap}>
               <SearchResultsGrid
                 q=""
                 serviceId={activeService.id}
                 categoryId={Number(categoryId)}
+                subcategoryId={activeSubId ?? undefined}
                 minPrice={sp.get("min_price") ? Number(sp.get("min_price")) : undefined}
                 maxPrice={sp.get("max_price") ? Number(sp.get("max_price")) : undefined}
                 sort={sp.get("sort") ?? "relevance"}

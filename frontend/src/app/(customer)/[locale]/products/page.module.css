@@ -68,6 +68,29 @@
 }
 .svcTileActive .svcTileLabel { color: var(--color-primary-1); }
 
+.chipRow { margin-bottom: 12px; }
+
+.chip {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border-radius: var(--radius-badge);
+  border: 1px solid var(--hairline);
+  background: var(--shade-cool-light-1);
+  color: var(--shade-cool-dark-5);
+  font-size: var(--body-xs);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--duration-fast), color var(--duration-fast),
+    border-color var(--duration-fast);
+}
+.chip:hover { border-color: var(--color-primary-1); text-decoration: none; }
+.chipActive {
+  background: var(--color-primary-1);
+  border-color: var(--color-primary-1);
+  color: var(--white);
+}
+
 .empty {
   text-align: center;
   padding: 48px 0;

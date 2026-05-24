@@ -14,6 +14,7 @@ type Props = {
   storeId?: number;
   serviceId?: number;
   categoryId?: number;
+  subcategoryId?: number;
   minPrice?: number;
   maxPrice?: number;
   sort?: string;
@@ -24,6 +25,7 @@ export function SearchResultsGrid({
   storeId,
   serviceId,
   categoryId,
+  subcategoryId,
   minPrice,
   maxPrice,
   sort,
@@ -44,7 +46,7 @@ export function SearchResultsGrid({
     setPage(1);
     setTotal(0);
     setError(null);
-  }, [q, storeId, serviceId, categoryId, minPrice, maxPrice, sort]);
+  }, [q, storeId, serviceId, categoryId, subcategoryId, minPrice, maxPrice, sort]);
 
   useEffect(() => {
     let cancel = false;
@@ -57,6 +59,7 @@ export function SearchResultsGrid({
         storeId,
         serviceId,
         categoryId,
+        subcategoryId,
         minPrice,
         maxPrice,
         sort,
@@ -81,7 +84,7 @@ export function SearchResultsGrid({
     return () => {
       cancel = true;
     };
-  }, [q, storeId, serviceId, categoryId, minPrice, maxPrice, sort, page, location, t, locale]);
+  }, [q, storeId, serviceId, categoryId, subcategoryId, minPrice, maxPrice, sort, page, location, t, locale]);
 
   if (error) {
     return <div className={styles.error}>{error}</div>;
