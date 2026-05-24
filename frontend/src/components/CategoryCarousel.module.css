@@ -1,0 +1,83 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.carousel { margin-bottom: var(--space-6); }
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.title {
+  font-size: var(--body-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-dark-7);
+  margin: 0;
+}
+.seeAll {
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-primary-1);
+  text-decoration: none;
+}
+
+.chipRow { margin-bottom: 12px; }
+
+.chip {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border-radius: var(--radius-badge);
+  border: 1px solid var(--hairline);
+  background: var(--shade-cool-light-1);
+  color: var(--shade-cool-dark-5);
+  font-size: var(--body-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--duration-fast), color var(--duration-fast),
+    border-color var(--duration-fast);
+}
+.chip:hover { border-color: var(--color-primary-1); }
+.chipActive {
+  background: var(--color-primary-1);
+  border-color: var(--color-primary-1);
+  color: var(--white);
+}
+
+.railItem { flex: 0 0 160px; }
+
+.seeAllCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  min-height: 160px;
+  border: 1px dashed var(--hairline);
+  border-radius: 8px;
+  background: var(--shade-cool-light-1);
+  color: var(--color-primary-1);
+  text-decoration: none;
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-sm);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.seeAllCard:hover {
+  background: var(--white);
+  border-color: var(--color-primary-1);
+  text-decoration: none;
+}
+.seeAllCardArrow {
+  font-size: 28px;
+  line-height: 1;
+}
+.seeAllCardLabel { text-align: center; }
+
+.rowMsg {
+  padding: 24px 0;
+  color: var(--shade-cool-base-7);
+  font-size: var(--body-sm);
+}

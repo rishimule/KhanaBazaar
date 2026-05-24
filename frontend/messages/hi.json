@@ -3,6 +3,7 @@
     "home": "होम",
     "sell": "बेचें",
     "stores": "स्टोर",
+    "products": "उत्पाद",
     "orders": "ऑर्डर",
     "account": "खाता",
     "seller": "विक्रेता",
@@ -30,6 +31,7 @@
     "heroTitle": "भरोसेमंद पड़ोस के स्टोर से रोज़मर्रा की ज़रूरतें",
     "heroDescription": "आसपास के विक्रेताओं को ब्राउज़ करें, स्थानीय इन्वेंट्री की तुलना करें, और तेज़ इंडियन मार्केट चेकआउट के ज़रिए ताज़ा किराना और रोज़मर्रा की ज़रूरतें खरीदें।",
     "ctaStartShopping": "शॉपिंग शुरू करें",
+    "ctaExploreProducts": "उत्पाद देखें",
     "ctaSignInToShop": "खरीदारी के लिए साइन इन करें",
     "ctaSellOnKB": "Khana Bazaar पर बेचें",
     "highlightsAria": "मार्केटप्लेस की मुख्य बातें",
@@ -755,5 +757,16 @@
       "body": "Tap the ⋮ menu, then \"Install app\" or \"Add to Home screen\".",
       "dismiss": "Got it"
     }
+  },
+  "Products": {
+    "title": "उत्पाद देखें",
+    "seeAll": "सभी देखें",
+    "allSubcategories": "सभी",
+    "setLocationBanner": "आपके यहाँ क्या डिलीवर होता है देखने के लिए स्थान सेट करें",
+    "setLocationCta": "स्थान सेट करें",
+    "empty": "यहाँ अभी कोई उत्पाद उपलब्ध नहीं है।",
+    "loading": "लोड हो रहा है…",
+    "scrollLeft": "बाएँ स्क्रॉल करें",
+    "scrollRight": "दाएँ स्क्रॉल करें"
   }
 }

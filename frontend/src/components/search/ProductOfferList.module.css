@@ -22,6 +22,11 @@
 }
 .storeName {
   font-weight: 500;
+  color: inherit;
+  text-decoration: none;
+}
+.storeName:hover {
+  text-decoration: underline;
 }
 .subtext {
   font-size: 0.8rem;

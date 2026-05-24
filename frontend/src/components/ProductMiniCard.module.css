@@ -1,0 +1,54 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.card {
+  width: 100%;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--color-surface, #fff);
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+.img,
+.imgFallback {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-alt, #f3f4f6);
+  font-size: 2rem;
+}
+.name {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+.brand {
+  font-size: 0.8rem;
+  color: var(--color-muted, #6b7280);
+}
+.price {
+  font-weight: 600;
+}
+.range {
+  color: var(--color-muted, #6b7280);
+  font-weight: 400;
+}
+.badge {
+  align-self: flex-start;
+  padding: 0.15rem 0.5rem;
+  background: rgba(220, 38, 38, 0.1);
+  color: rgb(220, 38, 38);
+  border-radius: 999px;
+  font-size: 0.75rem;
+}

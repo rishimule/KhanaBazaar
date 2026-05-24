@@ -11,6 +11,7 @@ import { formatAddress } from "@/lib/format-address";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { prefetchStorefront } from "@/lib/storefrontCache";
 import { serviceGlyph } from "@/lib/serviceGlyph";
+import { ScrollRail } from "@/components/ScrollRail";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -49,23 +50,6 @@ function StoresPageInner() {
   const [loadingMore, setLoadingMore] = useState(false);
   const requestIdRef = useRef(0);
   const { location } = useDeliveryLocation();
-
-  const railRef = useRef<HTMLElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const updateArrows = useCallback(() => {
-    const el = railRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 1);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
-  }, []);
-
-  const scrollRail = useCallback((dir: -1 | 1) => {
-    const el = railRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
-  }, []);
 
   const fetchPage = useCallback(
     async (skipValue: number, append: boolean): Promise<void> => {
@@ -136,12 +120,6 @@ function StoresPageInner() {
       .catch(() => setServices([]));
   }, [locale]);
 
-  useEffect(() => {
-    updateArrows();
-    window.addEventListener("resize", updateArrows);
-    return () => window.removeEventListener("resize", updateArrows);
-  }, [services, updateArrows]);
-
   const activeService = useMemo(
     () => services.find((s) => s.slug === serviceSlug) ?? null,
     [services, serviceSlug],
@@ -177,23 +155,11 @@ function StoresPageInner() {
         {services.length > 0 && (
           <section className={styles.svcSection}>
             <h2 className={styles.svcTitle}>{t("shopByService")}</h2>
-            <div className={styles.svcRailWrap}>
-              {canScrollLeft && (
-                <button
-                  type="button"
-                  className={`${styles.svcArrow} ${styles.svcArrowLeft}`}
-                  onClick={() => scrollRail(-1)}
-                  aria-label={t("scrollLeft")}
-                >
-                  ‹
-                </button>
-              )}
-              <nav
-                ref={railRef}
-                onScroll={updateArrows}
-                className={styles.svcRail}
-                aria-label={t("shopByService")}
-              >
+            <ScrollRail
+              ariaLabel={t("shopByService")}
+              leftLabel={t("scrollLeft")}
+              rightLabel={t("scrollRight")}
+            >
               <Link
                 href="/stores"
                 className={`${styles.svcTile} ${!serviceSlug ? styles.svcTileActive : ""}`}
@@ -216,18 +182,7 @@ function StoresPageInner() {
                   </Link>
                 );
               })}
-              </nav>
-              {canScrollRight && (
-                <button
-                  type="button"
-                  className={`${styles.svcArrow} ${styles.svcArrowRight}`}
-                  onClick={() => scrollRail(1)}
-                  aria-label={t("scrollRight")}
-                >
-                  ›
-                </button>
-              )}
-            </div>
+            </ScrollRail>
           </section>
         )}
 

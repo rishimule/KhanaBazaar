@@ -3,6 +3,7 @@
     "home": "ਹੋਮ",
     "sell": "ਵੇਚੋ",
     "stores": "ਸਟੋਰ",
+    "products": "ਉਤਪਾਦ",
     "orders": "ਆਰਡਰ",
     "account": "ਖਾਤਾ",
     "seller": "ਵਿਕਰੇਤਾ",
@@ -30,6 +31,7 @@
     "heroTitle": "ਭਰੋਸੇਮੰਦ ਆਂਢ-ਗੁਆਂਢ ਦੇ ਸਟੋਰਾਂ ਤੋਂ ਰੋਜ਼ਾਨਾ ਜ਼ਰੂਰਤਾਂ",
     "heroDescription": "ਨੇੜਲੇ ਵਿਕਰੇਤਾ ਬ੍ਰਾਊਜ਼ ਕਰੋ, ਸਥਾਨਕ ਇਨਵੈਂਟਰੀ ਦੀ ਤੁਲਨਾ ਕਰੋ, ਅਤੇ ਤੇਜ਼ ਇੰਡੀਅਨ-ਮਾਰਕੀਟ ਚੈੱਕਆਊਟ ਰਾਹੀਂ ਤਾਜ਼ਾ ਕਰਿਆਨਾ ਅਤੇ ਰੋਜ਼ਾਨਾ ਜ਼ਰੂਰਤਾਂ ਖਰੀਦੋ.",
     "ctaStartShopping": "ਸ਼ਾਪਿੰਗ ਸ਼ੁਰੂ ਕਰੋ",
+    "ctaExploreProducts": "ਉਤਪਾਦ ਵੇਖੋ",
     "ctaSignInToShop": "ਖਰੀਦਦਾਰੀ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ",
     "ctaSellOnKB": "Khana Bazaar 'ਤੇ ਵੇਚੋ",
     "highlightsAria": "ਮਾਰਕੀਟਪਲੇਸ ਦੀਆਂ ਮੁੱਖ ਗੱਲਾਂ",
@@ -755,5 +757,16 @@
       "body": "Tap the ⋮ menu, then \"Install app\" or \"Add to Home screen\".",
       "dismiss": "Got it"
     }
+  },
+  "Products": {
+    "title": "ਉਤਪਾਦ ਵੇਖੋ",
+    "seeAll": "ਸਾਰੇ ਵੇਖੋ",
+    "allSubcategories": "ਸਾਰੇ",
+    "setLocationBanner": "ਆਪਣੇ ਇਲਾਕੇ ਵਿੱਚ ਕੀ ਡਿਲੀਵਰ ਹੁੰਦਾ ਹੈ ਵੇਖਣ ਲਈ ਥਾਂ ਸੈੱਟ ਕਰੋ",
+    "setLocationCta": "ਥਾਂ ਸੈੱਟ ਕਰੋ",
+    "empty": "ਇੱਥੇ ਅਜੇ ਕੋਈ ਉਤਪਾਦ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
+    "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+    "scrollLeft": "ਖੱਬੇ ਸਕ੍ਰੋਲ ਕਰੋ",
+    "scrollRight": "ਸੱਜੇ ਸਕ੍ਰੋਲ ਕਰੋ"
   }
 }

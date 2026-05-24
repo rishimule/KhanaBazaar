@@ -3,6 +3,7 @@
     "home": "Home",
     "sell": "Sell",
     "stores": "Stores",
+    "products": "Products",
     "orders": "Orders",
     "account": "Account",
     "seller": "Seller",
@@ -30,6 +31,7 @@
     "heroTitle": "Daily essentials from trusted neighborhood stores",
     "heroDescription": "Browse nearby sellers, compare local inventory, and shop fresh groceries and daily needs through a fast Indian-market checkout flow.",
     "ctaStartShopping": "Start shopping",
+    "ctaExploreProducts": "Explore products",
     "ctaSignInToShop": "Sign in to shop",
     "ctaSellOnKB": "Sell on Khana Bazaar",
     "highlightsAria": "Marketplace highlights",
@@ -754,5 +756,16 @@
       "body": "Tap the ⋮ menu, then \"Install app\" or \"Add to Home screen\".",
       "dismiss": "Got it"
     }
+  },
+  "Products": {
+    "title": "Explore products",
+    "seeAll": "See all",
+    "allSubcategories": "All",
+    "setLocationBanner": "Set your location to see what delivers to you",
+    "setLocationCta": "Set location",
+    "empty": "No products available here yet.",
+    "loading": "Loading…",
+    "scrollLeft": "Scroll left",
+    "scrollRight": "Scroll right"
   }
 }

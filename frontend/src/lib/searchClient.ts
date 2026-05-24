@@ -217,6 +217,7 @@ export type SearchProductsArgs = {
   storeId?: number;
   serviceId?: number;
   categoryId?: number;
+  subcategoryId?: number;
   minPrice?: number;
   maxPrice?: number;
   sort?: string;
@@ -235,6 +236,8 @@ export async function searchProducts(
   if (args.storeId !== undefined) params.set("store_id", String(args.storeId));
   if (args.serviceId !== undefined) params.set("service_id", String(args.serviceId));
   if (args.categoryId !== undefined) params.set("category_id", String(args.categoryId));
+  if (args.subcategoryId !== undefined)
+    params.set("subcategory_id", String(args.subcategoryId));
   if (args.minPrice !== undefined) params.set("min_price", String(args.minPrice));
   if (args.maxPrice !== undefined) params.set("max_price", String(args.maxPrice));
   if (args.sort) params.set("sort", args.sort);
@@ -258,4 +261,53 @@ export async function compareProduct(
     null,
     { headers: { "Accept-Language": args.locale } },
   );
+}
+
+// ─── Browse (per-service category carousels) ─────────────────────────────
+
+export type BrowseProductCard = {
+  id: number;
+  slug: string;
+  name: string;
+  image_url: string | null;
+  brand: string | null;
+  unit: string | null;
+  min_price: number;
+  max_price: number;
+  in_stock_anywhere: boolean;
+  category_id: number;
+};
+
+export type BrowseSubcategory = {
+  id: number;
+  slug: string;
+  name: string;
+};
+
+export type BrowseCategory = {
+  id: number;
+  slug: string;
+  name: string;
+  subcategories: BrowseSubcategory[];
+  products: BrowseProductCard[];
+};
+
+export type BrowseResponse = {
+  service_id: number;
+  service_name: string;
+  categories: BrowseCategory[];
+};
+
+export async function browseProducts(
+  args: { serviceId: number; lat?: number; lng?: number; perCategory?: number },
+  locale: string,
+): Promise<BrowseResponse> {
+  const params = new URLSearchParams({ service_id: String(args.serviceId) });
+  if (args.lat !== undefined) params.set("lat", String(args.lat));
+  if (args.lng !== undefined) params.set("lng", String(args.lng));
+  if (args.perCategory !== undefined)
+    params.set("per_category", String(args.perCategory));
+  return get<BrowseResponse>(`/api/v1/search/browse?${params}`, null, {
+    headers: { "Accept-Language": locale },
+  });
 }

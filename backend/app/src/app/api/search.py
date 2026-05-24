@@ -10,6 +10,7 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from meilisearch_python_sdk.models.search import SearchParams
 from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -20,15 +21,21 @@ from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.catalog import (
     Category,
+    CategoryTranslation,
     MasterProduct,
     MasterProductTranslation,
     Service,
     ServiceTranslation,
     Subcategory,
+    SubcategoryTranslation,
 )
 from app.models.search_log import SearchQueryLog
 from app.models.store import Store, StoreInventory
 from app.schemas.search import (
+    BrowseCategory,
+    BrowseProductCard,
+    BrowseResponse,
+    BrowseSubcategory,
     ClickPayload,
     CompareOffer,
     CompareResponse,
@@ -108,6 +115,7 @@ def _rate_limit(setting_name: str):
 
 _suggest_rate = _rate_limit("SEARCH_RATE_LIMIT_SUGGEST_PER_MIN")
 _products_rate = _rate_limit("SEARCH_RATE_LIMIT_PRODUCTS_PER_MIN")
+_browse_rate = _rate_limit("SEARCH_RATE_LIMIT_BROWSE_PER_MIN")
 
 
 async def _log_query(
@@ -317,6 +325,7 @@ async def products(
     store_id: Optional[int] = Query(None),
     service_id: Optional[int] = Query(None),
     category_id: Optional[int] = Query(None),
+    subcategory_id: Optional[int] = Query(None),
     min_price: Optional[float] = Query(None),
     max_price: Optional[float] = Query(None),
     sort: str = Query("relevance"),
@@ -345,6 +354,8 @@ async def products(
         filters.append(f"service_id = {service_id}")
     if category_id is not None:
         filters.append(f"category_id = {category_id}")
+    if subcategory_id is not None:
+        filters.append(f"subcategory_id = {subcategory_id}")
     if min_price is not None:
         filters.append(f"min_price >= {min_price}")
     if max_price is not None:
@@ -480,6 +491,227 @@ async def products(
         applied_filters=applied,
         sort=sort,
     )
+
+
+# ── /browse (per-service category carousels) ────────────────────────────────
+
+
+_BROWSE_CARD_ATTRS = [
+    "id",
+    "slug",
+    "image_url",
+    "brand",
+    "unit",
+    "min_price",
+    "max_price",
+    "in_stock_anywhere",
+    "category_id",
+]
+
+
+@router.get(
+    "/browse",
+    response_model=BrowseResponse,
+    dependencies=[Depends(_browse_rate)],
+)
+async def browse(
+    service_id: int = Query(..., ge=1),
+    lat: Optional[float] = Query(None),
+    lng: Optional[float] = Query(None),
+    per_category: int = Query(12, ge=1, le=24),
+    locale: str = Depends(get_request_locale),
+    session: AsyncSession = Depends(get_db_session),
+    redis: aioredis.Redis = Depends(get_redis),
+) -> BrowseResponse:
+    serviceable = await get_serviceable_store_ids(session, redis, lat, lng)
+    cell = (
+        grid_cell_key(lat, lng) if lat is not None and lng is not None else "no-loc"
+    )
+    cache_key = f"browse:{service_id}:{cell}:{locale}:{per_category}"
+    cached = await redis.get(cache_key)
+    if cached is not None:
+        return BrowseResponse(**json.loads(cached))
+
+    svc = (
+        await session.execute(select(Service).where(Service.id == service_id))
+    ).scalar_one_or_none()
+    if svc is None:
+        raise HTTPException(status_code=404, detail="service_not_found")
+    svc_t = (
+        await session.execute(
+            select(ServiceTranslation).where(
+                ServiceTranslation.service_id == service_id,
+                ServiceTranslation.language_code == locale,
+            )
+        )
+    ).scalar_one_or_none()
+    if svc_t is None:
+        svc_t = (
+            await session.execute(
+                select(ServiceTranslation).where(
+                    ServiceTranslation.service_id == service_id,
+                    ServiceTranslation.language_code == "en",
+                )
+            )
+        ).scalar_one_or_none()
+    svc_name = svc_t.name if svc_t else svc.slug
+
+    # Location set but no store delivers here → nothing to show (distinct from
+    # `serviceable is None`, which means no/invalid location → show everything).
+    if serviceable is not None and not serviceable:
+        body = BrowseResponse(
+            service_id=service_id, service_name=svc_name, categories=[]
+        )
+        await redis.set(
+            cache_key,
+            body.model_dump_json(),
+            ex=settings.SEARCH_BROWSE_CACHE_TTL_SECONDS,
+        )
+        return body
+
+    cat_rows = (
+        await session.execute(
+            select(Category)
+            .where(Category.service_id == service_id, Category.is_active.is_(True))
+            .order_by(Category.sort_order, Category.id)
+        )
+    ).scalars().all()
+
+    # Resolve localized category names (fallback to en, then slug).
+    cat_names: dict[int, str] = {}
+    for cat in cat_rows:
+        ct = (
+            await session.execute(
+                select(CategoryTranslation).where(
+                    CategoryTranslation.category_id == cat.id,
+                    CategoryTranslation.language_code == locale,
+                )
+            )
+        ).scalar_one_or_none()
+        if ct is None:
+            ct = (
+                await session.execute(
+                    select(CategoryTranslation).where(
+                        CategoryTranslation.category_id == cat.id,
+                        CategoryTranslation.language_code == "en",
+                    )
+                )
+            ).scalar_one_or_none()
+        cat_names[cat.id] = ct.name if ct else cat.slug
+
+    serviceable_clause = ""
+    if serviceable is not None and serviceable:
+        ids_str = ",".join(str(s) for s in serviceable)
+        serviceable_clause = f" AND store_ids IN [{ids_str}]"
+
+    client = get_meili_client()
+    queries = [
+        SearchParams(
+            index_uid="products",
+            query="",
+            filter=(
+                f"is_active = true AND service_id = {service_id} "
+                f"AND category_id = {cat.id}{serviceable_clause}"
+            ),
+            limit=per_category,
+            facets=["subcategory_id"],
+            attributes_to_retrieve=_BROWSE_CARD_ATTRS + [f"name_{locale}", "name_en"],
+        )
+        for cat in cat_rows
+    ]
+
+    # First pass: collect cards + the subcategory ids that actually have
+    # in-area products (from the facet distribution, which counts the full
+    # match set — not just the returned sample).
+    pending: list[tuple[Category, list[BrowseProductCard], list[int]]] = []
+    all_sub_ids: set[int] = set()
+    if queries:
+        results = await client.multi_search(queries)
+        # multi_search preserves query order → align with cat_rows
+        for cat, res in zip(cat_rows, results, strict=True):
+            cards: list[BrowseProductCard] = []
+            for hit in res.hits:
+                cards.append(
+                    BrowseProductCard(
+                        id=hit["id"],
+                        slug=hit["slug"],
+                        name=hit.get(f"name_{locale}")
+                        or hit.get("name_en")
+                        or hit["slug"],
+                        image_url=hit.get("image_url"),
+                        brand=hit.get("brand"),
+                        unit=hit.get("unit"),
+                        min_price=float(hit.get("min_price", 0.0)),
+                        max_price=float(hit.get("max_price", 0.0)),
+                        in_stock_anywhere=bool(hit.get("in_stock_anywhere", False)),
+                        category_id=hit["category_id"],
+                    )
+                )
+            if not cards:
+                continue
+            facet = res.facet_distribution or {}
+            sub_dist = facet.get("subcategory_id") or {}
+            sub_ids = [int(k) for k, count in sub_dist.items() if count]
+            all_sub_ids.update(sub_ids)
+            pending.append((cat, cards, sub_ids))
+
+    # Resolve subcategory metadata (slug, sort_order, localized name) in bulk.
+    sub_meta: dict[int, tuple[str, int]] = {}
+    sub_names: dict[int, str] = {}
+    if all_sub_ids:
+        for sub in (
+            await session.execute(
+                select(Subcategory).where(Subcategory.id.in_(all_sub_ids))
+            )
+        ).scalars():
+            sub_meta[sub.id] = (sub.slug, sub.sort_order)
+        for sid in all_sub_ids:
+            st = (
+                await session.execute(
+                    select(SubcategoryTranslation).where(
+                        SubcategoryTranslation.subcategory_id == sid,
+                        SubcategoryTranslation.language_code == locale,
+                    )
+                )
+            ).scalar_one_or_none()
+            if st is None:
+                st = (
+                    await session.execute(
+                        select(SubcategoryTranslation).where(
+                            SubcategoryTranslation.subcategory_id == sid,
+                            SubcategoryTranslation.language_code == "en",
+                        )
+                    )
+                ).scalar_one_or_none()
+            sub_names[sid] = st.name if st else sub_meta.get(sid, ("", 0))[0]
+
+    categories: list[BrowseCategory] = []
+    for cat, cards, sub_ids in pending:
+        subs = [
+            BrowseSubcategory(id=sid, slug=sub_meta[sid][0], name=sub_names[sid])
+            for sid in sub_ids
+            if sid in sub_meta
+        ]
+        subs.sort(key=lambda b: (sub_meta[b.id][1], b.id))
+        categories.append(
+            BrowseCategory(
+                id=cat.id,
+                slug=cat.slug,
+                name=cat_names[cat.id],
+                subcategories=subs,
+                products=cards,
+            )
+        )
+
+    body = BrowseResponse(
+        service_id=service_id, service_name=svc_name, categories=categories
+    )
+    await redis.set(
+        cache_key,
+        body.model_dump_json(),
+        ex=settings.SEARCH_BROWSE_CACHE_TTL_SECONDS,
+    )
+    return body
 
 
 # ── /products/{id}/stores (comparison) ─────────────────────────────────────

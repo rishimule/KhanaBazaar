@@ -62,10 +62,12 @@ class Settings(BaseSettings):
     # Search rate limits (per IP per minute)
     SEARCH_RATE_LIMIT_SUGGEST_PER_MIN: int = 60
     SEARCH_RATE_LIMIT_PRODUCTS_PER_MIN: int = 30
+    SEARCH_RATE_LIMIT_BROWSE_PER_MIN: int = 60
 
     # Search cache TTLs
     SEARCH_SUGGEST_CACHE_TTL_SECONDS: int = 60
     SEARCH_SERVICEABLE_GRID_TTL_SECONDS: int = 60
+    SEARCH_BROWSE_CACHE_TTL_SECONDS: int = 60
 
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
 

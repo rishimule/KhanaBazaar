@@ -101,3 +101,21 @@ async def test_click_unknown_query_id_204(client: AsyncClient):
         json={"query_id": str(_uuid.uuid4()), "position": 0},
     )
     assert r.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_products_subcategory_filter(
+    client: AsyncClient, session: AsyncSession, meili_test_client
+):
+    ids = await _seed_chain(session)
+    await reindex_all(session, meili_test_client)
+    r = await client.get(
+        "/api/v1/search/products",
+        params={"q": "", "subcategory_id": ids["subcategory_id"]},
+    )
+    assert r.status_code == 200, r.text
+    assert any(p["id"] == ids["product_id"] for p in r.json()["products"])
+    r2 = await client.get(
+        "/api/v1/search/products", params={"q": "", "subcategory_id": 999999}
+    )
+    assert r2.json()["total"] == 0
