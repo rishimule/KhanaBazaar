@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import type { CompareOffer, CompareResponse } from "@/lib/searchClient";
@@ -31,7 +32,9 @@ export function ProductOfferList({ data }: Props) {
   }
 
   async function handleAdd(offer: CompareOffer) {
-    if (!offer.is_available || !offer.is_serviceable || offer.stock <= 0) return;
+    // Allow adding from non-deliverable stores too — deliverability is
+    // re-validated at checkout. Still block genuinely unavailable/out-of-stock.
+    if (!offer.is_available || offer.stock <= 0) return;
     await addItem(
       offer.store.id,
       offer.store.name,
@@ -50,11 +53,13 @@ export function ProductOfferList({ data }: Props) {
 
   function renderRow(o: CompareOffer) {
     const qty = qtyFor(o.store.id, product.service_id);
-    const disabled = !o.is_available || !o.is_serviceable || o.stock <= 0;
+    const disabled = !o.is_available || o.stock <= 0;
     return (
       <li key={o.store.id} className={styles.row}>
         <div className={styles.storeMeta}>
-          <div className={styles.storeName}>{o.store.name}</div>
+          <Link href={`/stores/${o.store.id}`} className={styles.storeName}>
+            {o.store.name}
+          </Link>
           <div className={styles.subtext}>
             {o.store.distance_km !== null && (
               <span>{o.store.distance_km} km</span>
