@@ -124,3 +124,29 @@ class StoreSearchResponse(BaseModel):
     page: int
     page_size: int
     stores: list[SuggestStore]
+
+
+class BrowseProductCard(BaseModel):
+    id: int
+    slug: str
+    name: str
+    image_url: Optional[str] = None
+    brand: Optional[str] = None
+    unit: Optional[str] = None
+    min_price: float
+    max_price: float
+    in_stock_anywhere: bool
+    category_id: int
+
+
+class BrowseCategory(BaseModel):
+    id: int
+    slug: str
+    name: str
+    products: list[BrowseProductCard]
+
+
+class BrowseResponse(BaseModel):
+    service_id: int
+    service_name: str
+    categories: list[BrowseCategory]
