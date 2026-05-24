@@ -6,9 +6,11 @@ import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import styles from "./CartAddedToast.module.css";
 
-// Transient confirmation shown after a reorder fills the cart. Reads the
-// count set by ReorderButton from CartContext, auto-dismisses after 4s, and
-// clears the count on unmount so it is consumed exactly once.
+// Transient confirmation shown after a reorder fills the cart. ReorderButton
+// sets the count on CartContext before navigating here; we render straight
+// from that value and clear it via a timeout (auto-dismiss). The cleanup only
+// cancels the timer — it does NOT clear the count — so the toast survives React
+// StrictMode's mount→unmount→mount double-invoke in development.
 export default function CartAddedToast() {
   const t = useTranslations("Reorder");
   const { lastReorderAdded, clearReorderAdded } = useCart();
@@ -16,10 +18,7 @@ export default function CartAddedToast() {
   useEffect(() => {
     if (lastReorderAdded <= 0) return;
     const id = setTimeout(clearReorderAdded, 4000);
-    return () => {
-      clearTimeout(id);
-      clearReorderAdded();
-    };
+    return () => clearTimeout(id);
   }, [lastReorderAdded, clearReorderAdded]);
 
   if (lastReorderAdded <= 0) return null;
