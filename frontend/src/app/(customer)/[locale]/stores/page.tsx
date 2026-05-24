@@ -10,6 +10,7 @@ import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { prefetchStorefront } from "@/lib/storefrontCache";
+import { serviceGlyph } from "@/lib/serviceGlyph";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -48,6 +49,23 @@ function StoresPageInner() {
   const [loadingMore, setLoadingMore] = useState(false);
   const requestIdRef = useRef(0);
   const { location } = useDeliveryLocation();
+
+  const railRef = useRef<HTMLElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateArrows = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 1);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  const scrollRail = useCallback((dir: -1 | 1) => {
+    const el = railRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
+  }, []);
 
   const fetchPage = useCallback(
     async (skipValue: number, append: boolean): Promise<void> => {
@@ -107,29 +125,28 @@ function StoresPageInner() {
   }, [fetchPage]);
 
   useEffect(() => {
-    if (!serviceSlug) return;
     get<Service[]>("/api/v1/catalog/services")
-      .then(setServices)
+      .then((rows) =>
+        setServices(
+          rows
+            .filter((s) => s.is_active !== false)
+            .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id),
+        ),
+      )
       .catch(() => setServices([]));
-  }, [serviceSlug, locale]);
+  }, [locale]);
+
+  useEffect(() => {
+    updateArrows();
+    window.addEventListener("resize", updateArrows);
+    return () => window.removeEventListener("resize", updateArrows);
+  }, [services, updateArrows]);
 
   const activeService = useMemo(
     () => services.find((s) => s.slug === serviceSlug) ?? null,
     [services, serviceSlug],
   );
   const activeServiceName = activeService?.name ?? serviceSlug ?? "";
-
-  if (fetching) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.pageInner}>
-          <div className={styles.header}>
-            <h1 className={styles.title}>{t("loading")}</h1>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={styles.page}>
@@ -157,7 +174,71 @@ function StoresPageInner() {
           )}
         </div>
 
-        {stores.length === 0 && (
+        {services.length > 0 && (
+          <section className={styles.svcSection}>
+            <h2 className={styles.svcTitle}>{t("shopByService")}</h2>
+            <div className={styles.svcRailWrap}>
+              {canScrollLeft && (
+                <button
+                  type="button"
+                  className={`${styles.svcArrow} ${styles.svcArrowLeft}`}
+                  onClick={() => scrollRail(-1)}
+                  aria-label={t("scrollLeft")}
+                >
+                  ‹
+                </button>
+              )}
+              <nav
+                ref={railRef}
+                onScroll={updateArrows}
+                className={styles.svcRail}
+                aria-label={t("shopByService")}
+              >
+              <Link
+                href="/stores"
+                className={`${styles.svcTile} ${!serviceSlug ? styles.svcTileActive : ""}`}
+                aria-current={!serviceSlug ? "true" : undefined}
+              >
+                <span className={styles.svcTileGlyph} aria-hidden>🏬</span>
+                <span className={styles.svcTileLabel}>{t("allServices")}</span>
+              </Link>
+              {services.map((s) => {
+                const active = s.slug === serviceSlug;
+                return (
+                  <Link
+                    key={s.id}
+                    href={`/stores?service=${encodeURIComponent(s.slug)}`}
+                    className={`${styles.svcTile} ${active ? styles.svcTileActive : ""}`}
+                    aria-current={active ? "true" : undefined}
+                  >
+                    <span className={styles.svcTileGlyph} aria-hidden>{serviceGlyph(s.slug)}</span>
+                    <span className={styles.svcTileLabel}>{s.name}</span>
+                  </Link>
+                );
+              })}
+              </nav>
+              {canScrollRight && (
+                <button
+                  type="button"
+                  className={`${styles.svcArrow} ${styles.svcArrowRight}`}
+                  onClick={() => scrollRail(1)}
+                  aria-label={t("scrollRight")}
+                >
+                  ›
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {fetching ? (
+          <p
+            className={styles.subtitle}
+            style={{ textAlign: "center", padding: "32px 0" }}
+          >
+            {t("loading")}
+          </p>
+        ) : stores.length === 0 ? (
           <p
             className={styles.subtitle}
             style={{ textAlign: "center", padding: "32px 0" }}
@@ -170,8 +251,8 @@ function StoresPageInner() {
                 ? t("emptyAllWithLocation")
                 : t("emptyAllNoLocation")}
           </p>
-        )}
-
+        ) : (
+          <>
         <div className={styles.grid}>
           {stores.map((store) => {
             const matchedService = serviceSlug
@@ -225,6 +306,8 @@ function StoresPageInner() {
               {loadingMore ? t("loadingMore") : t("loadMore")}
             </button>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>
