@@ -767,5 +767,12 @@
     "loading": "Loading…",
     "scrollLeft": "Scroll left",
     "scrollRight": "Scroll right"
+  },
+  "Reorder": {
+    "cta": "Reorder",
+    "loading": "Adding…",
+    "nothingAvailable": "Nothing from this order is available right now.",
+    "serviceUnavailable": "This store no longer offers this service.",
+    "failed": "Couldn't reorder. Please try again."
   }
 }
