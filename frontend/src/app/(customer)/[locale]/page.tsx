@@ -3,37 +3,16 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { useAuth } from "@/lib/AuthContext";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { serviceGlyph } from "@/lib/serviceGlyph";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
-
-const SERVICE_GLYPH: Record<string, string> = {
-  grocery: "🛒",
-  food: "🍱",
-  pharmacy: "💊",
-  electronics: "🔌",
-  bakery: "🍞",
-  fresh: "🥬",
-  meat: "🍖",
-  seafood: "🦐",
-  beverages: "🍵",
-  household: "🏠",
-};
-
-function serviceGlyph(slug: string): string {
-  const k = slug.toLowerCase();
-  if (SERVICE_GLYPH[k]) return SERVICE_GLYPH[k];
-  for (const key in SERVICE_GLYPH) {
-    if (k.includes(key)) return SERVICE_GLYPH[key];
-  }
-  return "🛍️";
-}
 
 export default function Home() {
   const t = useTranslations("Home");
@@ -42,6 +21,23 @@ export default function Home() {
   const [stores, setStores] = useState<Store[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const { location } = useDeliveryLocation();
+
+  const railRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateArrows = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 1);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  const scrollRail = useCallback((dir: -1 | 1) => {
+    const el = railRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
     if (loading || !dbUser) return;
@@ -72,6 +68,12 @@ export default function Home() {
       )
       .catch(() => setServices([]));
   }, []);
+
+  useEffect(() => {
+    updateArrows();
+    window.addEventListener("resize", updateArrows);
+    return () => window.removeEventListener("resize", updateArrows);
+  }, [services, updateArrows]);
 
   if (loading || (dbUser && dbUser.role !== "customer")) {
     return (
@@ -120,17 +122,39 @@ export default function Home() {
               <h2 className={styles.sectionTitle}>Shop by service</h2>
               <Link href="/stores" className={styles.sectionMore}>More ›</Link>
             </div>
-            <div className={styles.svcGrid}>
-              {services.map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/stores?service=${encodeURIComponent(s.slug)}`}
-                  className={styles.catTile}
+            <div className={styles.svcRailWrap}>
+              {canScrollLeft && (
+                <button
+                  type="button"
+                  className={`${styles.svcArrow} ${styles.svcArrowLeft}`}
+                  onClick={() => scrollRail(-1)}
+                  aria-label="Scroll left"
                 >
-                  <span className={styles.catTileGlyph} aria-hidden>{serviceGlyph(s.slug)}</span>
-                  <span className={styles.catTileLabel}>{s.name}</span>
-                </Link>
-              ))}
+                  ‹
+                </button>
+              )}
+              <div ref={railRef} onScroll={updateArrows} className={styles.svcGrid}>
+                {services.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`/stores?service=${encodeURIComponent(s.slug)}`}
+                    className={styles.catTile}
+                  >
+                    <span className={styles.catTileGlyph} aria-hidden>{serviceGlyph(s.slug)}</span>
+                    <span className={styles.catTileLabel}>{s.name}</span>
+                  </Link>
+                ))}
+              </div>
+              {canScrollRight && (
+                <button
+                  type="button"
+                  className={`${styles.svcArrow} ${styles.svcArrowRight}`}
+                  onClick={() => scrollRail(1)}
+                  aria-label="Scroll right"
+                >
+                  ›
+                </button>
+              )}
             </div>
           </section>
         )}
