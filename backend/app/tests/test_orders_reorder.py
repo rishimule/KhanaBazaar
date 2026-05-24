@@ -149,3 +149,89 @@ async def test_happy_path_resolves_all_items(client: AsyncClient, seed: dict[str
         assert items[seed["inv2"]]["quantity"] == 1
     finally:
         _clear_auth()
+
+
+@pytest.mark.asyncio
+async def test_stock_capped(client: AsyncClient, seed: dict[str, int], session: AsyncSession) -> None:
+    inv = await session.get(StoreInventory, seed["inv1"])
+    assert inv is not None
+    inv.stock = 1  # order asked for 2
+    session.add(inv)
+    await session.commit()
+
+    await _auth(mock_customer)
+    try:
+        resp = await client.post(f"/api/v1/orders/{seed['order_id']}/reorder")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        line = next(i for i in body["items"] if i["inventory_id"] == seed["inv1"])
+        assert line["quantity"] == 1  # capped, still added
+        adj = next(a for a in body["adjustments"] if a["inventory_id"] == seed["inv1"])
+        assert adj["reason"] == "stock_capped"
+        assert adj["granted_quantity"] == 1
+    finally:
+        _clear_auth()
+
+
+@pytest.mark.asyncio
+async def test_stock_exhausted(client: AsyncClient, seed: dict[str, int], session: AsyncSession) -> None:
+    inv = await session.get(StoreInventory, seed["inv1"])
+    assert inv is not None
+    inv.stock = 0
+    session.add(inv)
+    await session.commit()
+
+    await _auth(mock_customer)
+    try:
+        resp = await client.post(f"/api/v1/orders/{seed['order_id']}/reorder")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert all(i["inventory_id"] != seed["inv1"] for i in body["items"])
+        adj = next(a for a in body["adjustments"] if a["inventory_id"] == seed["inv1"])
+        assert adj["reason"] == "stock_exhausted"
+    finally:
+        _clear_auth()
+
+
+@pytest.mark.asyncio
+async def test_item_unavailable_when_flag_off(client: AsyncClient, seed: dict[str, int], session: AsyncSession) -> None:
+    inv = await session.get(StoreInventory, seed["inv1"])
+    assert inv is not None
+    inv.is_available = False
+    session.add(inv)
+    await session.commit()
+
+    await _auth(mock_customer)
+    try:
+        resp = await client.post(f"/api/v1/orders/{seed['order_id']}/reorder")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert all(i["inventory_id"] != seed["inv1"] for i in body["items"])
+        adj = next(a for a in body["adjustments"] if a["inventory_id"] == seed["inv1"])
+        assert adj["reason"] == "item_unavailable"
+    finally:
+        _clear_auth()
+
+
+@pytest.mark.asyncio
+async def test_null_inventory_is_unavailable(client: AsyncClient, seed: dict[str, int], session: AsyncSession) -> None:
+    # A StoreInventory row referenced by an OrderItem cannot be deleted (FK
+    # orderitem_inventory_id_fkey). The real "dangling" case is an OrderItem
+    # with a NULL inventory_id, which must resolve to item_unavailable.
+    session.add(OrderItem(
+        order_id=seed["order_id"], inventory_id=None, product_name_snapshot="Gone",
+        unit_price_snapshot=10.0, quantity=1, line_total=10.0,
+    ))
+    await session.commit()
+
+    await _auth(mock_customer)
+    try:
+        resp = await client.post(f"/api/v1/orders/{seed['order_id']}/reorder")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        # The two real items still resolve; the null-inventory line is dropped.
+        assert len(body["items"]) == 2
+        adj = next(a for a in body["adjustments"] if a["reason"] == "item_unavailable")
+        assert adj["granted_quantity"] == 0
+    finally:
+        _clear_auth()
