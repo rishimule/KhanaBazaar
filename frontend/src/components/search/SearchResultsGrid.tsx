@@ -2,11 +2,11 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { searchProducts, type ProductCard } from "@/lib/searchClient";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { ProductMiniCard } from "@/components/ProductMiniCard";
 import styles from "./SearchResultsGrid.module.css";
 
 type Props = {
@@ -98,38 +98,17 @@ export function SearchResultsGrid({
       </div>
       <div className={styles.grid}>
         {items.map((p) => (
-          <Link
+          <ProductMiniCard
             key={p.id}
             href={`/${locale}/search/product/${p.id}`}
-            className={styles.card}
-          >
-            {p.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={p.image_url}
-                alt={p.name}
-                loading="lazy"
-                decoding="async"
-                referrerPolicy="no-referrer"
-                className={styles.img}
-              />
-            ) : (
-              <div aria-hidden className={styles.imgFallback}>
-                🛒
-              </div>
-            )}
-            <div className={styles.name}>{p.name}</div>
-            {p.brand && <div className={styles.brand}>{p.brand}</div>}
-            <div className={styles.price}>
-              ₹{p.min_price.toFixed(0)}
-              {p.max_price !== p.min_price && (
-                <span className={styles.range}> – ₹{p.max_price.toFixed(0)}</span>
-              )}
-            </div>
-            {!p.in_stock_anywhere && (
-              <div className={styles.badge}>{t("outOfStock")}</div>
-            )}
-          </Link>
+            name={p.name}
+            imageUrl={p.image_url}
+            brand={p.brand}
+            minPrice={p.min_price}
+            maxPrice={p.max_price}
+            inStock={p.in_stock_anywhere}
+            outOfStockLabel={t("outOfStock")}
+          />
         ))}
       </div>
       {items.length < total && (
