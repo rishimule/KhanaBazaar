@@ -17,7 +17,7 @@ const RESEND_COOLDOWN_SECONDS = 60;
 function getRedirect(user: User): string {
   if (user.role === "admin") return "/admin";
   if (user.role === "seller") return "/seller";
-  return "/stores";
+  return "/account";
 }
 
 function safeNext(raw: string | null): string | null {
