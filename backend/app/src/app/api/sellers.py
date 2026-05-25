@@ -551,3 +551,49 @@ async def admin_set_services(
     await session.commit()
     services = await list_profile_services(session, profile_id)
     return {"seller_id": seller_id, "services": [s.model_dump() for s in services]}
+
+
+@router.patch("/admin/{seller_id}/services/{service_id}", response_model=ServicePayload)
+async def admin_set_service_min_order_value(
+    seller_id: int,
+    service_id: int,
+    body: SetServiceMinOrderValueBody,
+    current_user: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ServicePayload:
+    assert current_user.id is not None
+    profile = (await session.exec(
+        select(SellerProfile).where(SellerProfile.user_id == seller_id)
+    )).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+    if profile.verification_status != VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="seller_not_active")
+    assert profile.id is not None
+    profile_id: int = profile.id
+    row = (await session.exec(
+        select(SellerProfileService).where(
+            SellerProfileService.seller_profile_id == profile_id,
+            SellerProfileService.service_id == service_id,
+        )
+    )).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Service not offered by this seller")
+    before = row.min_order_value
+    row.min_order_value = body.min_order_value
+    session.add(row)
+    await admin_audit.log(
+        session=session,
+        admin_user_id=current_user.id,
+        target_seller_id=profile_id,
+        target_type=AdminActionTargetType.SellerProfile,
+        target_id=profile_id,
+        action="service.set_min_order_value",
+        before_json={"service_id": service_id, "min_order_value": before},
+        after_json={"service_id": service_id, "min_order_value": body.min_order_value},
+    )
+    await session.commit()
+    services = await list_profile_services(session, profile_id)
+    payload = next((s for s in services if s.id == service_id), None)
+    assert payload is not None
+    return payload

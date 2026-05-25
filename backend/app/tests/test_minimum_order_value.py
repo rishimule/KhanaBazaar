@@ -273,3 +273,38 @@ async def test_min_persists_across_profile_service_save(
     sps = await session.get(SellerProfileService, seed["sps_id"])
     await session.refresh(sps)
     assert sps.min_order_value == 80.0
+
+
+async def test_admin_sets_min_order_value(
+    seller_client_factory, session: AsyncSession, seed: dict[str, int],
+) -> None:
+    async with seller_client_factory(mock_admin) as ac:
+        resp = await ac.patch(
+            f"/api/v1/sellers/admin/{mock_seller.id}/services/{seed['service_id']}",
+            json={"min_order_value": 200.0},
+        )
+    assert resp.status_code == 200, resp.text
+    sps = await session.get(SellerProfileService, seed["sps_id"])
+    await session.refresh(sps)
+    assert sps.min_order_value == 200.0
+    # Audit row written.
+    from app.models.admin_audit import AdminActionLog
+    logs = (await session.exec(select(AdminActionLog))).all()
+    assert any(row.action == "service.set_min_order_value" for row in logs)
+
+
+async def test_admin_set_min_rejects_non_approved_seller(
+    seller_client_factory, session: AsyncSession, seed: dict[str, int],
+) -> None:
+    seller = (await session.exec(
+        select(SellerProfile).where(SellerProfile.id == seed["seller_id"])
+    )).first()
+    seller.verification_status = VerificationStatus.Pending
+    await session.commit()
+    async with seller_client_factory(mock_admin) as ac:
+        resp = await ac.patch(
+            f"/api/v1/sellers/admin/{mock_seller.id}/services/{seed['service_id']}",
+            json={"min_order_value": 50.0},
+        )
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "seller_not_active"
