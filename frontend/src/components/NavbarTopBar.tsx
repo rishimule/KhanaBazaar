@@ -10,6 +10,7 @@ import { useCart } from "@/lib/CartContext";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import { SearchBar } from "@/components/search/SearchBar";
+import NotificationBell from "@/components/NotificationBell";
 import LocaleSwitcher from "./LocaleSwitcher";
 import styles from "./NavbarTopBar.module.css";
 
@@ -129,6 +130,8 @@ export default function NavbarTopBar() {
             )}
           </Link>
         )}
+
+        {role === "customer" && <NotificationBell />}
 
         <LocaleSwitcher />
 

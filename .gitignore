@@ -9,6 +9,9 @@ build/
 .venv/
 venv/
 
+# pywebpush curl=True debug artifact (encrypted push payload dumped to cwd)
+encrypted.data
+
 # Environment variables
 .env
 .env.local

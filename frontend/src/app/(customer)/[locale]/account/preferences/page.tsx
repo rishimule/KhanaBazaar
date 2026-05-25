@@ -4,9 +4,49 @@ import { useEffect, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { get, patch } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { usePushOptIn } from "@/components/pwa/usePushOptIn";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import type { CustomerProfile } from "@/types";
 import styles from "./page.module.css";
+
+function PushPreferenceRow() {
+  const tn = useTranslations("Notifications");
+  const { state, enable, disable, openInstall } = usePushOptIn();
+
+  if (state === "loading" || state === "unsupported") return null;
+
+  return (
+    <div className={styles.pushRow}>
+      <div className={styles.pushRowMain}>
+        {state === "enabled" && (
+          <label className={styles.toggleRow}>
+            <input type="checkbox" checked onChange={() => void disable()} />
+            {tn("enableTitle")}
+          </label>
+        )}
+        {state === "default" && (
+          <button type="button" className={styles.pushBtn} onClick={() => void enable()}>
+            {tn("enableCta")}
+          </button>
+        )}
+        {state === "needs_install_ios" && (
+          <button type="button" className={styles.pushBtn} onClick={openInstall}>
+            {tn("installCta")}
+          </button>
+        )}
+        {state === "denied" && (
+          <label className={styles.toggleRow}>
+            <input type="checkbox" checked={false} disabled readOnly />
+            {tn("enableTitle")}
+          </label>
+        )}
+      </div>
+      <span className={styles.pushHelp}>
+        {state === "denied" ? tn("blocked") : tn("appliesToDevice")}
+      </span>
+    </div>
+  );
+}
 
 const LANGS = ["en", "hi", "mr", "gu", "pa"] as const;
 type Lang = (typeof LANGS)[number];
@@ -110,6 +150,7 @@ export default function PreferencesPage() {
       <section className={styles.section}>
         <h2 className={styles.title}>{t("notificationsTitle")}</h2>
         <div className={styles.toggleList}>
+          <PushPreferenceRow />
           <label className={styles.toggleRow}>
             <input
               type="checkbox"

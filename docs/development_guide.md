@@ -538,3 +538,36 @@ Run locally: `uv run celery -A app.core.celery_app beat --loglevel=info` (in a t
 ### Schema gotcha
 
 `SearchQueryLog` declares `lat: Optional[float]` in SQLModel but the Alembic migration uses `NUMERIC(9,5)` for both lat and lng (to clamp to ~1 m precision and avoid runaway floats). If you run `alembic revision --autogenerate` you will see a spurious downgrade attempt back to `FLOAT` — discard those diffs and keep `Numeric(9,5)`. Same pattern as the geo `geo` column.
+
+## 12. Web Push (VAPID) keys
+
+Customer order notifications use self-hosted Web Push (VAPID + `pywebpush`). You need one keypair per environment.
+
+Generate it once (run from `backend/app/`):
+
+```bash
+uv run python - <<'PY'
+from py_vapid import Vapid01
+from cryptography.hazmat.primitives import serialization
+import base64
+v = Vapid01(); v.generate_keys()
+# Raw base64url-encoded 32-byte EC private scalar — the ONLY private-key format
+# pywebpush's Vapid.from_string accepts (it does NOT parse a PKCS8 PEM string).
+priv_raw = v.private_key.private_numbers().private_value.to_bytes(32, "big")
+priv_b64 = base64.urlsafe_b64encode(priv_raw).rstrip(b"=").decode()
+pub_raw = v.public_key.public_bytes(serialization.Encoding.X962,
+    serialization.PublicFormat.UncompressedPoint)
+pub_b64 = base64.urlsafe_b64encode(pub_raw).rstrip(b"=").decode()
+print("VAPID_PRIVATE_KEY=" + priv_b64)
+print("VAPID_PUBLIC_KEY=" + pub_b64)
+PY
+```
+
+Wire the output:
+
+- `backend/app/.env`: `VAPID_PRIVATE_KEY` (the raw base64url private key, ~43 chars — **not** a PEM; `pywebpush.webpush()` → `Vapid.from_string` base64url-decodes it to the 32-byte scalar and a PEM fails ASN.1 parsing), `VAPID_PUBLIC_KEY`, and `VAPID_SUBJECT=mailto:you@example.com`.
+- `frontend/.env.local`: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` **must equal** the backend `VAPID_PUBLIC_KEY` (it is the browser's `applicationServerKey`).
+
+**`VAPID_SUBJECT` must be a REAL, deliverable contact** — a `mailto:` with a real domain (e.g. `mailto:you@yourdomain.com`) or a real `https://` URL. Apple's push service (`web.push.apple.com`) validates it and **rejects reserved/placeholder TLDs** — `mailto:support@khanabazaar.example` (any `.example` address) returns `403 {"reason":"BadJwtToken"}` and the push silently fails. A real domain works (`.dev`, `.com`, etc.) regardless of whether mail is actually configured there. The config default is `mailto:support@khanabazaar.dev` (works); set it to a contact you actually monitor for production. (Google/FCM is lenient here, so this only bites Safari/Apple devices.)
+
+If `VAPID_PRIVATE_KEY` is empty the push task no-ops (logs and returns) — the in-app notification bell still works, only OS push is skipped. Web Push requires a secure context (HTTPS); dev works on `localhost` and via the ngrok tunnel (`scripts/dev.sh start --tunnel`).

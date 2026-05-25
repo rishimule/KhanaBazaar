@@ -69,6 +69,16 @@ class Settings(BaseSettings):
     SEARCH_SERVICEABLE_GRID_TTL_SECONDS: int = 60
     SEARCH_BROWSE_CACHE_TTL_SECONDS: int = 60
 
+    # Web Push (VAPID) — generate keys once; see docs/development_guide.md.
+    # VAPID_PRIVATE_KEY is the PKCS8 PEM string. VAPID_PUBLIC_KEY is the
+    # base64url-encoded uncompressed EC point the browser uses as
+    # applicationServerKey (also exposed to the FE as NEXT_PUBLIC_VAPID_PUBLIC_KEY).
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_PUBLIC_KEY: str = ""
+    # Must be a real, deliverable contact on a real domain — Apple's push
+    # service rejects placeholder/reserved TLDs (.example) with 403 BadJwtToken.
+    VAPID_SUBJECT: str = "mailto:support@khanabazaar.dev"
+
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
 
     @property

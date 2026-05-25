@@ -46,3 +46,32 @@
   border-radius: var(--radius-md);
   font: inherit;
 }
+.pushRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.pushRowMain {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--color-neutral-700);
+}
+.pushBtn {
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-neutral-0);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+.pushBtn:hover {
+  filter: brightness(0.95);
+}
+.pushHelp {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+}
