@@ -308,3 +308,14 @@ async def test_admin_set_min_rejects_non_approved_seller(
         )
     assert resp.status_code == 409
     assert resp.json()["detail"] == "seller_not_active"
+
+
+async def test_cart_read_includes_min_order_value(
+    client: AsyncClient, session: AsyncSession, seed: dict[str, int],
+) -> None:
+    await _set_min(session, seed["sps_id"], 120.0)
+    resp = await client.get("/api/v1/carts")
+    assert resp.status_code == 200, resp.text
+    carts = resp.json()["carts"]
+    assert len(carts) == 1
+    assert carts[0]["min_order_value"] == 120.0
