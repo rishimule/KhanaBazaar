@@ -128,9 +128,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("kb_delivery_location");
     // Wipe recent search history for the same reason.
     localStorage.removeItem("kb_recent_searches");
+    // Tear down web-push on this device so the next user on a shared device
+    // never inherits the prior customer's order alerts. Fire-and-forget so the
+    // logout signature stays synchronous. Dynamic-imported to avoid pulling the
+    // push/notifications modules into the auth bundle.
+    const tokenForTeardown = token;
+    void (async () => {
+      try {
+        const { unsubscribeFromPush } = await import("@/lib/push");
+        const { unsubscribePush } = await import("@/lib/notifications");
+        const endpoint = await unsubscribeFromPush();
+        if (endpoint && tokenForTeardown) {
+          await unsubscribePush(tokenForTeardown, endpoint);
+        }
+      } catch {
+        /* best-effort */
+      }
+    })();
     setToken(null);
     setDbUser(null);
-  }, []);
+  }, [token]);
 
   const value = useMemo(
     () => ({ dbUser, token, loading, requestOtp, verifyOtp, logout }),
