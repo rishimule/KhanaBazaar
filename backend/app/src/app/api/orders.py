@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -47,6 +48,8 @@ from app.schemas.price_comparison import ReplaceAdjustment
 from app.schemas.reorder import ReorderResolveResponse, ResolvedReorderItem
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
 from app.services.checkout import place_order_for_sub_basket
+from app.services.notification_push import dispatch_notification_push
+from app.services.notifications import record_order_status_notification
 from app.services.order_emails import (
     dispatch_admin_order_action,
     dispatch_order_placed,
@@ -55,6 +58,52 @@ from app.services.order_emails import (
 from app.services.orders import cancel_order, transition_order_status
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
+
+_STATUS_COPY: dict[str, tuple[str, str]] = {
+    "pending": ("Order #{oid} placed", "We've received your order. We'll let you know as it progresses."),
+    "packed": ("Order #{oid} packed", "Your order has been packed and is being prepared."),
+    "dispatched": ("Order #{oid} out for delivery", "Your order is on its way."),
+    "delivered": ("Order #{oid} delivered", "Your order has been delivered. Enjoy!"),
+    "cancelled": ("Order #{oid} cancelled", "Your order has been cancelled."),
+}
+
+
+async def record_and_dispatch_notification(
+    session: AsyncSession, order: Order, status_value: str
+) -> None:
+    """Best-effort: persist an in-app notification + enqueue a web push.
+
+    Order state is already committed by the caller; this opens a fresh write on
+    the same session and never raises into the request path.
+    """
+    try:
+        title_tpl, body = _STATUS_COPY.get(
+            status_value, ("Order #{oid} updated", "Your order status changed.")
+        )
+        notif = await record_order_status_notification(
+            session,
+            customer_profile_id=order.customer_profile_id,
+            order_id=order.id,
+            status=status_value,
+            title=title_tpl.format(oid=order.id),
+            body=body,
+        )
+        if notif.id is not None:
+            dispatch_notification_push(notif.id)
+        await session.refresh(order)
+    except Exception:
+        # Best-effort: roll back the failed notification write so the shared
+        # request session is usable for the subsequent _serialize_order read
+        # (otherwise a notify hiccup would surface as a 500 on the order path).
+        try:
+            await session.rollback()
+        except Exception:
+            logger.exception("Rollback after notification failure also failed")
+        logger.exception(
+            "Failed to record/dispatch notification for order_id=%s", order.id
+        )
 
 REORDER_LANG = "en"
 
@@ -306,6 +355,7 @@ async def place_order(
     )
     if order.id is not None:
         dispatch_order_placed([order.id])
+        await record_and_dispatch_notification(session, order, "pending")
     return await _serialize_order(session, order, include_customer_name=False)
 
 
@@ -326,6 +376,7 @@ async def transition_order(
             dispatch_admin_order_action(
                 order.id, "order.transition", f"to {order.status.value}"
             )
+        await record_and_dispatch_notification(session, order, order.status.value)
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 
@@ -361,6 +412,7 @@ async def cancel(
             dispatch_order_status_changed(
                 order.id, "cancelled", notify_seller=True, reason=reason
             )
+        await record_and_dispatch_notification(session, order, "cancelled")
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 

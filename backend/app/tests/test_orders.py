@@ -768,3 +768,83 @@ async def test_admin_override_delivery_address_out_of_radius(
         )
     assert resp.status_code == 422
     assert resp.json()["detail"]["code"] == "delivery_out_of_radius"
+
+
+# ─── Order-event notifications ──────────────────────────────────────────────
+# The web-push dispatch is patched to a no-op in conftest (`_patch_email_dispatch`),
+# so these assert the persisted in-app notification row only.
+
+async def _list_customer_notifications() -> list[dict[str, Any]]:
+    app.dependency_overrides[get_current_user] = lambda: mock_customer
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/notifications")
+    assert resp.status_code == 200, resp.text
+    return resp.json()["notifications"]
+
+
+async def test_placing_order_creates_pending_notification(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    await _place_orders(seed)
+    items = await _list_customer_notifications()
+    assert any(n["status_value"] == "pending" for n in items)
+    assert any("placed" in n["title"].lower() for n in items)
+
+
+async def test_transition_creates_packed_notification(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
+        assert r.status_code == 200, r.text
+
+    items = await _list_customer_notifications()
+    assert any(
+        n["status_value"] == "packed" and "packed" in n["title"].lower() for n in items
+    )
+
+
+async def test_admin_cancel_creates_cancelled_notification(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.post(
+            f"/api/v1/orders/{target}/cancel", json={"reason": "out of stock, sorry"}
+        )
+        assert r.status_code == 200, r.text
+
+    items = await _list_customer_notifications()
+    assert any(n["status_value"] == "cancelled" for n in items)
+
+
+async def test_admin_rewind_does_not_create_notification(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        rp = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
+        assert rp.status_code == 200, rp.text
+
+    before = len(await _list_customer_notifications())
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        rr = await ac.post(
+            f"/api/v1/admin/orders/{target}/rewind",
+            json={"to_status": "pending", "reason": "fix address issue"},
+        )
+        assert rr.status_code == 200, rr.text
+
+    after = len(await _list_customer_notifications())
+    assert after == before
