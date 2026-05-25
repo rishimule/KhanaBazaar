@@ -243,6 +243,29 @@ async def test_seller_set_min_unknown_service_404(
     assert resp.status_code == 404
 
 
+async def test_seller_set_min_rejects_above_cap(
+    seller_client_factory, seed: dict[str, int],
+) -> None:
+    async with seller_client_factory(mock_seller) as ac:
+        resp = await ac.patch(
+            f"/api/v1/sellers/me/services/{seed['service_id']}",
+            json={"min_order_value": 100001},
+        )
+    assert resp.status_code == 422
+
+
+async def test_admin_set_min_unknown_service_404(
+    seller_client_factory, seed: dict[str, int],
+) -> None:
+    # Approved seller (default seed) but a service id they do not offer.
+    async with seller_client_factory(mock_admin) as ac:
+        resp = await ac.patch(
+            f"/api/v1/sellers/admin/{mock_seller.id}/services/999999",
+            json={"min_order_value": 10.0},
+        )
+    assert resp.status_code == 404
+
+
 async def test_min_persists_across_profile_service_save(
     seller_client_factory, session: AsyncSession, seed: dict[str, int],
 ) -> None:
