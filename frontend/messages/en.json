@@ -775,5 +775,17 @@
     "serviceUnavailable": "This store no longer offers this service.",
     "failed": "Couldn't reorder. Please try again.",
     "addedToast": "{count, plural, one {# item added to cart} other {# items added to cart}}"
+  },
+  "Notifications": {
+    "ariaLabel": "Notifications",
+    "title": "Notifications",
+    "empty": "No notifications yet.",
+    "markAllRead": "Mark all read",
+    "enableTitle": "Get order updates",
+    "enableBody": "Turn on alerts to know when your order is packed, on its way, and delivered.",
+    "enableCta": "Enable notifications",
+    "installCta": "Install the app to get alerts",
+    "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
+    "appliesToDevice": "Applies to this device."
   }
 }

@@ -776,5 +776,17 @@
     "serviceUnavailable": "ਇਹ ਸਟੋਰ ਹੁਣ ਇਹ ਸੇਵਾ ਨਹੀਂ ਦਿੰਦਾ।",
     "failed": "ਮੁੜ ਆਰਡਰ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
     "addedToast": "{count, plural, one {# ਚੀਜ਼ ਕਾਰਟ ਵਿੱਚ ਜੋੜੀ ਗਈ} other {# ਚੀਜ਼ਾਂ ਕਾਰਟ ਵਿੱਚ ਜੋੜੀਆਂ ਗਈਆਂ}}"
+  },
+  "Notifications": {
+    "ariaLabel": "Notifications",
+    "title": "Notifications",
+    "empty": "No notifications yet.",
+    "markAllRead": "Mark all read",
+    "enableTitle": "Get order updates",
+    "enableBody": "Turn on alerts to know when your order is packed, on its way, and delivered.",
+    "enableCta": "Enable notifications",
+    "installCta": "Install the app to get alerts",
+    "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
+    "appliesToDevice": "Applies to this device."
   }
 }
