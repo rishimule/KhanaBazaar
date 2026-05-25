@@ -34,6 +34,7 @@ export interface Service extends BaseSchema {
   description?: string;
   is_active: boolean;
   sort_order: number;
+  min_order_value?: number;
 }
 
 /** Category from the master catalog. */
@@ -228,6 +229,7 @@ export interface Cart {
   service_id: number;
   service_name: string;
   items: CartItem[];
+  min_order_value?: number;
 }
 
 /** Seller application verification states. */

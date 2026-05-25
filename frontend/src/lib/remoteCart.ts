@@ -20,6 +20,7 @@ interface RemoteCart {
   service_name: string;
   items: RemoteCartItem[];
   subtotal: number;
+  min_order_value: number;
 }
 
 interface RemoteCartListResponse {
@@ -37,6 +38,7 @@ function toCart(remote: RemoteCart): Cart {
     store_name: remote.store_name,
     service_id: remote.service_id,
     service_name: remote.service_name,
+    min_order_value: remote.min_order_value,
     items: remote.items.map<CartItem>((item) => ({
       id: item.id,
       product_id: item.product_id,
