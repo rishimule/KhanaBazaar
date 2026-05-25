@@ -21,6 +21,7 @@ dependencies = [
     "meilisearch-python-sdk>=7.0.0,<8.0.0",
     "pydantic-settings>=2.13.1",
     "pyjwt[crypto]>=2.10.0",
+    "pywebpush>=2.0.0",
     "redis>=7.3.0",
     "sqlmodel>=0.0.37",
     "uvicorn>=0.41.0",
