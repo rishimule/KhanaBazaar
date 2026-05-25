@@ -365,7 +365,7 @@ export default function StoreDetailPage({ params }: Props) {
             </div>
           ) : (
             <>
-              {services.length > 1 && (
+              {services.length > 0 && (
                 <div className={styles.serviceTileRail}>
                   <ScrollRail ariaLabel={t("navAriaLabel")}>
                   {services.map((svc) => {
