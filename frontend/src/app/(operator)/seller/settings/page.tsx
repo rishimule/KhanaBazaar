@@ -89,11 +89,16 @@ export default function SellerSettingsPage() {
       token,
     )
       .then((updated) => {
+        // Drop stale responses that resolve after a newer edit to this service.
+        if (minReqRef.current[serviceId] !== myReq) return;
         setServices((prev) =>
           prev.map((s) => (s.id === serviceId ? updated : s)),
         );
       })
-      .catch(() => setError("Could not save minimum order value."));
+      .catch(() => {
+        if (minReqRef.current[serviceId] !== myReq) return;
+        setError("Could not save minimum order value.");
+      });
   };
 
   const updateMin = (serviceId: number, raw: number) => {
