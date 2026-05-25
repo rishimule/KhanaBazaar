@@ -46,7 +46,7 @@ async def get_notifications(
     return NotificationListResponse(
         notifications=[
             NotificationRead(
-                id=n.id,  # type: ignore[arg-type]
+                id=n.id if n.id is not None else 0,
                 order_id=n.order_id,
                 type=n.type.value,
                 title=n.title,
