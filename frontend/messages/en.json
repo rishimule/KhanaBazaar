@@ -114,6 +114,7 @@
     "loginToCheckout": "Login to checkout",
     "customerLoginRequired": "Customer login required",
     "checkoutCta": "Checkout {service} — ₹{subtotal}",
+    "minOrderShortfall": "Add ₹{amount} more to checkout {service}",
     "yourLabel": "Your",
     "cartLabel": "Cart",
     "summary": "{stores, plural, one {# store} other {# stores}} · {items, plural, one {# item} other {# items}}",
