@@ -244,3 +244,51 @@ async def test_notifications_api_roundtrip(
         assert res.status_code == 204
     finally:
         fastapi_app.dependency_overrides.pop(get_current_user, None)
+
+
+def test_vapid_private_key_must_be_raw_base64url_not_pem() -> None:
+    """Regression: send_order_push_async passes VAPID_PRIVATE_KEY straight to
+    pywebpush, whose Vapid.from_string accepts ONLY a raw base64url key (it
+    base64url-decodes to the 32-byte scalar). A PKCS8 PEM silently breaks every
+    push with 'ASN.1 parsing error: invalid length'. The existing push test
+    mocks webpush, so it can't catch this — hence this format guard."""
+    import base64
+
+    from cryptography.hazmat.primitives import serialization
+    from py_vapid import Vapid01
+
+    v = Vapid01()
+    v.generate_keys()
+    raw = v.private_key.private_numbers().private_value.to_bytes(32, "big")
+    raw_b64 = base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    # The raw base64url private key parses (this is what we must store).
+    Vapid01.from_string(private_key=raw_b64)
+
+    # A PKCS8 PEM does NOT parse via from_string — the format that broke push.
+    # (py_vapid base64url-decodes the armored text and fails ASN.1 parsing.)
+    pem = v.private_pem().decode()
+    with pytest.raises(ValueError):
+        Vapid01.from_string(private_key=pem)
+
+    # Sanity: the public key derived from the raw private key round-trips to the
+    # base64url uncompressed point the browser uses as applicationServerKey.
+    pub = base64.urlsafe_b64encode(
+        v.public_key.public_bytes(
+            serialization.Encoding.X962,
+            serialization.PublicFormat.UncompressedPoint,
+        )
+    ).rstrip(b"=").decode()
+    assert len(pub) == 87
+
+
+def test_configured_vapid_key_parses_when_set() -> None:
+    """If this environment has a VAPID_PRIVATE_KEY configured, it must be in the
+    format pywebpush can actually use (guards against a PEM slipping into .env)."""
+    from py_vapid import Vapid01
+
+    from app.core.config import settings
+
+    if not settings.VAPID_PRIVATE_KEY:
+        pytest.skip("VAPID_PRIVATE_KEY not configured in this environment")
+    Vapid01.from_string(private_key=settings.VAPID_PRIVATE_KEY.strip())

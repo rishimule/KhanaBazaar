@@ -551,18 +551,21 @@ from py_vapid import Vapid01
 from cryptography.hazmat.primitives import serialization
 import base64
 v = Vapid01(); v.generate_keys()
-priv_pem = v.private_pem().decode()
-raw = v.public_key.public_bytes(serialization.Encoding.X962,
+# Raw base64url-encoded 32-byte EC private scalar — the ONLY private-key format
+# pywebpush's Vapid.from_string accepts (it does NOT parse a PKCS8 PEM string).
+priv_raw = v.private_key.private_numbers().private_value.to_bytes(32, "big")
+priv_b64 = base64.urlsafe_b64encode(priv_raw).rstrip(b"=").decode()
+pub_raw = v.public_key.public_bytes(serialization.Encoding.X962,
     serialization.PublicFormat.UncompressedPoint)
-pub_b64 = base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
-print("VAPID_PRIVATE_KEY=" + priv_pem.replace("\n", "\\n"))
+pub_b64 = base64.urlsafe_b64encode(pub_raw).rstrip(b"=").decode()
+print("VAPID_PRIVATE_KEY=" + priv_b64)
 print("VAPID_PUBLIC_KEY=" + pub_b64)
 PY
 ```
 
 Wire the output:
 
-- `backend/app/.env`: `VAPID_PRIVATE_KEY` (stored single-line with escaped `\n` — the worker restores real newlines at send time with `.replace("\\n", "\n")`), `VAPID_PUBLIC_KEY`, and `VAPID_SUBJECT=mailto:you@example.com`.
+- `backend/app/.env`: `VAPID_PRIVATE_KEY` (the raw base64url private key, ~43 chars — **not** a PEM; `pywebpush.webpush()` → `Vapid.from_string` base64url-decodes it to the 32-byte scalar and a PEM fails ASN.1 parsing), `VAPID_PUBLIC_KEY`, and `VAPID_SUBJECT=mailto:you@example.com`.
 - `frontend/.env.local`: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` **must equal** the backend `VAPID_PUBLIC_KEY` (it is the browser's `applicationServerKey`).
 
 If `VAPID_PRIVATE_KEY` is empty the push task no-ops (logs and returns) — the in-app notification bell still works, only OS push is skipped. Web Push requires a secure context (HTTPS); dev works on `localhost` and via the ngrok tunnel (`scripts/dev.sh start --tunnel`).

@@ -947,9 +947,10 @@ def send_order_push_async(notification_id: int) -> None:
             "url": f"/account/orders/{order_id}" if order_id else "/account/orders",
         }
     )
-    # Env files store the PKCS8 PEM on a single line with escaped newlines;
-    # restore real newlines so it parses as a valid PEM (no-op if already real).
-    private_key = settings.VAPID_PRIVATE_KEY.replace("\\n", "\n")
+    # VAPID_PRIVATE_KEY is the raw base64url-encoded EC private key (the format
+    # py_vapid.Vapid.from_string expects: it base64url-decodes to the 32-byte
+    # scalar). A PKCS8 PEM is NOT accepted here and fails ASN.1 parsing.
+    private_key = settings.VAPID_PRIVATE_KEY.strip()
     dead: list[str] = []
     for sub in subs:
         try:

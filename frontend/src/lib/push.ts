@@ -25,6 +25,16 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return output;
 }
 
+/** True if an existing subscription was created with the given VAPID key. */
+function subscriptionMatchesKey(sub: PushSubscription, key: Uint8Array): boolean {
+  const existing = sub.options?.applicationServerKey;
+  if (!existing) return false;
+  const a = new Uint8Array(existing);
+  if (a.length !== key.length) return false;
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== key[i]) return false;
+  return true;
+}
+
 function extractKeys(sub: PushSubscription): { p256dh: string; auth: string } {
   const b64 = (buf: ArrayBuffer | null): string =>
     buf ? btoa(String.fromCharCode(...new Uint8Array(buf))) : "";
@@ -42,14 +52,28 @@ export async function subscribeToPush(): Promise<{
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return null;
   const reg = await navigator.serviceWorker.ready;
-  const existing = await reg.pushManager.getSubscription();
+  const appServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+
+  // Reuse an existing subscription ONLY if it was created with the current
+  // VAPID key. A subscription bound to a stale applicationServerKey (e.g. after
+  // a key rotation) can't be signed for — the push service rejects it (Apple
+  // returns 403 BadJwtToken). In that case, drop it and subscribe fresh.
+  let existing = await reg.pushManager.getSubscription();
+  if (existing && !subscriptionMatchesKey(existing, appServerKey)) {
+    try {
+      await existing.unsubscribe();
+    } catch {
+      /* ignore — we'll subscribe fresh below */
+    }
+    existing = null;
+  }
   const sub =
     existing ??
     (await reg.pushManager.subscribe({
       userVisibleOnly: true,
       // Cast: the runtime value is a valid BufferSource; the TS DOM lib's
       // ArrayBuffer generic is stricter than the Uint8Array we build here.
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+      applicationServerKey: appServerKey as BufferSource,
     }));
   return {
     endpoint: sub.endpoint,
