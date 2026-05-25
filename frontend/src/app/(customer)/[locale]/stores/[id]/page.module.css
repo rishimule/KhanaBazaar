@@ -116,46 +116,65 @@
 }
 
 /* ── Service pills (multi-service) ──── */
-.serviceTabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.serviceTileRail {
   margin-bottom: var(--space-5);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--hairline);
 }
 
-.servicePill {
-  padding: 8px 14px;
-  border-radius: var(--radius-pill);
-  background: var(--white);
-  border: 1px solid var(--shade-cool-light-6);
-  color: var(--shade-cool-base-7);
-  font-family: var(--font-family-sans);
-  font-size: var(--body-sm);
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-  display: inline-flex;
+/* Service selector — card tiles in a horizontal ScrollRail. Tiles grow to
+   fill the row when there are few services (flex-grow:1) but never shrink
+   below their basis (flex-shrink:0), so many services overflow and the
+   ScrollRail arrows appear. */
+.svcTile {
+  flex: 1 0 120px;
+  background: var(--shade-cool-light-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-card);
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  color: var(--shade-cool-dark-7);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
 }
 
-.servicePill:hover { border-color: var(--color-primary-1); color: var(--color-primary-1); }
+.svcTile:hover {
+  background: var(--white);
+  border-color: var(--hairline);
+}
 
-.servicePillActive {
-  background: var(--color-primary-1);
+.svcTileActive {
+  background: var(--white);
   border-color: var(--color-primary-1);
-  color: var(--white);
 }
 
-.servicePillCount {
+.svcTileGlyph {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.svcTileLabel {
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  text-align: center;
+}
+
+.svcTileCount {
   font-size: var(--body-3xs);
   font-weight: var(--weight-semibold);
-  background: rgba(0,0,0,0.10);
-  padding: 1px 6px;
+  color: var(--shade-cool-base-7);
+  background: var(--shade-cool-light-3);
+  padding: 1px 8px;
   border-radius: var(--radius-pill);
 }
-.servicePillActive .servicePillCount { background: rgba(255,255,255,0.20); }
+
+.svcTileActive .svcTileCount {
+  color: var(--color-primary-1);
+}
 
 /* ── Service heading ────────────────── */
 .serviceShelf { margin-bottom: var(--space-10); }
