@@ -29,6 +29,7 @@ from .commerce import (
     PaymentStatus,
     Review,
 )
+from .notification import Notification, NotificationType, PushSubscription
 from .profile import (
     AdminProfile,
     CustomerAddress,
@@ -59,12 +60,15 @@ __all__ = [
     "LanguageCode",
     "MasterProduct",
     "MasterProductTranslation",
+    "Notification",
+    "NotificationType",
     "Order",
     "OrderItem",
     "OrderStatus",
     "Payment",
     "PaymentMethod",
     "PaymentStatus",
+    "PushSubscription",
     "Review",
     "SearchQueryLog",
     "SellerProfile",
