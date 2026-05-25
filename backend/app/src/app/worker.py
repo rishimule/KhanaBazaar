@@ -484,6 +484,9 @@ def send_order_push_async(notification_id: int) -> None:
             "url": f"/account/orders/{order_id}" if order_id else "/account/orders",
         }
     )
+    # Env files store the PKCS8 PEM on a single line with escaped newlines;
+    # restore real newlines so it parses as a valid PEM (no-op if already real).
+    private_key = settings.VAPID_PRIVATE_KEY.replace("\\n", "\n")
     dead: list[str] = []
     for sub in subs:
         try:
@@ -493,7 +496,7 @@ def send_order_push_async(notification_id: int) -> None:
                     "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
                 },
                 data=payload,
-                vapid_private_key=settings.VAPID_PRIVATE_KEY,
+                vapid_private_key=private_key,
                 vapid_claims={"sub": settings.VAPID_SUBJECT},
             )
         except WebPushException as exc:

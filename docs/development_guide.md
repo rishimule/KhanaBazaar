@@ -538,3 +538,73 @@ Run locally: `uv run celery -A app.core.celery_app beat --loglevel=info` (in a t
 ### Schema gotcha
 
 `SearchQueryLog` declares `lat: Optional[float]` in SQLModel but the Alembic migration uses `NUMERIC(9,5)` for both lat and lng (to clamp to ~1 m precision and avoid runaway floats). If you run `alembic revision --autogenerate` you will see a spurious downgrade attempt back to `FLOAT` — discard those diffs and keep `Numeric(9,5)`. Same pattern as the geo `geo` column.
+
+## 12. Web Push / Order notifications
+
+Customers get a persistent in-app notification feed (navbar bell + center) plus
+OS-level Web Push on order-status changes (`packed`, `dispatched`, `delivered`,
+`cancelled` — including admin-initiated cancels). Email-on-status-change is
+separate and unaffected.
+
+### Generate a VAPID keypair (once)
+
+```bash
+# from backend/app/
+uv run python -c "
+import base64
+from cryptography.hazmat.primitives import serialization
+from py_vapid import Vapid01
+v = Vapid01(); v.generate_keys()
+priv = v.private_key.private_bytes(
+    serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+    serialization.NoEncryption()).decode()
+raw = v.public_key.public_bytes(
+    serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+print('VAPID_PUBLIC_KEY=' + base64.urlsafe_b64encode(raw).rstrip(b'=').decode())
+print(priv)
+"
+```
+
+`py_vapid` ships with `pywebpush`, so it is already installed.
+
+### Env wiring
+
+Backend `backend/app/.env`:
+
+```
+VAPID_PUBLIC_KEY=<base64url public key>
+# PKCS8 PEM on a single line — escape the newlines as \n; the worker restores them.
+VAPID_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
+VAPID_SUBJECT=mailto:you@example.com
+```
+
+Frontend `frontend/.env.local`:
+
+```
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=<the same base64url public key>
+```
+
+The public key is safe to expose; the private key must stay server-side. With
+no `VAPID_PRIVATE_KEY` set, `send_order_push_async` no-ops (the in-app bell still
+works) — useful for environments where push isn't configured.
+
+### How it flows
+
+- `api/orders.py` `transition`/`cancel` → `record_and_dispatch_notification`
+  (best-effort, non-blocking): inserts a `notification` row, then enqueues the
+  `send_order_push_async` Celery task.
+- The task loads the customer's `pushsubscription` rows and sends each an
+  encrypted push via `pywebpush`. A `404`/`410` response prunes that dead
+  subscription.
+- Frontend: `NotificationContext` fetches the feed (on mount, window focus, and a
+  `BroadcastChannel("kb-notifications")` ping from the service worker); the bell
+  offers a soft "Turn on order alerts" opt-in that calls `PushManager.subscribe`.
+  Logout unsubscribes the browser + deletes the server row (shared-device safety).
+
+### Limitations
+
+- iOS Safari delivers Web Push only when the PWA is installed to the home screen
+  (iOS 16.4+); a regular tab gets no OS push. Android Chrome works fully.
+- Web Push requires a secure context (HTTPS). For phone testing use
+  `./scripts/dev.sh start --tunnel` (ngrok); `localhost` counts as secure on
+  desktop.
