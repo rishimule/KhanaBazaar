@@ -568,6 +568,7 @@ export interface SellerHubSummary {
   store_id: number | null;
   active_order_count: number;
   total_product_count: number;
+  services: Service[];
 }
 
 export interface AdminInventoryRow {

@@ -14,10 +14,24 @@ import type {
   AdminInventoryRow,
   Order,
   SellerHubSummary,
+  Service,
 } from "@/types";
 
 export function fetchSellerHub(sellerId: number, token: string) {
   return get<SellerHubSummary>(`/api/v1/admin/sellers/${sellerId}`, token);
+}
+
+export function adminSetServiceMinOrderValue(
+  sellerId: number,
+  serviceId: number,
+  minOrderValue: number,
+  token: string,
+) {
+  return patch<Service>(
+    `/api/v1/sellers/admin/${sellerId}/services/${serviceId}`,
+    { min_order_value: minOrderValue },
+    token,
+  );
 }
 
 export function fetchSellerActivity(

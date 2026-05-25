@@ -319,3 +319,16 @@ async def test_cart_read_includes_min_order_value(
     carts = resp.json()["carts"]
     assert len(carts) == 1
     assert carts[0]["min_order_value"] == 120.0
+
+
+async def test_admin_hub_includes_services_with_min(
+    seller_client_factory, session: AsyncSession, seed: dict[str, int],
+) -> None:
+    await _set_min(session, seed["sps_id"], 90.0)
+    async with seller_client_factory(mock_admin) as ac:
+        resp = await ac.get(f"/api/v1/admin/sellers/{mock_seller.id}")
+    assert resp.status_code == 200, resp.text
+    services = resp.json()["services"]
+    assert len(services) == 1
+    assert services[0]["id"] == seed["service_id"]
+    assert services[0]["min_order_value"] == 90.0
