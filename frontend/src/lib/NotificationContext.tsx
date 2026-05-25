@@ -25,7 +25,6 @@ interface NotificationContextValue {
   refresh: () => Promise<void>;
   markRead: (id: number) => Promise<void>;
   markAllRead: () => Promise<void>;
-  enablePush: () => Promise<boolean>;
 }
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -49,6 +48,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [token, isCustomer]);
 
+  // Silent re-subscribe after the push service rotates the subscription (the
+  // SW's `pushsubscriptionchange` posts a "subscription-change" ping). Only the
+  // open app can do this — the service worker has no auth token to POST the new
+  // subscription. Permission is already granted at this point, so
+  // subscribeToPush() resolves without a prompt. If the app is closed during a
+  // rotation, the next mount finds no active subscription and the bell's
+  // enable banner reappears.
+  const resubscribe = useCallback(async () => {
+    if (!token || !isCustomer) return;
+    try {
+      const payload = await subscribeToPush();
+      if (payload) await subscribePush(token, payload);
+    } catch {
+      /* best-effort */
+    }
+  }, [token, isCustomer]);
+
   // Initial load + refetch on window focus.
   useEffect(() => {
     if (!token || !isCustomer) {
@@ -63,13 +79,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     return () => window.removeEventListener("focus", onFocus);
   }, [token, isCustomer, refresh]);
 
-  // Live-update when the service worker receives a push while the app is open.
+  // React to service-worker messages while the app is open: a delivered push
+  // refreshes the feed; a subscription rotation triggers a silent re-subscribe.
   useEffect(() => {
     if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
     const ch = new BroadcastChannel(BROADCAST_CHANNEL);
-    ch.onmessage = () => refresh();
+    ch.onmessage = (e: MessageEvent) => {
+      if (e.data?.type === "subscription-change") {
+        void resubscribe();
+      } else {
+        refresh();
+      }
+    };
     return () => ch.close();
-  }, [refresh]);
+  }, [refresh, resubscribe]);
 
   // Fallback poll: only while the tab is visible AND push isn't delivering
   // (push-enabled tabs rely on the BroadcastChannel ping above instead).
@@ -127,21 +150,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [token, refresh]);
 
-  const enablePush = useCallback(async (): Promise<boolean> => {
-    if (!token) return false;
-    const payload = await subscribeToPush();
-    if (!payload) return false;
-    try {
-      await subscribePush(token, payload);
-      return true;
-    } catch {
-      return false;
-    }
-  }, [token]);
-
   const value = useMemo(
-    () => ({ notifications, unreadCount, refresh, markRead, markAllRead, enablePush }),
-    [notifications, unreadCount, refresh, markRead, markAllRead, enablePush]
+    () => ({ notifications, unreadCount, refresh, markRead, markAllRead }),
+    [notifications, unreadCount, refresh, markRead, markAllRead]
   );
 
   return (

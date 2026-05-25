@@ -961,6 +961,9 @@ def send_order_push_async(notification_id: int) -> None:
                 data=payload,
                 vapid_private_key=private_key,
                 vapid_claims={"sub": settings.VAPID_SUBJECT},
+                # Queue for up to 24h so a briefly-offline device still gets the
+                # order update when it reconnects (default ttl=0 = deliver-now-or-drop).
+                ttl=86400,
             )
         except WebPushException as exc:
             status_code = getattr(getattr(exc, "response", None), "status_code", None)

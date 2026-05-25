@@ -105,7 +105,13 @@ self.addEventListener("notificationclick", (event) => {
       .then((windowClients) => {
         for (const client of windowClients) {
           if ("focus" in client) {
-            client.navigate(url);
+            // client.navigate is unsupported on some older browsers — fall
+            // back to opening a fresh window if it throws.
+            try {
+              if ("navigate" in client) client.navigate(url);
+            } catch (e) {
+              return clients.openWindow(url);
+            }
             return client.focus();
           }
         }

@@ -20,7 +20,7 @@ function PushPreferenceRow() {
       <div className={styles.pushRowMain}>
         {state === "enabled" && (
           <label className={styles.toggleRow}>
-            <input type="checkbox" checked readOnly onClick={() => void disable()} />
+            <input type="checkbox" checked onChange={() => void disable()} />
             {tn("enableTitle")}
           </label>
         )}
