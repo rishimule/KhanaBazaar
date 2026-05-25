@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
-import type { Store } from "@/types";
+import type { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
 const MIN_KM = 0.5;
@@ -20,12 +20,15 @@ function clamp(km: number): number {
 export default function SellerSettingsPage() {
   const { token } = useAuth();
   const [store, setStore] = useState<Store | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingRadius, setSavingRadius] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
   // Monotonic request id — drop stale PATCH responses that resolve after a newer one.
   const reqIdRef = useRef(0);
+  const minReqRef = useRef<Record<number, number>>({});
+  const minDebounceRef = useRef<Record<number, number>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -35,6 +38,15 @@ export default function SellerSettingsPage() {
       })
       .catch(() => setError("Could not load store."))
       .finally(() => setLoading(false));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    get<{ services: Service[] }>("/api/v1/sellers/me/profile", token)
+      .then((p) => setServices(p.services ?? []))
+      .catch(() => {
+        /* non-fatal; the minimum-order card just stays empty */
+      });
   }, [token]);
 
   const persistRadius = (km: number) => {
@@ -65,6 +77,42 @@ export default function SellerSettingsPage() {
   const bump = (delta: number) => {
     if (!store) return;
     updateRadius(store.delivery_radius_km + delta);
+  };
+
+  const persistMin = (serviceId: number, value: number) => {
+    if (!token) return;
+    const myReq = (minReqRef.current[serviceId] ?? 0) + 1;
+    minReqRef.current[serviceId] = myReq;
+    patch<Service>(
+      `/api/v1/sellers/me/services/${serviceId}`,
+      { min_order_value: value },
+      token,
+    )
+      .then((updated) => {
+        // Drop stale responses that resolve after a newer edit to this service.
+        if (minReqRef.current[serviceId] !== myReq) return;
+        setServices((prev) =>
+          prev.map((s) => (s.id === serviceId ? updated : s)),
+        );
+      })
+      .catch(() => {
+        if (minReqRef.current[serviceId] !== myReq) return;
+        setError("Could not save minimum order value.");
+      });
+  };
+
+  const updateMin = (serviceId: number, raw: number) => {
+    const value = Number.isFinite(raw) ? Math.max(0, Math.min(100000, raw)) : 0;
+    setServices((prev) =>
+      prev.map((s) => (s.id === serviceId ? { ...s, min_order_value: value } : s)),
+    );
+    if (minDebounceRef.current[serviceId]) {
+      window.clearTimeout(minDebounceRef.current[serviceId]);
+    }
+    minDebounceRef.current[serviceId] = window.setTimeout(
+      () => persistMin(serviceId, value),
+      400,
+    );
   };
 
   if (loading) return <div className={styles.empty}>Loading…</div>;
@@ -143,6 +191,34 @@ export default function SellerSettingsPage() {
           <dd>{store.pin_confirmed ? "Yes" : "No"}</dd>
         </dl>
       </section>
+
+      {services.length > 0 && (
+        <section className={styles.card}>
+          <header className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Minimum order value</h2>
+            <p className={styles.cardCaption}>
+              Orders below this amount can&apos;t be placed for that service. Set
+              to 0 for no minimum.
+            </p>
+          </header>
+          {services.map((svc) => (
+            <div key={svc.id} className={styles.serviceRow}>
+              <span className={styles.serviceLabel}>{svc.name}</span>
+              <span className={styles.unit}>₹</span>
+              <input
+                type="number"
+                className={styles.radiusInput}
+                min={0}
+                max={100000}
+                step={10}
+                value={svc.min_order_value ?? 0}
+                onChange={(e) => updateMin(svc.id, parseFloat(e.target.value))}
+                aria-label={`Minimum order value for ${svc.name}`}
+              />
+            </div>
+          ))}
+        </section>
+      )}
 
       <section className={styles.card}>
         <header className={styles.cardHeader}>

@@ -81,7 +81,12 @@ async def list_profile_services_for_many(
         return {}
     deduped = list(dict.fromkeys(seller_profile_ids))
     stmt = (
-        select(SellerProfileService.seller_profile_id, Service, ServiceTranslation)
+        select(
+            SellerProfileService.seller_profile_id,
+            Service,
+            ServiceTranslation,
+            SellerProfileService.min_order_value,
+        )
         .join(
             SellerProfileService,
             SellerProfileService.service_id == Service.id,  # type: ignore[arg-type]
@@ -100,7 +105,7 @@ async def list_profile_services_for_many(
     )
     result = await session.exec(stmt)
     grouped: dict[int, list[ServicePayload]] = {sid: [] for sid in deduped}
-    for profile_id, service, translation in result.all():
+    for profile_id, service, translation, min_order_value in result.all():
         assert service.id is not None
         grouped.setdefault(profile_id, []).append(
             ServicePayload(
@@ -112,6 +117,7 @@ async def list_profile_services_for_many(
                 description=translation.description if translation else None,
                 is_active=service.is_active,
                 sort_order=service.sort_order,
+                min_order_value=min_order_value,
             )
         )
     return grouped

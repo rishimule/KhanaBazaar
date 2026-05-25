@@ -81,6 +81,31 @@ async def _service_names(
     }
 
 
+async def _min_order_values(
+    session: AsyncSession, carts: list[Cart]
+) -> dict[tuple[int, int], float]:
+    """Map (store_id, service_id) -> min_order_value for the carts' sellers."""
+    if not carts:
+        return {}
+    from app.models.profile import SellerProfile, SellerProfileService
+
+    store_ids = list({c.store_id for c in carts})
+    rows = await session.exec(
+        select(
+            Store.id,
+            SellerProfileService.service_id,
+            SellerProfileService.min_order_value,
+        )
+        .join(SellerProfile, SellerProfile.id == Store.seller_profile_id)  # type: ignore[arg-type]
+        .join(
+            SellerProfileService,
+            SellerProfileService.seller_profile_id == SellerProfile.id,  # type: ignore[arg-type]
+        )
+        .where(Store.id.in_(store_ids))  # type: ignore[union-attr]
+    )
+    return {(sid, svc): mov for sid, svc, mov in rows.all()}
+
+
 async def _customer_profile_id(session: AsyncSession, user: User) -> int:
     assert user.id is not None
     result = await session.exec(
@@ -208,6 +233,7 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
 
     name_by_product = await _product_names(session, list(product_ids))
     name_by_service = await _service_names(session, [c.service_id for c in carts])
+    min_by_key = await _min_order_values(session, carts)
 
     out: list[CartRead] = []
     for cart in carts:
@@ -240,6 +266,7 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
                 service_name=name_by_service.get(cart.service_id, str(cart.service_id)),
                 items=items,
                 subtotal=sum(i.line_total for i in items),
+                min_order_value=min_by_key.get((cart.store_id, cart.service_id), 0.0),
             )
         )
     return out
@@ -535,6 +562,7 @@ async def _serialize_single_cart(
     service_name = (await _service_names(session, [cart.service_id])).get(
         cart.service_id, ""
     )
+    min_by_key = await _min_order_values(session, [cart])
     items_result = await session.exec(
         select(CartItem, StoreInventory)
         .join(StoreInventory, StoreInventory.id == CartItem.inventory_id)  # type: ignore[arg-type]
@@ -564,6 +592,7 @@ async def _serialize_single_cart(
         "service_name": service_name,
         "items": items,
         "subtotal": round(subtotal, 2),
+        "min_order_value": min_by_key.get((cart.store_id, cart.service_id), 0.0),
     }
 
 

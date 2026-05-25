@@ -104,3 +104,4 @@ class SellerProfileService(BaseSchema, table=True):
     service_id: int = Field(
         foreign_key="service.id", nullable=False, index=True
     )
+    min_order_value: float = Field(default=0.0, nullable=False)

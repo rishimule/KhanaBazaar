@@ -144,6 +144,41 @@ async def _validate_service_active_for_store(
         )
 
 
+async def _assert_meets_minimum_order_value(
+    session: AsyncSession, store_id: int, service_id: int, subtotal: float
+) -> None:
+    """Raise 409 below_minimum_order_value if `subtotal` is under the seller's
+    configured minimum for this (store, service). A minimum of 0 means no
+    minimum is enforced."""
+    from app.models.profile import SellerProfile, SellerProfileService
+
+    minimum = (
+        await session.exec(
+            select(SellerProfileService.min_order_value)
+            .join(
+                SellerProfile,
+                SellerProfile.id == SellerProfileService.seller_profile_id,  # type: ignore[arg-type]
+            )
+            .join(Store, Store.seller_profile_id == SellerProfile.id)  # type: ignore[arg-type]
+            .where(
+                Store.id == store_id,
+                SellerProfileService.service_id == service_id,
+            )
+        )
+    ).first()
+    if minimum and subtotal < minimum:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "detail": "below_minimum_order_value",
+                "service_id": service_id,
+                "min_order_value": minimum,
+                "subtotal": subtotal,
+                "shortfall": round(minimum - subtotal, 2),
+            },
+        )
+
+
 async def _assert_locked_inventory_matches_service(
     session: AsyncSession, locked_inv_ids: list[int], service_id: int
 ) -> None:
@@ -366,6 +401,9 @@ async def place_order_for_sub_basket(
     _validate_inventory_availability(cart_items, inv_by_id)
     await _validate_stores_active(session, [store_id])
     await _assert_locked_inventory_matches_service(session, inv_ids, service_id)
+
+    subtotal = sum(inv_by_id[i.inventory_id].price * i.quantity for i in cart_items)
+    await _assert_meets_minimum_order_value(session, store_id, service_id, subtotal)
 
     name_by_inv = await _snapshot_product_names(session, inv_ids)
     service_name_snapshot = await _snapshot_service_name(session, service_id)

@@ -49,6 +49,7 @@ from app.services.orders import (
     refund_order,
     rewind_order,
 )
+from app.services.seller_services import list_profile_services
 
 router = APIRouter()
 
@@ -251,7 +252,9 @@ async def admin_seller_hub_summary(
     ).first()
     if profile is None:
         raise HTTPException(status_code=404, detail="seller_not_found")
+    assert profile.id is not None
     user = await session.get(User, profile.user_id)
+    services = await list_profile_services(session, profile.id)
 
     store = (await session.exec(
         select(Store).where(Store.seller_profile_id == profile.id)
@@ -286,6 +289,7 @@ async def admin_seller_hub_summary(
         store_id=store.id if store else None,
         active_order_count=active_count,
         total_product_count=product_count,
+        services=services,
     )
 
 

@@ -22,6 +22,7 @@ class CartRead(BaseModel):
     service_name: str
     items: List[CartItemRead]
     subtotal: float
+    min_order_value: float = 0.0
 
 
 class CartListResponse(BaseModel):

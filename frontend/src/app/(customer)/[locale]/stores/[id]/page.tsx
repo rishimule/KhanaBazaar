@@ -25,6 +25,8 @@ import CategorySidebar from "@/components/CategorySidebar";
 import CartRail from "@/components/CartRail";
 import FavoritesHere from "@/components/FavoritesHere";
 import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
+import { ScrollRail } from "@/components/ScrollRail";
+import { serviceGlyph } from "@/lib/serviceGlyph";
 import styles from "./page.module.css";
 
 interface Props {
@@ -363,32 +365,36 @@ export default function StoreDetailPage({ params }: Props) {
             </div>
           ) : (
             <>
-              {services.length > 1 && (
-                <nav className={styles.serviceTabs} aria-label={t("navAriaLabel")}>
-                  {services.map((svc) => (
-                    <button
-                      key={svc.id}
-                      type="button"
-                      className={`${styles.servicePill} ${
-                        svc.id === (activeServiceNode?.id ?? null)
-                          ? styles.servicePillActive
-                          : ""
-                      }`}
-                      onClick={() => {
-                        setActiveServiceId(svc.id);
-                        setActiveCategoryId(svc.categories[0]?.id ?? null);
-                      }}
-                      aria-current={
-                        svc.id === (activeServiceNode?.id ?? null) ? "true" : undefined
-                      }
-                    >
-                      {svc.name}
-                      <span className={styles.servicePillCount}>
-                        {serviceItemCount(svc)}
-                      </span>
-                    </button>
-                  ))}
-                </nav>
+              {services.length > 0 && (
+                <div className={styles.serviceTileRail}>
+                  <ScrollRail ariaLabel={t("navAriaLabel")}>
+                  {services.map((svc) => {
+                    const active = svc.id === (activeServiceNode?.id ?? null);
+                    return (
+                      <button
+                        key={svc.id}
+                        type="button"
+                        className={`${styles.svcTile} ${
+                          active ? styles.svcTileActive : ""
+                        }`}
+                        onClick={() => {
+                          setActiveServiceId(svc.id);
+                          setActiveCategoryId(svc.categories[0]?.id ?? null);
+                        }}
+                        aria-current={active ? "true" : undefined}
+                      >
+                        <span className={styles.svcTileGlyph} aria-hidden>
+                          {serviceGlyph(svc.slug)}
+                        </span>
+                        <span className={styles.svcTileLabel}>{svc.name}</span>
+                        <span className={styles.svcTileCount}>
+                          {serviceItemCount(svc)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  </ScrollRail>
+                </div>
               )}
 
               {activeServiceNode && (

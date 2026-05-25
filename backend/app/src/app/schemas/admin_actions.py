@@ -8,6 +8,7 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field
 
 from app.schemas.address import AddressPayload
+from app.schemas.services import ServicePayload
 
 
 class RewindOrderRequest(BaseModel):
@@ -51,6 +52,7 @@ class SellerHubSummary(BaseModel):
     store_id: Optional[int] = None
     active_order_count: int
     total_product_count: int
+    services: list[ServicePayload] = []
 
 
 class AdminMetricsRead(BaseModel):
