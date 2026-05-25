@@ -12,6 +12,7 @@ from app.api import (
     favorites,
     geo,
     meta,
+    notifications,
     orders,
     search,
     sellers,
@@ -34,3 +35,6 @@ api_router.include_router(geo.router, prefix="/geo", tags=["geo"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(admin_actions.router, prefix="/admin", tags=["admin"])
 api_router.include_router(favorites.router, prefix="/favorites", tags=["favorites"])
+api_router.include_router(
+    notifications.router, prefix="/notifications", tags=["notifications"]
+)

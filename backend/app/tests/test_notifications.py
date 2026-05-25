@@ -186,3 +186,61 @@ def test_push_task_noop_without_vapid_key() -> None:
     ) as loader:
         worker.send_order_push_async(1)
     loader.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_notifications_api_roundtrip(
+    client, session: AsyncSession, customer_auth_headers
+) -> None:
+    from app import app as fastapi_app
+    from app.core.security import get_current_user
+    from app.models.base import User, UserRole
+    from app.services.notifications import record_order_status_notification
+
+    user = User(email="api-cust@kb.com", role=UserRole.Customer, is_active=True)
+    session.add(user)
+    await session.flush()
+    profile = CustomerProfile(user_id=user.id, first_name="Api")
+    session.add(profile)
+    await session.commit()
+    await session.refresh(profile)
+    profile_id = profile.id
+
+    await record_order_status_notification(
+        session, customer_profile_id=profile_id, order_id=None, status="packed",
+        title="Order #5 packed", body="Packed.",
+    )
+    # Refresh after the final commit so the user handed to the override has its
+    # attributes loaded (the request reads user.role outside this session's loop).
+    await session.refresh(user)
+
+    fastapi_app.dependency_overrides[get_current_user] = lambda: user
+    try:
+        res = await client.get("/api/v1/notifications", headers=customer_auth_headers)
+        assert res.status_code == 200
+        data = res.json()
+        assert data["unread_count"] == 1
+        nid = data["notifications"][0]["id"]
+
+        res = await client.post(
+            "/api/v1/notifications/push/subscribe",
+            json={"endpoint": "https://push.example/x", "keys": {"p256dh": "k", "auth": "a"}},
+            headers=customer_auth_headers,
+        )
+        assert res.status_code == 204
+
+        res = await client.post(
+            f"/api/v1/notifications/{nid}/read", headers=customer_auth_headers
+        )
+        assert res.status_code == 204
+        res = await client.get("/api/v1/notifications", headers=customer_auth_headers)
+        assert res.json()["unread_count"] == 0
+
+        res = await client.post(
+            "/api/v1/notifications/push/unsubscribe",
+            json={"endpoint": "https://push.example/x"},
+            headers=customer_auth_headers,
+        )
+        assert res.status_code == 204
+    finally:
+        fastapi_app.dependency_overrides.pop(get_current_user, None)
