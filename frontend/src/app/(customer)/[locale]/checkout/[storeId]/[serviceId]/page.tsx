@@ -132,23 +132,26 @@ export default function CheckoutPage() {
       });
       router.push("/account/orders?placed=1");
     } catch (e) {
+      // The minimum-order 409 carries a structured dict detail, so it must be
+      // matched before apiErrorKey() (which maps every 409 to "conflict").
+      const rawDetail = (e as { detail?: unknown })?.detail;
+      const structured =
+        rawDetail && typeof rawDetail === "object" && "detail" in rawDetail
+          ? (rawDetail as { detail: unknown; shortfall?: number })
+          : null;
+      if (structured?.detail === "below_minimum_order_value") {
+        setError(t("minOrderShortfall", { amount: structured.shortfall ?? 0 }));
+        return;
+      }
       const key = apiErrorKey(e);
       if (key) {
         setError(tErr(key.replace(/^Errors\./, "")));
+      } else if (typeof rawDetail === "string") {
+        setError(rawDetail);
+      } else if (structured) {
+        setError(String(structured.detail));
       } else {
-        const detail = (e as { detail?: unknown })?.detail;
-        if (typeof detail === "string") {
-          setError(detail);
-        } else if (detail && typeof detail === "object" && "detail" in detail) {
-          const inner = detail as { detail: unknown; shortfall?: number };
-          if (inner.detail === "below_minimum_order_value") {
-            setError(t("minOrderShortfall", { amount: inner.shortfall ?? 0 }));
-          } else {
-            setError(String(inner.detail));
-          }
-        } else {
-          setError(t("errPlaceOrder"));
-        }
+        setError(t("errPlaceOrder"));
       }
       if (
         key === "Errors.service_unavailable" ||
