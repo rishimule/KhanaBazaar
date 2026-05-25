@@ -11,7 +11,7 @@ type SheetKind = null | "ios" | "fallback";
 export type PwaInstallContextValue = {
   canShowEntry: boolean;
   platform: PwaPlatform;
-  install: (surface: "account_shortcut") => Promise<void>;
+  install: (surface: "account_shortcut" | "notifications") => Promise<void>;
 };
 
 export const PwaInstallContext = createContext<PwaInstallContextValue | null>(null);
