@@ -520,6 +520,51 @@ async def test_seller_marks_packed(as_customer: Any, seed: dict[str, int]) -> No
     assert resp.json()["delivery"]["status"] == "packed"
 
 
+async def test_transition_creates_customer_notification(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    from app.models.notification import Notification
+
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
+    assert resp.status_code == 200
+
+    rows = (
+        await session.exec(select(Notification).where(Notification.order_id == target))
+    ).all()
+    assert len(rows) == 1
+    assert rows[0].status_value == "packed"
+    assert rows[0].read is False
+
+
+async def test_admin_cancel_creates_customer_notification(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    """Admin-initiated cancel must still produce an in-app notification even
+    though it uses the admin-email dispatch path, not dispatch_order_status_changed."""
+    from app.models.notification import Notification
+
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            f"/api/v1/orders/{target}/cancel", json={"reason": "store closed unexpectedly"}
+        )
+    assert resp.status_code == 200
+
+    rows = (
+        await session.exec(select(Notification).where(Notification.order_id == target))
+    ).all()
+    assert len(rows) == 1
+    assert rows[0].status_value == "cancelled"
+
+
 async def test_illegal_transition(as_customer: Any, seed: dict[str, int]) -> None:
     order_ids = await _place_orders(seed)
     target = await _order_id_for_store(order_ids, seed["store_a"])

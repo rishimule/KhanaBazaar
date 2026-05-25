@@ -336,6 +336,22 @@ export interface OrderListResponse {
   orders: Order[];
 }
 
+export interface OrderNotification {
+  id: number;
+  order_id: number | null;
+  type: string;
+  title: string;
+  body: string;
+  status_value: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface NotificationListResponse {
+  notifications: OrderNotification[];
+  unread_count: number;
+}
+
 export interface CustomerOrderSummary {
   id: number;
   store_id: number;
