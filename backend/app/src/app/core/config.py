@@ -75,7 +75,9 @@ class Settings(BaseSettings):
     # applicationServerKey (also exposed to the FE as NEXT_PUBLIC_VAPID_PUBLIC_KEY).
     VAPID_PRIVATE_KEY: str = ""
     VAPID_PUBLIC_KEY: str = ""
-    VAPID_SUBJECT: str = "mailto:support@khanabazaar.example"
+    # Must be a real, deliverable contact on a real domain — Apple's push
+    # service rejects placeholder/reserved TLDs (.example) with 403 BadJwtToken.
+    VAPID_SUBJECT: str = "mailto:support@khanabazaar.dev"
 
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
 
