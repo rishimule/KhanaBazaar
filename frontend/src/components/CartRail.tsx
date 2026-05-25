@@ -39,6 +39,8 @@ export default function CartRail({ storeId, serviceId }: Props) {
   const items = cart?.items ?? [];
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const totalQty = items.reduce((n, i) => n + i.quantity, 0);
+  const minOrderValue = cart?.min_order_value ?? 0;
+  const shortfall = Math.max(0, minOrderValue - subtotal);
 
   const onCheckout = () => {
     const target =
@@ -88,7 +90,16 @@ export default function CartRail({ storeId, serviceId }: Props) {
               <span>₹{subtotal.toFixed(2)}</span>
             </div>
             <div className={styles.eta}>Estimated delivery: same-day in 2 hours</div>
-            <button className={styles.checkout} onClick={onCheckout}>
+            {shortfall > 0 && (
+              <div className={styles.shortfall} role="status">
+                Add ₹{shortfall.toFixed(2)} more to check out.
+              </div>
+            )}
+            <button
+              className={styles.checkout}
+              onClick={onCheckout}
+              disabled={shortfall > 0}
+            >
               Check out
             </button>
           </div>
