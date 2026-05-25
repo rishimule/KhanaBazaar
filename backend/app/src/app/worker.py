@@ -4,9 +4,12 @@ import logging
 import time
 from typing import Any, Literal
 
+from pywebpush import WebPushException, webpush
+
 # Ensure search tasks are discovered by the worker.
 import app.search.tasks  # noqa: F401
 from app.core.celery_app import celery_app
+from app.core.config import settings
 
 
 @celery_app.task(name="test_celery_task", bind=True)  # type: ignore[untyped-decorator]
@@ -366,6 +369,148 @@ def send_order_status_changed_async(
         html=payload.html,
         reply_to=settings.EMAIL_REPLY_TO,
     )
+
+
+def _load_push_targets(notification_id: int) -> dict[str, Any]:
+    """Load the notification + its customer's push subscriptions.
+
+    Mirrors the order-email loader: runs async DB work in a worker thread so it
+    works under Celery prefork AND pytest EAGER mode. Returns {} if not found.
+    """
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.models.notification import Notification, PushSubscription
+
+    async def _load() -> dict[str, Any]:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                notif = (
+                    await session.exec(
+                        select(Notification).where(Notification.id == notification_id)
+                    )
+                ).first()
+                if notif is None:
+                    return {}
+                subs = (
+                    await session.exec(
+                        select(PushSubscription).where(
+                            PushSubscription.customer_profile_id
+                            == notif.customer_profile_id
+                        )
+                    )
+                ).all()
+                return {
+                    "title": notif.title,
+                    "body": notif.body,
+                    "order_id": notif.order_id,
+                    "subscriptions": [
+                        {"endpoint": s.endpoint, "p256dh": s.p256dh, "auth": s.auth}
+                        for s in subs
+                    ],
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+def _delete_dead_subscriptions(endpoints: list[str]) -> None:
+    """Best-effort prune of subscriptions the push service reported as gone."""
+    if not endpoints:
+        return
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.models.notification import PushSubscription
+
+    async def _delete() -> None:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                for ep in endpoints:
+                    row = (
+                        await session.exec(
+                            select(PushSubscription).where(
+                                PushSubscription.endpoint == ep
+                            )
+                        )
+                    ).first()
+                    if row is not None:
+                        await session.delete(row)
+                await session.commit()
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(lambda: asyncio.run(_delete())).result()
+
+
+@celery_app.task(name="send_order_push_async")  # type: ignore[untyped-decorator]
+def send_order_push_async(notification_id: int) -> None:
+    """Send the order-status web push to all of the customer's subscriptions.
+
+    Best-effort: missing VAPID config or a transient push error is logged and
+    swallowed. Subscriptions the push service reports as 404/410 are pruned.
+    """
+    import json
+
+    if not settings.VAPID_PRIVATE_KEY:
+        logging.getLogger(__name__).info(
+            "Web push skipped: VAPID_PRIVATE_KEY not configured"
+        )
+        return
+
+    ctx = _load_push_targets(notification_id)
+    subs = ctx.get("subscriptions") or []
+    if not subs:
+        return
+
+    order_id = ctx.get("order_id")
+    payload = json.dumps(
+        {
+            "title": ctx["title"],
+            "body": ctx["body"],
+            "url": f"/account/orders/{order_id}" if order_id else "/account/orders",
+        }
+    )
+    dead: list[str] = []
+    for sub in subs:
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": sub["endpoint"],
+                    "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
+                },
+                data=payload,
+                vapid_private_key=settings.VAPID_PRIVATE_KEY,
+                vapid_claims={"sub": settings.VAPID_SUBJECT},
+            )
+        except WebPushException as exc:
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            if status_code in (404, 410):
+                dead.append(sub["endpoint"])
+            else:
+                logging.getLogger(__name__).warning(
+                    "Web push failed endpoint=%s status=%s",
+                    sub["endpoint"],
+                    status_code,
+                )
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "Unexpected web push error endpoint=%s", sub.get("endpoint")
+            )
+    _delete_dead_subscriptions(dead)
 
 
 _ACTION_LABELS = {

@@ -125,3 +125,64 @@ async def test_upsert_and_delete_subscription(session: AsyncSession) -> None:
         await session.exec(select(PushSubscription).where(PushSubscription.customer_profile_id == cpid))
     ).all()
     assert remaining == []
+
+
+def test_push_task_sends_and_prunes_dead_subs() -> None:
+    """The push task sends to every subscription and prunes the ones the push
+    service reports as gone (404/410).
+
+    Follows the test_order_emails pattern: the DB loader + prune helpers (which
+    open their own engine on settings.DATABASE_URL, like _load_order_email_context)
+    are patched out; we assert the task's send + prune-decision logic.
+    """
+    from unittest.mock import patch
+
+    from pywebpush import WebPushException
+
+    from app import worker
+
+    fake_ctx = {
+        "title": "Order #7 dispatched",
+        "body": "On its way.",
+        "order_id": 7,
+        "subscriptions": [
+            {"endpoint": "https://push.example/good", "p256dh": "k1", "auth": "a1"},
+            {"endpoint": "https://push.example/dead", "p256dh": "k2", "auth": "a2"},
+        ],
+    }
+    sent: list[str] = []
+    pruned: list[str] = []
+
+    class _Resp:
+        def __init__(self, status_code: int) -> None:
+            self.status_code = status_code
+
+    def fake_webpush(**kwargs):  # type: ignore[no-untyped-def]
+        endpoint = kwargs["subscription_info"]["endpoint"]
+        sent.append(endpoint)
+        if endpoint.endswith("/dead"):
+            raise WebPushException("gone", response=_Resp(410))
+        return _Resp(201)
+
+    with patch.object(worker, "_load_push_targets", return_value=fake_ctx), patch.object(
+        worker, "_delete_dead_subscriptions", side_effect=lambda eps: pruned.extend(eps)
+    ), patch.object(worker, "webpush", side_effect=fake_webpush), patch.object(
+        worker.settings, "VAPID_PRIVATE_KEY", "dummy-key"
+    ):
+        worker.send_order_push_async(1)
+
+    assert set(sent) == {"https://push.example/good", "https://push.example/dead"}
+    assert pruned == ["https://push.example/dead"]
+
+
+def test_push_task_noop_without_vapid_key() -> None:
+    """With no VAPID key configured, the task returns without loading subs."""
+    from unittest.mock import patch
+
+    from app import worker
+
+    with patch.object(worker.settings, "VAPID_PRIVATE_KEY", ""), patch.object(
+        worker, "_load_push_targets"
+    ) as loader:
+        worker.send_order_push_async(1)
+    loader.assert_not_called()
