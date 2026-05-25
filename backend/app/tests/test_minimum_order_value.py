@@ -204,3 +204,72 @@ async def test_checkout_zero_minimum_no_enforcement(
         "payment_method": "upi",
     })
     assert resp.status_code == 201, resp.text
+
+
+async def test_seller_sets_min_order_value(
+    seller_client_factory, session: AsyncSession, seed: dict[str, int],
+) -> None:
+    async with seller_client_factory(mock_seller) as ac:
+        resp = await ac.patch(
+            f"/api/v1/sellers/me/services/{seed['service_id']}",
+            json={"min_order_value": 150.0},
+        )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["min_order_value"] == 150.0
+    sps = await session.get(SellerProfileService, seed["sps_id"])
+    await session.refresh(sps)
+    assert sps.min_order_value == 150.0
+
+
+async def test_seller_set_min_rejects_negative(
+    seller_client_factory, seed: dict[str, int],
+) -> None:
+    async with seller_client_factory(mock_seller) as ac:
+        resp = await ac.patch(
+            f"/api/v1/sellers/me/services/{seed['service_id']}",
+            json={"min_order_value": -5},
+        )
+    assert resp.status_code == 422
+
+
+async def test_seller_set_min_unknown_service_404(
+    seller_client_factory,
+) -> None:
+    async with seller_client_factory(mock_seller) as ac:
+        resp = await ac.patch(
+            "/api/v1/sellers/me/services/999999",
+            json={"min_order_value": 10.0},
+        )
+    assert resp.status_code == 404
+
+
+async def test_min_persists_across_profile_service_save(
+    seller_client_factory, session: AsyncSession, seed: dict[str, int],
+) -> None:
+    # Set a minimum, then re-save the profile with the same service set still
+    # selected. replace_profile_services leaves the existing row untouched, so
+    # the minimum must survive. (Service set is locked after approval, so this
+    # path uses a Pending seller.)
+    await _set_min(session, seed["sps_id"], 80.0)
+    seller = (await session.exec(
+        select(SellerProfile).where(SellerProfile.id == seed["seller_id"])
+    )).first()
+    seller.verification_status = VerificationStatus.Pending
+    await session.commit()
+
+    async with seller_client_factory(mock_seller) as ac:
+        resp = await ac.patch("/api/v1/sellers/me/profile", json={
+            "full_name": "S Seller",
+            "business_name": "Shop",
+            "phone": "+919811000702",
+            "gst_number": None,
+            "fssai_license": None,
+            "bank_account_number": "2",
+            "bank_ifsc": "HDFC0000002",
+            "service_ids": [seed["service_id"]],
+            "address": make_address(pincode="560301"),
+        })
+    assert resp.status_code in (200, 204), resp.text
+    sps = await session.get(SellerProfileService, seed["sps_id"])
+    await session.refresh(sps)
+    assert sps.min_order_value == 80.0

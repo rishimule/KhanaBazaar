@@ -18,3 +18,4 @@ class ServicePayload(BaseModel):
     description: Optional[str] = None
     is_active: bool
     sort_order: int
+    min_order_value: Optional[float] = None

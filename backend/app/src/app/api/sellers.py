@@ -16,6 +16,7 @@ from app.core.locale import get_request_locale
 from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
 from app.models.address import Address, LocationSource
+from app.models.admin_audit import AdminActionTargetType
 from app.models.base import User
 from app.models.commerce import Delivery, Order, OrderStatus
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
@@ -28,7 +29,10 @@ from app.schemas.sellers import (
     SellerMetricsRead,
     SellerProfilePayload,
     SellerProfileUpdateBody,
+    SetServiceMinOrderValueBody,
 )
+from app.schemas.services import ServicePayload
+from app.services import admin_audit
 from app.services.eligible_products import list_eligible_products
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_emails import (
@@ -252,6 +256,36 @@ async def update_seller_profile(
         "verification_status": profile.verification_status,
         "rejection_reason": profile.rejection_reason,
     }
+
+
+@router.patch("/me/services/{service_id}", response_model=ServicePayload)
+async def set_my_service_min_order_value(
+    service_id: int,
+    body: SetServiceMinOrderValueBody,
+    current_user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> ServicePayload:
+    assert current_user.id is not None
+    profile = await _seller_profile_with_address(session, current_user.id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+    assert profile.id is not None
+    profile_id: int = profile.id
+    row = (await session.exec(
+        select(SellerProfileService).where(
+            SellerProfileService.seller_profile_id == profile_id,
+            SellerProfileService.service_id == service_id,
+        )
+    )).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Service not offered by this seller")
+    row.min_order_value = body.min_order_value
+    session.add(row)
+    await session.commit()
+    services = await list_profile_services(session, profile_id)
+    payload = next((s for s in services if s.id == service_id), None)
+    assert payload is not None
+    return payload
 
 
 class AdminVerifyBody(BaseModel):

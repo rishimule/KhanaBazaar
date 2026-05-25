@@ -90,6 +90,10 @@ class AdminSetServicesBody(BaseModel):
     service_ids: list[int] = Field(min_length=1)
 
 
+class SetServiceMinOrderValueBody(BaseModel):
+    min_order_value: float = Field(ge=0, le=100000)
+
+
 class SellerMetricsRead(BaseModel):
     active_orders: int
     orders_today: int
