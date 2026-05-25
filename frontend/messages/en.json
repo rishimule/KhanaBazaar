@@ -137,6 +137,7 @@
     "tax": "Tax",
     "total": "Total",
     "errPlaceOrder": "Could not place order. Please try again.",
+    "minOrderShortfall": "Add ₹{amount} more to place this order.",
     "placing": "Placing order…",
     "checkingDeliveryArea": "Checking delivery area…",
     "placeOrder": "Place Order — ₹{total}",

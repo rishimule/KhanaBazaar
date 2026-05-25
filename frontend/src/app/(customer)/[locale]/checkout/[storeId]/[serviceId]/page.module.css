@@ -130,6 +130,13 @@
   font-size: var(--body-sm);
 }
 
+.shortfallNote {
+  color: var(--shade-cool-base-7);
+  font-size: var(--body-sm);
+  text-align: center;
+  margin: 0;
+}
+
 .placeBtn {
   background: var(--color-btn-primary-bg);
   color: var(--white);

@@ -116,6 +116,8 @@ export default function CheckoutPage() {
   const deliveryFee = 0;
   const tax = 0;
   const total = subtotal + deliveryFee + tax;
+  const minOrderValue = cart.min_order_value ?? 0;
+  const shortfall = Math.max(0, minOrderValue - subtotal);
 
   const onPlaceOrder = async () => {
     if (!token || addressId === null) return;
@@ -138,7 +140,12 @@ export default function CheckoutPage() {
         if (typeof detail === "string") {
           setError(detail);
         } else if (detail && typeof detail === "object" && "detail" in detail) {
-          setError(String((detail as { detail: unknown }).detail));
+          const inner = detail as { detail: unknown; shortfall?: number };
+          if (inner.detail === "below_minimum_order_value") {
+            setError(t("minOrderShortfall", { amount: inner.shortfall ?? 0 }));
+          } else {
+            setError(String(inner.detail));
+          }
         } else {
           setError(t("errPlaceOrder"));
         }
@@ -252,6 +259,12 @@ export default function CheckoutPage() {
 
         {error && <div className={styles.error}>{error}</div>}
 
+        {shortfall > 0 && (
+          <p className={styles.shortfallNote} role="status">
+            {t("minOrderShortfall", { amount: shortfall })}
+          </p>
+        )}
+
         <button
           className={styles.placeBtn}
           onClick={onPlaceOrder}
@@ -259,7 +272,8 @@ export default function CheckoutPage() {
             submitting ||
             pickerState.selectedId === null ||
             pickerState.loading ||
-            !pickerState.serviceable
+            !pickerState.serviceable ||
+            shortfall > 0
           }
         >
           {submitting
