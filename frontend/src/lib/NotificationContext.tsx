@@ -52,6 +52,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // Initial load + refetch on window focus.
   useEffect(() => {
     if (!token || !isCustomer) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNotifications([]);
       setUnreadCount(0);
       return;

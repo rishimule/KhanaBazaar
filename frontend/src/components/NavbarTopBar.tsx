@@ -11,6 +11,7 @@ import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import { SearchBar } from "@/components/search/SearchBar";
 import LocaleSwitcher from "./LocaleSwitcher";
+import NotificationBell from "./NotificationBell";
 import styles from "./NavbarTopBar.module.css";
 
 function PinIcon() {
@@ -112,6 +113,8 @@ export default function NavbarTopBar() {
       </div>
 
       <div className={styles.navActions}>
+        <NotificationBell />
+
         {role === "customer" && (
           <Link href="/account" className={styles.actionLink}>
             {t("account")}

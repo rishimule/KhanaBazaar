@@ -47,7 +47,9 @@ export async function subscribeToPush(): Promise<{
     existing ??
     (await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      // Cast: the runtime value is a valid BufferSource; the TS DOM lib's
+      // ArrayBuffer generic is stricter than the Uint8Array we build here.
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
     }));
   return {
     endpoint: sub.endpoint,
