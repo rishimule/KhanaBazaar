@@ -15,7 +15,6 @@ import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
-import { NotificationProvider } from "@/lib/NotificationContext";
 import PWAInstallProvider from "@/components/pwa/PWAInstallProvider";
 import { FavoritesProvider } from "@/lib/FavoritesContext";
 import { CustomerAddressesProvider } from "@/lib/CustomerAddressesContext";
@@ -99,16 +98,14 @@ export default async function CustomerLayout({
                   <DeliveryLocationAutoSync />
                   <FavoritesProvider>
                     <CartProvider>
-                      <NotificationProvider>
-                        <PWAInstallProvider>
-                          <SearchOverlayProvider>
-                            <Navbar />
-                          </SearchOverlayProvider>
-                          <CartSyncBanner />
-                          <main>{children}</main>
-                          <FooterGate />
-                        </PWAInstallProvider>
-                      </NotificationProvider>
+                      <PWAInstallProvider>
+                        <SearchOverlayProvider>
+                          <Navbar />
+                        </SearchOverlayProvider>
+                        <CartSyncBanner />
+                        <main>{children}</main>
+                        <FooterGate />
+                      </PWAInstallProvider>
                     </CartProvider>
                   </FavoritesProvider>
                 </CustomerAddressesProvider>

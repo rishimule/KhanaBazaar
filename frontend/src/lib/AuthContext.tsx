@@ -118,23 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    // Fire-and-forget push teardown so a stale subscription on a shared device
-    // never delivers the next user's order pushes. Best-effort; ignore errors.
-    // Dynamic import() avoids a static circular dependency with the push libs.
-    const stored =
-      typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY);
-    void (async () => {
-      try {
-        const { unsubscribeFromPush } = await import("@/lib/push");
-        const endpoint = await unsubscribeFromPush();
-        if (endpoint && stored) {
-          const { unsubscribePush } = await import("@/lib/notifications");
-          await unsubscribePush(stored, endpoint);
-        }
-      } catch {
-        /* best-effort */
-      }
-    })();
     localStorage.removeItem(TOKEN_KEY);
     // Wipe the per-session "deliver to" pick so the next user on a shared
     // device doesn't inherit the previous user's location. Inlined rather

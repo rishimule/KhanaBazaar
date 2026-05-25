@@ -3,7 +3,7 @@
 // Khana Bazaar — Service Worker
 // Provides offline-capable PWA shell caching.
 
-const CACHE_NAME = "khanabazaar-v3";
+const CACHE_NAME = "khanabazaar-v2";
 const SHELL_ASSETS = [
   "/",
   "/manifest.json",
@@ -59,57 +59,5 @@ self.addEventListener("fetch", (event) => {
   // Static assets: cache-first
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request))
-  );
-});
-
-// Web Push: show the OS notification and ping open tabs to refresh the bell.
-self.addEventListener("push", (event) => {
-  let payload = {};
-  try {
-    payload = event.data ? event.data.json() : {};
-  } catch (e) {
-    payload = {};
-  }
-  const title = payload.title || "Khana Bazaar";
-  const body = payload.body || "You have an order update.";
-  const url = payload.url || "/account/orders";
-
-  event.waitUntil(
-    (async () => {
-      await self.registration.showNotification(title, {
-        body,
-        icon: "/icons/icon-192x192.png",
-        badge: "/icons/icon-192x192.png",
-        data: { url },
-      });
-      // Tell any open app tab to refetch the notification feed.
-      try {
-        const bc = new BroadcastChannel("kb-notifications");
-        bc.postMessage({ type: "order-status" });
-        bc.close();
-      } catch (e) {
-        /* BroadcastChannel unsupported — bell refreshes on next focus */
-      }
-    })()
-  );
-});
-
-// Focus an existing tab if present, otherwise open the deep link.
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  const url =
-    (event.notification.data && event.notification.data.url) || "/account/orders";
-  event.waitUntil(
-    clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((windowClients) => {
-        for (const client of windowClients) {
-          if ("focus" in client) {
-            client.navigate(url);
-            return client.focus();
-          }
-        }
-        return clients.openWindow(url);
-      })
   );
 });
