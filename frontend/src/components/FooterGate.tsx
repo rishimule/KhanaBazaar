@@ -1,7 +1,11 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
-import { usePathname } from "next/navigation";
+// Locale-aware usePathname (from @/i18n/navigation) returns the path WITHOUT
+// the locale prefix, so `/hi/account` resolves to `/account` and the dashboard
+// prefixes below match in every locale — next/navigation's usePathname keeps
+// the `/hi` prefix and would leak the footer onto non-English dashboards.
+import { usePathname } from "@/i18n/navigation";
 import Footer from "./Footer";
 
 const DASHBOARD_PREFIXES = ["/account", "/seller", "/admin"];
