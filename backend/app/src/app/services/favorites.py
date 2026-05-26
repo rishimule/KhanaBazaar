@@ -68,11 +68,11 @@ async def list_favorite_ids(
 _GROUPED_SQL = text(
     """
     SELECT f.product_id, f.created_at AS favourited_at,
-           COALESCE(mpt.name, mp.slug) AS name,
+           COALESCE(mpt_loc.name, mpt_en.name, mp.slug) AS name,
            mp.image_url,
            sub.category_id,
            svc.id AS service_id,
-           COALESCE(st.name, svc.slug) AS service_name,
+           COALESCE(st_loc.name, st_en.name, svc.slug) AS service_name,
            i.id AS inventory_id, i.price, i.stock,
            s.id AS store_id, s.name AS store_name,
            ST_Distance(
@@ -84,12 +84,18 @@ _GROUPED_SQL = text(
     JOIN   subcategory sub ON sub.id = mp.subcategory_id AND sub.is_active = true
     JOIN   category cat ON cat.id = sub.category_id AND cat.is_active = true
     JOIN   service svc ON svc.id = cat.service_id AND svc.is_active = true
-    LEFT JOIN masterproduct_translation mpt
-              ON mpt.master_product_id = mp.id
-             AND mpt.language_code = 'en'
-    LEFT JOIN service_translation st
-              ON st.service_id = svc.id
-             AND st.language_code = 'en'
+    LEFT JOIN masterproduct_translation mpt_loc
+              ON mpt_loc.master_product_id = mp.id
+             AND mpt_loc.language_code = :lang
+    LEFT JOIN masterproduct_translation mpt_en
+              ON mpt_en.master_product_id = mp.id
+             AND mpt_en.language_code = 'en'
+    LEFT JOIN service_translation st_loc
+              ON st_loc.service_id = svc.id
+             AND st_loc.language_code = :lang
+    LEFT JOIN service_translation st_en
+              ON st_en.service_id = svc.id
+             AND st_en.language_code = 'en'
     JOIN   storeinventory i ON i.product_id = f.product_id
                             AND i.is_available = true
                             AND i.stock > 0
@@ -109,15 +115,18 @@ _GROUPED_SQL = text(
 _UNAVAILABLE_SQL = text(
     """
     SELECT mp.id AS product_id,
-           COALESCE(mpt.name, mp.slug) AS name,
+           COALESCE(mpt_loc.name, mpt_en.name, mp.slug) AS name,
            mp.image_url,
            sub.category_id
     FROM   favorite f
     JOIN   masterproduct mp ON mp.id = f.product_id
     JOIN   subcategory sub ON sub.id = mp.subcategory_id
-    LEFT JOIN masterproduct_translation mpt
-              ON mpt.master_product_id = mp.id
-             AND mpt.language_code = 'en'
+    LEFT JOIN masterproduct_translation mpt_loc
+              ON mpt_loc.master_product_id = mp.id
+             AND mpt_loc.language_code = :lang
+    LEFT JOIN masterproduct_translation mpt_en
+              ON mpt_en.master_product_id = mp.id
+             AND mpt_en.language_code = 'en'
     WHERE  f.customer_profile_id = :cid
     AND    f.product_id NOT IN :served_ids
     ORDER BY f.created_at DESC
@@ -128,15 +137,18 @@ _UNAVAILABLE_SQL = text(
 _ALL_FAV_PRODUCTS_SQL = text(
     """
     SELECT mp.id AS product_id,
-           COALESCE(mpt.name, mp.slug) AS name,
+           COALESCE(mpt_loc.name, mpt_en.name, mp.slug) AS name,
            mp.image_url,
            sub.category_id
     FROM   favorite f
     JOIN   masterproduct mp ON mp.id = f.product_id
     JOIN   subcategory sub ON sub.id = mp.subcategory_id
-    LEFT JOIN masterproduct_translation mpt
-              ON mpt.master_product_id = mp.id
-             AND mpt.language_code = 'en'
+    LEFT JOIN masterproduct_translation mpt_loc
+              ON mpt_loc.master_product_id = mp.id
+             AND mpt_loc.language_code = :lang
+    LEFT JOIN masterproduct_translation mpt_en
+              ON mpt_en.master_product_id = mp.id
+             AND mpt_en.language_code = 'en'
     WHERE  f.customer_profile_id = :cid
     ORDER BY f.created_at DESC
     """
@@ -148,10 +160,12 @@ async def list_grouped_favorites(
     customer_profile_id: int,
     lat: float,
     lng: float,
+    lang: str = "en",
 ) -> FavoritesGroupedResponse:
     rows = (
         await session.execute(
-            _GROUPED_SQL, {"cid": customer_profile_id, "lat": lat, "lng": lng}
+            _GROUPED_SQL,
+            {"cid": customer_profile_id, "lat": lat, "lng": lng, "lang": lang},
         )
     ).mappings().all()
 
@@ -186,13 +200,17 @@ async def list_grouped_favorites(
         unavail_rows = (
             await session.execute(
                 _UNAVAILABLE_SQL,
-                {"cid": customer_profile_id, "served_ids": list(served_ids)},
+                {
+                    "cid": customer_profile_id,
+                    "served_ids": list(served_ids),
+                    "lang": lang,
+                },
             )
         ).mappings().all()
     else:
         unavail_rows = (
             await session.execute(
-                _ALL_FAV_PRODUCTS_SQL, {"cid": customer_profile_id}
+                _ALL_FAV_PRODUCTS_SQL, {"cid": customer_profile_id, "lang": lang}
             )
         ).mappings().all()
 
@@ -211,23 +229,29 @@ async def list_grouped_favorites(
 _STORE_FAV_SQL = text(
     """
     SELECT f.product_id, f.created_at AS favourited_at,
-           COALESCE(mpt.name, mp.slug) AS name,
+           COALESCE(mpt_loc.name, mpt_en.name, mp.slug) AS name,
            mp.image_url,
            sub.category_id,
            svc.id AS service_id,
-           COALESCE(st.name, svc.slug) AS service_name,
+           COALESCE(st_loc.name, st_en.name, svc.slug) AS service_name,
            i.id AS inventory_id, i.price, i.stock
     FROM   favorite f
     JOIN   masterproduct mp ON mp.id = f.product_id AND mp.is_active = true
     JOIN   subcategory sub ON sub.id = mp.subcategory_id AND sub.is_active = true
     JOIN   category cat ON cat.id = sub.category_id AND cat.is_active = true
     JOIN   service svc ON svc.id = cat.service_id AND svc.is_active = true
-    LEFT JOIN masterproduct_translation mpt
-              ON mpt.master_product_id = mp.id
-             AND mpt.language_code = 'en'
-    LEFT JOIN service_translation st
-              ON st.service_id = svc.id
-             AND st.language_code = 'en'
+    LEFT JOIN masterproduct_translation mpt_loc
+              ON mpt_loc.master_product_id = mp.id
+             AND mpt_loc.language_code = :lang
+    LEFT JOIN masterproduct_translation mpt_en
+              ON mpt_en.master_product_id = mp.id
+             AND mpt_en.language_code = 'en'
+    LEFT JOIN service_translation st_loc
+              ON st_loc.service_id = svc.id
+             AND st_loc.language_code = :lang
+    LEFT JOIN service_translation st_en
+              ON st_en.service_id = svc.id
+             AND st_en.language_code = 'en'
     JOIN   storeinventory i ON i.product_id = f.product_id
                             AND i.is_available = true
                             AND i.stock > 0
@@ -242,10 +266,12 @@ async def list_store_favorites(
     session: AsyncSession,
     customer_profile_id: int,
     store_id: int,
+    lang: str = "en",
 ) -> list[FavoriteAtStore]:
     rows = (
         await session.execute(
-            _STORE_FAV_SQL, {"cid": customer_profile_id, "sid": store_id}
+            _STORE_FAV_SQL,
+            {"cid": customer_profile_id, "sid": store_id, "lang": lang},
         )
     ).mappings().all()
     return [

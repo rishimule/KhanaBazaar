@@ -23,6 +23,13 @@ from app.db._dev_seed_data import (
     _image_for,
     generate_extra_inventories,
 )
+from app.db._dev_seed_i18n import (
+    CATEGORY_I18N,
+    LANGS,
+    PRODUCT_I18N,
+    SERVICE_I18N,
+    SUBCATEGORY_I18N,
+)
 from app.models.address import Address, LocationSource
 from app.models.base import User, UserRole
 from app.models.catalog import (
@@ -1458,6 +1465,10 @@ FAVORITES: list[dict[str, Any]] = [
 ]
 
 
+# English (written inline by each _upsert_*) + every non-English seed locale.
+_LOCALES = 1 + len(LANGS)
+
+
 def _compute_expected_counts() -> dict[str, int]:
     """Derive expected counts from the merged module-level data. Keeps the
     EXPECTED_FULL_COUNTS dict honest if extra-data generation ever shifts
@@ -1486,13 +1497,14 @@ def _compute_expected_counts() -> dict[str, int]:
         "sellerprofile_service": seller_service_links,
         "address": address_count,
         "service": len(SERVICES),
-        "service_translation": len(SERVICES),
+        # 1 English row (inline) + 1 per non-English locale (hi/mr/gu/pa).
+        "service_translation": len(SERVICES) * _LOCALES,
         "category": len(CATEGORIES),
-        "category_translation": len(CATEGORIES),
+        "category_translation": len(CATEGORIES) * _LOCALES,
         "subcategory": len(SUBCATEGORIES),
-        "subcategory_translation": len(SUBCATEGORIES),
+        "subcategory_translation": len(SUBCATEGORIES) * _LOCALES,
         "masterproduct": len(PRODUCTS),
-        "masterproduct_translation": len(PRODUCTS),
+        "masterproduct_translation": len(PRODUCTS) * _LOCALES,
         "store": len(STORES),
         "storeinventory": len(INVENTORIES),
         "order": len(DEMO_ORDERS),
@@ -1729,6 +1741,45 @@ async def _upsert_customer_addresses(
     await session.flush()
 
 
+async def _upsert_extra_translations(
+    session: AsyncSession,
+    model: type[Any],
+    fk_attr: str,
+    entity_id: int,
+    slug: str,
+    i18n_map: Mapping[str, Mapping[str, Mapping[str, str]]],
+) -> None:
+    """Upsert the non-English (hi/mr/gu/pa) translation rows for one entity.
+
+    English rows are written inline by each ``_upsert_*`` caller; this layers the
+    other locales from the seed i18n maps. Idempotent — re-running the seed updates
+    existing rows in place."""
+    by_lang = i18n_map.get(slug, {})
+    fk_col = getattr(model, fk_attr)
+    for lang in LANGS:
+        fields = by_lang.get(lang)
+        if fields is None:
+            continue
+        existing = (
+            await session.exec(
+                select(model).where(fk_col == entity_id, model.language_code == lang)
+            )
+        ).first()
+        if existing is None:
+            session.add(
+                model(
+                    **{fk_attr: entity_id},
+                    language_code=lang,
+                    name=fields["name"],
+                    description=fields["description"],
+                )
+            )
+        else:
+            existing.name = fields["name"]
+            existing.description = fields["description"]
+    await session.flush()
+
+
 async def _ensure_service(
     session: AsyncSession, data: Mapping[str, Any], sort_order: int
 ) -> Service:
@@ -1764,6 +1815,10 @@ async def _ensure_service(
         translation.name = data["name"]
         translation.description = data.get("description")
     await session.flush()
+    assert service.id is not None
+    await _upsert_extra_translations(
+        session, ServiceTranslation, "service_id", service.id, data["slug"], SERVICE_I18N
+    )
     return service
 
 
@@ -1804,6 +1859,10 @@ async def _upsert_category(
         translation.name = data["name"]
         translation.description = data["description"]
     await session.flush()
+    assert category.id is not None
+    await _upsert_extra_translations(
+        session, CategoryTranslation, "category_id", category.id, data["slug"], CATEGORY_I18N
+    )
     return category
 
 
@@ -1846,6 +1905,10 @@ async def _upsert_subcategory(
         translation.name = data["name"]
         translation.description = data.get("description")
     await session.flush()
+    assert sub.id is not None
+    await _upsert_extra_translations(
+        session, SubcategoryTranslation, "subcategory_id", sub.id, data["slug"], SUBCATEGORY_I18N
+    )
     return sub
 
 
@@ -1890,6 +1953,10 @@ async def _upsert_product(
         translation.name = data["name"]
         translation.description = data["description"]
     await session.flush()
+    assert product.id is not None
+    await _upsert_extra_translations(
+        session, MasterProductTranslation, "master_product_id", product.id, data["slug"], PRODUCT_I18N
+    )
     return product
 
 

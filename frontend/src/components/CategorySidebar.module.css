@@ -63,6 +63,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Room for Indic top matras so overflow:hidden doesn't crop them (see ProductCard). */
+  line-height: 1.5;
 }
 
 @media (max-width: 1023px) {

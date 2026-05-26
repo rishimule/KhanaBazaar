@@ -152,7 +152,8 @@
   font-size: var(--body-sm);
   font-weight: var(--weight-medium);
   color: var(--shade-cool-dark-7);
-  line-height: 1.25;
+  /* 1.5 so Indic top matras clear the line-clamp overflow crop (see ProductCard). */
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

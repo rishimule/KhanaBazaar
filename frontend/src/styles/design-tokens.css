@@ -170,7 +170,9 @@
   --weight-bold:     700;
   --weight-extra:    800;
 
-  --lh-display:      1.0;
+  /* 1.2 (not 1.0) so Devanagari/Gujarati/Gurmukhi top matras on display
+     headings clear the line box — at 1.0 they sit above it and get clipped. */
+  --lh-display:      1.2;
   --lh-body:         1.25;
 
   /* Legacy line-height + tracking aliases */

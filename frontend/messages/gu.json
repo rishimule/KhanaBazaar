@@ -121,7 +121,15 @@
     "clearAll": "બધું દૂર કરો",
     "priceEach": "₹{price} પ્રતિ",
     "subtotal": "ઉપ-કુલ: ₹{value}",
-    "removeAria": "{name} દૂર કરો"
+    "removeAria": "{name} દૂર કરો",
+    "railTitle": "તમારી કાર્ટ ({count})",
+    "railBrowse": "સ્ટોર જુઓ →",
+    "railQty": "જથ્થો {qty}",
+    "railSubtotalLabel": "પેટા-કુલ",
+    "railEta": "અંદાજિત ડિલિવરી: એ જ દિવસે 2 કલાકમાં",
+    "railShortfall": "ચેકઆઉટ માટે ₹{amount} વધુ ઉમેરો.",
+    "railCheckout": "ચેક આઉટ",
+    "railAria": "કાર્ટ પૂર્વાવલોકન"
   },
   "Checkout": {
     "loading": "લોડ થઈ રહ્યું છે…",

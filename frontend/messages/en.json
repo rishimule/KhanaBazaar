@@ -121,7 +121,15 @@
     "clearAll": "Clear all",
     "priceEach": "₹{price} each",
     "subtotal": "Subtotal: ₹{value}",
-    "removeAria": "Remove {name}"
+    "removeAria": "Remove {name}",
+    "railTitle": "Your cart ({count})",
+    "railBrowse": "Browse stores →",
+    "railQty": "Qty {qty}",
+    "railSubtotalLabel": "Subtotal",
+    "railEta": "Estimated delivery: same-day in 2 hours",
+    "railShortfall": "Add ₹{amount} more to check out.",
+    "railCheckout": "Check out",
+    "railAria": "Cart preview"
   },
   "Checkout": {
     "loading": "Loading…",

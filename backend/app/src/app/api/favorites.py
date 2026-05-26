@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.locale import get_request_locale
 from app.core.security import get_current_customer
 from app.db.session import get_db_session
 from app.models.base import User
@@ -76,10 +77,11 @@ async def list_grouped_favorites_route(
     lng: float,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
+    lang: str = Depends(get_request_locale),
 ) -> FavoritesGroupedResponse:
     profile_id = await _customer_profile_id(session, user)
     return await favorites_service.list_grouped_favorites(
-        session, profile_id, lat, lng
+        session, profile_id, lat, lng, lang
     )
 
 
@@ -88,8 +90,9 @@ async def list_store_favorites_route(
     store_id: int,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
+    lang: str = Depends(get_request_locale),
 ) -> list[FavoriteAtStore]:
     profile_id = await _customer_profile_id(session, user)
     return await favorites_service.list_store_favorites(
-        session, profile_id, store_id
+        session, profile_id, store_id, lang
     )
