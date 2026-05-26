@@ -40,7 +40,8 @@ SELLER_APPLICATION_SUBSET_COUNTS = {
     "sellerprofile_service": sum(len(a["service_slugs"]) for a in APPLICATIONS),
     "address": len(APPLICATIONS),
     "service": len(SERVICES),
-    "service_translation": len(SERVICES),
+    # One translation row per seeded locale (en + hi/mr/gu/pa).
+    "service_translation": len(SERVICES) * len(LANGUAGES),
 }
 
 # Anchor login rows that must remain present and in stable positions even as

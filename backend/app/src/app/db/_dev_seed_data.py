@@ -1058,6 +1058,12 @@ def _slugify(text: str) -> str:
     return "".join(out).strip("-")
 
 
+# slug -> building blocks used to compose the product name/description. Lets the
+# i18n layer rebuild localized names without re-deriving slugs: localized name is
+# f"{brand_t} {noun_t} ({variant_t})", description f"{name_t} — {sub_desc_t.lower()}".
+EXTRA_PRODUCT_META: dict[str, dict[str, Any]] = {}
+
+
 def _generate_extra_products() -> list[dict[str, Any]]:
     """Combine each extra subcategory with its category brand pool to emit 5
     products. Deterministic — no RNG. Prices step uniformly across range."""
@@ -1069,7 +1075,8 @@ def _generate_extra_products() -> list[dict[str, Any]]:
         variants = sub["variants"]
         low, high = sub["price_range"]
         for i, brand in enumerate(brands):
-            variant = variants[i % len(variants)]
+            variant_index = i % len(variants)
+            variant = variants[variant_index]
             name = f"{brand} {sub['noun']} ({variant})"
             slug_pieces = [_slugify(brand), _slugify(sub["noun"]), _slugify(variant), str(i)]
             slug = "-".join(p for p in slug_pieces if p)[:90]
@@ -1089,6 +1096,11 @@ def _generate_extra_products() -> list[dict[str, Any]]:
                 "image_url": _image_for(cat["slug"], i),
                 "base_price": price,
             })
+            EXTRA_PRODUCT_META[unique_slug] = {
+                "subcategory_slug": sub["slug"],
+                "brand": brand,
+                "variant_index": variant_index,
+            }
     return products
 
 
@@ -1481,6 +1493,8 @@ __all__ = [
     "EXTRA_CATEGORIES",
     "EXTRA_SUBCATEGORIES",
     "EXTRA_PRODUCTS",
+    "EXTRA_PRODUCT_META",
+    "_CATEGORY_BY_SLUG",
     "EXTRA_STORES",
     "EXTRA_STORE_OWNER_PROFILES",
     "EXTRA_CUSTOMERS",
