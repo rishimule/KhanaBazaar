@@ -130,6 +130,15 @@ export default function CheckoutPage() {
         serviceId,
         paymentMethod,
       });
+      // Placing the order clears this sub-basket server-side. Refresh cart
+      // state so the navbar count + cart pages reflect it immediately instead
+      // of after a manual reload. Guarded: the order already succeeded, so a
+      // refresh failure must not surface as a place-order error.
+      try {
+        await refresh();
+      } catch {
+        /* non-fatal */
+      }
       router.push("/account/orders?placed=1");
     } catch (e) {
       // The minimum-order 409 carries a structured dict detail, so it must be
