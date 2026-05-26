@@ -96,8 +96,10 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <section className={styles.section}>
-        <ReorderButton orderId={order.id} />
-        <OrderActionButtons order={order} role="customer" onChange={setOrder} />
+        <div className={styles.actionRow}>
+          <ReorderButton orderId={order.id} className={styles.reorderBtn} />
+          <OrderActionButtons order={order} role="customer" onChange={setOrder} />
+        </div>
       </section>
     </div>
   );
