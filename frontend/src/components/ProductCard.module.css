@@ -127,7 +127,9 @@
   font-weight: var(--weight-medium);
   color: var(--shade-cool-dark-7);
   margin: 2px 0 4px;
-  line-height: 1.25;
+  /* 1.5 (not 1.25) so Devanagari/Gujarati/Gurmukhi top matras clear the
+     -webkit-box overflow clip on line 1 — tighter leading crops them. */
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
