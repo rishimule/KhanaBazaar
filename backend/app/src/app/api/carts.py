@@ -34,50 +34,61 @@ from app.services.price_comparison import find_alternatives
 router = APIRouter()
 
 
-# MVP: render product names in English. Future work can plumb the user's
-# preferred_language from the User row through to this helper.
 DEFAULT_LANG = "en"
 
 
 async def _product_names(
-    session: AsyncSession, product_ids: list[int]
+    session: AsyncSession, product_ids: list[int], lang: str = DEFAULT_LANG
 ) -> dict[int, str]:
+    """Map product_id → display name in ``lang`` with English fallback."""
     if not product_ids:
         return {}
     result = await session.exec(
         select(MasterProductTranslation).where(
             MasterProductTranslation.master_product_id.in_(product_ids),  # type: ignore[attr-defined]
-            MasterProductTranslation.language_code == DEFAULT_LANG,
+            MasterProductTranslation.language_code.in_({lang, DEFAULT_LANG}),  # type: ignore[attr-defined]
         )
     )
-    return {row.master_product_id: row.name for row in result.all()}
+    by_lang: dict[int, dict[str, str]] = {}
+    for row in result.all():
+        by_lang.setdefault(row.master_product_id, {})[row.language_code] = row.name
+    return {
+        pid: name
+        for pid, names in by_lang.items()
+        if (name := names.get(lang) or names.get(DEFAULT_LANG)) is not None
+    }
 
 
 async def _service_names(
-    session: AsyncSession, service_ids: list[int]
+    session: AsyncSession, service_ids: list[int], lang: str = DEFAULT_LANG
 ) -> dict[int, str]:
-    """Map service_id → display name. English translation, slug fallback."""
+    """Map service_id → display name in ``lang``, English then slug fallback."""
     if not service_ids:
         return {}
-    from sqlalchemy import and_
-
     from app.models.catalog import Service, ServiceTranslation
 
-    result = await session.exec(
-        select(Service.id, Service.slug, ServiceTranslation.name)
-        .outerjoin(
-            ServiceTranslation,
-            and_(
-                ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
-                ServiceTranslation.language_code == DEFAULT_LANG,  # type: ignore[arg-type]
-            ),
-        )
-        .where(Service.id.in_(service_ids))  # type: ignore[union-attr]
+    slug_rows = await session.exec(
+        select(Service.id, Service.slug).where(Service.id.in_(service_ids))  # type: ignore[union-attr]
     )
+    slugs = {sid: slug for sid, slug in slug_rows.all() if sid is not None}
+
+    tr_rows = await session.exec(
+        select(
+            ServiceTranslation.service_id,
+            ServiceTranslation.language_code,
+            ServiceTranslation.name,
+        ).where(
+            ServiceTranslation.service_id.in_(service_ids),  # type: ignore[attr-defined]
+            ServiceTranslation.language_code.in_({lang, DEFAULT_LANG}),  # type: ignore[attr-defined]
+        )
+    )
+    by_lang: dict[int, dict[str, str]] = {}
+    for sid, code, name in tr_rows.all():
+        by_lang.setdefault(sid, {})[code] = name
+
     return {
-        sid: (name or slug)
-        for sid, slug, name in result.all()
-        if sid is not None
+        sid: (by_lang.get(sid, {}).get(lang) or by_lang.get(sid, {}).get(DEFAULT_LANG) or slug)
+        for sid, slug in slugs.items()
     }
 
 
@@ -212,7 +223,9 @@ async def _assert_inventory_service_match(
         )
 
 
-async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[CartRead]:
+async def _serialize_carts(
+    session: AsyncSession, carts: list[Cart], lang: str = DEFAULT_LANG
+) -> list[CartRead]:
     if not carts:
         return []
     cart_ids = [c.id for c in carts if c.id is not None]
@@ -231,8 +244,8 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
         if product.id is not None:
             product_ids.add(product.id)
 
-    name_by_product = await _product_names(session, list(product_ids))
-    name_by_service = await _service_names(session, [c.service_id for c in carts])
+    name_by_product = await _product_names(session, list(product_ids), lang)
+    name_by_service = await _service_names(session, [c.service_id for c in carts], lang)
     min_by_key = await _min_order_values(session, carts)
 
     out: list[CartRead] = []
@@ -277,17 +290,18 @@ async def _serialize_carts(session: AsyncSession, carts: list[Cart]) -> list[Car
 async def list_carts(
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
+    lang: str = Depends(get_request_locale),
 ) -> CartListResponse:
     profile_id = await _customer_profile_id(session, user)
     result = await session.exec(
         select(Cart).where(Cart.customer_profile_id == profile_id)
     )
     carts = list(result.all())
-    return CartListResponse(carts=await _serialize_carts(session, carts))
+    return CartListResponse(carts=await _serialize_carts(session, carts, lang))
 
 
 async def _build_cart_item_response(
-    session: AsyncSession, item: CartItem,
+    session: AsyncSession, item: CartItem, lang: str = DEFAULT_LANG,
 ) -> CartItemRead:
     """Build a CartItemRead from a persisted CartItem.
 
@@ -304,7 +318,7 @@ async def _build_cart_item_response(
     if row is None:
         raise HTTPException(status_code=404, detail="inventory_gone")
     inv, product = row
-    names = await _product_names(session, [product.id]) if product.id else {}
+    names = await _product_names(session, [product.id], lang) if product.id else {}
     assert item.id is not None
     assert inv.id is not None
     assert product.id is not None
@@ -325,6 +339,7 @@ async def add_cart_item(
     response: Response,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
+    lang: str = Depends(get_request_locale),
 ) -> CartItemRead:
     profile_id = await _customer_profile_id(session, user)
 
@@ -366,7 +381,7 @@ async def add_cart_item(
     await session.refresh(item)
 
     response.status_code = status.HTTP_200_OK if updated else status.HTTP_201_CREATED
-    return await _build_cart_item_response(session, item)
+    return await _build_cart_item_response(session, item, lang)
 
 
 async def _owned_cart_item(
@@ -392,6 +407,7 @@ async def update_cart_item(
     payload: CartItemUpdate,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
+    lang: str = Depends(get_request_locale),
 ) -> CartItemRead:
     profile_id = await _customer_profile_id(session, user)
     item, _ = await _owned_cart_item(session, profile_id, item_id)
@@ -409,7 +425,7 @@ async def update_cart_item(
     item.quantity = payload.quantity
     await session.commit()
     await session.refresh(item)
-    return await _build_cart_item_response(session, item)
+    return await _build_cart_item_response(session, item, lang)
 
 
 @router.delete("/items/{item_id}", status_code=204)
@@ -462,6 +478,7 @@ async def sync_carts(  # noqa: C901  # per-item validation branches; refactor tr
     payload: CartSyncRequest,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
+    lang: str = Depends(get_request_locale),
 ) -> CartSyncResponse:
     # TODO(perf): batch Store and StoreInventory lookups across the whole
     # payload before scaling sync beyond MVP-sized carts.
@@ -543,7 +560,7 @@ async def sync_carts(  # noqa: C901  # per-item validation branches; refactor tr
     )
     carts = list(result.all())
     return CartSyncResponse(
-        carts=await _serialize_carts(session, carts),
+        carts=await _serialize_carts(session, carts, lang),
         dropped=dropped,
     )
 
@@ -554,12 +571,12 @@ async def sync_carts(  # noqa: C901  # per-item validation branches; refactor tr
 
 
 async def _serialize_single_cart(
-    session: AsyncSession, cart: Cart
+    session: AsyncSession, cart: Cart, lang: str = DEFAULT_LANG
 ) -> dict[str, object]:
     """Build a CartRead-shaped dict for a single cart, mirroring the loop
     in the existing list_carts handler."""
     store = await session.get(Store, cart.store_id)
-    service_name = (await _service_names(session, [cart.service_id])).get(
+    service_name = (await _service_names(session, [cart.service_id], lang)).get(
         cart.service_id, ""
     )
     min_by_key = await _min_order_values(session, [cart])
@@ -570,7 +587,7 @@ async def _serialize_single_cart(
     )
     rows = items_result.all()
     product_ids = [inv.product_id for _, inv in rows]
-    names = await _product_names(session, product_ids)
+    names = await _product_names(session, product_ids, lang)
     items: list[dict[str, object]] = []
     subtotal = 0.0
     for ci, inv in rows:
@@ -677,6 +694,7 @@ async def replace_sub_basket(
     payload: ReplaceRequest,
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_customer),
+    lang: str = Depends(get_request_locale),
 ) -> ReplaceResponse:
     """Atomically replace the customer's (store, service) sub-basket with
     the given items. Per-item failures (stock cap, unavailable) drop with
@@ -745,5 +763,5 @@ async def replace_sub_basket(
 
     refreshed = await session.get(Cart, cart_id)
     assert refreshed is not None
-    cart_payload = await _serialize_single_cart(session, refreshed)
+    cart_payload = await _serialize_single_cart(session, refreshed, lang)
     return ReplaceResponse(cart=cart_payload, adjustments=adjustments)

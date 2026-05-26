@@ -121,7 +121,15 @@
     "clearAll": "ਸਾਰੇ ਹਟਾਓ",
     "priceEach": "₹{price} ਪ੍ਰਤੀ",
     "subtotal": "ਉਪ-ਜੋੜ: ₹{value}",
-    "removeAria": "{name} ਹਟਾਓ"
+    "removeAria": "{name} ਹਟਾਓ",
+    "railTitle": "ਤੁਹਾਡੀ ਕਾਰਟ ({count})",
+    "railBrowse": "ਸਟੋਰ ਵੇਖੋ →",
+    "railQty": "ਮਾਤਰਾ {qty}",
+    "railSubtotalLabel": "ਉਪ-ਜੋੜ",
+    "railEta": "ਅਨੁਮਾਨਿਤ ਡਿਲਿਵਰੀ: ਉਸੇ ਦਿਨ 2 ਘੰਟਿਆਂ ਵਿੱਚ",
+    "railShortfall": "ਚੈੱਕਆਊਟ ਲਈ ₹{amount} ਹੋਰ ਜੋੜੋ।",
+    "railCheckout": "ਚੈੱਕ ਆਊਟ",
+    "railAria": "ਕਾਰਟ ਝਲਕ"
   },
   "Checkout": {
     "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",

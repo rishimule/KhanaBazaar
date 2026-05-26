@@ -121,7 +121,15 @@
     "clearAll": "सर्व साफ करा",
     "priceEach": "₹{price} प्रति",
     "subtotal": "उप-एकूण: ₹{value}",
-    "removeAria": "{name} काढा"
+    "removeAria": "{name} काढा",
+    "railTitle": "तुमची कार्ट ({count})",
+    "railBrowse": "स्टोअर पाहा →",
+    "railQty": "संख्या {qty}",
+    "railSubtotalLabel": "उप-एकूण",
+    "railEta": "अंदाजित डिलिव्हरी: त्याच दिवशी 2 तासांत",
+    "railShortfall": "चेकआउटसाठी ₹{amount} अधिक जोडा.",
+    "railCheckout": "चेक आउट",
+    "railAria": "कार्ट पूर्वावलोकन"
   },
   "Checkout": {
     "loading": "लोड होत आहे…",

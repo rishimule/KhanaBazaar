@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import styles from "./CartRail.module.css";
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function CartRail({ storeId, serviceId }: Props) {
+  const t = useTranslations("Cart");
   const { carts } = useCart();
   const { dbUser } = useAuth();
   const router = useRouter();
@@ -58,14 +60,14 @@ export default function CartRail({ storeId, serviceId }: Props) {
   };
 
   return (
-    <aside className={styles.rail} aria-label="Cart preview">
-      <h3 className={styles.h}>Your cart ({totalQty})</h3>
+    <aside className={styles.rail} aria-label={t("railAria")}>
+      <h3 className={styles.h}>{t("railTitle", { count: totalQty })}</h3>
       {items.length === 0 ? (
         <div className={styles.empty}>
           <div className={styles.emptyGlyph}>🛒</div>
-          <div className={styles.emptyMsg}>Your cart is empty</div>
+          <div className={styles.emptyMsg}>{t("emptyTitle")}</div>
           <Link href="/stores" className={styles.emptyLink}>
-            Browse stores →
+            {t("railBrowse")}
           </Link>
         </div>
       ) : (
@@ -78,7 +80,7 @@ export default function CartRail({ storeId, serviceId }: Props) {
                 </div>
                 <div>
                   <div className={styles.name}>{i.product_name}</div>
-                  <div className={styles.qty}>Qty {i.quantity}</div>
+                  <div className={styles.qty}>{t("railQty", { qty: i.quantity })}</div>
                 </div>
                 <div className={styles.lt}>₹{(i.price * i.quantity).toFixed(2)}</div>
               </div>
@@ -86,13 +88,13 @@ export default function CartRail({ storeId, serviceId }: Props) {
           </div>
           <div className={styles.totals}>
             <div className={styles.sub}>
-              <span>Subtotal</span>
+              <span>{t("railSubtotalLabel")}</span>
               <span>₹{subtotal.toFixed(2)}</span>
             </div>
-            <div className={styles.eta}>Estimated delivery: same-day in 2 hours</div>
+            <div className={styles.eta}>{t("railEta")}</div>
             {shortfall > 0 && (
               <div className={styles.shortfall} role="status">
-                Add ₹{shortfall.toFixed(2)} more to check out.
+                {t("railShortfall", { amount: shortfall.toFixed(2) })}
               </div>
             )}
             <button
@@ -100,7 +102,7 @@ export default function CartRail({ storeId, serviceId }: Props) {
               onClick={onCheckout}
               disabled={shortfall > 0}
             >
-              Check out
+              {t("railCheckout")}
             </button>
           </div>
         </>
