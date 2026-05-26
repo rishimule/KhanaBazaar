@@ -70,7 +70,9 @@ class Settings(BaseSettings):
     SEARCH_BROWSE_CACHE_TTL_SECONDS: int = 60
 
     # Web Push (VAPID) — generate keys once; see docs/development_guide.md.
-    # VAPID_PRIVATE_KEY is the PKCS8 PEM string. VAPID_PUBLIC_KEY is the
+    # VAPID_PRIVATE_KEY is the RAW base64url EC private key (~43 chars), NOT a
+    # PKCS8 PEM — py_vapid.Vapid.from_string base64url-decodes it to the 32-byte
+    # scalar (a PEM fails with "ASN.1 parsing error"). VAPID_PUBLIC_KEY is the
     # base64url-encoded uncompressed EC point the browser uses as
     # applicationServerKey (also exposed to the FE as NEXT_PUBLIC_VAPID_PUBLIC_KEY).
     VAPID_PRIVATE_KEY: str = ""

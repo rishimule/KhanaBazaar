@@ -247,7 +247,7 @@ cmd_start() {
     uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
   start_proc "celery"   "${CELERY_PID}"   "${CELERY_LOG}"   "${BACKEND_APP_DIR}" \
-    uv run celery -A app.core.celery_app worker --loglevel=info
+    uv run celery -A app.core.celery_app worker --loglevel=info --concurrency=2
 
   start_proc "frontend" "${FRONTEND_PID}" "${FRONTEND_LOG}" "${FRONTEND_DIR}" \
     npm run dev
