@@ -46,6 +46,36 @@
   border-radius: var(--radius-card);
 }
 
+/* Footer actions: Reorder + Rate order sit in one aligned row of matching
+   buttons (ReorderButton defaults to a bare link; this overrides it here). */
+.actionRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.reorderBtn {
+  background: var(--color-btn-primary-bg);
+  color: var(--white);
+  padding: 10px 18px;
+  border-radius: var(--radius-card);
+  border: none;
+  cursor: pointer;
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-sm);
+  font-family: var(--font-family-sans);
+  transition: background var(--duration-fast), transform var(--duration-fast);
+}
+.reorderBtn:hover:not(:disabled) { background: var(--color-btn-primary-hover); }
+.reorderBtn:active:not(:disabled) { transform: scale(0.97); }
+.reorderBtn:disabled { opacity: 0.6; cursor: default; }
+
+@media (max-width: 640px) {
+  .actionRow { flex-direction: column; align-items: stretch; }
+  .reorderBtn { width: 100%; min-height: 44px; }
+}
+
 .sectionTitle {
   font-size: var(--body-base);
   font-weight: var(--weight-semibold);
