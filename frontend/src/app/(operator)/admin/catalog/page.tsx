@@ -4,6 +4,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import type { CatalogEntity, EntityKind } from "@/types";
 import { Breadcrumb, type BreadcrumbCrumb } from "./_components/Breadcrumb";
 import { CatalogTable } from "./_components/CatalogTable";
@@ -31,6 +32,7 @@ function buildHref(next: {
 }
 
 export default function AdminCatalogPage() {
+  const t = useTranslations("Admin.catalog");
   const sp = useSearchParams();
   const router = useRouter();
 
@@ -50,22 +52,22 @@ export default function AdminCatalogPage() {
   const ancestors = useAncestorNames(serviceId, categoryId, subcategoryId);
 
   const crumbs: BreadcrumbCrumb[] = useMemo(() => {
-    const out: BreadcrumbCrumb[] = [{ label: "Services", href: "/admin/catalog" }];
+    const out: BreadcrumbCrumb[] = [{ label: t("services"), href: "/admin/catalog" }];
     if (serviceId) {
       out.push({
-        label: ancestors.service || `Service #${serviceId}`,
+        label: ancestors.service || t("serviceFallback", { id: serviceId }),
         href: buildHref({ service: serviceId }),
       });
     }
     if (categoryId) {
       out.push({
-        label: ancestors.category || `Category #${categoryId}`,
+        label: ancestors.category || t("categoryFallback", { id: categoryId }),
         href: buildHref({ service: serviceId, category: categoryId }),
       });
     }
     if (subcategoryId) {
       out.push({
-        label: ancestors.subcategory || `Subcategory #${subcategoryId}`,
+        label: ancestors.subcategory || t("subcategoryFallback", { id: subcategoryId }),
         href: buildHref({
           service: serviceId,
           category: categoryId,
@@ -74,7 +76,7 @@ export default function AdminCatalogPage() {
       });
     }
     return out;
-  }, [serviceId, categoryId, subcategoryId, ancestors]);
+  }, [serviceId, categoryId, subcategoryId, ancestors, t]);
 
   function onRowOpen(row: CatalogEntity) {
     if (level === "service") {

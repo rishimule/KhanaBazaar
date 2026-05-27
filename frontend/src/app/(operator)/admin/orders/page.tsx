@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import DataTable, { type Column } from "@/components/DataTable";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
@@ -17,7 +18,16 @@ type StatusFilter = "all" | "active" | "delivered" | "cancelled";
 type SortKey = "date_desc" | "date_asc" | "total_desc" | "total_asc";
 const PAGE_SIZE = 20;
 
+const STATUS_FILTER_KEYS: Record<StatusFilter, string> = {
+  all: "filterAll",
+  active: "filterActive",
+  delivered: "filterDelivered",
+  cancelled: "filterCancelled",
+};
+
 export default function AdminOrdersPage() {
+  const t = useTranslations("Admin.orders");
+  const tc = useTranslations("Admin.common");
   const { token } = useAuth();
   const router = useRouter();
   const [allOrders, setAllOrders] = useState<Order[]>([]);
@@ -89,54 +99,54 @@ export default function AdminOrdersPage() {
   const columns: Column<Order>[] = [
     {
       key: "id",
-      label: "Order",
+      label: t("colOrder"),
       render: (o) => <span className={styles.mono}>#{o.id}</span>,
     },
     {
       key: "placed_at",
-      label: "Placed",
+      label: t("colPlaced"),
       render: (o) => (
         <time title={o.placed_at} suppressHydrationWarning>
           {new Date(o.placed_at).toLocaleString()}
         </time>
       ),
     },
-    { key: "store_name", label: "Store" },
+    { key: "store_name", label: t("colStore") },
     {
       key: "customer_name",
-      label: "Customer",
+      label: t("colCustomer"),
       render: (o) => o.customer_name ?? "—",
     },
     {
       key: "service_name",
-      label: "Service",
+      label: t("colService"),
       render: (o) => <span className={styles.serviceChip}>{o.service_name}</span>,
     },
     {
       key: "items",
-      label: "Items",
+      label: t("colItems"),
       render: (o) => `${o.items.length}`,
     },
     {
       key: "total",
-      label: "Total",
+      label: t("colTotal"),
       render: (o) => <span className={styles.right}>₹{o.total.toFixed(2)}</span>,
     },
     {
       key: "payment",
-      label: "Payment",
+      label: t("colPayment"),
       render: (o) => <PaymentStatusPill payment={o.payment} />,
     },
     {
       key: "status",
-      label: "Status",
+      label: t("colStatus"),
       render: (o) => <OrderStatusBadge status={o.status} />,
     },
   ];
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>All orders</h1>
+      <h1 className={styles.title}>{t("title")}</h1>
 
       <div className={styles.controls}>
         <div className={styles.chips} role="tablist">
@@ -150,7 +160,7 @@ export default function AdminOrdersPage() {
                 setPageCount(1);
               }}
             >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+              {t(STATUS_FILTER_KEYS[s])}
             </button>
           ))}
         </div>
@@ -162,7 +172,7 @@ export default function AdminOrdersPage() {
             setPageCount(1);
           }}
         >
-          <option value="">All services</option>
+          <option value="">{t("allServices")}</option>
           {services.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -174,19 +184,19 @@ export default function AdminOrdersPage() {
           className={styles.dateInput}
           value={fromDate}
           onChange={(e) => setFromDate(e.target.value)}
-          aria-label="From date"
+          aria-label={t("fromDate")}
         />
         <input
           type="date"
           className={styles.dateInput}
           value={toDate}
           onChange={(e) => setToDate(e.target.value)}
-          aria-label="To date"
+          aria-label={t("toDate")}
         />
         <input
           type="search"
           className={styles.search}
-          placeholder="Search id, store, or customer…"
+          placeholder={t("searchPlaceholder")}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -198,15 +208,15 @@ export default function AdminOrdersPage() {
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
         >
-          <option value="date_desc">Newest first</option>
-          <option value="date_asc">Oldest first</option>
-          <option value="total_desc">Total ↓</option>
-          <option value="total_asc">Total ↑</option>
+          <option value="date_desc">{t("sortNewest")}</option>
+          <option value="date_asc">{t("sortOldest")}</option>
+          <option value="total_desc">{t("sortTotalDesc")}</option>
+          <option value="total_asc">{t("sortTotalAsc")}</option>
         </select>
       </div>
 
       {loading ? (
-        <div className={styles.empty}>Loading…</div>
+        <div className={styles.empty}>{tc("loading")}</div>
       ) : (
         <>
           <div
@@ -223,7 +233,7 @@ export default function AdminOrdersPage() {
               columns={columns}
               data={visible}
               keyField="id"
-              emptyMessage="No orders match these filters."
+              emptyMessage={t("emptyMessage")}
               mobileCardRender={(o) => (
                 <a href={`/admin/orders/${o.id}`} className={styles.mobileLink}>
                   <div className={styles.mobileTop}>
@@ -247,7 +257,7 @@ export default function AdminOrdersPage() {
               className={`btn btn-outline ${styles.loadMore}`}
               onClick={() => setPageCount((p) => p + 1)}
             >
-              Load more
+              {t("loadMore")}
             </button>
           )}
         </>

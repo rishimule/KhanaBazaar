@@ -2,6 +2,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
+import { cookies } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
 
 import "@/app/globals.css";
@@ -11,7 +12,16 @@ import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
 import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
 import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
-import enMessages from "../../../messages/en.json";
+import { routing } from "@/i18n/routing";
+
+async function resolveOperatorLocale(): Promise<string> {
+  const cookieLocale = (await cookies()).get("NEXT_LOCALE")?.value;
+  return routing.locales.includes(
+    cookieLocale as (typeof routing.locales)[number],
+  )
+    ? (cookieLocale as string)
+    : routing.defaultLocale;
+}
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -42,13 +52,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function OperatorLayout({
+export default async function OperatorLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await resolveOperatorLocale();
+  const messages = (await import(`../../../messages/${locale}.json`)).default;
+
   return (
-    <html lang="en" className={poppins.variable}>
+    <html lang={locale} className={poppins.variable}>
       <head>
         <ThirdPartyErrorSuppressor />
         <link rel="manifest" href="/manifest.json" />
@@ -56,7 +69,7 @@ export default function OperatorLayout({
       </head>
       <body>
         <RouteProgressProvider>
-          <NextIntlClientProvider locale="en" messages={enMessages}>
+          <NextIntlClientProvider locale={locale} messages={messages}>
             <AuthProvider>
               <DeliveryLocationProvider>
                 <CartProvider>

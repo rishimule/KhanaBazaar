@@ -11,6 +11,16 @@ import React, {
   useState,
 } from "react";
 import { User, UserRole } from "@/types";
+import { setLocaleCookie } from "@/lib/operatorLocale";
+
+/** For seller/admin sessions, seed the NEXT_LOCALE cookie from the persisted
+ * preference so a fresh device opens the dashboard in the saved language.
+ * Scoped to operator roles — customers keep their URL-driven storefront locale. */
+function seedOperatorLocale(user: User): void {
+  if (typeof document === "undefined") return;
+  if (user.role !== "seller" && user.role !== "admin") return;
+  if (user.preferred_language) setLocaleCookie(user.preferred_language);
+}
 
 interface AuthContextValue {
   dbUser: User | null;
@@ -60,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (user) {
           setToken(stored);
           setDbUser(user);
+          seedOperatorLocale(user);
         }
       })
       .catch(() => localStorage.removeItem(TOKEN_KEY))
@@ -112,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(TOKEN_KEY, data.access_token);
       setToken(data.access_token);
       setDbUser(data.user as User);
+      seedOperatorLocale(data.user as User);
       return { user: data.user as User, needsName: false };
     },
     []

@@ -4,17 +4,18 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import ImpersonationBanner from "@/components/admin/ImpersonationBanner";
 import { useAuth } from "@/lib/AuthContext";
 import { fetchSellerHub } from "@/lib/adminActions";
 import type { SellerHubSummary } from "@/types";
 import styles from "./layout.module.css";
 
-const TABS: { slug: string; label: string }[] = [
-  { slug: "profile", label: "Profile" },
-  { slug: "products", label: "Products" },
-  { slug: "orders", label: "Orders" },
-  { slug: "activity", label: "Activity" },
+const TABS: { slug: string; labelKey: string }[] = [
+  { slug: "profile", labelKey: "tab.profile" },
+  { slug: "products", labelKey: "tab.products" },
+  { slug: "orders", labelKey: "tab.orders" },
+  { slug: "activity", labelKey: "tab.activity" },
 ];
 
 export default function SellerHubLayout({
@@ -25,6 +26,8 @@ export default function SellerHubLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const t = useTranslations("Admin.sellerHub");
+  const tc = useTranslations("Admin.common");
   const router = useRouter();
   const pathname = usePathname();
   const { token, dbUser, loading } = useAuth();
@@ -37,8 +40,8 @@ export default function SellerHubLayout({
     if (loading || !dbUser || dbUser.role !== "admin" || !token) return;
     fetchSellerHub(Number(id), token)
       .then(setHub)
-      .catch(() => setErr("Failed to load seller"));
-  }, [id, token, dbUser, loading]);
+      .catch(() => setErr(t("loadSellerError")));
+  }, [id, token, dbUser, loading, t]);
 
   // Determine active tab from pathname.
   const segments = pathname.split("/").filter(Boolean);
@@ -49,13 +52,13 @@ export default function SellerHubLayout({
     return (
       <div className={styles.error}>
         {err} —{" "}
-        <button onClick={() => router.push("/admin/sellers")}>back</button>
+        <button onClick={() => router.push("/admin/sellers")}>{tc("back")}</button>
       </div>
     );
   }
   if (!hub) {
     return (
-      <div className={styles.loading}>Loading seller…</div>
+      <div className={styles.loading}>{t("loadingSeller")}</div>
     );
   }
 
@@ -67,16 +70,16 @@ export default function SellerHubLayout({
         variant={isActivityTab ? "viewing" : "acting"}
       />
       <div className={styles.tabs}>
-        {TABS.map((t) => {
-          const href = `/admin/sellers/${id}/${t.slug}`;
-          const active = activeSlug === t.slug;
+        {TABS.map((tab) => {
+          const href = `/admin/sellers/${id}/${tab.slug}`;
+          const active = activeSlug === tab.slug;
           return (
             <Link
-              key={t.slug}
+              key={tab.slug}
               href={href}
               className={active ? styles.tabActive : styles.tab}
             >
-              {t.label}
+              {t(tab.labelKey)}
             </Link>
           );
         })}

@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { get } from "@/lib/api";
 import { Service } from "@/types";
@@ -23,6 +24,7 @@ export default function ServicePicker({
   disabled = false,
   services: providedServices,
 }: Props) {
+  const t = useTranslations("Shared");
   const [fetchedServices, setFetchedServices] = useState<Service[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,12 +38,12 @@ export default function ServicePicker({
         if (!cancelled) setFetchedServices(rows);
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message ?? "Failed to load services");
+        if (!cancelled) setError(err.message ?? t("servicePicker.loadFailed"));
       });
     return () => {
       cancelled = true;
     };
-  }, [token, providedServices]);
+  }, [token, providedServices, t]);
 
   if (error) {
     return <p className={styles.error}>{error}</p>;
@@ -65,7 +67,7 @@ export default function ServicePicker({
   }
 
   return (
-    <div className={styles.grid} role="group" aria-label="Services offered">
+    <div className={styles.grid} role="group" aria-label={t("servicePicker.servicesOffered")}>
       {services.map((service) => {
         const checked = selectedIds.includes(service.id);
         return (

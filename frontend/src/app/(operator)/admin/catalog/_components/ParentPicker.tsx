@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { getCatalog, listCatalog } from "@/lib/catalog";
 import type { CatalogEntity, EntityKind } from "@/types";
@@ -22,6 +23,7 @@ export function ParentPicker({
   onChange,
   filterParams = {},
 }: Props) {
+  const t = useTranslations("Admin.catalog");
   const { token } = useAuth();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -95,7 +97,7 @@ export function ParentPicker({
 
   const triggerLabel = selectedItem
     ? `${selectedItem.name}`
-    : "Choose…";
+    : t("choosePlaceholder");
 
   return (
     <div className={styles.wrap} ref={wrapRef}>
@@ -120,14 +122,14 @@ export function ParentPicker({
           <input
             type="text"
             autoFocus
-            placeholder="Search…"
+            placeholder={t("pickerSearchPlaceholder")}
             className={styles.search}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
           <ul className={styles.list}>
             {items.length === 0 && (
-              <li className={styles.empty}>No matches.</li>
+              <li className={styles.empty}>{t("noMatches")}</li>
             )}
             {items.map((i) => {
               const isSelected = i.id === value;

@@ -238,3 +238,45 @@ async def test_me_endpoint_returns_authenticated_user(auth_client: dict[str, Any
     resp = await c.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     assert resp.json()["email"] == "me@example.com"
+
+
+async def _make_user_token(session: Any, email: str, role: Any = None) -> str:
+    from app.core.security import create_access_token
+    from app.models.base import User, UserRole
+
+    user = User(email=email, role=role or UserRole.Customer)
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return create_access_token(user)
+
+
+async def test_update_me_language_persists(client: AsyncClient, session: Any) -> None:
+    token = await _make_user_token(session, email="lang@example.com")
+    resp = await client.patch(
+        "/api/v1/auth/me/language",
+        json={"language": "hi"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 204
+    me = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert me.json()["preferred_language"] == "hi"
+
+
+async def test_update_me_language_rejects_unknown_code(
+    client: AsyncClient, session: Any
+) -> None:
+    token = await _make_user_token(session, email="lang2@example.com")
+    resp = await client.patch(
+        "/api/v1/auth/me/language",
+        json={"language": "zz"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+
+
+async def test_update_me_language_requires_auth(client: AsyncClient) -> None:
+    resp = await client.patch("/api/v1/auth/me/language", json={"language": "hi"})
+    assert resp.status_code in (401, 403)

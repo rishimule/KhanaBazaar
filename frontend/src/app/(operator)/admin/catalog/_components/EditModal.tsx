@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Modal, { modalStyles } from "@/components/Modal";
 import type {
   CatalogEntity,
@@ -51,6 +52,8 @@ export function EditModal({
   onClose,
   onSaved,
 }: Props) {
+  const t = useTranslations("Admin.catalog");
+  const tc = useTranslations("Admin.common");
   const mut = useEntityMutation(entity);
   const [name, setName] = useState(initial?.name || "");
   const [slug, setSlug] = useState(initial?.slug || "");
@@ -127,10 +130,15 @@ export function EditModal({
   if (entity === "subcategory" && serviceContext) {
     parentFilter.service_id = serviceContext;
   }
+  const entityName = t(`entity.${entity}`);
 
   return (
     <Modal
-      title={`${mode === "create" ? "Create" : "Edit"} ${entity}`}
+      title={
+        mode === "create"
+          ? t("createTitle", { entity: entityName })
+          : t("editTitle", { entity: entityName })
+      }
       onClose={onClose}
       footer={
         <>
@@ -140,7 +148,7 @@ export function EditModal({
             onClick={onClose}
             disabled={mut.pending}
           >
-            Cancel
+            {tc("cancel")}
           </button>
           <button
             type="button"
@@ -148,14 +156,14 @@ export function EditModal({
             onClick={handleSave}
             disabled={mut.pending || !name.trim()}
           >
-            {mut.pending ? "Saving…" : "Save"}
+            {mut.pending ? tc("saving") : tc("save")}
           </button>
         </>
       }
     >
       <div className={styles.form}>
         <div className={modalStyles.formGroup}>
-          <label className={modalStyles.label}>Name</label>
+          <label className={modalStyles.label}>{t("fieldName")}</label>
           <input
             className={modalStyles.input}
             type="text"
@@ -166,7 +174,7 @@ export function EditModal({
         </div>
 
         <div className={modalStyles.formGroup}>
-          <label className={modalStyles.label}>Slug</label>
+          <label className={modalStyles.label}>{t("fieldSlug")}</label>
           <input
             className={modalStyles.input}
             type="text"
@@ -179,14 +187,14 @@ export function EditModal({
           {mut.error?.field === "slug" && (
             <p role="alert" className={styles.fieldError}>
               {mut.error.detail === "slug_exists"
-                ? "Slug already used in this parent."
-                : "Slug already used in destination parent."}
+                ? t("slugExists")
+                : t("slugExistsDestination")}
             </p>
           )}
         </div>
 
         <div className={modalStyles.formGroup}>
-          <label className={modalStyles.label}>Description</label>
+          <label className={modalStyles.label}>{t("fieldDescription")}</label>
           <textarea
             className={modalStyles.textarea}
             value={description || ""}
@@ -195,7 +203,7 @@ export function EditModal({
         </div>
 
         <div className={modalStyles.formGroup}>
-          <label className={modalStyles.label}>Image URL</label>
+          <label className={modalStyles.label}>{t("fieldImageUrl")}</label>
           <input
             className={modalStyles.input}
             type="url"
@@ -207,7 +215,9 @@ export function EditModal({
 
         {parentEntity && (
           <div className={modalStyles.formGroup}>
-            <label className={modalStyles.label}>Parent {parentEntity}</label>
+            <label className={modalStyles.label}>
+              {t("fieldParent", { entity: t(`entity.${parentEntity}`) })}
+            </label>
             <ParentPicker
               parentEntity={parentEntity}
               value={parent}
@@ -220,7 +230,7 @@ export function EditModal({
         {entity === "product" && (
           <>
             <div className={modalStyles.formGroup}>
-              <label className={modalStyles.label}>Base price</label>
+              <label className={modalStyles.label}>{t("fieldBasePrice")}</label>
               <input
                 className={modalStyles.input}
                 type="number"
@@ -232,7 +242,7 @@ export function EditModal({
               />
             </div>
             <div className={modalStyles.formGroup}>
-              <label className={modalStyles.label}>Brand</label>
+              <label className={modalStyles.label}>{t("fieldBrand")}</label>
               <input
                 className={modalStyles.input}
                 type="text"
@@ -241,7 +251,7 @@ export function EditModal({
               />
             </div>
             <div className={modalStyles.formGroup}>
-              <label className={modalStyles.label}>Unit (kg, L, pack…)</label>
+              <label className={modalStyles.label}>{t("fieldUnit")}</label>
               <input
                 className={modalStyles.input}
                 type="text"
@@ -259,7 +269,7 @@ export function EditModal({
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
             />
-            <span>Active</span>
+            <span>{t("statusActive")}</span>
           </label>
         </div>
 

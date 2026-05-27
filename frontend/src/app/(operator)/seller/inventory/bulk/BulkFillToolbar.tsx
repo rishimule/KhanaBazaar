@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import styles from "./bulk.module.css";
 
 export type BulkFillAction =
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function BulkFillToolbar({ selectedCount, onApply }: Props) {
+  const t = useTranslations("Seller.bulk");
   const [open, setOpen] = useState<null | "price" | "stock" | "pct">(null);
   const [value, setValue] = useState("");
 
@@ -32,27 +34,29 @@ export function BulkFillToolbar({ selectedCount, onApply }: Props) {
 
   return (
     <div className={styles.bulkFillWrap}>
-      <span className={styles.bulkFillCount}>{selectedCount} selected</span>
+      <span className={styles.bulkFillCount}>
+        {t("selectedCount", { count: selectedCount })}
+      </span>
       <button
         className="btn btn-outline"
         disabled={selectedCount === 0}
         onClick={() => setOpen(open === "price" ? null : "price")}
       >
-        Set price…
+        {t("setPrice")}
       </button>
       <button
         className="btn btn-outline"
         disabled={selectedCount === 0}
         onClick={() => setOpen(open === "stock" ? null : "stock")}
       >
-        Set stock…
+        {t("setStock")}
       </button>
       <button
         className="btn btn-outline"
         disabled={selectedCount === 0}
         onClick={() => setOpen(open === "pct" ? null : "pct")}
       >
-        Adjust price ±%…
+        {t("adjustPricePct")}
       </button>
 
       {open !== null && (
@@ -63,10 +67,10 @@ export function BulkFillToolbar({ selectedCount, onApply }: Props) {
             value={value}
             placeholder={
               open === "pct"
-                ? "e.g. -10 for −10%"
+                ? t("pctPlaceholder")
                 : open === "price"
-                  ? "Price"
-                  : "Stock"
+                  ? t("pricePlaceholder")
+                  : t("stockPlaceholder")
             }
             onChange={(e) => setValue(e.target.value)}
           />
@@ -74,7 +78,7 @@ export function BulkFillToolbar({ selectedCount, onApply }: Props) {
             className="btn btn-primary"
             onClick={() => submit(open)}
           >
-            Apply
+            {t("apply")}
           </button>
         </div>
       )}

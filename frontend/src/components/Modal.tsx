@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import styles from "./Modal.module.css";
 
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function Modal({ title, children, footer, onClose, size = "default" }: Props) {
+  const t = useTranslations("Shared");
   // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -47,7 +49,7 @@ export default function Modal({ title, children, footer, onClose, size = "defaul
           <button
             className={styles.closeBtn}
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("modal.close")}
           >
             ✕
           </button>

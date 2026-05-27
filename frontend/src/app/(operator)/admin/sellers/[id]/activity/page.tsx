@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { use, useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import ActivityTable from "@/components/admin/ActivityTable";
 import { useAuth } from "@/lib/AuthContext";
 import { fetchSellerActivity } from "@/lib/adminActions";
@@ -13,6 +14,7 @@ export default function AdminActivityTab({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const t = useTranslations("Admin.sellerHub");
   const { token } = useAuth();
   const [rows, setRows] = useState<AdminActionLog[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export default function AdminActivityTab({
 
   return (
     <div>
-      <h2 style={{ marginBottom: "0.75rem" }}>Activity log</h2>
+      <h2 style={{ marginBottom: "0.75rem" }}>{t("activity.heading")}</h2>
       <ActivityTable
         rows={rows}
         hasMore={cursor !== null}

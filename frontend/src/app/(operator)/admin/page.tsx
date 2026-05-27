@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import StatsCard from "@/components/StatsCard";
@@ -22,6 +23,8 @@ interface AdminMetrics {
 }
 
 export default function AdminDashboardPage() {
+  const t = useTranslations("Admin.dashboard");
+  const tc = useTranslations("Admin.common");
   const router = useRouter();
   const { dbUser, token, loading } = useAuth();
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
@@ -43,7 +46,7 @@ export default function AdminDashboardPage() {
   if (loading || fetching) {
     return (
       <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
-        Loading…
+        {tc("loading")}
       </div>
     );
   }
@@ -65,42 +68,42 @@ export default function AdminDashboardPage() {
       <div className={styles.statsGrid}>
         <StatsCard
           icon="📦"
-          label="Active orders"
+          label={t("activeOrders")}
           value={m.active_orders}
           variant={m.active_orders > 0 ? "primary" : "info"}
         />
-        <StatsCard icon="🗓️" label="Orders today" value={m.orders_today} variant="accent" />
-        <StatsCard icon="📈" label="Orders this month" value={m.orders_this_month} variant="info" />
+        <StatsCard icon="🗓️" label={t("ordersToday")} value={m.orders_today} variant="accent" />
+        <StatsCard icon="📈" label={t("ordersThisMonth")} value={m.orders_this_month} variant="info" />
         <StatsCard
           icon="💰"
-          label="GMV (delivered, this month)"
+          label={t("gmvThisMonth")}
           value={`₹${m.gmv_this_month.toFixed(0)}`}
           variant="accent"
         />
         <StatsCard
           icon="📦"
-          label="Master products (active)"
+          label={t("masterProducts")}
           value={m.active_master_products}
           variant="primary"
         />
         <StatsCard
           icon="🏷️"
-          label="Categories (active)"
+          label={t("categories")}
           value={m.active_categories}
           variant="accent"
         />
-        <StatsCard icon="🏪" label="Active stores" value={m.active_stores} variant="info" />
+        <StatsCard icon="🏪" label={t("activeStores")} value={m.active_stores} variant="info" />
         <StatsCard
           icon="⏳"
-          label="Pending applications"
+          label={t("pendingApplications")}
           value={m.pending_applications}
-          trend={m.pending_applications > 0 ? "requires review" : "all caught up"}
+          trend={m.pending_applications > 0 ? t("requiresReview") : t("allCaughtUp")}
           trendDirection={m.pending_applications > 0 ? "up" : "down"}
           variant={m.pending_applications > 0 ? "warning" : "info"}
         />
         <StatsCard
           icon="🤝"
-          label="Approved sellers"
+          label={t("approvedSellers")}
           value={m.approved_sellers}
           variant="primary"
         />
@@ -108,24 +111,24 @@ export default function AdminDashboardPage() {
 
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Quick actions</h2>
+          <h2 className={styles.sectionTitle}>{t("quickActions")}</h2>
         </div>
         <div className={styles.quickActions}>
           <Link href="/admin/orders" className={styles.actionCard}>
             <div className={styles.actionIcon}>📦</div>
             <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>All orders</span>
+              <span className={styles.actionLabel}>{t("allOrders")}</span>
               <span className={styles.actionDescription}>
-                Browse, search, and act on every order
+                {t("allOrdersDesc")}
               </span>
             </div>
           </Link>
           <Link href="/admin/catalog" className={styles.actionCard}>
             <div className={styles.actionIcon}>🗂️</div>
             <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>Manage catalog</span>
+              <span className={styles.actionLabel}>{t("manageCatalog")}</span>
               <span className={styles.actionDescription}>
-                Services, categories, subcategories, products
+                {t("manageCatalogDesc")}
               </span>
             </div>
           </Link>
@@ -133,19 +136,21 @@ export default function AdminDashboardPage() {
             <div className={styles.actionIcon}>✅</div>
             <div className={styles.actionInfo}>
               <span className={styles.actionLabel}>
-                Review applications{m.pending_applications > 0 ? ` (${m.pending_applications})` : ""}
+                {m.pending_applications > 0
+                  ? t("reviewApplicationsCount", { count: m.pending_applications })
+                  : t("reviewApplications")}
               </span>
               <span className={styles.actionDescription}>
-                Approve, reject, or revoke seller accounts
+                {t("reviewApplicationsDesc")}
               </span>
             </div>
           </Link>
           <Link href="/admin/sellers" className={styles.actionCard}>
             <div className={styles.actionIcon}>🏪</div>
             <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>Approved sellers</span>
+              <span className={styles.actionLabel}>{t("approvedSellersAction")}</span>
               <span className={styles.actionDescription}>
-                Drill into any seller&apos;s store, edit inventory, manage orders
+                {t("approvedSellersDesc")}
               </span>
             </div>
           </Link>

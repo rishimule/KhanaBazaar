@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
+import { useTranslations } from "next-intl";
 import type { SheetRow } from "./page";
 import styles from "./bulk.module.css";
 
@@ -22,6 +23,8 @@ export function BulkInventorySheet({
   onPatchRow,
   onRemoveRow,
 }: Props) {
+  const t = useTranslations("Seller.bulk");
+
   if (rows.length === 0) return null;
 
   return (
@@ -30,11 +33,11 @@ export function BulkInventorySheet({
         <thead>
           <tr>
             <th></th>
-            <th>Product</th>
-            <th>Subcategory</th>
-            <th>Price (₹)</th>
-            <th>Stock</th>
-            <th>Avl</th>
+            <th>{t("colProduct")}</th>
+            <th>{t("colSubcategory")}</th>
+            <th>{t("colPrice")}</th>
+            <th>{t("colStock")}</th>
+            <th>{t("colAvailable")}</th>
             <th></th>
           </tr>
         </thead>
@@ -54,7 +57,7 @@ export function BulkInventorySheet({
                     type="checkbox"
                     checked={selectedIndices.has(originalIndex)}
                     onChange={() => onToggleSelect(originalIndex)}
-                    aria-label={`Select ${row.product_name}`}
+                    aria-label={t("selectAria", { name: row.product_name })}
                   />
                 </td>
                 <td>{row.product_name}</td>
@@ -72,7 +75,7 @@ export function BulkInventorySheet({
                       onPatchRow(originalIndex, {
                         price: e.target.value,
                         dirty: true,
-                        errors: validateCell(e.target.value, row.stock),
+                        errors: validateCell(e.target.value, row.stock, t),
                       })
                     }
                   />
@@ -94,7 +97,7 @@ export function BulkInventorySheet({
                       onPatchRow(originalIndex, {
                         stock: e.target.value,
                         dirty: true,
-                        errors: validateCell(row.price, e.target.value),
+                        errors: validateCell(row.price, e.target.value, t),
                       })
                     }
                   />
@@ -114,7 +117,7 @@ export function BulkInventorySheet({
                         dirty: true,
                       })
                     }
-                    aria-label={`Available ${row.product_name}`}
+                    aria-label={t("availableAria", { name: row.product_name })}
                   />
                 </td>
                 <td>
@@ -123,7 +126,7 @@ export function BulkInventorySheet({
                       className="btn btn-outline"
                       onClick={() => onRemoveRow(originalIndex)}
                     >
-                      Remove
+                      {t("remove")}
                     </button>
                   )}
                 </td>
@@ -136,15 +139,19 @@ export function BulkInventorySheet({
   );
 }
 
-function validateCell(price: string, stock: string): SheetRow["errors"] {
+function validateCell(
+  price: string,
+  stock: string,
+  t: (key: string) => string,
+): SheetRow["errors"] {
   const errors: SheetRow["errors"] = {};
   const p = parseFloat(price);
   if (isNaN(p) || p <= 0 || p > 999999) {
-    errors.price = "Price must be > 0 and ≤ 999999";
+    errors.price = t("priceError");
   }
   const s = parseInt(stock, 10);
   if (isNaN(s) || s < 0) {
-    errors.stock = "Stock must be ≥ 0";
+    errors.stock = t("stockError");
   }
   return errors;
 }

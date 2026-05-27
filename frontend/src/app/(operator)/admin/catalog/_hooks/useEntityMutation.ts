@@ -27,6 +27,9 @@ const SLUG_DETAILS = new Set(["slug_exists", "slug_exists_in_destination"]);
 
 function extractError(e: unknown): FieldError {
   if (e instanceof ApiError) {
+    // TODO(i18n): "Request failed" fallback is i18n-deferred — this is a
+    // non-component hook so it cannot call useTranslations. Translate at the
+    // component display site (Shared.requestFailed) when that page is i18n'd.
     const detail = e.detail || "Request failed";
     return {
       detail,

@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get, put } from "@/lib/api";
 import {
@@ -54,6 +55,8 @@ export default function BulkInventoryPage() {
   const searchParams = useSearchParams();
   const activeServiceSlug = searchParams.get("service");
   const { dbUser, token, loading: authLoading } = useAuth();
+  const t = useTranslations("Seller.bulk");
+  const tc = useTranslations("Seller.common");
 
   const [store, setStore] = useState<Store | null>(null);
   const [eligible, setEligible] = useState<EligibleProduct[]>([]);
@@ -250,7 +253,7 @@ export default function BulkInventoryPage() {
       );
     } catch (err) {
       console.error("bulk save failed", err);
-      alert("Save failed. Check rows for errors.");
+      alert(t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -275,9 +278,9 @@ export default function BulkInventoryPage() {
         const errors: SheetRow["errors"] = {};
         const p = parseFloat(next.price);
         if (isNaN(p) || p <= 0 || p > 999999)
-          errors.price = "Price must be > 0 and ≤ 999999";
+          errors.price = t("priceError");
         const s = parseInt(next.stock, 10);
-        if (isNaN(s) || s < 0) errors.stock = "Stock must be ≥ 0";
+        if (isNaN(s) || s < 0) errors.stock = t("stockError");
         next.errors = errors;
         return next;
       }),
@@ -321,37 +324,44 @@ export default function BulkInventoryPage() {
 
   if (authLoading || fetching) {
     return (
-      <div style={{ padding: "2rem", textAlign: "center" }}>Loading…</div>
+      <div style={{ padding: "2rem", textAlign: "center" }}>{tc("loading")}</div>
     );
   }
 
   return (
     <div className={styles.page}>
       <div className={styles.mobileBanner}>
-        Bulk editor works best on a wider screen. Open from a desktop browser to use it comfortably.
+        {t("mobileBanner")}
       </div>
       <div className={styles.toolbar}>
         <Link href="/seller/inventory" className="btn btn-outline">
-          ← Single edit
+          {t("singleEdit")}
         </Link>
         <button
           className="btn btn-primary"
           onClick={openPickerGlobal}
           disabled={!store}
         >
-          + Add products
+          {t("addProducts")}
         </button>
         <button
           className="btn btn-primary"
           onClick={handleSave}
           disabled={!canSave}
         >
-          {saving ? "Saving…" : `Save ${counts.added + counts.edited} change(s)`}
+          {saving
+            ? tc("saving")
+            : t("saveChanges", { count: counts.added + counts.edited })}
         </button>
       </div>
 
       <div className={styles.statusBar}>
-        {counts.added} new · {counts.edited} edited · {counts.invalid} invalid · {counts.total} total
+        {t("statusBar", {
+          added: counts.added,
+          edited: counts.edited,
+          invalid: counts.invalid,
+          total: counts.total,
+        })}
       </div>
 
       <BulkFillToolbar
@@ -380,7 +390,7 @@ export default function BulkInventoryPage() {
       )}
 
       {activeBucket && activeBucket.categories.length > 0 && (
-        <nav className={styles.categoryNav} aria-label="Categories">
+        <nav className={styles.categoryNav} aria-label={t("categoriesAria")}>
           {activeBucket.categories.map(({ category, rows: catRows }) => (
             <a
               key={category.id}
@@ -396,13 +406,13 @@ export default function BulkInventoryPage() {
 
       {buckets.length === 0 && (
         <div className={styles.servicesEmpty}>
-          No services linked to this store. Contact admin.
+          {t("noServices")}
         </div>
       )}
 
       {activeBucket && activeBucket.categories.length === 0 && (
         <div className={styles.servicesEmpty}>
-          No categories in this service yet.
+          {t("noCategories")}
         </div>
       )}
 
@@ -423,12 +433,12 @@ export default function BulkInventoryPage() {
                 openPickerForCategory(activeBucket.service.id, category.id)
               }
             >
-              + Add
+              {t("add")}
             </button>
           </header>
           {catRows.length === 0 ? (
             <div className={styles.emptyCategory}>
-              No rows in this category yet.{" "}
+              {t("noRowsInCategory")}{" "}
               <button
                 className={styles.categoryAddBtn}
                 style={{ marginLeft: "var(--space-2)" }}
@@ -436,7 +446,7 @@ export default function BulkInventoryPage() {
                   openPickerForCategory(activeBucket.service.id, category.id)
                 }
               >
-                + Add
+                {t("add")}
               </button>
             </div>
           ) : (

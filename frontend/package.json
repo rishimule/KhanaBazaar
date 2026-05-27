@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:i18n": "node scripts/check-message-parity.mjs"
   },
   "dependencies": {
     "@bprogress/next": "^3.2.12",

@@ -4,23 +4,17 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import DashboardLayout from "@/components/DashboardLayout";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/lib/AuthContext";
-
-const ADMIN_NAV = [
-  { href: "/admin", label: "Dashboard", icon: "📊" },
-  { href: "/admin/orders", label: "Orders", icon: "📦" },
-  { href: "/admin/sellers", label: "Sellers", icon: "🏪" },
-  { href: "/admin/sellers/applications", label: "Applications", icon: "✅" },
-  { href: "/admin/catalog", label: "Catalog", icon: "🗂️" },
-];
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations("Admin");
   const pathname = usePathname();
   const router = useRouter();
   const { dbUser, loading } = useAuth();
@@ -32,32 +26,40 @@ export default function AdminLayout({
   }, [loading, dbUser, router]);
 
   if (loading || !dbUser || dbUser.role !== "admin") {
-    return <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-neutral-500)" }}>Loading…</div>;
+    return <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-neutral-500)" }}>{t("common.loading")}</div>;
   }
+
+  const adminNav = [
+    { href: "/admin", label: t("nav.dashboard"), icon: "📊" },
+    { href: "/admin/orders", label: t("nav.orders"), icon: "📦" },
+    { href: "/admin/sellers", label: t("nav.sellers"), icon: "🏪" },
+    { href: "/admin/sellers/applications", label: t("nav.applications"), icon: "✅" },
+    { href: "/admin/catalog", label: t("nav.catalog"), icon: "🗂️" },
+  ];
 
   const title =
     pathname === "/admin"
-      ? "Admin Dashboard"
+      ? t("titles.dashboard")
       : pathname === "/admin/sellers"
-        ? "Sellers"
+        ? t("titles.sellers")
         : pathname.startsWith("/admin/sellers/applications")
-          ? "Seller Applications"
+          ? t("titles.applications")
           : pathname.startsWith("/admin/sellers/")
-            ? "Seller Store"
+            ? t("titles.sellerStore")
             : pathname.startsWith("/admin/catalog")
-              ? "Catalog"
+              ? t("titles.catalog")
               : pathname.startsWith("/admin/orders")
-                ? "All Orders"
-                : "Admin Panel";
+                ? t("titles.orders")
+                : t("titles.panel");
 
   return (
     <>
       <Navbar variant="dashboard" />
       <DashboardLayout
         role="admin"
-        roleName="Platform Admin"
+        roleName={t("common.adminName")}
         title={title}
-        navItems={ADMIN_NAV}
+        navItems={adminNav}
       >
         {children}
       </DashboardLayout>

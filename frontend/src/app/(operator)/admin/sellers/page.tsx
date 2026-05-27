@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import DataTable, { Column } from "@/components/DataTable";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
@@ -18,19 +19,21 @@ import { ApplicationCounts, SellerApplication } from "@/types";
 import styles from "./page.module.css";
 import mobileStyles from "@/components/DataTableCard.module.css";
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: ReturnType<typeof useTranslations>): string {
   const diff = Date.now() - new Date(iso).getTime();
   const sec = Math.floor(diff / 1000);
-  if (sec < 60) return `${sec}s ago`;
+  if (sec < 60) return t("timeAgo.seconds", { n: sec });
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
+  if (min < 60) return t("timeAgo.minutes", { n: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
+  if (hr < 24) return t("timeAgo.hours", { n: hr });
   const day = Math.floor(hr / 24);
-  return `${day}d ago`;
+  return t("timeAgo.days", { n: day });
 }
 
 export default function AdminSellersListPage() {
+  const t = useTranslations("Admin.sellers");
+  const tc = useTranslations("Admin.common");
   const router = useRouter();
   const { dbUser, token, loading: authLoading } = useAuth();
 
@@ -77,12 +80,12 @@ export default function AdminSellersListPage() {
   const columns: Column<SellerApplication>[] = [
     {
       key: "business_name",
-      label: "Business",
+      label: t("col.business"),
       render: (row) => <strong>{row.business_name}</strong>,
     },
     {
       key: "owner",
-      label: "Owner",
+      label: t("col.owner"),
       render: (row) => (
         <div className={styles.ownerCell}>
           <span>{row.full_name}</span>
@@ -92,7 +95,7 @@ export default function AdminSellersListPage() {
     },
     {
       key: "services",
-      label: "Services",
+      label: t("col.services"),
       render: (row) => {
         const visible = row.services.slice(0, 2);
         const extra = row.services.length - visible.length;
@@ -104,7 +107,7 @@ export default function AdminSellersListPage() {
               </span>
             ))}
             {extra > 0 && (
-              <span className={styles.categoryBadge}>+{extra} more</span>
+              <span className={styles.categoryBadge}>{t("moreServices", { n: extra })}</span>
             )}
           </span>
         );
@@ -112,12 +115,12 @@ export default function AdminSellersListPage() {
     },
     {
       key: "submitted_at",
-      label: "Joined",
-      render: (row) => timeAgo(row.submitted_at),
+      label: t("col.joined"),
+      render: (row) => timeAgo(row.submitted_at, t),
     },
     {
       key: "actions",
-      label: "Actions",
+      label: t("col.actions"),
       render: (row) => (
         <Link
           href={`/admin/sellers/${row.seller_id}/products`}
@@ -128,7 +131,7 @@ export default function AdminSellersListPage() {
             alignItems: "center",
           }}
         >
-          View store
+          {t("viewStore")}
         </Link>
       ),
     },
@@ -143,7 +146,7 @@ export default function AdminSellersListPage() {
           color: "var(--color-neutral-500)",
         }}
       >
-        Loading…
+        {tc("loading")}
       </div>
     );
   }
@@ -160,14 +163,14 @@ export default function AdminSellersListPage() {
           }}
         >
           <span style={{ color: "var(--color-neutral-600)" }}>
-            {sellers.length} approved seller{sellers.length === 1 ? "" : "s"}
+            {t("approvedCount", { n: sellers.length })}
           </span>
           <Link
             href="/admin/sellers/applications"
             className="btn btn-primary"
             style={{ textDecoration: "none" }}
           >
-            Manage applications
+            {t("manageApplications")}
             {counts.pending > 0 && (
               <span
                 style={{
@@ -189,7 +192,7 @@ export default function AdminSellersListPage() {
         columns={columns}
         data={sellers}
         keyField="seller_id"
-        emptyMessage="No approved sellers yet. Approve one from the applications page."
+        emptyMessage={t("empty")}
         mobileCardRender={(row) => (
           <>
             <div className={mobileStyles.cardTopRow}>
@@ -200,8 +203,10 @@ export default function AdminSellersListPage() {
               <span className={styles.ownerEmail}>{row.email}</span>
             </div>
             <div className={mobileStyles.cardMeta}>
-              {row.services.length} service{row.services.length === 1 ? "" : "s"}{" "}
-              · joined {timeAgo(row.submitted_at)}
+              {t("cardMeta", {
+                n: row.services.length,
+                ago: timeAgo(row.submitted_at, t),
+              })}
             </div>
             <Link
               href={`/admin/sellers/${row.seller_id}/products`}
@@ -215,7 +220,7 @@ export default function AdminSellersListPage() {
                 justifyContent: "center",
               }}
             >
-              View store
+              {t("viewStore")}
             </Link>
           </>
         )}

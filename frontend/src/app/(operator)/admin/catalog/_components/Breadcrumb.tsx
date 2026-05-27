@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import styles from "./Breadcrumb.module.css";
 
 export interface BreadcrumbCrumb {
@@ -11,8 +12,9 @@ export interface BreadcrumbCrumb {
 }
 
 export function Breadcrumb({ crumbs }: { crumbs: BreadcrumbCrumb[] }) {
+  const t = useTranslations("Admin.catalog");
   return (
-    <nav aria-label="Breadcrumb" className={styles.bar}>
+    <nav aria-label={t("breadcrumbAria")} className={styles.bar}>
       {crumbs.map((c, i) => {
         const last = i === crumbs.length - 1;
         return (

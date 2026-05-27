@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import styles from "./ImpersonationBanner.module.css";
 
 interface Props {
@@ -19,25 +20,27 @@ export default function ImpersonationBanner({
   verificationStatus,
   variant = "acting",
 }: Props) {
+  const t = useTranslations("Admin.impersonation");
+  const ts = useTranslations("Admin.applications.status");
   return (
     <div className={styles.bar} role="status" aria-live="polite">
       <span className={styles.icon} aria-hidden>
         ⚠️
       </span>
       <span className={styles.copy}>
-        {variant === "acting" ? (
-          <>
-            <strong>Acting as</strong> {businessName} — changes are logged
-          </>
-        ) : (
-          <>
-            <strong>{businessName}</strong> — admin activity log
-          </>
-        )}
+        {variant === "acting"
+          ? t.rich("acting", {
+              name: businessName,
+              strong: (c) => <strong>{c}</strong>,
+            })
+          : t.rich("viewing", {
+              name: businessName,
+              strong: (c) => <strong>{c}</strong>,
+            })}
       </span>
-      <span className={styles.status}>{verificationStatus}</span>
+      <span className={styles.status}>{ts(verificationStatus)}</span>
       <Link href="/admin/sellers" className={styles.exit}>
-        Exit
+        {t("exit")}
       </Link>
     </div>
   );

@@ -1,5 +1,7 @@
+"use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import { useTranslations } from "next-intl";
 import styles from "./DataTable.module.css";
 
 export interface Column<T> {
@@ -24,15 +26,16 @@ export default function DataTable<T extends object>({
   keyField,
   onEdit,
   onDelete,
-  emptyMessage = "No data to display",
+  emptyMessage,
   mobileCardRender,
 }: Props<T>) {
+  const t = useTranslations("Shared");
   if (data.length === 0) {
     return (
       <div className={styles.tableWrap}>
         <div className={styles.empty}>
           <div className={styles.emptyIcon}>📋</div>
-          <p className={styles.emptyText}>{emptyMessage}</p>
+          <p className={styles.emptyText}>{emptyMessage ?? t("dataTable.empty")}</p>
         </div>
       </div>
     );
@@ -50,7 +53,7 @@ export default function DataTable<T extends object>({
             {columns.map((col) => (
               <th key={col.key}>{col.label}</th>
             ))}
-            {hasActions && <th>Actions</th>}
+            {hasActions && <th>{t("dataTable.actions")}</th>}
           </tr>
         </thead>
         <tbody>
@@ -73,7 +76,7 @@ export default function DataTable<T extends object>({
                           className={`${styles.actionBtn} ${styles.editBtn}`}
                           onClick={() => onEdit(row)}
                         >
-                          Edit
+                          {t("edit")}
                         </button>
                       )}
                       {onDelete && (
@@ -81,7 +84,7 @@ export default function DataTable<T extends object>({
                           className={`${styles.actionBtn} ${styles.deleteBtn}`}
                           onClick={() => onDelete(row)}
                         >
-                          Delete
+                          {t("delete")}
                         </button>
                       )}
                     </div>
@@ -107,7 +110,7 @@ export default function DataTable<T extends object>({
                         className={`${styles.actionBtn} ${styles.editBtn}`}
                         onClick={() => onEdit(row)}
                       >
-                        Edit
+                        {t("edit")}
                       </button>
                     )}
                     {onDelete && (
@@ -115,7 +118,7 @@ export default function DataTable<T extends object>({
                         className={`${styles.actionBtn} ${styles.deleteBtn}`}
                         onClick={() => onDelete(row)}
                       >
-                        Delete
+                        {t("delete")}
                       </button>
                     )}
                   </div>
