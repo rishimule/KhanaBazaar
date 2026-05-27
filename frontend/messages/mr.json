@@ -1411,7 +1411,7 @@
       }
     },
     "impersonation": {
-      "acting": "<strong>म्हणून कार्य करत आहात</strong> {name} — बदल लॉग केले जातात",
+      "acting": "{name} <strong>म्हणून कार्य करत आहात</strong> — बदल लॉग केले जातात",
       "viewing": "<strong>{name}</strong> — अॅडमिन क्रियाकलाप लॉग",
       "exit": "बाहेर पडा"
     }

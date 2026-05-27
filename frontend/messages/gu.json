@@ -1411,7 +1411,7 @@
       }
     },
     "impersonation": {
-      "acting": "<strong>તરીકે કાર્ય કરી રહ્યા છો</strong> {name} — ફેરફારો લોગ થાય છે",
+      "acting": "{name} <strong>તરીકે કાર્ય કરી રહ્યા છો</strong> — ફેરફારો લોગ થાય છે",
       "viewing": "<strong>{name}</strong> — એડમિન પ્રવૃત્તિ લોગ",
       "exit": "બહાર નીકળો"
     }

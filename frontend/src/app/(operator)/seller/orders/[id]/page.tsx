@@ -18,6 +18,7 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
   const { id } = use(params);
   const t = useTranslations("Seller.orderDetail");
   const tc = useTranslations("Seller.common");
+  const tp = useTranslations("Shared.paymentStatus");
   const { token } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("payment")}</h2>
-        <p>{order.payment.method.toUpperCase()} · {order.payment.status}</p>
+        <p>{order.payment.method.toUpperCase()} · {tp(order.payment.status)}</p>
       </section>
 
       <section className={styles.section}>

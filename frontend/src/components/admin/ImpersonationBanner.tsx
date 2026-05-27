@@ -21,6 +21,7 @@ export default function ImpersonationBanner({
   variant = "acting",
 }: Props) {
   const t = useTranslations("Admin.impersonation");
+  const ts = useTranslations("Admin.applications.status");
   return (
     <div className={styles.bar} role="status" aria-live="polite">
       <span className={styles.icon} aria-hidden>
@@ -37,7 +38,7 @@ export default function ImpersonationBanner({
               strong: (c) => <strong>{c}</strong>,
             })}
       </span>
-      <span className={styles.status}>{verificationStatus}</span>
+      <span className={styles.status}>{ts(verificationStatus)}</span>
       <Link href="/admin/sellers" className={styles.exit}>
         {t("exit")}
       </Link>

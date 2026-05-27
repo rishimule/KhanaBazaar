@@ -5,6 +5,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
+import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusBadge from "@/components/orders/PaymentStatusBadge";
 import { useAuth } from "@/lib/AuthContext";
 import { post } from "@/lib/api";
@@ -152,7 +153,7 @@ export default function AdminOrdersTab({
                 <td style={cell}>
                   <Link href={`/admin/orders/${o.id}`}>#{o.id}</Link>
                 </td>
-                <td style={cell}>{o.status}</td>
+                <td style={cell}><OrderStatusBadge status={o.status} /></td>
                 <td style={cell}>
                   <PaymentStatusBadge status={o.payment.status} />
                 </td>

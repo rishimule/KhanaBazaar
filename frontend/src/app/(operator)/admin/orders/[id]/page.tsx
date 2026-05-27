@@ -17,6 +17,7 @@ import styles from "./page.module.css";
 export default function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const t = useTranslations("Admin.orderDetail");
   const tc = useTranslations("Admin.common");
+  const tp = useTranslations("Shared.paymentStatus");
   const { id } = use(params);
   const { token } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
@@ -60,7 +61,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("payment")}</h2>
-        <p>{order.payment.method.toUpperCase()} · {order.payment.status}</p>
+        <p>{order.payment.method.toUpperCase()} · {tp(order.payment.status)}</p>
       </section>
 
       <section className={styles.section}>

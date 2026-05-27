@@ -15,6 +15,7 @@ export default function SellerProfileTab({
   const { id } = use(params);
   const t = useTranslations("Admin.sellerHub");
   const tc = useTranslations("Admin.common");
+  const ts = useTranslations("Admin.applications.status");
   const { token } = useAuth();
   const [hub, setHub] = useState<SellerHubSummary | null>(null);
   const [minError, setMinError] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export default function SellerProfileTab({
   const row: { label: string; value: React.ReactNode }[] = [
     { label: t("profile.businessName"), value: hub.business_name },
     { label: t("profile.ownerEmail"), value: hub.email },
-    { label: t("profile.verificationStatus"), value: hub.verification_status },
+    { label: t("profile.verificationStatus"), value: ts(hub.verification_status) },
     { label: t("profile.storeId"), value: hub.store_id ?? "—" },
     { label: t("profile.activeOrders"), value: hub.active_order_count },
     { label: t("profile.totalProducts"), value: hub.total_product_count },

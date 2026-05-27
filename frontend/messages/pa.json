@@ -1411,7 +1411,7 @@
       }
     },
     "impersonation": {
-      "acting": "<strong>ਵਜੋਂ ਕੰਮ ਕਰ ਰਹੇ ਹੋ</strong> {name} — ਤਬਦੀਲੀਆਂ ਲੌਗ ਕੀਤੀਆਂ ਜਾਂਦੀਆਂ ਹਨ",
+      "acting": "{name} <strong>ਵਜੋਂ ਕੰਮ ਕਰ ਰਹੇ ਹੋ</strong> — ਤਬਦੀਲੀਆਂ ਲੌਗ ਕੀਤੀਆਂ ਜਾਂਦੀਆਂ ਹਨ",
       "viewing": "<strong>{name}</strong> — ਐਡਮਿਨ ਗਤੀਵਿਧੀ ਲੌਗ",
       "exit": "ਬਾਹਰ ਜਾਓ"
     }
