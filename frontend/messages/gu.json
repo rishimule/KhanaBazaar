@@ -883,7 +883,10 @@
       "yourPricePlaceholder": "આધાર કિંમત વાપરવા માટે ખાલી છોડો",
       "stockQtyLabel": "સ્ટોક જથ્થો",
       "stockQtyPlaceholder": "0",
-      "addToStore": "ઉત્પાદન ઉમેરો"
+      "addToStore": "ઉત્પાદન ઉમેરો",
+      "searchBtn": "🔍 શોધો",
+      "searchInventoryPlaceholder": "તમારી ઇન્વેન્ટરી શોધો…",
+      "servicesAria": "સેવાઓ"
     },
     "bulk": {
       "mobileBanner": "બલ્ક એડિટર મોટી સ્ક્રીન પર શ્રેષ્ઠ ચાલે છે. આરામથી ઉપયોગ માટે તેને ડેસ્કટોપ બ્રાઉઝરમાં ખોલો.",

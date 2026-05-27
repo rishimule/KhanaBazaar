@@ -883,7 +883,10 @@
       "yourPricePlaceholder": "आधार किंमत वापरण्यासाठी रिकामे ठेवा",
       "stockQtyLabel": "स्टॉक प्रमाण",
       "stockQtyPlaceholder": "0",
-      "addToStore": "उत्पादन जोडा"
+      "addToStore": "उत्पादन जोडा",
+      "searchBtn": "🔍 शोधा",
+      "searchInventoryPlaceholder": "तुमची इन्व्हेंटरी शोधा…",
+      "servicesAria": "सेवा"
     },
     "bulk": {
       "mobileBanner": "बल्क एडिटर मोठ्या स्क्रीनवर उत्तम चालतो. आरामात वापरण्यासाठी तो डेस्कटॉप ब्राउझरमध्ये उघडा.",
