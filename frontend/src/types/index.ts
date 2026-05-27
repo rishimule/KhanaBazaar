@@ -24,6 +24,7 @@ export interface User extends BaseSchema {
   email: string;
   is_active: boolean;
   role: UserRole;
+  preferred_language: string;
   full_name?: string;
 }
 
