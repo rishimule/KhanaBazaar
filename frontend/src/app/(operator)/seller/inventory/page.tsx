@@ -5,6 +5,7 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal, { modalStyles } from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
@@ -67,9 +68,10 @@ function InventoryServiceTabs({
 }
 
 function InventoryCategoryNav({ categories }: { categories: CategoryBucket[] }) {
+  const t = useTranslations("Seller.inventory");
   if (categories.length === 0) return null;
   return (
-    <nav className={styles.categoryNav} aria-label="Categories">
+    <nav className={styles.categoryNav} aria-label={t("categoriesAria")}>
       {categories.map(({ category, items }) => (
         <a
           key={category.id}
@@ -85,6 +87,8 @@ function InventoryCategoryNav({ categories }: { categories: CategoryBucket[] }) 
 }
 
 export default function SellerInventoryPage() {
+  const t = useTranslations("Seller.inventory");
+  const tc = useTranslations("Seller.common");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -197,19 +201,19 @@ export default function SellerInventoryPage() {
   const columns: Column<InventoryWithProduct>[] = [
     {
       key: "product_name",
-      label: "Product",
+      label: t("colProduct"),
       render: (row) => <strong>{row.product.name}</strong>,
     },
     {
       key: "subcategory",
-      label: "Subcategory",
+      label: t("colSubcategory"),
       render: (row) => row.product.subcategory_name,
     },
-    { key: "price", label: "Price (₹)", render: (row) => `₹${row.price}` },
-    { key: "stock", label: "Stock", render: (row) => String(row.stock) },
+    { key: "price", label: t("colPrice"), render: (row) => `₹${row.price}` },
+    { key: "stock", label: t("colStock"), render: (row) => String(row.stock) },
     {
       key: "is_available",
-      label: "Status",
+      label: t("colStatus"),
       render: (row) => (
         <button
           className={`${styles.toggleBtn} ${
@@ -217,7 +221,7 @@ export default function SellerInventoryPage() {
           }`}
           onClick={() => toggleAvailability(row)}
         >
-          {row.is_available ? "Available" : "Unavailable"}
+          {row.is_available ? t("available") : t("unavailable")}
         </button>
       ),
     },
@@ -323,7 +327,7 @@ export default function SellerInventoryPage() {
   if (authLoading || fetching) {
     return (
       <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
-        Loading…
+        {tc("loading")}
       </div>
     );
   }
@@ -332,17 +336,17 @@ export default function SellerInventoryPage() {
     <>
       <div className={styles.toolbar}>
         <span className={styles.toolbarLeft}>
-          {inventory.length} products in store
+          {t("productCount", { count: inventory.length })}
         </span>
         <Link href="/seller/inventory/bulk" className="btn btn-outline">
-          Bulk edit →
+          {t("bulkEdit")}
         </Link>
         <button
           className={styles.addBtn}
           onClick={() => openAdd()}
           disabled={availableProducts.length === 0}
         >
-          + Add Product
+          {t("addProduct")}
         </button>
       </div>
 
@@ -358,13 +362,13 @@ export default function SellerInventoryPage() {
 
       {buckets.length === 0 && (
         <div className={styles.servicesEmpty}>
-          No services linked to this store. Contact admin.
+          {t("noServices")}
         </div>
       )}
 
       {activeBucket && activeBucket.categories.length === 0 && (
         <div className={styles.servicesEmpty}>
-          No categories in this service yet.
+          {t("noCategories")}
         </div>
       )}
 
@@ -383,18 +387,18 @@ export default function SellerInventoryPage() {
               className={styles.categoryAddBtn}
               onClick={() => openAdd(bucket.category.id)}
             >
-              + Add
+              {t("addShort")}
             </button>
           </header>
           {bucket.items.length === 0 ? (
             <div className={styles.emptyCategory}>
-              No products in this category yet.{" "}
+              {t("noProductsInCategory")}{" "}
               <button
                 className={styles.categoryAddBtn}
                 style={{ marginLeft: "var(--space-2)" }}
                 onClick={() => openAdd(bucket.category.id)}
               >
-                + Add
+                {t("addShort")}
               </button>
             </div>
           ) : (
@@ -411,7 +415,7 @@ export default function SellerInventoryPage() {
                     <span className={mobileStyles.cardPriceRight}>₹{row.price}</span>
                   </div>
                   <div className={mobileStyles.cardMeta}>
-                    {row.product.subcategory_name} • Stock: {row.stock}
+                    {row.product.subcategory_name} • {t("stockMobile", { stock: row.stock })}
                   </div>
                   <button
                     className={`${styles.toggleBtn} ${
@@ -420,7 +424,7 @@ export default function SellerInventoryPage() {
                     style={{ width: "100%", minHeight: 44 }}
                     onClick={() => toggleAvailability(row)}
                   >
-                    {row.is_available ? "Available" : "Unavailable"}
+                    {row.is_available ? t("available") : t("unavailable")}
                   </button>
                 </>
               )}
@@ -431,17 +435,17 @@ export default function SellerInventoryPage() {
 
       {editItem && (
         <Modal
-          title={`Edit — ${editItem.product.name}`}
+          title={t("editTitle", { name: editItem.product.name })}
           onClose={() => setEditItem(null)}
           footer={
             <>
-              <button className="btn btn-outline" onClick={() => setEditItem(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSaveEdit}>Save Changes</button>
+              <button className="btn btn-outline" onClick={() => setEditItem(null)}>{tc("cancel")}</button>
+              <button className="btn btn-primary" onClick={handleSaveEdit}>{t("saveChanges")}</button>
             </>
           }
         >
           <div className={modalStyles.formGroup}>
-            <label className={modalStyles.label}>Price (₹)</label>
+            <label className={modalStyles.label}>{t("priceLabel")}</label>
             <input
               type="number"
               className={modalStyles.input}
@@ -452,7 +456,7 @@ export default function SellerInventoryPage() {
             />
           </div>
           <div className={modalStyles.formGroup}>
-            <label className={modalStyles.label}>Stock</label>
+            <label className={modalStyles.label}>{t("stockFieldLabel")}</label>
             <input
               type="number"
               className={modalStyles.input}
@@ -477,29 +481,29 @@ export default function SellerInventoryPage() {
 
         return (
         <Modal
-          title="Add Product to Store"
+          title={t("addTitle")}
           onClose={closeAdd}
           footer={
             <>
               <button className="btn btn-outline" onClick={closeAdd}>
-                Cancel
+                {tc("cancel")}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleAdd}
                 disabled={!selectionValid}
               >
-                Add Product
+                {t("addToStore")}
               </button>
             </>
           }
         >
           <div className={modalStyles.formGroup}>
-            <label className={modalStyles.label}>Product</label>
+            <label className={modalStyles.label}>{t("productLabel")}</label>
             <input
               type="search"
               className={styles.searchInput}
-              placeholder="Search products…"
+              placeholder={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -510,21 +514,21 @@ export default function SellerInventoryPage() {
               {visibleProducts.length === 0 ? (
                 <div className={styles.productListEmpty}>
                   {q ? (
-                    `No products match "${searchQuery}".`
+                    t("noMatch", { query: searchQuery })
                   ) : presetActive ? (
                     <>
-                      All products in this category are already in your inventory.
+                      {t("allInCategory")}
                       <br />
                       <button
                         type="button"
                         className={styles.showAllBtn}
                         onClick={() => setShowAll(true)}
                       >
-                        Show all products
+                        {t("showAll")}
                       </button>
                     </>
                   ) : (
-                    "All available products are already in your inventory."
+                    t("allInInventory")
                   )}
                 </div>
               ) : (
@@ -550,25 +554,25 @@ export default function SellerInventoryPage() {
             </div>
           </div>
           <div className={modalStyles.formGroup}>
-            <label className={modalStyles.label}>Your Price (₹)</label>
+            <label className={modalStyles.label}>{t("yourPriceLabel")}</label>
             <input
               type="number"
               className={modalStyles.input}
               value={formPrice}
               onChange={(e) => setFormPrice(e.target.value)}
-              placeholder="Leave blank to use base price"
+              placeholder={t("yourPricePlaceholder")}
               min="0"
               step="0.01"
             />
           </div>
           <div className={modalStyles.formGroup}>
-            <label className={modalStyles.label}>Stock Quantity</label>
+            <label className={modalStyles.label}>{t("stockQtyLabel")}</label>
             <input
               type="number"
               className={modalStyles.input}
               value={formStock}
               onChange={(e) => setFormStock(e.target.value)}
-              placeholder="0"
+              placeholder={t("stockQtyPlaceholder")}
               min="0"
             />
           </div>
