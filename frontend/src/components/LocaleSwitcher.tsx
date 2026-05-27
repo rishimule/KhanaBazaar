@@ -6,7 +6,9 @@ import { useLocale } from "next-intl";
 import { useTransition } from "react";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
-import { isI18nUnsupported } from "@/i18n/unsupported-routes";
+import { localeMode } from "@/i18n/unsupported-routes";
+import { useAuth } from "@/lib/AuthContext";
+import { persistUserLanguage, setLocaleCookie } from "@/lib/operatorLocale";
 import styles from "./LocaleSwitcher.module.css";
 
 const LABELS: Record<string, string> = {
@@ -21,25 +23,29 @@ export default function LocaleSwitcher() {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
+  const { token } = useAuth();
   const [pending, startTransition] = useTransition();
 
-  const unsupported = isI18nUnsupported(pathname);
-  const disabled = pending || unsupported;
+  const mode = localeMode(pathname);
+  if (mode === "none") return null;
+
+  const onChange = (next: string) => {
+    if (mode === "cookie") {
+      setLocaleCookie(next);
+      void persistUserLanguage(next, token);
+      startTransition(() => router.refresh());
+    } else {
+      startTransition(() => router.replace(pathname, { locale: next }));
+    }
+  };
 
   return (
     <select
-      className={`${styles.select} ${unsupported ? styles.disabled : ""}`}
+      className={styles.select}
       value={locale}
-      disabled={disabled}
-      title={unsupported ? "Translation coming soon" : undefined}
-      aria-disabled={unsupported}
+      disabled={pending}
       aria-label="Change language"
-      onChange={(e) => {
-        const next = e.target.value;
-        startTransition(() => {
-          router.replace(pathname, { locale: next });
-        });
-      }}
+      onChange={(e) => onChange(e.target.value)}
     >
       {routing.locales.map((code) => (
         <option key={code} value={code}>
