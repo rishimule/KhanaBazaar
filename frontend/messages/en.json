@@ -882,7 +882,10 @@
       "yourPricePlaceholder": "Leave blank to use base price",
       "stockQtyLabel": "Stock Quantity",
       "stockQtyPlaceholder": "0",
-      "addToStore": "Add Product"
+      "addToStore": "Add Product",
+      "searchBtn": "🔍 Search",
+      "searchInventoryPlaceholder": "Search your inventory…",
+      "servicesAria": "Services"
     },
     "bulk": {
       "mobileBanner": "Bulk editor works best on a wider screen. Open from a desktop browser to use it comfortably.",

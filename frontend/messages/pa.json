@@ -883,7 +883,10 @@
       "yourPricePlaceholder": "ਆਧਾਰ ਕੀਮਤ ਵਰਤਣ ਲਈ ਖਾਲੀ ਛੱਡੋ",
       "stockQtyLabel": "ਸਟਾਕ ਮਾਤਰਾ",
       "stockQtyPlaceholder": "0",
-      "addToStore": "ਉਤਪਾਦ ਸ਼ਾਮਲ ਕਰੋ"
+      "addToStore": "ਉਤਪਾਦ ਸ਼ਾਮਲ ਕਰੋ",
+      "searchBtn": "🔍 ਖੋਜੋ",
+      "searchInventoryPlaceholder": "ਆਪਣੀ ਇਨਵੈਂਟਰੀ ਖੋਜੋ…",
+      "servicesAria": "ਸੇਵਾਵਾਂ"
     },
     "bulk": {
       "mobileBanner": "ਬਲਕ ਐਡੀਟਰ ਵੱਡੀ ਸਕ੍ਰੀਨ 'ਤੇ ਸਭ ਤੋਂ ਵਧੀਆ ਚੱਲਦਾ ਹੈ। ਆਰਾਮ ਨਾਲ ਵਰਤਣ ਲਈ ਇਸਨੂੰ ਡੈਸਕਟਾਪ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਖੋਲ੍ਹੋ।",

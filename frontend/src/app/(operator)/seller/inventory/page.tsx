@@ -18,6 +18,9 @@ import {
   Service,
 } from "@/types";
 
+import { ScrollRail } from "@/components/ScrollRail";
+import { serviceGlyph } from "@/lib/serviceGlyph";
+
 import styles from "./page.module.css";
 import mobileStyles from "@/components/DataTableCard.module.css";
 
@@ -45,24 +48,30 @@ function InventoryServiceTabs({
   activeId: number | null;
   onChange: (slug: string) => void;
 }) {
+  const t = useTranslations("Seller.inventory");
   if (buckets.length === 0) return null;
   return (
-    <div className={styles.serviceTabs} role="tablist">
-      {buckets.map(({ service, totalCount }) => {
-        const isActive = service.id === activeId;
-        return (
-          <button
-            key={service.id}
-            role="tab"
-            aria-selected={isActive}
-            className={`${styles.serviceTab} ${isActive ? styles.serviceTabActive : ""}`}
-            onClick={() => onChange(service.slug)}
-          >
-            {service.name}
-            <span className={styles.serviceTabCount}>({totalCount})</span>
-          </button>
-        );
-      })}
+    <div className={styles.serviceTileRail}>
+      <ScrollRail ariaLabel={t("servicesAria")}>
+        {buckets.map(({ service, totalCount }) => {
+          const isActive = service.id === activeId;
+          return (
+            <button
+              key={service.id}
+              type="button"
+              className={`${styles.svcTile} ${isActive ? styles.svcTileActive : ""}`}
+              onClick={() => onChange(service.slug)}
+              aria-current={isActive ? "true" : undefined}
+            >
+              <span className={styles.svcTileGlyph} aria-hidden>
+                {serviceGlyph(service.slug)}
+              </span>
+              <span className={styles.svcTileLabel}>{service.name}</span>
+              <span className={styles.svcTileCount}>{totalCount}</span>
+            </button>
+          );
+        })}
+      </ScrollRail>
     </div>
   );
 }
@@ -109,6 +118,8 @@ export default function SellerInventoryPage() {
   const [presetCategoryId, setPresetCategoryId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchModalQuery, setSearchModalQuery] = useState("");
 
   useEffect(() => {
     if (!authLoading && (!dbUser || dbUser.role !== "seller")) {
@@ -338,6 +349,16 @@ export default function SellerInventoryPage() {
         <span className={styles.toolbarLeft}>
           {t("productCount", { count: inventory.length })}
         </span>
+        <button
+          className="btn btn-outline"
+          onClick={() => {
+            setSearchModalQuery("");
+            setShowSearch(true);
+          }}
+          disabled={inventory.length === 0}
+        >
+          {t("searchBtn")}
+        </button>
         <Link href="/seller/inventory/bulk" className="btn btn-outline">
           {t("bulkEdit")}
         </Link>
@@ -467,6 +488,62 @@ export default function SellerInventoryPage() {
           </div>
         </Modal>
       )}
+
+      {showSearch && (() => {
+        const q = searchModalQuery.trim().toLowerCase();
+        const results = q
+          ? inventory.filter(
+              (i) =>
+                i.product.name.toLowerCase().includes(q) ||
+                i.product.subcategory_name.toLowerCase().includes(q),
+            )
+          : inventory;
+        return (
+          <Modal title={t("searchBtn")} onClose={() => setShowSearch(false)}>
+            <input
+              type="search"
+              className={styles.searchInput}
+              placeholder={t("searchInventoryPlaceholder")}
+              value={searchModalQuery}
+              onChange={(e) => setSearchModalQuery(e.target.value)}
+              autoFocus
+            />
+            <div
+              className={styles.productList}
+              style={{ marginTop: "var(--space-3)" }}
+            >
+              {results.length === 0 ? (
+                <div className={styles.productListEmpty}>
+                  {t("noMatch", { query: searchModalQuery })}
+                </div>
+              ) : (
+                results.map((item) => (
+                  <div key={item.id} className={styles.searchResultRow}>
+                    <div className={styles.searchResultInfo}>
+                      <span className={styles.searchResultName}>
+                        {item.product.name}
+                      </span>
+                      <span className={styles.searchResultMeta}>
+                        {item.product.subcategory_name} • ₹{item.price} •{" "}
+                        {t("stockMobile", { stock: item.stock })}
+                      </span>
+                    </div>
+                    <button
+                      className={styles.categoryAddBtn}
+                      onClick={() => {
+                        setShowSearch(false);
+                        handleEdit(item);
+                      }}
+                    >
+                      {tc("edit")}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
 
       {showAdd && (() => {
         const presetActive = presetCategoryId !== null && !showAll;
