@@ -288,6 +288,37 @@
   font-style: italic;
 }
 
+.searchResultRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-neutral-100);
+}
+
+.searchResultRow:last-child {
+  border-bottom: none;
+}
+
+.searchResultInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.searchResultName {
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-neutral-900);
+}
+
+.searchResultMeta {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+}
+
 .showAllBtn {
   margin-top: var(--space-2);
   background: none;
