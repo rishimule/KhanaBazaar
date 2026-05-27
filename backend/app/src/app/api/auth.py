@@ -35,6 +35,7 @@ from app.core.sms import SMSSender, get_sms_sender
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User, UserRole
+from app.models.catalog import LanguageCode
 from app.models.profile import CustomerProfile, SellerProfile
 from app.schemas.address import address_from_payload
 from app.schemas.sellers import (
@@ -58,6 +59,10 @@ class OTPVerifyBody(BaseModel):
     # `customer_welcome` email subject. CRLF is additionally stripped by
     # `core.email_render.render_email`.
     full_name: str | None = Field(default=None, max_length=120)
+
+
+class UpdateLanguageBody(BaseModel):
+    language: LanguageCode
 
 
 class SellerOtpVerifyBody(BaseModel):
@@ -184,6 +189,17 @@ async def me(
 ) -> dict:  # type: ignore[type-arg]
     full_name = await _full_name_for_user(session, user)
     return _user_payload(user, full_name)
+
+
+@router.patch("/me/language", status_code=204)
+async def update_me_language(
+    body: UpdateLanguageBody,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    user.preferred_language = body.language.value
+    session.add(user)
+    await session.commit()
 
 
 @router.post("/seller/otp/verify")
