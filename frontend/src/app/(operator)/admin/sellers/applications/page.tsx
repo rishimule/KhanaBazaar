@@ -5,6 +5,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
@@ -16,19 +17,21 @@ import mobileStyles from "@/components/DataTableCard.module.css";
 
 type Filter = VerificationStatus | "all";
 
-function timeAgo(iso: string): string {
+type Translator = ReturnType<typeof useTranslations>;
+
+function timeAgo(iso: string, t: Translator): string {
   const diff = Date.now() - new Date(iso).getTime();
   const sec = Math.floor(diff / 1000);
-  if (sec < 60) return `${sec}s ago`;
+  if (sec < 60) return t("timeAgo.seconds", { n: sec });
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
+  if (min < 60) return t("timeAgo.minutes", { n: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
+  if (hr < 24) return t("timeAgo.hours", { n: hr });
   const day = Math.floor(hr / 24);
-  return `${day}d ago`;
+  return t("timeAgo.days", { n: day });
 }
 
-function statusPill(status: VerificationStatus) {
+function statusPill(status: VerificationStatus, t: Translator) {
   const cls =
     status === "pending" ? styles.statusPending :
     status === "approved" ? styles.statusApproved :
@@ -36,12 +39,14 @@ function statusPill(status: VerificationStatus) {
   const icon = status === "pending" ? "🟡" : status === "approved" ? "🟢" : "🔴";
   return (
     <span className={`${styles.statusPill} ${cls}`}>
-      {icon} {status.charAt(0).toUpperCase() + status.slice(1)}
+      {icon} {t(`status.${status}`)}
     </span>
   );
 }
 
 export default function AdminSellersPage() {
+  const t = useTranslations("Admin.applications");
+  const tc = useTranslations("Admin.common");
   const router = useRouter();
   const { dbUser, token, loading: authLoading } = useAuth();
 
@@ -97,7 +102,7 @@ export default function AdminSellersPage() {
       closeModal();
       await fetchAll();
     } catch {
-      alert("Something went wrong, please try again");
+      alert(t("genericError"));
     }
   }
 
@@ -112,7 +117,7 @@ export default function AdminSellersPage() {
       closeModal();
       await fetchAll();
     } catch {
-      alert("Something went wrong, please try again");
+      alert(t("genericError"));
     }
   }
 
@@ -162,12 +167,12 @@ export default function AdminSellersPage() {
   const columns: Column<SellerApplication>[] = [
     {
       key: "business_name",
-      label: "Business",
+      label: t("col.business"),
       render: (row) => <strong>{row.business_name}</strong>,
     },
     {
       key: "owner",
-      label: "Owner",
+      label: t("col.owner"),
       render: (row) => (
         <div className={styles.ownerCell}>
           <span>{row.full_name}</span>
@@ -177,7 +182,7 @@ export default function AdminSellersPage() {
     },
     {
       key: "services",
-      label: "Services",
+      label: t("col.services"),
       render: (row) => {
         const visible = row.services.slice(0, 2);
         const extra = row.services.length - visible.length;
@@ -187,7 +192,7 @@ export default function AdminSellersPage() {
               <span key={s.id} className={styles.categoryBadge}>{s.name}</span>
             ))}
             {extra > 0 && (
-              <span className={styles.categoryBadge}>+{extra} more</span>
+              <span className={styles.categoryBadge}>{t("moreServices", { n: extra })}</span>
             )}
           </span>
         );
@@ -195,24 +200,24 @@ export default function AdminSellersPage() {
     },
     {
       key: "submitted_at",
-      label: "Submitted",
-      render: (row) => timeAgo(row.submitted_at),
+      label: t("col.submitted"),
+      render: (row) => timeAgo(row.submitted_at, t),
     },
     {
       key: "verification_status",
-      label: "Status",
-      render: (row) => statusPill(row.verification_status),
+      label: t("col.status"),
+      render: (row) => statusPill(row.verification_status, t),
     },
     {
       key: "actions",
-      label: "Actions",
+      label: t("col.actions"),
       render: (row) => (
         <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
           <button
             className={styles.reviewBtn}
             onClick={() => setReviewing(row)}
           >
-            Review
+            {t("review")}
           </button>
           {row.verification_status === "approved" && (
             <Link
@@ -220,7 +225,7 @@ export default function AdminSellersPage() {
               className={styles.reviewBtn}
               style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
             >
-              View store
+              {t("viewStore")}
             </Link>
           )}
         </div>
@@ -229,10 +234,10 @@ export default function AdminSellersPage() {
   ];
 
   const emptyMsgMap: Record<Filter, string> = {
-    pending: "No pending applications. 🎉",
-    approved: "No approved sellers yet.",
-    rejected: "No rejected applications.",
-    all: "No seller applications yet.",
+    pending: t("empty.pending"),
+    approved: t("empty.approved"),
+    rejected: t("empty.rejected"),
+    all: t("empty.all"),
   };
 
   function tabClass(f: Filter) {
@@ -245,7 +250,7 @@ export default function AdminSellersPage() {
   if (authLoading || fetching) {
     return (
       <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
-        Loading…
+        {tc("loading")}
       </div>
     );
   }
@@ -255,16 +260,16 @@ export default function AdminSellersPage() {
       <div className={styles.toolbar}>
         <div className={styles.tabs}>
           <button className={tabClass("pending")} onClick={() => setFilter("pending")}>
-            Pending <span className={badgeClass("pending")}>{counts.pending}</span>
+            {t("tab.pending")} <span className={badgeClass("pending")}>{counts.pending}</span>
           </button>
           <button className={tabClass("approved")} onClick={() => setFilter("approved")}>
-            Approved <span className={badgeClass("approved")}>{counts.approved}</span>
+            {t("tab.approved")} <span className={badgeClass("approved")}>{counts.approved}</span>
           </button>
           <button className={tabClass("rejected")} onClick={() => setFilter("rejected")}>
-            Rejected <span className={badgeClass("rejected")}>{counts.rejected}</span>
+            {t("tab.rejected")} <span className={badgeClass("rejected")}>{counts.rejected}</span>
           </button>
           <button className={tabClass("all")} onClick={() => setFilter("all")}>
-            All <span className={badgeClass("all")}>{counts.total}</span>
+            {t("tab.all")} <span className={badgeClass("all")}>{counts.total}</span>
           </button>
         </div>
       </div>
@@ -278,21 +283,24 @@ export default function AdminSellersPage() {
           <>
             <div className={mobileStyles.cardTopRow}>
               <span className={mobileStyles.cardTitle}>{row.business_name}</span>
-              {statusPill(row.verification_status)}
+              {statusPill(row.verification_status, t)}
             </div>
             <div className={styles.ownerCell}>
               <span>{row.full_name}</span>
               <span className={styles.ownerEmail}>{row.email}</span>
             </div>
             <div className={mobileStyles.cardMeta}>
-              {row.services.length} service{row.services.length === 1 ? "" : "s"} • {timeAgo(row.submitted_at)}
+              {t("cardMeta", {
+                n: row.services.length,
+                ago: timeAgo(row.submitted_at, t),
+              })}
             </div>
             <button
               className={styles.reviewBtn}
               style={{ width: "100%", minHeight: 44 }}
               onClick={() => setReviewing(row)}
             >
-              Review
+              {t("review")}
             </button>
           </>
         )}
@@ -300,17 +308,17 @@ export default function AdminSellersPage() {
 
       {editingServices && (
         <Modal
-          title="Edit services"
+          title={t("editServices")}
           onClose={() => setEditingServices(null)}
           footer={
             <>
-              <button className="btn btn-outline" onClick={() => setEditingServices(null)}>Cancel</button>
+              <button className="btn btn-outline" onClick={() => setEditingServices(null)}>{tc("cancel")}</button>
               <button
                 className="btn btn-primary"
                 disabled={editingServices.ids.length === 0}
                 onClick={saveServices}
               >
-                Save
+                {tc("save")}
               </button>
             </>
           }
@@ -326,23 +334,23 @@ export default function AdminSellersPage() {
 
       {reviewing && (
         <Modal
-          title={`Review — ${reviewing.business_name}`}
+          title={t("reviewTitle", { name: reviewing.business_name })}
           onClose={() => closeModal()}
           footer={
             !rejectMode ? (
               <>
                 <button className="btn btn-outline" onClick={() => closeModal()}>
-                  Cancel
+                  {tc("cancel")}
                 </button>
                 {(reviewing.verification_status === "pending" ||
                   reviewing.verification_status === "rejected") && (
                   <button
                     className={styles.successBtn}
                     disabled={reviewing.services.length === 0}
-                    title={reviewing.services.length === 0 ? "Set services before approving" : undefined}
+                    title={reviewing.services.length === 0 ? t("setServicesFirst") : undefined}
                     onClick={() => handleApprove(reviewing.seller_id)}
                   >
-                    Approve
+                    {t("approve")}
                   </button>
                 )}
                 {(reviewing.verification_status === "pending" ||
@@ -351,7 +359,7 @@ export default function AdminSellersPage() {
                     className={styles.dangerBtn}
                     onClick={() => setRejectMode(true)}
                   >
-                    {reviewing.verification_status === "approved" ? "Revoke" : "Reject"}
+                    {reviewing.verification_status === "approved" ? t("revoke") : t("reject")}
                   </button>
                 )}
               </>
@@ -364,14 +372,14 @@ export default function AdminSellersPage() {
                     setRejectReason("");
                   }}
                 >
-                  Back
+                  {tc("back")}
                 </button>
                 <button
                   className={styles.dangerBtn}
                   disabled={rejectReason.trim().length < 10}
                   onClick={() => handleReject(reviewing.seller_id)}
                 >
-                  Confirm Reject
+                  {t("confirmReject")}
                 </button>
               </>
             )
@@ -379,13 +387,13 @@ export default function AdminSellersPage() {
         >
           {rejectMode ? (
             <>
-              <div className={styles.detailsGroupTitle}>Rejection Reason</div>
+              <div className={styles.detailsGroupTitle}>{t("rejectionReason")}</div>
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 maxLength={500}
                 rows={4}
-                placeholder="Explain what the seller needs to fix…"
+                placeholder={t("rejectionPlaceholder")}
                 style={{
                   width: "100%",
                   padding: "0.6rem",
@@ -397,27 +405,26 @@ export default function AdminSellersPage() {
                 }}
               />
               <div className={styles.rejectionHint}>
-                Common reasons: Invalid GST, Invalid FSSAI, Address mismatch, Bank details unclear.
-                Minimum 10 characters.
+                {t("rejectionHint")}
               </div>
             </>
           ) : (
             <>
           {reviewing.verification_status === "rejected" && reviewing.rejection_reason && (
             <div className={styles.rejectionCallout}>
-              <strong>Previous rejection:</strong> {reviewing.rejection_reason}
+              <strong>{t("previousRejection")}</strong> {reviewing.rejection_reason}
             </div>
           )}
           <div className={styles.detailsGrid}>
             <div className={styles.detailsGroup}>
-              <div className={styles.detailsGroupTitle}>Business</div>
+              <div className={styles.detailsGroupTitle}>{t("group.business")}</div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>Name</span>
+                <span className={styles.detailsLabel}>{t("field.name")}</span>
                 <span className={styles.detailsValue}>{reviewing.business_name}</span>
               </div>
               <div className={styles.detailsRow}>
                 <span className={styles.detailsLabel}>
-                  Services
+                  {t("col.services")}
                   <button
                     type="button"
                     style={{ marginLeft: "0.5rem", border: "none", background: "transparent", cursor: "pointer" }}
@@ -427,14 +434,14 @@ export default function AdminSellersPage() {
                         ids: reviewing.services.map((s) => s.id),
                       })
                     }
-                    aria-label="Edit services"
+                    aria-label={t("editServices")}
                   >
                     ✏️
                   </button>
                 </span>
                 <span className={styles.detailsValue}>
                   {reviewing.services.length === 0 ? (
-                    <em>None</em>
+                    <em>{t("none")}</em>
                   ) : (
                     reviewing.services.map((s) => (
                       <span key={s.id} className={styles.categoryBadge}>{s.name}</span>
@@ -443,74 +450,74 @@ export default function AdminSellersPage() {
                 </span>
               </div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>Address line 1</span>
+                <span className={styles.detailsLabel}>{t("field.addressLine1")}</span>
                 <span className={styles.detailsValue}>{reviewing.address.address_line1}</span>
               </div>
               {reviewing.address.address_line2 && (
                 <div className={styles.detailsRow}>
-                  <span className={styles.detailsLabel}>Address line 2</span>
+                  <span className={styles.detailsLabel}>{t("field.addressLine2")}</span>
                   <span className={styles.detailsValue}>{reviewing.address.address_line2}</span>
                 </div>
               )}
               {reviewing.address.landmark && (
                 <div className={styles.detailsRow}>
-                  <span className={styles.detailsLabel}>Landmark</span>
+                  <span className={styles.detailsLabel}>{t("field.landmark")}</span>
                   <span className={styles.detailsValue}>{reviewing.address.landmark}</span>
                 </div>
               )}
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>City</span>
+                <span className={styles.detailsLabel}>{t("field.city")}</span>
                 <span className={styles.detailsValue}>{reviewing.address.city}</span>
               </div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>State</span>
+                <span className={styles.detailsLabel}>{t("field.state")}</span>
                 <span className={styles.detailsValue}>{reviewing.address.state}</span>
               </div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>Pincode</span>
+                <span className={styles.detailsLabel}>{t("field.pincode")}</span>
                 <span className={styles.detailsValue}>{reviewing.address.pincode}</span>
               </div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>Phone</span>
+                <span className={styles.detailsLabel}>{t("field.phone")}</span>
                 <span className={styles.detailsValue}>{reviewing.phone}</span>
               </div>
             </div>
             <div className={styles.detailsGroup}>
-              <div className={styles.detailsGroupTitle}>Compliance</div>
+              <div className={styles.detailsGroupTitle}>{t("group.compliance")}</div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>GST Number</span>
+                <span className={styles.detailsLabel}>{t("field.gstNumber")}</span>
                 <span className={styles.detailsValue}>{reviewing.gst_number || "—"}</span>
               </div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>FSSAI License</span>
+                <span className={styles.detailsLabel}>{t("field.fssaiLicense")}</span>
                 <span className={styles.detailsValue}>{reviewing.fssai_license || "—"}</span>
               </div>
             </div>
             <div className={styles.detailsGroup}>
-              <div className={styles.detailsGroupTitle}>Owner</div>
+              <div className={styles.detailsGroupTitle}>{t("group.owner")}</div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>Full Name</span>
+                <span className={styles.detailsLabel}>{t("field.fullName")}</span>
                 <span className={styles.detailsValue}>{reviewing.full_name}</span>
               </div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>Email</span>
+                <span className={styles.detailsLabel}>{t("field.email")}</span>
                 <span className={styles.detailsValue}>{reviewing.email}</span>
               </div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>Submitted</span>
+                <span className={styles.detailsLabel}>{t("field.submitted")}</span>
                 <span className={styles.detailsValue}>
                   {new Date(reviewing.submitted_at).toLocaleString()}
                 </span>
               </div>
             </div>
             <div className={styles.detailsGroup}>
-              <div className={styles.detailsGroupTitle}>Banking</div>
+              <div className={styles.detailsGroupTitle}>{t("group.banking")}</div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>Account Number</span>
+                <span className={styles.detailsLabel}>{t("field.accountNumber")}</span>
                 <span className={styles.detailsValue}>{reviewing.bank_account_number || "—"}</span>
               </div>
               <div className={styles.detailsRow}>
-                <span className={styles.detailsLabel}>IFSC</span>
+                <span className={styles.detailsLabel}>{t("field.ifsc")}</span>
                 <span className={styles.detailsValue}>{reviewing.bank_ifsc || "—"}</span>
               </div>
             </div>

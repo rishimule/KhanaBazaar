@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { EligibleProduct } from "@/types";
 import styles from "./bulk.module.css";
 
@@ -25,6 +26,8 @@ export function EligibleProductPicker({
   initialServiceId = null,
   initialCategoryId = null,
 }: Props) {
+  const t = useTranslations("Seller.bulk");
+  const tc = useTranslations("Seller.common");
   const [search, setSearch] = useState("");
   const [serviceId, setServiceId] = useState<number | null>(initialServiceId);
   const [categoryId, setCategoryId] = useState<number | null>(initialCategoryId);
@@ -67,8 +70,12 @@ export function EligibleProductPicker({
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.pickerHeader}>
-          <strong>Add products to sheet</strong>
-          <button className="btn btn-outline" onClick={onClose}>
+          <strong>{t("pickerTitle")}</strong>
+          <button
+            className="btn btn-outline"
+            onClick={onClose}
+            aria-label={tc("cancel")}
+          >
             ×
           </button>
         </div>
@@ -76,7 +83,7 @@ export function EligibleProductPicker({
           <input
             className={styles.cell}
             type="search"
-            placeholder="Search products…"
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -88,7 +95,7 @@ export function EligibleProductPicker({
               setCategoryId(null);
             }}
           >
-            <option value="">All services</option>
+            <option value="">{t("allServices")}</option>
             {services.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -104,7 +111,7 @@ export function EligibleProductPicker({
             }
             disabled={serviceId === null}
           >
-            <option value="">All categories</option>
+            <option value="">{t("allCategories")}</option>
             {categories
               .filter((c) => serviceId === null || c.service_id === serviceId)
               .map((c) => (
@@ -118,7 +125,7 @@ export function EligibleProductPicker({
         <div className={styles.pickerList}>
           {services.length === 0 && (
             <div className={styles.empty}>
-              You haven&apos;t been approved for any services yet. Contact admin.
+              {t("noApprovedServices")}
             </div>
           )}
           {filtered.map((p) => (
@@ -145,7 +152,7 @@ export function EligibleProductPicker({
 
         <div className={styles.pickerFooter}>
           <button className="btn btn-outline" onClick={onClose}>
-            Cancel
+            {tc("cancel")}
           </button>
           <button
             className="btn btn-primary"
@@ -156,7 +163,7 @@ export function EligibleProductPicker({
               setSelected(new Set());
             }}
           >
-            Add {selected.size} to sheet
+            {t("addToSheet", { count: selected.size })}
           </button>
         </div>
       </div>

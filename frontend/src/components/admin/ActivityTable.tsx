@@ -1,9 +1,12 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import { useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 import type { AdminActionLog } from "@/types";
 import styles from "./ActivityTable.module.css";
+
+type Translator = ReturnType<typeof useTranslations>;
 
 interface Props {
   rows: AdminActionLog[];
@@ -12,29 +15,33 @@ interface Props {
   onLoadMore: () => void;
 }
 
-function actionLabel(action: string): string {
-  const map: Record<string, string> = {
-    "inventory.create": "Added product",
-    "inventory.update": "Updated product",
-    "inventory.delete": "Deleted product",
-    "inventory.bulk_update": "Bulk updated",
-    "order.transition": "Moved status",
-    "order.cancel": "Cancelled order",
-    "order.rewind": "Rewound status",
-    "order.refund": "Refunded payment",
-    "order.address_override": "Overrode address",
-  };
-  return map[action] ?? action;
+const ACTION_KEYS: Record<string, string> = {
+  "inventory.create": "actionInventoryCreate",
+  "inventory.update": "actionInventoryUpdate",
+  "inventory.delete": "actionInventoryDelete",
+  "inventory.bulk_update": "actionInventoryBulkUpdate",
+  "order.transition": "actionOrderTransition",
+  "order.cancel": "actionOrderCancel",
+  "order.rewind": "actionOrderRewind",
+  "order.refund": "actionOrderRefund",
+  "order.address_override": "actionOrderAddressOverride",
+};
+
+function actionLabel(t: Translator, action: string): string {
+  const key = ACTION_KEYS[action];
+  return key ? t(`activityTable.${key}`) : action;
 }
 
-function describeTarget(row: AdminActionLog): string {
+function describeTarget(t: Translator, row: AdminActionLog): string {
   const after = row.after_json ?? {};
   const before = row.before_json ?? {};
   if (row.target_type === "inventory") {
     const pid = (after as Record<string, unknown>).product_id ?? (before as Record<string, unknown>).product_id;
-    return `Inventory #${row.target_id}${pid ? ` (product ${pid})` : ""}`;
+    return pid
+      ? t("activityTable.targetInventoryWithProduct", { id: row.target_id, productId: String(pid) })
+      : t("activityTable.targetInventory", { id: row.target_id });
   }
-  if (row.target_type === "order") return `Order #${row.target_id}`;
+  if (row.target_type === "order") return t("activityTable.targetOrder", { id: row.target_id });
   return `${row.target_type} #${row.target_id}`;
 }
 
@@ -48,6 +55,7 @@ export default function ActivityTable({
   loading,
   onLoadMore,
 }: Props) {
+  const t = useTranslations("Shared");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   function toggle(id: string) {
@@ -62,7 +70,7 @@ export default function ActivityTable({
   if (rows.length === 0) {
     return (
       <div className={styles.empty}>
-        No admin activity for this seller yet.
+        {t("activityTable.empty")}
       </div>
     );
   }
@@ -72,11 +80,11 @@ export default function ActivityTable({
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Time</th>
-            <th>Action</th>
-            <th>Target</th>
-            <th>Admin</th>
-            <th>Reason</th>
+            <th>{t("activityTable.colTime")}</th>
+            <th>{t("activityTable.colAction")}</th>
+            <th>{t("activityTable.colTarget")}</th>
+            <th>{t("activityTable.colAdmin")}</th>
+            <th>{t("activityTable.colReason")}</th>
             <th />
           </tr>
         </thead>
@@ -90,10 +98,10 @@ export default function ActivityTable({
                   <td className={styles.time}>{shortTime(row.created_at)}</td>
                   <td>
                     <span className={`${styles.pill} ${pillCls}`}>
-                      {actionLabel(row.action)}
+                      {actionLabel(t, row.action)}
                     </span>
                   </td>
-                  <td>{describeTarget(row)}</td>
+                  <td>{describeTarget(t, row)}</td>
                   <td className={styles.admin}>{row.admin_email}</td>
                   <td className={styles.reason}>{row.reason ?? "—"}</td>
                   <td>
@@ -102,7 +110,7 @@ export default function ActivityTable({
                       className={styles.toggle}
                       onClick={() => toggle(row.id)}
                     >
-                      {isOpen ? "Hide" : "Diff"}
+                      {isOpen ? t("activityTable.hide") : t("activityTable.diff")}
                     </button>
                   </td>
                 </tr>
@@ -111,12 +119,12 @@ export default function ActivityTable({
                     <td colSpan={6}>
                       <div className={styles.diffGrid}>
                         <pre className={styles.diff}>
-                          <strong>before</strong>
+                          <strong>{t("activityTable.before")}</strong>
                           {"\n"}
                           {JSON.stringify(row.before_json, null, 2)}
                         </pre>
                         <pre className={styles.diff}>
-                          <strong>after</strong>
+                          <strong>{t("activityTable.after")}</strong>
                           {"\n"}
                           {JSON.stringify(row.after_json, null, 2)}
                         </pre>
@@ -136,7 +144,7 @@ export default function ActivityTable({
           disabled={loading}
           onClick={onLoadMore}
         >
-          {loading ? "Loading…" : "Load more"}
+          {loading ? t("activityTable.loading") : t("activityTable.loadMore")}
         </button>
       )}
     </div>

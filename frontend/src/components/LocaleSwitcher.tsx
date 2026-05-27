@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
@@ -21,6 +21,7 @@ const LABELS: Record<string, string> = {
 
 export default function LocaleSwitcher() {
   const locale = useLocale();
+  const t = useTranslations("Shared");
   const router = useRouter();
   const pathname = usePathname();
   const { token } = useAuth();
@@ -44,7 +45,7 @@ export default function LocaleSwitcher() {
       className={styles.select}
       value={locale}
       disabled={pending}
-      aria-label="Change language"
+      aria-label={t("localeSwitcher.changeLanguage")}
       onChange={(e) => onChange(e.target.value)}
     >
       {routing.locales.map((code) => (

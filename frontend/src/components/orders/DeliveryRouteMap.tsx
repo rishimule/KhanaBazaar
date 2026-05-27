@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import {
   AdvancedMarker,
@@ -69,12 +70,14 @@ function StraightLine({
 }
 
 export function DeliveryRouteMap({ store, customer }: DeliveryRouteMapProps) {
+  const t = useTranslations("Shared");
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? "";
   if (!apiKey) {
     return (
       <div className={styles.fallback}>
-        Map unavailable. Configure
-        {" "}<code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> to render the route preview.
+        {t.rich("routeMap.unavailable", {
+          code: (chunks) => <code>{chunks}</code>,
+        })}
       </div>
     );
   }
@@ -92,17 +95,17 @@ export function DeliveryRouteMap({ store, customer }: DeliveryRouteMapProps) {
           >
             <FitBounds store={store} customer={customer} />
             <StraightLine store={store} customer={customer} />
-            <AdvancedMarker position={{ lat: store.lat, lng: store.lng }} title={`Store: ${store.label}`}>
+            <AdvancedMarker position={{ lat: store.lat, lng: store.lng }} title={t("routeMap.markerStore", { label: store.label })}>
               <div className={styles.markerStore}>🏪</div>
             </AdvancedMarker>
-            <AdvancedMarker position={{ lat: customer.lat, lng: customer.lng }} title={`Delivery: ${customer.label}`}>
+            <AdvancedMarker position={{ lat: customer.lat, lng: customer.lng }} title={t("routeMap.markerDelivery", { label: customer.label })}>
               <div className={styles.markerCustomer}>📍</div>
             </AdvancedMarker>
           </Map>
         </div>
         <div className={styles.legend}>
-          <span><span className={styles.markerIconStore} aria-hidden>🏪</span> Store: {store.label}</span>
-          <span><span className={styles.markerIconCustomer} aria-hidden>📍</span> Delivers to: {customer.label}</span>
+          <span><span className={styles.markerIconStore} aria-hidden>🏪</span> {t("routeMap.legendStore")} {store.label}</span>
+          <span><span className={styles.markerIconCustomer} aria-hidden>📍</span> {t("routeMap.legendDeliversTo")} {customer.label}</span>
         </div>
       </div>
     </APIProvider>

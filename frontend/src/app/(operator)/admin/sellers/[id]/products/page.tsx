@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { use, useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
 import { useAuth } from "@/lib/AuthContext";
 import { del, put } from "@/lib/api";
@@ -16,6 +17,8 @@ export default function AdminProductsTab({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const t = useTranslations("Admin.sellerHub");
+  const tc = useTranslations("Admin.common");
   const { token } = useAuth();
   const [hub, setHub] = useState<SellerHubSummary | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -33,9 +36,9 @@ export default function AdminProductsTab({
       setHub(h);
       setRows(inv);
     } catch {
-      setError("Failed to load inventory");
+      setError(t("products.loadError"));
     }
-  }, [id, token]);
+  }, [id, token, t]);
 
   useEffect(() => {
     load();
@@ -69,7 +72,7 @@ export default function AdminProductsTab({
   }
 
   if (error) return <div>{error}</div>;
-  if (!hub) return <div>Loading…</div>;
+  if (!hub) return <div>{tc("loading")}</div>;
 
   if (!hub.store_id) {
     return (
@@ -82,7 +85,7 @@ export default function AdminProductsTab({
           color: "var(--color-neutral-600)",
         }}
       >
-        Seller has no store yet — products tab is empty.
+        {t("products.noStore")}
       </div>
     );
   }
@@ -92,7 +95,7 @@ export default function AdminProductsTab({
   return (
     <div>
       <h2 style={{ marginBottom: "0.75rem" }}>
-        Products ({rows.length})
+        {t("products.heading", { n: rows.length })}
       </h2>
       {blocked && (
         <div
@@ -105,7 +108,7 @@ export default function AdminProductsTab({
             color: "var(--color-neutral-900)",
           }}
         >
-          Seller is not active — writes disabled.
+          {t("products.writesBlocked")}
         </div>
       )}
       <div style={{ overflowX: "auto" }}>
@@ -118,12 +121,12 @@ export default function AdminProductsTab({
       >
         <thead>
           <tr style={{ background: "var(--color-neutral-50)" }}>
-            <th style={cellHead}>Inv #</th>
-            <th style={cellHead}>Product</th>
-            <th style={cellHead}>Price</th>
-            <th style={cellHead}>Stock</th>
-            <th style={cellHead}>Available</th>
-            <th style={cellHead}>Actions</th>
+            <th style={cellHead}>{t("products.col.inv")}</th>
+            <th style={cellHead}>{t("products.col.product")}</th>
+            <th style={cellHead}>{t("products.col.price")}</th>
+            <th style={cellHead}>{t("products.col.stock")}</th>
+            <th style={cellHead}>{t("products.col.available")}</th>
+            <th style={cellHead}>{t("products.col.actions")}</th>
           </tr>
         </thead>
         <tbody>
@@ -153,14 +156,14 @@ export default function AdminProductsTab({
                   onClick={() => setEditing(r)}
                   style={{ marginRight: 6 }}
                 >
-                  Edit
+                  {tc("edit")}
                 </button>
                 <button
                   className="btn btn-danger"
                   disabled={blocked}
                   onClick={() => setPendingDelete(r)}
                 >
-                  Delete
+                  {tc("delete")}
                 </button>
               </td>
             </tr>
@@ -179,9 +182,12 @@ export default function AdminProductsTab({
 
       {pendingDelete && (
         <AdminReasonModal
-          title={`Delete ${pendingDelete.product_name}?`}
-          description={`Removes "${pendingDelete.product_name}" (inv #${pendingDelete.id}) from the seller's store. Reason is recorded in the audit log.`}
-          confirmLabel="Delete"
+          title={t("products.deleteTitle", { name: pendingDelete.product_name })}
+          description={t("products.deleteDesc", {
+            name: pendingDelete.product_name,
+            id: pendingDelete.id,
+          })}
+          confirmLabel={tc("delete")}
           destructive
           onConfirm={doDelete}
           onClose={() => setPendingDelete(null)}
@@ -200,6 +206,8 @@ function EditModal({
   onClose: () => void;
   onSave: (row: Row, price: number, stock: number) => Promise<void>;
 }) {
+  const t = useTranslations("Admin.sellerHub");
+  const tc = useTranslations("Admin.common");
   const [price, setPrice] = useState(row.price);
   const [stock, setStock] = useState(row.stock);
   const [busy, setBusy] = useState(false);
@@ -238,12 +246,12 @@ function EditModal({
           gap: "0.75rem",
         }}
       >
-        <h3>Edit {row.product_name}</h3>
+        <h3>{t("products.editTitle", { name: row.product_name })}</h3>
         <div style={{ color: "var(--color-neutral-500)", fontSize: "0.85rem" }}>
-          Inventory #{row.id} · Product #{row.product_id}
+          {t("products.editSubtitle", { inv: row.id, product: row.product_id })}
         </div>
         <label>
-          Price
+          {t("products.col.price")}
           <input
             type="number"
             step="0.01"
@@ -253,7 +261,7 @@ function EditModal({
           />
         </label>
         <label>
-          Stock
+          {t("products.col.stock")}
           <input
             type="number"
             value={stock}
@@ -263,10 +271,10 @@ function EditModal({
         </label>
         <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
           <button className="btn btn-outline" onClick={onClose} disabled={busy}>
-            Cancel
+            {tc("cancel")}
           </button>
           <button className="btn btn-primary" onClick={submit} disabled={busy}>
-            {busy ? "Saving…" : "Save"}
+            {busy ? tc("saving") : tc("save")}
           </button>
         </div>
       </div>

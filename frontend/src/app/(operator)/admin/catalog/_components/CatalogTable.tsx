@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { CatalogEntity, EntityKind } from "@/types";
 import { useCatalogList } from "../_hooks/useCatalogList";
 import { useEntityMutation } from "../_hooks/useEntityMutation";
@@ -29,6 +30,10 @@ export function CatalogTable({
   serviceContext,
   onRowOpen,
 }: Props) {
+  const t = useTranslations("Admin.catalog");
+  const tc = useTranslations("Admin.common");
+  const entityName = t(`entity.${entity}`);
+  const entityNamePlural = t(`entityPlural.${entity}`);
   const [q, setQ] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("true");
   const [page, setPage] = useState(1);
@@ -60,7 +65,7 @@ export function CatalogTable({
         <input
           type="search"
           className={styles.search}
-          placeholder="Search by name or slug…"
+          placeholder={t("searchPlaceholder")}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
@@ -75,22 +80,22 @@ export function CatalogTable({
             setPage(1);
           }}
         >
-          <option value="true">Active</option>
-          <option value="false">Inactive</option>
-          <option value="all">All</option>
+          <option value="true">{t("statusActive")}</option>
+          <option value="false">{t("statusInactive")}</option>
+          <option value="all">{t("statusAll")}</option>
         </select>
         <button
           type="button"
           className="btn btn-primary"
           onClick={() => setModalState({ mode: "create" })}
         >
-          + Add {entity}
+          {t("addEntity", { entity: entityName })}
         </button>
       </header>
 
       {error && (
         <div role="alert" className={styles.error}>
-          Failed to load. <button onClick={refetch}>Retry</button>
+          {t("loadFailed")} <button onClick={refetch}>{tc("retry")}</button>
         </div>
       )}
 
@@ -98,27 +103,27 @@ export function CatalogTable({
         <table className={styles.table}>
           <thead>
             <tr>
-              <th aria-label="Image" />
-              <th>Name</th>
-              <th>Slug</th>
-              <th>Active</th>
-              {entity !== "product" && <th>Children</th>}
-              <th>Translations</th>
-              <th className={styles.actionsCol}>Actions</th>
+              <th aria-label={t("colImage")} />
+              <th>{t("colName")}</th>
+              <th>{t("colSlug")}</th>
+              <th>{t("colActive")}</th>
+              {entity !== "product" && <th>{t("colChildren")}</th>}
+              <th>{t("colTranslations")}</th>
+              <th className={styles.actionsCol}>{t("colActions")}</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
                 <td colSpan={7} className={styles.muted}>
-                  Loading…
+                  {tc("loading")}
                 </td>
               </tr>
             )}
             {!loading && data && data.items.length === 0 && (
               <tr>
                 <td colSpan={7} className={styles.muted}>
-                  No {entity}s.
+                  {t("emptyEntity", { entity: entityNamePlural })}
                 </td>
               </tr>
             )}
@@ -149,9 +154,9 @@ export function CatalogTable({
                   <td className={styles.slugCell}>{row.slug}</td>
                   <td>
                     {row.is_active ? (
-                      <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
+                      <span className={`${styles.badge} ${styles.badgeActive}`}>{t("statusActive")}</span>
                     ) : (
-                      <span className={`${styles.badge} ${styles.badgeInactive}`}>Inactive</span>
+                      <span className={`${styles.badge} ${styles.badgeInactive}`}>{t("statusInactive")}</span>
                     )}
                   </td>
                   {entity !== "product" && (
@@ -174,7 +179,7 @@ export function CatalogTable({
                           className="btn btn-ghost"
                           onClick={() => onRowOpen(row)}
                         >
-                          Open
+                          {t("open")}
                         </button>
                       )}
                       <button
@@ -182,7 +187,7 @@ export function CatalogTable({
                         className="btn btn-ghost"
                         onClick={() => setModalState({ mode: "edit", row })}
                       >
-                        Edit
+                        {tc("edit")}
                       </button>
                       {row.is_active ? (
                         <button
@@ -190,7 +195,7 @@ export function CatalogTable({
                           className="btn btn-ghost"
                           onClick={() => setConfirmRow(row)}
                         >
-                          Deactivate
+                          {t("deactivate")}
                         </button>
                       ) : (
                         <button
@@ -201,7 +206,7 @@ export function CatalogTable({
                             refetch();
                           }}
                         >
-                          Activate
+                          {t("activate")}
                         </button>
                       )}
                     </div>
@@ -214,7 +219,7 @@ export function CatalogTable({
 
       <footer className={styles.pagination}>
         <span className={styles.muted}>
-          Page {page} of {totalPages} · {data?.total ?? 0} items
+          {t("pageInfo", { page, totalPages, total: data?.total ?? 0 })}
         </span>
         <div className={styles.pagerBtns}>
           <button
@@ -223,7 +228,7 @@ export function CatalogTable({
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
           >
-            ‹ Prev
+            {t("prev")}
           </button>
           <button
             type="button"
@@ -231,7 +236,7 @@ export function CatalogTable({
             disabled={page >= totalPages}
             onClick={() => setPage(page + 1)}
           >
-            Next ›
+            {t("next")}
           </button>
         </div>
       </footer>

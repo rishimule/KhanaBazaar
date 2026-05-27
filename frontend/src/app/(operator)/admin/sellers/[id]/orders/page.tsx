@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
 import PaymentStatusBadge from "@/components/orders/PaymentStatusBadge";
 import { useAuth } from "@/lib/AuthContext";
@@ -37,6 +38,7 @@ export default function AdminOrdersTab({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const t = useTranslations("Admin.sellerHub");
   const { token } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [hub, setHub] = useState<SellerHubSummary | null>(null);
@@ -54,9 +56,9 @@ export default function AdminOrdersTab({
       setHub(h);
       setOrders(resp.orders);
     } catch {
-      setError("Failed to load orders");
+      setError(t("orders.loadError"));
     }
-  }, [id, token]);
+  }, [id, token, t]);
 
   useEffect(() => {
     load();
@@ -78,7 +80,7 @@ export default function AdminOrdersTab({
       await load();
     } catch (e) {
       const msg = (e as Error).message ?? "unknown_error";
-      setActionError(`Action failed: ${msg}`);
+      setActionError(t("orders.actionFailed", { msg }));
       setPending(null);
     }
   }
@@ -90,7 +92,7 @@ export default function AdminOrdersTab({
 
   return (
     <div>
-      <h2 style={{ marginBottom: "0.75rem" }}>Orders ({orders.length})</h2>
+      <h2 style={{ marginBottom: "0.75rem" }}>{t("orders.heading", { n: orders.length })}</h2>
       {writesBlocked && (
         <div
           style={{
@@ -102,7 +104,7 @@ export default function AdminOrdersTab({
             color: "var(--color-neutral-900)",
           }}
         >
-          Seller is not active — destructive actions disabled.
+          {t("orders.writesBlocked")}
         </div>
       )}
       {actionError && (
@@ -130,12 +132,12 @@ export default function AdminOrdersTab({
       >
         <thead>
           <tr style={{ background: "var(--color-neutral-50)" }}>
-            <th style={cellHead}>Order</th>
-            <th style={cellHead}>Status</th>
-            <th style={cellHead}>Payment</th>
-            <th style={cellHead}>Customer</th>
-            <th style={cellHead}>Total</th>
-            <th style={cellHead}>Actions</th>
+            <th style={cellHead}>{t("orders.col.order")}</th>
+            <th style={cellHead}>{t("orders.col.status")}</th>
+            <th style={cellHead}>{t("orders.col.payment")}</th>
+            <th style={cellHead}>{t("orders.col.customer")}</th>
+            <th style={cellHead}>{t("orders.col.total")}</th>
+            <th style={cellHead}>{t("orders.col.actions")}</th>
           </tr>
         </thead>
         <tbody>
@@ -166,7 +168,7 @@ export default function AdminOrdersTab({
                       }
                       style={{ marginRight: 6 }}
                     >
-                      Force cancel
+                      {t("orders.forceCancel")}
                     </button>
                   )}
                   {rewindTo && (
@@ -178,7 +180,7 @@ export default function AdminOrdersTab({
                       }
                       style={{ marginRight: 6 }}
                     >
-                      Rewind → {rewindTo}
+                      {t("orders.rewindTo", { to: rewindTo })}
                     </button>
                   )}
                   {refundable && (
@@ -189,7 +191,7 @@ export default function AdminOrdersTab({
                         setPending({ order: o, kind: "refund" })
                       }
                     >
-                      Refund
+                      {t("orders.refund")}
                     </button>
                   )}
                 </td>
@@ -202,14 +204,14 @@ export default function AdminOrdersTab({
 
       {pending && (
         <AdminReasonModal
-          title={modalTitle(pending)}
-          description={modalDescription(pending)}
+          title={modalTitle(pending, t)}
+          description={modalDescription(pending, t)}
           confirmLabel={
             pending.kind === "cancel"
-              ? "Cancel order"
+              ? t("orders.confirm.cancel")
               : pending.kind === "rewind"
-                ? "Rewind"
-                : "Refund"
+                ? t("orders.confirm.rewind")
+                : t("orders.confirm.refund")
           }
           destructive
           onConfirm={performAction}
@@ -220,19 +222,21 @@ export default function AdminOrdersTab({
   );
 }
 
-function modalTitle(p: PendingAction): string {
-  if (p.kind === "cancel") return `Force-cancel order #${p.order.id}?`;
+type Translator = ReturnType<typeof useTranslations>;
+
+function modalTitle(p: PendingAction, t: Translator): string {
+  if (p.kind === "cancel") return t("orders.modal.cancelTitle", { id: p.order.id });
   if (p.kind === "rewind")
-    return `Rewind order #${p.order.id} → ${p.to}?`;
-  return `Mark payment refunded on order #${p.order.id}?`;
+    return t("orders.modal.rewindTitle", { id: p.order.id, to: p.to ?? "" });
+  return t("orders.modal.refundTitle", { id: p.order.id });
 }
 
-function modalDescription(p: PendingAction): string {
+function modalDescription(p: PendingAction, t: Translator): string {
   if (p.kind === "cancel")
-    return "Cancellation restocks items. Seller is emailed.";
+    return t("orders.modal.cancelDesc");
   if (p.kind === "rewind")
-    return `Status moves backward from ${p.order.status} to ${p.to}. Seller is emailed.`;
-  return "Payment status flips to refunded (manual ledger marker — MVP has no real refund gateway). Seller is emailed.";
+    return t("orders.modal.rewindDesc", { from: p.order.status, to: p.to ?? "" });
+  return t("orders.modal.refundDesc");
 }
 
 const cellHead: React.CSSProperties = {

@@ -2,21 +2,9 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
+import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import type { EntityKind } from "@/types";
-
-function childLabel(entity: EntityKind): string {
-  switch (entity) {
-    case "service":
-      return "categories";
-    case "category":
-      return "subcategories";
-    case "subcategory":
-      return "products";
-    default:
-      return "child rows";
-  }
-}
 
 export function DeactivateConfirm({
   entity,
@@ -33,9 +21,12 @@ export function DeactivateConfirm({
   onCancel: () => void;
   pending?: boolean;
 }) {
+  const t = useTranslations("Admin.catalog");
+  const tc = useTranslations("Admin.common");
+  const childLabel = t(`entityPlural.${entity}`);
   return (
     <Modal
-      title={`Deactivate "${name}"?`}
+      title={t("deactivateTitle", { name })}
       onClose={onCancel}
       footer={
         <>
@@ -45,7 +36,7 @@ export function DeactivateConfirm({
             onClick={onCancel}
             disabled={pending}
           >
-            Cancel
+            {tc("cancel")}
           </button>
           <button
             type="button"
@@ -53,19 +44,23 @@ export function DeactivateConfirm({
             onClick={onConfirm}
             disabled={pending}
           >
-            {pending ? "Deactivating…" : "Deactivate"}
+            {pending ? t("deactivating") : t("deactivate")}
           </button>
         </>
       }
     >
       <p>
-        This will hide <strong>{name}</strong> from customers
-        {childCount > 0 ? (
-          <>
-            {" "}along with its {childCount} active {childLabel(entity)}
-          </>
-        ) : null}
-        . You can re-activate it later.
+        {childCount > 0
+          ? t.rich("deactivateBodyWithChildren", {
+              name,
+              count: childCount,
+              children: childLabel,
+              strong: (chunks) => <strong>{chunks}</strong>,
+            })
+          : t.rich("deactivateBody", {
+              name,
+              strong: (chunks) => <strong>{chunks}</strong>,
+            })}
       </p>
     </Modal>
   );

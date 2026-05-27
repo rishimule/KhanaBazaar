@@ -4,6 +4,7 @@
 
 import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { ApiError, get, patch, post } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
@@ -28,6 +29,7 @@ const PHONE_REGEX = /^[6-9]\d{9}$/;
 const TOTAL_STEPS = 8;
 
 function StepIndicator({ current }: { current: number }) {
+  const t = useTranslations("Seller.signup");
   return (
     <>
       <div className={styles.stepIndicator}>
@@ -57,7 +59,7 @@ function StepIndicator({ current }: { current: number }) {
           </React.Fragment>
         ))}
       </div>
-      <p className={styles.stepLabel}>Step {current} of {TOTAL_STEPS}</p>
+      <p className={styles.stepLabel}>{t("stepCounter", { current, total: TOTAL_STEPS })}</p>
     </>
   );
 }
@@ -67,6 +69,8 @@ function StepIndicator({ current }: { current: number }) {
 /* ------------------------------------------------------------------ */
 
 function SellerSignupPageInner() {
+  const t = useTranslations("Seller.signup");
+  const tc = useTranslations("Seller.common");
   const router = useRouter();
   const searchParams = useSearchParams();
   const isResubmit = searchParams.get("resubmit") === "true";
@@ -156,11 +160,13 @@ function SellerSignupPageInner() {
       const apiErr = err as { detail?: { error?: string; retry_after?: number }; status?: number };
       if (apiErr?.detail?.error === "rate_limited") {
         setToast({
-          message: `Please wait ${apiErr.detail.retry_after ?? 60} seconds before requesting a new code.`,
+          message: t("errors.rateLimitedSeconds", {
+            seconds: apiErr.detail.retry_after ?? 60,
+          }),
           type: "error",
         });
       } else {
-        setToast({ message: "Failed to send code. Please try again.", type: "error" });
+        setToast({ message: t("errors.sendCodeFailed"), type: "error" });
       }
       return false;
     }
@@ -175,8 +181,7 @@ function SellerSignupPageInner() {
     ) {
       setFieldErrors((p) => ({
         ...p,
-        email:
-          "This email is already on your customer account. Use a different email, or sign out to register with it.",
+        email: t("errors.emailOnCustomerAccount"),
       }));
       return;
     }
@@ -191,7 +196,7 @@ function SellerSignupPageInner() {
     setSubmitting(true);
     const ok = await sendOtpRequest();
     setSubmitting(false);
-    if (ok) setToast({ message: "Code resent! Check your inbox.", type: "success" });
+    if (ok) setToast({ message: t("toast.codeResentInbox"), type: "success" });
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -213,22 +218,22 @@ function SellerSignupPageInner() {
       const errorCode = apiErr?.detail?.error;
       if (errorCode === "invalid_code") {
         setToast({
-          message: "Incorrect code. Please try again.",
+          message: t("errors.incorrectCode"),
           type: "error",
         });
       } else if (errorCode === "too_many_attempts") {
         setToast({
-          message: "Too many attempts. Please request a new code.",
+          message: t("errors.tooManyAttempts"),
           type: "error",
         });
       } else if (errorCode === "code_expired_or_used") {
         setToast({
-          message: "Code expired. Please request a new one.",
+          message: t("errors.codeExpired"),
           type: "error",
         });
       } else {
         setToast({
-          message: "Verification failed. Please try again.",
+          message: t("errors.verificationFailed"),
           type: "error",
         });
       }
@@ -253,20 +258,20 @@ function SellerSignupPageInner() {
       if (errorCode === "phone_already_registered") {
         setFieldErrors((p) => ({
           ...p,
-          phone: "This phone number is already registered.",
+          phone: t("errors.phoneAlreadyRegistered"),
         }));
       } else if (errorCode === "invalid_phone") {
         setFieldErrors((p) => ({
           ...p,
-          phone: "Enter a valid 10-digit Indian mobile number.",
+          phone: t("errors.invalidPhone"),
         }));
       } else if (errorCode === "rate_limited") {
         setToast({
-          message: "Please wait before requesting another code.",
+          message: t("errors.rateLimitedWait"),
           type: "error",
         });
       } else {
-        setToast({ message: "Failed to send code. Please try again.", type: "error" });
+        setToast({ message: t("errors.sendCodeFailed"), type: "error" });
       }
       return false;
     } finally {
@@ -276,9 +281,9 @@ function SellerSignupPageInner() {
 
   const handlePhoneNext = async () => {
     const errs: Record<string, string> = {};
-    if (!phone) errs.phone = "Phone is required";
+    if (!phone) errs.phone = t("errors.phoneRequired");
     else if (!PHONE_REGEX.test(phone))
-      errs.phone = "Enter a valid 10-digit Indian mobile number.";
+      errs.phone = t("errors.invalidPhone");
     if (Object.keys(errs).length) {
       setFieldErrors((p) => ({ ...p, ...errs }));
       return;
@@ -289,7 +294,7 @@ function SellerSignupPageInner() {
 
   const handleResendPhoneCode = async () => {
     const ok = await handleSendPhoneCode();
-    if (ok) setToast({ message: "Code resent! Check your phone.", type: "success" });
+    if (ok) setToast({ message: t("toast.codeResentPhone"), type: "success" });
   };
 
   const handleVerifyPhoneCode = async (e: React.FormEvent) => {
@@ -313,19 +318,19 @@ function SellerSignupPageInner() {
       const detail = apiErr.detail as { error?: string } | string | undefined;
       const errorCode = typeof detail === "object" ? detail?.error : undefined;
       if (errorCode === "invalid_code") {
-        setToast({ message: "Incorrect code. Please try again.", type: "error" });
+        setToast({ message: t("errors.incorrectCode"), type: "error" });
       } else if (errorCode === "code_expired_or_used") {
         setToast({
-          message: "Code expired. Please request a new one.",
+          message: t("errors.codeExpired"),
           type: "error",
         });
       } else if (errorCode === "too_many_attempts") {
         setToast({
-          message: "Too many attempts. Please request a new code.",
+          message: t("errors.tooManyAttempts"),
           type: "error",
         });
       } else {
-        setToast({ message: "Verification failed. Please try again.", type: "error" });
+        setToast({ message: t("errors.verificationFailed"), type: "error" });
       }
     } finally {
       setSubmitting(false);
@@ -374,14 +379,12 @@ function SellerSignupPageInner() {
       const errorCode = apiErr?.detail?.error;
       if (errorCode === "email_already_registered") {
         setToast({
-          message:
-            "This email is already registered as a seller. Log in instead.",
+          message: t("errors.emailAlreadyRegistered"),
           type: "error",
         });
       } else if (errorCode === "phone_already_registered") {
         setToast({
-          message:
-            "This phone number was just registered. Please use a different number.",
+          message: t("errors.phoneJustRegistered"),
           type: "error",
         });
         setSignupToken("");
@@ -392,8 +395,7 @@ function SellerSignupPageInner() {
         errorCode === "invalid_signup_token"
       ) {
         setToast({
-          message:
-            "Phone verification expired. Please verify your phone number again.",
+          message: t("errors.phoneVerificationExpired"),
           type: "error",
         });
         setSignupToken("");
@@ -401,7 +403,7 @@ function SellerSignupPageInner() {
         setCurrentStep(3);
       } else {
         setToast({
-          message: "Something went wrong. Please try again.",
+          message: t("errors.somethingWrong"),
           type: "error",
         });
       }
@@ -415,14 +417,14 @@ function SellerSignupPageInner() {
   /* ---------------------------------------------------------------- */
 
   const subtitles: Record<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8, string> = {
-    1: "Enter your email to get started",
-    2: `Enter the 6-digit code sent to ${email}`,
-    3: "Verify your phone number",
-    4: `Enter the 6-digit code sent to +91${phone}`,
-    5: "Tell us about yourself",
-    6: "Tell us about your business",
-    7: "Compliance & banking details",
-    8: "Review your application",
+    1: t("subtitles.step1"),
+    2: t("subtitles.step2", { email }),
+    3: t("subtitles.step3"),
+    4: t("subtitles.step4", { phone: `+91${phone}` }),
+    5: t("subtitles.step5"),
+    6: t("subtitles.step6"),
+    7: t("subtitles.step7"),
+    8: t("subtitles.step8"),
   };
 
   /* ---------------------------------------------------------------- */
@@ -436,8 +438,11 @@ function SellerSignupPageInner() {
         <div className={styles.cardHeader}>
           <div className={styles.cardLogo}>🏪</div>
           <h1 className={styles.cardTitle}>
-            Sell on{" "}
-            <span className={styles.cardTitleAccent}>KhanaBazaar</span>
+            {t.rich("title", {
+              accent: (chunks) => (
+                <span className={styles.cardTitleAccent}>{chunks}</span>
+              ),
+            })}
           </h1>
           <p className={styles.cardSubtitle}>
             {subtitles[currentStep as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8]}
@@ -451,8 +456,10 @@ function SellerSignupPageInner() {
         {dbUser && !isResubmit && currentStep === 1 && (
           <div className={styles.accountNotice} role="status">
             <span className={styles.accountNoticeText}>
-              Signed in as <strong>{dbUser.email}</strong>. Use a different
-              email for your seller account, or sign out.
+              {t.rich("accountNotice", {
+                email: dbUser.email,
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </span>
             <button
               type="button"
@@ -462,7 +469,7 @@ function SellerSignupPageInner() {
                 router.refresh();
               }}
             >
-              Sign out
+              {t("signOut")}
             </button>
           </div>
         )}
@@ -481,7 +488,7 @@ function SellerSignupPageInner() {
             )}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="email">
-                Email address
+                {t("emailLabel")}
               </label>
               <input
                 id="email"
@@ -509,7 +516,7 @@ function SellerSignupPageInner() {
               className={styles.submitBtn}
               disabled={submitting}
             >
-              {submitting ? "Sending code…" : "Send code"}
+              {submitting ? t("sendingCode") : t("sendCode")}
             </button>
           </form>
         )}
@@ -528,7 +535,7 @@ function SellerSignupPageInner() {
             )}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="otp-code">
-                One-time code
+                {t("otpLabel")}
               </label>
               <input
                 id="otp-code"
@@ -552,17 +559,17 @@ function SellerSignupPageInner() {
               className={styles.submitBtn}
               disabled={submitting}
             >
-              {submitting ? "Verifying…" : "Verify code"}
+              {submitting ? t("verifying") : t("verifyCode")}
             </button>
             <div className={styles.resendRow}>
-              <span>Didn&apos;t receive it?</span>
+              <span>{t("didntReceive")}</span>
               <button
                 type="button"
                 className={styles.resendBtn}
                 onClick={handleResendOtp}
                 disabled={submitting}
               >
-                Resend code
+                {t("resendCode")}
               </button>
             </div>
           </form>
@@ -582,7 +589,7 @@ function SellerSignupPageInner() {
             )}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="phone">
-                Mobile number
+                {t("mobileLabel")}
               </label>
               <div className={styles.phoneFieldRow}>
                 <span className={styles.phonePrefix}>+91</span>
@@ -605,7 +612,7 @@ function SellerSignupPageInner() {
                     if (phone && !PHONE_REGEX.test(phone))
                       setFieldErrors((p) => ({
                         ...p,
-                        phone: "Enter a valid 10-digit Indian mobile number.",
+                        phone: t("errors.invalidPhone"),
                       }));
                     else clearError("phone");
                   }}
@@ -624,7 +631,7 @@ function SellerSignupPageInner() {
                   className={styles.backBtn}
                   onClick={() => setCurrentStep(2)}
                 >
-                  Back
+                  {tc("back")}
                 </button>
               )}
               <button
@@ -633,7 +640,7 @@ function SellerSignupPageInner() {
                 onClick={handlePhoneNext}
                 disabled={submitting || !PHONE_REGEX.test(phone)}
               >
-                {submitting ? "Sending code…" : "Send code"}
+                {submitting ? t("sendingCode") : t("sendCode")}
               </button>
             </div>
           </>
@@ -653,7 +660,7 @@ function SellerSignupPageInner() {
             )}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="phone-code">
-                One-time code
+                {t("otpLabel")}
               </label>
               <input
                 id="phone-code"
@@ -681,25 +688,25 @@ function SellerSignupPageInner() {
                   setCurrentStep(3);
                 }}
               >
-                Back
+                {tc("back")}
               </button>
               <button
                 type="submit"
                 className={styles.submitBtn}
                 disabled={submitting || phoneCode.length !== 6}
               >
-                {submitting ? "Verifying…" : "Verify code"}
+                {submitting ? t("verifying") : t("verifyCode")}
               </button>
             </div>
             <div className={styles.resendRow}>
-              <span>Didn&apos;t receive it?</span>
+              <span>{t("didntReceive")}</span>
               <button
                 type="button"
                 className={styles.resendBtn}
                 onClick={handleResendPhoneCode}
                 disabled={submitting}
               >
-                Resend code
+                {t("resendCode")}
               </button>
             </div>
           </form>
@@ -719,7 +726,7 @@ function SellerSignupPageInner() {
             )}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="full-name">
-                Full name
+                {t("fullNameLabel")}
               </label>
               <input
                 id="full-name"
@@ -735,12 +742,12 @@ function SellerSignupPageInner() {
                   if (!fullName.trim())
                     setFieldErrors((p) => ({
                       ...p,
-                      fullName: "Name is required",
+                      fullName: t("errors.nameRequired"),
                     }));
                   else clearError("fullName");
                 }}
                 autoComplete="name"
-                placeholder="Priya Verma"
+                placeholder={t("fullNamePlaceholder")}
               />
               {fieldErrors.fullName && (
                 <span className={styles.fieldError}>{fieldErrors.fullName}</span>
@@ -753,7 +760,7 @@ function SellerSignupPageInner() {
                   className={styles.backBtn}
                   onClick={() => setCurrentStep(4)}
                 >
-                  Back
+                  {tc("back")}
                 </button>
               )}
               <button
@@ -761,7 +768,7 @@ function SellerSignupPageInner() {
                 className={styles.submitBtn}
                 onClick={() => {
                   const errs: Record<string, string> = {};
-                  if (!fullName.trim()) errs.fullName = "Name is required";
+                  if (!fullName.trim()) errs.fullName = t("errors.nameRequired");
                   if (Object.keys(errs).length) {
                     setFieldErrors((p) => ({ ...p, ...errs }));
                     return;
@@ -770,7 +777,7 @@ function SellerSignupPageInner() {
                 }}
                 disabled={submitting}
               >
-                Next
+                {t("next")}
               </button>
             </div>
           </>
@@ -790,7 +797,7 @@ function SellerSignupPageInner() {
             )}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="business-name">
-                Business name
+                {t("businessNameLabel")}
               </label>
               <input
                 id="business-name"
@@ -806,11 +813,11 @@ function SellerSignupPageInner() {
                   if (!businessName.trim())
                     setFieldErrors((p) => ({
                       ...p,
-                      businessName: "Business name is required",
+                      businessName: t("errors.businessNameRequired"),
                     }));
                   else clearError("businessName");
                 }}
-                placeholder="Sharma Kirana Store"
+                placeholder={t("businessNamePlaceholder")}
               />
               {fieldErrors.businessName && (
                 <span className={styles.fieldError}>
@@ -819,7 +826,7 @@ function SellerSignupPageInner() {
               )}
             </div>
             <div className={styles.formGroup}>
-              <label className={styles.label}>Services Offered</label>
+              <label className={styles.label}>{t("servicesOfferedLabel")}</label>
               <ServicePicker
                 selectedIds={serviceIds}
                 onChange={(ids) => {
@@ -833,7 +840,7 @@ function SellerSignupPageInner() {
               )}
             </div>
             <div className={styles.inputGroup}>
-              <label className={styles.label}>Business address</label>
+              <label className={styles.label}>{t("businessAddressLabel")}</label>
               <AddressFields
                 value={address}
                 onChange={setAddress}
@@ -852,7 +859,7 @@ function SellerSignupPageInner() {
                 className={styles.backBtn}
                 onClick={() => setCurrentStep(5)}
               >
-                Back
+                {tc("back")}
               </button>
               <button
                 type="button"
@@ -860,17 +867,17 @@ function SellerSignupPageInner() {
                 onClick={() => {
                   const errs: Record<string, string> = {};
                   if (!businessName.trim())
-                    errs.businessName = "Business name is required";
+                    errs.businessName = t("errors.businessNameRequired");
                   if (serviceIds.length === 0)
-                    errs.services = "Select at least one service";
+                    errs.services = t("errors.selectService");
                   if (!address.address_line1.trim())
-                    errs.address_line1 = "Address line 1 is required";
-                  if (!address.city.trim()) errs.city = "City is required";
-                  if (!address.state) errs.state = "State is required";
+                    errs.address_line1 = t("errors.addressLine1Required");
+                  if (!address.city.trim()) errs.city = t("errors.cityRequired");
+                  if (!address.state) errs.state = t("errors.stateRequired");
                   if (!/^[1-9]\d{5}$/.test(address.pincode))
-                    errs.pincode = "Enter a valid 6-digit pincode";
+                    errs.pincode = t("errors.invalidPincode");
                   if (address.latitude == null || address.longitude == null)
-                    errs.address_line1 = "Drop a pin on the map to mark your store location";
+                    errs.address_line1 = t("errors.dropPin");
                   if (Object.keys(errs).length) {
                     setFieldErrors((p) => ({ ...p, ...errs }));
                     return;
@@ -879,7 +886,7 @@ function SellerSignupPageInner() {
                 }}
                 disabled={submitting}
               >
-                Next
+                {t("next")}
               </button>
             </div>
           </>
@@ -900,7 +907,7 @@ function SellerSignupPageInner() {
             <div className={styles.formGrid}>
               <div className={styles.inputGroup}>
                 <label className={styles.label} htmlFor="gst-number">
-                  GST number (optional)
+                  {t("gstLabel")}
                 </label>
                 <input
                   id="gst-number"
@@ -918,8 +925,7 @@ function SellerSignupPageInner() {
                     if (gstNumber && !GST_REGEX.test(gstNumber))
                       setFieldErrors((p) => ({
                         ...p,
-                        gstNumber:
-                          "Enter a valid 15-character GST number (e.g., 27AAPFU0939F1ZV)",
+                        gstNumber: t("errors.invalidGst"),
                       }));
                     else clearError("gstNumber");
                   }}
@@ -934,7 +940,7 @@ function SellerSignupPageInner() {
               </div>
               <div className={styles.inputGroup}>
                 <label className={styles.label} htmlFor="fssai-license">
-                  FSSAI license number (optional)
+                  {t("fssaiLabel")}
                 </label>
                 <input
                   id="fssai-license"
@@ -959,7 +965,7 @@ function SellerSignupPageInner() {
               </div>
               <div className={styles.inputGroup}>
                 <label className={styles.label} htmlFor="bank-account">
-                  Bank account number (optional)
+                  {t("bankAccountLabel")}
                 </label>
                 <input
                   id="bank-account"
@@ -975,7 +981,7 @@ function SellerSignupPageInner() {
                     if (bankAccountNumber && !/^\d{9,18}$/.test(bankAccountNumber))
                       setFieldErrors((p) => ({
                         ...p,
-                        bankAccountNumber: "Enter a valid bank account number (9–18 digits)",
+                        bankAccountNumber: t("errors.invalidBankAccount"),
                       }));
                     else clearError("bankAccountNumber");
                   }}
@@ -989,7 +995,7 @@ function SellerSignupPageInner() {
               </div>
               <div className={styles.inputGroup}>
                 <label className={styles.label} htmlFor="bank-ifsc">
-                  Bank IFSC code (optional)
+                  {t("ifscLabel")}
                 </label>
                 <input
                   id="bank-ifsc"
@@ -1007,8 +1013,7 @@ function SellerSignupPageInner() {
                     if (bankIfsc && !IFSC_REGEX.test(bankIfsc))
                       setFieldErrors((p) => ({
                         ...p,
-                        bankIfsc:
-                          "Enter a valid 11-character IFSC code (e.g., HDFC0001234)",
+                        bankIfsc: t("errors.invalidIfsc"),
                       }));
                     else clearError("bankIfsc");
                   }}
@@ -1028,7 +1033,7 @@ function SellerSignupPageInner() {
                 className={styles.backBtn}
                 onClick={() => setCurrentStep(6)}
               >
-                Back
+                {tc("back")}
               </button>
               <button
                 type="button"
@@ -1036,14 +1041,11 @@ function SellerSignupPageInner() {
                 onClick={() => {
                   const errs: Record<string, string> = {};
                   if (gstNumber && !GST_REGEX.test(gstNumber))
-                    errs.gstNumber =
-                      "Enter a valid 15-character GST number (e.g., 27AAPFU0939F1ZV)";
+                    errs.gstNumber = t("errors.invalidGst");
                   if (bankAccountNumber && !/^\d{9,18}$/.test(bankAccountNumber))
-                    errs.bankAccountNumber =
-                      "Enter a valid bank account number (9–18 digits)";
+                    errs.bankAccountNumber = t("errors.invalidBankAccount");
                   if (bankIfsc && !IFSC_REGEX.test(bankIfsc))
-                    errs.bankIfsc =
-                      "Enter a valid 11-character IFSC code (e.g., HDFC0001234)";
+                    errs.bankIfsc = t("errors.invalidIfsc");
                   if (Object.keys(errs).length) {
                     setFieldErrors((p) => ({ ...p, ...errs }));
                     return;
@@ -1052,7 +1054,7 @@ function SellerSignupPageInner() {
                 }}
                 disabled={submitting}
               >
-                Next
+                {t("next")}
               </button>
             </div>
           </>
@@ -1074,21 +1076,21 @@ function SellerSignupPageInner() {
             {/* Personal Info section */}
             <div className={styles.reviewSection}>
               <div className={styles.reviewSectionHeader}>
-                <span>Personal Info</span>
+                <span>{t("review.personalInfo")}</span>
                 <button
                   type="button"
                   className={styles.editLink}
                   onClick={() => setCurrentStep(5)}
                 >
-                  Edit
+                  {tc("edit")}
                 </button>
               </div>
               <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}>Full name</span>
+                <span className={styles.reviewLabel}>{t("fullNameLabel")}</span>
                 <span className={styles.reviewValue}>{fullName}</span>
               </div>
               <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}>Phone</span>
+                <span className={styles.reviewLabel}>{t("review.phone")}</span>
                 <span className={styles.reviewValue}>+91 {phone}</span>
               </div>
             </div>
@@ -1096,21 +1098,21 @@ function SellerSignupPageInner() {
             {/* Business Details section */}
             <div className={styles.reviewSection}>
               <div className={styles.reviewSectionHeader}>
-                <span>Business Details</span>
+                <span>{t("review.businessDetails")}</span>
                 <button
                   type="button"
                   className={styles.editLink}
                   onClick={() => setCurrentStep(6)}
                 >
-                  Edit
+                  {tc("edit")}
                 </button>
               </div>
               <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}>Business name</span>
+                <span className={styles.reviewLabel}>{t("businessNameLabel")}</span>
                 <span className={styles.reviewValue}>{businessName}</span>
               </div>
               <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}>Services</span>
+                <span className={styles.reviewLabel}>{t("review.services")}</span>
                 <span className={styles.reviewValue}>
                   {serviceIds
                     .map((id) => services.find((s) => s.id === id)?.name)
@@ -1119,7 +1121,7 @@ function SellerSignupPageInner() {
                 </span>
               </div>
               <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}>Address</span>
+                <span className={styles.reviewLabel}>{t("review.address")}</span>
                 <span className={styles.reviewValue}>{formatAddress(address)}</span>
               </div>
             </div>
@@ -1127,29 +1129,29 @@ function SellerSignupPageInner() {
             {/* Compliance & Bank section */}
             <div className={styles.reviewSection}>
               <div className={styles.reviewSectionHeader}>
-                <span>Compliance &amp; Bank</span>
+                <span>{t("review.complianceBank")}</span>
                 <button
                   type="button"
                   className={styles.editLink}
                   onClick={() => setCurrentStep(7)}
                 >
-                  Edit
+                  {tc("edit")}
                 </button>
               </div>
               <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}>GST number</span>
+                <span className={styles.reviewLabel}>{t("review.gstNumber")}</span>
                 <span className={styles.reviewValue}>{gstNumber}</span>
               </div>
               <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}>FSSAI license</span>
+                <span className={styles.reviewLabel}>{t("review.fssaiLicense")}</span>
                 <span className={styles.reviewValue}>{fssaiLicense}</span>
               </div>
               <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}>Bank account</span>
+                <span className={styles.reviewLabel}>{t("review.bankAccount")}</span>
                 <span className={styles.reviewValue}>{bankAccountNumber}</span>
               </div>
               <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}>IFSC code</span>
+                <span className={styles.reviewLabel}>{t("review.ifscCode")}</span>
                 <span className={styles.reviewValue}>{bankIfsc}</span>
               </div>
             </div>
@@ -1160,14 +1162,14 @@ function SellerSignupPageInner() {
                 className={styles.backBtn}
                 onClick={() => setCurrentStep(7)}
               >
-                Back
+                {tc("back")}
               </button>
               <button
                 type="submit"
                 className={styles.submitBtn}
                 disabled={submitting}
               >
-                {submitting ? "Submitting…" : "Submit application"}
+                {submitting ? t("submitting") : t("submitApplication")}
               </button>
             </div>
           </form>

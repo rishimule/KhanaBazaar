@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { use, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { adminSetServiceMinOrderValue, fetchSellerHub } from "@/lib/adminActions";
 import type { SellerHubSummary } from "@/types";
@@ -12,6 +13,8 @@ export default function SellerProfileTab({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const t = useTranslations("Admin.sellerHub");
+  const tc = useTranslations("Admin.common");
   const { token } = useAuth();
   const [hub, setHub] = useState<SellerHubSummary | null>(null);
   const [minError, setMinError] = useState<string | null>(null);
@@ -22,7 +25,7 @@ export default function SellerProfileTab({
     fetchSellerHub(Number(id), token).then(setHub).catch(() => {});
   }, [id, token]);
 
-  if (!hub) return <div>Loading…</div>;
+  if (!hub) return <div>{tc("loading")}</div>;
 
   const isApproved = hub.verification_status === "approved";
 
@@ -45,25 +48,25 @@ export default function SellerProfileTab({
           const detail = (e as { detail?: unknown })?.detail;
           setMinError(
             detail === "seller_not_active"
-              ? "Seller is not active — cannot edit."
-              : "Could not save minimum order value.",
+              ? t("profile.sellerNotActiveEdit")
+              : t("profile.minSaveError"),
           );
         });
     }, 400);
   };
 
   const row: { label: string; value: React.ReactNode }[] = [
-    { label: "Business name", value: hub.business_name },
-    { label: "Owner email", value: hub.email },
-    { label: "Verification status", value: hub.verification_status },
-    { label: "Store id", value: hub.store_id ?? "—" },
-    { label: "Active orders", value: hub.active_order_count },
-    { label: "Total products", value: hub.total_product_count },
+    { label: t("profile.businessName"), value: hub.business_name },
+    { label: t("profile.ownerEmail"), value: hub.email },
+    { label: t("profile.verificationStatus"), value: hub.verification_status },
+    { label: t("profile.storeId"), value: hub.store_id ?? "—" },
+    { label: t("profile.activeOrders"), value: hub.active_order_count },
+    { label: t("profile.totalProducts"), value: hub.total_product_count },
   ];
 
   return (
     <div style={{ display: "grid", gap: "0.5rem", maxWidth: 600 }}>
-      <h2 style={{ marginBottom: "0.5rem" }}>Profile</h2>
+      <h2 style={{ marginBottom: "0.5rem" }}>{t("tab.profile")}</h2>
       {row.map((r) => (
         <div
           key={r.label}
@@ -81,10 +84,9 @@ export default function SellerProfileTab({
 
       {hub.services.length > 0 && (
         <section style={{ marginTop: "1.5rem" }}>
-          <h3 style={{ marginBottom: "0.25rem" }}>Minimum order value</h3>
+          <h3 style={{ marginBottom: "0.25rem" }}>{t("profile.minOrderValue")}</h3>
           <p style={{ color: "var(--color-neutral-600)", marginBottom: "0.75rem" }}>
-            Orders below this amount can&apos;t be placed for that service. Set to 0
-            for no minimum.
+            {t("profile.minOrderHint")}
           </p>
           {minError && (
             <p style={{ color: "var(--tomato-red-dark-1)" }}>{minError}</p>
@@ -109,14 +111,14 @@ export default function SellerProfileTab({
                 disabled={!isApproved}
                 value={svc.min_order_value ?? 0}
                 onChange={(e) => updateMin(svc.id, parseFloat(e.target.value))}
-                aria-label={`Minimum order value for ${svc.name}`}
+                aria-label={t("profile.minOrderAriaLabel", { name: svc.name })}
                 style={{ width: 110, padding: "6px 8px", textAlign: "right" }}
               />
             </div>
           ))}
           {!isApproved && (
             <p style={{ color: "var(--color-neutral-600)", marginTop: "0.5rem" }}>
-              Minimums can only be edited for approved sellers.
+              {t("profile.minApprovedOnly")}
             </p>
           )}
         </section>

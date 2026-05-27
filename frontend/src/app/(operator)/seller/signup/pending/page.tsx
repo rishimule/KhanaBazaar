@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { VerificationStatus } from "@/types";
@@ -15,6 +16,8 @@ interface StatusResponse {
 }
 
 export default function SellerPendingPage() {
+  const t = useTranslations("Seller.pending");
+  const tc = useTranslations("Seller.common");
   const router = useRouter();
   const { token, dbUser, loading: authLoading, logout } = useAuth();
 
@@ -68,7 +71,7 @@ export default function SellerPendingPage() {
       <div className={styles.page}>
         <div className={styles.card}>
           <div className={styles.spinner} />
-          <p className={styles.body}>Loading&hellip;</p>
+          <p className={styles.body}>{tc("loading")}</p>
         </div>
       </div>
     );
@@ -80,14 +83,11 @@ export default function SellerPendingPage() {
       <div className={styles.page}>
         <div className={styles.card}>
           <span className={styles.icon}>&#10060;</span>
-          <h1 className={styles.title}>Application not approved</h1>
-          <p className={styles.body}>
-            Your seller application was reviewed and could not be approved at
-            this time.
-          </p>
+          <h1 className={styles.title}>{t("rejectedTitle")}</h1>
+          <p className={styles.body}>{t("rejectedBody")}</p>
           {rejectionReason && (
             <div className={styles.rejectionCallout}>
-              <p className={styles.rejectionTitle}>Reason for rejection</p>
+              <p className={styles.rejectionTitle}>{t("rejectionReasonLabel")}</p>
               <p className={styles.rejectionReason}>{rejectionReason}</p>
             </div>
           )}
@@ -96,7 +96,7 @@ export default function SellerPendingPage() {
             className={styles.ctaBtn}
             onClick={() => router.push("/seller/signup?resubmit=true")}
           >
-            Edit and resubmit
+            {t("editAndResubmit")}
           </button>
           <div className={styles.logoutRow}>
             <button
@@ -104,7 +104,7 @@ export default function SellerPendingPage() {
               className={styles.logoutBtn}
               onClick={handleLogout}
             >
-              Log out
+              {t("logOut")}
             </button>
           </div>
         </div>
@@ -117,21 +117,20 @@ export default function SellerPendingPage() {
     <div className={styles.page}>
       <div className={styles.card}>
         <span className={styles.icon}>&#8987;</span>
-        <h1 className={styles.title}>Application under review</h1>
-        <p className={styles.body}>
-          We&apos;ve received your application and our team is reviewing it.
-        </p>
+        <h1 className={styles.title}>{t("pendingTitle")}</h1>
+        <p className={styles.body}>{t("pendingBody")}</p>
         {dbUser?.email && (
           <p className={styles.body}>
-            We&apos;ll notify{" "}
-            <span className={styles.email}>{dbUser.email}</span> once a
-            decision is made.
+            {t.rich("notifyBody", {
+              email: dbUser.email,
+              em: (chunks) => <span className={styles.email}>{chunks}</span>,
+            })}
           </p>
         )}
-        <p className={styles.body}>Estimated time: 1&ndash;2 business days.</p>
+        <p className={styles.body}>{t("estimatedTime")}</p>
         {fetchError && (
           <p className={`${styles.body} ${styles.fetchError}`}>
-            Could not check status. Will retry automatically.
+            {t("fetchError")}
           </p>
         )}
         <div className={styles.logoutRow}>
@@ -140,7 +139,7 @@ export default function SellerPendingPage() {
             className={styles.logoutBtn}
             onClick={handleLogout}
           >
-            Log out
+            {t("logOut")}
           </button>
         </div>
       </div>

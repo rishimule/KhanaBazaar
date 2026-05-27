@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { use, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { getOrder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import OrderTimeline from "@/components/orders/OrderTimeline";
@@ -14,6 +15,8 @@ import type { Order } from "@/types";
 import styles from "./page.module.css";
 
 export default function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const t = useTranslations("Admin.orderDetail");
+  const tc = useTranslations("Admin.common");
   const { id } = use(params);
   const { token } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
@@ -23,16 +26,16 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
     if (!token) return;
     getOrder(token, Number(id))
       .then(setOrder)
-      .catch((e: { detail?: string }) => setError(e?.detail ?? "Could not load order."));
-  }, [token, id]);
+      .catch((e: { detail?: string }) => setError(e?.detail ?? t("loadError")));
+  }, [token, id, t]);
 
   if (error) return <div className={styles.error}>{error}</div>;
-  if (!order) return <div className={styles.loading}>Loading…</div>;
+  if (!order) return <div className={styles.loading}>{tc("loading")}</div>;
 
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Order #{order.id}</h1>
+        <h1 className={styles.title}>{t("title", { id: order.id })}</h1>
         <OrderStatusBadge status={order.status} />
       </div>
       <p className={styles.subtitle}>
@@ -45,23 +48,23 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Items</h2>
+        <h2 className={styles.sectionTitle}>{t("items")}</h2>
         <OrderItemList items={order.items} />
         <div className={styles.totals}>
-          <div><span>Subtotal</span><span>₹{order.subtotal.toFixed(2)}</span></div>
-          <div><span>Delivery</span><span>₹{order.delivery_fee.toFixed(2)}</span></div>
-          <div><span>Tax</span><span>₹{order.tax.toFixed(2)}</span></div>
-          <div className={styles.grand}><span>Total</span><span>₹{order.total.toFixed(2)}</span></div>
+          <div><span>{t("subtotal")}</span><span>₹{order.subtotal.toFixed(2)}</span></div>
+          <div><span>{t("delivery")}</span><span>₹{order.delivery_fee.toFixed(2)}</span></div>
+          <div><span>{t("tax")}</span><span>₹{order.tax.toFixed(2)}</span></div>
+          <div className={styles.grand}><span>{t("total")}</span><span>₹{order.total.toFixed(2)}</span></div>
         </div>
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Payment</h2>
+        <h2 className={styles.sectionTitle}>{t("payment")}</h2>
         <p>{order.payment.method.toUpperCase()} · {order.payment.status}</p>
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Delivery to</h2>
+        <h2 className={styles.sectionTitle}>{t("deliveryTo")}</h2>
         <p>{order.delivery_address_snapshot}</p>
         {order.store_latitude != null &&
           order.store_longitude != null &&
@@ -76,7 +79,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
               customer={{
                 lat: order.delivery_latitude,
                 lng: order.delivery_longitude,
-                label: order.customer_name ?? "Customer",
+                label: order.customer_name ?? t("customer"),
               }}
             />
           )}

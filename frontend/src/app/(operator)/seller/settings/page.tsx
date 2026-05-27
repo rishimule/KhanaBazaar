@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
 import type { Service, Store } from "@/types";
@@ -18,6 +19,8 @@ function clamp(km: number): number {
 }
 
 export default function SellerSettingsPage() {
+  const t = useTranslations("Seller.settings");
+  const tc = useTranslations("Seller.common");
   const { token } = useAuth();
   const [store, setStore] = useState<Store | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -36,9 +39,9 @@ export default function SellerSettingsPage() {
       .then((stores) => {
         if (stores.length > 0) setStore(stores[0]);
       })
-      .catch(() => setError("Could not load store."))
+      .catch(() => setError(t("loadStoreError")))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     if (!token) return;
@@ -58,7 +61,7 @@ export default function SellerSettingsPage() {
         if (myReq === reqIdRef.current) setStore(updated);
       })
       .catch(() => {
-        if (myReq === reqIdRef.current) setError("Could not save delivery radius.");
+        if (myReq === reqIdRef.current) setError(t("saveRadiusError"));
       })
       .finally(() => {
         if (myReq === reqIdRef.current) setSavingRadius(false);
@@ -97,7 +100,7 @@ export default function SellerSettingsPage() {
       })
       .catch(() => {
         if (minReqRef.current[serviceId] !== myReq) return;
-        setError("Could not save minimum order value.");
+        setError(t("saveMinOrderError"));
       });
   };
 
@@ -115,21 +118,20 @@ export default function SellerSettingsPage() {
     );
   };
 
-  if (loading) return <div className={styles.empty}>Loading…</div>;
-  if (!store) return <div className={styles.empty}>No store associated with this account.</div>;
+  if (loading) return <div className={styles.empty}>{tc("loading")}</div>;
+  if (!store) return <div className={styles.empty}>{t("noStore")}</div>;
 
   const coverage = Math.round(Math.PI * store.delivery_radius_km ** 2);
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Store settings</h1>
+      <h1 className={styles.title}>{t("title")}</h1>
 
       {!store.pin_confirmed && (
         <div className={styles.pinBanner}>
-          <strong>Pin not confirmed.</strong> Customers can&apos;t see your store on
-          the map yet.{" "}
+          {t.rich("pinBanner", { strong: (chunks) => <strong>{chunks}</strong> })}{" "}
           <Link href="/seller/signup?resubmit=true" className={styles.bannerLink}>
-            Drop your pin →
+            {t("dropPin")}
           </Link>
         </div>
       )}
@@ -138,10 +140,12 @@ export default function SellerSettingsPage() {
 
       <section className={styles.card}>
         <header className={styles.cardHeader}>
-          <h2 className={styles.cardTitle}>Delivery radius</h2>
+          <h2 className={styles.cardTitle}>{t("deliveryRadius")}</h2>
           <p className={styles.cardCaption}>
-            Customers further than this won&apos;t see your store. Covers about{" "}
-            <strong>{coverage} sq km</strong> of area.
+            {t.rich("radiusCaption", {
+              coverage,
+              strong: (chunks) => <strong>{chunks}</strong>,
+            })}
           </p>
         </header>
         <div className={styles.radiusRow}>
@@ -149,7 +153,7 @@ export default function SellerSettingsPage() {
             type="button"
             className={styles.stepBtn}
             onClick={() => bump(-STEP_KM)}
-            aria-label="Decrease radius"
+            aria-label={t("decreaseRadius")}
             disabled={store.delivery_radius_km <= MIN_KM}
           >
             −
@@ -162,44 +166,41 @@ export default function SellerSettingsPage() {
             step={STEP_KM}
             value={store.delivery_radius_km}
             onChange={(e) => updateRadius(parseFloat(e.target.value))}
-            aria-label="Delivery radius in kilometres"
+            aria-label={t("radiusInputLabel")}
           />
           <span className={styles.unit}>km</span>
           <button
             type="button"
             className={styles.stepBtn}
             onClick={() => bump(STEP_KM)}
-            aria-label="Increase radius"
+            aria-label={t("increaseRadius")}
             disabled={store.delivery_radius_km >= MAX_KM}
           >
             +
           </button>
-          {savingRadius && <span className={styles.savingChip}>Saving…</span>}
+          {savingRadius && <span className={styles.savingChip}>{tc("saving")}</span>}
         </div>
       </section>
 
       <section className={styles.card}>
         <header className={styles.cardHeader}>
-          <h2 className={styles.cardTitle}>Store details</h2>
+          <h2 className={styles.cardTitle}>{t("storeDetails")}</h2>
         </header>
         <dl className={styles.detailGrid}>
-          <dt>Store name</dt>
+          <dt>{t("storeName")}</dt>
           <dd>{store.name}</dd>
-          <dt>Status</dt>
-          <dd>{store.is_active ? "Active" : "Inactive"}</dd>
-          <dt>Pin confirmed</dt>
-          <dd>{store.pin_confirmed ? "Yes" : "No"}</dd>
+          <dt>{t("status")}</dt>
+          <dd>{store.is_active ? t("active") : t("inactive")}</dd>
+          <dt>{t("pinConfirmed")}</dt>
+          <dd>{store.pin_confirmed ? t("yes") : t("no")}</dd>
         </dl>
       </section>
 
       {services.length > 0 && (
         <section className={styles.card}>
           <header className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Minimum order value</h2>
-            <p className={styles.cardCaption}>
-              Orders below this amount can&apos;t be placed for that service. Set
-              to 0 for no minimum.
-            </p>
+            <h2 className={styles.cardTitle}>{t("minOrderValue")}</h2>
+            <p className={styles.cardCaption}>{t("minOrderCaption")}</p>
           </header>
           {services.map((svc) => (
             <div key={svc.id} className={styles.serviceRow}>
@@ -213,7 +214,7 @@ export default function SellerSettingsPage() {
                 step={10}
                 value={svc.min_order_value ?? 0}
                 onChange={(e) => updateMin(svc.id, parseFloat(e.target.value))}
-                aria-label={`Minimum order value for ${svc.name}`}
+                aria-label={t("minOrderInputLabel", { service: svc.name })}
               />
             </div>
           ))}
@@ -222,14 +223,14 @@ export default function SellerSettingsPage() {
 
       <section className={styles.card}>
         <header className={styles.cardHeader}>
-          <h2 className={styles.cardTitle}>Profile & services</h2>
+          <h2 className={styles.cardTitle}>{t("profileServices")}</h2>
         </header>
         <div className={styles.linkRow}>
           <Link href="/seller/signup?resubmit=true" className="btn btn-outline">
-            Edit business profile
+            {t("editProfile")}
           </Link>
           <Link href={`/stores/${store.id}`} className="btn btn-outline">
-            View storefront
+            {t("viewStorefront")}
           </Link>
         </div>
       </section>

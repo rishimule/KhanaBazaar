@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { TranslationOut } from "@/types";
 import styles from "./TranslationsAccordion.module.css";
 
@@ -35,6 +36,7 @@ export function TranslationsAccordion({
    * server-side). */
   onTouch?: (code: string) => void;
 }) {
+  const t = useTranslations("Admin.catalog");
   const [open, setOpen] = useState(value.length > 0);
   const [active, setActive] = useState(LANGS[0].code);
 
@@ -49,7 +51,7 @@ export function TranslationsAccordion({
   if (!open) {
     return (
       <button type="button" className={styles.toggle} onClick={() => setOpen(true)}>
-        Add translations ▾
+        {t("addTranslations")}
       </button>
     );
   }
@@ -59,7 +61,7 @@ export function TranslationsAccordion({
   return (
     <div className={styles.wrap}>
       <button type="button" className={styles.toggle} onClick={() => setOpen(false)}>
-        Hide translations ▴
+        {t("hideTranslations")}
       </button>
       <div className={styles.tabs} role="tablist">
         {LANGS.map((l) => (
@@ -77,7 +79,7 @@ export function TranslationsAccordion({
       </div>
       <div className={styles.fields}>
         <label className={styles.field}>
-          <span>Name</span>
+          <span>{t("fieldName")}</span>
           <input
             type="text"
             value={current.name}
@@ -85,7 +87,7 @@ export function TranslationsAccordion({
           />
         </label>
         <label className={styles.field}>
-          <span>Description</span>
+          <span>{t("fieldDescription")}</span>
           <textarea
             value={current.description || ""}
             onChange={(e) => update(active, { description: e.target.value })}
