@@ -92,6 +92,7 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
             <span className={styles.logoDot} aria-hidden />
           </Link>
           <span className={styles.strippedSpacer} />
+          <LocaleSwitcher />
           {!loading && dbUser && (
             <button
               type="button"
