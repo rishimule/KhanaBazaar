@@ -798,5 +798,66 @@
     "installCta": "Install the app to get alerts",
     "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
     "appliesToDevice": "Applies to this device."
+  },
+  "Seller": {
+    "nav": {
+      "dashboard": "ਡੈਸ਼ਬੋਰਡ",
+      "orders": "ਆਰਡਰ",
+      "inventory": "ਇਨਵੈਂਟਰੀ",
+      "settings": "ਸੈਟਿੰਗਾਂ"
+    },
+    "titles": {
+      "dashboard": "ਵਿਕਰੇਤਾ ਡੈਸ਼ਬੋਰਡ",
+      "inventory": "ਇਨਵੈਂਟਰੀ ਪ੍ਰਬੰਧਨ",
+      "orders": "ਸਟੋਰ ਆਰਡਰ",
+      "settings": "ਸੈਟਿੰਗਾਂ",
+      "portal": "ਵਿਕਰੇਤਾ ਪੋਰਟਲ"
+    },
+    "common": {
+      "save": "ਸੰਭਾਲੋ",
+      "cancel": "ਰੱਦ ਕਰੋ",
+      "edit": "ਸੋਧੋ",
+      "delete": "ਮਿਟਾਓ",
+      "confirm": "ਪੁਸ਼ਟੀ ਕਰੋ",
+      "back": "ਵਾਪਸ",
+      "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+      "saving": "ਸੰਭਾਲਿਆ ਜਾ ਰਿਹਾ ਹੈ…",
+      "search": "ਖੋਜੋ",
+      "noResults": "ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ",
+      "retry": "ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
+      "portalName": "ਵਿਕਰੇਤਾ ਪੋਰਟਲ"
+    }
+  },
+  "Admin": {
+    "nav": {
+      "dashboard": "ਡੈਸ਼ਬੋਰਡ",
+      "orders": "ਆਰਡਰ",
+      "sellers": "ਵਿਕਰੇਤਾ",
+      "applications": "ਅਰਜ਼ੀਆਂ",
+      "catalog": "ਕੈਟਾਲਾਗ"
+    },
+    "titles": {
+      "dashboard": "ਐਡਮਿਨ ਡੈਸ਼ਬੋਰਡ",
+      "sellers": "ਵਿਕਰੇਤਾ",
+      "applications": "ਵਿਕਰੇਤਾ ਅਰਜ਼ੀਆਂ",
+      "sellerStore": "ਵਿਕਰੇਤਾ ਸਟੋਰ",
+      "catalog": "ਕੈਟਾਲਾਗ",
+      "orders": "ਸਾਰੇ ਆਰਡਰ",
+      "panel": "ਐਡਮਿਨ ਪੈਨਲ"
+    },
+    "common": {
+      "save": "ਸੰਭਾਲੋ",
+      "cancel": "ਰੱਦ ਕਰੋ",
+      "edit": "ਸੋਧੋ",
+      "delete": "ਮਿਟਾਓ",
+      "confirm": "ਪੁਸ਼ਟੀ ਕਰੋ",
+      "back": "ਵਾਪਸ",
+      "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+      "saving": "ਸੰਭਾਲਿਆ ਜਾ ਰਿਹਾ ਹੈ…",
+      "search": "ਖੋਜੋ",
+      "noResults": "ਕੋਈ ਨਤੀਜਾ ਨਹੀਂ",
+      "retry": "ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
+      "adminName": "ਪਲੇਟਫਾਰਮ ਐਡਮਿਨ"
+    }
   }
 }

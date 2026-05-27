@@ -798,5 +798,66 @@
     "installCta": "Install the app to get alerts",
     "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
     "appliesToDevice": "Applies to this device."
+  },
+  "Seller": {
+    "nav": {
+      "dashboard": "ડેશબોર્ડ",
+      "orders": "ઓર્ડર",
+      "inventory": "ઇન્વેન્ટરી",
+      "settings": "સેટિંગ્સ"
+    },
+    "titles": {
+      "dashboard": "વિક્રેતા ડેશબોર્ડ",
+      "inventory": "ઇન્વેન્ટરી વ્યવસ્થાપન",
+      "orders": "સ્ટોર ઓર્ડર",
+      "settings": "સેટિંગ્સ",
+      "portal": "વિક્રેતા પોર્ટલ"
+    },
+    "common": {
+      "save": "સાચવો",
+      "cancel": "રદ કરો",
+      "edit": "ફેરફાર કરો",
+      "delete": "કાઢી નાખો",
+      "confirm": "પુષ્ટિ કરો",
+      "back": "પાછળ",
+      "loading": "લોડ થઈ રહ્યું છે…",
+      "saving": "સાચવાઈ રહ્યું છે…",
+      "search": "શોધો",
+      "noResults": "કોઈ પરિણામ નથી",
+      "retry": "ફરી પ્રયાસ કરો",
+      "portalName": "વિક્રેતા પોર્ટલ"
+    }
+  },
+  "Admin": {
+    "nav": {
+      "dashboard": "ડેશબોર્ડ",
+      "orders": "ઓર્ડર",
+      "sellers": "વિક્રેતાઓ",
+      "applications": "અરજીઓ",
+      "catalog": "કેટલોગ"
+    },
+    "titles": {
+      "dashboard": "એડમિન ડેશબોર્ડ",
+      "sellers": "વિક્રેતાઓ",
+      "applications": "વિક્રેતા અરજીઓ",
+      "sellerStore": "વિક્રેતા સ્ટોર",
+      "catalog": "કેટલોગ",
+      "orders": "બધા ઓર્ડર",
+      "panel": "એડમિન પેનલ"
+    },
+    "common": {
+      "save": "સાચવો",
+      "cancel": "રદ કરો",
+      "edit": "ફેરફાર કરો",
+      "delete": "કાઢી નાખો",
+      "confirm": "પુષ્ટિ કરો",
+      "back": "પાછળ",
+      "loading": "લોડ થઈ રહ્યું છે…",
+      "saving": "સાચવાઈ રહ્યું છે…",
+      "search": "શોધો",
+      "noResults": "કોઈ પરિણામ નથી",
+      "retry": "ફરી પ્રયાસ કરો",
+      "adminName": "પ્લેટફોર્મ એડમિન"
+    }
   }
 }

@@ -798,5 +798,66 @@
     "installCta": "Install the app to get alerts",
     "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
     "appliesToDevice": "Applies to this device."
+  },
+  "Seller": {
+    "nav": {
+      "dashboard": "डैशबोर्ड",
+      "orders": "ऑर्डर",
+      "inventory": "इन्वेंटरी",
+      "settings": "सेटिंग्स"
+    },
+    "titles": {
+      "dashboard": "विक्रेता डैशबोर्ड",
+      "inventory": "इन्वेंटरी प्रबंधन",
+      "orders": "स्टोर ऑर्डर",
+      "settings": "सेटिंग्स",
+      "portal": "विक्रेता पोर्टल"
+    },
+    "common": {
+      "save": "सहेजें",
+      "cancel": "रद्द करें",
+      "edit": "संपादित करें",
+      "delete": "हटाएँ",
+      "confirm": "पुष्टि करें",
+      "back": "वापस",
+      "loading": "लोड हो रहा है…",
+      "saving": "सहेजा जा रहा है…",
+      "search": "खोजें",
+      "noResults": "कोई परिणाम नहीं",
+      "retry": "पुनः प्रयास करें",
+      "portalName": "विक्रेता पोर्टल"
+    }
+  },
+  "Admin": {
+    "nav": {
+      "dashboard": "डैशबोर्ड",
+      "orders": "ऑर्डर",
+      "sellers": "विक्रेता",
+      "applications": "आवेदन",
+      "catalog": "कैटलॉग"
+    },
+    "titles": {
+      "dashboard": "एडमिन डैशबोर्ड",
+      "sellers": "विक्रेता",
+      "applications": "विक्रेता आवेदन",
+      "sellerStore": "विक्रेता स्टोर",
+      "catalog": "कैटलॉग",
+      "orders": "सभी ऑर्डर",
+      "panel": "एडमिन पैनल"
+    },
+    "common": {
+      "save": "सहेजें",
+      "cancel": "रद्द करें",
+      "edit": "संपादित करें",
+      "delete": "हटाएँ",
+      "confirm": "पुष्टि करें",
+      "back": "वापस",
+      "loading": "लोड हो रहा है…",
+      "saving": "सहेजा जा रहा है…",
+      "search": "खोजें",
+      "noResults": "कोई परिणाम नहीं",
+      "retry": "पुनः प्रयास करें",
+      "adminName": "प्लेटफ़ॉर्म एडमिन"
+    }
   }
 }

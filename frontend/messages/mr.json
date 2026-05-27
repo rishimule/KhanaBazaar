@@ -798,5 +798,66 @@
     "installCta": "Install the app to get alerts",
     "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
     "appliesToDevice": "Applies to this device."
+  },
+  "Seller": {
+    "nav": {
+      "dashboard": "डॅशबोर्ड",
+      "orders": "ऑर्डर",
+      "inventory": "इन्व्हेंटरी",
+      "settings": "सेटिंग्ज"
+    },
+    "titles": {
+      "dashboard": "विक्रेता डॅशबोर्ड",
+      "inventory": "इन्व्हेंटरी व्यवस्थापन",
+      "orders": "स्टोअर ऑर्डर",
+      "settings": "सेटिंग्ज",
+      "portal": "विक्रेता पोर्टल"
+    },
+    "common": {
+      "save": "जतन करा",
+      "cancel": "रद्द करा",
+      "edit": "संपादित करा",
+      "delete": "हटवा",
+      "confirm": "पुष्टी करा",
+      "back": "मागे",
+      "loading": "लोड होत आहे…",
+      "saving": "जतन होत आहे…",
+      "search": "शोधा",
+      "noResults": "परिणाम नाहीत",
+      "retry": "पुन्हा प्रयत्न करा",
+      "portalName": "विक्रेता पोर्टल"
+    }
+  },
+  "Admin": {
+    "nav": {
+      "dashboard": "डॅशबोर्ड",
+      "orders": "ऑर्डर",
+      "sellers": "विक्रेते",
+      "applications": "अर्ज",
+      "catalog": "कॅटलॉग"
+    },
+    "titles": {
+      "dashboard": "अ‍ॅडमिन डॅशबोर्ड",
+      "sellers": "विक्रेते",
+      "applications": "विक्रेता अर्ज",
+      "sellerStore": "विक्रेता स्टोअर",
+      "catalog": "कॅटलॉग",
+      "orders": "सर्व ऑर्डर",
+      "panel": "अ‍ॅडमिन पॅनेल"
+    },
+    "common": {
+      "save": "जतन करा",
+      "cancel": "रद्द करा",
+      "edit": "संपादित करा",
+      "delete": "हटवा",
+      "confirm": "पुष्टी करा",
+      "back": "मागे",
+      "loading": "लोड होत आहे…",
+      "saving": "जतन होत आहे…",
+      "search": "शोधा",
+      "noResults": "परिणाम नाहीत",
+      "retry": "पुन्हा प्रयत्न करा",
+      "adminName": "प्लॅटफॉर्म अ‍ॅडमिन"
+    }
   }
 }

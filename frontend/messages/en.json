@@ -797,5 +797,66 @@
     "installCta": "Install the app to get alerts",
     "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
     "appliesToDevice": "Applies to this device."
+  },
+  "Seller": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "orders": "Orders",
+      "inventory": "Inventory",
+      "settings": "Settings"
+    },
+    "titles": {
+      "dashboard": "Seller Dashboard",
+      "inventory": "Inventory Management",
+      "orders": "Store Orders",
+      "settings": "Settings",
+      "portal": "Seller Portal"
+    },
+    "common": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirm": "Confirm",
+      "back": "Back",
+      "loading": "Loading…",
+      "saving": "Saving…",
+      "search": "Search",
+      "noResults": "No results",
+      "retry": "Retry",
+      "portalName": "Seller Portal"
+    }
+  },
+  "Admin": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "orders": "Orders",
+      "sellers": "Sellers",
+      "applications": "Applications",
+      "catalog": "Catalog"
+    },
+    "titles": {
+      "dashboard": "Admin Dashboard",
+      "sellers": "Sellers",
+      "applications": "Seller Applications",
+      "sellerStore": "Seller Store",
+      "catalog": "Catalog",
+      "orders": "All Orders",
+      "panel": "Admin Panel"
+    },
+    "common": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirm": "Confirm",
+      "back": "Back",
+      "loading": "Loading…",
+      "saving": "Saving…",
+      "search": "Search",
+      "noResults": "No results",
+      "retry": "Retry",
+      "adminName": "Platform Admin"
+    }
   }
 }

@@ -4,28 +4,23 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import DashboardLayout from "@/components/DashboardLayout";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { Store, VerificationStatus } from "@/types";
 
-const SELLER_NAV = [
-  { href: "/seller", label: "Dashboard", icon: "📊" },
-  { href: "/seller/orders", label: "Orders", icon: "📦" },
-  { href: "/seller/inventory", label: "Inventory", icon: "🏷️" },
-  { href: "/seller/settings", label: "Settings", icon: "⚙️" },
-];
-
 export default function SellerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations("Seller");
   const pathname = usePathname();
   const router = useRouter();
   const { dbUser, token, loading } = useAuth();
-  const [storeName, setStoreName] = useState("Seller Portal");
+  const [storeName, setStoreName] = useState("");
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
 
@@ -85,7 +80,7 @@ export default function SellerLayout({
   if (loading || !dbUser || dbUser.role !== "seller") {
     return (
       <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
-        Loading…
+        {t("common.loading")}
       </div>
     );
   }
@@ -94,31 +89,38 @@ export default function SellerLayout({
   if (statusLoading || verificationStatus === null || verificationStatus !== "approved") {
     return (
       <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
-        Loading…
+        {t("common.loading")}
       </div>
     );
   }
 
+  const sellerNav = [
+    { href: "/seller", label: t("nav.dashboard"), icon: "📊" },
+    { href: "/seller/orders", label: t("nav.orders"), icon: "📦" },
+    { href: "/seller/inventory", label: t("nav.inventory"), icon: "🏷️" },
+    { href: "/seller/settings", label: t("nav.settings"), icon: "⚙️" },
+  ];
+
   // Derive title from current route
   const title =
     pathname === "/seller"
-      ? "Seller Dashboard"
+      ? t("titles.dashboard")
       : pathname === "/seller/inventory"
-        ? "Inventory Management"
+        ? t("titles.inventory")
         : pathname.startsWith("/seller/orders")
-          ? "Store Orders"
+          ? t("titles.orders")
           : pathname.startsWith("/seller/settings")
-            ? "Settings"
-            : "Seller Portal";
+            ? t("titles.settings")
+            : t("titles.portal");
 
   return (
     <>
       <Navbar variant="dashboard" />
       <DashboardLayout
         role="seller"
-        roleName={storeName}
+        roleName={storeName || t("common.portalName")}
         title={title}
-        navItems={SELLER_NAV}
+        navItems={sellerNav}
       >
         {children}
       </DashboardLayout>
