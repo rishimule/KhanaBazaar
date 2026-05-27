@@ -18,6 +18,9 @@ import {
   Service,
 } from "@/types";
 
+import { ScrollRail } from "@/components/ScrollRail";
+import { serviceGlyph } from "@/lib/serviceGlyph";
+
 import styles from "./page.module.css";
 import mobileStyles from "@/components/DataTableCard.module.css";
 
@@ -45,24 +48,30 @@ function InventoryServiceTabs({
   activeId: number | null;
   onChange: (slug: string) => void;
 }) {
+  const t = useTranslations("Seller.inventory");
   if (buckets.length === 0) return null;
   return (
-    <div className={styles.serviceTabs} role="tablist">
-      {buckets.map(({ service, totalCount }) => {
-        const isActive = service.id === activeId;
-        return (
-          <button
-            key={service.id}
-            role="tab"
-            aria-selected={isActive}
-            className={`${styles.serviceTab} ${isActive ? styles.serviceTabActive : ""}`}
-            onClick={() => onChange(service.slug)}
-          >
-            {service.name}
-            <span className={styles.serviceTabCount}>({totalCount})</span>
-          </button>
-        );
-      })}
+    <div className={styles.serviceTileRail}>
+      <ScrollRail ariaLabel={t("servicesAria")}>
+        {buckets.map(({ service, totalCount }) => {
+          const isActive = service.id === activeId;
+          return (
+            <button
+              key={service.id}
+              type="button"
+              className={`${styles.svcTile} ${isActive ? styles.svcTileActive : ""}`}
+              onClick={() => onChange(service.slug)}
+              aria-current={isActive ? "true" : undefined}
+            >
+              <span className={styles.svcTileGlyph} aria-hidden>
+                {serviceGlyph(service.slug)}
+              </span>
+              <span className={styles.svcTileLabel}>{service.name}</span>
+              <span className={styles.svcTileCount}>{totalCount}</span>
+            </button>
+          );
+        })}
+      </ScrollRail>
     </div>
   );
 }

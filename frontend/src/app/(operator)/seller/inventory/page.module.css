@@ -35,6 +35,62 @@
 .addBtn:hover  { background: var(--color-btn-primary-hover); }
 .addBtn:active { transform: scale(0.97); }
 
+.serviceTileRail {
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.svcTile {
+  flex: 1 0 120px;
+  background: var(--shade-cool-light-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-card);
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: var(--font-family-sans);
+  color: var(--shade-cool-dark-7);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+
+.svcTile:hover {
+  background: var(--white);
+  border-color: var(--hairline);
+}
+
+.svcTileActive {
+  background: var(--white);
+  border-color: var(--color-primary-1);
+}
+
+.svcTileGlyph {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.svcTileLabel {
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  text-align: center;
+}
+
+.svcTileCount {
+  font-size: var(--body-3xs);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-base-7);
+  background: var(--shade-cool-light-3);
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.svcTileActive .svcTileCount {
+  color: var(--color-primary-1);
+}
+
 .toggleBtn {
   padding: var(--space-1) var(--space-3);
   font-size: var(--font-xs);
@@ -119,53 +175,6 @@
   text-align: center;
   color: var(--color-neutral-500);
   font-size: var(--font-sm);
-}
-
-.serviceTabs {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: var(--space-1);
-}
-
-.serviceTab {
-  flex: 0 0 auto;
-  scroll-snap-align: start;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-sm);
-  font-weight: var(--weight-medium);
-  color: var(--color-neutral-700);
-  background: var(--color-neutral-100);
-  border: 1px solid transparent;
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all var(--duration-fast) var(--ease-default);
-}
-
-.serviceTab:hover {
-  background: var(--color-neutral-200);
-}
-
-.serviceTabActive {
-  background: var(--color-primary-1);
-  color: var(--white);
-  border-color: var(--color-primary-1);
-}
-.serviceTabActive:hover { background: var(--color-primary-1); }
-
-.serviceTabCount {
-  margin-left: var(--space-2);
-  font-size: var(--font-xs);
-  color: var(--color-neutral-500);
-  font-weight: var(--weight-regular);
-}
-
-.serviceTabActive .serviceTabCount {
-  color: rgba(255,255,255,0.85);
 }
 
 .servicesEmpty {
@@ -305,13 +314,6 @@
     width: 100%;
     justify-content: center;
     min-height: 44px;
-  }
-
-  .serviceTabs {
-    margin-left: calc(-1 * var(--space-3));
-    margin-right: calc(-1 * var(--space-3));
-    padding-left: var(--space-3);
-    padding-right: var(--space-3);
   }
 
   .categoryNav {
