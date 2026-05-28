@@ -211,3 +211,25 @@ async def create_change_request(
         cr=cr,
         emails=[lambda: dispatch_seller_change_request_submitted(cr.id)],
     )
+
+
+async def withdraw(
+    *,
+    session: AsyncSession,
+    cr: SellerProfileChangeRequest,
+    actor_user_id: int,
+) -> CRMutationResult:
+    if cr.status not in OPEN_STATUSES:
+        raise HTTPException(status_code=409, detail="cr_not_open")
+    cr.status = SellerProfileChangeStatus.Withdrawn
+    cr.decided_at = _now()
+    cr.decided_by_user_id = actor_user_id
+    cr.updated_at = _now()
+    session.add(cr)
+    _emit_event(
+        session=session, cr=cr,
+        kind=SellerProfileChangeEventKind.Withdrawn,
+        actor_user_id=actor_user_id, actor_role=UserRole.Seller,
+    )
+    logger.info("cr.withdraw cr_id=%s", cr.id)
+    return CRMutationResult(cr=cr, emails=[])

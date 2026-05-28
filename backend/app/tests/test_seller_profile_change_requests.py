@@ -88,3 +88,34 @@ async def test_create_cr_duplicate_group_blocks(approved_seller, session):
         )
     assert excinfo.value.status_code == 409
     assert excinfo.value.detail == "cr_already_open"
+
+
+@pytest.mark.asyncio
+async def test_withdraw_open_cr(approved_seller, session):
+    from app.services.seller_profile_change_requests import (
+        create_change_request, withdraw,
+    )
+    profile = approved_seller["profile"]
+    create = await create_change_request(
+        session=session, seller_profile=profile,
+        group=SellerProfileChangeGroup.Banking,
+        proposed={"bank_account_number": "123456789012", "bank_ifsc": "HDFC0001234"},
+        note=None, actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+    res = await withdraw(
+        session=session, cr=create.cr,
+        actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+    assert res.cr.status is SellerProfileChangeStatus.Withdrawn
+    assert res.cr.decided_at is not None
+    # partial-unique index now allows fresh CR
+    create2 = await create_change_request(
+        session=session, seller_profile=profile,
+        group=SellerProfileChangeGroup.Banking,
+        proposed={"bank_account_number": "555566667777", "bank_ifsc": "ICIC0001234"},
+        note=None, actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+    assert create2.cr.id != create.cr.id
