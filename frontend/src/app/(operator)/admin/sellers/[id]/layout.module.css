@@ -38,6 +38,22 @@
   color: var(--color-neutral-900);
 }
 
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.4rem;
+  margin-left: 0.4rem;
+  border-radius: 999px;
+  background: var(--saffron-yellow-base-3, #f59e0b);
+  color: var(--white, #fff);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .content {
   padding-bottom: 2rem;
 }

@@ -1372,6 +1372,7 @@
         "profile": "प्रोफाइल",
         "products": "उत्पादने",
         "orders": "ऑर्डर",
+        "requests": "Change requests",
         "activity": "क्रियाकलाप"
       },
       "loadSellerError": "विक्रेता लोड करण्यात अयशस्वी",

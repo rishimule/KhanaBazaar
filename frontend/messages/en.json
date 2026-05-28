@@ -1371,6 +1371,7 @@
         "profile": "Profile",
         "products": "Products",
         "orders": "Orders",
+        "requests": "Change requests",
         "activity": "Activity"
       },
       "loadSellerError": "Failed to load seller",

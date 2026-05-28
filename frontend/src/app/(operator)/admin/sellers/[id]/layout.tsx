@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import ImpersonationBanner from "@/components/admin/ImpersonationBanner";
 import { useAuth } from "@/lib/AuthContext";
 import { fetchSellerHub } from "@/lib/adminActions";
+import { adminListSellerCRs } from "@/lib/changeRequests";
 import type { SellerHubSummary } from "@/types";
 import styles from "./layout.module.css";
 
@@ -15,6 +16,7 @@ const TABS: { slug: string; labelKey: string }[] = [
   { slug: "profile", labelKey: "tab.profile" },
   { slug: "products", labelKey: "tab.products" },
   { slug: "orders", labelKey: "tab.orders" },
+  { slug: "requests", labelKey: "tab.requests" },
   { slug: "activity", labelKey: "tab.activity" },
 ];
 
@@ -33,6 +35,7 @@ export default function SellerHubLayout({
   const { token, dbUser, loading } = useAuth();
   const [hub, setHub] = useState<SellerHubSummary | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [openCRCount, setOpenCRCount] = useState<number>(0);
 
   // The parent /admin/layout.tsx already gates non-admins; this layout just
   // loads the per-seller header data.
@@ -42,6 +45,23 @@ export default function SellerHubLayout({
       .then(setHub)
       .catch(() => setErr(t("loadSellerError")));
   }, [id, token, dbUser, loading, t]);
+
+  // Best-effort open-CR count for the subnav badge. Silently swallow errors
+  // so a transient API failure never blocks the per-seller page.
+  useEffect(() => {
+    if (loading || !dbUser || dbUser.role !== "admin" || !token) return;
+    let cancelled = false;
+    adminListSellerCRs(token, Number(id), "open")
+      .then((rows) => {
+        if (!cancelled) setOpenCRCount(rows.length);
+      })
+      .catch(() => {
+        if (!cancelled) setOpenCRCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, token, dbUser, loading]);
 
   // Determine active tab from pathname.
   const segments = pathname.split("/").filter(Boolean);
@@ -73,6 +93,7 @@ export default function SellerHubLayout({
         {TABS.map((tab) => {
           const href = `/admin/sellers/${id}/${tab.slug}`;
           const active = activeSlug === tab.slug;
+          const showBadge = tab.slug === "requests" && openCRCount > 0;
           return (
             <Link
               key={tab.slug}
@@ -80,6 +101,11 @@ export default function SellerHubLayout({
               className={active ? styles.tabActive : styles.tab}
             >
               {t(tab.labelKey)}
+              {showBadge && (
+                <span className={styles.badge} aria-label={`${openCRCount} open`}>
+                  {openCRCount}
+                </span>
+              )}
             </Link>
           );
         })}
