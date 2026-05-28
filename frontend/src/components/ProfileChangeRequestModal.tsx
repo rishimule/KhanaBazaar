@@ -22,12 +22,15 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
     { name: "phone", label: "Phone", type: "tel", required: true },
   ],
   address: [
-    { name: "street", label: "Street", required: true },
+    { name: "address_line1", label: "Address line 1", required: true },
+    { name: "address_line2", label: "Address line 2" },
+    { name: "landmark", label: "Landmark" },
     { name: "city", label: "City", required: true },
     { name: "state", label: "State", required: true },
     { name: "pincode", label: "PIN code", required: true },
-    { name: "latitude", label: "Latitude", type: "number", required: true },
-    { name: "longitude", label: "Longitude", type: "number", required: true },
+    { name: "country", label: "Country", required: true },
+    { name: "latitude", label: "Latitude", type: "number" },
+    { name: "longitude", label: "Longitude", type: "number" },
   ],
   legal: [
     { name: "gst_number", label: "GST number" },
