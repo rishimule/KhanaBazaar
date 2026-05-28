@@ -93,7 +93,8 @@ async def test_create_cr_duplicate_group_blocks(approved_seller, session):
 @pytest.mark.asyncio
 async def test_withdraw_open_cr(approved_seller, session):
     from app.services.seller_profile_change_requests import (
-        create_change_request, withdraw,
+        create_change_request,
+        withdraw,
     )
     profile = approved_seller["profile"]
     create = await create_change_request(
@@ -124,8 +125,10 @@ async def test_withdraw_open_cr(approved_seller, session):
 @pytest.mark.asyncio
 async def test_resubmit_blocked_when_not_changes_requested(approved_seller, session):
     from fastapi import HTTPException
+
     from app.services.seller_profile_change_requests import (
-        create_change_request, resubmit,
+        create_change_request,
+        resubmit,
     )
     profile = approved_seller["profile"]
     create = await create_change_request(
@@ -148,7 +151,9 @@ async def test_resubmit_blocked_when_not_changes_requested(approved_seller, sess
 @pytest.mark.asyncio
 async def test_resubmit_after_changes_requested(approved_seller, session, admin_user):
     from app.services.seller_profile_change_requests import (
-        create_change_request, request_changes, resubmit,
+        create_change_request,
+        request_changes,
+        resubmit,
     )
     profile = approved_seller["profile"]
     create = await create_change_request(
@@ -176,10 +181,11 @@ async def test_resubmit_after_changes_requested(approved_seller, session, admin_
 
 @pytest.mark.asyncio
 async def test_request_changes_writes_event_and_audit(approved_seller, session, admin_user):
-    from app.services.seller_profile_change_requests import (
-        create_change_request, request_changes,
-    )
     from app.models.admin_audit import AdminActionLog
+    from app.services.seller_profile_change_requests import (
+        create_change_request,
+        request_changes,
+    )
     profile = approved_seller["profile"]
     create = await create_change_request(
         session=session, seller_profile=profile,
@@ -206,8 +212,11 @@ async def test_request_changes_writes_event_and_audit(approved_seller, session, 
 @pytest.mark.asyncio
 async def test_reject_terminal(approved_seller, session, admin_user):
     from fastapi import HTTPException
+
     from app.services.seller_profile_change_requests import (
-        create_change_request, reject, resubmit,
+        create_change_request,
+        reject,
+        resubmit,
     )
     profile = approved_seller["profile"]
     create = await create_change_request(
@@ -234,10 +243,11 @@ async def test_reject_terminal(approved_seller, session, admin_user):
 
 @pytest.mark.asyncio
 async def test_approve_no_edits_applies_proposed(approved_seller, session, admin_user):
-    from app.services.seller_profile_change_requests import (
-        create_change_request, approve,
-    )
     from app.models.admin_audit import AdminActionLog
+    from app.services.seller_profile_change_requests import (
+        approve,
+        create_change_request,
+    )
     profile = approved_seller["profile"]
     create = await create_change_request(
         session=session, seller_profile=profile,
@@ -267,7 +277,8 @@ async def test_approve_no_edits_applies_proposed(approved_seller, session, admin
 @pytest.mark.asyncio
 async def test_approve_with_edits_uses_admin_values(approved_seller, session, admin_user):
     from app.services.seller_profile_change_requests import (
-        create_change_request, approve,
+        approve,
+        create_change_request,
     )
     profile = approved_seller["profile"]
     create = await create_change_request(
@@ -292,8 +303,10 @@ async def test_approve_with_edits_uses_admin_values(approved_seller, session, ad
 @pytest.mark.asyncio
 async def test_approve_invalid_applied_rejects(approved_seller, session, admin_user):
     from fastapi import HTTPException
+
     from app.services.seller_profile_change_requests import (
-        create_change_request, approve,
+        approve,
+        create_change_request,
     )
     profile = approved_seller["profile"]
     create = await create_change_request(
@@ -317,11 +330,12 @@ async def test_approve_invalid_applied_rejects(approved_seller, session, admin_u
 async def test_supersede_open_cr_marks_withdrawn_system(
     approved_seller, session, admin_user
 ):
-    from app.services.seller_profile_change_requests import (
-        create_change_request, supersede_open_cr,
-    )
     from app.models.seller_profile_change_request import (
         SellerProfileChangeEventKind,
+    )
+    from app.services.seller_profile_change_requests import (
+        create_change_request,
+        supersede_open_cr,
     )
     profile = approved_seller["profile"]
     create = await create_change_request(

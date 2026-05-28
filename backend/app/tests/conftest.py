@@ -354,6 +354,7 @@ def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, Non
 
 # ─── Seller-profile-change-request fixtures ──────────────────────────────
 import uuid as _uuid  # noqa: E402
+
 import pytest_asyncio  # noqa: E402
 
 from app.models.address import Address  # noqa: E402
