@@ -18,6 +18,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models.admin_audit import AdminActionTargetType
 from app.models.base import UserRole
 from app.models.profile import (
     SellerProfile,
@@ -34,6 +35,7 @@ from app.models.store import Store
 from app.schemas.seller_profile_change_request import (
     validate_group_payload,
 )
+from app.services import admin_audit
 from app.services.profiles import compose_full_name
 from app.services.seller_services import (
     list_profile_services,
@@ -267,4 +269,90 @@ async def resubmit(
     return CRMutationResult(
         cr=cr,
         emails=[lambda: dispatch_seller_change_request_submitted(cr.id)],
+    )
+
+
+async def request_changes(
+    *,
+    session: AsyncSession,
+    cr: SellerProfileChangeRequest,
+    admin_user_id: int,
+    note: str,
+) -> CRMutationResult:
+    if cr.status is not SellerProfileChangeStatus.Submitted:
+        raise HTTPException(status_code=409, detail="cr_not_actionable")
+    if len(note.strip()) < 5:
+        raise HTTPException(status_code=422, detail="note_required")
+    cr.status = SellerProfileChangeStatus.ChangesRequested
+    cr.admin_note = note
+    cr.updated_at = _now()
+    session.add(cr)
+    _emit_event(
+        session=session, cr=cr,
+        kind=SellerProfileChangeEventKind.ChangesRequested,
+        actor_user_id=admin_user_id, actor_role=UserRole.Admin,
+        note=note,
+    )
+    await admin_audit.log(
+        session=session,
+        admin_user_id=admin_user_id,
+        target_seller_id=cr.seller_profile_id,
+        target_type=AdminActionTargetType.SellerProfile,
+        target_id=cr.seller_profile_id,
+        action="profile_cr_request_changes",
+        before_json={"cr_id": str(cr.id), "proposed": cr.proposed_json},
+        after_json=None,
+        reason=note,
+    )
+    logger.info("cr.request_changes cr_id=%s", cr.id)
+    from app.services.seller_emails import (
+        dispatch_seller_change_request_changes_requested,
+    )
+    return CRMutationResult(
+        cr=cr,
+        emails=[lambda: dispatch_seller_change_request_changes_requested(cr.id)],
+    )
+
+
+async def reject(
+    *,
+    session: AsyncSession,
+    cr: SellerProfileChangeRequest,
+    admin_user_id: int,
+    reason: str,
+) -> CRMutationResult:
+    if cr.status not in OPEN_STATUSES:
+        raise HTTPException(status_code=409, detail="cr_not_actionable")
+    if len(reason.strip()) < 5:
+        raise HTTPException(status_code=422, detail="reason_required")
+    cr.status = SellerProfileChangeStatus.Rejected
+    cr.admin_note = reason
+    cr.decided_at = _now()
+    cr.decided_by_user_id = admin_user_id
+    cr.updated_at = _now()
+    session.add(cr)
+    _emit_event(
+        session=session, cr=cr,
+        kind=SellerProfileChangeEventKind.Rejected,
+        actor_user_id=admin_user_id, actor_role=UserRole.Admin,
+        note=reason,
+    )
+    await admin_audit.log(
+        session=session,
+        admin_user_id=admin_user_id,
+        target_seller_id=cr.seller_profile_id,
+        target_type=AdminActionTargetType.SellerProfile,
+        target_id=cr.seller_profile_id,
+        action="profile_cr_reject",
+        before_json={"cr_id": str(cr.id), "proposed": cr.proposed_json},
+        after_json=None,
+        reason=reason,
+    )
+    logger.info("cr.reject cr_id=%s", cr.id)
+    from app.services.seller_emails import (
+        dispatch_seller_change_request_rejected,
+    )
+    return CRMutationResult(
+        cr=cr,
+        emails=[lambda: dispatch_seller_change_request_rejected(cr.id)],
     )
