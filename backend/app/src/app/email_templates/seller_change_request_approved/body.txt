@@ -1,0 +1,7 @@
+Hi {{ business_name }} team,
+
+Your change request for {{ group_label }} has been approved and is now live.
+
+If you didn't request this, contact support.
+
+— {{ brand_name }}

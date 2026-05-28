@@ -1,0 +1,10 @@
+Hi {{ business_name }} team,
+
+An admin reviewed your change request for {{ group_label }} and asked for an update:
+
+"{{ admin_note }}"
+
+Open your request and edit + resubmit:
+{{ FRONTEND_BASE_URL }}/seller/profile/requests/{{ cr_id }}
+
+— {{ brand_name }}

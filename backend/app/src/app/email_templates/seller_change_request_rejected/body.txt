@@ -1,0 +1,9 @@
+Hi {{ business_name }} team,
+
+Your change request for {{ group_label }} was rejected.
+
+Reason: {{ admin_note }}
+
+You can file a fresh change request if needed.
+
+— {{ brand_name }}

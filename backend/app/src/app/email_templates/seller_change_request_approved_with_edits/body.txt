@@ -1,0 +1,12 @@
+Hi {{ business_name }} team,
+
+Your change request for {{ group_label }} has been approved. An admin adjusted some values before applying:
+
+You proposed: {{ proposed }}
+Applied: {{ applied }}
+
+{% if admin_note %}Admin note: {{ admin_note }}{% endif %}
+
+If you didn't request this, contact support.
+
+— {{ brand_name }}

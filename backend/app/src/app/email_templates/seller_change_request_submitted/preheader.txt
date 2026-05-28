@@ -1,0 +1,1 @@
+We received your update request for {{ business_name }}. Submission #{{ submission_count }}.

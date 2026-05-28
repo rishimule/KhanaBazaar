@@ -1,0 +1,9 @@
+Hi {{ business_name }} team,
+
+We received your change request for {{ group_label }} (submission #{{ submission_count }}).
+
+We'll review it shortly and let you know the outcome by email.
+
+If you didn't request this, contact support.
+
+— {{ brand_name }}
