@@ -24,7 +24,7 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
-from app.models.profile import SellerProfile, SellerProfileService
+from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.inventory import (
@@ -306,6 +306,14 @@ async def update_store(
     lang: str = Depends(get_request_locale),
 ) -> StoreRead:
     store = await _authorize_store_ownership(session, store_id, seller, allow_admin=False)
+    # If the seller is Approved, name + delivery_radius_km changes must go
+    # through a change request. pin_confirmed stays direct (confirmation gesture
+    # — it's not a profile edit, it's the seller acknowledging their map pin).
+    if (
+        store.seller_profile.verification_status is VerificationStatus.Approved
+        and (payload.name is not None or payload.delivery_radius_km is not None)
+    ):
+        raise HTTPException(status_code=409, detail="use_change_request")
     if payload.name is not None:
         store.name = payload.name
     if payload.delivery_radius_km is not None:

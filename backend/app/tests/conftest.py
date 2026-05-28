@@ -153,7 +153,7 @@ _db_session_mod.async_session_factory = lambda: AsyncSession(test_engine, expire
 
 @pytest.fixture(name="session")
 async def session_fixture() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSession(test_engine) as session:
+    async with AsyncSession(test_engine, expire_on_commit=False) as session:
         yield session
 
 @pytest.fixture(name="client")
@@ -344,5 +344,77 @@ def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, Non
          patch("app.api.sellers.dispatch_seller_rejected", lambda *a, **kw: None), \
          patch("app.api.sellers.dispatch_seller_application_submitted", lambda *a, **kw: None), \
          patch("app.services.seller_emails.dispatch_seller_application_submitted", lambda *a, **kw: None), \
-         patch("app.services.seller_emails.dispatch_customer_welcome", lambda *a, **kw: None):
+         patch("app.services.seller_emails.dispatch_customer_welcome", lambda *a, **kw: None), \
+         patch("app.services.seller_emails.dispatch_seller_change_request_submitted", lambda *a, **kw: None), \
+         patch("app.services.seller_emails.dispatch_seller_change_request_approved", lambda *a, **kw: None), \
+         patch("app.services.seller_emails.dispatch_seller_change_request_changes_requested", lambda *a, **kw: None), \
+         patch("app.services.seller_emails.dispatch_seller_change_request_rejected", lambda *a, **kw: None), \
+         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_submitted", lambda *a, **kw: None, create=True), \
+         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_approved", lambda *a, **kw: None, create=True), \
+         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_changes_requested", lambda *a, **kw: None, create=True), \
+         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_rejected", lambda *a, **kw: None, create=True):
         yield
+
+
+# ─── Seller-profile-change-request fixtures ──────────────────────────────
+import uuid as _uuid  # noqa: E402
+
+import pytest_asyncio  # noqa: E402
+
+from app.models.address import Address  # noqa: E402
+from app.models.base import User, UserRole  # noqa: E402
+from app.models.profile import SellerProfile, VerificationStatus  # noqa: E402
+from tests._helpers import make_address as _make_address_dict  # noqa: E402
+
+
+async def _make_address(session: AsyncSession) -> Address:
+    addr = Address(**_make_address_dict())
+    session.add(addr)
+    await session.flush()
+    return addr
+
+
+async def _make_seller(
+    session: AsyncSession, *, status: VerificationStatus
+) -> dict[str, Any]:
+    user = User(
+        email=f"s-{_uuid.uuid4().hex[:8]}@x.test", role=UserRole.Seller
+    )
+    session.add(user)
+    await session.flush()
+    addr = await _make_address(session)
+    profile = SellerProfile(
+        user_id=user.id,
+        first_name="Anita",
+        last_name="K",
+        phone=f"+9198{_uuid.uuid4().int % 100000000:08d}",
+        business_name="Anita Stores",
+        verification_status=status,
+        business_address_id=addr.id,
+    )
+    session.add(profile)
+    await session.commit()
+    await session.refresh(user)
+    await session.refresh(profile)
+    return {"user": user, "profile": profile, "address": addr}
+
+
+@pytest_asyncio.fixture
+async def approved_seller(session: AsyncSession) -> dict[str, Any]:
+    return await _make_seller(session, status=VerificationStatus.Approved)
+
+
+@pytest_asyncio.fixture
+async def pending_seller(session: AsyncSession) -> dict[str, Any]:
+    return await _make_seller(session, status=VerificationStatus.Pending)
+
+
+@pytest_asyncio.fixture
+async def admin_user(session: AsyncSession) -> User:
+    user = User(
+        email=f"a-{_uuid.uuid4().hex[:8]}@x.test", role=UserRole.Admin
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user

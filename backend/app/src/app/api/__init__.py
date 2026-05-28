@@ -15,6 +15,7 @@ from app.api import (
     notifications,
     orders,
     search,
+    seller_change_requests,
     sellers,
     stores,
     tasks,
@@ -27,6 +28,11 @@ api_router.include_router(catalog_admin.router, prefix="/catalog")
 api_router.include_router(stores.router, prefix="/stores", tags=["stores"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(sellers.router, prefix="/sellers", tags=["sellers"])
+api_router.include_router(
+    seller_change_requests.router,
+    prefix="/sellers",
+    tags=["sellers", "change-requests"],
+)
 api_router.include_router(customers.router, prefix="/customers", tags=["customers"])
 api_router.include_router(carts.router, prefix="/carts", tags=["carts"])
 api_router.include_router(orders.router, prefix="/orders", tags=["orders"])

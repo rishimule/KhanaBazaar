@@ -1,0 +1,1 @@
+Your {{ group_label }} update for {{ business_name }} is now live.

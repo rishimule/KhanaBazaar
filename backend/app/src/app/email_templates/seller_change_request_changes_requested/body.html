@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block body %}
+  <h1 style="margin:0 0 16px;font-size:22px;color:#b45309;">Action needed</h1>
+  <p>Hi {{ business_name }} team,</p>
+  <p>An admin reviewed your change request for <strong>{{ group_label }}</strong> and asked for an update:</p>
+  <blockquote style="margin:12px 0;padding:12px 16px;background:#fef3c7;border-left:4px solid #f59e0b;color:#78350f;">
+    {{ admin_note }}
+  </blockquote>
+  {% set cta_url = FRONTEND_BASE_URL ~ "/seller/profile/requests/" ~ cr_id %}
+  {% set cta_label = "Open your request" %}
+  {% include "_partials/button.html" %}
+  <p style="color:#6b7280;font-size:14px;">If you didn't request this, write to <a href="mailto:{{ support_email }}" style="color:#0b8457;">{{ support_email }}</a>.</p>
+{% endblock %}

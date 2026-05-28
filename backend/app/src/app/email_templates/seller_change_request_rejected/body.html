@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block body %}
+  <h1 style="margin:0 0 16px;font-size:22px;color:#b91c1c;">Change request rejected</h1>
+  <p>Hi {{ business_name }} team,</p>
+  <p>Your change request for <strong>{{ group_label }}</strong> was rejected.</p>
+  <p><strong>Reason:</strong> {{ admin_note }}</p>
+  <p>You can file a fresh change request if needed.</p>
+  <p style="color:#6b7280;font-size:14px;">If you have questions, write to <a href="mailto:{{ support_email }}" style="color:#0b8457;">{{ support_email }}</a>.</p>
+{% endblock %}

@@ -731,6 +731,182 @@ def send_seller_rejected_async(
 
 
 # ---------------------------------------------------------------------------
+# Seller profile change-request emails — one task per state. Each task loads
+# a fresh CR snapshot (no SQLModel objects passed across the Celery boundary
+# to avoid detached-instance + JSON-serialization issues) and renders the
+# matching Jinja template.
+# ---------------------------------------------------------------------------
+
+
+_GROUP_LABELS: dict[str, str] = {
+    "identity": "Identity",
+    "address": "Business address",
+    "legal": "Legal documents",
+    "banking": "Banking",
+    "services": "Services",
+    "store_basics": "Delivery settings",
+}
+
+
+def _load_seller_change_request_context(cr_id_str: str) -> dict[str, Any] | None:
+    """Fetch CR + seller email/business_name + group label into a render ctx.
+
+    Returns None if the CR or its profile/user has been deleted between
+    dispatch and execution — caller exits silently."""
+    import asyncio
+    import concurrent.futures
+    import uuid as _uuid
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings as _settings
+    from app.models.base import User
+    from app.models.profile import SellerProfile
+    from app.models.seller_profile_change_request import (
+        SellerProfileChangeRequest,
+    )
+
+    async def _load() -> dict[str, Any] | None:
+        cr_id = _uuid.UUID(cr_id_str)
+        engine = create_async_engine(_settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                cr = (
+                    await session.exec(
+                        select(SellerProfileChangeRequest).where(
+                            SellerProfileChangeRequest.id == cr_id
+                        )
+                    )
+                ).first()
+                if cr is None:
+                    return None
+                profile = (
+                    await session.exec(
+                        select(SellerProfile).where(
+                            SellerProfile.id == cr.seller_profile_id
+                        )
+                    )
+                ).first()
+                if profile is None:
+                    return None
+                user = (
+                    await session.exec(
+                        select(User).where(User.id == profile.user_id)
+                    )
+                ).first()
+                return {
+                    "to_email": user.email if user else None,
+                    "business_name": profile.business_name,
+                    "group": cr.group.value,
+                    "group_label": _GROUP_LABELS.get(
+                        cr.group.value, cr.group.value
+                    ),
+                    "status": cr.status.value,
+                    "submission_count": cr.submission_count,
+                    "proposed": cr.proposed_json,
+                    "applied": cr.applied_json,
+                    "baseline": cr.baseline_json,
+                    "admin_note": cr.admin_note or "",
+                    "cr_id": str(cr.id),
+                    "FRONTEND_BASE_URL": _settings.EMAIL_FRONTEND_BASE_URL,
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+def _render_and_send_cr_email(template_name: str, ctx: dict[str, Any]) -> None:
+    from app.core.config import settings as _settings
+    from app.core.email_render import render_email
+
+    to_email = ctx.get("to_email")
+    if not to_email:
+        return
+    payload = render_email(template_name, ctx, lang="en")
+    _resolve_email(
+        to_email,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=_settings.EMAIL_REPLY_TO,
+    )
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_seller_change_request_submitted_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_seller_change_request_submitted_async(cr_id_str: str) -> None:
+    """Confirm receipt of a (new or resubmitted) seller change request."""
+    ctx = _load_seller_change_request_context(cr_id_str)
+    if not ctx:
+        return
+    _render_and_send_cr_email("seller_change_request_submitted", ctx)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_seller_change_request_approved_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_seller_change_request_approved_async(cr_id_str: str) -> None:
+    """Notify the seller that their change request was approved.
+
+    Picks the with-edits or no-edits template based on whether the admin's
+    `applied_json` differs from the seller's `proposed_json`.
+    """
+    ctx = _load_seller_change_request_context(cr_id_str)
+    if not ctx:
+        return
+    has_edits = (
+        ctx.get("applied") is not None
+        and ctx["applied"] != ctx.get("proposed")
+    )
+    ctx["has_edits"] = has_edits
+    template = (
+        "seller_change_request_approved_with_edits"
+        if has_edits
+        else "seller_change_request_approved"
+    )
+    _render_and_send_cr_email(template, ctx)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_seller_change_request_changes_requested_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_seller_change_request_changes_requested_async(cr_id_str: str) -> None:
+    """Notify the seller that an admin asked them to update their request."""
+    ctx = _load_seller_change_request_context(cr_id_str)
+    if not ctx:
+        return
+    _render_and_send_cr_email("seller_change_request_changes_requested", ctx)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_seller_change_request_rejected_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_seller_change_request_rejected_async(cr_id_str: str) -> None:
+    """Notify the seller that their change request was rejected."""
+    ctx = _load_seller_change_request_context(cr_id_str)
+    if not ctx:
+        return
+    _render_and_send_cr_email("seller_change_request_rejected", ctx)
+
+
+# ---------------------------------------------------------------------------
 # Geo backfill — one-shot Celery task to forward-geocode legacy store/business
 # addresses missing lat/lng. Customer addresses NOT touched (saves Google
 # quota; they re-fill lazily on next user-driven address edit).

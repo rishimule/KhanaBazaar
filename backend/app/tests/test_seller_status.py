@@ -192,8 +192,11 @@ async def test_patch_me_approved_cannot_change_services(
     body = _patch_payload(service_ids=[99999])  # any id; should be rejected before lookup
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.patch("/api/v1/sellers/me/profile", json=body)
-    assert resp.status_code == 400
-    assert "locked" in resp.json()["detail"].lower()
+    # Approved sellers must route profile edits through change-requests now
+    # (see /api/v1/sellers/me/change-requests). Guard fires before the
+    # old "services are locked" check, so the response is 409 / use_change_request.
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "use_change_request"
 
 
 @pytest.mark.asyncio

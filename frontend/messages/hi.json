@@ -1114,6 +1114,22 @@
       "notifyBody": "निर्णय होने पर हम <em>{email}</em> को सूचित करेंगे।",
       "estimatedTime": "अनुमानित समय: 1–2 कार्यदिवस।",
       "fetchError": "स्थिति जाँच नहीं सकी। स्वतः फिर प्रयास होगा।"
+    },
+    "changeRequests": {
+      "indexTitle": "परिवर्तन अनुरोध",
+      "tabOpen": "खुले",
+      "tabHistory": "इतिहास",
+      "noOpen": "इस टैब में कोई अनुरोध नहीं।",
+      "viewAll": "सभी परिवर्तन अनुरोध देखें →",
+      "submittedBanner": "परिवर्तन अनुरोध समीक्षाधीन",
+      "changesRequestedBanner": "एडमिन ने बदलाव माँगे हैं — सुधारकर फिर भेजें",
+      "viewRequest": "अनुरोध देखें",
+      "withdraw": "अनुरोध वापस लें",
+      "editAndResubmit": "संपादित करें और फिर भेजें",
+      "submitForReview": "समीक्षा के लिए भेजें",
+      "modalSubtitle": "एडमिन समीक्षा के लिए परिवर्तन भेजें",
+      "noteHelp": "एडमिन को जो भी बताना चाहें (वैकल्पिक)",
+      "submittedToast": "परिवर्तन अनुरोध भेज दिया — समीक्षा होने पर हम आपको ईमेल करेंगे।"
     }
   },
   "Admin": {
@@ -1372,6 +1388,7 @@
         "profile": "प्रोफ़ाइल",
         "products": "उत्पाद",
         "orders": "ऑर्डर",
+        "requests": "परिवर्तन अनुरोध",
         "activity": "गतिविधि"
       },
       "loadSellerError": "विक्रेता लोड करने में विफल",
@@ -1482,6 +1499,10 @@
       "actionOrderRewind": "स्थिति वापस की",
       "actionOrderRefund": "भुगतान वापस किया",
       "actionOrderAddressOverride": "पता बदला",
+      "actionProfileCRApprove": "परिवर्तन अनुरोध स्वीकृत",
+      "actionProfileCRApproveWithEdits": "संपादन के साथ अनुरोध स्वीकृत",
+      "actionProfileCRRequestChanges": "अनुरोध पर बदलाव माँगे",
+      "actionProfileCRReject": "परिवर्तन अनुरोध अस्वीकृत",
       "targetInventory": "इन्वेंटरी #{id}",
       "targetInventoryWithProduct": "इन्वेंटरी #{id} (उत्पाद {productId})",
       "targetOrder": "ऑर्डर #{id}",
@@ -1495,6 +1516,20 @@
     "servicePicker": {
       "servicesOffered": "प्रदान की जाने वाली सेवाएं",
       "loadFailed": "सेवाएं लोड करने में विफल"
+    },
+    "changeRequest": {
+      "status_submitted": "भेजा गया",
+      "status_changes_requested": "बदलाव माँगे गए",
+      "status_approved": "स्वीकृत",
+      "status_rejected": "अस्वीकृत",
+      "status_withdrawn": "वापस लिया गया",
+      "kind_submitted": "विक्रेता ने भेजा",
+      "kind_resubmitted": "विक्रेता ने फिर से भेजा",
+      "kind_changes_requested": "एडमिन ने बदलाव माँगे",
+      "kind_approved": "एडमिन ने स्वीकृत किया",
+      "kind_approved_with_edits": "एडमिन ने संपादन के साथ स्वीकृत किया",
+      "kind_rejected": "एडमिन ने अस्वीकृत किया",
+      "kind_withdrawn": "वापस लिया गया"
     },
     "paymentStatus": {
       "pending": "भुगतान लंबित",

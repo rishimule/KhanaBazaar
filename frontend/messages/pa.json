@@ -1114,6 +1114,22 @@
       "notifyBody": "ਫੈਸਲਾ ਹੋਣ 'ਤੇ ਅਸੀਂ <em>{email}</em> ਨੂੰ ਸੂਚਿਤ ਕਰਾਂਗੇ।",
       "estimatedTime": "ਅਨੁਮਾਨਿਤ ਸਮਾਂ: 1–2 ਕਾਰੋਬਾਰੀ ਦਿਨ।",
       "fetchError": "ਸਥਿਤੀ ਜਾਂਚ ਨਹੀਂ ਸਕੀ। ਆਪਣੇ-ਆਪ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਹੋਵੇਗੀ।"
+    },
+    "changeRequests": {
+      "indexTitle": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
+      "tabOpen": "ਖੁੱਲ੍ਹੀਆਂ",
+      "tabHistory": "ਇਤਿਹਾਸ",
+      "noOpen": "ਇਸ ਟੈਬ ਵਿੱਚ ਕੋਈ ਬੇਨਤੀ ਨਹੀਂ।",
+      "viewAll": "ਸਾਰੀਆਂ ਬਦਲਾਅ ਬੇਨਤੀਆਂ ਵੇਖੋ →",
+      "submittedBanner": "ਬਦਲਾਅ ਬੇਨਤੀ ਸਮੀਖਿਆ ਅਧੀਨ",
+      "changesRequestedBanner": "ਐਡਮਿਨ ਨੇ ਬਦਲਾਅ ਮੰਗੇ ਹਨ — ਠੀਕ ਕਰਕੇ ਮੁੜ ਭੇਜੋ",
+      "viewRequest": "ਬੇਨਤੀ ਵੇਖੋ",
+      "withdraw": "ਬੇਨਤੀ ਵਾਪਸ ਲਓ",
+      "editAndResubmit": "ਸੰਪਾਦਨ ਕਰਕੇ ਮੁੜ ਭੇਜੋ",
+      "submitForReview": "ਸਮੀਖਿਆ ਲਈ ਭੇਜੋ",
+      "modalSubtitle": "ਐਡਮਿਨ ਸਮੀਖਿਆ ਲਈ ਬਦਲਾਅ ਭੇਜੋ",
+      "noteHelp": "ਐਡਮਿਨ ਨੂੰ ਜੋ ਵੀ ਦੱਸਣਾ ਹੋਵੇ (ਚੋਣਵਾਂ)",
+      "submittedToast": "ਬਦਲਾਅ ਬੇਨਤੀ ਭੇਜ ਦਿੱਤੀ — ਸਮੀਖਿਆ ਹੋਣ ’ਤੇ ਅਸੀਂ ਤੁਹਾਨੂੰ ਈਮੇਲ ਕਰਾਂਗੇ।"
     }
   },
   "Admin": {
@@ -1372,6 +1388,7 @@
         "profile": "ਪ੍ਰੋਫਾਈਲ",
         "products": "ਉਤਪਾਦ",
         "orders": "ਆਰਡਰ",
+        "requests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
         "activity": "ਗਤੀਵਿਧੀ"
       },
       "loadSellerError": "ਵਿਕਰੇਤਾ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫਲ",
@@ -1482,6 +1499,10 @@
       "actionOrderRewind": "ਸਥਿਤੀ ਵਾਪਸ ਕੀਤੀ",
       "actionOrderRefund": "ਭੁਗਤਾਨ ਵਾਪਸ ਕੀਤਾ",
       "actionOrderAddressOverride": "ਪਤਾ ਬਦਲਿਆ",
+      "actionProfileCRApprove": "ਬਦਲਾਅ ਬੇਨਤੀ ਮਨਜ਼ੂਰ ਕੀਤੀ",
+      "actionProfileCRApproveWithEdits": "ਸੰਪਾਦਨ ਨਾਲ ਬੇਨਤੀ ਮਨਜ਼ੂਰ ਕੀਤੀ",
+      "actionProfileCRRequestChanges": "ਬੇਨਤੀ ’ਤੇ ਬਦਲਾਅ ਮੰਗੇ",
+      "actionProfileCRReject": "ਬਦਲਾਅ ਬੇਨਤੀ ਰੱਦ ਕੀਤੀ",
       "targetInventory": "ਇਨਵੈਂਟਰੀ #{id}",
       "targetInventoryWithProduct": "ਇਨਵੈਂਟਰੀ #{id} (ਉਤਪਾਦ {productId})",
       "targetOrder": "ਆਰਡਰ #{id}",
@@ -1495,6 +1516,20 @@
     "servicePicker": {
       "servicesOffered": "ਪੇਸ਼ ਕੀਤੀਆਂ ਸੇਵਾਵਾਂ",
       "loadFailed": "ਸੇਵਾਵਾਂ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫਲ"
+    },
+    "changeRequest": {
+      "status_submitted": "ਭੇਜੀ",
+      "status_changes_requested": "ਬਦਲਾਅ ਮੰਗੇ",
+      "status_approved": "ਮਨਜ਼ੂਰ",
+      "status_rejected": "ਰੱਦ",
+      "status_withdrawn": "ਵਾਪਸ ਲਈ",
+      "kind_submitted": "ਵਿਕਰੇਤਾ ਨੇ ਭੇਜੀ",
+      "kind_resubmitted": "ਵਿਕਰੇਤਾ ਨੇ ਮੁੜ ਭੇਜੀ",
+      "kind_changes_requested": "ਐਡਮਿਨ ਨੇ ਬਦਲਾਅ ਮੰਗੇ",
+      "kind_approved": "ਐਡਮਿਨ ਨੇ ਮਨਜ਼ੂਰ ਕੀਤੀ",
+      "kind_approved_with_edits": "ਐਡਮਿਨ ਨੇ ਸੰਪਾਦਨ ਨਾਲ ਮਨਜ਼ੂਰ ਕੀਤੀ",
+      "kind_rejected": "ਐਡਮਿਨ ਨੇ ਰੱਦ ਕੀਤੀ",
+      "kind_withdrawn": "ਵਾਪਸ ਲਈ"
     },
     "paymentStatus": {
       "pending": "ਭੁਗਤਾਨ ਬਾਕੀ",

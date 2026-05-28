@@ -20,6 +20,9 @@ from app.models.admin_audit import AdminActionTargetType
 from app.models.base import User
 from app.models.commerce import Delivery, Order, OrderStatus
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
+from app.models.seller_profile_change_request import (
+    SellerProfileChangeGroup,
+)
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.inventory import EligibleProduct
@@ -40,6 +43,7 @@ from app.services.seller_emails import (
     dispatch_seller_approved,
     dispatch_seller_rejected,
 )
+from app.services.seller_profile_change_requests import supersede_open_cr
 from app.services.seller_services import (
     list_profile_services,
     replace_profile_services,
@@ -212,6 +216,11 @@ async def update_seller_profile(
     profile = await _seller_profile_with_address(session, current_user.id)
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
+    if profile.verification_status is VerificationStatus.Approved:
+        # Approved sellers must route profile edits through the change-request
+        # workflow. Pending / Rejected sellers can still patch directly so they
+        # can iterate on a rejected application.
+        raise HTTPException(status_code=409, detail="use_change_request")
 
     if body.service_ids is not None:
         if profile.verification_status == VerificationStatus.Approved:
@@ -269,6 +278,8 @@ async def set_my_service_min_order_value(
     profile = await _seller_profile_with_address(session, current_user.id)
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
+    if profile.verification_status is VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="use_change_request")
     assert profile.id is not None
     profile_id: int = profile.id
     row = (await session.exec(
@@ -529,7 +540,7 @@ async def admin_application_counts(
 async def admin_set_services(
     seller_id: int,
     body: AdminSetServicesBody,
-    _current_user: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:  # type: ignore[type-arg]
     profile_result = await session.exec(
@@ -540,7 +551,19 @@ async def admin_set_services(
         raise HTTPException(status_code=404, detail="Seller profile not found")
 
     assert profile.id is not None
+    assert current_user.id is not None
     profile_id: int = profile.id
+
+    # If the admin is overriding services directly, supersede any open
+    # change-request for the Services group so its now-stale baseline can't
+    # be applied later by an approval click.
+    await supersede_open_cr(
+        session=session,
+        seller_profile_id=profile_id,
+        group=SellerProfileChangeGroup.Services,
+        admin_user_id=current_user.id,
+        action_name="admin_set_services",
+    )
 
     try:
         valid_ids = await validate_service_ids(session, body.service_ids)
@@ -571,6 +594,15 @@ async def admin_set_service_min_order_value(
         raise HTTPException(status_code=409, detail="seller_not_active")
     assert profile.id is not None
     profile_id: int = profile.id
+    # Supersede any open Services-group CR — the admin's direct edit drifts
+    # the baseline these CRs were submitted against.
+    await supersede_open_cr(
+        session=session,
+        seller_profile_id=profile_id,
+        group=SellerProfileChangeGroup.Services,
+        admin_user_id=current_user.id,
+        action_name="admin_set_service_min_order_value",
+    )
     row = (await session.exec(
         select(SellerProfileService).where(
             SellerProfileService.seller_profile_id == profile_id,

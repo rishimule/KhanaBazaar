@@ -1,0 +1,46 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-left: 2px solid var(--color-border);
+  padding-left: 16px;
+}
+
+.item {
+  position: relative;
+  margin-bottom: 14px;
+  padding-left: 8px;
+}
+
+.item::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.kind {
+  font-weight: var(--weight-semibold, 600);
+  color: var(--color-text-strong);
+}
+
+.time {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.note {
+  margin: 4px 0 0;
+  font-style: italic;
+  color: var(--color-text);
+}

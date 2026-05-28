@@ -1114,6 +1114,22 @@
       "notifyBody": "નિર્ણય થયા પછી અમે <em>{email}</em> ને જાણ કરીશું.",
       "estimatedTime": "અંદાજિત સમય: 1–2 કાર્યકારી દિવસ.",
       "fetchError": "સ્થિતિ તપાસી શકાઈ નહીં. આપમેળે ફરી પ્રયાસ થશે."
+    },
+    "changeRequests": {
+      "indexTitle": "ફેરફાર વિનંતીઓ",
+      "tabOpen": "ખુલ્લી",
+      "tabHistory": "ઇતિહાસ",
+      "noOpen": "આ ટૅબમાં કોઈ વિનંતી નથી.",
+      "viewAll": "બધી ફેરફાર વિનંતીઓ જુઓ →",
+      "submittedBanner": "ફેરફાર વિનંતી સમીક્ષા હેઠળ",
+      "changesRequestedBanner": "એડમિને ફેરફારો માગ્યા છે — સુધારીને ફરી મોકલો",
+      "viewRequest": "વિનંતી જુઓ",
+      "withdraw": "વિનંતી પાછી ખેંચો",
+      "editAndResubmit": "સંપાદિત કરો અને ફરી મોકલો",
+      "submitForReview": "સમીક્ષા માટે મોકલો",
+      "modalSubtitle": "એડમિન સમીક્ષા માટે ફેરફાર મોકલો",
+      "noteHelp": "એડમિનને જણાવવા જેવું કંઈ (વૈકલ્પિક)",
+      "submittedToast": "ફેરફાર વિનંતી મોકલી — સમીક્ષા થયા પછી અમે તમને ઈમેલ કરીશું."
     }
   },
   "Admin": {
@@ -1372,6 +1388,7 @@
         "profile": "પ્રોફાઇલ",
         "products": "ઉત્પાદનો",
         "orders": "ઓર્ડર",
+        "requests": "ફેરફાર વિનંતીઓ",
         "activity": "પ્રવૃત્તિ"
       },
       "loadSellerError": "વિક્રેતા લોડ કરવામાં નિષ્ફળ",
@@ -1482,6 +1499,10 @@
       "actionOrderRewind": "સ્થિતિ પાછી ખેંચી",
       "actionOrderRefund": "ચુકવણી પરત કરી",
       "actionOrderAddressOverride": "સરનામું બદલ્યું",
+      "actionProfileCRApprove": "ફેરફાર વિનંતી મંજૂર કરી",
+      "actionProfileCRApproveWithEdits": "સંપાદન સાથે વિનંતી મંજૂર કરી",
+      "actionProfileCRRequestChanges": "વિનંતી પર ફેરફારો માગ્યા",
+      "actionProfileCRReject": "ફેરફાર વિનંતી નકારી",
       "targetInventory": "ઈન્વેન્ટરી #{id}",
       "targetInventoryWithProduct": "ઈન્વેન્ટરી #{id} (ઉત્પાદન {productId})",
       "targetOrder": "ઓર્ડર #{id}",
@@ -1495,6 +1516,20 @@
     "servicePicker": {
       "servicesOffered": "આપવામાં આવતી સેવાઓ",
       "loadFailed": "સેવાઓ લોડ કરવામાં નિષ્ફળ"
+    },
+    "changeRequest": {
+      "status_submitted": "મોકલેલ",
+      "status_changes_requested": "ફેરફારો માગ્યા",
+      "status_approved": "મંજૂર",
+      "status_rejected": "નકારેલ",
+      "status_withdrawn": "પાછી ખેંચી",
+      "kind_submitted": "વિક્રેતાએ મોકલેલ",
+      "kind_resubmitted": "વિક્રેતાએ ફરી મોકલેલ",
+      "kind_changes_requested": "એડમિને ફેરફારો માગ્યા",
+      "kind_approved": "એડમિને મંજૂર કરી",
+      "kind_approved_with_edits": "એડમિને સંપાદન સાથે મંજૂર કરી",
+      "kind_rejected": "એડમિને નકારી",
+      "kind_withdrawn": "પાછી ખેંચી"
     },
     "paymentStatus": {
       "pending": "ચુકવણી બાકી",

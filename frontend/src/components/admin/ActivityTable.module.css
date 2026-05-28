@@ -86,6 +86,17 @@
   font-size: 0.85rem;
 }
 
+.targetLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--color-primary);
+}
+
+.targetLink:hover {
+  text-decoration: none;
+  border-bottom-style: solid;
+}
+
 .diffRow {
   background: var(--color-neutral-50);
 }
