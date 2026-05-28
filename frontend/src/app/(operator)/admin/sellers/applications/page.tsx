@@ -8,12 +8,23 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal from "@/components/Modal";
+import Pager from "@/components/Pager";
+import { usePagedList } from "@/lib/usePagedList";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
-import { SellerApplication, ApplicationCounts, VerificationStatus, Service } from "@/types";
+import {
+  SellerApplication,
+  ApplicationCounts,
+  PagedResponse,
+  VerificationStatus,
+  Service,
+} from "@/types";
 import ServicePicker from "@/components/ServicePicker";
 import styles from "./page.module.css";
 import mobileStyles from "@/components/DataTableCard.module.css";
+
+const PAGE_SIZE = 20;
 
 type Filter = VerificationStatus | "all";
 
@@ -51,11 +62,12 @@ export default function AdminSellersPage() {
   const { dbUser, token, loading: authLoading } = useAuth();
 
   const [filter, setFilter] = useState<Filter>("pending");
-  const [apps, setApps] = useState<SellerApplication[]>([]);
   const [counts, setCounts] = useState<ApplicationCounts>({
     pending: 0, approved: 0, rejected: 0, total: 0,
   });
-  const [fetching, setFetching] = useState(true);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [reviewing, setReviewing] = useState<SellerApplication | null>(null);
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -68,28 +80,36 @@ export default function AdminSellersPage() {
     setRejectReason("");
   }
 
-  const fetchAll = useCallback(async () => {
+  const refreshCounts = useCallback(() => {
     if (!token) return;
-    setFetching(true);
-    try {
-      const [list, c] = await Promise.all([
-        get<SellerApplication[]>(
-          `/api/v1/sellers/admin/applications?status=${filter}`,
-          token,
-        ),
-        get<ApplicationCounts>(
-          "/api/v1/sellers/admin/applications/counts",
-          token,
-        ),
-      ]);
-      setApps(list);
-      setCounts(c);
-    } catch {
-      /* toast handled by calling action in later tasks */
-    } finally {
-      setFetching(false);
+    get<ApplicationCounts>("/api/v1/sellers/admin/applications/counts", token)
+      .then(setCounts)
+      .catch(() => {});
+  }, [token]);
+
+  const fetcher = useCallback(() => {
+    if (!token) {
+      return Promise.resolve<PagedResponse<SellerApplication>>({
+        items: [], total: 0, page: 1, page_size: PAGE_SIZE,
+      });
     }
-  }, [filter, token]);
+    const sp = new URLSearchParams({
+      status: filter,
+      page: String(page),
+      page_size: String(PAGE_SIZE),
+    });
+    if (debouncedQuery.trim()) sp.set("q", debouncedQuery.trim());
+    return get<PagedResponse<SellerApplication>>(
+      `/api/v1/sellers/admin/applications?${sp.toString()}`,
+      token,
+    );
+  }, [token, filter, debouncedQuery, page]);
+
+  const { data, loading: fetching, refetch } = usePagedList<
+    PagedResponse<SellerApplication>
+  >(fetcher, { token: Boolean(token), filter, debouncedQuery, page });
+  const apps = data?.items ?? [];
+  const total = data?.total ?? 0;
 
   async function handleApprove(sellerId: number) {
     if (!token) return;
@@ -100,7 +120,8 @@ export default function AdminSellersPage() {
         token,
       );
       closeModal();
-      await fetchAll();
+      refetch();
+      refreshCounts();
     } catch {
       alert(t("genericError"));
     }
@@ -115,7 +136,8 @@ export default function AdminSellersPage() {
         token,
       );
       closeModal();
-      await fetchAll();
+      refetch();
+      refreshCounts();
     } catch {
       alert(t("genericError"));
     }
@@ -124,24 +146,17 @@ export default function AdminSellersPage() {
   async function saveServices() {
     if (!editingServices || !token) return;
     try {
+      const { sellerId, ids } = editingServices;
       await patch(
-        `/api/v1/sellers/admin/${editingServices.sellerId}/services`,
-        { service_ids: editingServices.ids },
+        `/api/v1/sellers/admin/${sellerId}/services`,
+        { service_ids: ids },
         token,
       );
-      const fresh = await get<SellerApplication[]>(
-        `/api/v1/sellers/admin/applications?status=${filter}`,
-        token,
-      );
-      setApps(fresh);
+      refetch();
+      // Optimistically reflect the new service set in the open review modal.
+      const chosen = allServices.filter((s) => ids.includes(s.id));
       setReviewing((prev) =>
-        prev && prev.seller_id === editingServices.sellerId
-          ? {
-              ...prev,
-              services:
-                fresh.find((r) => r.seller_id === prev.seller_id)?.services ?? prev.services,
-            }
-          : prev,
+        prev && prev.seller_id === sellerId ? { ...prev, services: chosen } : prev,
       );
       setEditingServices(null);
     } catch {
@@ -152,12 +167,12 @@ export default function AdminSellersPage() {
   useEffect(() => {
     if (!authLoading && (!dbUser || dbUser.role !== "admin")) {
       router.push(dbUser ? "/" : "/login");
-      return;
     }
-    if (!authLoading && dbUser && token) {
-      fetchAll();
-    }
-  }, [authLoading, dbUser, token, router, fetchAll]);
+  }, [authLoading, dbUser, router]);
+
+  useEffect(() => {
+    refreshCounts();
+  }, [refreshCounts]);
 
   useEffect(() => {
     if (!token) return;
@@ -247,7 +262,7 @@ export default function AdminSellersPage() {
     return filter === f ? styles.tabBadge : `${styles.tabBadge} ${styles.tabBadgeInactive}`;
   }
 
-  if (authLoading || fetching) {
+  if (authLoading) {
     return (
       <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
         {tc("loading")}
@@ -259,20 +274,36 @@ export default function AdminSellersPage() {
     <>
       <div className={styles.toolbar}>
         <div className={styles.tabs}>
-          <button className={tabClass("pending")} onClick={() => setFilter("pending")}>
+          <button className={tabClass("pending")} onClick={() => { setFilter("pending"); setPage(1); }}>
             {t("tab.pending")} <span className={badgeClass("pending")}>{counts.pending}</span>
           </button>
-          <button className={tabClass("approved")} onClick={() => setFilter("approved")}>
+          <button className={tabClass("approved")} onClick={() => { setFilter("approved"); setPage(1); }}>
             {t("tab.approved")} <span className={badgeClass("approved")}>{counts.approved}</span>
           </button>
-          <button className={tabClass("rejected")} onClick={() => setFilter("rejected")}>
+          <button className={tabClass("rejected")} onClick={() => { setFilter("rejected"); setPage(1); }}>
             {t("tab.rejected")} <span className={badgeClass("rejected")}>{counts.rejected}</span>
           </button>
-          <button className={tabClass("all")} onClick={() => setFilter("all")}>
+          <button className={tabClass("all")} onClick={() => { setFilter("all"); setPage(1); }}>
             {t("tab.all")} <span className={badgeClass("all")}>{counts.total}</span>
           </button>
         </div>
+        <input
+          type="search"
+          className={styles.search}
+          placeholder={t("searchPlaceholder")}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(1);
+          }}
+        />
       </div>
+
+      {fetching && (
+        <div style={{ padding: "1rem", color: "var(--color-neutral-500)" }}>
+          {tc("loading")}
+        </div>
+      )}
 
       <DataTable
         columns={columns}
@@ -304,6 +335,17 @@ export default function AdminSellersPage() {
             </button>
           </>
         )}
+      />
+      <Pager
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onPage={setPage}
+        labels={{
+          prev: t("prev"),
+          next: t("next"),
+          summary: (from, to, n) => t("showing", { from, to, total: n }),
+        }}
       />
 
       {editingServices && (
