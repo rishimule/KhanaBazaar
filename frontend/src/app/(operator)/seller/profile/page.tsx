@@ -83,7 +83,9 @@ export default function SellerProfilePage() {
   }
 
   const storeName = store?.name ?? profile.business_name;
-  const showBusinessName = profile.business_name !== storeName;
+  const normalize = (s: string) => s.trim().toLocaleLowerCase();
+  const showBusinessName =
+    normalize(profile.business_name) !== normalize(storeName);
 
   return (
     <div className={styles.page}>
@@ -96,7 +98,7 @@ export default function SellerProfilePage() {
       >
         <div className={styles.identityRow}>
           <div className={styles.avatar} aria-hidden>
-            {storeName.charAt(0).toUpperCase()}
+            {storeName.charAt(0).toUpperCase() || "?"}
           </div>
           <div className={styles.identityText}>
             <div className={styles.storeName}>{storeName}</div>
