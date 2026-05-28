@@ -38,7 +38,6 @@ from app.schemas.catalog_admin import (
     CategoryAdminCreate,
     CategoryAdminRead,
     CategoryAdminUpdate,
-    PagedResponse,
     ProductAdminCreate,
     ProductAdminRead,
     ProductAdminUpdate,
@@ -51,6 +50,7 @@ from app.schemas.catalog_admin import (
     TranslationOut,
     TranslationUpsert,
 )
+from app.schemas.pagination import PagedResponse
 from app.services.catalog_translations import (
     load_category_translations,
     load_product_translations,
