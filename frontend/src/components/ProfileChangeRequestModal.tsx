@@ -16,6 +16,12 @@ interface FieldDef {
   required?: boolean;
 }
 
+interface ServiceRow {
+  service_id: number;
+  name: string;
+  min_order_value: string;
+}
+
 const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
   identity: [
     { name: "full_name", label: "Owner full name", required: true },
@@ -86,6 +92,20 @@ export default function ProfileChangeRequestModal({
       fields.map((f) => [f.name, String(currentValues[f.name] ?? "")]),
     ),
   );
+  const initialServices = (() => {
+    if (group !== "services") return [] as ServiceRow[];
+    const raw = currentValues["services"];
+    if (!Array.isArray(raw)) return [] as ServiceRow[];
+    return raw.map((row) => {
+      const r = row as Record<string, unknown>;
+      return {
+        service_id: Number(r["service_id"]),
+        name: String(r["name"] ?? `Service ${r["service_id"]}`),
+        min_order_value: String(r["min_order_value"] ?? "0"),
+      } satisfies ServiceRow;
+    });
+  })();
+  const [services, setServices] = useState<ServiceRow[]>(initialServices);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -95,13 +115,24 @@ export default function ProfileChangeRequestModal({
   async function handleSubmit() {
     setError(null);
     setBusy(true);
-    const payload: Record<string, unknown> = {};
-    for (const f of fields) {
-      const v = values[f.name] ?? "";
-      if (f.type === "number") {
-        payload[f.name] = v === "" ? null : Number(v);
-      } else {
-        payload[f.name] = v;
+    let payload: Record<string, unknown>;
+    if (group === "services") {
+      payload = {
+        services: services.map((s) => ({
+          service_id: s.service_id,
+          min_order_value:
+            s.min_order_value === "" ? 0 : Number(s.min_order_value),
+        })),
+      };
+    } else {
+      payload = {};
+      for (const f of fields) {
+        const v = values[f.name] ?? "";
+        if (f.type === "number") {
+          payload[f.name] = v === "" ? null : Number(v);
+        } else {
+          payload[f.name] = v;
+        }
       }
     }
     try {
@@ -116,11 +147,71 @@ export default function ProfileChangeRequestModal({
 
   if (group === "services") {
     return (
-      <Modal title="Services edit not supported here" onClose={onClose}>
-        <p>
-          Services are edited from the Services card on your profile — open it
-          from there to submit a change request.
-        </p>
+      <Modal
+        title={`Edit ${GROUP_LABEL[group]}`}
+        onClose={onClose}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={onClose}
+              disabled={busy}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || services.length === 0}
+              onClick={handleSubmit}
+            >
+              {busy ? "…" : resolvedSubmitLabel}
+            </button>
+          </>
+        }
+      >
+        <p className={styles.subtitle}>{tCR("modalSubtitle")}</p>
+        <form
+          className={styles.form}
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+        >
+          {services.length === 0 && (
+            <p className={styles.error}>No services configured.</p>
+          )}
+          {services.map((row, idx) => (
+            <label key={row.service_id} className={styles.field}>
+              <span>{row.name} — minimum order value (₹)</span>
+              <input
+                type="number"
+                min={0}
+                max={100000}
+                step={10}
+                value={row.min_order_value}
+                onChange={(e) =>
+                  setServices((rows) =>
+                    rows.map((r, i) =>
+                      i === idx ? { ...r, min_order_value: e.target.value } : r,
+                    ),
+                  )
+                }
+              />
+            </label>
+          ))}
+          <label className={styles.field}>
+            <span>{tCR("noteHelp")}</span>
+            <textarea
+              maxLength={300}
+              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </label>
+          {error && <p className={styles.error}>{error}</p>}
+        </form>
       </Modal>
     );
   }
