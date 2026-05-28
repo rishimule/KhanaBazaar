@@ -8,14 +8,73 @@ import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { serviceGlyph } from "@/lib/serviceGlyph";
-import type { SellerProfile, Service, Store } from "@/types";
+import type {
+  SellerProfile,
+  SellerProfileChangeGroup,
+  SellerProfileChangeRequest,
+  Service,
+  Store,
+} from "@/types";
 import ProfileSectionCard from "@/components/ProfileSectionCard";
+import ProfileChangeRequestModal from "@/components/ProfileChangeRequestModal";
 import VerificationBadge, {
   type VerificationBadgeStatus,
 } from "@/components/VerificationBadge";
+import {
+  createMyChangeRequest,
+  listMyChangeRequests,
+} from "@/lib/changeRequests";
 import styles from "./page.module.css";
 
 const RESUBMIT_HREF = "/seller/signup?resubmit=true";
+
+/** Build the current values dict for a given group, matching the per-group
+ *  payload schema expected by `ProfileChangeRequestModal`. Returns null for
+ *  groups whose backing data is missing (e.g. store_basics with no store). */
+function buildCurrentValues(
+  group: SellerProfileChangeGroup,
+  profile: SellerProfile,
+  store: Store | null,
+): Record<string, unknown> | null {
+  switch (group) {
+    case "identity":
+      return {
+        full_name: profile.full_name,
+        business_name: profile.business_name,
+        phone: profile.phone,
+      };
+    case "address":
+      return {
+        address_line1: profile.address.address_line1,
+        address_line2: profile.address.address_line2 ?? "",
+        landmark: profile.address.landmark ?? "",
+        city: profile.address.city,
+        state: profile.address.state,
+        pincode: profile.address.pincode,
+        country: profile.address.country,
+        latitude: profile.address.latitude ?? "",
+        longitude: profile.address.longitude ?? "",
+      };
+    case "legal":
+      return {
+        gst_number: profile.gst_number ?? "",
+        fssai_license: profile.fssai_license ?? "",
+      };
+    case "banking":
+      return {
+        bank_account_number: profile.bank_account_number ?? "",
+        bank_ifsc: profile.bank_ifsc ?? "",
+      };
+    case "store_basics":
+      if (!store) return null;
+      return {
+        store_name: store.name,
+        delivery_radius_km: store.delivery_radius_km,
+      };
+    default:
+      return null;
+  }
+}
 
 const MIN_KM = 0.5;
 const MAX_KM = 50;
@@ -45,10 +104,13 @@ export default function SellerProfilePage() {
   const { token, dbUser, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [store, setStore] = useState<Store | null>(null);
+  const [openCRs, setOpenCRs] = useState<SellerProfileChangeRequest[]>([]);
   const [fetching, setFetching] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingRadius, setSavingRadius] = useState(false);
+  const [editingGroup, setEditingGroup] =
+    useState<SellerProfileChangeGroup | null>(null);
   const debounceRef = useRef<number | null>(null);
   // Monotonic request id — drop stale PATCH responses that resolve after a newer one.
   const reqIdRef = useRef(0);
@@ -61,11 +123,13 @@ export default function SellerProfilePage() {
     Promise.all([
       get<SellerProfile>("/api/v1/sellers/me/profile", token),
       get<Store[]>("/api/v1/stores/my", token),
+      listMyChangeRequests(token, "open").catch(() => [] as SellerProfileChangeRequest[]),
     ])
-      .then(([p, stores]) => {
+      .then(([p, stores, crs]) => {
         if (cancelled) return;
         setProfile(p);
         setStore(stores[0] ?? null);
+        setOpenCRs(crs);
       })
       .catch(() => {
         if (!cancelled) setLoadError(t("loadError"));
@@ -77,6 +141,25 @@ export default function SellerProfilePage() {
       cancelled = true;
     };
   }, [authLoading, dbUser, token, t]);
+
+  const openCRsByGroup = useMemo(() => {
+    const map: Partial<Record<SellerProfileChangeGroup, SellerProfileChangeRequest>> =
+      {};
+    for (const cr of openCRs) {
+      map[cr.group] = cr;
+    }
+    return map;
+  }, [openCRs]);
+
+  async function refreshOpenCRs() {
+    if (!token) return;
+    try {
+      const fresh = await listMyChangeRequests(token, "open");
+      setOpenCRs(fresh);
+    } catch {
+      // best-effort refresh; leave existing state
+    }
+  }
 
   const tSettings = useTranslations("Seller.settings");
 
@@ -189,97 +272,191 @@ export default function SellerProfilePage() {
   const coverage = store
     ? Math.round(Math.PI * store.delivery_radius_km ** 2)
     : 0;
+  const isApproved = profile.verification_status === "approved";
+
+  /** For a CR-aware card: return the right `action` slot + an optional inline
+   *  banner. Approved sellers with no open CR get an Edit button that opens
+   *  the modal. Approved sellers with an open CR get a banner + View link,
+   *  and no edit affordance. Non-approved sellers fall back to the legacy
+   *  resubmit link (handled by the caller passing `editHref` instead). */
+  const cardCRChrome = (group: SellerProfileChangeGroup) => {
+    const openCR = openCRsByGroup[group];
+    if (!isApproved) return { action: undefined, banner: null };
+    if (openCR) {
+      const isChanges = openCR.status === "changes_requested";
+      return {
+        action: null,
+        banner: (
+          <div
+            className={`${styles.crBanner} ${
+              isChanges ? styles.crBannerWarn : styles.crBannerInfo
+            }`}
+          >
+            <span>
+              {isChanges
+                ? "Admin asked for changes — fix and resubmit"
+                : "Change request under review"}
+            </span>
+            <Link
+              href={`/seller/profile/requests/${openCR.id}`}
+              className={styles.crBannerLink}
+            >
+              View request
+            </Link>
+          </div>
+        ),
+      };
+    }
+    return {
+      action: (
+        <button
+          type="button"
+          className={styles.editBtn}
+          onClick={() => setEditingGroup(group)}
+        >
+          Edit
+        </button>
+      ),
+      banner: null,
+    };
+  };
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>{t("heading")}</h1>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.title}>{t("heading")}</h1>
+        {isApproved && (
+          <Link
+            href="/seller/profile/requests"
+            className={styles.requestsLink}
+          >
+            View all change requests →
+          </Link>
+        )}
+      </div>
 
       {saveError && <div className={styles.errorBanner}>{saveError}</div>}
 
-      <ProfileSectionCard
-        title={t("sectionIdentity")}
-        editHref={RESUBMIT_HREF}
-        editLabel={t("editProfile")}
-      >
-        <div className={styles.identityRow}>
-          <div className={styles.avatar} aria-hidden>
-            {storeName.charAt(0).toUpperCase() || "?"}
-          </div>
-          <div className={styles.identityText}>
-            <div className={styles.storeName}>{storeName}</div>
-            <div className={styles.kvRow}>
-              <span className={styles.kvLabel}>{t("ownerLabel")}:</span>
-              <span>{profile.full_name}</span>
-            </div>
-            <div className={styles.kvRow}>
-              <span className={styles.kvLabel}>{t("phoneLabel")}:</span>
-              <span>{profile.phone}</span>
-            </div>
-            {showBusinessName && (
-              <div className={styles.kvRow}>
-                <span className={styles.kvLabel}>{t("businessNameLabel")}:</span>
-                <span>{profile.business_name}</span>
+      {(() => {
+        const chrome = cardCRChrome("identity");
+        return (
+          <ProfileSectionCard
+            title={t("sectionIdentity")}
+            editHref={isApproved ? undefined : RESUBMIT_HREF}
+            editLabel={t("editProfile")}
+            action={chrome.action ?? undefined}
+          >
+            {chrome.banner}
+            <div className={styles.identityRow}>
+              <div className={styles.avatar} aria-hidden>
+                {storeName.charAt(0).toUpperCase() || "?"}
               </div>
-            )}
-          </div>
-        </div>
-        <VerificationBadge
-          status={toBadgeStatus(profile.verification_status)}
-          reason={profile.rejection_reason}
-        />
-      </ProfileSectionCard>
+              <div className={styles.identityText}>
+                <div className={styles.storeName}>{storeName}</div>
+                <div className={styles.kvRow}>
+                  <span className={styles.kvLabel}>{t("ownerLabel")}:</span>
+                  <span>{profile.full_name}</span>
+                </div>
+                <div className={styles.kvRow}>
+                  <span className={styles.kvLabel}>{t("phoneLabel")}:</span>
+                  <span>{profile.phone}</span>
+                </div>
+                {showBusinessName && (
+                  <div className={styles.kvRow}>
+                    <span className={styles.kvLabel}>
+                      {t("businessNameLabel")}:
+                    </span>
+                    <span>{profile.business_name}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <VerificationBadge
+              status={toBadgeStatus(profile.verification_status)}
+              reason={profile.rejection_reason}
+            />
+          </ProfileSectionCard>
+        );
+      })()}
 
-      <ProfileSectionCard
-        title={t("sectionAddress")}
-        editHref={RESUBMIT_HREF}
-        editLabel={t("editProfile")}
-      >
-        <div className={styles.addressText}>{formatAddress(profile.address)}</div>
-        <div
-          className={`${styles.pinRow} ${
-            store?.pin_confirmed ? styles.pinConfirmed : styles.pinPending
-          }`}
-        >
-          <span aria-hidden>📍</span>
-          <span>
-            {store?.pin_confirmed ? t("pinConfirmed") : t("pinNotConfirmed")}
-          </span>
-        </div>
-      </ProfileSectionCard>
+      {(() => {
+        const chrome = cardCRChrome("address");
+        return (
+          <ProfileSectionCard
+            title={t("sectionAddress")}
+            editHref={isApproved ? undefined : RESUBMIT_HREF}
+            editLabel={t("editProfile")}
+            action={chrome.action ?? undefined}
+          >
+            {chrome.banner}
+            <div className={styles.addressText}>
+              {formatAddress(profile.address)}
+            </div>
+            <div
+              className={`${styles.pinRow} ${
+                store?.pin_confirmed ? styles.pinConfirmed : styles.pinPending
+              }`}
+            >
+              <span aria-hidden>📍</span>
+              <span>
+                {store?.pin_confirmed ? t("pinConfirmed") : t("pinNotConfirmed")}
+              </span>
+            </div>
+          </ProfileSectionCard>
+        );
+      })()}
 
-      <ProfileSectionCard
-        title={t("sectionLegal")}
-        editHref={RESUBMIT_HREF}
-        editLabel={t("editProfile")}
-      >
-        <div className={styles.kvRow}>
-          <span className={styles.kvLabel}>{t("gstLabel")}:</span>
-          <span>{profile.gst_number ?? t("notAdded")}</span>
-        </div>
-        <div className={styles.kvRow}>
-          <span className={styles.kvLabel}>{t("fssaiLabel")}:</span>
-          <span>{profile.fssai_license ?? t("notAdded")}</span>
-        </div>
-      </ProfileSectionCard>
+      {(() => {
+        const chrome = cardCRChrome("legal");
+        return (
+          <ProfileSectionCard
+            title={t("sectionLegal")}
+            editHref={isApproved ? undefined : RESUBMIT_HREF}
+            editLabel={t("editProfile")}
+            action={chrome.action ?? undefined}
+          >
+            {chrome.banner}
+            <div className={styles.kvRow}>
+              <span className={styles.kvLabel}>{t("gstLabel")}:</span>
+              <span>{profile.gst_number ?? t("notAdded")}</span>
+            </div>
+            <div className={styles.kvRow}>
+              <span className={styles.kvLabel}>{t("fssaiLabel")}:</span>
+              <span>{profile.fssai_license ?? t("notAdded")}</span>
+            </div>
+          </ProfileSectionCard>
+        );
+      })()}
 
-      <ProfileSectionCard
-        title={t("sectionBanking")}
-        editHref={RESUBMIT_HREF}
-        editLabel={t("editProfile")}
-      >
-        <div className={styles.kvRow}>
-          <span className={styles.kvLabel}>{t("accountLabel")}:</span>
-          <span className={styles.mono}>{maskedAccount ?? t("notAdded")}</span>
-        </div>
-        <div className={styles.kvRow}>
-          <span className={styles.kvLabel}>{t("ifscLabel")}:</span>
-          <span className={styles.mono}>{profile.bank_ifsc ?? t("notAdded")}</span>
-        </div>
-      </ProfileSectionCard>
+      {(() => {
+        const chrome = cardCRChrome("banking");
+        return (
+          <ProfileSectionCard
+            title={t("sectionBanking")}
+            editHref={isApproved ? undefined : RESUBMIT_HREF}
+            editLabel={t("editProfile")}
+            action={chrome.action ?? undefined}
+          >
+            {chrome.banner}
+            <div className={styles.kvRow}>
+              <span className={styles.kvLabel}>{t("accountLabel")}:</span>
+              <span className={styles.mono}>
+                {maskedAccount ?? t("notAdded")}
+              </span>
+            </div>
+            <div className={styles.kvRow}>
+              <span className={styles.kvLabel}>{t("ifscLabel")}:</span>
+              <span className={styles.mono}>
+                {profile.bank_ifsc ?? t("notAdded")}
+              </span>
+            </div>
+          </ProfileSectionCard>
+        );
+      })()}
 
       <ProfileSectionCard
         title={t("sectionServices")}
-        editHref={RESUBMIT_HREF}
+        editHref={isApproved ? undefined : RESUBMIT_HREF}
         editLabel={t("editProfile")}
       >
         {profile.services.length === 0 ? (
@@ -296,50 +473,69 @@ export default function SellerProfilePage() {
         )}
       </ProfileSectionCard>
 
-      {store && (
-        <ProfileSectionCard title={tSettings("deliveryRadius")}>
-          <p className={styles.cardCaption}>
-            {tSettings.rich("radiusCaption", {
-              coverage,
-              strong: (chunks) => <strong>{chunks}</strong>,
-            })}
-          </p>
-          <div className={styles.radiusRow}>
-            <button
-              type="button"
-              className={styles.stepBtn}
-              onClick={() => bump(-STEP_KM)}
-              aria-label={tSettings("decreaseRadius")}
-              disabled={store.delivery_radius_km <= MIN_KM}
+      {store &&
+        (() => {
+          const chrome = cardCRChrome("store_basics");
+          // Approved sellers must use the change-request modal — direct PATCH
+          // of name/delivery_radius_km is 409'd server-side. Non-approved
+          // sellers (rare here; the dashboard is gated) keep the inline
+          // edit since no CR system applies pre-approval.
+          const radiusEditDisabled = isApproved;
+          return (
+            <ProfileSectionCard
+              title={tSettings("deliveryRadius")}
+              action={chrome.action ?? undefined}
             >
-              −
-            </button>
-            <input
-              type="number"
-              className={styles.radiusInput}
-              min={MIN_KM}
-              max={MAX_KM}
-              step={STEP_KM}
-              value={store.delivery_radius_km}
-              onChange={(e) => updateRadius(parseFloat(e.target.value))}
-              aria-label={tSettings("radiusInputLabel")}
-            />
-            <span className={styles.unit}>km</span>
-            <button
-              type="button"
-              className={styles.stepBtn}
-              onClick={() => bump(STEP_KM)}
-              aria-label={tSettings("increaseRadius")}
-              disabled={store.delivery_radius_km >= MAX_KM}
-            >
-              +
-            </button>
-            {savingRadius && (
-              <span className={styles.savingChip}>{tc("saving")}</span>
-            )}
-          </div>
-        </ProfileSectionCard>
-      )}
+              {chrome.banner}
+              <p className={styles.cardCaption}>
+                {tSettings.rich("radiusCaption", {
+                  coverage,
+                  strong: (chunks) => <strong>{chunks}</strong>,
+                })}
+              </p>
+              <div className={styles.radiusRow}>
+                <button
+                  type="button"
+                  className={styles.stepBtn}
+                  onClick={() => bump(-STEP_KM)}
+                  aria-label={tSettings("decreaseRadius")}
+                  disabled={
+                    radiusEditDisabled || store.delivery_radius_km <= MIN_KM
+                  }
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  className={styles.radiusInput}
+                  min={MIN_KM}
+                  max={MAX_KM}
+                  step={STEP_KM}
+                  value={store.delivery_radius_km}
+                  onChange={(e) => updateRadius(parseFloat(e.target.value))}
+                  aria-label={tSettings("radiusInputLabel")}
+                  readOnly={radiusEditDisabled}
+                  disabled={radiusEditDisabled}
+                />
+                <span className={styles.unit}>km</span>
+                <button
+                  type="button"
+                  className={styles.stepBtn}
+                  onClick={() => bump(STEP_KM)}
+                  aria-label={tSettings("increaseRadius")}
+                  disabled={
+                    radiusEditDisabled || store.delivery_radius_km >= MAX_KM
+                  }
+                >
+                  +
+                </button>
+                {savingRadius && (
+                  <span className={styles.savingChip}>{tc("saving")}</span>
+                )}
+              </div>
+            </ProfileSectionCard>
+          );
+        })()}
 
       {profile.services.length > 0 && (
         <ProfileSectionCard title={tSettings("minOrderValue")}>
@@ -375,6 +571,32 @@ export default function SellerProfilePage() {
           {t("viewStorefront")}
         </Link>
       )}
+
+      {editingGroup &&
+        (() => {
+          const current = buildCurrentValues(editingGroup, profile, store);
+          // Defensive: if backing data is missing (e.g. store_basics with no
+          // store), simply omit the modal — closing the editing state happens
+          // in an effect below to avoid setState during render.
+          if (!current) return null;
+          return (
+            <ProfileChangeRequestModal
+              group={editingGroup}
+              currentValues={current}
+              open
+              onClose={() => setEditingGroup(null)}
+              onSubmit={async (proposed, note) => {
+                if (!token) return;
+                await createMyChangeRequest(token, {
+                  group: editingGroup,
+                  proposed,
+                  note,
+                });
+                await refreshOpenCRs();
+              }}
+            />
+          );
+        })()}
     </div>
   );
 }
