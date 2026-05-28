@@ -16,10 +16,16 @@ import {
   adminRequestChangesCR,
 } from "@/lib/changeRequests";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
+import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import ChangeRequestDiffTable from "@/components/ChangeRequestDiffTable";
 import ChangeRequestTimeline from "@/components/ChangeRequestTimeline";
 import { get } from "@/lib/api";
-import type { SellerProfileChangeRequest, Service } from "@/types";
+import type {
+  Address,
+  LocationSource,
+  SellerProfileChangeRequest,
+  Service,
+} from "@/types";
 import styles from "./page.module.css";
 
 type ReasonModal = "request-changes" | "reject" | null;
@@ -55,6 +61,7 @@ export default function AdminCRDetailPage() {
   const [serviceNames, setServiceNames] = useState<Map<number, string>>(
     new Map(),
   );
+  const [addr, setAddr] = useState<Address>(emptyAddress);
 
   useEffect(() => {
     if (cr?.group !== "services") return;
@@ -95,6 +102,27 @@ export default function AdminCRDetailPage() {
       const fresh = await adminGetSellerCR(token, sellerId, crId);
       setCr(fresh);
       setApplied(buildAppliedDefaults(fresh));
+      if (fresh.group === "address") {
+        const r = fresh.proposed_json as Record<string, unknown>;
+        setAddr({
+          address_line1: String(r["address_line1"] ?? ""),
+          address_line2: (r["address_line2"] as string | null) ?? null,
+          landmark: (r["landmark"] as string | null) ?? null,
+          city: String(r["city"] ?? ""),
+          state: String(r["state"] ?? ""),
+          pincode: String(r["pincode"] ?? ""),
+          country: String(r["country"] ?? "India"),
+          latitude:
+            typeof r["latitude"] === "number" ? (r["latitude"] as number) : null,
+          longitude:
+            typeof r["longitude"] === "number"
+              ? (r["longitude"] as number)
+              : null,
+          place_id: (r["place_id"] as string | null) ?? null,
+          location_source:
+            (r["location_source"] as LocationSource | null) ?? null,
+        });
+      }
       setNote("");
       setLoadError(null);
     } catch (e) {
@@ -166,9 +194,26 @@ export default function AdminCRDetailPage() {
     setBusy(true);
     setActionError(null);
     try {
-      const payload: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(applied)) {
-        payload[k] = coerce(k, v);
+      let payload: Record<string, unknown>;
+      if (cr.group === "address") {
+        payload = {
+          address_line1: addr.address_line1.trim(),
+          address_line2: addr.address_line2 || null,
+          landmark: addr.landmark || null,
+          city: addr.city.trim(),
+          state: addr.state,
+          pincode: addr.pincode.trim(),
+          country: addr.country || "India",
+          latitude: addr.latitude,
+          longitude: addr.longitude,
+          place_id: addr.place_id ?? null,
+          location_source: addr.location_source ?? null,
+        };
+      } else {
+        payload = {};
+        for (const [k, v] of Object.entries(applied)) {
+          payload[k] = coerce(k, v);
+        }
       }
       await adminApproveCR(token, sellerId, cr.id, {
         applied: payload,
@@ -263,23 +308,27 @@ export default function AdminCRDetailPage() {
             from what the seller proposed.
           </p>
           <div className={styles.applyForm}>
-            {Object.keys(cr.proposed_json)
-              .filter((key) => {
-                if (cr.group !== "store_basics") return true;
-                return key === "delivery_radius_km";
-              })
-              .map((key) => (
-              <label key={key} className={styles.field}>
-                <span className={styles.fieldLabel}>{key}</span>
-                <input
-                  className={styles.input}
-                  value={applied[key] ?? ""}
-                  onChange={(e) =>
-                    setApplied((s) => ({ ...s, [key]: e.target.value }))
-                  }
-                />
-              </label>
-            ))}
+            {cr.group === "address" ? (
+              <AddressFields value={addr} onChange={setAddr} requirePin />
+            ) : (
+              Object.keys(cr.proposed_json)
+                .filter((key) => {
+                  if (cr.group !== "store_basics") return true;
+                  return key === "delivery_radius_km";
+                })
+                .map((key) => (
+                  <label key={key} className={styles.field}>
+                    <span className={styles.fieldLabel}>{key}</span>
+                    <input
+                      className={styles.input}
+                      value={applied[key] ?? ""}
+                      onChange={(e) =>
+                        setApplied((s) => ({ ...s, [key]: e.target.value }))
+                      }
+                    />
+                  </label>
+                ))
+            )}
             <label className={styles.field}>
               <span className={styles.fieldLabel}>
                 Note (optional — visible to seller)
