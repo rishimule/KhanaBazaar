@@ -45,3 +45,37 @@
   font-size: 0.9rem;
   margin: 0;
 }
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: var(--weight-semibold, 600);
+  cursor: pointer;
+}
+
+.checkboxRow input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.subField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  margin-left: 24px;
+  margin-top: 4px;
+  color: var(--color-text-muted);
+}
+
+.subField input {
+  border: 1px solid var(--color-input-border, var(--color-border));
+  border-radius: 6px;
+  padding: 6px 10px;
+  font: inherit;
+  background: var(--color-surface);
+  color: var(--color-text);
+  max-width: 200px;
+}

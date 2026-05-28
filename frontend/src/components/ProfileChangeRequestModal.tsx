@@ -2,11 +2,12 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
+import { get } from "@/lib/api";
 import { GROUP_LABEL } from "@/lib/changeRequests";
-import type { SellerProfileChangeGroup } from "@/types";
+import type { SellerProfileChangeGroup, Service } from "@/types";
 import styles from "./ProfileChangeRequestModal.module.css";
 
 interface FieldDef {
@@ -19,6 +20,7 @@ interface FieldDef {
 interface ServiceRow {
   service_id: number;
   name: string;
+  selected: boolean;
   min_order_value: string;
 }
 
@@ -92,20 +94,48 @@ export default function ProfileChangeRequestModal({
       fields.map((f) => [f.name, String(currentValues[f.name] ?? "")]),
     ),
   );
-  const initialServices = (() => {
-    if (group !== "services") return [] as ServiceRow[];
-    const raw = currentValues["services"];
-    if (!Array.isArray(raw)) return [] as ServiceRow[];
-    return raw.map((row) => {
-      const r = row as Record<string, unknown>;
-      return {
-        service_id: Number(r["service_id"]),
-        name: String(r["name"] ?? `Service ${r["service_id"]}`),
-        min_order_value: String(r["min_order_value"] ?? "0"),
-      } satisfies ServiceRow;
-    });
-  })();
-  const [services, setServices] = useState<ServiceRow[]>(initialServices);
+  const [services, setServices] = useState<ServiceRow[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(group === "services");
+  useEffect(() => {
+    if (group !== "services" || !open) return;
+    let cancelled = false;
+    setServicesLoading(true);
+    const subscribed = new Map<number, string>();
+    const subRaw = currentValues["services"];
+    if (Array.isArray(subRaw)) {
+      for (const row of subRaw) {
+        const r = row as Record<string, unknown>;
+        subscribed.set(
+          Number(r["service_id"]),
+          String(r["min_order_value"] ?? "0"),
+        );
+      }
+    }
+    get<Service[]>("/api/v1/catalog/services")
+      .then((all) => {
+        if (cancelled) return;
+        setServices(
+          all
+            .filter((s) => s.is_active)
+            .map((s) => ({
+              service_id: s.id,
+              name: s.name,
+              selected: subscribed.has(s.id),
+              min_order_value: subscribed.get(s.id) ?? "0",
+            })),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setServices([]);
+      })
+      .finally(() => {
+        if (!cancelled) setServicesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [group, open, currentValues]);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -118,11 +148,13 @@ export default function ProfileChangeRequestModal({
     let payload: Record<string, unknown>;
     if (group === "services") {
       payload = {
-        services: services.map((s) => ({
-          service_id: s.service_id,
-          min_order_value:
-            s.min_order_value === "" ? 0 : Number(s.min_order_value),
-        })),
+        services: services
+          .filter((s) => s.selected)
+          .map((s) => ({
+            service_id: s.service_id,
+            min_order_value:
+              s.min_order_value === "" ? 0 : Number(s.min_order_value),
+          })),
       };
     } else {
       payload = {};
@@ -146,6 +178,7 @@ export default function ProfileChangeRequestModal({
   }
 
   if (group === "services") {
+    const selectedCount = services.filter((s) => s.selected).length;
     return (
       <Modal
         title={`Edit ${GROUP_LABEL[group]}`}
@@ -163,7 +196,7 @@ export default function ProfileChangeRequestModal({
             <button
               type="button"
               className="btn btn-primary"
-              disabled={busy || services.length === 0}
+              disabled={busy || selectedCount === 0}
               onClick={handleSubmit}
             >
               {busy ? "…" : resolvedSubmitLabel}
@@ -179,28 +212,55 @@ export default function ProfileChangeRequestModal({
             handleSubmit();
           }}
         >
-          {services.length === 0 && (
-            <p className={styles.error}>No services configured.</p>
+          {servicesLoading && <p>Loading services…</p>}
+          {!servicesLoading && services.length === 0 && (
+            <p className={styles.error}>
+              Could not load services. Try again later.
+            </p>
           )}
-          {services.map((row, idx) => (
-            <label key={row.service_id} className={styles.field}>
-              <span>{row.name} — minimum order value (₹)</span>
-              <input
-                type="number"
-                min={0}
-                max={100000}
-                step={10}
-                value={row.min_order_value}
-                onChange={(e) =>
-                  setServices((rows) =>
-                    rows.map((r, i) =>
-                      i === idx ? { ...r, min_order_value: e.target.value } : r,
-                    ),
-                  )
-                }
-              />
-            </label>
-          ))}
+          {!servicesLoading &&
+            services.map((row, idx) => (
+              <div key={row.service_id} className={styles.field}>
+                <label className={styles.checkboxRow}>
+                  <input
+                    type="checkbox"
+                    checked={row.selected}
+                    onChange={(e) =>
+                      setServices((rows) =>
+                        rows.map((r, i) =>
+                          i === idx ? { ...r, selected: e.target.checked } : r,
+                        ),
+                      )
+                    }
+                  />
+                  <span>{row.name}</span>
+                </label>
+                {row.selected && (
+                  <label className={styles.subField}>
+                    <span>Minimum order value (₹)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100000}
+                      step={10}
+                      value={row.min_order_value}
+                      onChange={(e) =>
+                        setServices((rows) =>
+                          rows.map((r, i) =>
+                            i === idx
+                              ? { ...r, min_order_value: e.target.value }
+                              : r,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                )}
+              </div>
+            ))}
+          {!servicesLoading && services.length > 0 && selectedCount === 0 && (
+            <p className={styles.error}>Select at least one service.</p>
+          )}
           <label className={styles.field}>
             <span>{tCR("noteHelp")}</span>
             <textarea
