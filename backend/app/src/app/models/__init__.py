@@ -39,6 +39,13 @@ from .profile import (
     VerificationStatus,
 )
 from .search_log import SearchQueryLog
+from .seller_profile_change_request import (
+    SellerProfileChangeEventKind,
+    SellerProfileChangeGroup,
+    SellerProfileChangeRequest,
+    SellerProfileChangeRequestEvent,
+    SellerProfileChangeStatus,
+)
 from .store import Store, StoreInventory
 
 __all__ = [
@@ -72,6 +79,11 @@ __all__ = [
     "Review",
     "SearchQueryLog",
     "SellerProfile",
+    "SellerProfileChangeEventKind",
+    "SellerProfileChangeGroup",
+    "SellerProfileChangeRequest",
+    "SellerProfileChangeRequestEvent",
+    "SellerProfileChangeStatus",
     "SellerProfileService",
     "Service",
     "ServiceTranslation",
