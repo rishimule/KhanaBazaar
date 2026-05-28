@@ -67,6 +67,9 @@ class OrderRead(BaseModel):
 
 class OrderListResponse(BaseModel):
     orders: List[OrderRead]
+    total: int = 0
+    page: int = 1
+    page_size: int = 50
 
 
 class PlaceOrderRequest(BaseModel):

@@ -4,6 +4,7 @@ import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -199,12 +200,16 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
 
 
 def _status_filter_for(status_param: Optional[str]) -> Optional[tuple[OrderStatus, ...]]:
-    if status_param is None:
+    if status_param is None or status_param == "all":
         return None
     if status_param == "active":
         return ACTIVE_STATUSES
     if status_param == "history":
         return HISTORY_STATUSES
+    if status_param == "delivered":
+        return (OrderStatus.Delivered,)
+    if status_param == "cancelled":
+        return (OrderStatus.Cancelled,)
     raise HTTPException(status_code=400, detail="invalid_status_filter")
 
 
@@ -237,6 +242,12 @@ async def list_orders(
     status: Optional[str] = Query(default=None),
     service_id: Optional[int] = Query(default=None, gt=0),
     seller_id: Optional[int] = Query(default=None, gt=0),
+    q: Optional[str] = Query(default=None),
+    from_date: Optional[str] = Query(default=None),
+    to_date: Optional[str] = Query(default=None),
+    sort: str = Query(default="date_desc"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=100),
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> OrderListResponse:
@@ -298,11 +309,55 @@ async def list_orders(
     if statuses is not None:
         stmt = stmt.where(Order.status.in_(statuses))  # type: ignore[attr-defined]
 
-    stmt = stmt.order_by(Order.placed_at.desc()).limit(50)  # type: ignore[attr-defined]
+    if from_date:
+        stmt = stmt.where(Order.placed_at >= from_date)  # type: ignore[operator]
+    if to_date:
+        stmt = stmt.where(Order.placed_at <= f"{to_date}T23:59:59Z")  # type: ignore[operator]
+
+    if q and q.strip():
+        term = q.strip().lstrip("#")
+        like = f"%{term.lower()}%"
+        # Join Store + CustomerProfile only for filtering; output still flows
+        # through _serialize_order, so select Order distinctly to avoid fan-out.
+        stmt = (
+            stmt.outerjoin(Store, Store.id == Order.store_id)  # type: ignore[arg-type]
+            .outerjoin(
+                CustomerProfile,
+                CustomerProfile.id == Order.customer_profile_id,  # type: ignore[arg-type]
+            )
+        )
+        conditions = [
+            Store.name.ilike(like),  # type: ignore[attr-defined]
+            CustomerProfile.first_name.ilike(like),  # type: ignore[attr-defined]
+            CustomerProfile.last_name.ilike(like),  # type: ignore[attr-defined]
+        ]
+        if term.isdigit():
+            conditions.append(Order.id == int(term))  # type: ignore[arg-type]
+        stmt = stmt.where(or_(*conditions)).distinct()
+
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = int((await session.exec(count_stmt)).one())
+
+    if sort == "date_asc":
+        stmt = stmt.order_by(Order.placed_at.asc())  # type: ignore[attr-defined]
+    elif sort == "total_desc":
+        stmt = stmt.order_by(Order.total.desc())  # type: ignore[attr-defined]
+    elif sort == "total_asc":
+        stmt = stmt.order_by(Order.total.asc())  # type: ignore[attr-defined]
+    else:  # date_desc (default)
+        stmt = stmt.order_by(Order.placed_at.desc())  # type: ignore[attr-defined]
+
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     result = await session.exec(stmt)
     orders = list(result.all())
     return OrderListResponse(
-        orders=[await _serialize_order(session, o, include_customer_name=include_customer) for o in orders],
+        orders=[
+            await _serialize_order(session, o, include_customer_name=include_customer)
+            for o in orders
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
     )
 
 
