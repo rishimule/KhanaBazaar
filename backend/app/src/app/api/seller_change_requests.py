@@ -43,9 +43,15 @@ router = APIRouter()
 async def _seller_profile_or_404(
     session: AsyncSession, user: User
 ) -> SellerProfile:
+    # Eager-load business_address so _baseline_for_group(Address) can read it
+    # without triggering lazy load in async context.
+    from sqlalchemy.orm import selectinload
+
     profile = (
         await session.exec(
-            select(SellerProfile).where(SellerProfile.user_id == user.id)
+            select(SellerProfile)
+            .where(SellerProfile.user_id == user.id)
+            .options(selectinload(SellerProfile.business_address))  # type: ignore[arg-type]
         )
     ).first()
     if profile is None:

@@ -484,9 +484,13 @@ async def _admin_seller_profile_or_404(
     ``SellerProfile.user_id`` so callers can use ``profile.id`` for downstream
     queries.
     """
+    from sqlalchemy.orm import selectinload
+
     profile = (
         await session.exec(
-            select(SellerProfile).where(SellerProfile.user_id == seller_id)
+            select(SellerProfile)
+            .where(SellerProfile.user_id == seller_id)
+            .options(selectinload(SellerProfile.business_address))  # type: ignore[arg-type]
         )
     ).first()
     if profile is None:
