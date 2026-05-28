@@ -1,0 +1,148 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 820px;
+  margin: 0 auto;
+  font-family: var(--font-family-sans);
+}
+
+.title {
+  font-size: var(--display-lg);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--display-lg-track);
+  color: var(--shade-cool-dark-7);
+  margin: 0;
+}
+
+.loader {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-neutral-500);
+}
+
+.errorBanner {
+  background: var(--vermillion-red-light-1, #fef2f2);
+  border: 1px solid var(--vermillion-red-base-3, #b91c1c);
+  color: var(--vermillion-red-dark-1, #7f1d1d);
+  padding: 10px 14px;
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+}
+
+.identityRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--shade-cool-light-1);
+  color: var(--shade-cool-dark-7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: var(--weight-semibold);
+  flex: 0 0 auto;
+}
+
+.identityText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.storeName {
+  font-size: var(--body-xl);
+  font-weight: var(--weight-medium);
+  color: var(--shade-cool-dark-7);
+}
+
+.kvRow {
+  display: flex;
+  gap: 6px;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+}
+
+.kvLabel {
+  color: var(--shade-cool-base-7);
+}
+
+.addressText {
+  white-space: pre-wrap;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+}
+
+.pinRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--body-sm);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  align-self: flex-start;
+}
+
+.pinConfirmed {
+  background: var(--chive-green-light-1);
+  color: var(--chive-green-base-4);
+}
+
+.pinPending {
+  background: var(--saffron-yellow-light-1, #fffbeb);
+  color: var(--saffron-yellow-dark-1, #92400e);
+}
+
+.mono {
+  font-family: var(--font-family-mono, monospace);
+}
+
+.servicesEmpty {
+  color: var(--shade-cool-base-7);
+  font-style: italic;
+}
+
+.serviceChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.serviceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--shade-cool-light-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+}
+
+.storefrontLink {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 10px 16px;
+  background: var(--color-btn-primary-bg);
+  color: var(--white);
+  border-radius: var(--radius-card);
+  text-decoration: none;
+  font-weight: var(--weight-medium);
+  font-size: var(--body-sm);
+  transition: background var(--duration-fast);
+}
+
+.storefrontLink:hover {
+  background: var(--color-btn-primary-hover);
+}

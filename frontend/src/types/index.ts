@@ -239,6 +239,7 @@ export type VerificationStatus = "pending" | "approved" | "rejected";
 /** Seller profile with business and compliance details. */
 export interface SellerProfile extends BaseSchema {
   user_id: number;
+  full_name: string;
   business_name: string;
   services: Service[];
   address: Address;
