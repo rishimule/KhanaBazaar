@@ -53,7 +53,6 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
   // handled by this generic modal.
   services: [],
   store_basics: [
-    { name: "store_name", label: "Store name", required: true },
     {
       name: "delivery_radius_km",
       label: "Delivery radius (km)",

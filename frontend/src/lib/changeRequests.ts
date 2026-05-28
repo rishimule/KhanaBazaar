@@ -23,7 +23,7 @@ export const GROUP_LABEL: Record<SellerProfileChangeGroup, string> = {
   legal: "Legal documents",
   banking: "Banking",
   services: "Services",
-  store_basics: "Store basics",
+  store_basics: "Delivery settings",
 };
 
 /** Maps a CR status to a UI tone bucket — used by badges/banners. */

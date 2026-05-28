@@ -119,7 +119,6 @@ async def _baseline_for_group(
         if store is None:
             raise HTTPException(status_code=404, detail="store_not_found")
         return {
-            "store_name": store.name,
             "delivery_radius_km": store.delivery_radius_km,
         }
     raise ValueError(f"unknown group {group}")
@@ -448,7 +447,8 @@ async def _apply_store_basics(
     ).first()
     if store is None:
         raise HTTPException(status_code=404, detail="store_not_found")
-    store.name = str(payload["store_name"])
+    if payload.get("store_name"):
+        store.name = str(payload["store_name"])
     store.delivery_radius_km = float(payload["delivery_radius_km"])
     session.add(store)
 

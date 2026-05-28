@@ -100,8 +100,9 @@ class ServicesPayload(BaseModel):
 
 
 class StoreBasicsPayload(BaseModel):
-    store_name: str = Field(min_length=1, max_length=120)
     delivery_radius_km: float = Field(gt=0.0, le=50.0)
+    # Accepted optionally for older clients; current FE omits it (no rename UI).
+    store_name: Optional[str] = Field(default=None, min_length=1, max_length=120)
 
 
 # Discriminated union: each group has its own payload schema.

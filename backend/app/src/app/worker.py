@@ -744,7 +744,7 @@ _GROUP_LABELS: dict[str, str] = {
     "legal": "Legal documents",
     "banking": "Banking",
     "services": "Services",
-    "store_basics": "Store basics",
+    "store_basics": "Delivery settings",
 }
 
 

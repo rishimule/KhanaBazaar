@@ -68,7 +68,6 @@ function buildCurrentValues(
     case "store_basics":
       if (!store) return null;
       return {
-        store_name: store.name,
         delivery_radius_km: store.delivery_radius_km,
       };
     case "services":
