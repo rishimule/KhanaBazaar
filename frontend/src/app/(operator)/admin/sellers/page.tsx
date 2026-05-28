@@ -8,16 +8,21 @@
 // Application review (pending / approved / rejected) lives at
 // /admin/sellers/applications.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { Column } from "@/components/DataTable";
+import Pager from "@/components/Pager";
+import { usePagedList } from "@/lib/usePagedList";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
-import { ApplicationCounts, SellerApplication } from "@/types";
+import { ApplicationCounts, PagedResponse, SellerApplication } from "@/types";
 import styles from "./page.module.css";
 import mobileStyles from "@/components/DataTableCard.module.css";
+
+const PAGE_SIZE = 20;
 
 function timeAgo(iso: string, t: ReturnType<typeof useTranslations>): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -37,45 +42,56 @@ export default function AdminSellersListPage() {
   const router = useRouter();
   const { dbUser, token, loading: authLoading } = useAuth();
 
-  const [sellers, setSellers] = useState<SellerApplication[]>([]);
   const [counts, setCounts] = useState<ApplicationCounts>({
     pending: 0,
     approved: 0,
     rejected: 0,
     total: 0,
   });
-  const [fetching, setFetching] = useState(true);
-
-  const fetchAll = useCallback(async () => {
-    if (!token) return;
-    setFetching(true);
-    try {
-      const [list, c] = await Promise.all([
-        get<SellerApplication[]>(
-          "/api/v1/sellers/admin/applications?status=approved",
-          token,
-        ),
-        get<ApplicationCounts>(
-          "/api/v1/sellers/admin/applications/counts",
-          token,
-        ),
-      ]);
-      setSellers(list);
-      setCounts(c);
-    } finally {
-      setFetching(false);
-    }
-  }, [token]);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const debouncedQuery = useDebouncedValue(query, 300);
 
   useEffect(() => {
     if (!authLoading && (!dbUser || dbUser.role !== "admin")) {
       router.push(dbUser ? "/" : "/login");
-      return;
     }
-    if (!authLoading && dbUser && token) {
-      fetchAll();
+  }, [authLoading, dbUser, router]);
+
+  useEffect(() => {
+    if (!token) return;
+    get<ApplicationCounts>("/api/v1/sellers/admin/applications/counts", token)
+      .then(setCounts)
+      .catch(() => {});
+  }, [token]);
+
+  const fetcher = useCallback(() => {
+    if (!token) {
+      return Promise.resolve<PagedResponse<SellerApplication>>({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: PAGE_SIZE,
+      });
     }
-  }, [authLoading, dbUser, token, router, fetchAll]);
+    const sp = new URLSearchParams({
+      status: "approved",
+      page: String(page),
+      page_size: String(PAGE_SIZE),
+    });
+    if (debouncedQuery.trim()) sp.set("q", debouncedQuery.trim());
+    return get<PagedResponse<SellerApplication>>(
+      `/api/v1/sellers/admin/applications?${sp.toString()}`,
+      token,
+    );
+  }, [token, debouncedQuery, page]);
+
+  const { data, loading: fetching } = usePagedList<PagedResponse<SellerApplication>>(
+    fetcher,
+    { token: Boolean(token), debouncedQuery, page },
+  );
+  const sellers = useMemo(() => data?.items ?? [], [data]);
+  const total = data?.total ?? 0;
 
   const columns: Column<SellerApplication>[] = [
     {
@@ -137,7 +153,7 @@ export default function AdminSellersListPage() {
     },
   ];
 
-  if (authLoading || fetching) {
+  if (authLoading) {
     return (
       <div
         style={{
@@ -163,7 +179,7 @@ export default function AdminSellersListPage() {
           }}
         >
           <span style={{ color: "var(--color-neutral-600)" }}>
-            {t("approvedCount", { n: sellers.length })}
+            {t("approvedCount", { n: total })}
           </span>
           <Link
             href="/admin/sellers/applications"
@@ -186,7 +202,23 @@ export default function AdminSellersListPage() {
             )}
           </Link>
         </div>
+        <input
+          type="search"
+          className={styles.search}
+          placeholder={t("searchPlaceholder")}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(1);
+          }}
+        />
       </div>
+
+      {fetching && (
+        <div style={{ padding: "1rem", color: "var(--color-neutral-500)" }}>
+          {tc("loading")}
+        </div>
+      )}
 
       <DataTable
         columns={columns}
@@ -224,6 +256,17 @@ export default function AdminSellersListPage() {
             </Link>
           </>
         )}
+      />
+      <Pager
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onPage={setPage}
+        labels={{
+          prev: t("prev"),
+          next: t("next"),
+          summary: (from, to, n) => t("showing", { from, to, total: n }),
+        }}
       />
     </>
   );
