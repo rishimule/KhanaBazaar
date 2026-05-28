@@ -3,7 +3,8 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import styles from "./Modal.module.css";
 
 type ModalSize = "default" | "wide" | "sheet";
@@ -20,16 +21,29 @@ interface Props {
 
 export default function Modal({ title, children, footer, onClose, size = "default" }: Props) {
   const t = useTranslations("Shared");
-  // Close on Escape key
+  const [mounted, setMounted] = useState(false);
+
+  // Mount + portal-ready (SSR safety) + Escape close + body scroll lock so
+  // the page (and sidebar) underneath can't be interacted with while a modal
+  // is open. Portaling to <body> escapes any parent stacking context that
+  // would otherwise let the dashboard sidebar paint on top of the scrim.
   useEffect(() => {
+    setMounted(true);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    return () => {
+      document.removeEventListener("keydown", handler);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className={styles.backdrop} onClick={onClose}>
       <div
         className={[
@@ -57,7 +71,8 @@ export default function Modal({ title, children, footer, onClose, size = "defaul
         <div className={styles.body}>{children}</div>
         {footer && <div className={styles.footer}>{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
