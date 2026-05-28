@@ -922,3 +922,15 @@ async def test_admin_orders_sort_total_desc(
     assert resp.status_code == 200
     totals = [o["total"] for o in resp.json()["orders"]]
     assert totals == sorted(totals, reverse=True)
+
+
+async def test_admin_orders_search_oversized_numeric_q_no_500(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    """A digit string past the int32 ceiling must not 500 (asyncpg DataError)."""
+    await _place_orders(seed)
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/orders?q=99999999999999")
+    assert resp.status_code == 200
+    assert resp.json()["orders"] == []

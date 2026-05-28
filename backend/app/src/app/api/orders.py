@@ -331,7 +331,10 @@ async def list_orders(
             CustomerProfile.first_name.ilike(like),  # type: ignore[attr-defined]
             CustomerProfile.last_name.ilike(like),  # type: ignore[attr-defined]
         ]
-        if term.isdigit():
+        # Guard the int32 ceiling: a digit string past Postgres int4 max would
+        # raise a DataError (→ 500) if bound to Order.id. No order can have such
+        # an id, so just skip the id predicate for over-range numbers.
+        if term.isdigit() and int(term) <= 2147483647:
             conditions.append(Order.id == int(term))  # type: ignore[arg-type]
         stmt = stmt.where(or_(*conditions)).distinct()
 
