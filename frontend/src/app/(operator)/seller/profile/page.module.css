@@ -149,3 +149,72 @@
 .storefrontLink:hover {
   background: var(--color-btn-primary-hover);
 }
+
+.cardCaption {
+  margin: 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
+.radiusRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.serviceRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.serviceLabel {
+  min-width: 140px;
+  font-size: var(--body-base);
+  font-weight: 500;
+}
+
+.stepBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--shade-cool-light-6);
+  background: var(--white);
+  font-size: 18px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.radiusInput {
+  width: 100px;
+  padding: 8px 10px;
+  font-size: var(--body-base);
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-md);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-family-sans);
+}
+
+.unit {
+  font-size: var(--body-base);
+  color: var(--shade-cool-base-7);
+}
+
+.savingChip {
+  font-size: var(--font-xs);
+  background: var(--shade-cool-light-2);
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--shade-cool-dark-5);
+  margin-left: 8px;
+}
