@@ -230,3 +230,84 @@ async def test_reject_terminal(approved_seller, session, admin_user):
             note=None, actor_user_id=approved_seller["user"].id,
         )
     assert excinfo.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_approve_no_edits_applies_proposed(approved_seller, session, admin_user):
+    from app.services.seller_profile_change_requests import (
+        create_change_request, approve,
+    )
+    from app.models.admin_audit import AdminActionLog
+    profile = approved_seller["profile"]
+    create = await create_change_request(
+        session=session, seller_profile=profile,
+        group=SellerProfileChangeGroup.Banking,
+        proposed={"bank_account_number": "123456789012", "bank_ifsc": "HDFC0001234"},
+        note=None, actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+    await approve(
+        session=session, cr=create.cr,
+        admin_user_id=admin_user.id, applied=None, note=None,
+    )
+    await session.commit()
+    await session.refresh(profile)
+    assert profile.bank_account_number == "123456789012"
+    assert profile.bank_ifsc == "HDFC0001234"
+    assert create.cr.status is SellerProfileChangeStatus.Approved
+    assert create.cr.applied_json == create.cr.proposed_json
+    logs = (
+        await session.exec(
+            select(AdminActionLog).where(AdminActionLog.action == "profile_cr_approve")
+        )
+    ).all()
+    assert len(logs) == 1
+
+
+@pytest.mark.asyncio
+async def test_approve_with_edits_uses_admin_values(approved_seller, session, admin_user):
+    from app.services.seller_profile_change_requests import (
+        create_change_request, approve,
+    )
+    profile = approved_seller["profile"]
+    create = await create_change_request(
+        session=session, seller_profile=profile,
+        group=SellerProfileChangeGroup.Banking,
+        proposed={"bank_account_number": "123456789012", "bank_ifsc": "HDFC0000000"},
+        note=None, actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+    await approve(
+        session=session, cr=create.cr,
+        admin_user_id=admin_user.id,
+        applied={"bank_account_number": "123456789012", "bank_ifsc": "HDFC0009999"},
+        note="fixed IFSC for you",
+    )
+    await session.commit()
+    await session.refresh(profile)
+    assert profile.bank_ifsc == "HDFC0009999"
+    assert create.cr.applied_json["bank_ifsc"] == "HDFC0009999"
+
+
+@pytest.mark.asyncio
+async def test_approve_invalid_applied_rejects(approved_seller, session, admin_user):
+    from fastapi import HTTPException
+    from app.services.seller_profile_change_requests import (
+        create_change_request, approve,
+    )
+    profile = approved_seller["profile"]
+    create = await create_change_request(
+        session=session, seller_profile=profile,
+        group=SellerProfileChangeGroup.Banking,
+        proposed={"bank_account_number": "123456789012", "bank_ifsc": "HDFC0001234"},
+        note=None, actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+    with pytest.raises(HTTPException) as excinfo:
+        await approve(
+            session=session, cr=create.cr,
+            admin_user_id=admin_user.id,
+            applied={"bank_account_number": "123", "bank_ifsc": "ZZZZ"},
+            note=None,
+        )
+    assert excinfo.value.status_code == 400

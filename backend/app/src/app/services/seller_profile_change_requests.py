@@ -453,3 +453,97 @@ GROUP_APPLIERS = {
     SellerProfileChangeGroup.Services: _apply_services,
     SellerProfileChangeGroup.StoreBasics: _apply_store_basics,
 }
+
+
+async def approve(
+    *,
+    session: AsyncSession,
+    cr: SellerProfileChangeRequest,
+    admin_user_id: int,
+    applied: Optional[dict[str, Any]] = None,
+    note: Optional[str] = None,
+) -> CRMutationResult:
+    if cr.status is not SellerProfileChangeStatus.Submitted:
+        raise HTTPException(status_code=409, detail="cr_not_actionable")
+    # Lock the row to defeat double-approve races.
+    locked = (
+        await session.exec(
+            select(SellerProfileChangeRequest)
+            .where(SellerProfileChangeRequest.id == cr.id)
+            .with_for_update()
+        )
+    ).first()
+    if locked is None or locked.status is not SellerProfileChangeStatus.Submitted:
+        raise HTTPException(status_code=409, detail="cr_not_actionable")
+
+    raw_applied = applied if applied is not None else cr.proposed_json
+    try:
+        canonical_applied = validate_group_payload(cr.group, raw_applied)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    profile = (
+        await session.exec(
+            select(SellerProfile).where(
+                SellerProfile.id == cr.seller_profile_id
+            )
+        )
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="seller_not_found")
+
+    applier = GROUP_APPLIERS[cr.group]
+    await applier(session, profile, canonical_applied)
+
+    has_edits = canonical_applied != cr.proposed_json
+    cr.status = SellerProfileChangeStatus.Approved
+    cr.applied_json = canonical_applied
+    cr.admin_note = note
+    cr.decided_at = _now()
+    cr.decided_by_user_id = admin_user_id
+    cr.updated_at = _now()
+    session.add(cr)
+
+    event_payload: dict[str, Any] = {"applied": canonical_applied}
+    if has_edits:
+        event_payload["seller_proposed"] = cr.proposed_json
+    _emit_event(
+        session=session, cr=cr,
+        kind=(
+            SellerProfileChangeEventKind.ApprovedWithEdits if has_edits
+            else SellerProfileChangeEventKind.Approved
+        ),
+        actor_user_id=admin_user_id, actor_role=UserRole.Admin,
+        payload_json=event_payload,
+        note=note,
+    )
+
+    audit_after: dict[str, Any] = {
+        "cr_id": str(cr.id), "applied": canonical_applied,
+    }
+    if has_edits:
+        audit_after["seller_proposed"] = cr.proposed_json
+    await admin_audit.log(
+        session=session,
+        admin_user_id=admin_user_id,
+        target_seller_id=cr.seller_profile_id,
+        target_type=AdminActionTargetType.SellerProfile,
+        target_id=cr.seller_profile_id,
+        action=(
+            "profile_cr_approve_with_edits" if has_edits
+            else "profile_cr_approve"
+        ),
+        before_json={"cr_id": str(cr.id), "baseline": cr.baseline_json},
+        after_json=audit_after,
+        reason=note,
+    )
+    logger.info(
+        "cr.approve cr_id=%s edits=%s group=%s", cr.id, has_edits, cr.group.value,
+    )
+    from app.services.seller_emails import (
+        dispatch_seller_change_request_approved,
+    )
+    return CRMutationResult(
+        cr=cr,
+        emails=[lambda: dispatch_seller_change_request_approved(cr.id)],
+    )
