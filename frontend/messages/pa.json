@@ -804,13 +804,15 @@
       "dashboard": "ਡੈਸ਼ਬੋਰਡ",
       "orders": "ਆਰਡਰ",
       "inventory": "ਇਨਵੈਂਟਰੀ",
-      "settings": "ਸੈਟਿੰਗਾਂ"
+      "settings": "ਸੈਟਿੰਗਾਂ",
+      "profile": "ਪ੍ਰੋਫਾਈਲ"
     },
     "titles": {
       "dashboard": "ਵਿਕਰੇਤਾ ਡੈਸ਼ਬੋਰਡ",
       "inventory": "ਇਨਵੈਂਟਰੀ ਪ੍ਰਬੰਧਨ",
       "orders": "ਸਟੋਰ ਆਰਡਰ",
       "settings": "ਸੈਟਿੰਗਾਂ",
+      "profile": "ਪ੍ਰੋਫਾਈਲ",
       "portal": "ਵਿਕਰੇਤਾ ਪੋਰਟਲ"
     },
     "common": {
@@ -996,6 +998,28 @@
       "profileServices": "ਪ੍ਰੋਫਾਈਲ ਅਤੇ ਸੇਵਾਵਾਂ",
       "editProfile": "ਕਾਰੋਬਾਰੀ ਪ੍ਰੋਫਾਈਲ ਸੰਪਾਦਿਤ ਕਰੋ",
       "viewStorefront": "ਸਟੋਰਫ੍ਰੰਟ ਵੇਖੋ"
+    },
+    "profile": {
+      "heading": "ਪ੍ਰੋਫਾਈਲ",
+      "sectionIdentity": "ਸਟੋਰ ਪਛਾਣ",
+      "sectionAddress": "ਕਾਰੋਬਾਰੀ ਪਤਾ",
+      "sectionLegal": "ਕਾਨੂੰਨੀ ਦਸਤਾਵੇਜ਼",
+      "sectionBanking": "ਬੈਂਕਿੰਗ",
+      "sectionServices": "ਪੇਸ਼ ਕੀਤੀਆਂ ਸੇਵਾਵਾਂ",
+      "ownerLabel": "ਮਾਲਕ",
+      "phoneLabel": "ਫ਼ੋਨ",
+      "businessNameLabel": "ਕਾਰੋਬਾਰ ਦਾ ਨਾਮ",
+      "pinConfirmed": "ਪਿੰਨ ਪੁਸ਼ਟੀ ਹੋ ਗਈ",
+      "pinNotConfirmed": "ਪਿੰਨ ਅਜੇ ਪੁਸ਼ਟੀ ਨਹੀਂ ਹੋਈ",
+      "gstLabel": "GST ਨੰਬਰ",
+      "fssaiLabel": "FSSAI ਲਾਇਸੈਂਸ",
+      "accountLabel": "ਖਾਤਾ ਨੰਬਰ",
+      "ifscLabel": "IFSC ਕੋਡ",
+      "notAdded": "ਸ਼ਾਮਲ ਨਹੀਂ ਕੀਤਾ",
+      "servicesEmpty": "ਕੋਈ ਸੇਵਾਵਾਂ ਕੌਂਫਿਗਰ ਨਹੀਂ ਹਨ।",
+      "viewStorefront": "ਆਪਣਾ ਸਟੋਰਫ੍ਰੰਟ ਵੇਖੋ →",
+      "editProfile": "ਸੰਪਾਦਿਤ ਕਰੋ",
+      "loadError": "ਤੁਹਾਡੀ ਪ੍ਰੋਫਾਈਲ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ। ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
     },
     "signup": {
       "stepCounter": "ਪੜਾਅ {current} / {total}",
@@ -1486,6 +1510,12 @@
       "caption": "ਆਪਣੇ ਡੈਸ਼ਬੋਰਡ ਲਈ ਭਾਸ਼ਾ ਚੁਣੋ।",
       "ariaLabel": "ਪਸੰਦੀਦਾ ਭਾਸ਼ਾ",
       "saving": "ਸੰਭਾਲਿਆ ਜਾ ਰਿਹਾ ਹੈ…"
+    },
+    "verification": {
+      "approved": "ਮਨਜ਼ੂਰ",
+      "pending": "ਸਮੀਖਿਆ ਬਾਕੀ",
+      "rejected": "ਰੱਦ ਕੀਤਾ",
+      "rejectedReason": "ਕਾਰਨ: {reason}"
     },
     "routeMap": {
       "unavailable": "ਨਕਸ਼ਾ ਉਪਲਬਧ ਨਹੀਂ। ਰੂਟ ਝਲਕ ਦਿਖਾਉਣ ਲਈ <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> ਸੰਰਚਿਤ ਕਰੋ।",

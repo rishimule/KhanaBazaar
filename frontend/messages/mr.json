@@ -804,13 +804,15 @@
       "dashboard": "डॅशबोर्ड",
       "orders": "ऑर्डर",
       "inventory": "इन्व्हेंटरी",
-      "settings": "सेटिंग्ज"
+      "settings": "सेटिंग्ज",
+      "profile": "प्रोफाइल"
     },
     "titles": {
       "dashboard": "विक्रेता डॅशबोर्ड",
       "inventory": "इन्व्हेंटरी व्यवस्थापन",
       "orders": "स्टोअर ऑर्डर",
       "settings": "सेटिंग्ज",
+      "profile": "प्रोफाइल",
       "portal": "विक्रेता पोर्टल"
     },
     "common": {
@@ -996,6 +998,28 @@
       "profileServices": "प्रोफाइल आणि सेवा",
       "editProfile": "व्यवसाय प्रोफाइल संपादित करा",
       "viewStorefront": "स्टोअरफ्रंट पहा"
+    },
+    "profile": {
+      "heading": "प्रोफाइल",
+      "sectionIdentity": "स्टोअर ओळख",
+      "sectionAddress": "व्यवसाय पत्ता",
+      "sectionLegal": "कायदेशीर कागदपत्रे",
+      "sectionBanking": "बँकिंग",
+      "sectionServices": "प्रदान केलेल्या सेवा",
+      "ownerLabel": "मालक",
+      "phoneLabel": "फोन",
+      "businessNameLabel": "व्यवसायाचे नाव",
+      "pinConfirmed": "पिन पुष्टीकृत",
+      "pinNotConfirmed": "पिन अद्याप पुष्टीकृत नाही",
+      "gstLabel": "GST क्रमांक",
+      "fssaiLabel": "FSSAI परवाना",
+      "accountLabel": "खाते क्रमांक",
+      "ifscLabel": "IFSC कोड",
+      "notAdded": "जोडले नाही",
+      "servicesEmpty": "कोणतीही सेवा कॉन्फिगर केलेली नाही.",
+      "viewStorefront": "तुमचा स्टोरफ्रंट पहा →",
+      "editProfile": "संपादित करा",
+      "loadError": "तुमची प्रोफाइल लोड होऊ शकली नाही. कृपया नंतर पुन्हा प्रयत्न करा."
     },
     "signup": {
       "stepCounter": "पायरी {current} / {total}",
@@ -1486,6 +1510,12 @@
       "caption": "तुमच्या डॅशबोर्डसाठी भाषा निवडा.",
       "ariaLabel": "पसंतीची भाषा",
       "saving": "जतन होत आहे…"
+    },
+    "verification": {
+      "approved": "मंजूर",
+      "pending": "पुनरावलोकन प्रलंबित",
+      "rejected": "नाकारले",
+      "rejectedReason": "कारण: {reason}"
     },
     "routeMap": {
       "unavailable": "नकाशा उपलब्ध नाही. मार्ग पूर्वावलोकन दाखवण्यासाठी <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> कॉन्फिगर करा.",

@@ -804,13 +804,15 @@
       "dashboard": "ડેશબોર્ડ",
       "orders": "ઓર્ડર",
       "inventory": "ઇન્વેન્ટરી",
-      "settings": "સેટિંગ્સ"
+      "settings": "સેટિંગ્સ",
+      "profile": "પ્રોફાઇલ"
     },
     "titles": {
       "dashboard": "વિક્રેતા ડેશબોર્ડ",
       "inventory": "ઇન્વેન્ટરી વ્યવસ્થાપન",
       "orders": "સ્ટોર ઓર્ડર",
       "settings": "સેટિંગ્સ",
+      "profile": "પ્રોફાઇલ",
       "portal": "વિક્રેતા પોર્ટલ"
     },
     "common": {
@@ -996,6 +998,28 @@
       "profileServices": "પ્રોફાઇલ અને સેવાઓ",
       "editProfile": "બિઝનેસ પ્રોફાઇલ સંપાદિત કરો",
       "viewStorefront": "સ્ટોરફ્રન્ટ જુઓ"
+    },
+    "profile": {
+      "heading": "પ્રોફાઇલ",
+      "sectionIdentity": "સ્ટોર ઓળખ",
+      "sectionAddress": "વ્યવસાય સરનામું",
+      "sectionLegal": "કાયદાકીય દસ્તાવેજો",
+      "sectionBanking": "બેંકિંગ",
+      "sectionServices": "પૂરી પાડવામાં આવેલ સેવાઓ",
+      "ownerLabel": "માલિક",
+      "phoneLabel": "ફોન",
+      "businessNameLabel": "વ્યવસાયનું નામ",
+      "pinConfirmed": "પિન પુષ્ટિ થઈ",
+      "pinNotConfirmed": "પિન હજુ પુષ્ટિ થઈ નથી",
+      "gstLabel": "GST નંબર",
+      "fssaiLabel": "FSSAI લાઇસન્સ",
+      "accountLabel": "એકાઉન્ટ નંબર",
+      "ifscLabel": "IFSC કોડ",
+      "notAdded": "ઉમેરેલ નથી",
+      "servicesEmpty": "કોઈ સેવાઓ ગોઠવેલ નથી.",
+      "viewStorefront": "તમારું સ્ટોરફ્રન્ટ જુઓ →",
+      "editProfile": "સંપાદિત કરો",
+      "loadError": "તમારી પ્રોફાઇલ લોડ થઈ શકી નથી. કૃપા કરી પછી ફરી પ્રયાસ કરો."
     },
     "signup": {
       "stepCounter": "પગલું {current} / {total}",
@@ -1486,6 +1510,12 @@
       "caption": "તમારા ડેશબોર્ડ માટે ભાષા પસંદ કરો.",
       "ariaLabel": "પસંદગીની ભાષા",
       "saving": "સાચવાઈ રહ્યું છે…"
+    },
+    "verification": {
+      "approved": "મંજૂર",
+      "pending": "સમીક્ષા બાકી",
+      "rejected": "નકારેલ",
+      "rejectedReason": "કારણ: {reason}"
     },
     "routeMap": {
       "unavailable": "નકશો ઉપલબ્ધ નથી. માર્ગ પૂર્વાવલોકન બતાવવા માટે <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> ગોઠવો.",
