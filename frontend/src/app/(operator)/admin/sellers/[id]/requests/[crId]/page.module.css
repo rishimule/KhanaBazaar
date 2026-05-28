@@ -1,0 +1,192 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+  font-family: var(--font-family-sans);
+}
+
+.backLink {
+  font-size: var(--body-sm);
+  color: var(--color-primary-1);
+  text-decoration: none;
+  align-self: flex-start;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: var(--display-lg);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--display-lg-track);
+  color: var(--shade-cool-dark-7);
+  margin: 0;
+}
+
+.pill {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.tone_info {
+  background: var(--shade-cool-light-2);
+  color: var(--shade-cool-dark-7);
+}
+
+.tone_warn {
+  background: var(--saffron-yellow-light-1, #fffbeb);
+  color: var(--saffron-yellow-dark-1, #92400e);
+}
+
+.tone_success {
+  background: var(--chive-green-light-1);
+  color: var(--chive-green-base-4);
+}
+
+.tone_danger {
+  background: var(--vermillion-red-light-1, #fef2f2);
+  color: var(--vermillion-red-dark-1, #7f1d1d);
+}
+
+.tone_muted {
+  background: var(--shade-cool-light-1);
+  color: var(--shade-cool-base-7);
+}
+
+.meta {
+  margin: 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
+.warnBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--saffron-yellow-light-1, #fffbeb);
+  border: 1px solid var(--saffron-yellow-light-3, #fde68a);
+  color: var(--saffron-yellow-dark-1, #92400e);
+  padding: 12px 14px;
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+}
+
+.warnBanner p,
+.successBanner p,
+.errorBanner p {
+  margin: 0;
+}
+
+.successBanner {
+  background: var(--chive-green-light-1);
+  color: var(--chive-green-base-4);
+  border: 1px solid var(--chive-green-light-3, #bbf7d0);
+  padding: 10px 14px;
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+}
+
+.mutedBanner {
+  background: var(--shade-cool-light-1);
+  color: var(--shade-cool-base-7);
+  padding: 10px 14px;
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+  border: 1px solid var(--hairline);
+}
+
+.errorBanner {
+  background: var(--vermillion-red-light-1, #fef2f2);
+  border: 1px solid var(--vermillion-red-base-3, #b91c1c);
+  color: var(--vermillion-red-dark-1, #7f1d1d);
+  padding: 10px 14px;
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  font-size: var(--body-xl);
+  font-weight: var(--weight-medium);
+  color: var(--shade-cool-dark-7);
+  margin: 8px 0 4px;
+}
+
+.helper {
+  margin: 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
+.applyForm {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--body-sm);
+}
+
+.fieldLabel {
+  color: var(--shade-cool-base-7);
+  font-weight: var(--weight-medium);
+}
+
+.input,
+.textarea {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 8px 10px;
+  font: inherit;
+  background: var(--white);
+  color: var(--shade-cool-dark-7);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.muted {
+  color: var(--shade-cool-base-7);
+  padding: 24px;
+  text-align: center;
+}
