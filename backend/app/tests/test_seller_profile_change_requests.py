@@ -311,3 +311,42 @@ async def test_approve_invalid_applied_rejects(approved_seller, session, admin_u
             note=None,
         )
     assert excinfo.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_supersede_open_cr_marks_withdrawn_system(
+    approved_seller, session, admin_user
+):
+    from app.services.seller_profile_change_requests import (
+        create_change_request, supersede_open_cr,
+    )
+    from app.models.seller_profile_change_request import (
+        SellerProfileChangeEventKind,
+    )
+    profile = approved_seller["profile"]
+    create = await create_change_request(
+        session=session, seller_profile=profile,
+        group=SellerProfileChangeGroup.Services,
+        proposed={"services": [{"service_id": 1, "min_order_value": 100.0}]},
+        note=None, actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+    await supersede_open_cr(
+        session=session,
+        seller_profile_id=profile.id,
+        group=SellerProfileChangeGroup.Services,
+        admin_user_id=admin_user.id,
+        action_name="admin_set_services",
+    )
+    await session.commit()
+    await session.refresh(create.cr)
+    assert create.cr.status is SellerProfileChangeStatus.Withdrawn
+    events = (
+        await session.exec(
+            select(SellerProfileChangeRequestEvent).where(
+                SellerProfileChangeRequestEvent.change_request_id == create.cr.id
+            )
+        )
+    ).all()
+    kinds = [e.kind for e in events]
+    assert SellerProfileChangeEventKind.Withdrawn in kinds

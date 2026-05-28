@@ -547,3 +547,40 @@ async def approve(
         cr=cr,
         emails=[lambda: dispatch_seller_change_request_approved(cr.id)],
     )
+
+
+async def supersede_open_cr(
+    *,
+    session: AsyncSession,
+    seller_profile_id: int,
+    group: SellerProfileChangeGroup,
+    admin_user_id: int,
+    action_name: str,
+) -> Optional[SellerProfileChangeRequest]:
+    """Mark any open CR for (seller, group) as system-withdrawn.
+
+    Called when an admin uses a direct-override endpoint and bypasses CR.
+    Avoids stale baselines. No-op if no open CR exists.
+    """
+    cr = await _open_cr_for_group(session, seller_profile_id, group)
+    if cr is None:
+        return None
+    cr.status = SellerProfileChangeStatus.Withdrawn
+    cr.decided_at = _now()
+    cr.decided_by_user_id = admin_user_id
+    cr.updated_at = _now()
+    session.add(cr)
+    _emit_event(
+        session=session, cr=cr,
+        kind=SellerProfileChangeEventKind.Withdrawn,
+        actor_user_id=admin_user_id, actor_role=UserRole.Admin,
+        payload_json={
+            "reason": "superseded_by_admin_direct_edit",
+            "action": action_name,
+        },
+    )
+    logger.info(
+        "cr.supersede cr_id=%s seller=%s group=%s action=%s",
+        cr.id, seller_profile_id, group.value, action_name,
+    )
+    return cr
