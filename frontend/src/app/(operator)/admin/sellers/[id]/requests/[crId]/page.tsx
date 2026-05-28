@@ -216,6 +216,7 @@ export default function AdminCRDetailPage() {
           after={cr.proposed_json}
           beforeLabel="Current"
           afterLabel="Proposed"
+          group={cr.group}
         />
       </section>
 
@@ -227,6 +228,7 @@ export default function AdminCRDetailPage() {
             after={cr.applied_json}
             beforeLabel="Seller proposed"
             afterLabel="Applied"
+            group={cr.group}
           />
         </section>
       )}
@@ -240,7 +242,12 @@ export default function AdminCRDetailPage() {
             from what the seller proposed.
           </p>
           <div className={styles.applyForm}>
-            {Object.keys(cr.proposed_json).map((key) => (
+            {Object.keys(cr.proposed_json)
+              .filter((key) => {
+                if (cr.group !== "store_basics") return true;
+                return key === "delivery_radius_km";
+              })
+              .map((key) => (
               <label key={key} className={styles.field}>
                 <span className={styles.fieldLabel}>{key}</span>
                 <input

@@ -19,6 +19,28 @@ interface Props {
   serviceNames?: Map<number, string>;
 }
 
+/** Per-group canonical key set. When `group` is provided, rows for keys
+ *  outside this set are hidden (drops stale fields like `store_name` from
+ *  pre-cleanup `store_basics` rows). */
+const ALLOWED_KEYS: Partial<Record<SellerProfileChangeGroup, Set<string>>> = {
+  identity: new Set(["full_name", "business_name", "phone"]),
+  address: new Set([
+    "address_line1",
+    "address_line2",
+    "landmark",
+    "city",
+    "state",
+    "pincode",
+    "country",
+    "latitude",
+    "longitude",
+  ]),
+  legal: new Set(["gst_number", "fssai_license"]),
+  banking: new Set(["bank_account_number", "bank_ifsc"]),
+  services: new Set(["services"]),
+  store_basics: new Set(["delivery_radius_km"]),
+};
+
 const FIELD_LABELS: Record<string, string> = {
   // identity
   full_name: "Owner name",
@@ -138,9 +160,10 @@ export default function ChangeRequestDiffTable({
   serviceNames,
 }: Props) {
   const [showUnchanged, setShowUnchanged] = useState(false);
+  const allowed = group !== undefined ? ALLOWED_KEYS[group] : undefined;
   const keys = Array.from(
     new Set([...Object.keys(before), ...Object.keys(after)]),
-  );
+  ).filter((k) => (allowed ? allowed.has(k) : true));
   const rows = keys.map((k) => ({
     key: k,
     before: before[k],
