@@ -442,3 +442,110 @@ async def test_api_seller_creates_and_admin_approves(
     body2 = res2.json()
     assert body2["status"] == "approved"
     assert body2["applied_json"]["bank_ifsc"] == "HDFC0001234"
+
+
+# ---------------------------------------------------------------------------
+# Legacy endpoint 409 guards (Task 18)
+# ---------------------------------------------------------------------------
+@pytest.fixture
+async def _seller_auth_override(approved_seller: dict) -> AsyncIterator[dict]:
+    seller_user: User = approved_seller["user"]
+    app.dependency_overrides[get_current_seller] = lambda: seller_user
+    app.dependency_overrides[get_current_user] = lambda: seller_user
+    try:
+        yield approved_seller
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture
+async def _approved_seller_store_id(approved_seller: dict) -> int:
+    """Provision a Store row owned by the Approved seller built by the
+    conftest fixture. Uses its own session so it does not collide with the
+    test's session fixture (which is also wired to the test engine).
+    """
+    from sqlmodel.ext.asyncio.session import AsyncSession as _AsyncSession
+
+    from app.models.address import Address as _Address
+    from app.models.store import Store as _Store
+    from tests.conftest import test_engine as _test_engine
+
+    profile = approved_seller["profile"]
+    async with _AsyncSession(_test_engine, expire_on_commit=False) as ses:
+        store_addr = _Address(
+            address_line1="Shop 1",
+            city="Mumbai",
+            state="Maharashtra",
+            pincode="400001",
+            country="India",
+            latitude=19.07,
+            longitude=72.87,
+        )
+        ses.add(store_addr)
+        await ses.flush()
+        store = _Store(
+            name=profile.business_name,
+            is_active=True,
+            seller_profile_id=profile.id,
+            address_id=store_addr.id,
+            pin_confirmed=True,
+        )
+        ses.add(store)
+        await ses.commit()
+        await ses.refresh(store)
+        return int(store.id)
+
+
+@pytest.mark.asyncio
+async def test_legacy_patch_profile_blocked_for_approved(
+    _seller_auth_override: dict,
+    client: AsyncClient,
+) -> None:
+    res = await client.patch(
+        "/api/v1/sellers/me/profile",
+        json={
+            "full_name": "A B",
+            "business_name": "X",
+            "phone": "+919999999999",
+            "address": {
+                "address_line1": "1 Main",
+                "city": "Mumbai",
+                "state": "Maharashtra",
+                "pincode": "400001",
+                "country": "India",
+                "latitude": 19.0,
+                "longitude": 72.8,
+            },
+        },
+    )
+    assert res.status_code == 409, res.text
+    assert res.json()["detail"] == "use_change_request"
+
+
+@pytest.mark.asyncio
+async def test_legacy_patch_store_blocked_for_approved(
+    _seller_auth_override: dict,
+    _approved_seller_store_id: int,
+    client: AsyncClient,
+) -> None:
+    res = await client.patch(
+        f"/api/v1/stores/{_approved_seller_store_id}",
+        json={"delivery_radius_km": 8.0},
+    )
+    assert res.status_code == 409, res.text
+    assert res.json()["detail"] == "use_change_request"
+
+
+@pytest.mark.asyncio
+async def test_legacy_patch_store_pin_confirm_still_allowed(
+    _seller_auth_override: dict,
+    _approved_seller_store_id: int,
+    client: AsyncClient,
+) -> None:
+    res = await client.patch(
+        f"/api/v1/stores/{_approved_seller_store_id}",
+        json={"pin_confirmed": True},
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["pin_confirmed"] is True

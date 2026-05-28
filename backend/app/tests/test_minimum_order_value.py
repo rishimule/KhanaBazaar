@@ -209,6 +209,14 @@ async def test_checkout_zero_minimum_no_enforcement(
 async def test_seller_sets_min_order_value(
     seller_client_factory, session: AsyncSession, seed: dict[str, int],
 ) -> None:
+    # Approved sellers now route min-order edits through change-requests; the
+    # direct self-PATCH endpoint stays available for Pending sellers iterating
+    # on a not-yet-approved profile, so flip the seed to Pending here.
+    seller_row = (await session.exec(
+        select(SellerProfile).where(SellerProfile.id == seed["seller_id"])
+    )).first()
+    seller_row.verification_status = VerificationStatus.Pending
+    await session.commit()
     async with seller_client_factory(mock_seller) as ac:
         resp = await ac.patch(
             f"/api/v1/sellers/me/services/{seed['service_id']}",
@@ -233,8 +241,16 @@ async def test_seller_set_min_rejects_negative(
 
 
 async def test_seller_set_min_unknown_service_404(
-    seller_client_factory,
+    seller_client_factory, session: AsyncSession, seed: dict[str, int],
 ) -> None:
+    # Same as test_seller_sets_min_order_value: flip the seller out of Approved
+    # so the 404 path is reachable (Approved sellers hit the use_change_request
+    # 409 guard before the service lookup).
+    seller_row = (await session.exec(
+        select(SellerProfile).where(SellerProfile.id == seed["seller_id"])
+    )).first()
+    seller_row.verification_status = VerificationStatus.Pending
+    await session.commit()
     async with seller_client_factory(mock_seller) as ac:
         resp = await ac.patch(
             "/api/v1/sellers/me/services/999999",

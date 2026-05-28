@@ -212,6 +212,11 @@ async def update_seller_profile(
     profile = await _seller_profile_with_address(session, current_user.id)
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
+    if profile.verification_status is VerificationStatus.Approved:
+        # Approved sellers must route profile edits through the change-request
+        # workflow. Pending / Rejected sellers can still patch directly so they
+        # can iterate on a rejected application.
+        raise HTTPException(status_code=409, detail="use_change_request")
 
     if body.service_ids is not None:
         if profile.verification_status == VerificationStatus.Approved:
@@ -269,6 +274,8 @@ async def set_my_service_min_order_value(
     profile = await _seller_profile_with_address(session, current_user.id)
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
+    if profile.verification_status is VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="use_change_request")
     assert profile.id is not None
     profile_id: int = profile.id
     row = (await session.exec(
