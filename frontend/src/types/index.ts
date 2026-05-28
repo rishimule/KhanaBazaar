@@ -629,3 +629,56 @@ export interface FavoriteToggleResponse {
   favourited: boolean;
 }
 
+// --- Seller profile change requests ---
+
+export type SellerProfileChangeGroup =
+  | "identity"
+  | "address"
+  | "legal"
+  | "banking"
+  | "services"
+  | "store_basics";
+
+export type SellerProfileChangeStatus =
+  | "submitted"
+  | "changes_requested"
+  | "approved"
+  | "rejected"
+  | "withdrawn";
+
+export type SellerProfileChangeEventKind =
+  | "submitted"
+  | "resubmitted"
+  | "changes_requested"
+  | "approved"
+  | "approved_with_edits"
+  | "rejected"
+  | "withdrawn";
+
+export interface SellerProfileChangeRequestEvent {
+  id: string;
+  kind: SellerProfileChangeEventKind;
+  actor_user_id: number;
+  actor_role: "customer" | "seller" | "admin";
+  payload_json: Record<string, unknown> | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface SellerProfileChangeRequest {
+  id: string;
+  seller_profile_id: number;
+  group: SellerProfileChangeGroup;
+  status: SellerProfileChangeStatus;
+  proposed_json: Record<string, unknown>;
+  applied_json: Record<string, unknown> | null;
+  baseline_json: Record<string, unknown>;
+  admin_note: string | null;
+  submission_count: number;
+  created_at: string;
+  updated_at: string;
+  decided_at: string | null;
+  decided_by_user_id: number | null;
+  events: SellerProfileChangeRequestEvent[];
+}
+
