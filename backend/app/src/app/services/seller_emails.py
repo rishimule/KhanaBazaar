@@ -16,6 +16,10 @@ from app.worker import (
     send_customer_welcome_async,
     send_seller_application_submitted_async,
     send_seller_approved_async,
+    send_seller_change_request_approved_async,
+    send_seller_change_request_changes_requested_async,
+    send_seller_change_request_rejected_async,
+    send_seller_change_request_submitted_async,
     send_seller_rejected_async,
 )
 
@@ -64,3 +68,23 @@ def dispatch_seller_application_submitted(seller_profile_id: int) -> None:
 def dispatch_customer_welcome(user_id: int) -> None:
     """Greet a newly-registered customer."""
     _safe_delay(send_customer_welcome_async, user_id)
+
+
+def dispatch_seller_change_request_submitted(cr_id: Any) -> None:
+    """Confirm receipt of a (new or resubmitted) seller change request."""
+    _safe_delay(send_seller_change_request_submitted_async, str(cr_id))
+
+
+def dispatch_seller_change_request_approved(cr_id: Any) -> None:
+    """Notify the seller that a change request was approved (with or without edits)."""
+    _safe_delay(send_seller_change_request_approved_async, str(cr_id))
+
+
+def dispatch_seller_change_request_changes_requested(cr_id: Any) -> None:
+    """Notify the seller that an admin asked for changes on their request."""
+    _safe_delay(send_seller_change_request_changes_requested_async, str(cr_id))
+
+
+def dispatch_seller_change_request_rejected(cr_id: Any) -> None:
+    """Notify the seller that their change request was rejected."""
+    _safe_delay(send_seller_change_request_rejected_async, str(cr_id))
