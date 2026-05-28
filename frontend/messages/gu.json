@@ -1138,6 +1138,7 @@
       "orders": "ઓર્ડર",
       "sellers": "વિક્રેતાઓ",
       "applications": "અરજીઓ",
+      "changeRequests": "બદલાવ વિનંતી",
       "catalog": "કેટલોગ",
       "settings": "સેટિંગ્સ"
     },
@@ -1149,7 +1150,8 @@
       "catalog": "કેટલોગ",
       "orders": "બધા ઓર્ડર",
       "panel": "એડમિન પેનલ",
-      "settings": "સેટિંગ્સ"
+      "settings": "સેટિંગ્સ",
+      "changeRequests": "બદલાવ વિનંતી"
     },
     "settings": {
       "title": "સેટિંગ્સ"
@@ -1180,6 +1182,7 @@
       "requiresReview": "સમીક્ષા જરૂરી",
       "allCaughtUp": "બધું પૂર્ણ થઈ ગયું",
       "approvedSellers": "મંજૂર વિક્રેતા",
+      "openChangeRequests": "ખુલ્લી બદલાવ વિનંતી",
       "quickActions": "ઝડપી ક્રિયાઓ",
       "allOrders": "બધા ઓર્ડર",
       "allOrdersDesc": "દરેક ઓર્ડર જુઓ, શોધો અને કાર્ય કરો",

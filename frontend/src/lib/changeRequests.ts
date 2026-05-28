@@ -111,6 +111,28 @@ export async function withdrawMyChangeRequest(
 
 // --- Admin client ---
 
+export interface AdminQueueRow {
+  id: string;
+  seller_profile_id: number;
+  seller_user_id: number;
+  seller_business_name: string;
+  group: SellerProfileChangeGroup;
+  status: SellerProfileChangeStatus;
+  submission_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function adminListAllChangeRequests(
+  token: string,
+  status: "open" | "terminal" | "all" = "open",
+): Promise<AdminQueueRow[]> {
+  return get<AdminQueueRow[]>(
+    `/api/v1/admin/change-requests?status=${status}`,
+    token,
+  );
+}
+
 export async function adminListSellerCRs(
   token: string,
   sellerId: number,

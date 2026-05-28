@@ -1,0 +1,104 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+
+.page {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.title {
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  margin: 0 0 16px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab,
+.activeTab {
+  padding: 6px 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.activeTab {
+  background: var(--color-primary-subtle, #ffe5cf);
+  border-color: var(--color-primary);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--color-danger, var(--color-error, #b91c1c));
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table th {
+  font-weight: var(--weight-semibold, 600);
+  color: var(--color-text-strong);
+}
+
+.sellerCell {
+  font-weight: var(--weight-semibold, 600);
+}
+
+.pill {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  text-transform: capitalize;
+}
+
+.tone_submitted {
+  background: var(--color-info-subtle, #dbeafe);
+}
+.tone_changes_requested {
+  background: var(--color-warn-subtle, #fff8e1);
+}
+.tone_approved {
+  background: var(--color-success-subtle, #d1fae5);
+}
+.tone_rejected {
+  background: var(--color-danger-subtle, #fee2e2);
+}
+.tone_withdrawn {
+  background: var(--color-muted-subtle, #e5e7eb);
+}
+
+.actionCell {
+  text-align: right;
+}
+
+.reviewBtn {
+  color: var(--color-link);
+  font-weight: var(--weight-semibold, 600);
+  white-space: nowrap;
+}

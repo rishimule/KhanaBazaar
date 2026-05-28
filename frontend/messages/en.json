@@ -1137,6 +1137,7 @@
       "orders": "Orders",
       "sellers": "Sellers",
       "applications": "Applications",
+      "changeRequests": "Change requests",
       "catalog": "Catalog",
       "settings": "Settings"
     },
@@ -1148,7 +1149,8 @@
       "catalog": "Catalog",
       "orders": "All Orders",
       "panel": "Admin Panel",
-      "settings": "Settings"
+      "settings": "Settings",
+      "changeRequests": "Change requests"
     },
     "settings": {
       "title": "Settings"
@@ -1179,6 +1181,7 @@
       "requiresReview": "requires review",
       "allCaughtUp": "all caught up",
       "approvedSellers": "Approved sellers",
+      "openChangeRequests": "Open change requests",
       "quickActions": "Quick actions",
       "allOrders": "All orders",
       "allOrdersDesc": "Browse, search, and act on every order",
