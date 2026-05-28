@@ -345,10 +345,14 @@ def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, Non
          patch("app.api.sellers.dispatch_seller_application_submitted", lambda *a, **kw: None), \
          patch("app.services.seller_emails.dispatch_seller_application_submitted", lambda *a, **kw: None), \
          patch("app.services.seller_emails.dispatch_customer_welcome", lambda *a, **kw: None), \
-         patch("app.services.seller_emails.dispatch_seller_change_request_submitted", lambda *a, **kw: None, create=True), \
-         patch("app.services.seller_emails.dispatch_seller_change_request_approved", lambda *a, **kw: None, create=True), \
-         patch("app.services.seller_emails.dispatch_seller_change_request_changes_requested", lambda *a, **kw: None, create=True), \
-         patch("app.services.seller_emails.dispatch_seller_change_request_rejected", lambda *a, **kw: None, create=True):
+         patch("app.services.seller_emails.dispatch_seller_change_request_submitted", lambda *a, **kw: None), \
+         patch("app.services.seller_emails.dispatch_seller_change_request_approved", lambda *a, **kw: None), \
+         patch("app.services.seller_emails.dispatch_seller_change_request_changes_requested", lambda *a, **kw: None), \
+         patch("app.services.seller_emails.dispatch_seller_change_request_rejected", lambda *a, **kw: None), \
+         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_submitted", lambda *a, **kw: None, create=True), \
+         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_approved", lambda *a, **kw: None, create=True), \
+         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_changes_requested", lambda *a, **kw: None, create=True), \
+         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_rejected", lambda *a, **kw: None, create=True):
         yield
 
 
