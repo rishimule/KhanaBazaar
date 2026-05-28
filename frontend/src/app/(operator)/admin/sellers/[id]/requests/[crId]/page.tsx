@@ -18,7 +18,8 @@ import {
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
 import ChangeRequestDiffTable from "@/components/ChangeRequestDiffTable";
 import ChangeRequestTimeline from "@/components/ChangeRequestTimeline";
-import type { SellerProfileChangeRequest } from "@/types";
+import { get } from "@/lib/api";
+import type { SellerProfileChangeRequest, Service } from "@/types";
 import styles from "./page.module.css";
 
 type ReasonModal = "request-changes" | "reject" | null;
@@ -51,6 +52,25 @@ export default function AdminCRDetailPage() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [modal, setModal] = useState<ReasonModal>(null);
+  const [serviceNames, setServiceNames] = useState<Map<number, string>>(
+    new Map(),
+  );
+
+  useEffect(() => {
+    if (cr?.group !== "services") return;
+    let cancelled = false;
+    get<Service[]>("/api/v1/catalog/services")
+      .then((all) => {
+        if (cancelled) return;
+        setServiceNames(new Map(all.map((s) => [s.id, s.name])));
+      })
+      .catch(() => {
+        // Names fall back to "Service #<id>".
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cr?.group]);
 
   const buildAppliedDefaults = useCallback(
     (fresh: SellerProfileChangeRequest): Record<string, string> => {
@@ -217,6 +237,7 @@ export default function AdminCRDetailPage() {
           beforeLabel="Current"
           afterLabel="Proposed"
           group={cr.group}
+          serviceNames={serviceNames}
         />
       </section>
 
