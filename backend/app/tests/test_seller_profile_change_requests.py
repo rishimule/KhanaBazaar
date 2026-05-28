@@ -2,9 +2,19 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from __future__ import annotations
 
+from typing import AsyncIterator
+
 import pytest
+from httpx import AsyncClient
 from sqlmodel import select
 
+from app import app
+from app.core.security import (
+    get_current_admin,
+    get_current_seller,
+    get_current_user,
+)
+from app.models.base import User
 from app.models.seller_profile_change_request import (
     SellerProfileChangeGroup,
     SellerProfileChangeRequestEvent,
@@ -364,3 +374,71 @@ async def test_supersede_open_cr_marks_withdrawn_system(
     ).all()
     kinds = [e.kind for e in events]
     assert SellerProfileChangeEventKind.Withdrawn in kinds
+
+
+# ---------------------------------------------------------------------------
+# API-level integration tests (Task 17)
+# ---------------------------------------------------------------------------
+@pytest.fixture
+async def _approved_seller_auth(
+    approved_seller: dict, admin_user: User
+) -> AsyncIterator[dict]:
+    """Override seller + admin auth deps with the in-DB users built by the
+    conftest fixtures so route handlers see real DB rows.
+    """
+    seller_user: User = approved_seller["user"]
+    app.dependency_overrides[get_current_seller] = lambda: seller_user
+    app.dependency_overrides[get_current_admin] = lambda: admin_user
+    app.dependency_overrides[get_current_user] = lambda: seller_user
+    try:
+        yield {
+            "seller_user": seller_user,
+            "admin_user": admin_user,
+            "profile": approved_seller["profile"],
+        }
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+        app.dependency_overrides.pop(get_current_admin, None)
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_api_seller_creates_and_admin_approves(
+    _approved_seller_auth: dict,
+    client: AsyncClient,
+) -> None:
+    seller_user: User = _approved_seller_auth["seller_user"]
+    admin_user: User = _approved_seller_auth["admin_user"]
+    profile_id: int = _approved_seller_auth["profile"].id
+
+    # Seller creates a banking CR
+    res = await client.post(
+        "/api/v1/sellers/me/change-requests",
+        json={
+            "group": "banking",
+            "proposed": {
+                "bank_account_number": "123456789012",
+                "bank_ifsc": "HDFC0001234",
+            },
+            "note": "please review",
+        },
+    )
+    assert res.status_code == 201, res.text
+    body = res.json()
+    cr_id = body["id"]
+    assert body["status"] == "submitted"
+    assert body["seller_profile_id"] == profile_id
+
+    # Admin approves the CR (swap dep override to admin for this call)
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    try:
+        res2 = await client.post(
+            f"/api/v1/admin/sellers/{profile_id}/change-requests/{cr_id}/approve",
+            json={},
+        )
+    finally:
+        app.dependency_overrides[get_current_user] = lambda: seller_user
+    assert res2.status_code == 200, res2.text
+    body2 = res2.json()
+    assert body2["status"] == "approved"
+    assert body2["applied_json"]["bank_ifsc"] == "HDFC0001234"

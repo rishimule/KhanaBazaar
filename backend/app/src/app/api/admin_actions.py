@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import base64
 import json
+import uuid
 from datetime import datetime, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -32,6 +33,10 @@ from app.models.base import User
 from app.models.catalog import Category, MasterProduct, MasterProductTranslation
 from app.models.commerce import Delivery, Order, OrderStatus
 from app.models.profile import SellerProfile, VerificationStatus
+from app.models.seller_profile_change_request import (
+    SellerProfileChangeRequest,
+    SellerProfileChangeRequestEvent,
+)
 from app.models.store import Store, StoreInventory
 from app.schemas.admin_actions import (
     ActivityLogPage,
@@ -43,11 +48,30 @@ from app.schemas.admin_actions import (
     RewindOrderRequest,
     SellerHubSummary,
 )
+from app.schemas.seller_profile_change_request import (
+    ChangeRequestApproveBody,
+    ChangeRequestEventRead,
+    ChangeRequestNoteBody,
+    ChangeRequestRead,
+    ChangeRequestRejectBody,
+)
 from app.services.order_emails import dispatch_admin_order_action
 from app.services.orders import (
     override_delivery_address,
     refund_order,
     rewind_order,
+)
+from app.services.seller_profile_change_requests import (
+    OPEN_STATUSES,
+)
+from app.services.seller_profile_change_requests import (
+    approve as approve_cr,
+)
+from app.services.seller_profile_change_requests import (
+    reject as reject_cr,
+)
+from app.services.seller_profile_change_requests import (
+    request_changes as request_changes_cr,
 )
 from app.services.seller_services import list_profile_services
 
@@ -443,3 +467,176 @@ async def admin_override_delivery_address(
             order.id, "order.address_override", payload.reason
         )
     return {"status": "updated"}
+
+
+# -------------------------------------------------------------
+# Admin: per-seller change-request management
+# -------------------------------------------------------------
+
+
+async def _admin_seller_profile_or_404(
+    session: AsyncSession, seller_id: int
+) -> SellerProfile:
+    profile = (
+        await session.exec(
+            select(SellerProfile).where(SellerProfile.id == seller_id)
+        )
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="seller_not_found")
+    return profile
+
+
+async def _admin_load_cr(
+    session: AsyncSession, seller_id: int, cr_id: uuid.UUID,
+) -> SellerProfileChangeRequest:
+    cr = (
+        await session.exec(
+            select(SellerProfileChangeRequest).where(
+                SellerProfileChangeRequest.id == cr_id,
+                SellerProfileChangeRequest.seller_profile_id == seller_id,
+            )
+        )
+    ).first()
+    if cr is None:
+        raise HTTPException(status_code=404, detail="change_request_not_found")
+    return cr
+
+
+async def _admin_attach_events(
+    session: AsyncSession, cr: SellerProfileChangeRequest
+) -> ChangeRequestRead:
+    events = (
+        await session.exec(
+            select(SellerProfileChangeRequestEvent)
+            .where(SellerProfileChangeRequestEvent.change_request_id == cr.id)
+            .order_by(SellerProfileChangeRequestEvent.created_at)  # type: ignore[arg-type]
+        )
+    ).all()
+    payload = ChangeRequestRead.model_validate(cr)
+    payload.events = [ChangeRequestEventRead.model_validate(e) for e in events]
+    return payload
+
+
+def _ensure_seller_active(profile: SellerProfile) -> None:
+    if profile.verification_status is not VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="seller_not_active")
+
+
+@router.get(
+    "/sellers/{seller_id}/change-requests",
+    response_model=list[ChangeRequestRead],
+)
+async def admin_list_seller_crs(
+    seller_id: int,
+    status: str = "open",
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[ChangeRequestRead]:
+    await _admin_seller_profile_or_404(session, seller_id)
+    stmt = select(SellerProfileChangeRequest).where(
+        SellerProfileChangeRequest.seller_profile_id == seller_id
+    )
+    if status == "open":
+        stmt = stmt.where(
+            SellerProfileChangeRequest.status.in_(OPEN_STATUSES)  # type: ignore[attr-defined]
+        )
+    elif status == "terminal":
+        stmt = stmt.where(
+            SellerProfileChangeRequest.status.notin_(OPEN_STATUSES)  # type: ignore[attr-defined]
+        )
+    stmt = stmt.order_by(
+        SellerProfileChangeRequest.created_at.desc()  # type: ignore[attr-defined]
+    )
+    rows = (await session.exec(stmt)).all()
+    return [ChangeRequestRead.model_validate(r) for r in rows]
+
+
+@router.get(
+    "/sellers/{seller_id}/change-requests/{cr_id}",
+    response_model=ChangeRequestRead,
+)
+async def admin_get_seller_cr(
+    seller_id: int,
+    cr_id: uuid.UUID,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ChangeRequestRead:
+    cr = await _admin_load_cr(session, seller_id, cr_id)
+    return await _admin_attach_events(session, cr)
+
+
+@router.post(
+    "/sellers/{seller_id}/change-requests/{cr_id}/approve",
+    response_model=ChangeRequestRead,
+)
+async def admin_approve_cr(
+    seller_id: int,
+    cr_id: uuid.UUID,
+    body: ChangeRequestApproveBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ChangeRequestRead:
+    profile = await _admin_seller_profile_or_404(session, seller_id)
+    _ensure_seller_active(profile)
+    cr = await _admin_load_cr(session, seller_id, cr_id)
+    res = await approve_cr(
+        session=session,
+        cr=cr,
+        admin_user_id=admin.id,
+        applied=body.applied,
+        note=body.note,
+    )
+    await session.commit()
+    await session.refresh(res.cr)
+    for cb in res.emails:
+        cb()
+    return await _admin_attach_events(session, res.cr)
+
+
+@router.post(
+    "/sellers/{seller_id}/change-requests/{cr_id}/request-changes",
+    response_model=ChangeRequestRead,
+)
+async def admin_request_changes_cr(
+    seller_id: int,
+    cr_id: uuid.UUID,
+    body: ChangeRequestNoteBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ChangeRequestRead:
+    profile = await _admin_seller_profile_or_404(session, seller_id)
+    _ensure_seller_active(profile)
+    cr = await _admin_load_cr(session, seller_id, cr_id)
+    res = await request_changes_cr(
+        session=session, cr=cr, admin_user_id=admin.id, note=body.note,
+    )
+    await session.commit()
+    await session.refresh(res.cr)
+    for cb in res.emails:
+        cb()
+    return await _admin_attach_events(session, res.cr)
+
+
+@router.post(
+    "/sellers/{seller_id}/change-requests/{cr_id}/reject",
+    response_model=ChangeRequestRead,
+)
+async def admin_reject_cr(
+    seller_id: int,
+    cr_id: uuid.UUID,
+    body: ChangeRequestRejectBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ChangeRequestRead:
+    profile = await _admin_seller_profile_or_404(session, seller_id)
+    _ensure_seller_active(profile)
+    cr = await _admin_load_cr(session, seller_id, cr_id)
+    res = await reject_cr(
+        session=session, cr=cr, admin_user_id=admin.id, reason=body.reason,
+    )
+    await session.commit()
+    await session.refresh(res.cr)
+    for cb in res.emails:
+        cb()
+    return await _admin_attach_events(session, res.cr)

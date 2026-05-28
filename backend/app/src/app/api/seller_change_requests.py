@@ -140,9 +140,9 @@ async def create_my_change_request(
         actor_user_id=seller.id,
     )
     await session.commit()
+    await session.refresh(res.cr)
     for cb in res.emails:
         cb()
-    await session.refresh(res.cr)
     return await _attach_events(session, res.cr)
 
 
@@ -166,9 +166,9 @@ async def resubmit_my_change_request(
         actor_user_id=seller.id,
     )
     await session.commit()
+    await session.refresh(res.cr)
     for cb in res.emails:
         cb()
-    await session.refresh(res.cr)
     return await _attach_events(session, res.cr)
 
 
