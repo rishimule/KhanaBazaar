@@ -304,8 +304,12 @@ async def request_changes(
         target_type=AdminActionTargetType.SellerProfile,
         target_id=cr.seller_profile_id,
         action="profile_cr_request_changes",
-        before_json={"cr_id": str(cr.id), "proposed": cr.proposed_json},
-        after_json=None,
+        before_json={
+            "cr_id": str(cr.id),
+            "group": cr.group.value,
+            "proposed": cr.proposed_json,
+        },
+        after_json={"cr_id": str(cr.id), "group": cr.group.value},
         reason=note,
     )
     logger.info("cr.request_changes cr_id=%s", cr.id)
@@ -348,8 +352,12 @@ async def reject(
         target_type=AdminActionTargetType.SellerProfile,
         target_id=cr.seller_profile_id,
         action="profile_cr_reject",
-        before_json={"cr_id": str(cr.id), "proposed": cr.proposed_json},
-        after_json=None,
+        before_json={
+            "cr_id": str(cr.id),
+            "group": cr.group.value,
+            "proposed": cr.proposed_json,
+        },
+        after_json={"cr_id": str(cr.id), "group": cr.group.value},
         reason=reason,
     )
     logger.info("cr.reject cr_id=%s", cr.id)
@@ -519,7 +527,9 @@ async def approve(
     )
 
     audit_after: dict[str, Any] = {
-        "cr_id": str(cr.id), "applied": canonical_applied,
+        "cr_id": str(cr.id),
+        "group": cr.group.value,
+        "applied": canonical_applied,
     }
     if has_edits:
         audit_after["seller_proposed"] = cr.proposed_json
@@ -533,7 +543,11 @@ async def approve(
             "profile_cr_approve_with_edits" if has_edits
             else "profile_cr_approve"
         ),
-        before_json={"cr_id": str(cr.id), "baseline": cr.baseline_json},
+        before_json={
+            "cr_id": str(cr.id),
+            "group": cr.group.value,
+            "baseline": cr.baseline_json,
+        },
         after_json=audit_after,
         reason=note,
     )
