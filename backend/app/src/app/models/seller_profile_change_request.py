@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import Column, DateTime, Index
+from sqlalchemy import Column, DateTime, Enum as SAEnum, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -43,6 +43,13 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _enum_values(enum_cls: type[enum.Enum]) -> list[str]:
+    """Force SQLAlchemy to serialize enum members by VALUE (not NAME) so the
+    Postgres enum labels stay snake_case while Python members stay PascalCase.
+    """
+    return [m.value for m in enum_cls]
+
+
 class SellerProfileChangeRequest(SQLModel, table=True):
     __tablename__ = "seller_profile_change_request"
     __table_args__ = (
@@ -59,8 +66,28 @@ class SellerProfileChangeRequest(SQLModel, table=True):
     seller_profile_id: int = Field(
         foreign_key="sellerprofile.id", nullable=False, index=True
     )
-    group: SellerProfileChangeGroup = Field(nullable=False)
-    status: SellerProfileChangeStatus = Field(nullable=False)
+    group: SellerProfileChangeGroup = Field(
+        sa_column=Column(
+            SAEnum(
+                SellerProfileChangeGroup,
+                name="sellerprofilechangegroup",
+                values_callable=_enum_values,
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+    )
+    status: SellerProfileChangeStatus = Field(
+        sa_column=Column(
+            SAEnum(
+                SellerProfileChangeStatus,
+                name="sellerprofilechangestatus",
+                values_callable=_enum_values,
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+    )
     proposed_json: dict[str, Any] = Field(
         sa_column=Column(JSONB, nullable=False)
     )
@@ -107,7 +134,17 @@ class SellerProfileChangeRequestEvent(SQLModel, table=True):
         nullable=False,
         index=True,
     )
-    kind: SellerProfileChangeEventKind = Field(nullable=False)
+    kind: SellerProfileChangeEventKind = Field(
+        sa_column=Column(
+            SAEnum(
+                SellerProfileChangeEventKind,
+                name="sellerprofilechangeeventkind",
+                values_callable=_enum_values,
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+    )
     actor_user_id: int = Field(foreign_key="user.id", nullable=False)
     # actor_role is a snapshot at event time — UserRole serialized as str
     actor_role: str = Field(max_length=16, nullable=False)
