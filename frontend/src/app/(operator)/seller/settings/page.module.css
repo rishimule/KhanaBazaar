@@ -75,12 +75,6 @@
   margin: 0;
 }
 
-.cardCaption {
-  margin: 0;
-  font-size: var(--body-sm);
-  color: var(--shade-cool-base-7);
-}
-
 .detailGrid {
   display: grid;
   grid-template-columns: minmax(140px, max-content) 1fr;

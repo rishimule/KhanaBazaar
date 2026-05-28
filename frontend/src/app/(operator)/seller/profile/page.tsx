@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { serviceGlyph } from "@/lib/serviceGlyph";
-import type { SellerProfile, Store } from "@/types";
+import type { SellerProfile, Service, Store } from "@/types";
 import ProfileSectionCard from "@/components/ProfileSectionCard";
 import VerificationBadge, {
   type VerificationBadgeStatus,
@@ -46,7 +46,8 @@ export default function SellerProfilePage() {
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [store, setStore] = useState<Store | null>(null);
   const [fetching, setFetching] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [savingRadius, setSavingRadius] = useState(false);
   const debounceRef = useRef<number | null>(null);
   // Monotonic request id — drop stale PATCH responses that resolve after a newer one.
@@ -67,7 +68,7 @@ export default function SellerProfilePage() {
         setStore(stores[0] ?? null);
       })
       .catch(() => {
-        if (!cancelled) setError(t("loadError"));
+        if (!cancelled) setLoadError(t("loadError"));
       })
       .finally(() => {
         if (!cancelled) setFetching(false);
@@ -83,12 +84,13 @@ export default function SellerProfilePage() {
     if (!store || !token) return;
     const myReq = ++reqIdRef.current;
     setSavingRadius(true);
+    setSaveError(null);
     patch<Store>(`/api/v1/stores/${store.id}`, { delivery_radius_km: km }, token)
       .then((updated) => {
         if (myReq === reqIdRef.current) setStore(updated);
       })
       .catch(() => {
-        if (myReq === reqIdRef.current) setError(tSettings("saveRadiusError"));
+        if (myReq === reqIdRef.current) setSaveError(tSettings("saveRadiusError"));
       })
       .finally(() => {
         if (myReq === reqIdRef.current) setSavingRadius(false);
@@ -113,7 +115,8 @@ export default function SellerProfilePage() {
     if (!token) return;
     const myReq = (minReqRef.current[serviceId] ?? 0) + 1;
     minReqRef.current[serviceId] = myReq;
-    patch<import("@/types").Service>(
+    setSaveError(null);
+    patch<Service>(
       `/api/v1/sellers/me/services/${serviceId}`,
       { min_order_value: value },
       token,
@@ -134,7 +137,7 @@ export default function SellerProfilePage() {
       })
       .catch(() => {
         if (minReqRef.current[serviceId] !== myReq) return;
-        setError(tSettings("saveMinOrderError"));
+        setSaveError(tSettings("saveMinOrderError"));
       });
   };
 
@@ -168,12 +171,12 @@ export default function SellerProfilePage() {
     return <div className={styles.loader}>{tc("loading")}</div>;
   }
 
-  if (error || !profile) {
+  if (loadError || !profile) {
     return (
       <div className={styles.page}>
         <h1 className={styles.title}>{t("heading")}</h1>
         <div className={styles.errorBanner}>
-          {error ?? t("loadError")}
+          {loadError ?? t("loadError")}
         </div>
       </div>
     );
@@ -191,7 +194,7 @@ export default function SellerProfilePage() {
     <div className={styles.page}>
       <h1 className={styles.title}>{t("heading")}</h1>
 
-      {error && <div className={styles.errorBanner}>{error}</div>}
+      {saveError && <div className={styles.errorBanner}>{saveError}</div>}
 
       <ProfileSectionCard
         title={t("sectionIdentity")}
