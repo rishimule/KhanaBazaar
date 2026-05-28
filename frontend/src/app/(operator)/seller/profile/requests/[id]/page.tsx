@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import {
   GROUP_LABEL,
@@ -37,6 +38,8 @@ export default function SellerRequestDetailPage() {
   const id = params.id;
   const router = useRouter();
   const { token } = useAuth();
+  const tCR = useTranslations("Seller.changeRequests");
+  const tStatus = useTranslations("Shared.changeRequest");
   const [cr, setCr] = useState<SellerProfileChangeRequest | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -126,7 +129,7 @@ export default function SellerRequestDetailPage() {
       <div className={styles.titleRow}>
         <h1 className={styles.title}>{GROUP_LABEL[cr.group]}</h1>
         <span className={`${styles.pill} ${styles[`tone_${tone}`]}`}>
-          {cr.status.replace("_", " ")}
+          {tStatus(`status_${cr.status}`)}
         </span>
       </div>
 
@@ -141,14 +144,14 @@ export default function SellerRequestDetailPage() {
 
       {cr.status === "changes_requested" && cr.admin_note && (
         <div className={styles.warnBanner}>
-          <strong>Admin asked for changes</strong>
+          <strong>{tStatus("kind_changes_requested")}</strong>
           <p>{cr.admin_note}</p>
           <button
             type="button"
             className="btn btn-primary"
             onClick={() => setEditing(true)}
           >
-            Edit and resubmit
+            {tCR("editAndResubmit")}
           </button>
         </div>
       )}
@@ -214,7 +217,7 @@ export default function SellerRequestDetailPage() {
             onClick={handleWithdraw}
             disabled={busy}
           >
-            {busy ? "Withdrawing…" : "Withdraw request"}
+            {busy ? "…" : tCR("withdraw")}
           </button>
         </div>
       )}
@@ -225,7 +228,7 @@ export default function SellerRequestDetailPage() {
           currentValues={cr.proposed_json}
           open
           onClose={() => setEditing(false)}
-          submitLabel="Resubmit"
+          submitLabel={tCR("editAndResubmit")}
           onSubmit={async (proposed, note) => {
             if (!token) return;
             await resubmitMyChangeRequest(token, cr.id, { proposed, note });

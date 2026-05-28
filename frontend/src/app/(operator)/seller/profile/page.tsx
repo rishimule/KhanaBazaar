@@ -101,6 +101,7 @@ function toBadgeStatus(s: string): VerificationBadgeStatus {
 export default function SellerProfilePage() {
   const t = useTranslations("Seller.profile");
   const tc = useTranslations("Seller.common");
+  const tCR = useTranslations("Seller.changeRequests");
   const { token, dbUser, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [store, setStore] = useState<Store | null>(null);
@@ -294,14 +295,14 @@ export default function SellerProfilePage() {
           >
             <span>
               {isChanges
-                ? "Admin asked for changes — fix and resubmit"
-                : "Change request under review"}
+                ? tCR("changesRequestedBanner")
+                : tCR("submittedBanner")}
             </span>
             <Link
               href={`/seller/profile/requests/${openCR.id}`}
               className={styles.crBannerLink}
             >
-              View request
+              {tCR("viewRequest")}
             </Link>
           </div>
         ),
@@ -314,7 +315,7 @@ export default function SellerProfilePage() {
           className={styles.editBtn}
           onClick={() => setEditingGroup(group)}
         >
-          Edit
+          {tc("edit")}
         </button>
       ),
       banner: null,
@@ -330,7 +331,7 @@ export default function SellerProfilePage() {
             href="/seller/profile/requests"
             className={styles.requestsLink}
           >
-            View all change requests →
+            {tCR("viewAll")}
           </Link>
         )}
       </div>

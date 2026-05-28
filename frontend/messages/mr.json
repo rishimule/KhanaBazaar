@@ -1114,6 +1114,22 @@
       "notifyBody": "निर्णय झाल्यावर आम्ही <em>{email}</em> ला कळवू.",
       "estimatedTime": "अंदाजित वेळ: 1–2 कामकाजाचे दिवस.",
       "fetchError": "स्थिती तपासता आली नाही. आपोआप पुन्हा प्रयत्न होईल."
+    },
+    "changeRequests": {
+      "indexTitle": "बदल विनंत्या",
+      "tabOpen": "खुल्या",
+      "tabHistory": "इतिहास",
+      "noOpen": "या टॅबमध्ये कोणत्याही विनंत्या नाहीत.",
+      "viewAll": "सर्व बदल विनंत्या पाहा →",
+      "submittedBanner": "बदल विनंती पुनरावलोकनासाठी",
+      "changesRequestedBanner": "एडमिनने बदल सुचवले आहेत — दुरुस्त करून पुन्हा पाठवा",
+      "viewRequest": "विनंती पाहा",
+      "withdraw": "विनंती मागे घ्या",
+      "editAndResubmit": "संपादित करून पुन्हा पाठवा",
+      "submitForReview": "पुनरावलोकनासाठी पाठवा",
+      "modalSubtitle": "एडमिन पुनरावलोकनासाठी बदल पाठवा",
+      "noteHelp": "एडमिनला सांगायचे असेल ते (पर्यायी)",
+      "submittedToast": "बदल विनंती पाठवली — पुनरावलोकन झाल्यावर आम्ही तुम्हाला ईमेल करू."
     }
   },
   "Admin": {
@@ -1372,7 +1388,7 @@
         "profile": "प्रोफाइल",
         "products": "उत्पादने",
         "orders": "ऑर्डर",
-        "requests": "Change requests",
+        "requests": "बदल विनंत्या",
         "activity": "क्रियाकलाप"
       },
       "loadSellerError": "विक्रेता लोड करण्यात अयशस्वी",
@@ -1483,10 +1499,10 @@
       "actionOrderRewind": "स्थिती मागे घेतली",
       "actionOrderRefund": "पैसे परत केले",
       "actionOrderAddressOverride": "पत्ता बदलला",
-      "actionProfileCRApprove": "Approved change request",
-      "actionProfileCRApproveWithEdits": "Approved CR with edits",
-      "actionProfileCRRequestChanges": "Requested changes on CR",
-      "actionProfileCRReject": "Rejected change request",
+      "actionProfileCRApprove": "बदल विनंती मंजूर केली",
+      "actionProfileCRApproveWithEdits": "संपादनासह विनंती मंजूर केली",
+      "actionProfileCRRequestChanges": "विनंतीवर बदल सुचवले",
+      "actionProfileCRReject": "बदल विनंती नाकारली",
       "targetInventory": "इन्व्हेंटरी #{id}",
       "targetInventoryWithProduct": "इन्व्हेंटरी #{id} (उत्पादन {productId})",
       "targetOrder": "ऑर्डर #{id}",
@@ -1500,6 +1516,20 @@
     "servicePicker": {
       "servicesOffered": "पुरवल्या जाणाऱ्या सेवा",
       "loadFailed": "सेवा लोड करण्यात अयशस्वी"
+    },
+    "changeRequest": {
+      "status_submitted": "पाठवले",
+      "status_changes_requested": "बदल सुचवले",
+      "status_approved": "मंजूर",
+      "status_rejected": "नाकारले",
+      "status_withdrawn": "मागे घेतले",
+      "kind_submitted": "विक्रेत्याने पाठवले",
+      "kind_resubmitted": "विक्रेत्याने पुन्हा पाठवले",
+      "kind_changes_requested": "एडमिनने बदल सुचवले",
+      "kind_approved": "एडमिनने मंजूर केले",
+      "kind_approved_with_edits": "एडमिनने संपादनासह मंजूर केले",
+      "kind_rejected": "एडमिनने नाकारले",
+      "kind_withdrawn": "मागे घेतले"
     },
     "paymentStatus": {
       "pending": "पेमेंट प्रलंबित",

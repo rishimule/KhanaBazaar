@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import { GROUP_LABEL } from "@/lib/changeRequests";
 import type { SellerProfileChangeGroup } from "@/types";
@@ -75,8 +76,10 @@ export default function ProfileChangeRequestModal({
   open,
   onClose,
   onSubmit,
-  submitLabel = "Submit for review",
+  submitLabel,
 }: Props) {
+  const tCR = useTranslations("Seller.changeRequests");
+  const resolvedSubmitLabel = submitLabel ?? tCR("submitForReview");
   const fields = GROUP_FIELDS[group];
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -142,12 +145,12 @@ export default function ProfileChangeRequestModal({
             disabled={busy}
             onClick={handleSubmit}
           >
-            {busy ? "…" : submitLabel}
+            {busy ? "…" : resolvedSubmitLabel}
           </button>
         </>
       }
     >
-      <p className={styles.subtitle}>Submit change for admin review</p>
+      <p className={styles.subtitle}>{tCR("modalSubtitle")}</p>
       <form
         className={styles.form}
         onSubmit={(e) => {
@@ -169,7 +172,7 @@ export default function ProfileChangeRequestModal({
           </label>
         ))}
         <label className={styles.field}>
-          <span>Note for the admin (optional)</span>
+          <span>{tCR("noteHelp")}</span>
           <textarea
             maxLength={300}
             rows={3}

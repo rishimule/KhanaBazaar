@@ -4,6 +4,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import {
   GROUP_LABEL,
@@ -31,6 +32,8 @@ export default function AdminSellerRequestsPage({
   const { id } = use(params);
   const sellerId = Number(id);
   const { token } = useAuth();
+  const tCR = useTranslations("Seller.changeRequests");
+  const tStatus = useTranslations("Shared.changeRequest");
   const [tab, setTab] = useState<Tab>("open");
   const [rowsByTab, setRowsByTab] = useState<
     Partial<Record<Tab, SellerProfileChangeRequest[]>>
@@ -67,7 +70,7 @@ export default function AdminSellerRequestsPage({
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Change requests</h1>
+        <h1 className={styles.title}>{tCR("indexTitle")}</h1>
       </header>
 
       <div className={styles.tabs} role="tablist" aria-label="Request status">
@@ -78,7 +81,7 @@ export default function AdminSellerRequestsPage({
           className={`${styles.tab} ${tab === "open" ? styles.activeTab : ""}`}
           onClick={() => setTab("open")}
         >
-          Open
+          {tCR("tabOpen")}
         </button>
         <button
           type="button"
@@ -89,18 +92,14 @@ export default function AdminSellerRequestsPage({
           }`}
           onClick={() => setTab("terminal")}
         >
-          History
+          {tCR("tabHistory")}
         </button>
       </div>
 
       {loading && <p className={styles.muted}>Loading…</p>}
       {error && <p className={styles.error}>{error}</p>}
       {!loading && !error && rows !== undefined && rows.length === 0 && (
-        <p className={styles.empty}>
-          {tab === "open"
-            ? "No open change requests."
-            : "No past change requests yet."}
-        </p>
+        <p className={styles.empty}>{tCR("noOpen")}</p>
       )}
 
       {!loading && !error && rows !== undefined && rows.length > 0 && (
@@ -124,7 +123,7 @@ export default function AdminSellerRequestsPage({
                       <span
                         className={`${styles.pill} ${styles[`tone_${STATUS_TONE[r.status]}`]}`}
                       >
-                        {r.status.replace("_", " ")}
+                        {tStatus(`status_${r.status}`)}
                       </span>
                     </td>
                     <td className={styles.time}>
@@ -167,7 +166,7 @@ export default function AdminSellerRequestsPage({
                       <span
                         className={`${styles.pill} ${styles[`tone_${STATUS_TONE[r.status]}`]}`}
                       >
-                        {r.status.replace("_", " ")}
+                        {tStatus(`status_${r.status}`)}
                       </span>
                     </td>
                     <td className={styles.time}>

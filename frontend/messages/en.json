@@ -1113,6 +1113,22 @@
       "notifyBody": "We'll notify <em>{email}</em> once a decision is made.",
       "estimatedTime": "Estimated time: 1–2 business days.",
       "fetchError": "Could not check status. Will retry automatically."
+    },
+    "changeRequests": {
+      "indexTitle": "Change requests",
+      "tabOpen": "Open",
+      "tabHistory": "History",
+      "noOpen": "No requests in this tab.",
+      "viewAll": "View all change requests →",
+      "submittedBanner": "Change request under review",
+      "changesRequestedBanner": "Admin asked for changes — fix and resubmit",
+      "viewRequest": "View request",
+      "withdraw": "Withdraw request",
+      "editAndResubmit": "Edit and resubmit",
+      "submitForReview": "Submit for review",
+      "modalSubtitle": "Submit change for admin review",
+      "noteHelp": "Anything the admin should know (optional)",
+      "submittedToast": "Change request submitted — we'll email you when reviewed."
     }
   },
   "Admin": {
@@ -1499,6 +1515,20 @@
     "servicePicker": {
       "servicesOffered": "Services offered",
       "loadFailed": "Failed to load services"
+    },
+    "changeRequest": {
+      "status_submitted": "Submitted",
+      "status_changes_requested": "Changes requested",
+      "status_approved": "Approved",
+      "status_rejected": "Rejected",
+      "status_withdrawn": "Withdrawn",
+      "kind_submitted": "Seller submitted",
+      "kind_resubmitted": "Seller resubmitted",
+      "kind_changes_requested": "Admin asked for changes",
+      "kind_approved": "Admin approved",
+      "kind_approved_with_edits": "Admin approved with edits",
+      "kind_rejected": "Admin rejected",
+      "kind_withdrawn": "Withdrawn"
     },
     "paymentStatus": {
       "pending": "Payment pending",

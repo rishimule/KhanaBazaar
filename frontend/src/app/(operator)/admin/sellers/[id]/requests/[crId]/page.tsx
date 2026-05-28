@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import {
   GROUP_LABEL,
@@ -42,6 +43,7 @@ export default function AdminCRDetailPage() {
   const sellerId = Number(params.id);
   const crId = params.crId;
   const { token } = useAuth();
+  const tStatus = useTranslations("Shared.changeRequest");
   const [cr, setCr] = useState<SellerProfileChangeRequest | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [applied, setApplied] = useState<Record<string, string>>({});
@@ -172,7 +174,7 @@ export default function AdminCRDetailPage() {
       <div className={styles.titleRow}>
         <h1 className={styles.title}>{GROUP_LABEL[cr.group]}</h1>
         <span className={`${styles.pill} ${styles[`tone_${tone}`]}`}>
-          {cr.status.replace("_", " ")}
+          {tStatus(`status_${cr.status}`)}
         </span>
       </div>
 

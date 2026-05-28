@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import {
   GROUP_LABEL,
@@ -22,6 +23,8 @@ type Tab = "open" | "terminal";
  */
 export default function SellerRequestsPage() {
   const { token } = useAuth();
+  const tCR = useTranslations("Seller.changeRequests");
+  const tStatus = useTranslations("Shared.changeRequest");
   const [tab, setTab] = useState<Tab>("open");
   const [rowsByTab, setRowsByTab] = useState<
     Partial<Record<Tab, SellerProfileChangeRequest[]>>
@@ -58,7 +61,7 @@ export default function SellerRequestsPage() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Change requests</h1>
+        <h1 className={styles.title}>{tCR("indexTitle")}</h1>
         <Link href="/seller/profile" className={styles.backLink}>
           ← Back to profile
         </Link>
@@ -72,7 +75,7 @@ export default function SellerRequestsPage() {
           className={`${styles.tab} ${tab === "open" ? styles.activeTab : ""}`}
           onClick={() => setTab("open")}
         >
-          Open
+          {tCR("tabOpen")}
         </button>
         <button
           type="button"
@@ -83,18 +86,14 @@ export default function SellerRequestsPage() {
           }`}
           onClick={() => setTab("terminal")}
         >
-          History
+          {tCR("tabHistory")}
         </button>
       </div>
 
       {loading && <p className={styles.muted}>Loading…</p>}
       {error && <p className={styles.error}>{error}</p>}
       {!loading && !error && rows !== undefined && rows.length === 0 && (
-        <p className={styles.empty}>
-          {tab === "open"
-            ? "No open change requests."
-            : "No past change requests yet."}
-        </p>
+        <p className={styles.empty}>{tCR("noOpen")}</p>
       )}
 
       {!loading && !error && rows !== undefined && rows.length > 0 && (
@@ -105,7 +104,7 @@ export default function SellerRequestsPage() {
               <span
                 className={`${styles.pill} ${styles[`tone_${STATUS_TONE[r.status]}`]}`}
               >
-                {r.status.replace("_", " ")}
+                {tStatus(`status_${r.status}`)}
               </span>
               <span className={styles.time}>
                 {new Date(r.updated_at).toLocaleString()}
