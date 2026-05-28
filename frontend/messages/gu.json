@@ -1218,7 +1218,10 @@
       "sortTotalDesc": "કુલ ↓",
       "sortTotalAsc": "કુલ ↑",
       "emptyMessage": "આ ફિલ્ટર સાથે કોઈ ઓર્ડર મેળ ખાતો નથી.",
-      "loadMore": "વધુ લોડ કરો"
+      "loadMore": "વધુ લોડ કરો",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "orderDetail": {
       "loadError": "ઓર્ડર લોડ કરી શકાયો નથી.",
@@ -1311,7 +1314,11 @@
       "approvedCount": "{n, plural, one {# મંજૂર વિક્રેતા} other {# મંજૂર વિક્રેતા}}",
       "manageApplications": "અરજીઓનું સંચાલન કરો",
       "empty": "હજુ સુધી કોઈ મંજૂર વિક્રેતા નથી. અરજી પૃષ્ઠ પરથી કોઈને મંજૂર કરો.",
-      "cardMeta": "{n, plural, one {# સેવા} other {# સેવાઓ}} · જોડાયા {ago}"
+      "cardMeta": "{n, plural, one {# સેવા} other {# સેવાઓ}} · જોડાયા {ago}",
+      "searchPlaceholder": "Search business, owner, email, or phone…",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "applications": {
       "col": {
@@ -1384,7 +1391,11 @@
         "submitted": "સબમિટ કર્યું",
         "accountNumber": "ખાતા નંબર",
         "ifsc": "IFSC"
-      }
+      },
+      "searchPlaceholder": "Search business, owner, email, or phone…",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "sellerHub": {
       "tab": {
