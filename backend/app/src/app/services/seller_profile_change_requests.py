@@ -233,3 +233,38 @@ async def withdraw(
     )
     logger.info("cr.withdraw cr_id=%s", cr.id)
     return CRMutationResult(cr=cr, emails=[])
+
+
+async def resubmit(
+    *,
+    session: AsyncSession,
+    cr: SellerProfileChangeRequest,
+    proposed: dict[str, Any],
+    note: Optional[str],
+    actor_user_id: int,
+) -> CRMutationResult:
+    if cr.status is not SellerProfileChangeStatus.ChangesRequested:
+        raise HTTPException(status_code=409, detail="cr_not_resubmittable")
+    canonical = validate_group_payload(cr.group, proposed)
+    cr.proposed_json = canonical
+    cr.submission_count += 1
+    cr.status = SellerProfileChangeStatus.Submitted
+    cr.updated_at = _now()
+    cr.admin_note = None
+    session.add(cr)
+    _emit_event(
+        session=session, cr=cr,
+        kind=SellerProfileChangeEventKind.Resubmitted,
+        actor_user_id=actor_user_id, actor_role=UserRole.Seller,
+        payload_json=canonical, note=note,
+    )
+    logger.info(
+        "cr.resubmit cr_id=%s submission=%s", cr.id, cr.submission_count
+    )
+    from app.services.seller_emails import (
+        dispatch_seller_change_request_submitted,
+    )
+    return CRMutationResult(
+        cr=cr,
+        emails=[lambda: dispatch_seller_change_request_submitted(cr.id)],
+    )
