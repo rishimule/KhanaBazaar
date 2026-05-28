@@ -804,13 +804,15 @@
       "dashboard": "डैशबोर्ड",
       "orders": "ऑर्डर",
       "inventory": "इन्वेंटरी",
-      "settings": "सेटिंग्स"
+      "settings": "सेटिंग्स",
+      "profile": "प्रोफाइल"
     },
     "titles": {
       "dashboard": "विक्रेता डैशबोर्ड",
       "inventory": "इन्वेंटरी प्रबंधन",
       "orders": "स्टोर ऑर्डर",
       "settings": "सेटिंग्स",
+      "profile": "प्रोफाइल",
       "portal": "विक्रेता पोर्टल"
     },
     "common": {
@@ -996,6 +998,28 @@
       "profileServices": "प्रोफ़ाइल और सेवाएँ",
       "editProfile": "व्यावसायिक प्रोफ़ाइल संपादित करें",
       "viewStorefront": "स्टोरफ्रंट देखें"
+    },
+    "profile": {
+      "heading": "प्रोफाइल",
+      "sectionIdentity": "स्टोर पहचान",
+      "sectionAddress": "व्यवसाय पता",
+      "sectionLegal": "कानूनी दस्तावेज",
+      "sectionBanking": "बैंकिंग",
+      "sectionServices": "प्रदान की गई सेवाएं",
+      "ownerLabel": "मालिक",
+      "phoneLabel": "फ़ोन",
+      "businessNameLabel": "व्यवसाय का नाम",
+      "pinConfirmed": "पिन पुष्टि की गई",
+      "pinNotConfirmed": "पिन अभी पुष्टि नहीं की गई",
+      "gstLabel": "GST नंबर",
+      "fssaiLabel": "FSSAI लाइसेंस",
+      "accountLabel": "खाता संख्या",
+      "ifscLabel": "IFSC कोड",
+      "notAdded": "जोड़ा नहीं गया",
+      "servicesEmpty": "कोई सेवा कॉन्फ़िगर नहीं की गई।",
+      "viewStorefront": "अपना स्टोरफ्रंट देखें →",
+      "editProfile": "संपादित करें",
+      "loadError": "आपकी प्रोफाइल लोड नहीं हो सकी। कृपया बाद में पुनः प्रयास करें।"
     },
     "signup": {
       "stepCounter": "चरण {current} / {total}",
@@ -1486,6 +1510,12 @@
       "caption": "अपने डैशबोर्ड के लिए भाषा चुनें।",
       "ariaLabel": "पसंदीदा भाषा",
       "saving": "सहेजा जा रहा है…"
+    },
+    "verification": {
+      "approved": "स्वीकृत",
+      "pending": "समीक्षा लंबित",
+      "rejected": "अस्वीकृत",
+      "rejectedReason": "कारण: {reason}"
     },
     "routeMap": {
       "unavailable": "मानचित्र उपलब्ध नहीं है। मार्ग पूर्वावलोकन दिखाने के लिए <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> कॉन्फ़िगर करें।",

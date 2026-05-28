@@ -803,13 +803,15 @@
       "dashboard": "Dashboard",
       "orders": "Orders",
       "inventory": "Inventory",
-      "settings": "Settings"
+      "settings": "Settings",
+      "profile": "Profile"
     },
     "titles": {
       "dashboard": "Seller Dashboard",
       "inventory": "Inventory Management",
       "orders": "Store Orders",
       "settings": "Settings",
+      "profile": "Profile",
       "portal": "Seller Portal"
     },
     "common": {
@@ -995,6 +997,28 @@
       "profileServices": "Profile & services",
       "editProfile": "Edit business profile",
       "viewStorefront": "View storefront"
+    },
+    "profile": {
+      "heading": "Profile",
+      "sectionIdentity": "Store identity",
+      "sectionAddress": "Business address",
+      "sectionLegal": "Legal documents",
+      "sectionBanking": "Banking",
+      "sectionServices": "Services offered",
+      "ownerLabel": "Owner",
+      "phoneLabel": "Phone",
+      "businessNameLabel": "Business name",
+      "pinConfirmed": "Pin confirmed",
+      "pinNotConfirmed": "Pin not confirmed yet",
+      "gstLabel": "GST number",
+      "fssaiLabel": "FSSAI license",
+      "accountLabel": "Account number",
+      "ifscLabel": "IFSC code",
+      "notAdded": "Not added",
+      "servicesEmpty": "No services configured.",
+      "viewStorefront": "View your storefront →",
+      "editProfile": "Edit",
+      "loadError": "Could not load your profile. Please try again later."
     },
     "signup": {
       "stepCounter": "Step {current} of {total}",
@@ -1485,6 +1509,12 @@
       "caption": "Choose the language for your dashboard.",
       "ariaLabel": "Preferred language",
       "saving": "Saving…"
+    },
+    "verification": {
+      "approved": "Approved",
+      "pending": "Pending review",
+      "rejected": "Rejected",
+      "rejectedReason": "Reason: {reason}"
     },
     "routeMap": {
       "unavailable": "Map unavailable. Configure <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> to render the route preview.",
