@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -26,6 +26,7 @@ from app.models.seller_profile_change_request import (
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.inventory import EligibleProduct
+from app.schemas.pagination import PagedResponse
 from app.schemas.sellers import (
     AdminSetServicesBody,
     SellerApplicationPayload,
@@ -489,12 +490,15 @@ async def _application_payload(
     ).model_dump()
 
 
-@router.get("/admin/applications")
+@router.get("/admin/applications", response_model=PagedResponse[dict])  # type: ignore[type-arg]
 async def admin_list_applications(
     status: str = "pending",
+    q: Optional[str] = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     _current_user: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
-) -> List[dict]:  # type: ignore[type-arg]
+) -> PagedResponse:  # type: ignore[type-arg]
     if status not in ALLOWED_STATUSES:
         raise HTTPException(status_code=400, detail="invalid status")
 
@@ -505,14 +509,27 @@ async def admin_list_applications(
     )
     if status != "all":
         stmt = stmt.where(SellerProfile.verification_status == VerificationStatus(status))
+    if q and q.strip():
+        like = f"%{q.strip().lower()}%"
+        stmt = stmt.where(
+            or_(
+                SellerProfile.business_name.ilike(like),  # type: ignore[attr-defined]
+                SellerProfile.phone.ilike(like),  # type: ignore[attr-defined]
+                SellerProfile.first_name.ilike(like),  # type: ignore[attr-defined]
+                SellerProfile.last_name.ilike(like),  # type: ignore[attr-defined]
+                User.email.ilike(like),  # type: ignore[attr-defined]
+            )
+        )
     stmt = stmt.order_by(desc(SellerProfile.created_at))  # type: ignore[arg-type]
 
-    result = await session.exec(stmt)
-    rows = result.all()
-    return [
+    total = int((await session.exec(select(func.count()).select_from(stmt.subquery()))).one())
+
+    rows = (await session.exec(stmt.offset((page - 1) * page_size).limit(page_size))).all()
+    items = [
         await _application_payload(session, profile, user, address)
         for profile, user, address in rows
     ]
+    return PagedResponse(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get("/admin/applications/counts")
