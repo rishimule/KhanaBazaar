@@ -848,3 +848,89 @@ async def test_admin_rewind_does_not_create_notification(
 
     after = len(await _list_customer_notifications())
     assert after == before
+
+
+# ─── Admin search / sort / pagination (Task 2) ──────────────────────────────
+
+
+async def test_admin_orders_pagination_envelope(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    await _place_orders(seed)  # seeds 2 orders
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/orders?page=1&page_size=1")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert set(body) >= {"orders", "total", "page", "page_size"}
+    assert body["page"] == 1
+    assert body["page_size"] == 1
+    assert body["total"] >= 2
+    assert len(body["orders"]) == 1
+
+
+async def test_admin_orders_search_by_store_name(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    await _place_orders(seed)
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        full = await ac.get("/api/v1/orders")
+        store_name = full.json()["orders"][0]["store_name"]
+        term = store_name[:4]
+        resp = await ac.get(f"/api/v1/orders?q={term}")
+    assert resp.status_code == 200
+    orders = resp.json()["orders"]
+    assert orders
+    assert all(term.lower() in o["store_name"].lower() for o in orders)
+
+
+async def test_admin_orders_search_by_order_id(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = order_ids[0]
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(f"/api/v1/orders?q=%23{target}")
+    assert resp.status_code == 200
+    ids = [o["id"] for o in resp.json()["orders"]]
+    assert target in ids
+
+
+async def test_admin_orders_status_delivered_filter(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    await _place_orders(seed)  # both Pending
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        delivered = await ac.get("/api/v1/orders?status=delivered")
+        all_orders = await ac.get("/api/v1/orders?status=all")
+    assert delivered.status_code == 200
+    assert delivered.json()["orders"] == []
+    assert all_orders.status_code == 200
+    assert len(all_orders.json()["orders"]) >= 2
+
+
+async def test_admin_orders_sort_total_desc(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    await _place_orders(seed)
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/orders?sort=total_desc")
+    assert resp.status_code == 200
+    totals = [o["total"] for o in resp.json()["orders"]]
+    assert totals == sorted(totals, reverse=True)
+
+
+async def test_admin_orders_search_oversized_numeric_q_no_500(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    """A digit string past the int32 ceiling must not 500 (asyncpg DataError)."""
+    await _place_orders(seed)
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/orders?q=99999999999999")
+    assert resp.status_code == 200
+    assert resp.json()["orders"] == []

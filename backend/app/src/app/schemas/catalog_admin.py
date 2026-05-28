@@ -8,18 +8,9 @@ wrapped in `PagedResponse` so the frontend table can show "page N of M".
 """
 
 from datetime import datetime
-from typing import Generic, List, Optional, TypeVar
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
-
-T = TypeVar("T")
-
-
-class PagedResponse(BaseModel, Generic[T]):
-    items: List[T]
-    total: int
-    page: int
-    page_size: int
 
 
 class TranslationOut(BaseModel):

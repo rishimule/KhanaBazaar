@@ -18,6 +18,33 @@ export async function listOrders(
   return data.orders;
 }
 
+export interface AdminOrdersParams {
+  status?: string; // all | active | delivered | cancelled
+  service_id?: string;
+  q?: string;
+  from_date?: string;
+  to_date?: string;
+  sort?: string; // date_desc | date_asc | total_desc | total_asc
+  page: number;
+  page_size: number;
+}
+
+export async function listAdminOrders(
+  token: string,
+  params: AdminOrdersParams
+): Promise<OrderListResponse> {
+  const sp = new URLSearchParams();
+  if (params.status && params.status !== "all") sp.set("status", params.status);
+  if (params.service_id) sp.set("service_id", params.service_id);
+  if (params.q && params.q.trim()) sp.set("q", params.q.trim());
+  if (params.from_date) sp.set("from_date", params.from_date);
+  if (params.to_date) sp.set("to_date", params.to_date);
+  if (params.sort) sp.set("sort", params.sort);
+  sp.set("page", String(params.page));
+  sp.set("page_size", String(params.page_size));
+  return get<OrderListResponse>(`/api/v1/orders?${sp.toString()}`, token);
+}
+
 export async function getOrder(token: string, orderId: number): Promise<Order> {
   return get<Order>(`/api/v1/orders/${orderId}`, token);
 }

@@ -117,12 +117,14 @@ async def test_list_default_returns_pending_only(override_as_admin: Any) -> None
         resp = await ac.get("/api/v1/sellers/admin/applications")
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 1
-    assert data[0]["verification_status"] == "pending"
-    assert data[0]["email"] == "pending@kb.com"
-    assert data[0]["full_name"] == "Pending Seller"
-    assert data[0]["seller_id"] == mock_seller_pending.id
-    assert "submitted_at" in data[0]
+    assert data["total"] == 1
+    items = data["items"]
+    assert len(items) == 1
+    assert items[0]["verification_status"] == "pending"
+    assert items[0]["email"] == "pending@kb.com"
+    assert items[0]["full_name"] == "Pending Seller"
+    assert items[0]["seller_id"] == mock_seller_pending.id
+    assert "submitted_at" in items[0]
 
 
 @pytest.mark.asyncio
@@ -131,8 +133,8 @@ async def test_list_filter_approved(override_as_admin: Any) -> None:
         resp = await ac.get("/api/v1/sellers/admin/applications?status=approved")
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 1
-    assert data[0]["verification_status"] == "approved"
+    assert len(data["items"]) == 1
+    assert data["items"][0]["verification_status"] == "approved"
 
 
 @pytest.mark.asyncio
@@ -141,9 +143,9 @@ async def test_list_filter_rejected(override_as_admin: Any) -> None:
         resp = await ac.get("/api/v1/sellers/admin/applications?status=rejected")
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 1
-    assert data[0]["verification_status"] == "rejected"
-    assert data[0]["rejection_reason"] == "Invalid GST"
+    assert len(data["items"]) == 1
+    assert data["items"][0]["verification_status"] == "rejected"
+    assert data["items"][0]["rejection_reason"] == "Invalid GST"
 
 
 @pytest.mark.asyncio
@@ -152,7 +154,8 @@ async def test_list_all(override_as_admin: Any) -> None:
         resp = await ac.get("/api/v1/sellers/admin/applications?status=all")
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 3
+    assert data["total"] == 3
+    assert len(data["items"]) == 3
 
 
 @pytest.mark.asyncio
@@ -229,8 +232,8 @@ async def test_admin_applications_include_services(override_as_admin: Any) -> No
         resp = await ac.get("/api/v1/sellers/admin/applications?status=pending")
     assert resp.status_code == 200
     body = resp.json()
-    assert len(body) >= 1
-    row = body[0]
+    assert len(body["items"]) >= 1
+    row = body["items"][0]
     assert "business_category" not in row
     assert isinstance(row["services"], list)
     assert any(s["slug"] == "grocery" for s in row["services"])
@@ -296,3 +299,65 @@ async def test_admin_set_services_unknown_seller(override_as_admin: Any) -> None
             json={"service_ids": [1]},
         )
     assert resp.status_code == 404
+
+
+# ─── Search + pagination (Task 3) ───────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_admin_applications_paginated_envelope(override_as_admin: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/sellers/admin/applications?status=all&page=1&page_size=2"
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert set(body) == {"items", "total", "page", "page_size"}
+    assert body["total"] == 3
+    assert body["page"] == 1 and body["page_size"] == 2
+    assert len(body["items"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_admin_applications_pagination_page_two(override_as_admin: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/sellers/admin/applications?status=all&page=2&page_size=2"
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 3
+    assert len(body["items"]) == 1  # 3 total, 2 per page → 1 on page 2
+
+
+@pytest.mark.asyncio
+async def test_admin_applications_search_owner_first_name(override_as_admin: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/sellers/admin/applications?status=all&q=pending")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["items"][0]["seller_id"] == mock_seller_pending.id
+
+
+@pytest.mark.asyncio
+async def test_admin_applications_search_email(override_as_admin: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/sellers/admin/applications?status=all&q=approved@kb.com"
+        )
+    assert resp.status_code == 200
+    emails = [i["email"] for i in resp.json()["items"]]
+    assert emails == ["approved@kb.com"]
+
+
+@pytest.mark.asyncio
+async def test_admin_applications_search_phone(override_as_admin: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(
+            "/api/v1/sellers/admin/applications?status=all&q=9876543212"
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["items"][0]["seller_id"] == mock_seller_rejected.id

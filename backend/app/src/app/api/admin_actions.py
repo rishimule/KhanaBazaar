@@ -48,6 +48,7 @@ from app.schemas.admin_actions import (
     RewindOrderRequest,
     SellerHubSummary,
 )
+from app.schemas.pagination import PagedResponse
 from app.schemas.seller_profile_change_request import (
     AdminQueueRow,
     ChangeRequestApproveBody,
@@ -670,12 +671,15 @@ async def admin_reject_cr(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/change-requests", response_model=list[AdminQueueRow])
+@router.get("/change-requests", response_model=PagedResponse[AdminQueueRow])
 async def admin_list_all_change_requests(
     status: str = "open",
+    q: Optional[str] = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     _admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
-) -> list[AdminQueueRow]:
+) -> PagedResponse[AdminQueueRow]:
     """Cross-seller CR queue. Default returns open (submitted +
     changes_requested) ordered newest first. ``status=all|terminal`` opt-ins."""
     stmt = (
@@ -693,11 +697,17 @@ async def admin_list_all_change_requests(
         stmt = stmt.where(
             SellerProfileChangeRequest.status.notin_(OPEN_STATUSES)  # type: ignore[attr-defined]
         )
+    if q and q.strip():
+        like = f"%{q.strip().lower()}%"
+        stmt = stmt.where(SellerProfile.business_name.ilike(like))  # type: ignore[attr-defined]
     stmt = stmt.order_by(
         SellerProfileChangeRequest.updated_at.desc()  # type: ignore[attr-defined]
     )
-    rows = (await session.exec(stmt)).all()
-    return [
+
+    total = int((await session.exec(select(func.count()).select_from(stmt.subquery()))).one())
+
+    rows = (await session.exec(stmt.offset((page - 1) * page_size).limit(page_size))).all()
+    items = [
         AdminQueueRow(
             id=cr.id,
             seller_profile_id=cr.seller_profile_id,
@@ -711,3 +721,4 @@ async def admin_list_all_change_requests(
         )
         for cr, profile in rows
     ]
+    return PagedResponse(items=items, total=total, page=page, page_size=page_size)

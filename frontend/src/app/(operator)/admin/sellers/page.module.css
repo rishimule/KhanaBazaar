@@ -11,6 +11,14 @@
   flex-wrap: wrap;
 }
 
+.search {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  min-width: 220px;
+}
+
 .tabs {
   display: flex;
   gap: 0.5rem;

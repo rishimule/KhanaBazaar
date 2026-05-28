@@ -1,19 +1,21 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { type Column } from "@/components/DataTable";
+import Pager from "@/components/Pager";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
-import { listOrders } from "@/lib/orders";
+import { listAdminOrders } from "@/lib/orders";
+import { usePagedList } from "@/lib/usePagedList";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
-import type { Order, OrderStatus, Service } from "@/types";
+import type { Order, OrderListResponse, Service } from "@/types";
 import styles from "./page.module.css";
 
-const ACTIVE: OrderStatus[] = ["pending", "packed", "dispatched"];
 type StatusFilter = "all" | "active" | "delivered" | "cancelled";
 type SortKey = "date_desc" | "date_asc" | "total_desc" | "total_asc";
 const PAGE_SIZE = 20;
@@ -30,71 +32,58 @@ export default function AdminOrdersPage() {
   const tc = useTranslations("Admin.common");
   const { token } = useAuth();
   const router = useRouter();
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
+
   const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [serviceId, setServiceId] = useState<string>("");
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>("");
-  const [query, setQuery] = useState<string>("");
+  const [serviceId, setServiceId] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date_desc");
-  const [pageCount, setPageCount] = useState(1);
+  const [page, setPage] = useState(1);
+  const debouncedQuery = useDebouncedValue(query, 300);
 
   useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
-    Promise.all([
-      listOrders(token),
-      get<Service[]>("/api/v1/catalog/services").catch(() => [] as Service[]),
-    ])
-      .then(([orders, svcs]) => {
-        if (cancelled) return;
-        setAllOrders(orders);
-        setServices(svcs);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+    get<Service[]>("/api/v1/catalog/services")
+      .then(setServices)
+      .catch(() => setServices([]));
+  }, []);
+
+  // Any filter change resets to page 1 (done in the control handlers below).
+  const fetcher = useCallback(() => {
+    if (!token) {
+      return Promise.resolve<OrderListResponse>({
+        orders: [],
+        total: 0,
+        page: 1,
+        page_size: PAGE_SIZE,
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [token]);
-
-  const filtered = useMemo(() => {
-    let out = allOrders.slice();
-    if (statusFilter === "active") out = out.filter((o) => ACTIVE.includes(o.status));
-    else if (statusFilter === "delivered") out = out.filter((o) => o.status === "delivered");
-    else if (statusFilter === "cancelled") out = out.filter((o) => o.status === "cancelled");
-    if (serviceId) out = out.filter((o) => String(o.service_id) === serviceId);
-    if (fromDate) out = out.filter((o) => o.placed_at >= fromDate);
-    if (toDate) out = out.filter((o) => o.placed_at <= `${toDate}T23:59:59Z`);
-    if (query.trim()) {
-      const q = query.trim().toLowerCase().replace(/^#/, "");
-      out = out.filter(
-        (o) =>
-          String(o.id).includes(q) ||
-          o.store_name.toLowerCase().includes(q) ||
-          (o.customer_name ?? "").toLowerCase().includes(q),
-      );
     }
-    out.sort((a, b) => {
-      switch (sortKey) {
-        case "date_asc":
-          return a.placed_at.localeCompare(b.placed_at);
-        case "total_asc":
-          return a.total - b.total;
-        case "total_desc":
-          return b.total - a.total;
-        case "date_desc":
-        default:
-          return b.placed_at.localeCompare(a.placed_at);
-      }
+    return listAdminOrders(token, {
+      status: statusFilter,
+      service_id: serviceId,
+      q: debouncedQuery,
+      from_date: fromDate,
+      to_date: toDate,
+      sort: sortKey,
+      page,
+      page_size: PAGE_SIZE,
     });
-    return out;
-  }, [allOrders, statusFilter, serviceId, fromDate, toDate, query, sortKey]);
+  }, [token, statusFilter, serviceId, debouncedQuery, fromDate, toDate, sortKey, page]);
 
-  const visible = filtered.slice(0, pageCount * PAGE_SIZE);
+  const { data, loading } = usePagedList<OrderListResponse>(fetcher, {
+    token: Boolean(token),
+    statusFilter,
+    serviceId,
+    debouncedQuery,
+    fromDate,
+    toDate,
+    sortKey,
+    page,
+  });
+
+  const orders = data?.orders ?? [];
+  const total = data?.total ?? 0;
 
   const columns: Column<Order>[] = [
     {
@@ -112,36 +101,20 @@ export default function AdminOrdersPage() {
       ),
     },
     { key: "store_name", label: t("colStore") },
-    {
-      key: "customer_name",
-      label: t("colCustomer"),
-      render: (o) => o.customer_name ?? "—",
-    },
+    { key: "customer_name", label: t("colCustomer"), render: (o) => o.customer_name ?? "—" },
     {
       key: "service_name",
       label: t("colService"),
       render: (o) => <span className={styles.serviceChip}>{o.service_name}</span>,
     },
-    {
-      key: "items",
-      label: t("colItems"),
-      render: (o) => `${o.items.length}`,
-    },
+    { key: "items", label: t("colItems"), render: (o) => `${o.items.length}` },
     {
       key: "total",
       label: t("colTotal"),
       render: (o) => <span className={styles.right}>₹{o.total.toFixed(2)}</span>,
     },
-    {
-      key: "payment",
-      label: t("colPayment"),
-      render: (o) => <PaymentStatusPill payment={o.payment} />,
-    },
-    {
-      key: "status",
-      label: t("colStatus"),
-      render: (o) => <OrderStatusBadge status={o.status} />,
-    },
+    { key: "payment", label: t("colPayment"), render: (o) => <PaymentStatusPill payment={o.payment} /> },
+    { key: "status", label: t("colStatus"), render: (o) => <OrderStatusBadge status={o.status} /> },
   ];
 
   return (
@@ -157,7 +130,7 @@ export default function AdminOrdersPage() {
               className={statusFilter === s ? styles.chipActive : styles.chip}
               onClick={() => {
                 setStatusFilter(s);
-                setPageCount(1);
+                setPage(1);
               }}
             >
               {t(STATUS_FILTER_KEYS[s])}
@@ -169,7 +142,7 @@ export default function AdminOrdersPage() {
           value={serviceId}
           onChange={(e) => {
             setServiceId(e.target.value);
-            setPageCount(1);
+            setPage(1);
           }}
         >
           <option value="">{t("allServices")}</option>
@@ -183,14 +156,20 @@ export default function AdminOrdersPage() {
           type="date"
           className={styles.dateInput}
           value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
+          onChange={(e) => {
+            setFromDate(e.target.value);
+            setPage(1);
+          }}
           aria-label={t("fromDate")}
         />
         <input
           type="date"
           className={styles.dateInput}
           value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
+          onChange={(e) => {
+            setToDate(e.target.value);
+            setPage(1);
+          }}
           aria-label={t("toDate")}
         />
         <input
@@ -200,13 +179,16 @@ export default function AdminOrdersPage() {
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            setPageCount(1);
+            setPage(1);
           }}
         />
         <select
           className={styles.select}
           value={sortKey}
-          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          onChange={(e) => {
+            setSortKey(e.target.value as SortKey);
+            setPage(1);
+          }}
         >
           <option value="date_desc">{t("sortNewest")}</option>
           <option value="date_asc">{t("sortOldest")}</option>
@@ -231,7 +213,7 @@ export default function AdminOrdersPage() {
           >
             <DataTable
               columns={columns}
-              data={visible}
+              data={orders}
               keyField="id"
               emptyMessage={t("emptyMessage")}
               mobileCardRender={(o) => (
@@ -251,15 +233,17 @@ export default function AdminOrdersPage() {
               )}
             />
           </div>
-          {visible.length < filtered.length && (
-            <button
-              type="button"
-              className={`btn btn-outline ${styles.loadMore}`}
-              onClick={() => setPageCount((p) => p + 1)}
-            >
-              {t("loadMore")}
-            </button>
-          )}
+          <Pager
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPage={setPage}
+            labels={{
+              prev: t("prev"),
+              next: t("next"),
+              summary: (from, to, n) => t("showing", { from, to, total: n }),
+            }}
+          />
         </>
       )}
     </div>

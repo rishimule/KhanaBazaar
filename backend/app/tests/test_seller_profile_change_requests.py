@@ -551,3 +551,77 @@ async def test_legacy_patch_store_pin_confirm_still_allowed(
     )
     assert res.status_code == 200, res.text
     assert res.json()["pin_confirmed"] is True
+
+
+# ---------------------------------------------------------------------------
+# Cross-seller queue: search + pagination (Task 4)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_admin_cr_queue_paginated_envelope(
+    _approved_seller_auth: dict, session, client: AsyncClient
+) -> None:
+    from app.models.seller_profile_change_request import (
+        SellerProfileChangeGroup,
+        SellerProfileChangeRequest,
+        SellerProfileChangeStatus,
+    )
+
+    profile_id: int = _approved_seller_auth["profile"].id
+    for group in (SellerProfileChangeGroup.Banking, SellerProfileChangeGroup.Identity):
+        session.add(
+            SellerProfileChangeRequest(
+                seller_profile_id=profile_id,
+                group=group,
+                status=SellerProfileChangeStatus.Submitted,
+                proposed_json={},
+                baseline_json={},
+            )
+        )
+    await session.commit()
+
+    resp = await client.get("/api/v1/admin/change-requests?status=open&page=1&page_size=1")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert set(body) == {"items", "total", "page", "page_size"}
+    assert body["total"] == 2
+    assert body["page"] == 1 and body["page_size"] == 1
+    assert len(body["items"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_admin_cr_queue_search_business_name(
+    _approved_seller_auth: dict, session, client: AsyncClient
+) -> None:
+    from app.models.seller_profile_change_request import (
+        SellerProfileChangeGroup,
+        SellerProfileChangeRequest,
+        SellerProfileChangeStatus,
+    )
+
+    profile = _approved_seller_auth["profile"]
+    session.add(
+        SellerProfileChangeRequest(
+            seller_profile_id=profile.id,
+            group=SellerProfileChangeGroup.Banking,
+            status=SellerProfileChangeStatus.Submitted,
+            proposed_json={},
+            baseline_json={},
+        )
+    )
+    await session.commit()
+
+    term = profile.business_name[:3]
+    hit = await client.get(f"/api/v1/admin/change-requests?status=all&q={term}")
+    assert hit.status_code == 200
+    hit_body = hit.json()
+    assert hit_body["total"] == 1
+    assert all(
+        term.lower() in r["seller_business_name"].lower() for r in hit_body["items"]
+    )
+
+    miss = await client.get("/api/v1/admin/change-requests?status=all&q=zzzznomatch")
+    assert miss.status_code == 200
+    assert miss.json()["total"] == 0
+    assert miss.json()["items"] == []

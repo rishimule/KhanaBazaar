@@ -5,12 +5,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
+import Pager from "@/components/Pager";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import {
   GROUP_LABEL,
   adminListAllChangeRequests,
   type AdminQueueRow,
 } from "@/lib/changeRequests";
 import styles from "./page.module.css";
+
+const PAGE_SIZE = 20;
 
 /**
  * Cross-seller triage queue for profile change requests. Lists all CRs (open
@@ -24,16 +28,25 @@ export default function AdminCRQueuePage() {
   const [rows, setRows] = useState<AdminQueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const debouncedQuery = useDebouncedValue(query, 300);
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
-    adminListAllChangeRequests(token, tab)
+    adminListAllChangeRequests(token, tab, {
+      q: debouncedQuery,
+      page,
+      page_size: PAGE_SIZE,
+    })
       .then((data) => {
         if (cancelled) return;
-        setRows(data);
+        setRows(data.items);
+        setTotal(data.total);
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -45,7 +58,7 @@ export default function AdminCRQueuePage() {
     return () => {
       cancelled = true;
     };
-  }, [token, tab]);
+  }, [token, tab, debouncedQuery, page]);
 
   return (
     <div className={styles.page}>
@@ -58,18 +71,35 @@ export default function AdminCRQueuePage() {
         <button
           type="button"
           className={tab === "open" ? styles.activeTab : styles.tab}
-          onClick={() => setTab("open")}
+          onClick={() => {
+            setTab("open");
+            setPage(1);
+          }}
         >
           Open
         </button>
         <button
           type="button"
           className={tab === "terminal" ? styles.activeTab : styles.tab}
-          onClick={() => setTab("terminal")}
+          onClick={() => {
+            setTab("terminal");
+            setPage(1);
+          }}
         >
           History
         </button>
       </div>
+
+      <input
+        type="search"
+        className={styles.search}
+        placeholder="Search by seller business name…"
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setPage(1);
+        }}
+      />
 
       {loading && <p className={styles.muted}>Loading…</p>}
       {error && <p className={styles.error}>{error}</p>}
@@ -118,6 +148,8 @@ export default function AdminCRQueuePage() {
           </tbody>
         </table>
       )}
+
+      <Pager page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
     </div>
   );
 }

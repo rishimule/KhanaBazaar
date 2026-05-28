@@ -1218,7 +1218,10 @@
       "sortTotalDesc": "एकूण ↓",
       "sortTotalAsc": "एकूण ↑",
       "emptyMessage": "या फिल्टरशी कोणतेही ऑर्डर जुळत नाहीत.",
-      "loadMore": "अधिक लोड करा"
+      "loadMore": "अधिक लोड करा",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "orderDetail": {
       "loadError": "ऑर्डर लोड करता आला नाही.",
@@ -1311,7 +1314,11 @@
       "approvedCount": "{n, plural, one {# मंजूर विक्रेता} other {# मंजूर विक्रेते}}",
       "manageApplications": "अर्ज व्यवस्थापित करा",
       "empty": "अद्याप कोणताही मंजूर विक्रेता नाही. अर्ज पृष्ठावरून एखाद्याला मंजूर करा.",
-      "cardMeta": "{n, plural, one {# सेवा} other {# सेवा}} · सामील झाले {ago}"
+      "cardMeta": "{n, plural, one {# सेवा} other {# सेवा}} · सामील झाले {ago}",
+      "searchPlaceholder": "Search business, owner, email, or phone…",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "applications": {
       "col": {
@@ -1384,7 +1391,11 @@
         "submitted": "सादर केले",
         "accountNumber": "खाते क्रमांक",
         "ifsc": "IFSC"
-      }
+      },
+      "searchPlaceholder": "Search business, owner, email, or phone…",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "sellerHub": {
       "tab": {

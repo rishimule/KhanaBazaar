@@ -11,6 +11,7 @@
 
 import { get, patch, post } from "@/lib/api";
 import type {
+  PagedResponse,
   SellerProfileChangeGroup,
   SellerProfileChangeRequest,
   SellerProfileChangeStatus,
@@ -126,9 +127,14 @@ export interface AdminQueueRow {
 export async function adminListAllChangeRequests(
   token: string,
   status: "open" | "terminal" | "all" = "open",
-): Promise<AdminQueueRow[]> {
-  return get<AdminQueueRow[]>(
-    `/api/v1/admin/change-requests?status=${status}`,
+  opts: { q?: string; page?: number; page_size?: number } = {},
+): Promise<PagedResponse<AdminQueueRow>> {
+  const sp = new URLSearchParams({ status });
+  if (opts.q && opts.q.trim()) sp.set("q", opts.q.trim());
+  sp.set("page", String(opts.page ?? 1));
+  sp.set("page_size", String(opts.page_size ?? 20));
+  return get<PagedResponse<AdminQueueRow>>(
+    `/api/v1/admin/change-requests?${sp.toString()}`,
     token,
   );
 }

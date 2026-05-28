@@ -1218,7 +1218,10 @@
       "sortTotalDesc": "ਕੁੱਲ ↓",
       "sortTotalAsc": "ਕੁੱਲ ↑",
       "emptyMessage": "ਇਹਨਾਂ ਫਿਲਟਰਾਂ ਨਾਲ ਕੋਈ ਆਰਡਰ ਮੇਲ ਨਹੀਂ ਖਾਂਦਾ।",
-      "loadMore": "ਹੋਰ ਲੋਡ ਕਰੋ"
+      "loadMore": "ਹੋਰ ਲੋਡ ਕਰੋ",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "orderDetail": {
       "loadError": "ਆਰਡਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।",
@@ -1311,7 +1314,11 @@
       "approvedCount": "{n, plural, one {# ਮਨਜ਼ੂਰ ਵਿਕਰੇਤਾ} other {# ਮਨਜ਼ੂਰ ਵਿਕਰੇਤਾ}}",
       "manageApplications": "ਅਰਜ਼ੀਆਂ ਪ੍ਰਬੰਧਿਤ ਕਰੋ",
       "empty": "ਹਾਲੇ ਤੱਕ ਕੋਈ ਮਨਜ਼ੂਰ ਵਿਕਰੇਤਾ ਨਹੀਂ। ਅਰਜ਼ੀ ਪੰਨੇ ਤੋਂ ਕਿਸੇ ਨੂੰ ਮਨਜ਼ੂਰ ਕਰੋ।",
-      "cardMeta": "{n, plural, one {# ਸੇਵਾ} other {# ਸੇਵਾਵਾਂ}} · ਸ਼ਾਮਲ ਹੋਏ {ago}"
+      "cardMeta": "{n, plural, one {# ਸੇਵਾ} other {# ਸੇਵਾਵਾਂ}} · ਸ਼ਾਮਲ ਹੋਏ {ago}",
+      "searchPlaceholder": "Search business, owner, email, or phone…",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "applications": {
       "col": {
@@ -1384,7 +1391,11 @@
         "submitted": "ਜਮ੍ਹਾਂ ਕੀਤਾ",
         "accountNumber": "ਖਾਤਾ ਨੰਬਰ",
         "ifsc": "IFSC"
-      }
+      },
+      "searchPlaceholder": "Search business, owner, email, or phone…",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "sellerHub": {
       "tab": {

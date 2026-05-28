@@ -338,6 +338,9 @@ export interface Order {
 
 export interface OrderListResponse {
   orders: Order[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface OrderNotification {

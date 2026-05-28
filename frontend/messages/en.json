@@ -1217,7 +1217,10 @@
       "sortTotalDesc": "Total ↓",
       "sortTotalAsc": "Total ↑",
       "emptyMessage": "No orders match these filters.",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "orderDetail": {
       "loadError": "Could not load order.",
@@ -1310,7 +1313,11 @@
       "approvedCount": "{n, plural, one {# approved seller} other {# approved sellers}}",
       "manageApplications": "Manage applications",
       "empty": "No approved sellers yet. Approve one from the applications page.",
-      "cardMeta": "{n, plural, one {# service} other {# services}} · joined {ago}"
+      "cardMeta": "{n, plural, one {# service} other {# services}} · joined {ago}",
+      "searchPlaceholder": "Search business, owner, email, or phone…",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "applications": {
       "col": {
@@ -1383,7 +1390,11 @@
         "submitted": "Submitted",
         "accountNumber": "Account Number",
         "ifsc": "IFSC"
-      }
+      },
+      "searchPlaceholder": "Search business, owner, email, or phone…",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "sellerHub": {
       "tab": {
