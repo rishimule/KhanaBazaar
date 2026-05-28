@@ -31,6 +31,9 @@ from app.models.seller_profile_change_request import (
     SellerProfileChangeStatus,
 )
 from app.models.store import Store
+from app.schemas.seller_profile_change_request import (
+    validate_group_payload,
+)
 from app.services.profiles import compose_full_name
 from app.services.seller_services import (
     list_profile_services,
@@ -150,4 +153,61 @@ def _emit_event(
             payload_json=payload_json,
             note=note,
         )
+    )
+
+
+async def create_change_request(
+    *,
+    session: AsyncSession,
+    seller_profile: SellerProfile,
+    group: SellerProfileChangeGroup,
+    proposed: dict[str, Any],
+    note: Optional[str],
+    actor_user_id: int,
+) -> CRMutationResult:
+    """Create a new open CR for `group`. Caller commits."""
+    if seller_profile.verification_status is not VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="seller_not_active")
+    assert seller_profile.id is not None
+
+    canonical = validate_group_payload(group, proposed)
+
+    existing = await _open_cr_for_group(session, seller_profile.id, group)
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="cr_already_open")
+
+    baseline = await _baseline_for_group(session, seller_profile, group)
+
+    cr = SellerProfileChangeRequest(
+        seller_profile_id=seller_profile.id,
+        group=group,
+        status=SellerProfileChangeStatus.Submitted,
+        proposed_json=canonical,
+        baseline_json=baseline,
+        submission_count=1,
+    )
+    session.add(cr)
+    await session.flush()  # populates cr.id
+
+    _emit_event(
+        session=session,
+        cr=cr,
+        kind=SellerProfileChangeEventKind.Submitted,
+        actor_user_id=actor_user_id,
+        actor_role=UserRole.Seller,
+        payload_json=canonical,
+        note=note,
+    )
+
+    logger.info(
+        "cr.create cr_id=%s seller=%s group=%s",
+        cr.id, seller_profile.id, group.value,
+    )
+
+    from app.services.seller_emails import (
+        dispatch_seller_change_request_submitted,
+    )
+    return CRMutationResult(
+        cr=cr,
+        emails=[lambda: dispatch_seller_change_request_submitted(cr.id)],
     )
