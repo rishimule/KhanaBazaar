@@ -1138,6 +1138,7 @@
       "orders": "ਆਰਡਰ",
       "sellers": "ਵਿਕਰੇਤਾ",
       "applications": "ਅਰਜ਼ੀਆਂ",
+      "changeRequests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
       "catalog": "ਕੈਟਾਲਾਗ",
       "settings": "ਸੈਟਿੰਗਾਂ"
     },
@@ -1149,7 +1150,8 @@
       "catalog": "ਕੈਟਾਲਾਗ",
       "orders": "ਸਾਰੇ ਆਰਡਰ",
       "panel": "ਐਡਮਿਨ ਪੈਨਲ",
-      "settings": "ਸੈਟਿੰਗਾਂ"
+      "settings": "ਸੈਟਿੰਗਾਂ",
+      "changeRequests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ"
     },
     "settings": {
       "title": "ਸੈਟਿੰਗਾਂ"
@@ -1180,6 +1182,7 @@
       "requiresReview": "ਸਮੀਖਿਆ ਦੀ ਲੋੜ ਹੈ",
       "allCaughtUp": "ਸਭ ਪੂਰਾ ਹੋ ਗਿਆ",
       "approvedSellers": "ਮਨਜ਼ੂਰ ਵਿਕਰੇਤਾ",
+      "openChangeRequests": "ਖੁੱਲ੍ਹੀਆਂ ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
       "quickActions": "ਤੇਜ਼ ਕਾਰਵਾਈਆਂ",
       "allOrders": "ਸਾਰੇ ਆਰਡਰ",
       "allOrdersDesc": "ਹਰ ਆਰਡਰ ਵੇਖੋ, ਖੋਜੋ ਅਤੇ ਕਾਰਵਾਈ ਕਰੋ",

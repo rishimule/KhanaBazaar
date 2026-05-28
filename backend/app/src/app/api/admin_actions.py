@@ -49,6 +49,7 @@ from app.schemas.admin_actions import (
     SellerHubSummary,
 )
 from app.schemas.seller_profile_change_request import (
+    AdminQueueRow,
     ChangeRequestApproveBody,
     ChangeRequestEventRead,
     ChangeRequestNoteBody,
@@ -144,6 +145,11 @@ async def admin_metrics(
         .select_from(SellerProfile)
         .where(SellerProfile.verification_status == VerificationStatus.Approved)
     )).one()
+    open_crs = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(SellerProfileChangeRequest)
+        .where(SellerProfileChangeRequest.status.in_(OPEN_STATUSES))  # type: ignore[attr-defined]
+    )).one()
 
     return AdminMetricsRead(
         active_orders=int(active_orders),
@@ -155,6 +161,7 @@ async def admin_metrics(
         active_stores=int(active_stores),
         pending_applications=int(pending_apps),
         approved_sellers=int(approved_sellers),
+        open_change_requests=int(open_crs),
     )
 
 
@@ -656,3 +663,51 @@ async def admin_reject_cr(
     for cb in res.emails:
         cb()
     return await _admin_attach_events(session, res.cr)
+
+
+# ---------------------------------------------------------------------------
+# Cross-seller change-request triage queue
+# ---------------------------------------------------------------------------
+
+
+@router.get("/change-requests", response_model=list[AdminQueueRow])
+async def admin_list_all_change_requests(
+    status: str = "open",
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[AdminQueueRow]:
+    """Cross-seller CR queue. Default returns open (submitted +
+    changes_requested) ordered newest first. ``status=all|terminal`` opt-ins."""
+    stmt = (
+        select(SellerProfileChangeRequest, SellerProfile)
+        .join(
+            SellerProfile,
+            SellerProfile.id == SellerProfileChangeRequest.seller_profile_id,  # type: ignore[arg-type]
+        )
+    )
+    if status == "open":
+        stmt = stmt.where(
+            SellerProfileChangeRequest.status.in_(OPEN_STATUSES)  # type: ignore[attr-defined]
+        )
+    elif status == "terminal":
+        stmt = stmt.where(
+            SellerProfileChangeRequest.status.notin_(OPEN_STATUSES)  # type: ignore[attr-defined]
+        )
+    stmt = stmt.order_by(
+        SellerProfileChangeRequest.updated_at.desc()  # type: ignore[attr-defined]
+    )
+    rows = (await session.exec(stmt)).all()
+    return [
+        AdminQueueRow(
+            id=cr.id,
+            seller_profile_id=cr.seller_profile_id,
+            seller_user_id=profile.user_id,
+            seller_business_name=profile.business_name,
+            group=cr.group,
+            status=cr.status,
+            submission_count=cr.submission_count,
+            created_at=cr.created_at,
+            updated_at=cr.updated_at,
+        )
+        for cr, profile in rows
+    ]

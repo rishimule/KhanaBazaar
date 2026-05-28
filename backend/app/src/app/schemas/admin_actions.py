@@ -65,6 +65,7 @@ class AdminMetricsRead(BaseModel):
     active_stores: int
     pending_applications: int
     approved_sellers: int
+    open_change_requests: int
 
 
 class AdminInventoryRow(BaseModel):

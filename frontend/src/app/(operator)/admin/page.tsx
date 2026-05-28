@@ -20,6 +20,7 @@ interface AdminMetrics {
   active_stores: number;
   pending_applications: number;
   approved_sellers: number;
+  open_change_requests: number;
 }
 
 export default function AdminDashboardPage() {
@@ -61,6 +62,7 @@ export default function AdminDashboardPage() {
     active_stores: 0,
     pending_applications: 0,
     approved_sellers: 0,
+    open_change_requests: 0,
   };
 
   return (
@@ -107,6 +109,24 @@ export default function AdminDashboardPage() {
           value={m.approved_sellers}
           variant="primary"
         />
+        <Link
+          href="/admin/change-requests"
+          aria-label={t("openChangeRequests")}
+          style={{ display: "contents", textDecoration: "none" }}
+        >
+          <StatsCard
+            icon="🔔"
+            label={t("openChangeRequests")}
+            value={m.open_change_requests}
+            trend={
+              m.open_change_requests > 0
+                ? t("requiresReview")
+                : t("allCaughtUp")
+            }
+            trendDirection={m.open_change_requests > 0 ? "up" : "down"}
+            variant={m.open_change_requests > 0 ? "warning" : "info"}
+          />
+        </Link>
       </div>
 
       <div className={styles.section}>

@@ -1138,6 +1138,7 @@
       "orders": "ऑर्डर",
       "sellers": "विक्रेते",
       "applications": "अर्ज",
+      "changeRequests": "बदल विनंत्या",
       "catalog": "कॅटलॉग",
       "settings": "सेटिंग्ज"
     },
@@ -1149,7 +1150,8 @@
       "catalog": "कॅटलॉग",
       "orders": "सर्व ऑर्डर",
       "panel": "अ‍ॅडमिन पॅनेल",
-      "settings": "सेटिंग्ज"
+      "settings": "सेटिंग्ज",
+      "changeRequests": "बदल विनंत्या"
     },
     "settings": {
       "title": "सेटिंग्ज"
@@ -1180,6 +1182,7 @@
       "requiresReview": "पुनरावलोकन आवश्यक",
       "allCaughtUp": "सर्व पूर्ण झाले",
       "approvedSellers": "मंजूर विक्रेते",
+      "openChangeRequests": "खुले बदल विनंत्या",
       "quickActions": "जलद क्रिया",
       "allOrders": "सर्व ऑर्डर",
       "allOrdersDesc": "प्रत्येक ऑर्डर पाहा, शोधा आणि कृती करा",

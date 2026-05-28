@@ -141,6 +141,20 @@ class ChangeRequestEventRead(BaseModel):
     created_at: datetime
 
 
+class AdminQueueRow(BaseModel):
+    """One row of the cross-seller change-request triage queue."""
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    seller_profile_id: int
+    seller_user_id: int
+    seller_business_name: str
+    group: SellerProfileChangeGroup
+    status: SellerProfileChangeStatus
+    submission_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
 class ChangeRequestRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
