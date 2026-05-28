@@ -1483,7 +1483,8 @@
     "languagePreference": {
       "title": "Language",
       "caption": "Choose the language for your dashboard.",
-      "ariaLabel": "Preferred language"
+      "ariaLabel": "Preferred language",
+      "saving": "Saving…"
     },
     "routeMap": {
       "unavailable": "Map unavailable. Configure <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> to render the route preview.",

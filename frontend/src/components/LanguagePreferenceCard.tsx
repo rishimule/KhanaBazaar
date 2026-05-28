@@ -50,6 +50,11 @@ export default function LanguagePreferenceCard() {
             </option>
           ))}
         </select>
+        {pending && (
+          <span className={styles.savingChip} aria-live="polite">
+            {t("saving")}
+          </span>
+        )}
       </div>
     </section>
   );

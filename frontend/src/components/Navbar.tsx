@@ -52,7 +52,6 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
             <span>khanabazaar</span>
             <span className={styles.logoDot} aria-hidden />
           </Link>
-          <span className={styles.strippedSpacer} />
           <Link
             href={dashboardHref}
             className={styles.backToDashboard}
@@ -61,6 +60,7 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
             <BackIcon />
             <span className={styles.backToDashboardLabel}>{t("backToDashboard")}</span>
           </Link>
+          <span className={styles.strippedSpacer} />
           {!loading && dbUser && (
             <button
               type="button"

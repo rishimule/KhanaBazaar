@@ -1484,7 +1484,8 @@
     "languagePreference": {
       "title": "भाषा",
       "caption": "अपने डैशबोर्ड के लिए भाषा चुनें।",
-      "ariaLabel": "पसंदीदा भाषा"
+      "ariaLabel": "पसंदीदा भाषा",
+      "saving": "सहेजा जा रहा है…"
     },
     "routeMap": {
       "unavailable": "मानचित्र उपलब्ध नहीं है। मार्ग पूर्वावलोकन दिखाने के लिए <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> कॉन्फ़िगर करें।",

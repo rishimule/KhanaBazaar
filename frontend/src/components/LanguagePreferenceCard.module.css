@@ -49,5 +49,11 @@
 
 .select:disabled {
   opacity: 0.6;
-  cursor: progress;
+  cursor: not-allowed;
+}
+
+.savingChip {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  font-style: italic;
 }

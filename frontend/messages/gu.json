@@ -1484,7 +1484,8 @@
     "languagePreference": {
       "title": "ભાષા",
       "caption": "તમારા ડેશબોર્ડ માટે ભાષા પસંદ કરો.",
-      "ariaLabel": "પસંદગીની ભાષા"
+      "ariaLabel": "પસંદગીની ભાષા",
+      "saving": "સાચવાઈ રહ્યું છે…"
     },
     "routeMap": {
       "unavailable": "નકશો ઉપલબ્ધ નથી. માર્ગ પૂર્વાવલોકન બતાવવા માટે <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> ગોઠવો.",
