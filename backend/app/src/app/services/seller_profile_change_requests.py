@@ -22,6 +22,7 @@ from app.models.admin_audit import AdminActionTargetType
 from app.models.base import UserRole
 from app.models.profile import (
     SellerProfile,
+    SellerProfileService,
     VerificationStatus,
 )
 from app.models.seller_profile_change_request import (
@@ -32,13 +33,16 @@ from app.models.seller_profile_change_request import (
     SellerProfileChangeStatus,
 )
 from app.models.store import Store
+from app.schemas.address import AddressPayload, address_from_payload
 from app.schemas.seller_profile_change_request import (
     validate_group_payload,
 )
 from app.services import admin_audit
-from app.services.profiles import compose_full_name
+from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_services import (
     list_profile_services,
+    replace_profile_services,
+    validate_service_ids,
 )
 
 logger = logging.getLogger(__name__)
@@ -356,3 +360,96 @@ async def reject(
         cr=cr,
         emails=[lambda: dispatch_seller_change_request_rejected(cr.id)],
     )
+
+
+# ─── Per-group appliers ─────────────────────────────────────────────────
+
+
+async def _apply_identity(
+    session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
+) -> None:
+    full_name = str(payload["full_name"])
+    first, last = split_full_name(full_name)
+    profile.first_name = first
+    profile.last_name = last
+    profile.business_name = str(payload["business_name"])
+    profile.phone = str(payload["phone"])
+    session.add(profile)
+
+
+async def _apply_address(
+    session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
+) -> None:
+    addr = profile.business_address
+    address_payload = AddressPayload.model_validate(payload)
+    fields = address_from_payload(address_payload)
+    for k, v in fields.items():
+        setattr(addr, k, v)
+    session.add(addr)
+
+
+async def _apply_legal(
+    session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
+) -> None:
+    profile.gst_number = payload.get("gst_number") or None
+    profile.fssai_license = payload.get("fssai_license") or None
+    session.add(profile)
+
+
+async def _apply_banking(
+    session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
+) -> None:
+    profile.bank_account_number = payload.get("bank_account_number") or None
+    profile.bank_ifsc = payload.get("bank_ifsc") or None
+    session.add(profile)
+
+
+async def _apply_services(
+    session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
+) -> None:
+    rows = payload["services"]
+    ids = [int(r["service_id"]) for r in rows]
+    try:
+        valid = await validate_service_ids(session, ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await replace_profile_services(session, profile, valid)
+    # second pass: set min_order_value per row
+    existing_rows = (
+        await session.exec(
+            select(SellerProfileService).where(
+                SellerProfileService.seller_profile_id == profile.id
+            )
+        )
+    ).all()
+    by_id = {row.service_id: row for row in existing_rows}
+    for r in rows:
+        sid = int(r["service_id"])
+        if sid in by_id:
+            by_id[sid].min_order_value = float(r["min_order_value"])
+            session.add(by_id[sid])
+
+
+async def _apply_store_basics(
+    session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
+) -> None:
+    store = (
+        await session.exec(
+            select(Store).where(Store.seller_profile_id == profile.id)
+        )
+    ).first()
+    if store is None:
+        raise HTTPException(status_code=404, detail="store_not_found")
+    store.name = str(payload["store_name"])
+    store.delivery_radius_km = float(payload["delivery_radius_km"])
+    session.add(store)
+
+
+GROUP_APPLIERS = {
+    SellerProfileChangeGroup.Identity: _apply_identity,
+    SellerProfileChangeGroup.Address: _apply_address,
+    SellerProfileChangeGroup.Legal: _apply_legal,
+    SellerProfileChangeGroup.Banking: _apply_banking,
+    SellerProfileChangeGroup.Services: _apply_services,
+    SellerProfileChangeGroup.StoreBasics: _apply_store_basics,
+}
