@@ -6,8 +6,14 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import { get } from "@/lib/api";
+import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import { GROUP_LABEL } from "@/lib/changeRequests";
-import type { SellerProfileChangeGroup, Service } from "@/types";
+import type {
+  Address,
+  LocationSource,
+  SellerProfileChangeGroup,
+  Service,
+} from "@/types";
 import styles from "./ProfileChangeRequestModal.module.css";
 
 interface FieldDef {
@@ -30,17 +36,9 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
     { name: "business_name", label: "Business name", required: true },
     { name: "phone", label: "Phone", type: "tel", required: true },
   ],
-  address: [
-    { name: "address_line1", label: "Address line 1", required: true },
-    { name: "address_line2", label: "Address line 2" },
-    { name: "landmark", label: "Landmark" },
-    { name: "city", label: "City", required: true },
-    { name: "state", label: "State", required: true },
-    { name: "pincode", label: "PIN code", required: true },
-    { name: "country", label: "Country", required: true },
-    { name: "latitude", label: "Latitude", type: "number" },
-    { name: "longitude", label: "Longitude", type: "number" },
-  ],
+  // The address group uses the full <AddressFields> component (map picker +
+  // autocomplete + manual entry); see render path below — no field list here.
+  address: [],
   legal: [
     { name: "gst_number", label: "GST number" },
     { name: "fssai_license", label: "FSSAI license" },
@@ -93,6 +91,27 @@ export default function ProfileChangeRequestModal({
       fields.map((f) => [f.name, String(currentValues[f.name] ?? "")]),
     ),
   );
+  const initialAddress: Address = (() => {
+    if (group !== "address") return emptyAddress();
+    const r = currentValues as Record<string, unknown>;
+    return {
+      address_line1: String(r["address_line1"] ?? ""),
+      address_line2: (r["address_line2"] as string | null) ?? null,
+      landmark: (r["landmark"] as string | null) ?? null,
+      city: String(r["city"] ?? ""),
+      state: String(r["state"] ?? ""),
+      pincode: String(r["pincode"] ?? ""),
+      country: String(r["country"] ?? "India"),
+      latitude:
+        typeof r["latitude"] === "number" ? (r["latitude"] as number) : null,
+      longitude:
+        typeof r["longitude"] === "number" ? (r["longitude"] as number) : null,
+      place_id: (r["place_id"] as string | null) ?? null,
+      location_source:
+        (r["location_source"] as LocationSource | null) ?? null,
+    };
+  })();
+  const [addr, setAddr] = useState<Address>(initialAddress);
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [servicesLoading, setServicesLoading] = useState(group === "services");
   useEffect(() => {
@@ -154,6 +173,20 @@ export default function ProfileChangeRequestModal({
             min_order_value:
               s.min_order_value === "" ? 0 : Number(s.min_order_value),
           })),
+      };
+    } else if (group === "address") {
+      payload = {
+        address_line1: addr.address_line1.trim(),
+        address_line2: addr.address_line2 || null,
+        landmark: addr.landmark || null,
+        city: addr.city.trim(),
+        state: addr.state,
+        pincode: addr.pincode.trim(),
+        country: addr.country || "India",
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+        place_id: addr.place_id ?? null,
+        location_source: addr.location_source ?? null,
       };
     } else {
       payload = {};
@@ -308,19 +341,23 @@ export default function ProfileChangeRequestModal({
           handleSubmit();
         }}
       >
-        {fields.map((f) => (
-          <label key={f.name} className={styles.field}>
-            <span>{f.label}</span>
-            <input
-              type={f.type ?? "text"}
-              value={values[f.name] ?? ""}
-              required={f.required}
-              onChange={(e) =>
-                setValues((vs) => ({ ...vs, [f.name]: e.target.value }))
-              }
-            />
-          </label>
-        ))}
+        {group === "address" && (
+          <AddressFields value={addr} onChange={setAddr} requirePin />
+        )}
+        {group !== "address" &&
+          fields.map((f) => (
+            <label key={f.name} className={styles.field}>
+              <span>{f.label}</span>
+              <input
+                type={f.type ?? "text"}
+                value={values[f.name] ?? ""}
+                required={f.required}
+                onChange={(e) =>
+                  setValues((vs) => ({ ...vs, [f.name]: e.target.value }))
+                }
+              />
+            </label>
+          ))}
         <label className={styles.field}>
           <span>{tCR("noteHelp")}</span>
           <textarea
