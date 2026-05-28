@@ -477,9 +477,16 @@ async def admin_override_delivery_address(
 async def _admin_seller_profile_or_404(
     session: AsyncSession, seller_id: int
 ) -> SellerProfile:
+    """Resolve a seller profile from the URL `seller_id` segment.
+
+    `seller_id` in admin URLs is the seller's ``User.id`` (matches every other
+    ``/admin/sellers/{seller_id}/*`` endpoint in this file). We resolve it via
+    ``SellerProfile.user_id`` so callers can use ``profile.id`` for downstream
+    queries.
+    """
     profile = (
         await session.exec(
-            select(SellerProfile).where(SellerProfile.id == seller_id)
+            select(SellerProfile).where(SellerProfile.user_id == seller_id)
         )
     ).first()
     if profile is None:
@@ -488,13 +495,13 @@ async def _admin_seller_profile_or_404(
 
 
 async def _admin_load_cr(
-    session: AsyncSession, seller_id: int, cr_id: uuid.UUID,
+    session: AsyncSession, profile_id: int, cr_id: uuid.UUID,
 ) -> SellerProfileChangeRequest:
     cr = (
         await session.exec(
             select(SellerProfileChangeRequest).where(
                 SellerProfileChangeRequest.id == cr_id,
-                SellerProfileChangeRequest.seller_profile_id == seller_id,
+                SellerProfileChangeRequest.seller_profile_id == profile_id,
             )
         )
     ).first()
@@ -533,9 +540,9 @@ async def admin_list_seller_crs(
     admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> list[ChangeRequestRead]:
-    await _admin_seller_profile_or_404(session, seller_id)
+    profile = await _admin_seller_profile_or_404(session, seller_id)
     stmt = select(SellerProfileChangeRequest).where(
-        SellerProfileChangeRequest.seller_profile_id == seller_id
+        SellerProfileChangeRequest.seller_profile_id == profile.id
     )
     if status == "open":
         stmt = stmt.where(
@@ -562,7 +569,9 @@ async def admin_get_seller_cr(
     admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> ChangeRequestRead:
-    cr = await _admin_load_cr(session, seller_id, cr_id)
+    profile = await _admin_seller_profile_or_404(session, seller_id)
+    assert profile.id is not None
+    cr = await _admin_load_cr(session, profile.id, cr_id)
     return await _admin_attach_events(session, cr)
 
 
@@ -579,7 +588,8 @@ async def admin_approve_cr(
 ) -> ChangeRequestRead:
     profile = await _admin_seller_profile_or_404(session, seller_id)
     _ensure_seller_active(profile)
-    cr = await _admin_load_cr(session, seller_id, cr_id)
+    assert profile.id is not None
+    cr = await _admin_load_cr(session, profile.id, cr_id)
     res = await approve_cr(
         session=session,
         cr=cr,
@@ -607,7 +617,8 @@ async def admin_request_changes_cr(
 ) -> ChangeRequestRead:
     profile = await _admin_seller_profile_or_404(session, seller_id)
     _ensure_seller_active(profile)
-    cr = await _admin_load_cr(session, seller_id, cr_id)
+    assert profile.id is not None
+    cr = await _admin_load_cr(session, profile.id, cr_id)
     res = await request_changes_cr(
         session=session, cr=cr, admin_user_id=admin.id, note=body.note,
     )
@@ -631,7 +642,8 @@ async def admin_reject_cr(
 ) -> ChangeRequestRead:
     profile = await _admin_seller_profile_or_404(session, seller_id)
     _ensure_seller_active(profile)
-    cr = await _admin_load_cr(session, seller_id, cr_id)
+    assert profile.id is not None
+    cr = await _admin_load_cr(session, profile.id, cr_id)
     res = await reject_cr(
         session=session, cr=cr, admin_user_id=admin.id, reason=body.reason,
     )

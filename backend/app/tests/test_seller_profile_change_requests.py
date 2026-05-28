@@ -410,6 +410,8 @@ async def test_api_seller_creates_and_admin_approves(
     seller_user: User = _approved_seller_auth["seller_user"]
     admin_user: User = _approved_seller_auth["admin_user"]
     profile_id: int = _approved_seller_auth["profile"].id
+    # Admin URLs use User.id (matches every other /admin/sellers/{id}/* route).
+    seller_user_id: int = seller_user.id
 
     # Seller creates a banking CR
     res = await client.post(
@@ -433,7 +435,7 @@ async def test_api_seller_creates_and_admin_approves(
     app.dependency_overrides[get_current_user] = lambda: admin_user
     try:
         res2 = await client.post(
-            f"/api/v1/admin/sellers/{profile_id}/change-requests/{cr_id}/approve",
+            f"/api/v1/admin/sellers/{seller_user_id}/change-requests/{cr_id}/approve",
             json={},
         )
     finally:
