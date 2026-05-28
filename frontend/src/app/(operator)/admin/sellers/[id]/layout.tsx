@@ -63,9 +63,15 @@ export default function SellerHubLayout({
     };
   }, [id, token, dbUser, loading]);
 
-  // Determine active tab from pathname.
+  // Determine active tab from pathname. We match on the segment immediately
+  // after the seller id so nested routes (e.g. /requests/[crId]) still
+  // highlight the parent tab.
   const segments = pathname.split("/").filter(Boolean);
-  const activeSlug = segments[segments.length - 1];
+  const idIdx = segments.indexOf(id);
+  const activeSlug =
+    idIdx >= 0 && segments.length > idIdx + 1
+      ? segments[idIdx + 1]
+      : segments[segments.length - 1];
   const isActivityTab = activeSlug === "activity";
 
   if (err) {
