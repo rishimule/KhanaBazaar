@@ -1098,7 +1098,8 @@
       "orders": "ऑर्डर",
       "sellers": "विक्रेते",
       "applications": "अर्ज",
-      "catalog": "कॅटलॉग"
+      "catalog": "कॅटलॉग",
+      "settings": "सेटिंग्ज"
     },
     "titles": {
       "dashboard": "अ‍ॅडमिन डॅशबोर्ड",
@@ -1107,7 +1108,11 @@
       "sellerStore": "विक्रेता स्टोअर",
       "catalog": "कॅटलॉग",
       "orders": "सर्व ऑर्डर",
-      "panel": "अ‍ॅडमिन पॅनेल"
+      "panel": "अ‍ॅडमिन पॅनेल",
+      "settings": "सेटिंग्ज"
+    },
+    "settings": {
+      "title": "सेटिंग्ज"
     },
     "common": {
       "save": "जतन करा",
@@ -1475,6 +1480,11 @@
     },
     "localeSwitcher": {
       "changeLanguage": "भाषा बदला"
+    },
+    "languagePreference": {
+      "title": "भाषा",
+      "caption": "तुमच्या डॅशबोर्डसाठी भाषा निवडा.",
+      "ariaLabel": "पसंतीची भाषा"
     },
     "routeMap": {
       "unavailable": "नकाशा उपलब्ध नाही. मार्ग पूर्वावलोकन दाखवण्यासाठी <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> कॉन्फिगर करा.",

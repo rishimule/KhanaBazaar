@@ -1098,7 +1098,8 @@
       "orders": "ઓર્ડર",
       "sellers": "વિક્રેતાઓ",
       "applications": "અરજીઓ",
-      "catalog": "કેટલોગ"
+      "catalog": "કેટલોગ",
+      "settings": "સેટિંગ્સ"
     },
     "titles": {
       "dashboard": "એડમિન ડેશબોર્ડ",
@@ -1107,7 +1108,11 @@
       "sellerStore": "વિક્રેતા સ્ટોર",
       "catalog": "કેટલોગ",
       "orders": "બધા ઓર્ડર",
-      "panel": "એડમિન પેનલ"
+      "panel": "એડમિન પેનલ",
+      "settings": "સેટિંગ્સ"
+    },
+    "settings": {
+      "title": "સેટિંગ્સ"
     },
     "common": {
       "save": "સાચવો",
@@ -1475,6 +1480,11 @@
     },
     "localeSwitcher": {
       "changeLanguage": "ભાષા બદલો"
+    },
+    "languagePreference": {
+      "title": "ભાષા",
+      "caption": "તમારા ડેશબોર્ડ માટે ભાષા પસંદ કરો.",
+      "ariaLabel": "પસંદગીની ભાષા"
     },
     "routeMap": {
       "unavailable": "નકશો ઉપલબ્ધ નથી. માર્ગ પૂર્વાવલોકન બતાવવા માટે <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> ગોઠવો.",

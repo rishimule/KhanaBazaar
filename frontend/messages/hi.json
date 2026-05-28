@@ -1098,7 +1098,8 @@
       "orders": "ऑर्डर",
       "sellers": "विक्रेता",
       "applications": "आवेदन",
-      "catalog": "कैटलॉग"
+      "catalog": "कैटलॉग",
+      "settings": "सेटिंग्स"
     },
     "titles": {
       "dashboard": "एडमिन डैशबोर्ड",
@@ -1107,7 +1108,11 @@
       "sellerStore": "विक्रेता स्टोर",
       "catalog": "कैटलॉग",
       "orders": "सभी ऑर्डर",
-      "panel": "एडमिन पैनल"
+      "panel": "एडमिन पैनल",
+      "settings": "सेटिंग्स"
+    },
+    "settings": {
+      "title": "सेटिंग्स"
     },
     "common": {
       "save": "सहेजें",
@@ -1475,6 +1480,11 @@
     },
     "localeSwitcher": {
       "changeLanguage": "भाषा बदलें"
+    },
+    "languagePreference": {
+      "title": "भाषा",
+      "caption": "अपने डैशबोर्ड के लिए भाषा चुनें।",
+      "ariaLabel": "पसंदीदा भाषा"
     },
     "routeMap": {
       "unavailable": "मानचित्र उपलब्ध नहीं है। मार्ग पूर्वावलोकन दिखाने के लिए <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> कॉन्फ़िगर करें।",
