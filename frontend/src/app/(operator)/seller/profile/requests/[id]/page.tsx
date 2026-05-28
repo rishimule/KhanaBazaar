@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
+import { get } from "@/lib/api";
 import {
   GROUP_LABEL,
   STATUS_TONE,
@@ -18,7 +19,7 @@ import {
 import ChangeRequestDiffTable from "@/components/ChangeRequestDiffTable";
 import ChangeRequestTimeline from "@/components/ChangeRequestTimeline";
 import ProfileChangeRequestModal from "@/components/ProfileChangeRequestModal";
-import type { SellerProfileChangeRequest } from "@/types";
+import type { SellerProfileChangeRequest, Service } from "@/types";
 import styles from "./page.module.css";
 
 /**
@@ -45,6 +46,25 @@ export default function SellerRequestDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [serviceNames, setServiceNames] = useState<Map<number, string>>(
+    new Map(),
+  );
+
+  useEffect(() => {
+    if (cr?.group !== "services") return;
+    let cancelled = false;
+    get<Service[]>("/api/v1/catalog/services")
+      .then((all) => {
+        if (cancelled) return;
+        setServiceNames(new Map(all.map((s) => [s.id, s.name])));
+      })
+      .catch(() => {
+        // Names fall back to "Service #<id>"; diff still renders.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cr?.group]);
 
   const refresh = useCallback(async () => {
     if (!token || !id) return;
@@ -189,6 +209,8 @@ export default function SellerRequestDetailPage() {
           after={cr.proposed_json}
           beforeLabel="Current"
           afterLabel="Proposed"
+          group={cr.group}
+          serviceNames={serviceNames}
         />
       </section>
 
@@ -200,6 +222,8 @@ export default function SellerRequestDetailPage() {
             after={cr.applied_json}
             beforeLabel="You proposed"
             afterLabel="Applied"
+            group={cr.group}
+            serviceNames={serviceNames}
           />
         </section>
       )}
