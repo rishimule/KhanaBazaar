@@ -35,6 +35,7 @@ export default function AdminLayout({
     { href: "/admin/sellers", label: t("nav.sellers"), icon: "🏪" },
     { href: "/admin/sellers/applications", label: t("nav.applications"), icon: "✅" },
     { href: "/admin/catalog", label: t("nav.catalog"), icon: "🗂️" },
+    { href: "/admin/settings", label: t("nav.settings"), icon: "⚙️" },
   ];
 
   const title =
@@ -50,7 +51,9 @@ export default function AdminLayout({
               ? t("titles.catalog")
               : pathname.startsWith("/admin/orders")
                 ? t("titles.orders")
-                : t("titles.panel");
+                : pathname.startsWith("/admin/settings")
+                  ? t("titles.settings")
+                  : t("titles.panel");
 
   return (
     <>

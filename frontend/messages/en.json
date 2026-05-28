@@ -1097,7 +1097,8 @@
       "orders": "Orders",
       "sellers": "Sellers",
       "applications": "Applications",
-      "catalog": "Catalog"
+      "catalog": "Catalog",
+      "settings": "Settings"
     },
     "titles": {
       "dashboard": "Admin Dashboard",
@@ -1106,7 +1107,11 @@
       "sellerStore": "Seller Store",
       "catalog": "Catalog",
       "orders": "All Orders",
-      "panel": "Admin Panel"
+      "panel": "Admin Panel",
+      "settings": "Settings"
+    },
+    "settings": {
+      "title": "Settings"
     },
     "common": {
       "save": "Save",
@@ -1474,6 +1479,12 @@
     },
     "localeSwitcher": {
       "changeLanguage": "Change language"
+    },
+    "languagePreference": {
+      "title": "Language",
+      "caption": "Choose the language for your dashboard.",
+      "ariaLabel": "Preferred language",
+      "saving": "Saving…"
     },
     "routeMap": {
       "unavailable": "Map unavailable. Configure <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> to render the route preview.",

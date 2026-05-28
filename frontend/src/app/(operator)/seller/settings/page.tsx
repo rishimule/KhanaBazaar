@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
 import type { Service, Store } from "@/types";
+import LanguagePreferenceCard from "@/components/LanguagePreferenceCard";
 import styles from "./page.module.css";
 
 const MIN_KM = 0.5;
@@ -137,6 +138,8 @@ export default function SellerSettingsPage() {
       )}
 
       {error && <div className={styles.errorBanner}>{error}</div>}
+
+      <LanguagePreferenceCard />
 
       <section className={styles.card}>
         <header className={styles.cardHeader}>

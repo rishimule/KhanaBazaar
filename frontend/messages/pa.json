@@ -1098,7 +1098,8 @@
       "orders": "ਆਰਡਰ",
       "sellers": "ਵਿਕਰੇਤਾ",
       "applications": "ਅਰਜ਼ੀਆਂ",
-      "catalog": "ਕੈਟਾਲਾਗ"
+      "catalog": "ਕੈਟਾਲਾਗ",
+      "settings": "ਸੈਟਿੰਗਾਂ"
     },
     "titles": {
       "dashboard": "ਐਡਮਿਨ ਡੈਸ਼ਬੋਰਡ",
@@ -1107,7 +1108,11 @@
       "sellerStore": "ਵਿਕਰੇਤਾ ਸਟੋਰ",
       "catalog": "ਕੈਟਾਲਾਗ",
       "orders": "ਸਾਰੇ ਆਰਡਰ",
-      "panel": "ਐਡਮਿਨ ਪੈਨਲ"
+      "panel": "ਐਡਮਿਨ ਪੈਨਲ",
+      "settings": "ਸੈਟਿੰਗਾਂ"
+    },
+    "settings": {
+      "title": "ਸੈਟਿੰਗਾਂ"
     },
     "common": {
       "save": "ਸੰਭਾਲੋ",
@@ -1475,6 +1480,12 @@
     },
     "localeSwitcher": {
       "changeLanguage": "ਭਾਸ਼ਾ ਬਦਲੋ"
+    },
+    "languagePreference": {
+      "title": "ਭਾਸ਼ਾ",
+      "caption": "ਆਪਣੇ ਡੈਸ਼ਬੋਰਡ ਲਈ ਭਾਸ਼ਾ ਚੁਣੋ।",
+      "ariaLabel": "ਪਸੰਦੀਦਾ ਭਾਸ਼ਾ",
+      "saving": "ਸੰਭਾਲਿਆ ਜਾ ਰਿਹਾ ਹੈ…"
     },
     "routeMap": {
       "unavailable": "ਨਕਸ਼ਾ ਉਪਲਬਧ ਨਹੀਂ। ਰੂਟ ਝਲਕ ਦਿਖਾਉਣ ਲਈ <code>NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY</code> ਸੰਰਚਿਤ ਕਰੋ।",
