@@ -556,6 +556,8 @@ export default function SellerProfilePage() {
                 aria-label={tSettings("minOrderInputLabel", {
                   service: svc.name,
                 })}
+                readOnly={isApproved}
+                disabled={isApproved}
               />
             </div>
           ))}

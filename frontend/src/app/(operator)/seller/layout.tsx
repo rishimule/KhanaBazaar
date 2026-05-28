@@ -112,9 +112,11 @@ export default function SellerLayout({
           ? t("titles.orders")
           : pathname.startsWith("/seller/settings")
             ? t("titles.settings")
-            : pathname === "/seller/profile"
-              ? t("titles.profile")
-              : t("titles.portal");
+            : pathname.startsWith("/seller/profile/requests")
+              ? t("changeRequests.indexTitle")
+              : pathname === "/seller/profile"
+                ? t("titles.profile")
+                : t("titles.portal");
 
   return (
     <>
