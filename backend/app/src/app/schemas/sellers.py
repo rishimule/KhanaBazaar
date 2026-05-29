@@ -100,6 +100,7 @@ class OrderStatusCounts(BaseModel):
     dispatched: int = 0
     pending: int = 0
     cancelled: int = 0
+    paid: int = 0  # dormant OrderStatus value; captured so the donut total never under-reports
 
 
 class InventoryServiceStat(BaseModel):

@@ -6,17 +6,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
-import type { Order } from "@/types";
+import type { OrderListResponse } from "@/types";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
 import styles from "./RecentOrders.module.css";
-
-interface OrderListResponse {
-  orders: Order[];
-  total: number;
-  page: number;
-  page_size: number;
-}
 
 type Tab = "all" | "active" | "delivered" | "cancelled";
 const TABS: { key: Tab; label: string }[] = [
@@ -31,7 +24,12 @@ const PAGE_SIZE = 5;
 function sevenDaysAgoIsoDate(): string {
   const d = new Date();
   d.setDate(d.getDate() - 6); // today + previous 6 days = 7-day window
-  return d.toISOString().slice(0, 10);
+  // Use the local calendar date, not toISOString() (UTC), so the window
+  // doesn't skew by a day for IST users in the early-morning hours.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function initials(name?: string | null): string {
