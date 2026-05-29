@@ -956,7 +956,10 @@
         "status": "स्थिति"
       },
       "emptyMessage": "इन फ़िल्टर से कोई ऑर्डर मेल नहीं खाता।",
-      "loadMore": "और देखें"
+      "loadMore": "और देखें",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "orderDetail": {
       "loadError": "ऑर्डर लोड नहीं हो सका।",
