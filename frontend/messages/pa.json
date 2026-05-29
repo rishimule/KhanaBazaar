@@ -956,7 +956,10 @@
         "status": "ਸਥਿਤੀ"
       },
       "emptyMessage": "ਇਹਨਾਂ ਫਿਲਟਰਾਂ ਨਾਲ ਕੋਈ ਆਰਡਰ ਮੇਲ ਨਹੀਂ ਖਾਂਦਾ।",
-      "loadMore": "ਹੋਰ ਵੇਖੋ"
+      "loadMore": "ਹੋਰ ਵੇਖੋ",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "orderDetail": {
       "loadError": "ਆਰਡਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।",

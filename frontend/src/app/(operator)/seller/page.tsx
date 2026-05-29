@@ -1,147 +1,133 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
+import type { SellerMetrics } from "@/types";
 import StatsCard from "@/components/StatsCard";
+import DashboardHeader from "@/components/seller/DashboardHeader";
+import AttentionBanner from "@/components/seller/AttentionBanner";
+import RevenueChart from "@/components/seller/RevenueChart";
+import OrderStatusDonut from "@/components/seller/OrderStatusDonut";
+import InventoryByService from "@/components/seller/InventoryByService";
+import RecentOrders from "@/components/seller/RecentOrders";
+import QuickActions from "@/components/seller/QuickActions";
 import styles from "./page.module.css";
 
-interface SellerMetrics {
-  active_orders: number;
-  orders_today: number;
-  orders_this_month: number;
-  revenue_this_month: number;
-  total_products: number;
-  out_of_stock: number;
-  unavailable: number;
-  store_active: boolean;
-  pin_confirmed: boolean;
-}
+const EMPTY: SellerMetrics = {
+  active_orders: 0,
+  orders_today: 0,
+  orders_this_month: 0,
+  revenue_this_month: 0,
+  revenue_last_month: 0,
+  revenue_trend_pct: 0,
+  total_products: 0,
+  out_of_stock: 0,
+  unavailable: 0,
+  store_active: false,
+  pin_confirmed: false,
+  store_name: "",
+  order_status_counts: { delivered: 0, packed: 0, dispatched: 0, pending: 0, cancelled: 0 },
+  inventory_by_service: [],
+  top_subcategory: null,
+};
 
 export default function SellerDashboardPage() {
-  const t = useTranslations("Seller");
   const router = useRouter();
   const { dbUser, token, loading } = useAuth();
   const [metrics, setMetrics] = useState<SellerMetrics | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(
+    (refresh = false) => {
+      if (!token) return;
+      if (refresh) setRefreshing(true);
+      get<SellerMetrics>("/api/v1/sellers/me/metrics", token)
+        .then(setMetrics)
+        .catch(() => {})
+        .finally(() => {
+          setFetching(false);
+          setRefreshing(false);
+        });
+    },
+    [token]
+  );
 
   useEffect(() => {
     if (!loading && (!dbUser || dbUser.role !== "seller")) {
       router.push(dbUser ? "/" : "/login");
       return;
     }
-    if (!loading && dbUser && token) {
-      get<SellerMetrics>("/api/v1/sellers/me/metrics", token)
-        .then(setMetrics)
-        .catch(() => {})
-        .finally(() => setFetching(false));
-    }
-  }, [loading, dbUser, token, router]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial metrics fetch sets state in async callbacks
+    if (!loading && dbUser && token) load();
+  }, [loading, dbUser, token, router, load]);
 
   if (loading || fetching) {
     return (
       <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
-        {t("common.loading")}
+        Loading…
       </div>
     );
   }
 
-  const m = metrics ?? {
-    active_orders: 0,
-    orders_today: 0,
-    orders_this_month: 0,
-    revenue_this_month: 0,
-    total_products: 0,
-    out_of_stock: 0,
-    unavailable: 0,
-    store_active: false,
-    pin_confirmed: false,
-  };
+  const m = metrics ?? EMPTY;
 
   return (
-    <>
+    <div className={styles.page}>
+      <DashboardHeader
+        fullName={dbUser?.full_name}
+        storeName={m.store_name}
+        storeActive={m.store_active}
+        pinConfirmed={m.pin_confirmed}
+        onRefresh={() => load(true)}
+        refreshing={refreshing}
+      />
+
+      <AttentionBanner activeOrders={m.active_orders} counts={m.order_status_counts} />
+
       <div className={styles.statsGrid}>
         <StatsCard
-          icon="📦"
-          label={t("dashboard.statsActiveOrders")}
-          value={m.active_orders}
-          variant={m.active_orders > 0 ? "primary" : "info"}
-          trend={m.active_orders > 0 ? t("dashboard.trendNeedsAttention") : t("dashboard.trendNoOrders")}
-          trendDirection={m.active_orders > 0 ? "up" : "down"}
-        />
-        <StatsCard icon="🗓️" label={t("dashboard.statsOrdersToday")} value={m.orders_today} variant="accent" />
-        <StatsCard icon="📈" label={t("dashboard.statsOrdersMonth")} value={m.orders_this_month} variant="info" />
-        <StatsCard
           icon="💰"
-          label={t("dashboard.statsRevenue")}
+          label="Revenue · this month"
           value={`₹${m.revenue_this_month.toFixed(0)}`}
           variant="accent"
-        />
-        <StatsCard icon="🏷️" label={t("dashboard.statsTotalProducts")} value={m.total_products} variant="primary" />
-        <StatsCard
-          icon="⚠️"
-          label={t("dashboard.statsOutOfStock")}
-          value={m.out_of_stock}
-          variant={m.out_of_stock > 0 ? "warning" : "info"}
-        />
-        <StatsCard
-          icon="🚫"
-          label={t("dashboard.statsUnavailable")}
-          value={m.unavailable}
-          variant={m.unavailable > 0 ? "warning" : "info"}
+          trend={
+            m.revenue_trend_pct !== 0
+              ? `${Math.abs(m.revenue_trend_pct)}% vs ₹${m.revenue_last_month.toFixed(0)} last month`
+              : undefined
+          }
+          trendDirection={m.revenue_trend_pct >= 0 ? "up" : "down"}
         />
         <StatsCard
-          icon="🏪"
-          label={t("dashboard.statsStoreStatus")}
-          value={m.store_active ? t("dashboard.valueActive") : t("dashboard.valueInactive")}
-          variant={m.store_active ? "accent" : "warning"}
+          icon="🛒"
+          label="Active orders"
+          value={m.active_orders}
+          variant={m.active_orders > 0 ? "primary" : "info"}
+          trend={m.active_orders > 0 ? "Needs attention" : undefined}
+          trendDirection="up"
         />
-        <StatsCard
-          icon="📍"
-          label={t("dashboard.statsPin")}
-          value={m.pin_confirmed ? t("dashboard.pinConfirmed") : t("dashboard.pinNotConfirmed")}
-          variant={m.pin_confirmed ? "info" : "warning"}
-        />
+        <StatsCard icon="🗓️" label="Orders today" value={m.orders_today} variant="info" />
+        <StatsCard icon="📦" label="Total products" value={m.total_products} variant="primary" />
       </div>
 
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{t("dashboard.quickActions")}</h2>
+      <div className={styles.grid}>
+        <div className={styles.main}>
+          <RevenueChart />
+          <RecentOrders />
         </div>
-        <div className={styles.quickActions}>
-          <Link href="/seller/orders" className={styles.actionCard}>
-            <div className={styles.actionIcon}>📦</div>
-            <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>{t("dashboard.actionOrdersLabel")}</span>
-              <span className={styles.actionDescription}>
-                {t("dashboard.actionOrdersDesc")}
-              </span>
-            </div>
-          </Link>
-          <Link href="/seller/inventory" className={styles.actionCard}>
-            <div className={styles.actionIcon}>📋</div>
-            <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>{t("dashboard.actionInventoryLabel")}</span>
-              <span className={styles.actionDescription}>
-                {t("dashboard.actionInventoryDesc")}
-              </span>
-            </div>
-          </Link>
-          <Link href="/seller/settings" className={styles.actionCard}>
-            <div className={styles.actionIcon}>⚙️</div>
-            <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>{t("dashboard.actionSettingsLabel")}</span>
-              <span className={styles.actionDescription}>
-                {t("dashboard.actionSettingsDesc")}
-              </span>
-            </div>
-          </Link>
-        </div>
+        <aside className={styles.rail}>
+          <OrderStatusDonut counts={m.order_status_counts} />
+          <InventoryByService
+            services={m.inventory_by_service}
+            outOfStock={m.out_of_stock}
+            topSubcategory={m.top_subcategory}
+          />
+          <QuickActions />
+        </aside>
       </div>
-    </>
+    </div>
   );
 }

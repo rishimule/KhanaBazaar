@@ -1448,6 +1448,182 @@ DEMO_ORDERS: list[dict[str, Any]] = [
             ("amul-taza-milk-1l", 1),
         ],
     },
+    # ---------------------------------------------------------------------
+    # Extra recent orders for Sharma General Store (seller@khanabazaar.dev,
+    # "Ravi Sharma") spread across the last 2 weeks (days_ago 0-13) so the
+    # seller dashboard — revenue chart, status donut, inventory-by-service,
+    # and the paginated 7-day recent-orders table — all have lived-in data.
+    # Grocery + pharmacy (Sharma's two services); mix of statuses; quantities
+    # kept modest to avoid draining low-stock items.
+    # ---------------------------------------------------------------------
+    {
+        "customer_email": "customer2@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 0,
+        "items": [("onions-pyaaz", 2), ("potatoes-aloo-1kg", 1), ("bananas-1dozen", 1)],
+    },
+    {
+        "customer_email": "customer3@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "pharmacy", "address_label": "Home", "status": "packed",
+        "payment_method": "upi", "days_ago": 0,
+        "items": [("crocin-advance-500mg-15s", 2), ("vicks-vaporub-50g", 1)],
+    },
+    {
+        "customer_email": "customer4@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "dispatched",
+        "payment_method": "cash", "days_ago": 1,
+        "items": [("red-apples-1kg", 1), ("spinach-bunch-palak", 2)],
+    },
+    {
+        "customer_email": "customer5@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 1,
+        "items": [("toor-dal-1kg", 1), ("fresh-tomatoes", 2), ("ginger-adrak-250g", 1)],
+    },
+    {
+        "customer_email": "customer6@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "pharmacy", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 2,
+        "items": [("combiflam-tablet-20s", 1), ("saridon-tablet-10s", 2)],
+    },
+    {
+        "customer_email": "customer7@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "packed",
+        "payment_method": "cash", "days_ago": 2,
+        "items": [("amul-paneer-200g", 1), ("britannia-bread-400g", 1)],
+    },
+    {
+        "customer_email": "customer8@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 3,
+        "items": [("onions-pyaaz", 3), ("potatoes-aloo-1kg", 2)],
+    },
+    {
+        "customer_email": "customer9@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "cash", "days_ago": 3,
+        "items": [("basmati-rice-5kg", 1), ("amul-cow-ghee-1l", 1)],
+    },
+    {
+        "customer_email": "customer10@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "pharmacy", "address_label": "Home", "status": "cancelled",
+        "payment_method": "upi", "days_ago": 4,
+        "items": [("eno-fruit-salt-100g", 1), ("digene-mint-tablet-20s", 1)],
+    },
+    {
+        "customer_email": "customer2@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 4,
+        "items": [("bananas-1dozen", 1), ("methi-bunch", 2), ("green-coriander-bunch", 1)],
+    },
+    {
+        "customer_email": "customer3@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "dispatched",
+        "payment_method": "upi", "days_ago": 5,
+        "items": [("pomegranate-1kg", 1), ("red-apples-1kg", 1)],
+    },
+    {
+        "customer_email": "customer4@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "pharmacy", "address_label": "Home", "status": "delivered",
+        "payment_method": "cash", "days_ago": 5,
+        "items": [("vicks-vaporub-50g", 1), ("crocin-advance-500mg-15s", 1)],
+    },
+    {
+        "customer_email": "customer5@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 6,
+        "items": [("fresh-tomatoes", 2), ("onions-pyaaz", 2), ("amul-taza-milk-1l", 1)],
+    },
+    {
+        "customer_email": "customer6@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 6,
+        "items": [("aashirvaad-atta-5kg", 1)],
+    },
+    {
+        "customer_email": "customer7@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "pharmacy", "address_label": "Home", "status": "packed",
+        "payment_method": "upi", "days_ago": 7,
+        "items": [("combiflam-tablet-20s", 2), ("eno-fruit-salt-100g", 1)],
+    },
+    {
+        "customer_email": "customer8@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "cash", "days_ago": 7,
+        "items": [("potatoes-aloo-1kg", 2), ("spinach-bunch-palak", 1), ("ginger-adrak-250g", 1)],
+    },
+    {
+        "customer_email": "customer9@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 8,
+        "items": [("bananas-1dozen", 2), ("fresh-tomatoes", 1)],
+    },
+    {
+        "customer_email": "customer10@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "pharmacy", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 8,
+        "items": [("saridon-tablet-10s", 1), ("digene-mint-tablet-20s", 1)],
+    },
+    {
+        "customer_email": "customer2@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "pending",
+        "payment_method": "upi", "days_ago": 9,
+        "items": [("toor-dal-1kg", 1), ("onions-pyaaz", 1)],
+    },
+    {
+        "customer_email": "customer3@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "cash", "days_ago": 9,
+        "items": [("red-apples-1kg", 1), ("amul-paneer-200g", 1), ("britannia-bread-400g", 1)],
+    },
+    {
+        "customer_email": "customer4@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 10,
+        "items": [("fresh-tomatoes", 3), ("potatoes-aloo-1kg", 1)],
+    },
+    {
+        "customer_email": "customer5@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "pharmacy", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 10,
+        "items": [("crocin-advance-500mg-15s", 2)],
+    },
+    {
+        "customer_email": "customer6@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "cash", "days_ago": 11,
+        "items": [("onions-pyaaz", 2), ("ginger-adrak-250g", 1), ("methi-bunch", 1)],
+    },
+    {
+        "customer_email": "customer7@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 11,
+        "items": [("amul-taza-milk-1l", 2), ("britannia-bread-400g", 1)],
+    },
+    {
+        "customer_email": "customer8@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 12,
+        "items": [("fortune-sunflower-oil-5l", 1)],
+    },
+    {
+        "customer_email": "customer9@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "pharmacy", "address_label": "Home", "status": "cancelled",
+        "payment_method": "upi", "days_ago": 12,
+        "items": [("vicks-vaporub-50g", 1)],
+    },
+    {
+        "customer_email": "customer10@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "cash", "days_ago": 13,
+        "items": [("bananas-1dozen", 1), ("fresh-tomatoes", 2), ("spinach-bunch-palak", 1)],
+    },
+    {
+        "customer_email": "customer2@khanabazaar.dev", "store_name": "Sharma General Store",
+        "service_slug": "grocery", "address_label": "Home", "status": "delivered",
+        "payment_method": "upi", "days_ago": 13,
+        "items": [("pomegranate-1kg", 1), ("green-coriander-bunch", 2)],
+    },
 ]
 
 # Favourites for Priya Verma (customer@khanabazaar.dev). Powers the dashboard

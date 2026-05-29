@@ -18,7 +18,7 @@ export async function listOrders(
   return data.orders;
 }
 
-export interface AdminOrdersParams {
+export interface PagedOrdersParams {
   status?: string; // all | active | delivered | cancelled
   service_id?: string;
   q?: string;
@@ -29,9 +29,12 @@ export interface AdminOrdersParams {
   page_size: number;
 }
 
-export async function listAdminOrders(
+// Server-side filtered + paginated order listing against /api/v1/orders. The
+// endpoint scopes results by the caller's role (customer → own, seller → own
+// stores, admin → all), so this same helper backs the admin and seller pages.
+export async function listOrdersPaged(
   token: string,
-  params: AdminOrdersParams
+  params: PagedOrdersParams
 ): Promise<OrderListResponse> {
   const sp = new URLSearchParams();
   if (params.status && params.status !== "all") sp.set("status", params.status);

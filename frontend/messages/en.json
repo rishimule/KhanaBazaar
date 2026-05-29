@@ -955,7 +955,10 @@
         "status": "Status"
       },
       "emptyMessage": "No orders match these filters.",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "orderDetail": {
       "loadError": "Could not load order.",

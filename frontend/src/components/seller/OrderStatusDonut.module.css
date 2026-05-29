@@ -1,0 +1,61 @@
+.card {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 16px;
+  padding: 1.25rem;
+}
+.title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  color: var(--color-neutral-900);
+}
+.body {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.svg {
+  width: 130px;
+  height: 130px;
+  flex-shrink: 0;
+}
+.centerNum {
+  fill: var(--color-neutral-900);
+  font-size: 26px;
+  font-weight: 700;
+}
+.centerLabel {
+  fill: var(--color-neutral-400);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.legendLabel {
+  flex: 1;
+  color: var(--color-neutral-600);
+}
+.legendVal {
+  font-weight: 700;
+  color: var(--color-neutral-900);
+}

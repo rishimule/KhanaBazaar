@@ -685,3 +685,52 @@ export interface SellerProfileChangeRequest {
   events: SellerProfileChangeRequestEvent[];
 }
 
+
+export interface OrderStatusCounts {
+  delivered: number;
+  packed: number;
+  dispatched: number;
+  pending: number;
+  cancelled: number;
+}
+
+export interface InventoryServiceStat {
+  service_id: number;
+  service_name: string;
+  in_stock: number;
+  total: number;
+}
+
+export interface TopSubcategory {
+  name: string;
+  count: number;
+}
+
+export interface SellerMetrics {
+  active_orders: number;
+  orders_today: number;
+  orders_this_month: number;
+  revenue_this_month: number;
+  revenue_last_month: number;
+  revenue_trend_pct: number;
+  total_products: number;
+  out_of_stock: number;
+  unavailable: number;
+  store_active: boolean;
+  pin_confirmed: boolean;
+  store_name: string;
+  order_status_counts: OrderStatusCounts;
+  inventory_by_service: InventoryServiceStat[];
+  top_subcategory: TopSubcategory | null;
+}
+
+export interface RevenueSeriesPoint {
+  date: string;
+  gov: number;
+}
+
+export interface RevenueSeries {
+  points: RevenueSeriesPoint[];
+  avg_per_day: number;
+  peak: number;
+}

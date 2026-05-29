@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import logging
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -309,10 +310,26 @@ async def list_orders(
     if statuses is not None:
         stmt = stmt.where(Order.status.in_(statuses))  # type: ignore[attr-defined]
 
+    # Parse date filters into tz-aware datetimes. asyncpg binds bare strings as
+    # VARCHAR and Postgres won't compare `timestamptz >= varchar`, so the value
+    # must reach the driver as a real datetime.
     if from_date:
-        stmt = stmt.where(Order.placed_at >= from_date)  # type: ignore[operator]
+        try:
+            start_dt = datetime.fromisoformat(from_date)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="invalid_from_date") from exc
+        if start_dt.tzinfo is None:
+            start_dt = start_dt.replace(tzinfo=timezone.utc)
+        stmt = stmt.where(Order.placed_at >= start_dt)
     if to_date:
-        stmt = stmt.where(Order.placed_at <= f"{to_date}T23:59:59Z")  # type: ignore[operator]
+        try:
+            end_dt = datetime.fromisoformat(to_date)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="invalid_to_date") from exc
+        if end_dt.tzinfo is None:
+            # Date-only bound → cover the whole day (inclusive).
+            end_dt = end_dt.replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+        stmt = stmt.where(Order.placed_at <= end_dt)
 
     if q and q.strip():
         term = q.strip().lstrip("#")

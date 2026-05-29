@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from collections.abc import AsyncGenerator, Iterator
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -475,6 +476,24 @@ async def test_invalid_status_filter_returns_400(as_customer: Any) -> None:
         resp = await ac.get("/api/v1/orders?status=garbage")
     assert resp.status_code == 400
     assert resp.json()["detail"] == "invalid_status_filter"
+
+
+async def test_from_date_filter(as_customer: Any, seed: dict[str, int]) -> None:
+    # Regression: a bare YYYY-MM-DD from_date must bind as a datetime, not a
+    # VARCHAR (asyncpg rejects `timestamptz >= varchar` with a 500).
+    await _place_orders(seed)
+    today = datetime.now(timezone.utc).date()
+    tomorrow = (today + timedelta(days=1)).isoformat()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        included = await ac.get(f"/api/v1/orders?from_date={today.isoformat()}")
+        excluded = await ac.get(f"/api/v1/orders?from_date={tomorrow}")
+        bad = await ac.get("/api/v1/orders?from_date=not-a-date")
+    assert included.status_code == 200, included.text
+    assert len(included.json()["orders"]) == 2
+    assert excluded.status_code == 200
+    assert excluded.json()["orders"] == []
+    assert bad.status_code == 400
+    assert bad.json()["detail"] == "invalid_from_date"
 
 
 async def test_get_order_detail(as_customer: Any, seed: dict[str, int]) -> None:

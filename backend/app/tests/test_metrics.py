@@ -190,6 +190,28 @@ async def test_seller_metrics(client: AsyncClient, session: AsyncSession) -> Non
         assert data["unavailable"] == 1
         assert data["store_active"] is True
         assert data["pin_confirmed"] is True
+        # --- new dashboard aggregation fields ---
+        assert data["store_name"] == "Metrics Store"
+        # Last-month delivered order total was 200.0.
+        assert data["revenue_last_month"] == 200.0
+        # (100 this month - 200 last month) / 200 * 100 = -50.0
+        assert data["revenue_trend_pct"] == -50.0
+        # Lifetime status mix: 2 delivered, 1 pending, rest 0.
+        assert data["order_status_counts"]["delivered"] == 2
+        assert data["order_status_counts"]["pending"] == 1
+        assert data["order_status_counts"]["packed"] == 0
+        assert data["order_status_counts"]["dispatched"] == 0
+        assert data["order_status_counts"]["cancelled"] == 0
+        # 3 services, one product each. in_stock: svc1=1 (stock20/avail),
+        # svc2=0 (stock0), svc3=0 (unavailable).
+        ibs = {s["service_name"]: s for s in data["inventory_by_service"]}
+        assert ibs["MetricProd"]["total"] == 1
+        assert ibs["MetricProd"]["in_stock"] == 1
+        assert ibs["MetricProd2"]["in_stock"] == 0
+        assert ibs["MetricProd3"]["in_stock"] == 0
+        # Only the svc1 product is in stock → top subcategory is its subcat.
+        assert data["top_subcategory"]["name"] == "MetricProd"
+        assert data["top_subcategory"]["count"] == 1
     finally:
         app.dependency_overrides.pop(get_current_seller, None)
         app.dependency_overrides.pop(get_current_user, None)
@@ -214,4 +236,40 @@ async def test_admin_metrics(client: AsyncClient, session: AsyncSession) -> None
         assert data["pending_applications"] >= 0
     finally:
         app.dependency_overrides.pop(get_current_admin, None)
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+async def test_revenue_series_default_range(client: AsyncClient) -> None:
+    app.dependency_overrides[get_current_seller] = lambda: seller_user
+    app.dependency_overrides[get_current_user] = lambda: seller_user
+    try:
+        res = await client.get("/api/v1/sellers/me/revenue-series")
+        assert res.status_code == 200, res.text
+        data = res.json()
+        # Default range is 14d → 14 zero-filled daily points.
+        assert len(data["points"]) == 14
+        assert all("date" in p and "gov" in p for p in data["points"])
+        # Two orders placed today (100 + 50) → today's GOV is 150.
+        assert data["points"][-1]["gov"] == 150.0
+        assert data["peak"] == 150.0
+        # avg = 150 / 14 days.
+        assert data["avg_per_day"] == round(150.0 / 14, 2)
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+async def test_revenue_series_ranges(client: AsyncClient) -> None:
+    app.dependency_overrides[get_current_seller] = lambda: seller_user
+    app.dependency_overrides[get_current_user] = lambda: seller_user
+    try:
+        for token, n in (("7d", 7), ("14d", 14), ("30d", 30)):
+            res = await client.get(f"/api/v1/sellers/me/revenue-series?range={token}")
+            assert res.status_code == 200, res.text
+            assert len(res.json()["points"]) == n
+        # Invalid range token is rejected by query validation.
+        bad = await client.get("/api/v1/sellers/me/revenue-series?range=99d")
+        assert bad.status_code == 422
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
         app.dependency_overrides.pop(get_current_user, None)

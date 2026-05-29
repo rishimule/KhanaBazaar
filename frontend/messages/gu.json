@@ -956,7 +956,10 @@
         "status": "સ્થિતિ"
       },
       "emptyMessage": "આ ફિલ્ટર સાથે કોઈ ઓર્ડર મેળ ખાતો નથી.",
-      "loadMore": "વધુ જુઓ"
+      "loadMore": "વધુ જુઓ",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}"
     },
     "orderDetail": {
       "loadError": "ઓર્ડર લોડ થઈ શક્યો નહીં.",

@@ -8,7 +8,7 @@ import DataTable, { type Column } from "@/components/DataTable";
 import Pager from "@/components/Pager";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
-import { listAdminOrders } from "@/lib/orders";
+import { listOrdersPaged } from "@/lib/orders";
 import { usePagedList } from "@/lib/usePagedList";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { get } from "@/lib/api";
@@ -59,7 +59,7 @@ export default function AdminOrdersPage() {
         page_size: PAGE_SIZE,
       });
     }
-    return listAdminOrders(token, {
+    return listOrdersPaged(token, {
       status: statusFilter,
       service_id: serviceId,
       q: debouncedQuery,
