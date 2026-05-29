@@ -1,0 +1,25 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  margin-bottom: 1.25rem;
+}
+.icon {
+  font-size: 1.1rem;
+}
+.text {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--color-neutral-800);
+}
+.link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
