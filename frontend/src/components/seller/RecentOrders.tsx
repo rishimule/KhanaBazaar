@@ -60,8 +60,7 @@ export default function RecentOrders() {
 
   useEffect(() => {
     if (!token) return;
-    setLoading(true);
-    setError(false);
+    let cancelled = false;
     const params = new URLSearchParams({
       from_date: sevenDaysAgoIsoDate(),
       sort: "date_desc",
@@ -70,9 +69,20 @@ export default function RecentOrders() {
     });
     if (tab !== "all") params.set("status", tab);
     get<OrderListResponse>(`/api/v1/orders?${params.toString()}`, token)
-      .then(setData)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+      .then((d) => {
+        if (cancelled) return;
+        setData(d);
+        setError(false);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [token, tab, page]);
 
   function switchTab(next: Tab) {

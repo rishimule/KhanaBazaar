@@ -44,12 +44,22 @@ export default function RevenueChart() {
 
   useEffect(() => {
     if (!token) return;
-    setLoading(true);
-    setError(false);
+    let cancelled = false;
     get<RevenueSeries>(`/api/v1/sellers/me/revenue-series?range=${range}`, token)
-      .then(setData)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+      .then((d) => {
+        if (cancelled) return;
+        setData(d);
+        setError(false);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [token, range]);
 
   const points = data?.points ?? [];

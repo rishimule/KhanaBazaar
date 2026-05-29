@@ -2,111 +2,44 @@
  * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
  * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
  */
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-4);
-  margin-bottom: var(--space-8);
-}
-
-.section {
-  margin-bottom: var(--space-8);
-}
-
-.sectionHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
-}
-
-.sectionTitle {
-  font-size: var(--font-lg);
-  font-weight: var(--weight-semibold);
-  color: var(--color-neutral-900);
-}
-
-.quickActions {
-  display: flex;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.actionCard {
-  background: var(--color-neutral-0);
-  border: 1px solid var(--color-neutral-100);
-  border-radius: var(--radius-xl);
-  padding: var(--space-5);
-  text-decoration: none;
-  transition: all var(--duration-normal) var(--ease-default);
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex: 1;
-  min-width: 200px;
-}
-
-.actionCard:hover {
-  border-color: var(--color-primary-200);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-}
-
-.actionIcon {
-  width: 44px;
-  height: 44px;
-  background: var(--color-primary-50);
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-xl);
-  flex-shrink: 0;
-}
-
-.actionInfo {
+.page {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
-
-.actionLabel {
-  font-size: var(--font-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--color-neutral-900);
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
-
-.actionDescription {
-  font-size: var(--font-xs);
-  color: var(--color-neutral-400);
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
 }
-
-@media (max-width: 768px) {
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
   .statsGrid {
     grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-3);
-    margin-bottom: var(--space-6);
-  }
-
-  .quickActions {
-    gap: var(--space-2);
-  }
-
-  .actionCard {
-    flex: 1 1 100%;
-    min-width: 0;
   }
 }
-
-@media (max-width: 480px) {
+@media (max-width: 560px) {
   .statsGrid {
     grid-template-columns: 1fr;
   }
-
-  .sectionHeader {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-2);
-  }
 }
-
