@@ -1,12 +1,12 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import datetime, time, timedelta, timezone
+from typing import List, Literal, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import desc, func, or_
+from sqlalchemy import and_, case, desc, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -18,6 +18,14 @@ from app.db.session import get_db_session
 from app.models.address import Address, LocationSource
 from app.models.admin_audit import AdminActionTargetType
 from app.models.base import User
+from app.models.catalog import (
+    Category,
+    MasterProduct,
+    Service,
+    ServiceTranslation,
+    Subcategory,
+    SubcategoryTranslation,
+)
 from app.models.commerce import Delivery, Order, OrderStatus
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.seller_profile_change_request import (
@@ -29,11 +37,16 @@ from app.schemas.inventory import EligibleProduct
 from app.schemas.pagination import PagedResponse
 from app.schemas.sellers import (
     AdminSetServicesBody,
+    InventoryServiceStat,
+    OrderStatusCounts,
+    RevenueSeriesPoint,
+    RevenueSeriesRead,
     SellerApplicationPayload,
     SellerMetricsRead,
     SellerProfilePayload,
     SellerProfileUpdateBody,
     SetServiceMinOrderValueBody,
+    TopSubcategory,
 )
 from app.schemas.services import ServicePayload
 from app.services import admin_audit
@@ -89,11 +102,17 @@ async def get_seller_metrics(
             orders_today=0,
             orders_this_month=0,
             revenue_this_month=0.0,
+            revenue_last_month=0.0,
+            revenue_trend_pct=0.0,
             total_products=0,
             out_of_stock=0,
             unavailable=0,
             store_active=False,
             pin_confirmed=False,
+            store_name="",
+            order_status_counts=OrderStatusCounts(),
+            inventory_by_service=[],
+            top_subcategory=None,
         )
 
     ist = ZoneInfo("Asia/Kolkata")
@@ -133,6 +152,27 @@ async def get_seller_metrics(
             Delivery.delivered_at >= month_start,
         )
     )).one()
+    # Previous calendar month window (IST), for the revenue trend.
+    first_of_this_month_ist = now_ist.replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+    prev_month_start = (
+        (first_of_this_month_ist - timedelta(days=1))
+        .replace(day=1)
+        .astimezone(timezone.utc)
+    )
+    prev_month_end = first_of_this_month_ist.astimezone(timezone.utc)
+    revenue_last_month_raw = (await session.exec(
+        select(func.coalesce(func.sum(Order.total), 0.0))  # type: ignore[arg-type]
+        .select_from(Order)
+        .join(Delivery, Delivery.order_id == Order.id)  # type: ignore[arg-type]
+        .where(
+            Order.store_id == store.id,
+            Order.status == OrderStatus.Delivered,
+            Delivery.delivered_at >= prev_month_start,
+            Delivery.delivered_at < prev_month_end,
+        )
+    )).one()
     total_products = (await session.exec(
         select(func.count())  # type: ignore[arg-type]
         .select_from(StoreInventory)
@@ -149,16 +189,124 @@ async def get_seller_metrics(
         .where(StoreInventory.store_id == store.id, StoreInventory.is_available.is_(False))  # type: ignore[attr-defined]
     )).one()
 
+    # Lifetime status mix for the donut.
+    status_rows = (await session.exec(
+        select(Order.status, func.count())  # type: ignore[arg-type]
+        .select_from(Order)
+        .where(Order.store_id == store.id)
+        .group_by(Order.status)  # type: ignore[arg-type]
+    )).all()
+    counts = OrderStatusCounts()
+    for st, cnt in status_rows:
+        key = st.value if hasattr(st, "value") else str(st)
+        if hasattr(counts, key):
+            setattr(counts, key, int(cnt))
+
+    # Inventory grouped by service.
+    in_stock_expr = func.coalesce(
+        func.sum(
+            case(
+                (
+                    and_(
+                        StoreInventory.stock > 0,
+                        StoreInventory.is_available.is_(True),  # type: ignore[attr-defined]
+                    ),
+                    1,
+                ),
+                else_=0,
+            )
+        ),
+        0,
+    )
+    svc_rows = (await session.exec(
+        select(  # type: ignore[call-overload]
+            Service.id,
+            ServiceTranslation.name,
+            func.count(StoreInventory.id),  # type: ignore[arg-type]
+            in_stock_expr,
+        )
+        .select_from(StoreInventory)
+        .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+        .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
+        .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+        .join(Service, Service.id == Category.service_id)  # type: ignore[arg-type]
+        .join(
+            ServiceTranslation,
+            and_(
+                ServiceTranslation.service_id == Service.id,
+                ServiceTranslation.language_code == "en",
+            ),
+            isouter=True,
+        )
+        .where(StoreInventory.store_id == store.id)
+        .group_by(Service.id, ServiceTranslation.name)  # type: ignore[arg-type]
+    )).all()
+    inventory_by_service = [
+        InventoryServiceStat(
+            service_id=int(sid),
+            service_name=(name or f"Service {sid}"),
+            in_stock=int(in_stock),
+            total=int(total),
+        )
+        for sid, name, total, in_stock in svc_rows
+    ]
+
+    # Most-stocked subcategory (in-stock rows) for the inventory footer.
+    top_row = (await session.exec(
+        select(  # type: ignore[call-overload]
+            SubcategoryTranslation.name,
+            func.count(StoreInventory.id).label("c"),  # type: ignore[arg-type]
+        )
+        .select_from(StoreInventory)
+        .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+        .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
+        .join(
+            SubcategoryTranslation,
+            and_(
+                SubcategoryTranslation.subcategory_id == Subcategory.id,
+                SubcategoryTranslation.language_code == "en",
+            ),
+            isouter=True,
+        )
+        .where(
+            StoreInventory.store_id == store.id,
+            StoreInventory.stock > 0,
+            StoreInventory.is_available.is_(True),  # type: ignore[attr-defined]
+        )
+        .group_by(Subcategory.id, SubcategoryTranslation.name)  # type: ignore[arg-type]
+        .order_by(desc("c"))
+        .limit(1)
+    )).first()
+    top_subcategory = (
+        TopSubcategory(name=(top_row[0] or "—"), count=int(top_row[1]))
+        if top_row is not None
+        else None
+    )
+
+    revenue_this_month = float(revenue_this_month_raw or 0.0)
+    revenue_last_month = float(revenue_last_month_raw or 0.0)
+    revenue_trend_pct = (
+        round((revenue_this_month - revenue_last_month) / revenue_last_month * 100, 1)
+        if revenue_last_month
+        else 0.0
+    )
+
     return SellerMetricsRead(
         active_orders=int(active_orders),
         orders_today=int(orders_today),
         orders_this_month=int(orders_this_month),
-        revenue_this_month=float(revenue_this_month_raw or 0.0),
+        revenue_this_month=revenue_this_month,
+        revenue_last_month=revenue_last_month,
+        revenue_trend_pct=revenue_trend_pct,
         total_products=int(total_products),
         out_of_stock=int(out_of_stock),
         unavailable=int(unavailable),
         store_active=bool(store.is_active),
         pin_confirmed=bool(store.pin_confirmed),
+        store_name=store.name,
+        order_status_counts=counts,
+        inventory_by_service=inventory_by_service,
+        top_subcategory=top_subcategory,
     )
 
 

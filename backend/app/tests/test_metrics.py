@@ -190,6 +190,28 @@ async def test_seller_metrics(client: AsyncClient, session: AsyncSession) -> Non
         assert data["unavailable"] == 1
         assert data["store_active"] is True
         assert data["pin_confirmed"] is True
+        # --- new dashboard aggregation fields ---
+        assert data["store_name"] == "Metrics Store"
+        # Last-month delivered order total was 200.0.
+        assert data["revenue_last_month"] == 200.0
+        # (100 this month - 200 last month) / 200 * 100 = -50.0
+        assert data["revenue_trend_pct"] == -50.0
+        # Lifetime status mix: 2 delivered, 1 pending, rest 0.
+        assert data["order_status_counts"]["delivered"] == 2
+        assert data["order_status_counts"]["pending"] == 1
+        assert data["order_status_counts"]["packed"] == 0
+        assert data["order_status_counts"]["dispatched"] == 0
+        assert data["order_status_counts"]["cancelled"] == 0
+        # 3 services, one product each. in_stock: svc1=1 (stock20/avail),
+        # svc2=0 (stock0), svc3=0 (unavailable).
+        ibs = {s["service_name"]: s for s in data["inventory_by_service"]}
+        assert ibs["MetricProd"]["total"] == 1
+        assert ibs["MetricProd"]["in_stock"] == 1
+        assert ibs["MetricProd2"]["in_stock"] == 0
+        assert ibs["MetricProd3"]["in_stock"] == 0
+        # Only the svc1 product is in stock → top subcategory is its subcat.
+        assert data["top_subcategory"]["name"] == "MetricProd"
+        assert data["top_subcategory"]["count"] == 1
     finally:
         app.dependency_overrides.pop(get_current_seller, None)
         app.dependency_overrides.pop(get_current_user, None)
