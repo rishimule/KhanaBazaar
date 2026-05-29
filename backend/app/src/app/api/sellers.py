@@ -191,10 +191,10 @@ async def get_seller_metrics(
 
     # Lifetime status mix for the donut.
     status_rows = (await session.exec(
-        select(Order.status, func.count())  # type: ignore[arg-type]
+        select(Order.status, func.count())
         .select_from(Order)
         .where(Order.store_id == store.id)
-        .group_by(Order.status)  # type: ignore[arg-type]
+        .group_by(Order.status)
     )).all()
     counts = OrderStatusCounts()
     for st, cnt in status_rows:
@@ -208,7 +208,7 @@ async def get_seller_metrics(
             case(
                 (
                     and_(
-                        StoreInventory.stock > 0,
+                        StoreInventory.stock > 0,  # type: ignore[arg-type]
                         StoreInventory.is_available.is_(True),  # type: ignore[attr-defined]
                     ),
                     1,
@@ -219,7 +219,7 @@ async def get_seller_metrics(
         0,
     )
     svc_rows = (await session.exec(
-        select(  # type: ignore[call-overload]
+        select(
             Service.id,
             ServiceTranslation.name,
             func.count(StoreInventory.id),  # type: ignore[arg-type]
@@ -233,8 +233,8 @@ async def get_seller_metrics(
         .join(
             ServiceTranslation,
             and_(
-                ServiceTranslation.service_id == Service.id,
-                ServiceTranslation.language_code == "en",
+                ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+                ServiceTranslation.language_code == "en",  # type: ignore[arg-type]
             ),
             isouter=True,
         )
@@ -243,17 +243,17 @@ async def get_seller_metrics(
     )).all()
     inventory_by_service = [
         InventoryServiceStat(
-            service_id=int(sid),
+            service_id=int(sid or 0),
             service_name=(name or f"Service {sid}"),
-            in_stock=int(in_stock),
-            total=int(total),
+            in_stock=int(in_stock or 0),
+            total=int(total or 0),
         )
         for sid, name, total, in_stock in svc_rows
     ]
 
     # Most-stocked subcategory (in-stock rows) for the inventory footer.
     top_row = (await session.exec(
-        select(  # type: ignore[call-overload]
+        select(
             SubcategoryTranslation.name,
             func.count(StoreInventory.id).label("c"),  # type: ignore[arg-type]
         )
@@ -263,8 +263,8 @@ async def get_seller_metrics(
         .join(
             SubcategoryTranslation,
             and_(
-                SubcategoryTranslation.subcategory_id == Subcategory.id,
-                SubcategoryTranslation.language_code == "en",
+                SubcategoryTranslation.subcategory_id == Subcategory.id,  # type: ignore[arg-type]
+                SubcategoryTranslation.language_code == "en",  # type: ignore[arg-type]
             ),
             isouter=True,
         )
@@ -308,6 +308,60 @@ async def get_seller_metrics(
         inventory_by_service=inventory_by_service,
         top_subcategory=top_subcategory,
     )
+
+
+@router.get("/me/revenue-series", response_model=RevenueSeriesRead)
+async def get_revenue_series(
+    range_token: Literal["7d", "14d", "30d"] = Query(default="14d", alias="range"),
+    current_user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> RevenueSeriesRead:
+    """Daily gross-order-value series for the dashboard revenue chart.
+
+    GOV = SUM(Order.total) for orders PLACED that IST day. Days with no orders
+    are zero-filled so the line is continuous.
+    """
+    days = {"7d": 7, "14d": 14, "30d": 30}[range_token]
+
+    profile_res = await session.exec(
+        select(SellerProfile.id).where(SellerProfile.user_id == current_user.id)
+    )
+    profile_id = profile_res.first()
+    if profile_id is None:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+    store_res = await session.exec(
+        select(Store).where(Store.seller_profile_id == profile_id)
+    )
+    store = store_res.first()
+
+    ist = ZoneInfo("Asia/Kolkata")
+    today = datetime.now(ist).date()
+    start_date = today - timedelta(days=days - 1)
+
+    gov_by_date: dict[str, float] = {}
+    if store is not None:
+        start_utc = datetime.combine(start_date, time.min, tzinfo=ist).astimezone(timezone.utc)
+        day_col = func.date(func.timezone("Asia/Kolkata", Order.placed_at))
+        rows = (await session.exec(
+            select(day_col, func.coalesce(func.sum(Order.total), 0.0))
+            .select_from(Order)
+            .where(Order.store_id == store.id, Order.placed_at >= start_utc)
+            .group_by(day_col)
+        )).all()
+        for d, gov in rows:
+            gov_by_date[d.isoformat() if hasattr(d, "isoformat") else str(d)] = float(gov or 0.0)
+
+    points = [
+        RevenueSeriesPoint(
+            date=(start_date + timedelta(days=i)).isoformat(),
+            gov=gov_by_date.get((start_date + timedelta(days=i)).isoformat(), 0.0),
+        )
+        for i in range(days)
+    ]
+    govs = [p.gov for p in points]
+    avg_per_day = round(sum(govs) / days, 2) if days else 0.0
+    peak = max(govs) if govs else 0.0
+    return RevenueSeriesRead(points=points, avg_per_day=avg_per_day, peak=peak)
 
 
 @router.get("/me/status")

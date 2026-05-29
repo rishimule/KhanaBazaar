@@ -237,3 +237,39 @@ async def test_admin_metrics(client: AsyncClient, session: AsyncSession) -> None
     finally:
         app.dependency_overrides.pop(get_current_admin, None)
         app.dependency_overrides.pop(get_current_user, None)
+
+
+async def test_revenue_series_default_range(client: AsyncClient) -> None:
+    app.dependency_overrides[get_current_seller] = lambda: seller_user
+    app.dependency_overrides[get_current_user] = lambda: seller_user
+    try:
+        res = await client.get("/api/v1/sellers/me/revenue-series")
+        assert res.status_code == 200, res.text
+        data = res.json()
+        # Default range is 14d → 14 zero-filled daily points.
+        assert len(data["points"]) == 14
+        assert all("date" in p and "gov" in p for p in data["points"])
+        # Two orders placed today (100 + 50) → today's GOV is 150.
+        assert data["points"][-1]["gov"] == 150.0
+        assert data["peak"] == 150.0
+        # avg = 150 / 14 days.
+        assert data["avg_per_day"] == round(150.0 / 14, 2)
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+async def test_revenue_series_ranges(client: AsyncClient) -> None:
+    app.dependency_overrides[get_current_seller] = lambda: seller_user
+    app.dependency_overrides[get_current_user] = lambda: seller_user
+    try:
+        for token, n in (("7d", 7), ("14d", 14), ("30d", 30)):
+            res = await client.get(f"/api/v1/sellers/me/revenue-series?range={token}")
+            assert res.status_code == 200, res.text
+            assert len(res.json()["points"]) == n
+        # Invalid range token is rejected by query validation.
+        bad = await client.get("/api/v1/sellers/me/revenue-series?range=99d")
+        assert bad.status_code == 422
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+        app.dependency_overrides.pop(get_current_user, None)
