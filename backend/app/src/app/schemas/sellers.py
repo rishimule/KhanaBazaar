@@ -94,13 +94,50 @@ class SetServiceMinOrderValueBody(BaseModel):
     min_order_value: float = Field(ge=0, le=100000)
 
 
+class OrderStatusCounts(BaseModel):
+    delivered: int = 0
+    packed: int = 0
+    dispatched: int = 0
+    pending: int = 0
+    cancelled: int = 0
+
+
+class InventoryServiceStat(BaseModel):
+    service_id: int
+    service_name: str
+    in_stock: int
+    total: int
+
+
+class TopSubcategory(BaseModel):
+    name: str
+    count: int
+
+
 class SellerMetricsRead(BaseModel):
     active_orders: int
     orders_today: int
     orders_this_month: int
     revenue_this_month: float
+    revenue_last_month: float
+    revenue_trend_pct: float
     total_products: int
     out_of_stock: int
     unavailable: int
     store_active: bool
     pin_confirmed: bool
+    store_name: str
+    order_status_counts: OrderStatusCounts
+    inventory_by_service: list[InventoryServiceStat]
+    top_subcategory: TopSubcategory | None = None
+
+
+class RevenueSeriesPoint(BaseModel):
+    date: str  # "YYYY-MM-DD" (IST calendar day)
+    gov: float
+
+
+class RevenueSeriesRead(BaseModel):
+    points: list[RevenueSeriesPoint]
+    avg_per_day: float
+    peak: float
