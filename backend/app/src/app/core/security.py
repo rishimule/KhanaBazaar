@@ -170,3 +170,50 @@ def decode_seller_signup_token(token: str) -> tuple[str, str]:
             detail={"error": "invalid_signup_token"},
         )
     return str(payload["sub"]), str(payload["phone"])
+
+
+def create_seller_phone_change_token(user_id: int, phone: str) -> str:
+    """Mint a 10-minute JWT proving the seller verified control of `phone`."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(user_id),
+        "phone": phone,
+        "type": "seller_phone_change",
+        "iat": now,
+        "exp": now + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+
+
+def decode_seller_phone_change_token(token: str) -> tuple[int, str]:
+    """Validate a phone-change token. Returns (user_id, phone)."""
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail={"error": "phone_change_token_expired"},
+        ) from None
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "invalid_phone_change_token"},
+        ) from None
+    sub = payload.get("sub")
+    phone = payload.get("phone")
+    if (
+        payload.get("type") != "seller_phone_change"
+        or sub is None
+        or phone is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "invalid_phone_change_token"},
+        )
+    try:
+        return int(sub), str(phone)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "invalid_phone_change_token"},
+        ) from None

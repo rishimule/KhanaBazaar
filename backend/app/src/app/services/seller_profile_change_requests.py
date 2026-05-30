@@ -18,6 +18,8 @@ from fastapi import HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.otp import InvalidPhoneNumber, normalize_phone
+from app.core.security import decode_seller_phone_change_token
 from app.models.admin_audit import AdminActionTargetType
 from app.models.base import UserRole
 from app.models.profile import (
@@ -161,6 +163,51 @@ def _emit_event(
     )
 
 
+async def _require_phone_verification(
+    session: AsyncSession,
+    profile: SellerProfile,
+    group: SellerProfileChangeGroup,
+    proposed: dict[str, Any],
+    phone_change_token: Optional[str],
+) -> None:
+    """For an identity CR that changes the phone, require a valid
+    phone_change_token bound to (this seller, the new phone).
+
+    No-op for non-identity groups, or when the proposed phone equals the
+    seller's current phone (a name/business-only edit).
+    """
+    if group is not SellerProfileChangeGroup.Identity:
+        return
+    raw = proposed.get("phone")
+    if raw is None:
+        return  # schema validation will reject a missing phone
+    try:
+        new_phone = normalize_phone(str(raw))
+    except InvalidPhoneNumber:
+        return  # schema validation will surface the format error
+    if new_phone == profile.phone:
+        return
+    if not phone_change_token:
+        raise HTTPException(
+            status_code=422, detail="phone_verification_required"
+        )
+    uid, tok_phone = decode_seller_phone_change_token(phone_change_token)
+    if uid != profile.user_id or normalize_phone(tok_phone) != new_phone:
+        raise HTTPException(
+            status_code=422, detail="phone_verification_mismatch"
+        )
+    clash = (
+        await session.exec(
+            select(SellerProfile).where(
+                SellerProfile.phone == new_phone,
+                SellerProfile.id != profile.id,
+            )
+        )
+    ).first()
+    if clash is not None:
+        raise HTTPException(status_code=409, detail="phone_taken")
+
+
 async def create_change_request(
     *,
     session: AsyncSession,
@@ -169,6 +216,7 @@ async def create_change_request(
     proposed: dict[str, Any],
     note: Optional[str],
     actor_user_id: int,
+    phone_change_token: Optional[str] = None,
 ) -> CRMutationResult:
     """Create a new open CR for `group`. Caller commits."""
     if seller_profile.verification_status is not VerificationStatus.Approved:
@@ -176,6 +224,9 @@ async def create_change_request(
     assert seller_profile.id is not None
 
     canonical = validate_group_payload(group, proposed)
+    await _require_phone_verification(
+        session, seller_profile, group, canonical, phone_change_token
+    )
 
     existing = await _open_cr_for_group(session, seller_profile.id, group)
     if existing is not None:
@@ -244,13 +295,18 @@ async def resubmit(
     *,
     session: AsyncSession,
     cr: SellerProfileChangeRequest,
+    seller_profile: SellerProfile,
     proposed: dict[str, Any],
     note: Optional[str],
     actor_user_id: int,
+    phone_change_token: Optional[str] = None,
 ) -> CRMutationResult:
     if cr.status is not SellerProfileChangeStatus.ChangesRequested:
         raise HTTPException(status_code=409, detail="cr_not_resubmittable")
     canonical = validate_group_payload(cr.group, proposed)
+    await _require_phone_verification(
+        session, seller_profile, cr.group, canonical, phone_change_token
+    )
     cr.proposed_json = canonical
     cr.submission_count += 1
     cr.status = SellerProfileChangeStatus.Submitted
@@ -375,12 +431,27 @@ async def reject(
 async def _apply_identity(
     session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
 ) -> None:
+    new_phone = str(payload["phone"])
+    # `SellerProfile.phone` is uniquely indexed (`ix_sellerprofile_phone`).
+    # Pre-check so a collision with another seller surfaces as a clean 409
+    # instead of bubbling the DB unique-violation up as a 500 at commit.
+    if new_phone != profile.phone:
+        clash = (
+            await session.exec(
+                select(SellerProfile).where(
+                    SellerProfile.phone == new_phone,
+                    SellerProfile.id != profile.id,
+                )
+            )
+        ).first()
+        if clash is not None:
+            raise HTTPException(status_code=409, detail="phone_taken")
     full_name = str(payload["full_name"])
     first, last = split_full_name(full_name)
     profile.first_name = first
     profile.last_name = last
     profile.business_name = str(payload["business_name"])
-    profile.phone = str(payload["phone"])
+    profile.phone = new_phone
     session.add(profile)
 
 

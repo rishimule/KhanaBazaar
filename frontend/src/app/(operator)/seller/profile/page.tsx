@@ -614,12 +614,13 @@ export default function SellerProfilePage() {
               currentValues={current}
               open
               onClose={() => setEditingGroup(null)}
-              onSubmit={async (proposed, note) => {
+              onSubmit={async (proposed, note, phoneChangeToken) => {
                 if (!token) return;
                 await createMyChangeRequest(token, {
                   group: editingGroup,
                   proposed,
                   note,
+                  phone_change_token: phoneChangeToken,
                 });
                 await refreshOpenCRs();
               }}

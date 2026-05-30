@@ -78,6 +78,7 @@ export async function createMyChangeRequest(
     group: SellerProfileChangeGroup;
     proposed: Record<string, unknown>;
     note?: string;
+    phone_change_token?: string;
   },
 ): Promise<SellerProfileChangeRequest> {
   return post<SellerProfileChangeRequest>(
@@ -90,7 +91,11 @@ export async function createMyChangeRequest(
 export async function resubmitMyChangeRequest(
   token: string,
   crId: string,
-  body: { proposed: Record<string, unknown>; note?: string },
+  body: {
+    proposed: Record<string, unknown>;
+    note?: string;
+    phone_change_token?: string;
+  },
 ): Promise<SellerProfileChangeRequest> {
   return patch<SellerProfileChangeRequest>(
     `/api/v1/sellers/me/change-requests/${crId}/resubmit`,

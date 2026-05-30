@@ -40,6 +40,19 @@ class SellerPhoneOtpVerifyBody(BaseModel):
     code: str
 
 
+class SellerSelfPhoneOtpRequestBody(BaseModel):
+    """Logged-in seller requests an OTP to a NEW phone they want to switch to."""
+
+    phone: str
+
+
+class SellerSelfPhoneOtpVerifyBody(BaseModel):
+    """Logged-in seller submits the OTP sent to the new phone."""
+
+    phone: str
+    code: str
+
+
 class SellerProfileUpdateBody(BaseModel):
     full_name: Optional[str] = Field(default=None, max_length=120)
     business_name: str = Field(min_length=1, max_length=120)

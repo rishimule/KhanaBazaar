@@ -6,6 +6,13 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import { get } from "@/lib/api";
+import { useAuth } from "@/lib/AuthContext";
+import {
+  normalizeIndianPhone,
+  phoneOtpErrorMessage,
+  requestSellerPhoneOtp,
+  verifySellerPhoneOtp,
+} from "@/lib/sellerPhone";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import { GROUP_LABEL } from "@/lib/changeRequests";
 import type {
@@ -65,8 +72,20 @@ interface Props {
   currentValues: Record<string, unknown>;
   open: boolean;
   onClose: () => void;
-  onSubmit: (proposed: Record<string, unknown>, note?: string) => Promise<void>;
+  onSubmit: (
+    proposed: Record<string, unknown>,
+    note?: string,
+    phoneChangeToken?: string,
+  ) => Promise<void>;
   submitLabel?: string;
+  /**
+   * The seller's ACTUAL current phone, used as the verification baseline for
+   * identity edits. Defaults to `currentValues.phone`. The resubmit flow seeds
+   * `currentValues` from the CR's proposed payload (not the live profile), so
+   * it must pass the real current phone here (`cr.baseline_json.phone`) — else
+   * a phone change can skip the verify step and dead-end at a 422.
+   */
+  currentPhone?: string;
 }
 
 /**
@@ -82,6 +101,7 @@ export default function ProfileChangeRequestModal({
   onClose,
   onSubmit,
   submitLabel,
+  currentPhone,
 }: Props) {
   const tCR = useTranslations("Seller.changeRequests");
   const resolvedSubmitLabel = submitLabel ?? tCR("submitForReview");
@@ -158,6 +178,71 @@ export default function ProfileChangeRequestModal({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // --- Identity phone-change verification (OTP on the NEW number) ---
+  // Compare against the canonical form so cosmetic formatting (spaces/hyphens,
+  // missing +91) doesn't flip "changed"/"verified" out from under the backend,
+  // which binds the token to normalize_phone()'s canonical value.
+  const { token: authToken } = useAuth();
+  const baselinePhone = normalizeIndianPhone(
+    String(currentPhone ?? currentValues["phone"] ?? "").trim(),
+  );
+  const phoneInput = (values["phone"] ?? "").trim();
+  const phoneInputNorm = normalizeIndianPhone(phoneInput);
+  const phoneChanged =
+    group === "identity" && phoneInputNorm !== baselinePhone;
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [phoneChangeToken, setPhoneChangeToken] = useState<string | undefined>();
+  const [verifiedPhone, setVerifiedPhone] = useState<string | undefined>();
+  const [otpBusy, setOtpBusy] = useState(false);
+
+  // Editing the phone after verifying invalidates the token.
+  useEffect(() => {
+    if (verifiedPhone !== undefined && phoneInputNorm !== verifiedPhone) {
+      setPhoneChangeToken(undefined);
+      setVerifiedPhone(undefined);
+      setOtpSent(false);
+      setOtpCode("");
+    }
+  }, [phoneInputNorm, verifiedPhone]);
+
+  const phoneVerified =
+    !phoneChanged ||
+    (!!phoneChangeToken && verifiedPhone === phoneInputNorm);
+
+  async function handleSendOtp() {
+    if (!authToken) return;
+    setError(null);
+    setOtpBusy(true);
+    try {
+      await requestSellerPhoneOtp(authToken, phoneInputNorm);
+      setOtpSent(true);
+    } catch (e) {
+      setError(phoneOtpErrorMessage(e));
+    } finally {
+      setOtpBusy(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    if (!authToken) return;
+    setError(null);
+    setOtpBusy(true);
+    try {
+      const tok = await verifySellerPhoneOtp(
+        authToken,
+        phoneInputNorm,
+        otpCode.trim(),
+      );
+      setPhoneChangeToken(tok);
+      setVerifiedPhone(phoneInputNorm);
+    } catch (e) {
+      setError(phoneOtpErrorMessage(e));
+    } finally {
+      setOtpBusy(false);
+    }
+  }
+
   if (!open) return null;
 
   async function handleSubmit() {
@@ -200,7 +285,7 @@ export default function ProfileChangeRequestModal({
       }
     }
     try {
-      await onSubmit(payload, note || undefined);
+      await onSubmit(payload, note || undefined, phoneChangeToken);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Submission failed");
@@ -325,7 +410,7 @@ export default function ProfileChangeRequestModal({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={busy}
+            disabled={busy || !phoneVerified}
             onClick={handleSubmit}
           >
             {busy ? "…" : resolvedSubmitLabel}
@@ -358,6 +443,52 @@ export default function ProfileChangeRequestModal({
               />
             </label>
           ))}
+        {phoneChanged && !phoneVerified && (
+          <div className={styles.field}>
+            <span>Verify new phone number</span>
+            {!otpSent ? (
+              <button
+                type="button"
+                className="btn btn-outline"
+                disabled={otpBusy || phoneInput.length === 0}
+                onClick={handleSendOtp}
+              >
+                {otpBusy ? "Sending…" : "Send code"}
+              </button>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Enter code"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                />
+                <div className={styles.otpActions}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={otpBusy || otpCode.trim().length === 0}
+                    onClick={handleVerifyOtp}
+                  >
+                    {otpBusy ? "Verifying…" : "Verify"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={otpBusy}
+                    onClick={handleSendOtp}
+                  >
+                    Resend
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {phoneChanged && phoneVerified && (
+          <p className={styles.subtitle}>✓ New phone verified.</p>
+        )}
         <label className={styles.field}>
           <span>{tCR("noteHelp")}</span>
           <textarea

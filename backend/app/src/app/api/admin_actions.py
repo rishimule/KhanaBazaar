@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -609,7 +610,15 @@ async def admin_approve_cr(
         applied=body.applied,
         note=body.note,
     )
-    await session.commit()
+    # The in-service pre-check catches the common duplicate-phone case, but a
+    # concurrent approval targeting the same number can still slip a unique
+    # violation through to commit (TOCTOU). Convert it to a clean 409 instead
+    # of leaking a 500.
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="phone_taken") from None
     await session.refresh(res.cr)
     for cb in res.emails:
         cb()
