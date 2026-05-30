@@ -198,6 +198,12 @@ async def test_place_order_for_store_creates_single_order_upi(
             },
         )
     assert resp.status_code == 201, resp.text
+    # The order is placed in a separate request session. This test's session has
+    # `expire_on_commit=False`, so seeded rows it already loaded (e.g. inv_a) stay
+    # cached at their pre-request values and a plain SELECT returns the stale
+    # identity-mapped instance. Expire so the DB-state assertions below re-read
+    # the request session's committed changes (the inventory decrement).
+    session.expire_all()
     body = resp.json()
     assert body["store_id"] == seed["store_a"]
     assert body["service_id"] == seed["grocery_service_id"]
