@@ -256,10 +256,16 @@ export default function SellerProfilePage() {
       // to min / eta on the same row are persisted together.
       const svc = profileRef.current?.services.find((s) => s.id === serviceId);
       if (svc) {
+        const etaMin = svc.delivery_eta_min_minutes ?? 30;
+        const etaMax = svc.delivery_eta_max_minutes ?? 60;
+        if (etaMin > etaMax) {
+          setSaveError("Maximum delivery time must be at least the minimum.");
+          return;
+        }
         persistService(serviceId, {
           min_order_value: svc.min_order_value ?? 0,
-          delivery_eta_min_minutes: svc.delivery_eta_min_minutes ?? 30,
-          delivery_eta_max_minutes: svc.delivery_eta_max_minutes ?? 60,
+          delivery_eta_min_minutes: etaMin,
+          delivery_eta_max_minutes: etaMax,
         });
       }
     }, 400);

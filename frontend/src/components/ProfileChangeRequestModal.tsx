@@ -258,6 +258,19 @@ export default function ProfileChangeRequestModal({
 
   async function handleSubmit() {
     setError(null);
+    if (group === "services") {
+      const badEta = services
+        .filter((s) => s.selected)
+        .some(
+          (s) =>
+            Number(s.delivery_eta_min_minutes || 30) >
+            Number(s.delivery_eta_max_minutes || 60),
+        );
+      if (badEta) {
+        setError("Maximum delivery time must be at least the minimum.");
+        return;
+      }
+    }
     setBusy(true);
     let payload: Record<string, unknown>;
     if (group === "services") {

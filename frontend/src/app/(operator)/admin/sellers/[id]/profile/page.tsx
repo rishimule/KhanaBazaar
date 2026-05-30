@@ -107,15 +107,18 @@ export default function SellerProfileTab({
     minDebounceRef.current[serviceId] = window.setTimeout(() => {
       const svc = hubRef.current?.services.find((s) => s.id === serviceId);
       if (!svc) return;
+      const etaMin = svc.delivery_eta_min_minutes ?? 30;
+      const etaMax = svc.delivery_eta_max_minutes ?? 60;
+      if (etaMin > etaMax) {
+        setMinError("Maximum delivery time must be at least the minimum.");
+        return;
+      }
       adminSetServiceMinOrderValue(
         Number(id),
         serviceId,
         svc.min_order_value ?? 0,
         token,
-        {
-          min: svc.delivery_eta_min_minutes ?? 30,
-          max: svc.delivery_eta_max_minutes ?? 60,
-        },
+        { min: etaMin, max: etaMax },
       )
         .then(() => setMinError(null))
         .catch((e) => {

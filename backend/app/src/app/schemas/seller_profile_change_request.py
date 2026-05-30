@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.otp import InvalidPhoneNumber, normalize_phone
 from app.models.seller_profile_change_request import (
@@ -92,15 +92,14 @@ class ServiceRowPayload(BaseModel):
     delivery_eta_min_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
     delivery_eta_max_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
 
-    @field_validator("delivery_eta_max_minutes")
-    @classmethod
-    def _window(cls, v: Optional[int], info: ValidationInfo) -> Optional[int]:
-        low = info.data.get("delivery_eta_min_minutes")
-        if (low is None) != (v is None):
+    @model_validator(mode="after")
+    def _window(self) -> "ServiceRowPayload":
+        low, high = self.delivery_eta_min_minutes, self.delivery_eta_max_minutes
+        if (low is None) != (high is None):
             raise ValueError("delivery_eta_min_minutes and delivery_eta_max_minutes must be set together")
-        if low is not None and v is not None and v < low:
+        if low is not None and high is not None and low > high:
             raise ValueError("delivery_eta_max_minutes must be >= delivery_eta_min_minutes")
-        return v
+        return self
 
 
 class ServicesPayload(BaseModel):

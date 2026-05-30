@@ -4,6 +4,7 @@
 
 import { useState, type ReactNode } from "react";
 import type { SellerProfileChangeGroup } from "@/types";
+import { formatDeliveryEta } from "@/lib/deliveryEta";
 import styles from "./ChangeRequestDiffTable.module.css";
 
 interface Props {
@@ -110,7 +111,7 @@ function renderServiceChips(
               min ₹{Math.round(r.min_order_value)}
               {r.delivery_eta_min_minutes != null &&
                 r.delivery_eta_max_minutes != null &&
-                ` · ETA ${r.delivery_eta_min_minutes}–${r.delivery_eta_max_minutes} min`}
+                ` · ETA ${formatDeliveryEta(r.delivery_eta_min_minutes, r.delivery_eta_max_minutes)}`}
             </span>
           </li>
         );
