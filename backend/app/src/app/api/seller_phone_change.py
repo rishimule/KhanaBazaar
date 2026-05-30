@@ -131,5 +131,6 @@ async def verify_phone_change_otp(
             status_code=400, detail={"error": "invalid_code"}
         ) from None
     await consume_otp_key(phone, redis, namespace=_NAMESPACE)
+    assert seller.id is not None
     token = create_seller_phone_change_token(seller.id, phone)
     return {"phone_change_token": token}
