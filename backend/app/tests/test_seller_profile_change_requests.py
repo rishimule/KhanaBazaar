@@ -337,6 +337,73 @@ async def test_approve_invalid_applied_rejects(approved_seller, session, admin_u
 
 
 @pytest.mark.asyncio
+async def test_approve_identity_duplicate_phone_returns_409(
+    approved_seller, session, admin_user
+):
+    """Approving an identity CR whose phone already belongs to another seller
+    must surface a clean 409 (phone_taken), not bubble the DB unique-violation
+    up as a 500.
+    """
+    from fastapi import HTTPException
+
+    from app.models.address import Address
+    from app.models.base import UserRole
+    from app.models.profile import SellerProfile, VerificationStatus
+    from app.services.seller_profile_change_requests import (
+        approve,
+        create_change_request,
+    )
+    from tests._helpers import make_address as _make_address_dict
+
+    # A second, already-approved seller that owns the target phone.
+    taken_phone = "+919811119999"
+    other_addr = Address(**_make_address_dict())
+    session.add(other_addr)
+    await session.flush()
+    other_user = User(email="other-dup@x.test", role=UserRole.Seller)
+    session.add(other_user)
+    await session.flush()
+    session.add(
+        SellerProfile(
+            user_id=other_user.id,
+            first_name="Other",
+            last_name="S",
+            phone=taken_phone,
+            business_name="Other Stores",
+            verification_status=VerificationStatus.Approved,
+            business_address_id=other_addr.id,
+        )
+    )
+    await session.commit()
+
+    profile = approved_seller["profile"]
+    create = await create_change_request(
+        session=session,
+        seller_profile=profile,
+        group=SellerProfileChangeGroup.Identity,
+        proposed={
+            "full_name": "Ravi Sharma",
+            "business_name": "Sharma General Store",
+            "phone": taken_phone,
+        },
+        note=None,
+        actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+
+    with pytest.raises(HTTPException) as excinfo:
+        await approve(
+            session=session,
+            cr=create.cr,
+            admin_user_id=admin_user.id,
+            applied=None,
+            note=None,
+        )
+    assert excinfo.value.status_code == 409
+    assert excinfo.value.detail == "phone_taken"
+
+
+@pytest.mark.asyncio
 async def test_supersede_open_cr_marks_withdrawn_system(
     approved_seller, session, admin_user
 ):

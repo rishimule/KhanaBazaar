@@ -375,12 +375,27 @@ async def reject(
 async def _apply_identity(
     session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
 ) -> None:
+    new_phone = str(payload["phone"])
+    # `SellerProfile.phone` is uniquely indexed (`ix_sellerprofile_phone`).
+    # Pre-check so a collision with another seller surfaces as a clean 409
+    # instead of bubbling the DB unique-violation up as a 500 at commit.
+    if new_phone != profile.phone:
+        clash = (
+            await session.exec(
+                select(SellerProfile).where(
+                    SellerProfile.phone == new_phone,
+                    SellerProfile.id != profile.id,
+                )
+            )
+        ).first()
+        if clash is not None:
+            raise HTTPException(status_code=409, detail="phone_taken")
     full_name = str(payload["full_name"])
     first, last = split_full_name(full_name)
     profile.first_name = first
     profile.last_name = last
     profile.business_name = str(payload["business_name"])
-    profile.phone = str(payload["phone"])
+    profile.phone = new_phone
     session.add(profile)
 
 
