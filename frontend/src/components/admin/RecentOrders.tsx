@@ -49,6 +49,7 @@ function shortTime(iso: string): string {
 
 export default function RecentOrders() {
   const t = useTranslations("Admin.dashboard");
+  const tc = useTranslations("Admin.common");
   const { token } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("all");
@@ -121,7 +122,7 @@ export default function RecentOrders() {
       {error ? (
         <div className={styles.empty}>{t("ordersError")}</div>
       ) : loading ? (
-        <div className={styles.empty}>{t("ordersEmpty")}</div>
+        <div className={styles.empty}>{tc("loading")}</div>
       ) : orders.length === 0 ? (
         <div className={styles.empty}>{t("ordersEmpty")}</div>
       ) : (

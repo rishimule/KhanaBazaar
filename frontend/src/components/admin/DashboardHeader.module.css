@@ -6,6 +6,10 @@
   flex-wrap: wrap;
   margin-bottom: 1.25rem;
 }
+.left {
+  display: flex;
+  flex-direction: column;
+}
 .greeting {
   font-size: 1.6rem;
   font-weight: 700;
@@ -68,17 +72,4 @@
   border: none;
   background: var(--color-primary);
   color: var(--color-neutral-0);
-}
-.queueBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.4rem;
-  height: 1.4rem;
-  padding: 0 0.35rem;
-  margin-left: 0.45rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.25);
-  font-size: 0.78rem;
-  font-weight: 700;
 }
