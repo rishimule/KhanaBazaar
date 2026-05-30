@@ -23,6 +23,8 @@ class CartRead(BaseModel):
     items: List[CartItemRead]
     subtotal: float
     min_order_value: float = 0.0
+    delivery_eta_min_minutes: int = 30
+    delivery_eta_max_minutes: int = 60
 
 
 class CartListResponse(BaseModel):
