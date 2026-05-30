@@ -103,6 +103,8 @@ async def _validate_stores_active(
         store = stores_by_id.get(store_id)
         if store is None or not store.is_active:
             raise HTTPException(status_code=409, detail={"detail": "store_unavailable", "store_id": store_id})
+        if store.is_paused:
+            raise HTTPException(status_code=409, detail={"detail": "store_paused", "store_id": store_id})
 
 
 async def _validate_service_active_for_store(
@@ -115,7 +117,7 @@ async def _validate_service_active_for_store(
 
     row = (
         await session.exec(
-            select(SellerProfileService.id)
+            select(SellerProfileService.is_paused)
             .join(
                 SellerProfile,
                 SellerProfile.id == SellerProfileService.seller_profile_id,  # type: ignore[arg-type]
@@ -138,6 +140,18 @@ async def _validate_service_active_for_store(
             status_code=409,
             detail={
                 "detail": "service_unavailable",
+                "store_id": store_id,
+                "service_id": service_id,
+            },
+        )
+    # `row` is now the SellerProfileService.is_paused scalar. A missing row
+    # returns None (handled above); an unpaused row returns False and falls
+    # through; only a paused row (True) blocks checkout.
+    if row is True:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "detail": "service_paused",
                 "store_id": store_id,
                 "service_id": service_id,
             },
