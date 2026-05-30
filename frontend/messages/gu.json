@@ -142,6 +142,7 @@
     "deliveryAddress": "ડિલિવરી સરનામું",
     "subtotal": "ઉપ-કુલ",
     "deliveryFee": "ડિલિવરી ફી",
+    "estimatedDelivery": "Estimated delivery",
     "tax": "ટેક્સ",
     "total": "કુલ",
     "errPlaceOrder": "ઓર્ડર આપી શકાયો નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
@@ -503,6 +504,7 @@
     },
     "orderDetail": {
       "title": "ઓર્ડર #{id}",
+      "estimatedDelivery": "Estimated delivery",
       "items": "વસ્તુઓ",
       "subtotal": "ઉપ-કુલ",
       "delivery": "ડિલિવરી",

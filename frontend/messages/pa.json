@@ -142,6 +142,7 @@
     "deliveryAddress": "ਡਿਲਿਵਰੀ ਪਤਾ",
     "subtotal": "ਉਪ-ਜੋੜ",
     "deliveryFee": "ਡਿਲਿਵਰੀ ਫੀਸ",
+    "estimatedDelivery": "Estimated delivery",
     "tax": "ਟੈਕਸ",
     "total": "ਕੁੱਲ",
     "errPlaceOrder": "ਆਰਡਰ ਨਹੀਂ ਦਿੱਤਾ ਜਾ ਸਕਿਆ. ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ.",
@@ -503,6 +504,7 @@
     },
     "orderDetail": {
       "title": "ਆਰਡਰ #{id}",
+      "estimatedDelivery": "Estimated delivery",
       "items": "ਵਸਤੂਆਂ",
       "subtotal": "ਉਪ-ਜੋੜ",
       "delivery": "ਡਿਲਿਵਰੀ",

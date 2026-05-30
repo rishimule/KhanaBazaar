@@ -5,6 +5,7 @@
 import { use, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getOrder } from "@/lib/orders";
+import { formatDeliveryEta } from "@/lib/deliveryEta";
 import { useAuth } from "@/lib/AuthContext";
 import { apiErrorKey } from "@/lib/errors";
 import OrderTimeline from "@/components/orders/OrderTimeline";
@@ -52,6 +53,12 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       <p className={styles.subtitle}>
         {order.store_name} <span className={styles.serviceChip}>· {order.service_name}</span>
       </p>
+      {order.delivery_eta_min_minutes != null && order.delivery_eta_max_minutes != null && (
+        <p className={styles.subtitle}>
+          {t("estimatedDelivery")}:{" "}
+          {formatDeliveryEta(order.delivery_eta_min_minutes, order.delivery_eta_max_minutes)}
+        </p>
+      )}
 
       <section className={styles.section}>
         <OrderTimeline status={order.status} />

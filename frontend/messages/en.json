@@ -142,6 +142,7 @@
     "deliveryAddress": "Delivery address",
     "subtotal": "Subtotal",
     "deliveryFee": "Delivery fee",
+    "estimatedDelivery": "Estimated delivery",
     "tax": "Tax",
     "total": "Total",
     "errPlaceOrder": "Could not place order. Please try again.",
@@ -503,6 +504,7 @@
     },
     "orderDetail": {
       "title": "Order #{id}",
+      "estimatedDelivery": "Estimated delivery",
       "items": "Items",
       "subtotal": "Subtotal",
       "delivery": "Delivery",

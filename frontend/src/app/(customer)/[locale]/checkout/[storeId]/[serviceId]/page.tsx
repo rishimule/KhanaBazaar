@@ -11,6 +11,7 @@ import { useCart } from "@/lib/CartContext";
 import { apiErrorKey } from "@/lib/errors";
 import { get } from "@/lib/api";
 import { placeOrder } from "@/lib/orders";
+import { formatDeliveryEta } from "@/lib/deliveryEta";
 import AddressPicker, { type PickerState } from "@/components/orders/AddressPicker";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import PaymentMethodPicker from "@/components/orders/PaymentMethodPicker";
@@ -118,6 +119,10 @@ export default function CheckoutPage() {
   const total = subtotal + deliveryFee + tax;
   const minOrderValue = cart.min_order_value ?? 0;
   const shortfall = Math.max(0, minOrderValue - subtotal);
+  const etaLabel =
+    cart.delivery_eta_min_minutes != null && cart.delivery_eta_max_minutes != null
+      ? formatDeliveryEta(cart.delivery_eta_min_minutes, cart.delivery_eta_max_minutes)
+      : null;
 
   const onPlaceOrder = async () => {
     if (!token || addressId === null) return;
@@ -252,6 +257,12 @@ export default function CheckoutPage() {
             <span>{t("tax")}</span>
             <span>₹{tax}</span>
           </div>
+          {etaLabel && (
+            <div className={styles.summaryRow}>
+              <span>{t("estimatedDelivery")}</span>
+              <span>{etaLabel}</span>
+            </div>
+          )}
           <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
             <span>{t("total")}</span>
             <span>₹{total}</span>
