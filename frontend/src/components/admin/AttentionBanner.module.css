@@ -1,0 +1,42 @@
+.wrap {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  text-decoration: none;
+  color: inherit;
+}
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  background: #ffedd5;
+  font-size: 1.05rem;
+}
+.text {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+.arrow {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+}
+@media (max-width: 768px) {
+  .wrap {
+    grid-template-columns: 1fr;
+  }
+}
