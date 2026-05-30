@@ -250,6 +250,9 @@ export default function SellerRequestDetailPage() {
         <ProfileChangeRequestModal
           group={cr.group}
           currentValues={cr.proposed_json}
+          currentPhone={String(
+            (cr.baseline_json as Record<string, unknown>)?.["phone"] ?? "",
+          )}
           open
           onClose={() => setEditing(false)}
           submitLabel={tCR("editAndResubmit")}
