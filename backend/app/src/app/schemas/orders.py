@@ -47,6 +47,8 @@ class OrderRead(BaseModel):
     store_name: str
     service_id: int
     service_name: str
+    delivery_eta_min_minutes: int = 30
+    delivery_eta_max_minutes: int = 60
     customer_name: Optional[str] = None
     status: OrderStatus
     subtotal: float
