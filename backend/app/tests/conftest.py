@@ -273,6 +273,7 @@ def _stub_search_celery_delays() -> Generator[None, None, None]:
     targets = [
         "app.search.tasks.reindex_master_product.delay",
         "app.search.tasks.reindex_store.delay",
+        "app.search.tasks.reindex_store_by_seller_profile.delay",
         "app.search.tasks.reindex_products_for_store.delay",
         "app.search.tasks.reindex_products_by_subcategory.delay",
         "app.search.tasks.reindex_products_by_category.delay",

@@ -204,6 +204,29 @@ def reindex_products_for_store(store_id: int) -> None:
     _run_async(_do_reindex_products_for_store(store_id))
 
 
+async def _do_reindex_store_by_seller_profile(seller_profile_id: int) -> None:
+    """Resolve the seller's store and reindex its store doc + products. Used when
+    a SellerProfileService row changes (e.g. per-service pause) — the flush hook
+    only knows the seller_profile_id, not the store_id."""
+    from app.models.store import Store
+
+    async with async_session_factory() as session:
+        store_id = (
+            await session.execute(
+                select(Store.id).where(Store.seller_profile_id == seller_profile_id)
+            )
+        ).scalar_one_or_none()
+    if store_id is None:
+        return
+    await _do_reindex_store(store_id)
+    await _do_reindex_products_for_store(store_id)
+
+
+@celery_app.task(name="search.reindex_store_by_seller_profile")
+def reindex_store_by_seller_profile(seller_profile_id: int) -> None:
+    _run_async(_do_reindex_store_by_seller_profile(seller_profile_id))
+
+
 async def _do_reindex_products_by_category(category_id: int) -> list[int]:
     from app.models.catalog import Subcategory
 

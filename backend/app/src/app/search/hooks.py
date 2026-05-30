@@ -26,6 +26,7 @@ from app.models.catalog import (
     MasterProductTranslation,
     SubcategoryTranslation,
 )
+from app.models.profile import SellerProfileService
 from app.models.store import Store, StoreInventory
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ def _pending(session: SyncSession) -> dict[str, set[int]]:
             "products_for_store": set(),
             "subcategory": set(),
             "category": set(),
+            "seller_service_profile": set(),
         }
         setattr(session, _PENDING_ATTR, bag)
     return bag
@@ -73,6 +75,8 @@ def _after_flush(session: SyncSession, flush_context: Any) -> None:
             bag["subcategory"].add(obj.subcategory_id)
         elif isinstance(obj, CategoryTranslation):
             bag["category"].add(obj.category_id)
+        elif isinstance(obj, SellerProfileService):
+            bag["seller_service_profile"].add(obj.seller_profile_id)
 
 
 def _after_commit(session: SyncSession) -> None:
@@ -88,6 +92,7 @@ def _after_commit(session: SyncSession) -> None:
         reindex_products_by_subcategory,
         reindex_products_for_store,
         reindex_store,
+        reindex_store_by_seller_profile,
     )
     for pid in bag["product"]:
         reindex_master_product.delay(pid)
@@ -99,6 +104,8 @@ def _after_commit(session: SyncSession) -> None:
         reindex_products_by_subcategory.delay(sid)
     for cid in bag["category"]:
         reindex_products_by_category.delay(cid)
+    for spid in bag["seller_service_profile"]:
+        reindex_store_by_seller_profile.delay(spid)
     _drain_pending(session)
 
 
