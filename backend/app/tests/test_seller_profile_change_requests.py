@@ -337,6 +337,26 @@ async def test_approve_invalid_applied_rejects(approved_seller, session, admin_u
 
 
 @pytest.mark.asyncio
+async def test_identity_payload_normalizes_phone(approved_seller, session):
+    from app.models.seller_profile_change_request import (
+        SellerProfileChangeGroup,
+    )
+    from app.schemas.seller_profile_change_request import (
+        validate_group_payload,
+    )
+
+    canonical = validate_group_payload(
+        SellerProfileChangeGroup.Identity,
+        {
+            "full_name": "Ravi Sharma",
+            "business_name": "X",
+            "phone": "+91 98111-19999",
+        },
+    )
+    assert canonical["phone"] == "+919811119999"
+
+
+@pytest.mark.asyncio
 async def test_approve_identity_duplicate_phone_returns_409(
     approved_seller, session, admin_user
 ):

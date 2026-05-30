@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.otp import InvalidPhoneNumber, normalize_phone
 from app.models.seller_profile_change_request import (
     SellerProfileChangeEventKind,
     SellerProfileChangeGroup,
@@ -24,7 +25,6 @@ from app.models.seller_profile_change_request import (
 )
 from app.schemas.address import AddressPayload
 
-_PHONE_RE = re.compile(r"^\+?[0-9]{7,15}$")
 _GST_RE = re.compile(r"^[0-9A-Z]{15}$")
 _FSSAI_RE = re.compile(r"^[0-9]{14}$")
 _IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
@@ -47,9 +47,10 @@ class IdentityPayload(BaseModel):
     @field_validator("phone")
     @classmethod
     def _phone(cls, v: str) -> str:
-        if not _PHONE_RE.match(v):
-            raise ValueError("phone format invalid")
-        return v
+        try:
+            return normalize_phone(v)
+        except InvalidPhoneNumber:
+            raise ValueError("phone format invalid") from None
 
 
 class LegalPayload(BaseModel):
