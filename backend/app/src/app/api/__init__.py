@@ -16,6 +16,7 @@ from app.api import (
     orders,
     search,
     seller_change_requests,
+    seller_phone_change,
     sellers,
     stores,
     tasks,
@@ -32,6 +33,11 @@ api_router.include_router(
     seller_change_requests.router,
     prefix="/sellers",
     tags=["sellers", "change-requests"],
+)
+api_router.include_router(
+    seller_phone_change.router,
+    prefix="/sellers",
+    tags=["sellers"],
 )
 api_router.include_router(customers.router, prefix="/customers", tags=["customers"])
 api_router.include_router(carts.router, prefix="/carts", tags=["carts"])
