@@ -234,6 +234,18 @@ async def test_admin_metrics(client: AsyncClient, session: AsyncSession) -> None
         assert data["active_master_products"] >= 3
         assert data["active_categories"] >= 3
         assert data["pending_applications"] >= 0
+        # --- new dashboard fields ---
+        # Last-month delivered order total was 200.0.
+        assert data["gmv_last_month"] == 200.0
+        # (100 this month - 200 last month) / 200 * 100 = -50.0
+        assert data["gmv_trend_pct"] == -50.0
+        assert data["rejected_sellers"] >= 0
+        # Two orders placed this month, both on the same service.
+        obs = data["orders_by_service"]
+        assert isinstance(obs, list)
+        assert sum(s["count"] for s in obs) == 2
+        assert obs[0]["service_name"] == "MetricProd"
+        assert obs[0]["count"] == 2
     finally:
         app.dependency_overrides.pop(get_current_admin, None)
         app.dependency_overrides.pop(get_current_user, None)
@@ -272,4 +284,38 @@ async def test_revenue_series_ranges(client: AsyncClient) -> None:
         assert bad.status_code == 422
     finally:
         app.dependency_overrides.pop(get_current_seller, None)
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+async def test_admin_gmv_series_default_range(client: AsyncClient) -> None:
+    app.dependency_overrides[get_current_admin] = lambda: admin_user
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    try:
+        res = await client.get("/api/v1/admin/gmv-series")
+        assert res.status_code == 200, res.text
+        data = res.json()
+        # Default range is 14d → 14 zero-filled daily points.
+        assert len(data["points"]) == 14
+        assert all("date" in p and "gov" in p for p in data["points"])
+        # Two orders placed today (100 + 50) → today's GOV is 150.
+        assert data["points"][-1]["gov"] == 150.0
+        assert data["peak"] == 150.0
+        assert data["avg_per_day"] == round(150.0 / 14, 2)
+    finally:
+        app.dependency_overrides.pop(get_current_admin, None)
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+async def test_admin_gmv_series_ranges_and_validation(client: AsyncClient) -> None:
+    app.dependency_overrides[get_current_admin] = lambda: admin_user
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    try:
+        for token, n in (("7d", 7), ("14d", 14), ("30d", 30)):
+            res = await client.get(f"/api/v1/admin/gmv-series?range={token}")
+            assert res.status_code == 200, res.text
+            assert len(res.json()["points"]) == n
+        bad = await client.get("/api/v1/admin/gmv-series?range=99d")
+        assert bad.status_code == 422
+    finally:
+        app.dependency_overrides.pop(get_current_admin, None)
         app.dependency_overrides.pop(get_current_user, None)
