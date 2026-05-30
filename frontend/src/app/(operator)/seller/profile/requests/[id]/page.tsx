@@ -253,9 +253,13 @@ export default function SellerRequestDetailPage() {
           open
           onClose={() => setEditing(false)}
           submitLabel={tCR("editAndResubmit")}
-          onSubmit={async (proposed, note) => {
+          onSubmit={async (proposed, note, phoneChangeToken) => {
             if (!token) return;
-            await resubmitMyChangeRequest(token, cr.id, { proposed, note });
+            await resubmitMyChangeRequest(token, cr.id, {
+              proposed,
+              note,
+              phone_change_token: phoneChangeToken,
+            });
             await refresh();
           }}
         />
