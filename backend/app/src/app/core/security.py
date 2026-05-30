@@ -199,9 +199,21 @@ def decode_seller_phone_change_token(token: str) -> tuple[int, str]:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": "invalid_phone_change_token"},
         ) from None
-    if payload.get("type") != "seller_phone_change":
+    sub = payload.get("sub")
+    phone = payload.get("phone")
+    if (
+        payload.get("type") != "seller_phone_change"
+        or sub is None
+        or phone is None
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": "invalid_phone_change_token"},
         )
-    return int(payload["sub"]), str(payload["phone"])
+    try:
+        return int(sub), str(phone)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "invalid_phone_change_token"},
+        ) from None
