@@ -85,7 +85,9 @@
     "emptyAllNoLocation": "अभी कोई दुकान उपलब्ध नहीं है।",
     "emptyAllWithLocation": "आपके चुने हुए स्थान पर अभी कोई दुकान डिलीवरी नहीं कर रही।",
     "loadMore": "और दुकानें लोड करें",
-    "loadingMore": "लोड हो रहा है…"
+    "loadingMore": "लोड हो रहा है…",
+    "storeClosed": "Closed",
+    "storeClosedUntil": "Closed — back {date}"
   },
   "StoreDetail": {
     "openNow": "अभी खुला है",
@@ -100,7 +102,10 @@
     "subcategoriesAriaLabel": "{name} उपश्रेणियाँ",
     "subAll": "सभी",
     "categoryCount": "{total} में से {shown}",
-    "noFilterMatch": "इस फ़िल्टर से मेल खाता कोई उत्पाद नहीं है।"
+    "noFilterMatch": "इस फ़िल्टर से मेल खाता कोई उत्पाद नहीं है।",
+    "storeClosedBadge": "Closed",
+    "storeClosedUntil": "Closed — back {date}",
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
   },
   "Cart": {
     "errClear": "कार्ट साफ़ नहीं किया जा सका। कृपया फिर से कोशिश करें।",
@@ -129,7 +134,8 @@
     "railEta": "अनुमानित डिलीवरी: उसी दिन 2 घंटे में",
     "railShortfall": "चेकआउट के लिए ₹{amount} और जोड़ें।",
     "railCheckout": "चेक आउट",
-    "railAria": "कार्ट पूर्वावलोकन"
+    "railAria": "कार्ट पूर्वावलोकन",
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
   },
   "Checkout": {
     "loading": "लोड हो रहा है…",
@@ -307,7 +313,8 @@
     "validation": "अमान्य इनपुट।",
     "serverError": "सर्वर त्रुटि। कृपया फिर से कोशिश करें।",
     "service_unavailable": "यह सेवा अब इस स्टोर से उपलब्ध नहीं है। आइटम हटाएँ और कोई दूसरी सेवा आज़माएँ।",
-    "service_mismatch": "आपकी कार्ट का एक आइटम अब इस सेवा का हिस्सा नहीं है। उसे हटाएँ और फिर से कोशिश करें।"
+    "service_mismatch": "आपकी कार्ट का एक आइटम अब इस सेवा का हिस्सा नहीं है। उसे हटाएँ और फिर से कोशिश करें।",
+    "store_paused": "This store is temporarily closed and isn't taking orders right now."
   },
   "Footer": {
     "tagline": "आपके पड़ोस के स्टोर, अब आपकी उँगलियों पर। स्थानीय विक्रेताओं से ताज़ा किराना और रोज़मर्रा की ज़रूरतें ख़रीदें और तुरंत UPI से भुगतान करें।",
@@ -751,7 +758,8 @@
     "sortPriceDesc": "कीमत: अधिक से कम",
     "sortDistance": "दूरी",
     "minPrice": "न्यूनतम ₹",
-    "maxPrice": "अधिकतम ₹"
+    "maxPrice": "अधिकतम ₹",
+    "storeClosed": "Closed"
   },
   "PWAInstall": {
     "__translatorNote": "All PWAInstall, Footer.getApp/installApp, and Account.dashboard.shortcutInstallApp values are English fallbacks pending translation.",
@@ -1500,7 +1508,14 @@
         "deleteTitle": "{name} हटाएं?",
         "deleteDesc": "\"{name}\" (इन्व #{id}) को विक्रेता के स्टोर से हटाता है। कारण ऑडिट लॉग में दर्ज किया जाता है।",
         "editTitle": "{name} संपादित करें",
-        "editSubtitle": "इन्वेंट्री #{inv} · उत्पाद #{product}"
+        "editSubtitle": "इन्वेंट्री #{inv} · उत्पाद #{product}",
+        "closedBadge": "Closed",
+        "closeStore": "Close store",
+        "reopenStore": "Reopen store",
+        "closeTitle": "Close this store?",
+        "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
+        "reopenTitle": "Reopen this store?",
+        "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
       },
       "activity": {
         "heading": "गतिविधि लॉग"

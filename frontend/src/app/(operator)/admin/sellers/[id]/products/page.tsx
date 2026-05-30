@@ -5,7 +5,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
 import { useAuth } from "@/lib/AuthContext";
-import { del, put } from "@/lib/api";
+import { del, patch, put } from "@/lib/api";
 import { fetchSellerHub, fetchSellerInventory } from "@/lib/adminActions";
 import type { AdminInventoryRow, SellerHubSummary } from "@/types";
 
@@ -25,6 +25,7 @@ export default function AdminProductsTab({
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Row | null>(null);
   const [editing, setEditing] = useState<Row | null>(null);
+  const [pausePrompt, setPausePrompt] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -57,6 +58,17 @@ export default function AdminProductsTab({
       token,
     );
     setEditing(null);
+    await load();
+  }
+
+  async function doTogglePause(reason: string) {
+    if (!hub || !token) return;
+    await patch(
+      `/api/v1/sellers/admin/${hub.seller_id}/store/pause`,
+      { is_paused: !hub.store_paused, reason },
+      token,
+    );
+    setPausePrompt(false);
     await load();
   }
 
@@ -94,9 +106,42 @@ export default function AdminProductsTab({
 
   return (
     <div>
-      <h2 style={{ marginBottom: "0.75rem" }}>
-        {t("products.heading", { n: rows.length })}
-      </h2>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "0.75rem",
+          marginBottom: "0.75rem",
+        }}
+      >
+        <h2 style={{ margin: 0 }}>
+          {t("products.heading", { n: rows.length })}
+          {hub.store_paused && (
+            <span
+              style={{
+                marginLeft: "0.6rem",
+                fontSize: "0.7rem",
+                fontWeight: 600,
+                padding: "2px 8px",
+                borderRadius: 999,
+                background: "rgba(245, 158, 11, 0.18)",
+                color: "var(--color-neutral-900)",
+                verticalAlign: "middle",
+              }}
+            >
+              {t("products.closedBadge")}
+            </span>
+          )}
+        </h2>
+        <button
+          className="btn btn-outline"
+          disabled={blocked}
+          onClick={() => setPausePrompt(true)}
+        >
+          {hub.store_paused ? t("products.reopenStore") : t("products.closeStore")}
+        </button>
+      </div>
       {blocked && (
         <div
           style={{
@@ -177,6 +222,29 @@ export default function AdminProductsTab({
           row={editing}
           onClose={() => setEditing(null)}
           onSave={savePriceStock}
+        />
+      )}
+
+      {pausePrompt && (
+        <AdminReasonModal
+          title={
+            hub.store_paused
+              ? t("products.reopenTitle")
+              : t("products.closeTitle")
+          }
+          description={
+            hub.store_paused
+              ? t("products.reopenDesc")
+              : t("products.closeDesc")
+          }
+          confirmLabel={
+            hub.store_paused
+              ? t("products.reopenStore")
+              : t("products.closeStore")
+          }
+          destructive={false}
+          onConfirm={doTogglePause}
+          onClose={() => setPausePrompt(false)}
         />
       )}
 

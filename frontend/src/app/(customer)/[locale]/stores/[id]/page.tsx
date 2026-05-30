@@ -334,10 +334,18 @@ export default function StoreDetailPage({ params }: Props) {
                 <p className={styles.storeAddress}>{formatAddress(store.address)}</p>
               </div>
             </div>
-            <div className={styles.statusBadge}>
-              <span className={styles.statusDot} aria-hidden="true" />
-              {t("openNow")}
-            </div>
+            {store.is_paused ? (
+              <div className={styles.closedBanner} role="status">
+                {store.paused_until
+                  ? t("storeClosedUntil", { date: store.paused_until })
+                  : t("storePausedBanner")}
+              </div>
+            ) : (
+              <div className={styles.statusBadge}>
+                <span className={styles.statusDot} aria-hidden="true" />
+                {t("openNow")}
+              </div>
+            )}
           </header>
 
           <FavoritesHere storeId={Number(storeId)} storeName={store.name} />
@@ -370,13 +378,16 @@ export default function StoreDetailPage({ params }: Props) {
                   <ScrollRail ariaLabel={t("navAriaLabel")}>
                   {services.map((svc) => {
                     const active = svc.id === (activeServiceNode?.id ?? null);
+                    const svcPaused =
+                      store.is_paused ||
+                      (store.services.find((s) => s.id === svc.id)?.is_paused ?? false);
                     return (
                       <button
                         key={svc.id}
                         type="button"
                         className={`${styles.svcTile} ${
                           active ? styles.svcTileActive : ""
-                        }`}
+                        } ${svcPaused ? styles.svcTileClosed : ""}`}
                         onClick={() => {
                           setActiveServiceId(svc.id);
                           setActiveCategoryId(svc.categories[0]?.id ?? null);
@@ -388,7 +399,7 @@ export default function StoreDetailPage({ params }: Props) {
                         </span>
                         <span className={styles.svcTileLabel}>{svc.name}</span>
                         <span className={styles.svcTileCount}>
-                          {serviceItemCount(svc)}
+                          {svcPaused ? t("storeClosedBadge") : serviceItemCount(svc)}
                         </span>
                       </button>
                     );
@@ -440,6 +451,10 @@ function CategorySection({
   onSubcategoryChange,
 }: CategorySectionProps) {
   const t = useTranslations("StoreDetail");
+
+  const disabledByPause =
+    store.is_paused ||
+    (store.services.find((s) => s.id === service.id)?.is_paused ?? false);
 
   const totalItems = useMemo(() => categoryItemCount(category), [category]);
 
@@ -553,6 +568,7 @@ function CategorySection({
                   storeName={store.name}
                   serviceId={service.id}
                   serviceName={service.name}
+                  disabledByPause={disabledByPause}
                 />
               );
             }),

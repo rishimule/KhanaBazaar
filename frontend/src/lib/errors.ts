@@ -38,6 +38,8 @@ export function apiErrorKey(err: unknown): string | null {
   // Detail-string matches that should win over the generic status fallback.
   if (lower === "service_unavailable") return "Errors.service_unavailable";
   if (lower === "service_mismatch") return "Errors.service_mismatch";
+  if (lower === "store_paused" || lower === "service_paused")
+    return "Errors.store_paused";
 
   switch (err.status) {
     case 401:

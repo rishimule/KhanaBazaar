@@ -48,6 +48,7 @@ export type PerStoreOffer = {
   stock: number;
   is_available: boolean;
   is_serviceable: boolean;
+  store_paused?: boolean;
   distance_km: number | null;
 };
 
@@ -98,6 +99,7 @@ export type CompareOffer = {
   stock: number;
   is_available: boolean;
   is_serviceable: boolean;
+  store_paused?: boolean;
 };
 
 export type CompareResponse = {

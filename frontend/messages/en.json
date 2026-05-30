@@ -85,7 +85,9 @@
     "emptyAllNoLocation": "No stores available.",
     "emptyAllWithLocation": "No stores deliver to your selected location yet.",
     "loadMore": "Load more stores",
-    "loadingMore": "Loading…"
+    "loadingMore": "Loading…",
+    "storeClosed": "Closed",
+    "storeClosedUntil": "Closed — back {date}"
   },
   "StoreDetail": {
     "openNow": "Open Now",
@@ -100,7 +102,10 @@
     "subcategoriesAriaLabel": "{name} subcategories",
     "subAll": "All",
     "categoryCount": "{shown} of {total}",
-    "noFilterMatch": "No products match this filter."
+    "noFilterMatch": "No products match this filter.",
+    "storeClosedBadge": "Closed",
+    "storeClosedUntil": "Closed — back {date}",
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
   },
   "Cart": {
     "errClear": "Could not clear cart. Please try again.",
@@ -129,7 +134,8 @@
     "railEta": "Estimated delivery: same-day in 2 hours",
     "railShortfall": "Add ₹{amount} more to check out.",
     "railCheckout": "Check out",
-    "railAria": "Cart preview"
+    "railAria": "Cart preview",
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
   },
   "Checkout": {
     "loading": "Loading…",
@@ -307,7 +313,8 @@
     "validation": "Invalid input.",
     "serverError": "Server error. Please try again.",
     "service_unavailable": "This service is no longer offered by the store. Remove the items and try a different service.",
-    "service_mismatch": "An item in your cart no longer belongs to this service. Remove it and try again."
+    "service_mismatch": "An item in your cart no longer belongs to this service. Remove it and try again.",
+    "store_paused": "This store is temporarily closed and isn't taking orders right now."
   },
   "Footer": {
     "tagline": "Your neighbourhood stores, now at your fingertips. Shop fresh groceries & essentials from local sellers and pay instantly with UPI.",
@@ -751,7 +758,8 @@
     "sortPriceDesc": "Price: high to low",
     "sortDistance": "Distance",
     "minPrice": "min ₹",
-    "maxPrice": "max ₹"
+    "maxPrice": "max ₹",
+    "storeClosed": "Closed"
   },
   "PWAInstall": {
     "iosSheet": {
@@ -1499,7 +1507,14 @@
         "deleteTitle": "Delete {name}?",
         "deleteDesc": "Removes \"{name}\" (inv #{id}) from the seller's store. Reason is recorded in the audit log.",
         "editTitle": "Edit {name}",
-        "editSubtitle": "Inventory #{inv} · Product #{product}"
+        "editSubtitle": "Inventory #{inv} · Product #{product}",
+        "closedBadge": "Closed",
+        "closeStore": "Close store",
+        "reopenStore": "Reopen store",
+        "closeTitle": "Close this store?",
+        "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
+        "reopenTitle": "Reopen this store?",
+        "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
       },
       "activity": {
         "heading": "Activity log"

@@ -115,6 +115,22 @@
   display: inline-block;
 }
 
+.closedBanner {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--shade-cool-light-1);
+  color: var(--shade-cool-dark-7);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-semibold);
+}
+
+.svcTileClosed {
+  opacity: 0.55;
+}
+
 /* ── Service pills (multi-service) ──── */
 .serviceTileRail {
   margin-bottom: var(--space-5);

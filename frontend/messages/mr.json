@@ -85,7 +85,9 @@
     "emptyAllNoLocation": "सध्या कोणतीही दुकान उपलब्ध नाही.",
     "emptyAllWithLocation": "तुमच्या निवडलेल्या ठिकाणी अद्याप कोणतीही दुकान डिलिव्हरी करत नाही.",
     "loadMore": "आणखी दुकाने लोड करा",
-    "loadingMore": "लोड होत आहे…"
+    "loadingMore": "लोड होत आहे…",
+    "storeClosed": "Closed",
+    "storeClosedUntil": "Closed — back {date}"
   },
   "StoreDetail": {
     "openNow": "आता उघडे",
@@ -100,7 +102,10 @@
     "subcategoriesAriaLabel": "{name} उपश्रेण्या",
     "subAll": "सर्व",
     "categoryCount": "{total} पैकी {shown}",
-    "noFilterMatch": "या फिल्टरशी जुळणारे कोणतेही उत्पादन नाही."
+    "noFilterMatch": "या फिल्टरशी जुळणारे कोणतेही उत्पादन नाही.",
+    "storeClosedBadge": "Closed",
+    "storeClosedUntil": "Closed — back {date}",
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
   },
   "Cart": {
     "errClear": "कार्ट साफ करता आला नाही. कृपया पुन्हा प्रयत्न करा.",
@@ -129,7 +134,8 @@
     "railEta": "अंदाजित डिलिव्हरी: त्याच दिवशी 2 तासांत",
     "railShortfall": "चेकआउटसाठी ₹{amount} अधिक जोडा.",
     "railCheckout": "चेक आउट",
-    "railAria": "कार्ट पूर्वावलोकन"
+    "railAria": "कार्ट पूर्वावलोकन",
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
   },
   "Checkout": {
     "loading": "लोड होत आहे…",
@@ -307,7 +313,8 @@
     "validation": "अवैध इनपुट.",
     "serverError": "सर्व्हर त्रुटी. कृपया पुन्हा प्रयत्न करा.",
     "service_unavailable": "ही सेवा आता या स्टोअरमधून उपलब्ध नाही. वस्तू काढा आणि दुसरी सेवा वापरून पहा.",
-    "service_mismatch": "तुमच्या कार्टमधील एक वस्तू आता या सेवेची नाही. ती काढा आणि पुन्हा प्रयत्न करा."
+    "service_mismatch": "तुमच्या कार्टमधील एक वस्तू आता या सेवेची नाही. ती काढा आणि पुन्हा प्रयत्न करा.",
+    "store_paused": "This store is temporarily closed and isn't taking orders right now."
   },
   "Footer": {
     "tagline": "तुमची शेजारची दुकाने, आता तुमच्या बोटांच्या टोकावर. स्थानिक विक्रेत्यांकडून ताजे किराणा व आवश्यक वस्तू खरेदी करा आणि UPI ने तत्काळ पैसे भरा.",
@@ -751,7 +758,8 @@
     "sortPriceDesc": "किंमत: जास्त ते कमी",
     "sortDistance": "अंतर",
     "minPrice": "किमान ₹",
-    "maxPrice": "कमाल ₹"
+    "maxPrice": "कमाल ₹",
+    "storeClosed": "Closed"
   },
   "PWAInstall": {
     "__translatorNote": "All PWAInstall, Footer.getApp/installApp, and Account.dashboard.shortcutInstallApp values are English fallbacks pending translation.",
@@ -1500,7 +1508,14 @@
         "deleteTitle": "{name} हटवायचे?",
         "deleteDesc": "\"{name}\" (इन्व्ह #{id}) विक्रेत्याच्या स्टोअरमधून काढून टाकते. कारण ऑडिट लॉगमध्ये नोंदवले जाते.",
         "editTitle": "{name} संपादित करा",
-        "editSubtitle": "इन्व्हेंटरी #{inv} · उत्पादन #{product}"
+        "editSubtitle": "इन्व्हेंटरी #{inv} · उत्पादन #{product}",
+        "closedBadge": "Closed",
+        "closeStore": "Close store",
+        "reopenStore": "Reopen store",
+        "closeTitle": "Close this store?",
+        "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
+        "reopenTitle": "Reopen this store?",
+        "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
       },
       "activity": {
         "heading": "क्रियाकलाप लॉग"

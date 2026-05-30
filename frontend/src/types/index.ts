@@ -38,6 +38,9 @@ export interface Service extends BaseSchema {
   min_order_value?: number;
   delivery_eta_min_minutes?: number;
   delivery_eta_max_minutes?: number;
+  is_paused?: boolean;
+  pause_reason?: string | null;
+  paused_until?: string | null;
 }
 
 /** Category from the master catalog. */
@@ -119,6 +122,9 @@ export interface Store extends BaseSchema {
   services: Service[];
   delivery_radius_km: number;
   pin_confirmed: boolean;
+  is_paused: boolean;
+  pause_reason?: string | null;
+  paused_until?: string | null;
   /** Set when the store list was queried with the user's lat/lng. */
   distance_km?: number | null;
 }
@@ -577,6 +583,7 @@ export interface SellerHubSummary {
   verification_status: "pending" | "approved" | "rejected";
   email: string;
   store_id: number | null;
+  store_paused?: boolean;
   active_order_count: number;
   total_product_count: number;
   services: Service[];
@@ -723,6 +730,7 @@ export interface SellerMetrics {
   out_of_stock: number;
   unavailable: number;
   store_active: boolean;
+  store_paused: boolean;
   pin_confirmed: boolean;
   store_name: string;
   order_status_counts: OrderStatusCounts;

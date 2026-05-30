@@ -8,9 +8,12 @@ interface Props {
   fullName?: string;
   storeName: string;
   storeActive: boolean;
+  storePaused: boolean;
   pinConfirmed: boolean;
   onRefresh: () => void;
   refreshing?: boolean;
+  onTogglePause: () => void;
+  pauseBusy?: boolean;
 }
 
 function greeting(): string {
@@ -29,9 +32,12 @@ export default function DashboardHeader({
   fullName,
   storeName,
   storeActive,
+  storePaused,
   pinConfirmed,
   onRefresh,
   refreshing,
+  onTogglePause,
+  pauseBusy,
 }: Props) {
   const today = new Date().toLocaleDateString("en-GB", {
     weekday: "short",
@@ -53,12 +59,23 @@ export default function DashboardHeader({
           <span className={`${styles.chip} ${storeActive ? styles.chipOk : styles.chipWarn}`}>
             {storeActive ? "Active" : "Inactive"}
           </span>
+          {storePaused && (
+            <span className={`${styles.chip} ${styles.chipWarn}`}>Closed</span>
+          )}
           <span className={`${styles.chip} ${pinConfirmed ? styles.chipOk : styles.chipWarn}`}>
             {pinConfirmed ? "PIN confirmed" : "PIN not confirmed"}
           </span>
         </p>
       </div>
       <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.refreshBtn}
+          onClick={onTogglePause}
+          disabled={pauseBusy}
+        >
+          {storePaused ? "Reopen store" : "Close store"}
+        </button>
         <button
           type="button"
           className={styles.refreshBtn}
