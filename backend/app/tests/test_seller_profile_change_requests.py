@@ -150,7 +150,7 @@ async def test_resubmit_blocked_when_not_changes_requested(approved_seller, sess
     await session.commit()
     with pytest.raises(HTTPException) as excinfo:
         await resubmit(
-            session=session, cr=create.cr,
+            session=session, cr=create.cr, seller_profile=profile,
             proposed={"bank_account_number": "123456789012", "bank_ifsc": "ICIC0009999"},
             note=None, actor_user_id=approved_seller["user"].id,
         )
@@ -179,7 +179,7 @@ async def test_resubmit_after_changes_requested(approved_seller, session, admin_
     )
     await session.commit()
     res = await resubmit(
-        session=session, cr=create.cr,
+        session=session, cr=create.cr, seller_profile=profile,
         proposed={"bank_account_number": "123456789012", "bank_ifsc": "HDFC0009999"},
         note="fixed", actor_user_id=approved_seller["user"].id,
     )
@@ -244,7 +244,7 @@ async def test_reject_terminal(approved_seller, session, admin_user):
     assert create.cr.status is SellerProfileChangeStatus.Rejected
     with pytest.raises(HTTPException) as excinfo:
         await resubmit(
-            session=session, cr=create.cr,
+            session=session, cr=create.cr, seller_profile=profile,
             proposed={"bank_account_number": "999988887777", "bank_ifsc": "ICIC0001234"},
             note=None, actor_user_id=approved_seller["user"].id,
         )
@@ -337,6 +337,74 @@ async def test_approve_invalid_applied_rejects(approved_seller, session, admin_u
 
 
 @pytest.mark.asyncio
+async def test_create_identity_changed_phone_requires_token(approved_seller, session):
+    from fastapi import HTTPException
+    profile = approved_seller["profile"]
+    with pytest.raises(HTTPException) as excinfo:
+        await create_change_request(
+            session=session, seller_profile=profile,
+            group=SellerProfileChangeGroup.Identity,
+            proposed={"full_name": "Ravi Sharma", "business_name": "X",
+                      "phone": "+919811119999"},
+            note=None, actor_user_id=approved_seller["user"].id,
+        )
+    assert excinfo.value.status_code == 422
+    assert excinfo.value.detail == "phone_verification_required"
+
+
+@pytest.mark.asyncio
+async def test_create_identity_name_only_change_needs_no_token(approved_seller, session):
+    profile = approved_seller["profile"]
+    res = await create_change_request(
+        session=session, seller_profile=profile,
+        group=SellerProfileChangeGroup.Identity,
+        proposed={"full_name": "New Name", "business_name": "X",
+                  "phone": profile.phone},
+        note=None, actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+    assert res.cr.status is SellerProfileChangeStatus.Submitted
+
+
+@pytest.mark.asyncio
+async def test_create_identity_with_valid_token_succeeds(approved_seller, session):
+    from app.core.security import create_seller_phone_change_token
+    profile = approved_seller["profile"]
+    new_phone = "+919811119999"
+    token = create_seller_phone_change_token(profile.user_id, new_phone)
+    res = await create_change_request(
+        session=session, seller_profile=profile,
+        group=SellerProfileChangeGroup.Identity,
+        proposed={"full_name": "Ravi Sharma", "business_name": "X",
+                  "phone": new_phone},
+        note=None, actor_user_id=approved_seller["user"].id,
+        phone_change_token=token,
+    )
+    await session.commit()
+    assert res.cr.status is SellerProfileChangeStatus.Submitted
+    assert res.cr.proposed_json["phone"] == new_phone
+
+
+@pytest.mark.asyncio
+async def test_create_identity_token_phone_mismatch_rejected(approved_seller, session):
+    from fastapi import HTTPException
+    from app.core.security import create_seller_phone_change_token
+    profile = approved_seller["profile"]
+    token = create_seller_phone_change_token(profile.user_id, "+919811110000")
+    with pytest.raises(HTTPException) as excinfo:
+        await create_change_request(
+            session=session, seller_profile=profile,
+            group=SellerProfileChangeGroup.Identity,
+            proposed={"full_name": "Ravi Sharma", "business_name": "X",
+                      "phone": "+919811119999"},
+            note=None, actor_user_id=approved_seller["user"].id,
+            phone_change_token=token,
+        )
+    assert excinfo.value.status_code == 422
+    assert excinfo.value.detail == "phone_verification_mismatch"
+
+
+@pytest.mark.asyncio
 async def test_identity_payload_normalizes_phone(approved_seller, session):
     from app.models.seller_profile_change_request import (
         SellerProfileChangeGroup,
@@ -369,10 +437,11 @@ async def test_approve_identity_duplicate_phone_returns_409(
     from app.models.address import Address
     from app.models.base import UserRole
     from app.models.profile import SellerProfile, VerificationStatus
-    from app.services.seller_profile_change_requests import (
-        approve,
-        create_change_request,
+    from app.models.seller_profile_change_request import (
+        SellerProfileChangeRequest,
+        SellerProfileChangeStatus,
     )
+    from app.services.seller_profile_change_requests import approve
     from tests._helpers import make_address as _make_address_dict
 
     # A second, already-approved seller that owns the target phone.
@@ -396,25 +465,35 @@ async def test_approve_identity_duplicate_phone_returns_409(
     )
     await session.commit()
 
+    # Insert a submitted identity CR directly: this models the TOCTOU case
+    # where the phone was free when the seller verified + submitted, but
+    # another seller grabbed it before admin approval. (Going through
+    # create_change_request now requires a verified token, which is a
+    # separate path tested elsewhere.)
     profile = approved_seller["profile"]
-    create = await create_change_request(
-        session=session,
-        seller_profile=profile,
+    cr = SellerProfileChangeRequest(
+        seller_profile_id=profile.id,
         group=SellerProfileChangeGroup.Identity,
-        proposed={
+        status=SellerProfileChangeStatus.Submitted,
+        proposed_json={
             "full_name": "Ravi Sharma",
             "business_name": "Sharma General Store",
             "phone": taken_phone,
         },
-        note=None,
-        actor_user_id=approved_seller["user"].id,
+        baseline_json={
+            "full_name": "Ravi Sharma",
+            "business_name": "Sharma General Store",
+            "phone": profile.phone,
+        },
+        submission_count=1,
     )
+    session.add(cr)
     await session.commit()
 
     with pytest.raises(HTTPException) as excinfo:
         await approve(
             session=session,
-            cr=create.cr,
+            cr=cr,
             admin_user_id=admin_user.id,
             applied=None,
             note=None,

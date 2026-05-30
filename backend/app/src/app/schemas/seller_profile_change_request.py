@@ -111,11 +111,15 @@ class ChangeRequestCreateBody(BaseModel):
     group: SellerProfileChangeGroup
     proposed: dict[str, Any]
     note: Optional[str] = Field(default=None, max_length=300)
+    # Required when an identity CR changes the phone — proves the seller
+    # verified the new number (see services._require_phone_verification).
+    phone_change_token: Optional[str] = None
 
 
 class ChangeRequestResubmitBody(BaseModel):
     proposed: dict[str, Any]
     note: Optional[str] = Field(default=None, max_length=300)
+    phone_change_token: Optional[str] = None
 
 
 class ChangeRequestApproveBody(BaseModel):
