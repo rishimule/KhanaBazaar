@@ -144,6 +144,7 @@ async def create_my_change_request(
         proposed=body.proposed,
         note=body.note,
         actor_user_id=seller.id,
+        phone_change_token=body.phone_change_token,
     )
     await session.commit()
     await session.refresh(res.cr)
@@ -167,9 +168,11 @@ async def resubmit_my_change_request(
     res = await resubmit(
         session=session,
         cr=cr,
+        seller_profile=profile,
         proposed=body.proposed,
         note=body.note,
         actor_user_id=seller.id,
+        phone_change_token=body.phone_change_token,
     )
     await session.commit()
     await session.refresh(res.cr)

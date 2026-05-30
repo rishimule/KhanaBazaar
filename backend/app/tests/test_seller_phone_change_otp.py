@@ -128,3 +128,46 @@ async def test_otp_request_then_verify_returns_token(
     )
     assert ver.status_code == 200, ver.text
     assert ver.json()["phone_change_token"]
+
+
+@pytest.mark.asyncio
+async def test_create_identity_cr_without_token_via_api_422(
+    _seller_auth: dict, client: AsyncClient
+) -> None:
+    res = await client.post(
+        "/api/v1/sellers/me/change-requests",
+        json={
+            "group": "identity",
+            "proposed": {
+                "full_name": "Ravi Sharma",
+                "business_name": "Sharma General Store",
+                "phone": "+919811119999",
+            },
+        },
+    )
+    assert res.status_code == 422, res.text
+    assert res.json()["detail"] == "phone_verification_required"
+
+
+@pytest.mark.asyncio
+async def test_create_identity_cr_with_token_via_api_201(
+    _seller_auth: dict, client: AsyncClient
+) -> None:
+    from app.core.security import create_seller_phone_change_token
+    profile = _seller_auth["profile"]
+    new_phone = "+919811119999"
+    token = create_seller_phone_change_token(profile.user_id, new_phone)
+    res = await client.post(
+        "/api/v1/sellers/me/change-requests",
+        json={
+            "group": "identity",
+            "proposed": {
+                "full_name": "Ravi Sharma",
+                "business_name": "Sharma General Store",
+                "phone": new_phone,
+            },
+            "phone_change_token": token,
+        },
+    )
+    assert res.status_code == 201, res.text
+    assert res.json()["status"] == "submitted"
