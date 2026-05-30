@@ -17,8 +17,8 @@ from __future__ import annotations
 import base64
 import json
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime, time, timedelta, timezone
+from typing import Literal, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -31,7 +31,13 @@ from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.admin_audit import AdminActionLog
 from app.models.base import User
-from app.models.catalog import Category, MasterProduct, MasterProductTranslation
+from app.models.catalog import (
+    Category,
+    MasterProduct,
+    MasterProductTranslation,
+    Service,
+    ServiceTranslation,
+)
 from app.models.commerce import Delivery, Order, OrderStatus
 from app.models.profile import SellerProfile, VerificationStatus
 from app.models.seller_profile_change_request import (
@@ -44,6 +50,7 @@ from app.schemas.admin_actions import (
     AdminActionLogOut,
     AdminInventoryRow,
     AdminMetricsRead,
+    OrderServiceStat,
     OverrideDeliveryAddressRequest,
     RefundOrderRequest,
     RewindOrderRequest,
@@ -58,6 +65,7 @@ from app.schemas.seller_profile_change_request import (
     ChangeRequestRead,
     ChangeRequestRejectBody,
 )
+from app.schemas.sellers import RevenueSeriesPoint, RevenueSeriesRead
 from app.services.order_emails import dispatch_admin_order_action
 from app.services.orders import (
     override_delivery_address,
@@ -153,18 +161,136 @@ async def admin_metrics(
         .where(SellerProfileChangeRequest.status.in_(OPEN_STATUSES))  # type: ignore[attr-defined]
     )).one()
 
+    # Previous calendar month window (IST), for the GMV trend.
+    first_of_this_month_ist = now_ist.replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+    prev_month_start = (
+        (first_of_this_month_ist - timedelta(days=1))
+        .replace(day=1)
+        .astimezone(timezone.utc)
+    )
+    prev_month_end = first_of_this_month_ist.astimezone(timezone.utc)
+    gmv_last_month_raw = (await session.exec(
+        select(func.coalesce(func.sum(Order.total), 0.0))  # type: ignore[arg-type]
+        .select_from(Order)
+        .join(Delivery, Delivery.order_id == Order.id)  # type: ignore[arg-type]
+        .where(
+            Order.status == OrderStatus.Delivered,
+            Delivery.delivered_at >= prev_month_start,
+            Delivery.delivered_at < prev_month_end,
+        )
+    )).one()
+    rejected_sellers = (await session.exec(
+        select(func.count())  # type: ignore[arg-type]
+        .select_from(SellerProfile)
+        .where(SellerProfile.verification_status == VerificationStatus.Rejected)
+    )).one()
+
+    # Orders placed this month, grouped by service. Starts from every active
+    # service and LEFT JOINs orders so services with zero orders still appear.
+    obs_rows = (await session.exec(
+        select(
+            Service.id,
+            ServiceTranslation.name,
+            func.count(Order.id),  # type: ignore[arg-type]
+        )
+        .select_from(Service)
+        .join(
+            ServiceTranslation,
+            and_(
+                ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+                ServiceTranslation.language_code == "en",  # type: ignore[arg-type]
+            ),
+            isouter=True,
+        )
+        .join(
+            Order,
+            and_(
+                Order.service_id == Service.id,  # type: ignore[arg-type]
+                Order.placed_at >= month_start,  # type: ignore[arg-type]
+            ),
+            isouter=True,
+        )
+        .where(Service.is_active.is_(True))  # type: ignore[attr-defined]
+        .group_by(Service.id, ServiceTranslation.name)  # type: ignore[arg-type]
+        .order_by(func.count(Order.id).desc(), Service.id)  # type: ignore[arg-type]
+    )).all()
+    orders_by_service = [
+        OrderServiceStat(
+            service_id=int(sid or 0),
+            service_name=(name or f"Service {sid}"),
+            count=int(cnt or 0),
+        )
+        for sid, name, cnt in obs_rows
+    ]
+
+    gmv_this_month_f = float(gmv_this_month or 0.0)
+    gmv_last_month_f = float(gmv_last_month_raw or 0.0)
+    gmv_trend_pct = (
+        round((gmv_this_month_f - gmv_last_month_f) / gmv_last_month_f * 100, 1)
+        if gmv_last_month_f
+        else 0.0
+    )
+
     return AdminMetricsRead(
         active_orders=int(active_orders),
         orders_today=int(orders_today),
         orders_this_month=int(orders_this_month),
-        gmv_this_month=float(gmv_this_month or 0.0),
+        gmv_this_month=gmv_this_month_f,
+        gmv_last_month=gmv_last_month_f,
+        gmv_trend_pct=gmv_trend_pct,
         active_master_products=int(active_products),
         active_categories=int(active_categories),
         active_stores=int(active_stores),
         pending_applications=int(pending_apps),
         approved_sellers=int(approved_sellers),
+        rejected_sellers=int(rejected_sellers),
         open_change_requests=int(open_crs),
+        orders_by_service=orders_by_service,
     )
+
+
+@router.get("/gmv-series", response_model=RevenueSeriesRead)
+async def admin_gmv_series(
+    range_token: Literal["7d", "14d", "30d"] = Query(default="14d", alias="range"),
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> RevenueSeriesRead:
+    """Platform-wide daily gross-order-value series for the admin GMV chart.
+
+    GOV = SUM(Order.total) for orders PLACED that IST day across all stores.
+    Days with no orders are zero-filled so the line is continuous.
+    """
+    days = {"7d": 7, "14d": 14, "30d": 30}[range_token]
+
+    ist = ZoneInfo("Asia/Kolkata")
+    today = datetime.now(ist).date()
+    start_date = today - timedelta(days=days - 1)
+    start_utc = datetime.combine(start_date, time.min, tzinfo=ist).astimezone(timezone.utc)
+
+    day_col = func.date(func.timezone("Asia/Kolkata", Order.placed_at))
+    rows = (await session.exec(
+        select(day_col, func.coalesce(func.sum(Order.total), 0.0))
+        .select_from(Order)
+        .where(Order.placed_at >= start_utc)
+        .group_by(day_col)
+    )).all()
+    gov_by_date: dict[str, float] = {}
+    for d, gov in rows:
+        gov_by_date[d.isoformat() if hasattr(d, "isoformat") else str(d)] = float(gov or 0.0)
+
+    points = [
+        RevenueSeriesPoint(
+            date=(start_date + timedelta(days=i)).isoformat(),
+            gov=gov_by_date.get((start_date + timedelta(days=i)).isoformat(), 0.0),
+        )
+        for i in range(days)
+    ]
+    govs = [p.gov for p in points]
+    avg_per_day = round(sum(govs) / days, 2) if days else 0.0
+    peak = max(govs) if govs else 0.0
+    return RevenueSeriesRead(points=points, avg_per_day=avg_per_day, peak=peak)
 
 
 def _encode_cursor(created_at: datetime, row_id: str) -> str:

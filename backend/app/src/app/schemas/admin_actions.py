@@ -55,17 +55,27 @@ class SellerHubSummary(BaseModel):
     services: list[ServicePayload] = []
 
 
+class OrderServiceStat(BaseModel):
+    service_id: int
+    service_name: str
+    count: int
+
+
 class AdminMetricsRead(BaseModel):
     active_orders: int
     orders_today: int
     orders_this_month: int
     gmv_this_month: float
+    gmv_last_month: float
+    gmv_trend_pct: float
     active_master_products: int
     active_categories: int
     active_stores: int
     pending_applications: int
     approved_sellers: int
+    rejected_sellers: int
     open_change_requests: int
+    orders_by_service: list[OrderServiceStat]
 
 
 class AdminInventoryRow(BaseModel):

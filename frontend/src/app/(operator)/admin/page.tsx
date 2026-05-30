@@ -1,27 +1,37 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
+import type { AdminMetrics } from "@/types";
 import StatsCard from "@/components/StatsCard";
-import styles from "../seller/page.module.css";
+import DashboardHeader from "@/components/admin/DashboardHeader";
+import AttentionBanner from "@/components/admin/AttentionBanner";
+import GmvChart from "@/components/admin/GmvChart";
+import ApplicationPipeline from "@/components/admin/ApplicationPipeline";
+import OrdersByService from "@/components/admin/OrdersByService";
+import QuickActions from "@/components/admin/QuickActions";
+import styles from "./page.module.css";
 
-interface AdminMetrics {
-  active_orders: number;
-  orders_today: number;
-  orders_this_month: number;
-  gmv_this_month: number;
-  active_master_products: number;
-  active_categories: number;
-  active_stores: number;
-  pending_applications: number;
-  approved_sellers: number;
-  open_change_requests: number;
-}
+const EMPTY: AdminMetrics = {
+  active_orders: 0,
+  orders_today: 0,
+  orders_this_month: 0,
+  gmv_this_month: 0,
+  gmv_last_month: 0,
+  gmv_trend_pct: 0,
+  active_master_products: 0,
+  active_categories: 0,
+  active_stores: 0,
+  pending_applications: 0,
+  approved_sellers: 0,
+  rejected_sellers: 0,
+  open_change_requests: 0,
+  orders_by_service: [],
+};
 
 export default function AdminDashboardPage() {
   const t = useTranslations("Admin.dashboard");
@@ -30,19 +40,31 @@ export default function AdminDashboardPage() {
   const { dbUser, token, loading } = useAuth();
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(
+    (refresh = false) => {
+      if (!token) return;
+      if (refresh) setRefreshing(true);
+      get<AdminMetrics>("/api/v1/admin/metrics", token)
+        .then(setMetrics)
+        .catch(() => {})
+        .finally(() => {
+          setFetching(false);
+          setRefreshing(false);
+        });
+    },
+    [token]
+  );
 
   useEffect(() => {
     if (!loading && (!dbUser || dbUser.role !== "admin")) {
       router.push(dbUser ? "/" : "/login");
       return;
     }
-    if (!loading && dbUser && token) {
-      get<AdminMetrics>("/api/v1/admin/metrics", token)
-        .then(setMetrics)
-        .catch(() => {})
-        .finally(() => setFetching(false));
-    }
-  }, [loading, dbUser, token, router]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial metrics fetch sets state in async callbacks
+    if (!loading && dbUser && token) load();
+  }, [loading, dbUser, token, router, load]);
 
   if (loading || fetching) {
     return (
@@ -52,130 +74,92 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const m = metrics ?? {
-    active_orders: 0,
-    orders_today: 0,
-    orders_this_month: 0,
-    gmv_this_month: 0,
-    active_master_products: 0,
-    active_categories: 0,
-    active_stores: 0,
-    pending_applications: 0,
-    approved_sellers: 0,
-    open_change_requests: 0,
-  };
+  const m = metrics ?? EMPTY;
+  const reviewQueue = m.pending_applications + m.open_change_requests;
 
   return (
-    <>
+    <div className={styles.page}>
+      <DashboardHeader
+        reviewQueue={reviewQueue}
+        onRefresh={() => load(true)}
+        refreshing={refreshing}
+      />
+
+      <AttentionBanner
+        pendingApplications={m.pending_applications}
+        openChangeRequests={m.open_change_requests}
+      />
+
       <div className={styles.statsGrid}>
-        <StatsCard
-          icon="📦"
-          label={t("activeOrders")}
-          value={m.active_orders}
-          variant={m.active_orders > 0 ? "primary" : "info"}
-        />
-        <StatsCard icon="🗓️" label={t("ordersToday")} value={m.orders_today} variant="accent" />
-        <StatsCard icon="📈" label={t("ordersThisMonth")} value={m.orders_this_month} variant="info" />
         <StatsCard
           icon="💰"
           label={t("gmvThisMonth")}
           value={`₹${m.gmv_this_month.toFixed(0)}`}
           variant="accent"
+          trend={
+            m.gmv_trend_pct !== 0
+              ? t("gmvCardTrend", {
+                  pct: Math.abs(m.gmv_trend_pct),
+                  last: m.gmv_last_month.toFixed(0),
+                })
+              : undefined
+          }
+          trendDirection={m.gmv_trend_pct >= 0 ? "up" : "down"}
         />
         <StatsCard
-          icon="📦"
-          label={t("masterProducts")}
-          value={m.active_master_products}
+          icon="🛒"
+          label={t("activeOrders")}
+          value={m.active_orders}
+          variant={m.active_orders > 0 ? "primary" : "info"}
+          trend={m.active_orders > 0 ? t("activeOrdersSub") : undefined}
+          trendDirection="up"
+        />
+        <StatsCard
+          icon="📈"
+          label={t("ordersThisMonth")}
+          value={m.orders_this_month}
+          variant="info"
+          trend={t("ordersThisMonthSub", { count: m.orders_today })}
+          trendDirection="up"
+        />
+        <StatsCard
+          icon="🏪"
+          label={t("activeStores")}
+          value={m.active_stores}
           variant="primary"
+          trend={t("activeStoresSub", { count: m.approved_sellers })}
+          trendDirection="up"
         />
-        <StatsCard
-          icon="🏷️"
-          label={t("categories")}
-          value={m.active_categories}
-          variant="accent"
-        />
-        <StatsCard icon="🏪" label={t("activeStores")} value={m.active_stores} variant="info" />
-        <StatsCard
-          icon="⏳"
-          label={t("pendingApplications")}
-          value={m.pending_applications}
-          trend={m.pending_applications > 0 ? t("requiresReview") : t("allCaughtUp")}
-          trendDirection={m.pending_applications > 0 ? "up" : "down"}
-          variant={m.pending_applications > 0 ? "warning" : "info"}
-        />
+        <StatsCard icon="🗓️" label={t("ordersToday")} value={m.orders_today} variant="info" />
         <StatsCard
           icon="🤝"
           label={t("approvedSellers")}
           value={m.approved_sellers}
           variant="primary"
         />
-        <Link
-          href="/admin/change-requests"
-          aria-label={t("openChangeRequests")}
-          style={{ display: "contents", textDecoration: "none" }}
-        >
-          <StatsCard
-            icon="🔔"
-            label={t("openChangeRequests")}
-            value={m.open_change_requests}
-            trend={
-              m.open_change_requests > 0
-                ? t("requiresReview")
-                : t("allCaughtUp")
-            }
-            trendDirection={m.open_change_requests > 0 ? "up" : "down"}
-            variant={m.open_change_requests > 0 ? "warning" : "info"}
-          />
-        </Link>
+        <StatsCard
+          icon="📦"
+          label={t("masterProducts")}
+          value={m.active_master_products}
+          variant="accent"
+        />
+        <StatsCard icon="🏷️" label={t("categories")} value={m.active_categories} variant="info" />
       </div>
 
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{t("quickActions")}</h2>
+      <div className={styles.grid}>
+        <div className={styles.main}>
+          <GmvChart />
+          <QuickActions />
         </div>
-        <div className={styles.quickActions}>
-          <Link href="/admin/orders" className={styles.actionCard}>
-            <div className={styles.actionIcon}>📦</div>
-            <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>{t("allOrders")}</span>
-              <span className={styles.actionDescription}>
-                {t("allOrdersDesc")}
-              </span>
-            </div>
-          </Link>
-          <Link href="/admin/catalog" className={styles.actionCard}>
-            <div className={styles.actionIcon}>🗂️</div>
-            <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>{t("manageCatalog")}</span>
-              <span className={styles.actionDescription}>
-                {t("manageCatalogDesc")}
-              </span>
-            </div>
-          </Link>
-          <Link href="/admin/sellers/applications" className={styles.actionCard}>
-            <div className={styles.actionIcon}>✅</div>
-            <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>
-                {m.pending_applications > 0
-                  ? t("reviewApplicationsCount", { count: m.pending_applications })
-                  : t("reviewApplications")}
-              </span>
-              <span className={styles.actionDescription}>
-                {t("reviewApplicationsDesc")}
-              </span>
-            </div>
-          </Link>
-          <Link href="/admin/sellers" className={styles.actionCard}>
-            <div className={styles.actionIcon}>🏪</div>
-            <div className={styles.actionInfo}>
-              <span className={styles.actionLabel}>{t("approvedSellersAction")}</span>
-              <span className={styles.actionDescription}>
-                {t("approvedSellersDesc")}
-              </span>
-            </div>
-          </Link>
-        </div>
+        <aside className={styles.rail}>
+          <ApplicationPipeline
+            approved={m.approved_sellers}
+            pending={m.pending_applications}
+            rejected={m.rejected_sellers}
+          />
+          <OrdersByService services={m.orders_by_service} />
+        </aside>
       </div>
-    </>
+    </div>
   );
 }

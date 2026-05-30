@@ -734,3 +734,26 @@ export interface RevenueSeries {
   avg_per_day: number;
   peak: number;
 }
+
+export interface OrderServiceStat {
+  service_id: number;
+  service_name: string;
+  count: number;
+}
+
+export interface AdminMetrics {
+  active_orders: number;
+  orders_today: number;
+  orders_this_month: number;
+  gmv_this_month: number;
+  gmv_last_month: number;
+  gmv_trend_pct: number;
+  active_master_products: number;
+  active_categories: number;
+  active_stores: number;
+  pending_applications: number;
+  approved_sellers: number;
+  rejected_sellers: number;
+  open_change_requests: number;
+  orders_by_service: OrderServiceStat[];
+}
