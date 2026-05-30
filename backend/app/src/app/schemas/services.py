@@ -21,3 +21,6 @@ class ServicePayload(BaseModel):
     min_order_value: Optional[float] = None
     delivery_eta_min_minutes: int = 30
     delivery_eta_max_minutes: int = 60
+    is_paused: bool = False
+    pause_reason: Optional[str] = None
+    paused_until: Optional[str] = None
