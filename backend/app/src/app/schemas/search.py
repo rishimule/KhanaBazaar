@@ -51,6 +51,7 @@ class PerStoreOffer(BaseModel):
     stock: int
     is_available: bool
     is_serviceable: bool
+    store_paused: bool = False
     distance_km: Optional[float] = None
 
 
@@ -105,6 +106,7 @@ class CompareOffer(BaseModel):
     stock: int
     is_available: bool
     is_serviceable: bool
+    store_paused: bool = False
 
 
 class CompareResponse(BaseModel):

@@ -400,6 +400,7 @@ async def products(
                     is_serviceable=(
                         serviceable_set is None or o["store_id"] in serviceable_set
                     ),
+                    store_paused=bool(o.get("store_paused", False)),
                     distance_km=distance,
                 )
             )
@@ -830,6 +831,7 @@ async def compare_offers(
                 stock=int(inv.stock),
                 is_available=bool(inv.is_available),
                 is_serviceable=is_serv,
+                store_paused=bool(store.is_paused),
             )
         )
         pso_for_card.append(
@@ -841,6 +843,7 @@ async def compare_offers(
                 stock=int(inv.stock),
                 is_available=bool(inv.is_available),
                 is_serviceable=is_serv,
+                store_paused=bool(store.is_paused),
                 distance_km=dist,
             )
         )
