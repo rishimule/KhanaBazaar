@@ -388,6 +388,7 @@ async def test_create_identity_with_valid_token_succeeds(approved_seller, sessio
 @pytest.mark.asyncio
 async def test_create_identity_token_phone_mismatch_rejected(approved_seller, session):
     from fastapi import HTTPException
+
     from app.core.security import create_seller_phone_change_token
     profile = approved_seller["profile"]
     token = create_seller_phone_change_token(profile.user_id, "+919811110000")
@@ -407,6 +408,7 @@ async def test_create_identity_token_phone_mismatch_rejected(approved_seller, se
 @pytest.mark.asyncio
 async def test_create_identity_token_wrong_user_rejected(approved_seller, session):
     from fastapi import HTTPException
+
     from app.core.security import create_seller_phone_change_token
     profile = approved_seller["profile"]
     new_phone = "+919811119999"
@@ -464,6 +466,7 @@ async def test_resubmit_identity_changed_phone_requires_fresh_token(
     approved_seller, session, admin_user
 ):
     from fastapi import HTTPException
+
     from app.core.security import create_seller_phone_change_token
     from app.services.seller_profile_change_requests import (
         request_changes,
