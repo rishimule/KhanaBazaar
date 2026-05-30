@@ -7,6 +7,9 @@
     <div style="margin-top:24px;padding:16px;border:1px solid #e5e7eb;border-radius:8px;">
       <div style="font-size:16px;font-weight:600;">Order #{{ o.order_id }} — {{ o.service_name }}</div>
       <div style="font-size:14px;color:#6b7280;margin-bottom:8px;">{{ o.store_name }}</div>
+      {% if o.delivery_eta %}
+        <div style="font-size:14px;color:#374151;margin-bottom:8px;">Estimated delivery: {{ o.delivery_eta }}</div>
+      {% endif %}
       {% with items=o.line_items, order_total=o.order_total %}
         {% include "_partials/line_items.html" %}
       {% endwith %}
