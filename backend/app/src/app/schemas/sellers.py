@@ -9,7 +9,7 @@ address columns flat and these models expose them as a nested
 
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from app.schemas.address import AddressPayload
 from app.schemas.services import ServicePayload
@@ -105,6 +105,19 @@ class AdminSetServicesBody(BaseModel):
 
 class SetServiceMinOrderValueBody(BaseModel):
     min_order_value: float = Field(ge=0, le=100000)
+    # ETA is an optional partial update: omit both to leave the window
+    # untouched, or send both to set it. Sending exactly one is rejected.
+    delivery_eta_min_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
+    delivery_eta_max_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
+
+    @model_validator(mode="after")
+    def _check_window(self) -> "SetServiceMinOrderValueBody":
+        low, high = self.delivery_eta_min_minutes, self.delivery_eta_max_minutes
+        if (low is None) != (high is None):
+            raise ValueError("delivery_eta_min_minutes and delivery_eta_max_minutes must be set together")
+        if low is not None and high is not None and low > high:
+            raise ValueError("delivery_eta_min_minutes must be <= delivery_eta_max_minutes")
+        return self
 
 
 class OrderStatusCounts(BaseModel):

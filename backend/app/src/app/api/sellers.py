@@ -494,6 +494,9 @@ async def set_my_service_min_order_value(
     if row is None:
         raise HTTPException(status_code=404, detail="Service not offered by this seller")
     row.min_order_value = body.min_order_value
+    if body.delivery_eta_min_minutes is not None and body.delivery_eta_max_minutes is not None:
+        row.delivery_eta_min_minutes = body.delivery_eta_min_minutes
+        row.delivery_eta_max_minutes = body.delivery_eta_max_minutes
     session.add(row)
     await session.commit()
     services = await list_profile_services(session, profile_id)
@@ -830,8 +833,15 @@ async def admin_set_service_min_order_value(
     )).first()
     if row is None:
         raise HTTPException(status_code=404, detail="Service not offered by this seller")
-    before = row.min_order_value
+    before = {
+        "min_order_value": row.min_order_value,
+        "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
+        "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
+    }
     row.min_order_value = body.min_order_value
+    if body.delivery_eta_min_minutes is not None and body.delivery_eta_max_minutes is not None:
+        row.delivery_eta_min_minutes = body.delivery_eta_min_minutes
+        row.delivery_eta_max_minutes = body.delivery_eta_max_minutes
     session.add(row)
     await admin_audit.log(
         session=session,
@@ -840,8 +850,13 @@ async def admin_set_service_min_order_value(
         target_type=AdminActionTargetType.SellerProfile,
         target_id=profile_id,
         action="service.set_min_order_value",
-        before_json={"service_id": service_id, "min_order_value": before},
-        after_json={"service_id": service_id, "min_order_value": body.min_order_value},
+        before_json={"service_id": service_id, **before},
+        after_json={
+            "service_id": service_id,
+            "min_order_value": body.min_order_value,
+            "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
+            "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
+        },
     )
     await session.commit()
     services = await list_profile_services(session, profile_id)

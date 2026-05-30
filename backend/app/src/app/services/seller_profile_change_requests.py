@@ -108,7 +108,12 @@ async def _baseline_for_group(
         rows = await list_profile_services(session, profile.id or 0)
         return {
             "services": [
-                {"service_id": row.id, "min_order_value": row.min_order_value}
+                {
+                    "service_id": row.id,
+                    "min_order_value": row.min_order_value,
+                    "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
+                    "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
+                }
                 for row in rows
             ],
         }
@@ -505,6 +510,11 @@ async def _apply_services(
         sid = int(r["service_id"])
         if sid in by_id:
             by_id[sid].min_order_value = float(r["min_order_value"])
+            eta_min = r.get("delivery_eta_min_minutes")
+            eta_max = r.get("delivery_eta_max_minutes")
+            if eta_min is not None and eta_max is not None:
+                by_id[sid].delivery_eta_min_minutes = int(eta_min)
+                by_id[sid].delivery_eta_max_minutes = int(eta_max)
             session.add(by_id[sid])
 
 
