@@ -176,14 +176,17 @@ export default function SellerInventoryPage() {
       const serviceCats = (catsByService.get(service.id) ?? []).sort((a, b) =>
         a.name.localeCompare(b.name)
       );
-      const categoryBuckets: CategoryBucket[] = serviceCats.map((category) => {
-        const items = (itemsByCategory.get(category.id) ?? []).sort(
-          (a, b) =>
-            a.product.subcategory_name.localeCompare(b.product.subcategory_name) ||
-            a.product.name.localeCompare(b.product.name)
-        );
-        return { category, items };
-      });
+      const categoryBuckets: CategoryBucket[] = serviceCats
+        .map((category) => {
+          const items = (itemsByCategory.get(category.id) ?? []).sort(
+            (a, b) =>
+              a.product.subcategory_name.localeCompare(b.product.subcategory_name) ||
+              a.product.name.localeCompare(b.product.name)
+          );
+          return { category, items };
+        })
+        // Stable partition: categories with products first (A→Z), empty ones sink to bottom (A→Z).
+        .sort((a, b) => (a.items.length === 0 ? 1 : 0) - (b.items.length === 0 ? 1 : 0));
       const totalCount = categoryBuckets.reduce((n, b) => n + b.items.length, 0);
       return { service, categories: categoryBuckets, totalCount };
     });
