@@ -430,19 +430,49 @@ export default function ProfileChangeRequestModal({
           <AddressFields value={addr} onChange={setAddr} requirePin />
         )}
         {group !== "address" &&
-          fields.map((f) => (
-            <label key={f.name} className={styles.field}>
-              <span>{f.label}</span>
-              <input
-                type={f.type ?? "text"}
-                value={values[f.name] ?? ""}
-                required={f.required}
-                onChange={(e) =>
-                  setValues((vs) => ({ ...vs, [f.name]: e.target.value }))
-                }
-              />
-            </label>
-          ))}
+          fields.map((f) => {
+            // Identity phone: lock the +91 country code, accept 10 digits only.
+            // `values.phone` stays the full canonical "+91XXXXXXXXXX" so the
+            // verify/normalize/payload logic downstream is unchanged.
+            if (group === "identity" && f.name === "phone") {
+              const local = (values["phone"] ?? "").replace(/^\+91/, "");
+              return (
+                <label key={f.name} className={styles.field}>
+                  <span>{f.label}</span>
+                  <div className={styles.phoneRow}>
+                    <span className={styles.phonePrefix}>+91</span>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      value={local}
+                      required={f.required}
+                      maxLength={10}
+                      placeholder="10-digit number"
+                      onChange={(e) => {
+                        const digits = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10);
+                        setValues((vs) => ({ ...vs, phone: `+91${digits}` }));
+                      }}
+                    />
+                  </div>
+                </label>
+              );
+            }
+            return (
+              <label key={f.name} className={styles.field}>
+                <span>{f.label}</span>
+                <input
+                  type={f.type ?? "text"}
+                  value={values[f.name] ?? ""}
+                  required={f.required}
+                  onChange={(e) =>
+                    setValues((vs) => ({ ...vs, [f.name]: e.target.value }))
+                  }
+                />
+              </label>
+            );
+          })}
         {phoneChanged && !phoneVerified && (
           <div className={styles.field}>
             <span>Verify new phone number</span>

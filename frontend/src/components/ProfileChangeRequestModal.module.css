@@ -85,3 +85,26 @@
   gap: var(--space-2, 8px);
   margin-top: 8px;
 }
+
+.phoneRow {
+  display: flex;
+  align-items: stretch;
+}
+
+.phonePrefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--color-input-border, var(--color-border));
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  background: var(--color-surface-muted, var(--color-border));
+  color: var(--color-text-muted, var(--color-text));
+  font: inherit;
+  user-select: none;
+}
+
+.phoneRow input {
+  flex: 1;
+  border-radius: 0 6px 6px 0 !important;
+}
