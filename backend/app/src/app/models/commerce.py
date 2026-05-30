@@ -64,6 +64,8 @@ class Order(BaseSchema, table=True):
     store_id: int = Field(foreign_key="store.id", nullable=False, index=True)
     service_id: int = Field(foreign_key="service.id", nullable=False, index=True)
     service_name_snapshot: str = Field(nullable=False)
+    delivery_eta_min_minutes: int = Field(default=30, nullable=False)
+    delivery_eta_max_minutes: int = Field(default=60, nullable=False)
     delivery_address_id: int = Field(foreign_key="address.id", nullable=False)
     status: OrderStatus = Field(default=OrderStatus.Pending, nullable=False, index=True)
     subtotal: float = Field(nullable=False)

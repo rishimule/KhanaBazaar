@@ -105,3 +105,5 @@ class SellerProfileService(BaseSchema, table=True):
         foreign_key="service.id", nullable=False, index=True
     )
     min_order_value: float = Field(default=0.0, nullable=False)
+    delivery_eta_min_minutes: int = Field(default=30, nullable=False)
+    delivery_eta_max_minutes: int = Field(default=60, nullable=False)
