@@ -29,6 +29,7 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
+from app.models.profile import SellerProfileService
 from app.models.search_log import SearchQueryLog
 from app.models.store import Store, StoreInventory
 from app.schemas.search import (
@@ -802,6 +803,21 @@ async def compare_offers(
     if lat is not None and lng is not None:
         serviceable = await get_serviceable_store_ids(session, redis, lat, lng)
 
+    # Seller profiles that have THIS product's service paused, so a per-service
+    # pause (not just a store-wide one) flags the offer as closed — mirrors
+    # build_product_document so the compare view matches the results grid.
+    paused_profile_ids = {
+        pid
+        for (pid,) in (
+            await session.execute(
+                select(SellerProfileService.seller_profile_id).where(
+                    SellerProfileService.service_id == svc.id,
+                    SellerProfileService.is_paused.is_(True),
+                )
+            )
+        ).all()
+    }
+
     offers: list[CompareOffer] = []
     pso_for_card: list[PerStoreOffer] = []
     for inv, store, address in rows:
@@ -816,6 +832,7 @@ async def compare_offers(
                 _haversine_km(lat, lng, address.latitude, address.longitude), 2
             )
         is_serv = serviceable is None or store.id in (serviceable or [])
+        store_paused = bool(store.is_paused) or store.seller_profile_id in paused_profile_ids
         offers.append(
             CompareOffer(
                 store=CompareStore(
@@ -831,7 +848,7 @@ async def compare_offers(
                 stock=int(inv.stock),
                 is_available=bool(inv.is_available),
                 is_serviceable=is_serv,
-                store_paused=bool(store.is_paused),
+                store_paused=store_paused,
             )
         )
         pso_for_card.append(
@@ -843,7 +860,7 @@ async def compare_offers(
                 stock=int(inv.stock),
                 is_available=bool(inv.is_available),
                 is_serviceable=is_serv,
-                store_paused=bool(store.is_paused),
+                store_paused=store_paused,
                 distance_km=dist,
             )
         )

@@ -111,7 +111,8 @@ async def _validate_service_active_for_store(
     session: AsyncSession, store_id: int, service_id: int
 ) -> None:
     """Raise 409 service_unavailable if seller no longer offers `service_id`
-    or if `Service.is_active` is false."""
+    or if `Service.is_active` is false; raise 409 service_paused if the seller
+    has temporarily paused this service for the store."""
     from app.models.catalog import Service
     from app.models.profile import SellerProfile, SellerProfileService
 

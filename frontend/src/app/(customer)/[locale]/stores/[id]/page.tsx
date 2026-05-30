@@ -348,7 +348,12 @@ export default function StoreDetailPage({ params }: Props) {
             )}
           </header>
 
-          <FavoritesHere storeId={Number(storeId)} storeName={store.name} />
+          <FavoritesHere
+            storeId={Number(storeId)}
+            storeName={store.name}
+            storePaused={store.is_paused}
+            pausedServiceIds={store.services.filter((s) => s.is_paused).map((s) => s.id)}
+          />
 
           {requestedMissingServiceId !== null ? (() => {
             const missingSvc = store.services.find(
