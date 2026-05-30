@@ -13,7 +13,6 @@ import AttentionBanner from "@/components/admin/AttentionBanner";
 import GmvChart from "@/components/admin/GmvChart";
 import ApplicationPipeline from "@/components/admin/ApplicationPipeline";
 import OrdersByService from "@/components/admin/OrdersByService";
-import RecentOrders from "@/components/admin/RecentOrders";
 import QuickActions from "@/components/admin/QuickActions";
 import styles from "./page.module.css";
 
@@ -150,7 +149,7 @@ export default function AdminDashboardPage() {
       <div className={styles.grid}>
         <div className={styles.main}>
           <GmvChart />
-          <RecentOrders />
+          <QuickActions />
         </div>
         <aside className={styles.rail}>
           <ApplicationPipeline
@@ -159,7 +158,6 @@ export default function AdminDashboardPage() {
             rejected={m.rejected_sellers}
           />
           <OrdersByService services={m.orders_by_service} />
-          <QuickActions />
         </aside>
       </div>
     </div>
