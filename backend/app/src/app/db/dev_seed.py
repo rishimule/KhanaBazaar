@@ -1758,11 +1758,32 @@ async def _upsert_address(session: AsyncSession, owner: object | None, data: Map
     return address
 
 
+# Realistic per-service delivery ETA windows (min, max) in minutes, so the
+# checkout "Estimated delivery" line and order history show varied, plausible
+# values out of the box. Slugs without an entry fall back to _DEFAULT_ETA.
+_SERVICE_ETA_MINUTES: dict[str, tuple[int, int]] = {
+    "food": (25, 45),
+    "pharmacy": (20, 40),
+    "bakery": (30, 60),
+    "meat-seafood": (30, 60),
+    "grocery": (30, 60),
+    "flowers-plants": (45, 90),
+    "pet-supplies": (45, 90),
+    "beauty": (60, 120),
+    "stationery": (60, 120),
+    "electronics": (120, 240),
+    "home-kitchen": (120, 240),
+    "sports-fitness": (120, 240),
+}
+_DEFAULT_ETA: tuple[int, int] = (30, 60)
+
+
 async def _upsert_seller_profile_services(
     session: AsyncSession, profile: SellerProfile, service_slugs: list[str]
 ) -> None:
     assert profile.id is not None
     service_ids: list[int] = []
+    eta_by_service_id: dict[int, tuple[int, int]] = {}
     for slug in service_slugs:
         result = await session.exec(select(Service).where(Service.slug == slug))
         service = result.first()
@@ -1770,6 +1791,7 @@ async def _upsert_seller_profile_services(
             f"seed expected service with slug={slug!r}; ensure SERVICES are seeded first"
         )
         service_ids.append(service.id)
+        eta_by_service_id[service.id] = _SERVICE_ETA_MINUTES.get(slug, _DEFAULT_ETA)
 
     existing_result = await session.exec(
         select(SellerProfileService).where(
@@ -1780,12 +1802,23 @@ async def _upsert_seller_profile_services(
     desired = set(service_ids)
 
     for service_id in desired - existing.keys():
+        eta_min, eta_max = eta_by_service_id[service_id]
         session.add(
-            SellerProfileService(seller_profile_id=profile.id, service_id=service_id)
+            SellerProfileService(
+                seller_profile_id=profile.id,
+                service_id=service_id,
+                delivery_eta_min_minutes=eta_min,
+                delivery_eta_max_minutes=eta_max,
+            )
         )
     for service_id, row in list(existing.items()):
         if service_id not in desired:
             await session.delete(row)
+        else:
+            eta_min, eta_max = eta_by_service_id[service_id]
+            row.delivery_eta_min_minutes = eta_min
+            row.delivery_eta_max_minutes = eta_max
+            session.add(row)
     await session.flush()
 
 
@@ -2309,11 +2342,14 @@ async def _seed_demo_orders(session: AsyncSession) -> None:
                 qty,
             ))
 
+        eta_min, eta_max = _SERVICE_ETA_MINUTES.get(service.slug, _DEFAULT_ETA)
         order = Order(
             customer_profile_id=profile.id,
             store_id=store.id,
             service_id=service.id,
             service_name_snapshot=service_name,
+            delivery_eta_min_minutes=eta_min,
+            delivery_eta_max_minutes=eta_max,
             delivery_address_id=address.id,
             delivery_address_snapshot=address_snapshot,
             status=status,

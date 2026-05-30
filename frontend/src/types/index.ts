@@ -36,6 +36,8 @@ export interface Service extends BaseSchema {
   is_active: boolean;
   sort_order: number;
   min_order_value?: number;
+  delivery_eta_min_minutes?: number;
+  delivery_eta_max_minutes?: number;
 }
 
 /** Category from the master catalog. */
@@ -231,6 +233,8 @@ export interface Cart {
   service_name: string;
   items: CartItem[];
   min_order_value?: number;
+  delivery_eta_min_minutes?: number;
+  delivery_eta_max_minutes?: number;
 }
 
 /** Seller application verification states. */
@@ -318,6 +322,8 @@ export interface Order {
   store_name: string;
   service_id: number;
   service_name: string;
+  delivery_eta_min_minutes?: number;
+  delivery_eta_max_minutes?: number;
   customer_name?: string | null;
   status: OrderStatus;
   subtotal: number;

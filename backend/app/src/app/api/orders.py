@@ -165,6 +165,8 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
         store_name=store.name if store else "",
         service_id=order.service_id,
         service_name=order.service_name_snapshot,
+        delivery_eta_min_minutes=order.delivery_eta_min_minutes,
+        delivery_eta_max_minutes=order.delivery_eta_max_minutes,
         customer_name=customer_name,
         status=order.status,
         subtotal=order.subtotal,

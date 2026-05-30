@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.otp import InvalidPhoneNumber, normalize_phone
 from app.models.seller_profile_change_request import (
@@ -86,6 +86,20 @@ class BankingPayload(BaseModel):
 class ServiceRowPayload(BaseModel):
     service_id: int
     min_order_value: float = Field(ge=0.0, le=100000.0)
+    # ETA is an optional partial update (both-or-neither); omitting both leaves
+    # the row's window untouched on apply, which also keeps any in-flight CRs
+    # submitted before this field existed valid.
+    delivery_eta_min_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
+    delivery_eta_max_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
+
+    @model_validator(mode="after")
+    def _window(self) -> "ServiceRowPayload":
+        low, high = self.delivery_eta_min_minutes, self.delivery_eta_max_minutes
+        if (low is None) != (high is None):
+            raise ValueError("delivery_eta_min_minutes and delivery_eta_max_minutes must be set together")
+        if low is not None and high is not None and low > high:
+            raise ValueError("delivery_eta_max_minutes must be >= delivery_eta_min_minutes")
+        return self
 
 
 class ServicesPayload(BaseModel):

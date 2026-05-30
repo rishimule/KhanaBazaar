@@ -30,6 +30,10 @@ export default function SellerProfileTab({
   const [openCRs, setOpenCRs] = useState<SellerProfileChangeRequest[]>([]);
   const [minError, setMinError] = useState<string | null>(null);
   const minDebounceRef = useRef<Record<number, number>>({});
+  const hubRef = useRef<SellerHubSummary | null>(null);
+  useEffect(() => {
+    hubRef.current = hub;
+  }, [hub]);
 
   useEffect(() => {
     if (!token) return;
@@ -95,20 +99,27 @@ export default function SellerProfileTab({
 
   const isApproved = hub.verification_status === "approved";
 
-  const updateMin = (serviceId: number, raw: number) => {
-    if (!token || !hub) return;
-    const value = Number.isFinite(raw) ? Math.max(0, Math.min(100000, raw)) : 0;
-    setHub({
-      ...hub,
-      services: hub.services.map((s) =>
-        s.id === serviceId ? { ...s, min_order_value: value } : s,
-      ),
-    });
+  const schedulePersist = (serviceId: number) => {
+    if (!token) return;
     if (minDebounceRef.current[serviceId]) {
       window.clearTimeout(minDebounceRef.current[serviceId]);
     }
     minDebounceRef.current[serviceId] = window.setTimeout(() => {
-      adminSetServiceMinOrderValue(Number(id), serviceId, value, token)
+      const svc = hubRef.current?.services.find((s) => s.id === serviceId);
+      if (!svc) return;
+      const etaMin = svc.delivery_eta_min_minutes ?? 30;
+      const etaMax = svc.delivery_eta_max_minutes ?? 60;
+      if (etaMin > etaMax) {
+        setMinError("Maximum delivery time must be at least the minimum.");
+        return;
+      }
+      adminSetServiceMinOrderValue(
+        Number(id),
+        serviceId,
+        svc.min_order_value ?? 0,
+        token,
+        { min: etaMin, max: etaMax },
+      )
         .then(() => setMinError(null))
         .catch((e) => {
           const detail = (e as { detail?: unknown })?.detail;
@@ -119,6 +130,38 @@ export default function SellerProfileTab({
           );
         });
     }, 400);
+  };
+
+  const updateMin = (serviceId: number, raw: number) => {
+    if (!token || !hub) return;
+    const value = Number.isFinite(raw) ? Math.max(0, Math.min(100000, raw)) : 0;
+    setHub({
+      ...hub,
+      services: hub.services.map((s) =>
+        s.id === serviceId ? { ...s, min_order_value: value } : s,
+      ),
+    });
+    schedulePersist(serviceId);
+  };
+
+  const updateEta = (serviceId: number, field: "min" | "max", raw: number) => {
+    if (!token || !hub) return;
+    const value = Number.isFinite(raw) ? Math.max(1, Math.min(20160, raw)) : 1;
+    setHub({
+      ...hub,
+      services: hub.services.map((s) =>
+        s.id === serviceId
+          ? {
+              ...s,
+              delivery_eta_min_minutes:
+                field === "min" ? value : s.delivery_eta_min_minutes,
+              delivery_eta_max_minutes:
+                field === "max" ? value : s.delivery_eta_max_minutes,
+            }
+          : s,
+      ),
+    });
+    schedulePersist(serviceId);
   };
 
   const row: {
@@ -264,6 +307,31 @@ export default function SellerProfileTab({
                 aria-label={t("profile.minOrderAriaLabel", { name: svc.name })}
                 style={{ width: 110, padding: "6px 8px", textAlign: "right" }}
               />
+              <span>ETA</span>
+              <input
+                type="number"
+                min={1}
+                max={20160}
+                step={5}
+                disabled={!isApproved}
+                value={svc.delivery_eta_min_minutes ?? 30}
+                onChange={(e) => updateEta(svc.id, "min", parseFloat(e.target.value))}
+                aria-label={`Minimum delivery minutes for ${svc.name}`}
+                style={{ width: 80, padding: "6px 8px", textAlign: "right" }}
+              />
+              <span>–</span>
+              <input
+                type="number"
+                min={1}
+                max={20160}
+                step={5}
+                disabled={!isApproved}
+                value={svc.delivery_eta_max_minutes ?? 60}
+                onChange={(e) => updateEta(svc.id, "max", parseFloat(e.target.value))}
+                aria-label={`Maximum delivery minutes for ${svc.name}`}
+                style={{ width: 80, padding: "6px 8px", textAlign: "right" }}
+              />
+              <span>min</span>
             </div>
           ))}
           {!isApproved && (

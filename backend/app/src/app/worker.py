@@ -10,6 +10,7 @@ from pywebpush import WebPushException, webpush
 import app.search.tasks  # noqa: F401
 from app.core.celery_app import celery_app
 from app.core.config import settings
+from app.utils.delivery_eta import format_delivery_eta
 
 
 @celery_app.task(name="test_celery_task", bind=True)  # type: ignore[untyped-decorator]
@@ -205,6 +206,10 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     "order_total": order.total,
                     "order_status": order.status.value,
                     "service_name": order.service_name_snapshot,
+                    "delivery_eta": format_delivery_eta(
+                        order.delivery_eta_min_minutes,
+                        order.delivery_eta_max_minutes,
+                    ),
                     "store_name": store.name if store is not None else None,
                     "seller_email": seller_user.email if seller_user is not None else None,
                     "customer_email": customer_user.email if customer_user is not None else None,
@@ -298,6 +303,7 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
                 "store_name": ctx.get("store_name") or "a store",
                 "line_items": ctx.get("items", []),
                 "order_total": ctx["order_total"],
+                "delivery_eta": ctx.get("delivery_eta"),
             }
         )
         grand_total += float(ctx["order_total"])

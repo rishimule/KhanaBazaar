@@ -76,6 +76,8 @@ function buildCurrentValues(
           service_id: s.id,
           name: s.name,
           min_order_value: s.min_order_value ?? 0,
+          delivery_eta_min_minutes: s.delivery_eta_min_minutes ?? 30,
+          delivery_eta_max_minutes: s.delivery_eta_max_minutes ?? 60,
         })),
       };
     default:
@@ -124,6 +126,12 @@ export default function SellerProfilePage() {
   const reqIdRef = useRef(0);
   const minReqRef = useRef<Record<number, number>>({});
   const minDebounceRef = useRef<Record<number, number>>({});
+  // Mirrors `profile` so the debounced persist reads the freshest service
+  // values without re-subscribing the timeout to state changes.
+  const profileRef = useRef<SellerProfile | null>(null);
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
 
   useEffect(() => {
     if (authLoading || !dbUser || !token) return;
@@ -202,14 +210,21 @@ export default function SellerProfilePage() {
     updateRadius(store.delivery_radius_km + delta);
   };
 
-  const persistMin = (serviceId: number, value: number) => {
+  const persistService = (
+    serviceId: number,
+    body: {
+      min_order_value: number;
+      delivery_eta_min_minutes: number;
+      delivery_eta_max_minutes: number;
+    },
+  ) => {
     if (!token) return;
     const myReq = (minReqRef.current[serviceId] ?? 0) + 1;
     minReqRef.current[serviceId] = myReq;
     setSaveError(null);
     patch<Service>(
       `/api/v1/sellers/me/services/${serviceId}`,
-      { min_order_value: value },
+      body,
       token,
     )
       .then((updated) => {
@@ -232,6 +247,30 @@ export default function SellerProfilePage() {
       });
   };
 
+  const schedulePersist = (serviceId: number) => {
+    if (minDebounceRef.current[serviceId]) {
+      window.clearTimeout(minDebounceRef.current[serviceId]);
+    }
+    minDebounceRef.current[serviceId] = window.setTimeout(() => {
+      // Read the freshest values off the ref at fire time so concurrent edits
+      // to min / eta on the same row are persisted together.
+      const svc = profileRef.current?.services.find((s) => s.id === serviceId);
+      if (svc) {
+        const etaMin = svc.delivery_eta_min_minutes ?? 30;
+        const etaMax = svc.delivery_eta_max_minutes ?? 60;
+        if (etaMin > etaMax) {
+          setSaveError("Maximum delivery time must be at least the minimum.");
+          return;
+        }
+        persistService(serviceId, {
+          min_order_value: svc.min_order_value ?? 0,
+          delivery_eta_min_minutes: etaMin,
+          delivery_eta_max_minutes: etaMax,
+        });
+      }
+    }, 400);
+  };
+
   const updateMin = (serviceId: number, raw: number) => {
     const value = Number.isFinite(raw) ? Math.max(0, Math.min(100000, raw)) : 0;
     setProfile((prev) =>
@@ -244,13 +283,30 @@ export default function SellerProfilePage() {
           }
         : prev,
     );
-    if (minDebounceRef.current[serviceId]) {
-      window.clearTimeout(minDebounceRef.current[serviceId]);
-    }
-    minDebounceRef.current[serviceId] = window.setTimeout(
-      () => persistMin(serviceId, value),
-      400,
+    schedulePersist(serviceId);
+  };
+
+  const updateEta = (serviceId: number, field: "min" | "max", raw: number) => {
+    const value = Number.isFinite(raw) ? Math.max(1, Math.min(20160, raw)) : 1;
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            services: prev.services.map((s) =>
+              s.id === serviceId
+                ? {
+                    ...s,
+                    delivery_eta_min_minutes:
+                      field === "min" ? value : s.delivery_eta_min_minutes,
+                    delivery_eta_max_minutes:
+                      field === "max" ? value : s.delivery_eta_max_minutes,
+                  }
+                : s,
+            ),
+          }
+        : prev,
     );
+    schedulePersist(serviceId);
   };
 
   const maskedAccount = useMemo(
@@ -502,6 +558,37 @@ export default function SellerProfilePage() {
                       readOnly={isApproved}
                       disabled={isApproved}
                     />
+                    <span className={styles.unit}>ETA</span>
+                    <input
+                      type="number"
+                      className={styles.radiusInput}
+                      min={1}
+                      max={20160}
+                      step={5}
+                      value={svc.delivery_eta_min_minutes ?? 30}
+                      onChange={(e) =>
+                        updateEta(svc.id, "min", parseFloat(e.target.value))
+                      }
+                      aria-label={`Minimum delivery minutes for ${svc.name}`}
+                      readOnly={isApproved}
+                      disabled={isApproved}
+                    />
+                    <span className={styles.unit}>–</span>
+                    <input
+                      type="number"
+                      className={styles.radiusInput}
+                      min={1}
+                      max={20160}
+                      step={5}
+                      value={svc.delivery_eta_max_minutes ?? 60}
+                      onChange={(e) =>
+                        updateEta(svc.id, "max", parseFloat(e.target.value))
+                      }
+                      aria-label={`Maximum delivery minutes for ${svc.name}`}
+                      readOnly={isApproved}
+                      disabled={isApproved}
+                    />
+                    <span className={styles.unit}>min</span>
                   </div>
                 ))}
               </>

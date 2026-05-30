@@ -226,12 +226,43 @@ async def _assert_locked_inventory_matches_service(
             )
 
 
+async def _snapshot_delivery_eta(
+    session: AsyncSession, store_id: int, service_id: int
+) -> tuple[int, int]:
+    """Read the seller's configured delivery window for (store, service).
+    Falls back to the model default (30, 60) if the row is absent so the
+    order path never fails on a missing config."""
+    from app.models.profile import SellerProfile, SellerProfileService
+
+    row = (
+        await session.exec(
+            select(
+                SellerProfileService.delivery_eta_min_minutes,
+                SellerProfileService.delivery_eta_max_minutes,
+            )
+            .join(
+                SellerProfile,
+                SellerProfile.id == SellerProfileService.seller_profile_id,  # type: ignore[arg-type]
+            )
+            .join(Store, Store.seller_profile_id == SellerProfile.id)  # type: ignore[arg-type]
+            .where(
+                Store.id == store_id,
+                SellerProfileService.service_id == service_id,
+            )
+        )
+    ).first()
+    if row is None:
+        return (30, 60)
+    return (row[0], row[1])
+
+
 def _build_order_for_cart(
     *, profile_id: int, address_id: int, address_snapshot: str,
     cart: Cart, items: list[CartItem],
     inv_by_id: dict[int, StoreInventory], name_by_inv: dict[int, str],
     payment_method: PaymentMethod,
     service_id: int, service_name_snapshot: str,
+    delivery_eta_min_minutes: int, delivery_eta_max_minutes: int,
 ) -> tuple[Order, list[OrderItem], Payment, Delivery]:
     """Pure builder. Returns the rows to add and computes the line decrements
     via inv_by_id. Caller does session.add + decrement_stock."""
@@ -242,6 +273,8 @@ def _build_order_for_cart(
         store_id=cart.store_id,
         service_id=service_id,
         service_name_snapshot=service_name_snapshot,
+        delivery_eta_min_minutes=delivery_eta_min_minutes,
+        delivery_eta_max_minutes=delivery_eta_max_minutes,
         delivery_address_id=address_id,
         delivery_address_snapshot=address_snapshot,
         status=OrderStatus.Pending,
@@ -407,6 +440,7 @@ async def place_order_for_sub_basket(
 
     name_by_inv = await _snapshot_product_names(session, inv_ids)
     service_name_snapshot = await _snapshot_service_name(session, service_id)
+    eta_min, eta_max = await _snapshot_delivery_eta(session, store_id, service_id)
 
     order, order_items, payment, delivery = _build_order_for_cart(
         profile_id=profile.id, address_id=address_id,
@@ -414,6 +448,7 @@ async def place_order_for_sub_basket(
         inv_by_id=inv_by_id, name_by_inv=name_by_inv,
         payment_method=payment_method,
         service_id=service_id, service_name_snapshot=service_name_snapshot,
+        delivery_eta_min_minutes=eta_min, delivery_eta_max_minutes=eta_max,
     )
     session.add(order)
     await session.flush()

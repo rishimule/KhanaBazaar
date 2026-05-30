@@ -35,6 +35,8 @@ interface ServiceRow {
   name: string;
   selected: boolean;
   min_order_value: string;
+  delivery_eta_min_minutes: string;
+  delivery_eta_max_minutes: string;
 }
 
 const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
@@ -138,15 +140,19 @@ export default function ProfileChangeRequestModal({
     if (group !== "services" || !open) return;
     let cancelled = false;
     setServicesLoading(true);
-    const subscribed = new Map<number, string>();
+    const subscribed = new Map<
+      number,
+      { min: string; etaMin: string; etaMax: string }
+    >();
     const subRaw = currentValues["services"];
     if (Array.isArray(subRaw)) {
       for (const row of subRaw) {
         const r = row as Record<string, unknown>;
-        subscribed.set(
-          Number(r["service_id"]),
-          String(r["min_order_value"] ?? "0"),
-        );
+        subscribed.set(Number(r["service_id"]), {
+          min: String(r["min_order_value"] ?? "0"),
+          etaMin: String(r["delivery_eta_min_minutes"] ?? "30"),
+          etaMax: String(r["delivery_eta_max_minutes"] ?? "60"),
+        });
       }
     }
     get<Service[]>("/api/v1/catalog/services")
@@ -155,12 +161,17 @@ export default function ProfileChangeRequestModal({
         setServices(
           all
             .filter((s) => s.is_active)
-            .map((s) => ({
-              service_id: s.id,
-              name: s.name,
-              selected: subscribed.has(s.id),
-              min_order_value: subscribed.get(s.id) ?? "0",
-            })),
+            .map((s) => {
+              const sub = subscribed.get(s.id);
+              return {
+                service_id: s.id,
+                name: s.name,
+                selected: subscribed.has(s.id),
+                min_order_value: sub?.min ?? "0",
+                delivery_eta_min_minutes: sub?.etaMin ?? "30",
+                delivery_eta_max_minutes: sub?.etaMax ?? "60",
+              };
+            }),
         );
       })
       .catch(() => {
@@ -247,6 +258,19 @@ export default function ProfileChangeRequestModal({
 
   async function handleSubmit() {
     setError(null);
+    if (group === "services") {
+      const badEta = services
+        .filter((s) => s.selected)
+        .some(
+          (s) =>
+            Number(s.delivery_eta_min_minutes || 30) >
+            Number(s.delivery_eta_max_minutes || 60),
+        );
+      if (badEta) {
+        setError("Maximum delivery time must be at least the minimum.");
+        return;
+      }
+    }
     setBusy(true);
     let payload: Record<string, unknown>;
     if (group === "services") {
@@ -257,6 +281,10 @@ export default function ProfileChangeRequestModal({
             service_id: s.service_id,
             min_order_value:
               s.min_order_value === "" ? 0 : Number(s.min_order_value),
+            delivery_eta_min_minutes:
+              s.delivery_eta_min_minutes === "" ? 30 : Number(s.delivery_eta_min_minutes),
+            delivery_eta_max_minutes:
+              s.delivery_eta_max_minutes === "" ? 60 : Number(s.delivery_eta_max_minutes),
           })),
       };
     } else if (group === "address") {
@@ -353,25 +381,65 @@ export default function ProfileChangeRequestModal({
                   <span>{row.name}</span>
                 </label>
                 {row.selected && (
-                  <label className={styles.subField}>
-                    <span>Minimum order value (₹)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100000}
-                      step={10}
-                      value={row.min_order_value}
-                      onChange={(e) =>
-                        setServices((rows) =>
-                          rows.map((r, i) =>
-                            i === idx
-                              ? { ...r, min_order_value: e.target.value }
-                              : r,
-                          ),
-                        )
-                      }
-                    />
-                  </label>
+                  <>
+                    <label className={styles.subField}>
+                      <span>Minimum order value (₹)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100000}
+                        step={10}
+                        value={row.min_order_value}
+                        onChange={(e) =>
+                          setServices((rows) =>
+                            rows.map((r, i) =>
+                              i === idx
+                                ? { ...r, min_order_value: e.target.value }
+                                : r,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.subField}>
+                      <span>Delivery time — min (minutes)</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20160}
+                        step={5}
+                        value={row.delivery_eta_min_minutes}
+                        onChange={(e) =>
+                          setServices((rows) =>
+                            rows.map((r, i) =>
+                              i === idx
+                                ? { ...r, delivery_eta_min_minutes: e.target.value }
+                                : r,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.subField}>
+                      <span>Delivery time — max (minutes)</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20160}
+                        step={5}
+                        value={row.delivery_eta_max_minutes}
+                        onChange={(e) =>
+                          setServices((rows) =>
+                            rows.map((r, i) =>
+                              i === idx
+                                ? { ...r, delivery_eta_max_minutes: e.target.value }
+                                : r,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                  </>
                 )}
               </div>
             ))}

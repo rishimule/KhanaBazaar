@@ -26,10 +26,19 @@ export function adminSetServiceMinOrderValue(
   serviceId: number,
   minOrderValue: number,
   token: string,
+  deliveryEta?: { min: number; max: number },
 ) {
   return patch<Service>(
     `/api/v1/sellers/admin/${sellerId}/services/${serviceId}`,
-    { min_order_value: minOrderValue },
+    {
+      min_order_value: minOrderValue,
+      ...(deliveryEta
+        ? {
+            delivery_eta_min_minutes: deliveryEta.min,
+            delivery_eta_max_minutes: deliveryEta.max,
+          }
+        : {}),
+    },
     token,
   );
 }

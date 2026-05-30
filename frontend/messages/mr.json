@@ -142,6 +142,7 @@
     "deliveryAddress": "डिलिव्हरी पत्ता",
     "subtotal": "उप-एकूण",
     "deliveryFee": "डिलिव्हरी शुल्क",
+    "estimatedDelivery": "Estimated delivery",
     "tax": "कर",
     "total": "एकूण",
     "errPlaceOrder": "ऑर्डर देता आली नाही. कृपया पुन्हा प्रयत्न करा.",
@@ -503,6 +504,7 @@
     },
     "orderDetail": {
       "title": "ऑर्डर #{id}",
+      "estimatedDelivery": "Estimated delivery",
       "items": "वस्तू",
       "subtotal": "उप-एकूण",
       "delivery": "डिलिव्हरी",

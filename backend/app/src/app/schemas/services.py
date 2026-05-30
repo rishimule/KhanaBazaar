@@ -19,3 +19,5 @@ class ServicePayload(BaseModel):
     is_active: bool
     sort_order: int
     min_order_value: Optional[float] = None
+    delivery_eta_min_minutes: int = 30
+    delivery_eta_max_minutes: int = 60

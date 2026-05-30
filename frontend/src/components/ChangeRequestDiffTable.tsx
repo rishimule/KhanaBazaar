@@ -4,6 +4,7 @@
 
 import { useState, type ReactNode } from "react";
 import type { SellerProfileChangeGroup } from "@/types";
+import { formatDeliveryEta } from "@/lib/deliveryEta";
 import styles from "./ChangeRequestDiffTable.module.css";
 
 interface Props {
@@ -78,6 +79,8 @@ function maskAccount(n: string): string {
 interface ServiceEntry {
   service_id: number;
   min_order_value: number;
+  delivery_eta_min_minutes?: number;
+  delivery_eta_max_minutes?: number;
 }
 
 function isServiceList(v: unknown): v is ServiceEntry[] {
@@ -106,6 +109,9 @@ function renderServiceChips(
             <span className={styles.chipName}>{name}</span>
             <span className={styles.chipMeta}>
               min ₹{Math.round(r.min_order_value)}
+              {r.delivery_eta_min_minutes != null &&
+                r.delivery_eta_max_minutes != null &&
+                ` · ETA ${formatDeliveryEta(r.delivery_eta_min_minutes, r.delivery_eta_max_minutes)}`}
             </span>
           </li>
         );
