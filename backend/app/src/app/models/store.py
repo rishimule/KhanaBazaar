@@ -1,5 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+from datetime import date
+
 from sqlmodel import Field, Relationship, UniqueConstraint
 
 from app.models.address import Address
@@ -16,6 +18,9 @@ class Store(BaseSchema, table=True):
     address_id: int = Field(foreign_key="address.id", nullable=False, index=True)
     delivery_radius_km: float = Field(default=5.0, nullable=False)
     pin_confirmed: bool = Field(default=False, nullable=False)
+    is_paused: bool = Field(default=False, nullable=False)
+    pause_reason: str | None = Field(default=None, max_length=200)
+    paused_until: date | None = Field(default=None)
 
     seller_profile: SellerProfile = Relationship()
     address: Address = Relationship()

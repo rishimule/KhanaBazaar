@@ -107,3 +107,6 @@ class SellerProfileService(BaseSchema, table=True):
     min_order_value: float = Field(default=0.0, nullable=False)
     delivery_eta_min_minutes: int = Field(default=30, nullable=False)
     delivery_eta_max_minutes: int = Field(default=60, nullable=False)
+    is_paused: bool = Field(default=False, nullable=False)
+    pause_reason: Optional[str] = Field(default=None, max_length=200)
+    paused_until: Optional[date] = Field(default=None)
