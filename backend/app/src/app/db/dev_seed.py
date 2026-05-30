@@ -2342,11 +2342,14 @@ async def _seed_demo_orders(session: AsyncSession) -> None:
                 qty,
             ))
 
+        eta_min, eta_max = _SERVICE_ETA_MINUTES.get(service.slug, _DEFAULT_ETA)
         order = Order(
             customer_profile_id=profile.id,
             store_id=store.id,
             service_id=service.id,
             service_name_snapshot=service_name,
+            delivery_eta_min_minutes=eta_min,
+            delivery_eta_max_minutes=eta_max,
             delivery_address_id=address.id,
             delivery_address_snapshot=address_snapshot,
             status=status,
