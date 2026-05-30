@@ -115,24 +115,6 @@
   font-style: italic;
 }
 
-.serviceChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.serviceChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--shade-cool-light-1);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-pill);
-  font-size: var(--body-sm);
-  color: var(--shade-cool-dark-7);
-}
-
 .storefrontLink {
   display: inline-flex;
   align-self: flex-start;

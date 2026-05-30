@@ -475,14 +475,36 @@ export default function SellerProfilePage() {
             {profile.services.length === 0 ? (
               <div className={styles.servicesEmpty}>{t("servicesEmpty")}</div>
             ) : (
-              <div className={styles.serviceChips}>
+              <>
+                <p className={styles.cardCaption}>
+                  {tSettings("minOrderCaption")}
+                </p>
                 {profile.services.map((svc) => (
-                  <span key={svc.id} className={styles.serviceChip}>
-                    <span aria-hidden>{serviceGlyph(svc.slug)}</span>
-                    <span>{svc.name}</span>
-                  </span>
+                  <div key={svc.id} className={styles.serviceRow}>
+                    <span className={styles.serviceLabel}>
+                      <span aria-hidden>{serviceGlyph(svc.slug)}</span>{" "}
+                      {svc.name}
+                    </span>
+                    <span className={styles.unit}>₹</span>
+                    <input
+                      type="number"
+                      className={styles.radiusInput}
+                      min={0}
+                      max={100000}
+                      step={10}
+                      value={svc.min_order_value ?? 0}
+                      onChange={(e) =>
+                        updateMin(svc.id, parseFloat(e.target.value))
+                      }
+                      aria-label={tSettings("minOrderInputLabel", {
+                        service: svc.name,
+                      })}
+                      readOnly={isApproved}
+                      disabled={isApproved}
+                    />
+                  </div>
                 ))}
-              </div>
+              </>
             )}
           </ProfileSectionCard>
         );
@@ -548,44 +570,6 @@ export default function SellerProfilePage() {
                   <span className={styles.savingChip}>{tc("saving")}</span>
                 )}
               </div>
-            </ProfileSectionCard>
-          );
-        })()}
-
-      {profile.services.length > 0 &&
-        (() => {
-          const chrome = cardCRChrome("services");
-          return (
-            <ProfileSectionCard
-              title={tSettings("minOrderValue")}
-              action={chrome.action ?? undefined}
-            >
-              {chrome.banner}
-              <p className={styles.cardCaption}>
-                {tSettings("minOrderCaption")}
-              </p>
-              {profile.services.map((svc) => (
-                <div key={svc.id} className={styles.serviceRow}>
-                  <span className={styles.serviceLabel}>{svc.name}</span>
-                  <span className={styles.unit}>₹</span>
-                  <input
-                    type="number"
-                    className={styles.radiusInput}
-                    min={0}
-                    max={100000}
-                    step={10}
-                    value={svc.min_order_value ?? 0}
-                    onChange={(e) =>
-                      updateMin(svc.id, parseFloat(e.target.value))
-                    }
-                    aria-label={tSettings("minOrderInputLabel", {
-                      service: svc.name,
-                    })}
-                    readOnly={isApproved}
-                    disabled={isApproved}
-                  />
-                </div>
-              ))}
             </ProfileSectionCard>
           );
         })()}
