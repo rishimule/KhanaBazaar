@@ -187,15 +187,15 @@ async def admin_metrics(
         .where(SellerProfile.verification_status == VerificationStatus.Rejected)
     )).one()
 
-    # Orders placed this month, grouped by service.
+    # Orders placed this month, grouped by service. Starts from every active
+    # service and LEFT JOINs orders so services with zero orders still appear.
     obs_rows = (await session.exec(
         select(
             Service.id,
             ServiceTranslation.name,
             func.count(Order.id),  # type: ignore[arg-type]
         )
-        .select_from(Order)
-        .join(Service, Service.id == Order.service_id)  # type: ignore[arg-type]
+        .select_from(Service)
         .join(
             ServiceTranslation,
             and_(
@@ -204,9 +204,17 @@ async def admin_metrics(
             ),
             isouter=True,
         )
-        .where(Order.placed_at >= month_start)
+        .join(
+            Order,
+            and_(
+                Order.service_id == Service.id,  # type: ignore[arg-type]
+                Order.placed_at >= month_start,  # type: ignore[arg-type]
+            ),
+            isouter=True,
+        )
+        .where(Service.is_active.is_(True))  # type: ignore[attr-defined]
         .group_by(Service.id, ServiceTranslation.name)  # type: ignore[arg-type]
-        .order_by(func.count(Order.id).desc())  # type: ignore[arg-type]
+        .order_by(func.count(Order.id).desc(), Service.id)  # type: ignore[arg-type]
     )).all()
     orders_by_service = [
         OrderServiceStat(

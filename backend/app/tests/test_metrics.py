@@ -246,6 +246,10 @@ async def test_admin_metrics(client: AsyncClient, session: AsyncSession) -> None
         assert sum(s["count"] for s in obs) == 2
         assert obs[0]["service_name"] == "MetricProd"
         assert obs[0]["count"] == 2
+        # Every active service is listed, even those with zero orders this
+        # month (3 services seeded; the two without orders show count 0).
+        assert len(obs) == 3
+        assert sorted(s["count"] for s in obs) == [0, 0, 2]
     finally:
         app.dependency_overrides.pop(get_current_admin, None)
         app.dependency_overrides.pop(get_current_user, None)
