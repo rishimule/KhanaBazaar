@@ -116,15 +116,43 @@
 }
 
 .closedBanner {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  padding: 6px 12px;
-  background: var(--shade-cool-light-1);
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-5) var(--space-6);
+  margin-bottom: var(--space-6);
+  background: var(--saffron-yellow-light-1, #fffbeb);
   color: var(--shade-cool-dark-7);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-pill);
-  font-size: var(--body-2xs);
-  font-weight: var(--weight-semibold);
+  border: 1px solid var(--saffron-yellow-light-3, #fde68a);
+  border-left: 5px solid var(--saffron-yellow-dark-1, #d97706);
+  border-radius: var(--radius-card);
+}
+
+.closedBannerIcon {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.closedBannerText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.closedBannerTitle {
+  font-size: var(--body-lg);
+  font-weight: var(--weight-extra);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--saffron-yellow-dark-1, #b45309);
+}
+
+.closedBannerSub {
+  font-size: var(--body-md);
+  color: var(--shade-cool-base-5);
 }
 
 .svcTileClosed {

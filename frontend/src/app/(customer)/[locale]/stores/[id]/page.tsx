@@ -334,19 +334,29 @@ export default function StoreDetailPage({ params }: Props) {
                 <p className={styles.storeAddress}>{formatAddress(store.address)}</p>
               </div>
             </div>
-            {store.is_paused ? (
-              <div className={styles.closedBanner} role="status">
-                {store.paused_until
-                  ? t("storeClosedUntil", { date: store.paused_until })
-                  : t("storePausedBanner")}
-              </div>
-            ) : (
+            {!store.is_paused && (
               <div className={styles.statusBadge}>
                 <span className={styles.statusDot} aria-hidden="true" />
                 {t("openNow")}
               </div>
             )}
           </header>
+
+          {store.is_paused && (
+            <div className={styles.closedBanner} role="status">
+              <span className={styles.closedBannerIcon} aria-hidden="true">
+                🔒
+              </span>
+              <div className={styles.closedBannerText}>
+                <strong className={styles.closedBannerTitle}>{t("storeClosed")}</strong>
+                <span className={styles.closedBannerSub}>
+                  {store.paused_until
+                    ? t("storeClosedUntil", { date: store.paused_until })
+                    : t("storePausedBanner")}
+                </span>
+              </div>
+            </div>
+          )}
 
           <FavoritesHere
             storeId={Number(storeId)}
