@@ -96,7 +96,9 @@ async def test_backfill_only_touches_store_and_business_addresses(
     assert result["filled"] == 2  # biz + store
     assert result["skipped"] == 0
 
-    # Refresh the in-memory objects from the DB to see the writes.
+    # The backfill committed via its own engine; expire this session's
+    # identity map (expire_on_commit=False) so get() re-reads from the DB.
+    session.expire_all()
     cust_after = await session.get(Address, cust_addr_id)
     biz_after = await session.get(Address, biz_addr_id)
     store_after = await session.get(Address, store_addr_id)
