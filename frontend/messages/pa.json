@@ -85,7 +85,9 @@
     "emptyAllNoLocation": "ਅਜੇ ਕੋਈ ਦੁਕਾਨ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।",
     "emptyAllWithLocation": "ਤੁਹਾਡੀ ਚੁਣੀ ਹੋਈ ਥਾਂ ਉੱਤੇ ਅਜੇ ਕੋਈ ਦੁਕਾਨ ਡਿਲੀਵਰੀ ਨਹੀਂ ਕਰ ਰਹੀ।",
     "loadMore": "ਹੋਰ ਦੁਕਾਨਾਂ ਲੋਡ ਕਰੋ",
-    "loadingMore": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…"
+    "loadingMore": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+    "storeClosed": "Closed",
+    "storeClosedUntil": "Closed — back {date}"
   },
   "StoreDetail": {
     "openNow": "ਹੁਣ ਖੁੱਲ੍ਹਾ",
@@ -100,7 +102,10 @@
     "subcategoriesAriaLabel": "{name} ਉਪ-ਸ਼੍ਰੇਣੀਆਂ",
     "subAll": "ਸਾਰੇ",
     "categoryCount": "{total} ਵਿੱਚੋਂ {shown}",
-    "noFilterMatch": "ਇਸ ਫਿਲਟਰ ਨਾਲ ਮੇਲ ਖਾਂਦਾ ਕੋਈ ਉਤਪਾਦ ਨਹੀਂ."
+    "noFilterMatch": "ਇਸ ਫਿਲਟਰ ਨਾਲ ਮੇਲ ਖਾਂਦਾ ਕੋਈ ਉਤਪਾਦ ਨਹੀਂ.",
+    "storeClosedBadge": "Closed",
+    "storeClosedUntil": "Closed — back {date}",
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
   },
   "Cart": {
     "errClear": "ਕਾਰਟ ਖਾਲੀ ਨਹੀਂ ਹੋ ਸਕਿਆ. ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ.",
@@ -129,7 +134,8 @@
     "railEta": "ਅਨੁਮਾਨਿਤ ਡਿਲਿਵਰੀ: ਉਸੇ ਦਿਨ 2 ਘੰਟਿਆਂ ਵਿੱਚ",
     "railShortfall": "ਚੈੱਕਆਊਟ ਲਈ ₹{amount} ਹੋਰ ਜੋੜੋ।",
     "railCheckout": "ਚੈੱਕ ਆਊਟ",
-    "railAria": "ਕਾਰਟ ਝਲਕ"
+    "railAria": "ਕਾਰਟ ਝਲਕ",
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
   },
   "Checkout": {
     "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
@@ -307,7 +313,8 @@
     "validation": "ਅਵੈਧ ਇਨਪੁੱਟ.",
     "serverError": "ਸਰਵਰ ਗਲਤੀ. ਕਿਰਪਾ ਕਰਕੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ.",
     "service_unavailable": "ਇਹ ਸੇਵਾ ਹੁਣ ਇਸ ਸਟੋਰ ਤੋਂ ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਚੀਜ਼ਾਂ ਹਟਾਓ ਅਤੇ ਕੋਈ ਹੋਰ ਸੇਵਾ ਅਜ਼ਮਾਓ।",
-    "service_mismatch": "ਤੁਹਾਡੀ ਕਾਰਟ ਦੀ ਇੱਕ ਚੀਜ਼ ਹੁਣ ਇਸ ਸੇਵਾ ਨਾਲ ਸਬੰਧਤ ਨਹੀਂ ਹੈ। ਇਸਨੂੰ ਹਟਾਓ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+    "service_mismatch": "ਤੁਹਾਡੀ ਕਾਰਟ ਦੀ ਇੱਕ ਚੀਜ਼ ਹੁਣ ਇਸ ਸੇਵਾ ਨਾਲ ਸਬੰਧਤ ਨਹੀਂ ਹੈ। ਇਸਨੂੰ ਹਟਾਓ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "store_paused": "This store is temporarily closed and isn't taking orders right now."
   },
   "Footer": {
     "tagline": "ਤੁਹਾਡੇ ਆਂਢ-ਗੁਆਂਢ ਦੇ ਸਟੋਰ, ਹੁਣ ਤੁਹਾਡੀਆਂ ਉਂਗਲੀਆਂ 'ਤੇ. ਸਥਾਨਕ ਵਿਕਰੇਤਾਵਾਂ ਤੋਂ ਤਾਜ਼ਾ ਕਰਿਆਨਾ ਅਤੇ ਜ਼ਰੂਰੀ ਚੀਜ਼ਾਂ ਖਰੀਦੋ ਅਤੇ UPI ਨਾਲ ਤੁਰੰਤ ਭੁਗਤਾਨ ਕਰੋ.",
@@ -751,7 +758,8 @@
     "sortPriceDesc": "ਕੀਮਤ: ਵੱਧ ਤੋਂ ਘੱਟ",
     "sortDistance": "ਦੂਰੀ",
     "minPrice": "ਘੱਟੋ-ਘੱਟ ₹",
-    "maxPrice": "ਵੱਧ ਤੋਂ ਵੱਧ ₹"
+    "maxPrice": "ਵੱਧ ਤੋਂ ਵੱਧ ₹",
+    "storeClosed": "Closed"
   },
   "PWAInstall": {
     "__translatorNote": "All PWAInstall, Footer.getApp/installApp, and Account.dashboard.shortcutInstallApp values are English fallbacks pending translation.",
@@ -1452,7 +1460,18 @@
         "minOrderAriaLabel": "{name} ਲਈ ਘੱਟੋ-ਘੱਟ ਆਰਡਰ ਰਕਮ",
         "minApprovedOnly": "ਘੱਟੋ-ਘੱਟ ਰਕਮ ਸਿਰਫ਼ ਮਨਜ਼ੂਰ ਵਿਕਰੇਤਿਆਂ ਲਈ ਸੰਪਾਦਿਤ ਕੀਤੀ ਜਾ ਸਕਦੀ ਹੈ।",
         "sellerNotActiveEdit": "ਵਿਕਰੇਤਾ ਸਰਗਰਮ ਨਹੀਂ ਹੈ — ਸੰਪਾਦਿਤ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ।",
-        "minSaveError": "ਘੱਟੋ-ਘੱਟ ਆਰਡਰ ਰਕਮ ਸੰਭਾਲੀ ਨਹੀਂ ਜਾ ਸਕੀ।"
+        "minSaveError": "ਘੱਟੋ-ਘੱਟ ਆਰਡਰ ਰਕਮ ਸੰਭਾਲੀ ਨਹੀਂ ਜਾ ਸਕੀ।",
+        "storeStatus": "Store status",
+        "pause": {
+          "openBadge": "Open",
+          "closedBadge": "Closed",
+          "closeStore": "Close store",
+          "reopenStore": "Reopen store",
+          "closeTitle": "Close this store?",
+          "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
+          "reopenTitle": "Reopen this store?",
+          "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
+        }
       },
       "orders": {
         "loadError": "ਆਰਡਰ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫਲ",

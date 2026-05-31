@@ -17,6 +17,8 @@ interface Props {
   storeName: string;
   serviceId: number;
   serviceName: string;
+  /** When the store or this service is paused, ordering is disabled. */
+  disabledByPause?: boolean;
 }
 
 const CATEGORY_EMOJI: Record<number, string> = {
@@ -42,7 +44,7 @@ function HeartIcon({ filled }: { filled: boolean }) {
 }
 
 export default function ProductCard({
-  item, storeId, storeName, serviceId, serviceName,
+  item, storeId, storeName, serviceId, serviceName, disabledByPause = false,
 }: Props) {
   const t = useTranslations("Product");
   const locale = useLocale();
@@ -75,6 +77,7 @@ export default function ProductCard({
     stock === 0 ? styles.outOfStock : stock <= 5 ? styles.lowStock : styles.inStock;
 
   const handleAdd = () => {
+    if (disabledByPause) return;
     addItem(storeId, storeName, serviceId, serviceName, {
       product_id: product.id,
       inventory_id: item.id,
@@ -143,7 +146,7 @@ export default function ProductCard({
               <button
                 className={styles.addBtn}
                 onClick={handleAdd}
-                disabled={stock === 0}
+                disabled={stock === 0 || disabledByPause}
                 aria-label={stock === 0 ? t("outOfStockButton") : t("addToCart")}
               >
                 +

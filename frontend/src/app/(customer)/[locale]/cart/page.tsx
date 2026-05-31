@@ -3,12 +3,13 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
+import { get } from "@/lib/api";
 import { apiErrorKey } from "@/lib/errors";
-import type { Cart } from "@/types";
+import type { Cart, Store } from "@/types";
 import ReplaceAdjustmentsBanner from "@/components/orders/ReplaceAdjustmentsBanner";
 import CartAddedToast from "@/components/orders/CartAddedToast";
 import styles from "./page.module.css";
@@ -39,10 +40,43 @@ export default function CartPage() {
   const t = useTranslations("Cart");
   const tErr = useTranslations("Errors");
   const { carts, removeItem, updateQty, clearSubBasket, getTotal } = useCart();
-  const { dbUser } = useAuth();
+  const { dbUser, token } = useAuth();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [storesById, setStoresById] = useState<Record<number, Store>>({});
 
   const storeGroups = useMemo(() => groupByStore(carts), [carts]);
+
+  // Fetch the stores backing the cart sub-baskets so we can surface pause
+  // ("Closed") state and disable checkout before the customer hits a 409.
+  const storeIdsKey = useMemo(
+    () => Array.from(new Set(carts.map((c) => c.store_id))).sort().join(","),
+    [carts],
+  );
+  useEffect(() => {
+    const ids = storeIdsKey ? storeIdsKey.split(",").map(Number) : [];
+    if (ids.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      ids.map((id) =>
+        get<Store>(`/api/v1/stores/${id}`, token).catch(() => null),
+      ),
+    ).then((results) => {
+      if (cancelled) return;
+      const map: Record<number, Store> = {};
+      for (const s of results) if (s) map[s.id] = s;
+      setStoresById(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [storeIdsKey, token]);
+
+  const isStoreServicePaused = (storeId: number, serviceId: number): boolean => {
+    const store = storesById[storeId];
+    if (!store) return false;
+    if (store.is_paused) return true;
+    return store.services.find((s) => s.id === serviceId)?.is_paused ?? false;
+  };
 
   const handleClear = async (storeId: number, serviceId: number) => {
     setErrorMsg(null);
@@ -145,6 +179,16 @@ export default function CartPage() {
         <span className={styles.checkoutBtn} aria-disabled>
           {t("customerLoginRequired")}
         </span>
+      );
+    }
+    if (isStoreServicePaused(storeId, serviceId)) {
+      return (
+        <div className={styles.shortfallBanner} role="status">
+          {t("storePausedBanner")}
+          <span className={styles.checkoutBtn} aria-disabled>
+            {t("checkoutCta", { subtotal, service: serviceName })}
+          </span>
+        </div>
       );
     }
     const shortfall = Math.max(0, minOrderValue - subtotal);

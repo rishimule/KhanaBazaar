@@ -157,6 +157,14 @@ export default function CheckoutPage() {
         setError(t("minOrderShortfall", { amount: structured.shortfall ?? 0 }));
         return;
       }
+      if (
+        structured?.detail === "store_paused" ||
+        structured?.detail === "service_paused"
+      ) {
+        setError(tErr("store_paused"));
+        router.push("/cart");
+        return;
+      }
       const key = apiErrorKey(e);
       if (key) {
         setError(tErr(key.replace(/^Errors\./, "")));

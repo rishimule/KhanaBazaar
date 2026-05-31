@@ -85,7 +85,9 @@
     "emptyAllNoLocation": "હાલમાં કોઈ દુકાન ઉપલબ્ધ નથી.",
     "emptyAllWithLocation": "તમારા પસંદ કરેલા સ્થાને હાલમાં કોઈ દુકાન ડિલિવરી કરતી નથી.",
     "loadMore": "વધુ દુકાનો લોડ કરો",
-    "loadingMore": "લોડ થઈ રહ્યું છે…"
+    "loadingMore": "લોડ થઈ રહ્યું છે…",
+    "storeClosed": "Closed",
+    "storeClosedUntil": "Closed — back {date}"
   },
   "StoreDetail": {
     "openNow": "હમણાં ખુલ્લી",
@@ -100,7 +102,10 @@
     "subcategoriesAriaLabel": "{name} ઉપશ્રેણીઓ",
     "subAll": "બધું",
     "categoryCount": "{total} માંથી {shown}",
-    "noFilterMatch": "આ ફિલ્ટરથી મેળ ખાતું કોઈ ઉત્પાદન નથી."
+    "noFilterMatch": "આ ફિલ્ટરથી મેળ ખાતું કોઈ ઉત્પાદન નથી.",
+    "storeClosedBadge": "Closed",
+    "storeClosedUntil": "Closed — back {date}",
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
   },
   "Cart": {
     "errClear": "કાર્ટ ખાલી કરી શકાયું નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
@@ -129,7 +134,8 @@
     "railEta": "અંદાજિત ડિલિવરી: એ જ દિવસે 2 કલાકમાં",
     "railShortfall": "ચેકઆઉટ માટે ₹{amount} વધુ ઉમેરો.",
     "railCheckout": "ચેક આઉટ",
-    "railAria": "કાર્ટ પૂર્વાવલોકન"
+    "railAria": "કાર્ટ પૂર્વાવલોકન",
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
   },
   "Checkout": {
     "loading": "લોડ થઈ રહ્યું છે…",
@@ -307,7 +313,8 @@
     "validation": "અમાન્ય ઇનપુટ.",
     "serverError": "સર્વર ભૂલ. કૃપા કરીને ફરી પ્રયાસ કરો.",
     "service_unavailable": "આ સેવા હવે આ સ્ટોરમાંથી ઉપલબ્ધ નથી. વસ્તુઓ દૂર કરો અને બીજી સેવા અજમાવો.",
-    "service_mismatch": "તમારી કાર્ટની એક વસ્તુ હવે આ સેવાની નથી. તેને દૂર કરો અને ફરી પ્રયત્ન કરો."
+    "service_mismatch": "તમારી કાર્ટની એક વસ્તુ હવે આ સેવાની નથી. તેને દૂર કરો અને ફરી પ્રયત્ન કરો.",
+    "store_paused": "This store is temporarily closed and isn't taking orders right now."
   },
   "Footer": {
     "tagline": "તમારી પડોશની દુકાનો, હવે તમારી આંગળીના ટેરવે. સ્થાનિક વિક્રેતાઓ પાસેથી તાજું કરિયાણું અને જરૂરી વસ્તુઓ ખરીદો અને UPI દ્વારા તરત જ ચૂકવણી કરો.",
@@ -751,7 +758,8 @@
     "sortPriceDesc": "કિંમત: વધુ થી ઓછી",
     "sortDistance": "અંતર",
     "minPrice": "ન્યૂનતમ ₹",
-    "maxPrice": "મહત્તમ ₹"
+    "maxPrice": "મહત્તમ ₹",
+    "storeClosed": "Closed"
   },
   "PWAInstall": {
     "__translatorNote": "All PWAInstall, Footer.getApp/installApp, and Account.dashboard.shortcutInstallApp values are English fallbacks pending translation.",
@@ -1452,7 +1460,18 @@
         "minOrderAriaLabel": "{name} માટે ન્યૂનતમ ઓર્ડર રકમ",
         "minApprovedOnly": "ન્યૂનતમ રકમ માત્ર મંજૂર વિક્રેતાઓ માટે જ સંપાદિત કરી શકાય છે.",
         "sellerNotActiveEdit": "વિક્રેતા સક્રિય નથી — સંપાદિત કરી શકાતું નથી.",
-        "minSaveError": "ન્યૂનતમ ઓર્ડર રકમ સાચવી શકાઈ નથી."
+        "minSaveError": "ન્યૂનતમ ઓર્ડર રકમ સાચવી શકાઈ નથી.",
+        "storeStatus": "Store status",
+        "pause": {
+          "openBadge": "Open",
+          "closedBadge": "Closed",
+          "closeStore": "Close store",
+          "reopenStore": "Reopen store",
+          "closeTitle": "Close this store?",
+          "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
+          "reopenTitle": "Reopen this store?",
+          "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
+        }
       },
       "orders": {
         "loadError": "ઓર્ડર લોડ કરવામાં નિષ્ફળ",

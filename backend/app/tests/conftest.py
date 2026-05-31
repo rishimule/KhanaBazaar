@@ -273,6 +273,7 @@ def _stub_search_celery_delays() -> Generator[None, None, None]:
     targets = [
         "app.search.tasks.reindex_master_product.delay",
         "app.search.tasks.reindex_store.delay",
+        "app.search.tasks.reindex_store_by_seller_profile.delay",
         "app.search.tasks.reindex_products_for_store.delay",
         "app.search.tasks.reindex_products_by_subcategory.delay",
         "app.search.tasks.reindex_products_by_category.delay",
@@ -418,3 +419,55 @@ async def admin_user(session: AsyncSession) -> User:
     await session.commit()
     await session.refresh(user)
     return user
+
+
+class _SellerStoreBundle:
+    """Live (expire_on_commit=False) handles for an approved seller that owns a
+    store and offers one service. Used by the store-pause test suite."""
+
+    def __init__(
+        self, *, user: User, profile: SellerProfile, store: Any,
+        service_id: int, service_row: Any,
+    ) -> None:
+        self.user = user
+        self.user_id = user.id
+        self.profile = profile
+        self.store = store
+        self.service_id = service_id
+        self.service_row = service_row
+
+
+@pytest_asyncio.fixture
+async def approved_seller_with_store(
+    session: AsyncSession, approved_seller: dict[str, Any]
+) -> _SellerStoreBundle:
+    from app.models.catalog import Service, ServiceTranslation
+    from app.models.profile import SellerProfileService
+    from app.models.store import Store
+
+    user = approved_seller["user"]
+    profile = approved_seller["profile"]
+
+    svc = Service(slug=f"svc-{_uuid.uuid4().hex[:8]}", is_active=True, sort_order=0)
+    session.add(svc)
+    await session.flush()
+    assert svc.id is not None
+    session.add(
+        ServiceTranslation(service_id=svc.id, language_code="en", name="Grocery")
+    )
+    sps = SellerProfileService(seller_profile_id=profile.id, service_id=svc.id)
+    session.add(sps)
+
+    store_addr = await _make_address(session)
+    store = Store(
+        name=profile.business_name,
+        seller_profile_id=profile.id,
+        address_id=store_addr.id,
+    )
+    session.add(store)
+    await session.commit()
+    await session.refresh(store)
+    await session.refresh(sps)
+    return _SellerStoreBundle(
+        user=user, profile=profile, store=store, service_id=svc.id, service_row=sps
+    )

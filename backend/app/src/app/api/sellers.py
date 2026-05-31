@@ -49,6 +49,7 @@ from app.schemas.sellers import (
     TopSubcategory,
 )
 from app.schemas.services import ServicePayload
+from app.schemas.stores import StorePauseBody, StoreRead
 from app.services import admin_audit
 from app.services.eligible_products import list_eligible_products
 from app.services.profiles import compose_full_name, split_full_name
@@ -63,6 +64,7 @@ from app.services.seller_services import (
     replace_profile_services,
     validate_service_ids,
 )
+from app.services.store_pause import set_service_pause, set_store_pause
 
 router = APIRouter()
 
@@ -77,6 +79,28 @@ async def _seller_profile_with_address(
     )
     result = await session.exec(stmt)
     return result.first()
+
+
+async def _seller_store(session: AsyncSession, user_id: int) -> Store:
+    profile_res = await session.exec(
+        select(SellerProfile.id).where(SellerProfile.user_id == user_id)
+    )
+    profile_id = profile_res.first()
+    if profile_id is None:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+    store = (
+        await session.exec(
+            select(Store)
+            .where(Store.seller_profile_id == profile_id)
+            .options(
+                selectinload(Store.address),  # type: ignore[arg-type]
+                selectinload(Store.seller_profile),  # type: ignore[arg-type]
+            )
+        )
+    ).first()
+    if store is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+    return store
 
 
 @router.get("/me/metrics", response_model=SellerMetricsRead)
@@ -108,6 +132,7 @@ async def get_seller_metrics(
             out_of_stock=0,
             unavailable=0,
             store_active=False,
+            store_paused=False,
             pin_confirmed=False,
             store_name="",
             order_status_counts=OrderStatusCounts(),
@@ -302,6 +327,7 @@ async def get_seller_metrics(
         out_of_stock=int(out_of_stock),
         unavailable=int(unavailable),
         store_active=bool(store.is_active),
+        store_paused=bool(store.is_paused),
         pin_confirmed=bool(store.pin_confirmed),
         store_name=store.name,
         order_status_counts=counts,
@@ -498,6 +524,50 @@ async def set_my_service_min_order_value(
         row.delivery_eta_min_minutes = body.delivery_eta_min_minutes
         row.delivery_eta_max_minutes = body.delivery_eta_max_minutes
     session.add(row)
+    await session.commit()
+    services = await list_profile_services(session, profile_id)
+    payload = next((s for s in services if s.id == service_id), None)
+    assert payload is not None
+    return payload
+
+
+@router.patch("/me/store/pause", response_model=StoreRead)
+async def pause_my_store(
+    body: StorePauseBody,
+    current_user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
+) -> StoreRead:
+    from app.api.stores import _store_read
+
+    assert current_user.id is not None
+    store = await _seller_store(session, current_user.id)
+    await set_store_pause(
+        session, store,
+        is_paused=body.is_paused, reason=body.reason, paused_until=body.paused_until,
+    )
+    await session.commit()
+    await session.refresh(store)
+    return await _store_read(session, store, lang)
+
+
+@router.patch("/me/services/{service_id}/pause", response_model=ServicePayload)
+async def pause_my_service(
+    service_id: int,
+    body: StorePauseBody,
+    current_user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> ServicePayload:
+    assert current_user.id is not None
+    profile = await _seller_profile_with_address(session, current_user.id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+    assert profile.id is not None
+    profile_id: int = profile.id
+    await set_service_pause(
+        session, seller_profile_id=profile_id, service_id=service_id,
+        is_paused=body.is_paused, reason=body.reason, paused_until=body.paused_until,
+    )
     await session.commit()
     services = await list_profile_services(session, profile_id)
     payload = next((s for s in services if s.id == service_id), None)
@@ -857,6 +927,74 @@ async def admin_set_service_min_order_value(
             "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
             "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
         },
+    )
+    await session.commit()
+    services = await list_profile_services(session, profile_id)
+    payload = next((s for s in services if s.id == service_id), None)
+    assert payload is not None
+    return payload
+
+
+@router.patch("/admin/{seller_id}/store/pause", response_model=StoreRead)
+async def admin_pause_store(
+    seller_id: int,
+    body: StorePauseBody,
+    current_user: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
+) -> StoreRead:
+    from app.api.stores import _store_read
+
+    assert current_user.id is not None
+    profile = (await session.exec(
+        select(SellerProfile).where(SellerProfile.user_id == seller_id)
+    )).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+    if profile.verification_status != VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="seller_not_active")
+    store = (await session.exec(
+        select(Store)
+        .where(Store.seller_profile_id == profile.id)
+        .options(
+            selectinload(Store.address),  # type: ignore[arg-type]
+            selectinload(Store.seller_profile),  # type: ignore[arg-type]
+        )
+    )).first()
+    if store is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+    await set_store_pause(
+        session, store,
+        is_paused=body.is_paused, reason=body.reason, paused_until=body.paused_until,
+        acting_admin_id=current_user.id,
+    )
+    await session.commit()
+    await session.refresh(store)
+    return await _store_read(session, store, lang)
+
+
+@router.patch("/admin/{seller_id}/services/{service_id}/pause", response_model=ServicePayload)
+async def admin_pause_service(
+    seller_id: int,
+    service_id: int,
+    body: StorePauseBody,
+    current_user: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ServicePayload:
+    assert current_user.id is not None
+    profile = (await session.exec(
+        select(SellerProfile).where(SellerProfile.user_id == seller_id)
+    )).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+    if profile.verification_status != VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="seller_not_active")
+    assert profile.id is not None
+    profile_id: int = profile.id
+    await set_service_pause(
+        session, seller_profile_id=profile_id, service_id=service_id,
+        is_paused=body.is_paused, reason=body.reason, paused_until=body.paused_until,
+        acting_admin_id=current_user.id,
     )
     await session.commit()
     services = await list_profile_services(session, profile_id)

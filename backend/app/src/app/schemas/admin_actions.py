@@ -50,6 +50,7 @@ class SellerHubSummary(BaseModel):
     verification_status: str
     email: str
     store_id: Optional[int] = None
+    store_paused: bool = False
     active_order_count: int
     total_product_count: int
     services: list[ServicePayload] = []

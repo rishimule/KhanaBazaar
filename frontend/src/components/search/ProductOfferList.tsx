@@ -33,8 +33,9 @@ export function ProductOfferList({ data }: Props) {
 
   async function handleAdd(offer: CompareOffer) {
     // Allow adding from non-deliverable stores too — deliverability is
-    // re-validated at checkout. Still block genuinely unavailable/out-of-stock.
-    if (!offer.is_available || offer.stock <= 0) return;
+    // re-validated at checkout. Still block genuinely unavailable/out-of-stock
+    // and paused (temporarily closed) stores.
+    if (!offer.is_available || offer.stock <= 0 || offer.store_paused) return;
     await addItem(
       offer.store.id,
       offer.store.name,
@@ -53,7 +54,7 @@ export function ProductOfferList({ data }: Props) {
 
   function renderRow(o: CompareOffer) {
     const qty = qtyFor(o.store.id, product.service_id);
-    const disabled = !o.is_available || o.stock <= 0;
+    const disabled = !o.is_available || o.stock <= 0 || !!o.store_paused;
     return (
       <li key={o.store.id} className={styles.row}>
         <div className={styles.storeMeta}>
@@ -68,10 +69,13 @@ export function ProductOfferList({ data }: Props) {
               (!o.is_serviceable || (o.is_serviceable && !o.is_available)) && (
                 <span> · </span>
               )}
-            {!o.is_serviceable && (
+            {o.store_paused && (
+              <span className={styles.warning}>{t("storeClosed")}</span>
+            )}
+            {!o.store_paused && !o.is_serviceable && (
               <span className={styles.warning}>{t("notDeliverable")}</span>
             )}
-            {o.is_serviceable && !o.is_available && (
+            {!o.store_paused && o.is_serviceable && !o.is_available && (
               <span className={styles.warning}>{t("outOfStock")}</span>
             )}
           </div>

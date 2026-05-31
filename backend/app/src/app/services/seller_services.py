@@ -88,6 +88,9 @@ async def list_profile_services_for_many(
             SellerProfileService.min_order_value,
             SellerProfileService.delivery_eta_min_minutes,
             SellerProfileService.delivery_eta_max_minutes,
+            SellerProfileService.is_paused,
+            SellerProfileService.pause_reason,
+            SellerProfileService.paused_until,
         )
         .join(
             SellerProfileService,
@@ -114,6 +117,9 @@ async def list_profile_services_for_many(
         min_order_value,
         eta_min,
         eta_max,
+        is_paused,
+        pause_reason,
+        paused_until,
     ) in result.all():
         assert service.id is not None
         grouped.setdefault(profile_id, []).append(
@@ -129,6 +135,9 @@ async def list_profile_services_for_many(
                 min_order_value=min_order_value,
                 delivery_eta_min_minutes=eta_min,
                 delivery_eta_max_minutes=eta_max,
+                is_paused=is_paused,
+                pause_reason=pause_reason,
+                paused_until=paused_until.isoformat() if paused_until else None,
             )
         )
     return grouped

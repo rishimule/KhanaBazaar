@@ -4,10 +4,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { get } from "@/lib/api";
+import { get, patch } from "@/lib/api";
 import type { SellerMetrics } from "@/types";
 import StatsCard from "@/components/StatsCard";
 import DashboardHeader from "@/components/seller/DashboardHeader";
+import CloseStoreModal from "@/components/seller/CloseStoreModal";
 import AttentionBanner from "@/components/seller/AttentionBanner";
 import RevenueChart from "@/components/seller/RevenueChart";
 import OrderStatusDonut from "@/components/seller/OrderStatusDonut";
@@ -27,6 +28,7 @@ const EMPTY: SellerMetrics = {
   out_of_stock: 0,
   unavailable: 0,
   store_active: false,
+  store_paused: false,
   pin_confirmed: false,
   store_name: "",
   order_status_counts: { delivered: 0, packed: 0, dispatched: 0, pending: 0, cancelled: 0 },
@@ -40,6 +42,8 @@ export default function SellerDashboardPage() {
   const [metrics, setMetrics] = useState<SellerMetrics | null>(null);
   const [fetching, setFetching] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pauseBusy, setPauseBusy] = useState(false);
+  const [closePrompt, setClosePrompt] = useState(false);
 
   const load = useCallback(
     (refresh = false) => {
@@ -55,6 +59,33 @@ export default function SellerDashboardPage() {
     },
     [token]
   );
+
+  const togglePause = useCallback(
+    async (body: { is_paused: boolean; reason?: string; paused_until?: string }) => {
+      if (!token) return;
+      setPauseBusy(true);
+      try {
+        await patch("/api/v1/sellers/me/store/pause", body, token);
+        setClosePrompt(false);
+        load(true);
+      } catch {
+        // surfaced via metrics not flipping; keep dashboard responsive
+      } finally {
+        setPauseBusy(false);
+      }
+    },
+    [token, load]
+  );
+
+  // Closing opens a modal (optional reason + reopen date); reopening is a
+  // direct toggle that also clears any prior reason/date server-side.
+  const handlePauseToggle = useCallback(() => {
+    if (metrics?.store_paused) {
+      togglePause({ is_paused: false });
+    } else {
+      setClosePrompt(true);
+    }
+  }, [metrics?.store_paused, togglePause]);
 
   useEffect(() => {
     if (!loading && (!dbUser || dbUser.role !== "seller")) {
@@ -81,10 +112,23 @@ export default function SellerDashboardPage() {
         fullName={dbUser?.full_name}
         storeName={m.store_name}
         storeActive={m.store_active}
+        storePaused={m.store_paused}
         pinConfirmed={m.pin_confirmed}
         onRefresh={() => load(true)}
         refreshing={refreshing}
+        onTogglePause={handlePauseToggle}
+        pauseBusy={pauseBusy}
       />
+
+      {closePrompt && (
+        <CloseStoreModal
+          busy={pauseBusy}
+          onConfirm={({ reason, paused_until }) =>
+            togglePause({ is_paused: true, reason, paused_until })
+          }
+          onClose={() => setClosePrompt(false)}
+        />
+      )}
 
       <AttentionBanner activeOrders={m.active_orders} counts={m.order_status_counts} />
 

@@ -4,7 +4,9 @@
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import AdminReasonModal from "@/components/admin/AdminReasonModal";
 import { useAuth } from "@/lib/AuthContext";
+import { patch } from "@/lib/api";
 import { adminSetServiceMinOrderValue, fetchSellerHub } from "@/lib/adminActions";
 import {
   GROUP_LABEL,
@@ -29,6 +31,7 @@ export default function SellerProfileTab({
   const [hub, setHub] = useState<SellerHubSummary | null>(null);
   const [openCRs, setOpenCRs] = useState<SellerProfileChangeRequest[]>([]);
   const [minError, setMinError] = useState<string | null>(null);
+  const [pausePrompt, setPausePrompt] = useState(false);
   const minDebounceRef = useRef<Record<number, number>>({});
   const hubRef = useRef<SellerHubSummary | null>(null);
   useEffect(() => {
@@ -98,6 +101,18 @@ export default function SellerProfileTab({
   if (!hub) return <div>{tc("loading")}</div>;
 
   const isApproved = hub.verification_status === "approved";
+
+  const doTogglePause = async (reason: string) => {
+    if (!hub || !token) return;
+    await patch(
+      `/api/v1/sellers/admin/${hub.seller_id}/store/pause`,
+      { is_paused: !hub.store_paused, reason },
+      token,
+    );
+    setPausePrompt(false);
+    const fresh = await fetchSellerHub(Number(id), token).catch(() => null);
+    if (fresh) setHub(fresh);
+  };
 
   const schedulePersist = (serviceId: number) => {
     if (!token) return;
@@ -238,6 +253,58 @@ export default function SellerProfileTab({
   return (
     <div style={{ display: "grid", gap: "0.5rem", maxWidth: 600 }}>
       <h2 style={{ marginBottom: "0.5rem" }}>{t("tab.profile")}</h2>
+      {hub.store_id && (
+        <section
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "0.75rem",
+            flexWrap: "wrap",
+            padding: "0.75rem 0.9rem",
+            marginBottom: "0.25rem",
+            background: "var(--color-neutral-50)",
+            border: "1px solid var(--color-neutral-100)",
+            borderRadius: "0.5rem",
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              fontWeight: 500,
+            }}
+          >
+            {t("profile.storeStatus")}
+            <span
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                padding: "2px 10px",
+                borderRadius: 999,
+                background: hub.store_paused
+                  ? "rgba(245, 158, 11, 0.18)"
+                  : "var(--chive-green-light-1, #dcfce7)",
+                color: hub.store_paused
+                  ? "var(--color-neutral-900)"
+                  : "var(--chive-green-base-4, #166534)",
+              }}
+            >
+              {hub.store_paused ? t("profile.pause.closedBadge") : t("profile.pause.openBadge")}
+            </span>
+          </span>
+          <button
+            className="btn btn-outline"
+            disabled={!isApproved}
+            onClick={() => setPausePrompt(true)}
+          >
+            {hub.store_paused
+              ? t("profile.pause.reopenStore")
+              : t("profile.pause.closeStore")}
+          </button>
+        </section>
+      )}
       {openCRStrip}
       {row.map((r) => (
         <div
@@ -340,6 +407,29 @@ export default function SellerProfileTab({
             </p>
           )}
         </section>
+      )}
+
+      {pausePrompt && (
+        <AdminReasonModal
+          title={
+            hub.store_paused
+              ? t("profile.pause.reopenTitle")
+              : t("profile.pause.closeTitle")
+          }
+          description={
+            hub.store_paused
+              ? t("profile.pause.reopenDesc")
+              : t("profile.pause.closeDesc")
+          }
+          confirmLabel={
+            hub.store_paused
+              ? t("profile.pause.reopenStore")
+              : t("profile.pause.closeStore")
+          }
+          destructive={false}
+          onConfirm={doTogglePause}
+          onClose={() => setPausePrompt(false)}
+        />
       )}
     </div>
   );

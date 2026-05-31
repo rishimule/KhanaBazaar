@@ -14,9 +14,16 @@ import styles from "./FavoritesHere.module.css";
 interface Props {
   storeId: number;
   storeName: string;
+  storePaused?: boolean;
+  pausedServiceIds?: number[];
 }
 
-export default function FavoritesHere({ storeId, storeName }: Props) {
+export default function FavoritesHere({
+  storeId,
+  storeName,
+  storePaused = false,
+  pausedServiceIds = [],
+}: Props) {
   const t = useTranslations("Favorites");
   const { dbUser, token } = useAuth();
   const { isFavorite, loaded: favsLoaded } = useFavorites();
@@ -66,6 +73,7 @@ export default function FavoritesHere({ storeId, storeName }: Props) {
               storeName={storeName}
               serviceId={it.service_id}
               serviceName={it.service_name}
+              disabledByPause={storePaused || pausedServiceIds.includes(it.service_id)}
             />
           </div>
         ))}

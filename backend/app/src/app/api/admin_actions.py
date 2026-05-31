@@ -446,6 +446,7 @@ async def admin_seller_hub_summary(
         verification_status=profile.verification_status.value,
         email=user.email if user else "",
         store_id=store.id if store else None,
+        store_paused=bool(store.is_paused) if store else False,
         active_order_count=active_count,
         total_product_count=product_count,
         services=services,

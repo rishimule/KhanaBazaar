@@ -20,6 +20,7 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
+from app.models.profile import SellerProfileService
 from app.models.store import Store, StoreInventory
 
 _LOCALES = [c.value for c in LanguageCode]
@@ -96,15 +97,31 @@ async def build_product_document(
         )
     ).all()
 
+    # Seller profiles that have THIS product's service paused — used to flag
+    # per-store offers as closed even when the store itself isn't fully paused.
+    paused_profile_ids = {
+        pid
+        for (pid,) in (
+            await session.execute(
+                select(SellerProfileService.seller_profile_id).where(
+                    SellerProfileService.service_id == service.id,
+                    SellerProfileService.is_paused.is_(True),
+                )
+            )
+        ).all()
+    }
+
     per_store_offers: list[dict[str, Any]] = []
     store_ids: list[int] = []
     for inv, store in inv_rows:
+        store_paused = bool(store.is_paused) or store.seller_profile_id in paused_profile_ids
         per_store_offers.append(
             {
                 "store_id": store.id,
                 "price": float(inv.price),
                 "stock": int(inv.stock),
                 "is_available": bool(inv.is_available),
+                "store_paused": store_paused,
             }
         )
         store_ids.append(store.id)
@@ -185,6 +202,16 @@ async def build_store_document(
     ).all()
     service_ids = sorted({sid for (sid,) in rows})
 
+    paused_rows = (
+        await session.execute(
+            select(SellerProfileService.service_id).where(
+                SellerProfileService.seller_profile_id == store.seller_profile_id,
+                SellerProfileService.is_paused.is_(True),
+            )
+        )
+    ).all()
+    paused_service_ids = sorted({sid for (sid,) in paused_rows})
+
     return {
         "id": store.id,
         "name": store.name,
@@ -193,6 +220,9 @@ async def build_store_document(
         "lng": float(address.longitude) if address.longitude is not None else None,
         "delivery_radius_km": float(store.delivery_radius_km),
         "is_active": bool(store.is_active),
+        "is_paused": bool(store.is_paused),
+        "paused_until": store.paused_until.isoformat() if store.paused_until else None,
+        "paused_service_ids": paused_service_ids,
         "db_updated_at": int(store.updated_at.timestamp()),
     }
 

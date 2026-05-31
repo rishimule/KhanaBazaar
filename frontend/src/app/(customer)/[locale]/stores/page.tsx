@@ -230,7 +230,17 @@ function StoresPageInner() {
                   <span className={styles.cardIcon}>
                     {store.name.charAt(0).toUpperCase()}
                   </span>
-                  <span className={styles.cardStatus}>{t("openDot")}</span>
+                  <span
+                    className={`${styles.cardStatus} ${
+                      store.is_paused ? styles.cardStatusClosed : ""
+                    }`}
+                  >
+                    {store.is_paused
+                      ? store.paused_until
+                        ? t("storeClosedUntil", { date: store.paused_until })
+                        : t("storeClosed")
+                      : t("openDot")}
+                  </span>
                 </div>
                 <div className={styles.cardBody}>
                   <h2 className={styles.cardName}>{store.name}</h2>

@@ -2,9 +2,10 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Wire-format models for store endpoints."""
 
+from datetime import date
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.address import AddressPayload
 from app.schemas.services import ServicePayload
@@ -32,6 +33,22 @@ class StoreRead(BaseModel):
     services: list[ServicePayload] = []
     delivery_radius_km: float
     pin_confirmed: bool
+    is_paused: bool = False
+    pause_reason: Optional[str] = None
+    paused_until: Optional[str] = None
     distance_km: Optional[float] = None
     created_at: str
     updated_at: str
+
+
+class StorePauseBody(BaseModel):
+    is_paused: bool
+    reason: Optional[str] = Field(default=None, max_length=200)
+    paused_until: Optional[date] = None
+
+    @field_validator("paused_until")
+    @classmethod
+    def _not_in_past(cls, v: Optional[date]) -> Optional[date]:
+        if v is not None and v < date.today():
+            raise ValueError("paused_until cannot be in the past")
+        return v
