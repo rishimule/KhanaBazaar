@@ -28,9 +28,11 @@ from app.models.commerce import (
     PaymentMethod,
     PaymentStatus,
 )
+from app.models.catalog import Service, ServiceTranslation
 from app.models.profile import (
     CustomerProfile,
     SellerProfile,
+    SellerProfileService,
     VerificationStatus,
 )
 from app.models.store import Store, StoreInventory
@@ -96,6 +98,18 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
         pin_confirmed=True,
     )
     session.add(store)
+    await session.flush()
+
+    # A service the store offers but stocks zero products — must still render.
+    empty_service = Service(slug="metrics-empty-svc")
+    session.add(empty_service)
+    await session.flush()
+    session.add(ServiceTranslation(
+        service_id=empty_service.id, language_code="en", name="EmptyService",
+    ))
+    session.add(SellerProfileService(
+        seller_profile_id=seller.id, service_id=empty_service.id,
+    ))
     await session.flush()
 
     # Inventory: 3 rows — one normal, one out-of-stock, one unavailable.
@@ -209,6 +223,9 @@ async def test_seller_metrics(client: AsyncClient, session: AsyncSession) -> Non
         assert ibs["MetricProd"]["in_stock"] == 1
         assert ibs["MetricProd2"]["in_stock"] == 0
         assert ibs["MetricProd3"]["in_stock"] == 0
+        # Enabled service with zero products still appears, at 0 / 0.
+        assert ibs["EmptyService"]["total"] == 0
+        assert ibs["EmptyService"]["in_stock"] == 0
         # Only the svc1 product is in stock → top subcategory is its subcat.
         assert data["top_subcategory"]["name"] == "MetricProd"
         assert data["top_subcategory"]["count"] == 1
@@ -247,9 +264,10 @@ async def test_admin_metrics(client: AsyncClient, session: AsyncSession) -> None
         assert obs[0]["service_name"] == "MetricProd"
         assert obs[0]["count"] == 2
         # Every active service is listed, even those with zero orders this
-        # month (3 services seeded; the two without orders show count 0).
-        assert len(obs) == 3
-        assert sorted(s["count"] for s in obs) == [0, 0, 2]
+        # month (4 services seeded — 3 with products + 1 empty enabled
+        # service; the three without orders show count 0).
+        assert len(obs) == 4
+        assert sorted(s["count"] for s in obs) == [0, 0, 0, 2]
     finally:
         app.dependency_overrides.pop(get_current_admin, None)
         app.dependency_overrides.pop(get_current_user, None)
