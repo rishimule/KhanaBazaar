@@ -1460,7 +1460,18 @@
         "minOrderAriaLabel": "{name} માટે ન્યૂનતમ ઓર્ડર રકમ",
         "minApprovedOnly": "ન્યૂનતમ રકમ માત્ર મંજૂર વિક્રેતાઓ માટે જ સંપાદિત કરી શકાય છે.",
         "sellerNotActiveEdit": "વિક્રેતા સક્રિય નથી — સંપાદિત કરી શકાતું નથી.",
-        "minSaveError": "ન્યૂનતમ ઓર્ડર રકમ સાચવી શકાઈ નથી."
+        "minSaveError": "ન્યૂનતમ ઓર્ડર રકમ સાચવી શકાઈ નથી.",
+        "storeStatus": "Store status",
+        "pause": {
+          "openBadge": "Open",
+          "closedBadge": "Closed",
+          "closeStore": "Close store",
+          "reopenStore": "Reopen store",
+          "closeTitle": "Close this store?",
+          "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
+          "reopenTitle": "Reopen this store?",
+          "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
+        }
       },
       "orders": {
         "loadError": "ઓર્ડર લોડ કરવામાં નિષ્ફળ",
@@ -1508,14 +1519,7 @@
         "deleteTitle": "{name} કાઢી નાખવું?",
         "deleteDesc": "\"{name}\" (ઇન્વ #{id}) ને વિક્રેતાના સ્ટોરમાંથી દૂર કરે છે. કારણ ઓડિટ લોગમાં નોંધાય છે.",
         "editTitle": "{name} સંપાદિત કરો",
-        "editSubtitle": "ઇન્વેન્ટરી #{inv} · ઉત્પાદન #{product}",
-        "closedBadge": "Closed",
-        "closeStore": "Close store",
-        "reopenStore": "Reopen store",
-        "closeTitle": "Close this store?",
-        "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
-        "reopenTitle": "Reopen this store?",
-        "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
+        "editSubtitle": "ઇન્વેન્ટરી #{inv} · ઉત્પાદન #{product}"
       },
       "activity": {
         "heading": "પ્રવૃત્તિ લોગ"

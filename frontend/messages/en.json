@@ -1459,7 +1459,18 @@
         "minOrderAriaLabel": "Minimum order value for {name}",
         "minApprovedOnly": "Minimums can only be edited for approved sellers.",
         "sellerNotActiveEdit": "Seller is not active — cannot edit.",
-        "minSaveError": "Could not save minimum order value."
+        "minSaveError": "Could not save minimum order value.",
+        "storeStatus": "Store status",
+        "pause": {
+          "openBadge": "Open",
+          "closedBadge": "Closed",
+          "closeStore": "Close store",
+          "reopenStore": "Reopen store",
+          "closeTitle": "Close this store?",
+          "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
+          "reopenTitle": "Reopen this store?",
+          "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
+        }
       },
       "orders": {
         "loadError": "Failed to load orders",
@@ -1507,14 +1518,7 @@
         "deleteTitle": "Delete {name}?",
         "deleteDesc": "Removes \"{name}\" (inv #{id}) from the seller's store. Reason is recorded in the audit log.",
         "editTitle": "Edit {name}",
-        "editSubtitle": "Inventory #{inv} · Product #{product}",
-        "closedBadge": "Closed",
-        "closeStore": "Close store",
-        "reopenStore": "Reopen store",
-        "closeTitle": "Close this store?",
-        "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
-        "reopenTitle": "Reopen this store?",
-        "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
+        "editSubtitle": "Inventory #{inv} · Product #{product}"
       },
       "activity": {
         "heading": "Activity log"

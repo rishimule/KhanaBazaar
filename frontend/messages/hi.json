@@ -1460,7 +1460,18 @@
         "minOrderAriaLabel": "{name} के लिए न्यूनतम ऑर्डर राशि",
         "minApprovedOnly": "न्यूनतम राशि केवल स्वीकृत विक्रेताओं के लिए संपादित की जा सकती है।",
         "sellerNotActiveEdit": "विक्रेता सक्रिय नहीं है — संपादित नहीं किया जा सकता।",
-        "minSaveError": "न्यूनतम ऑर्डर राशि सहेजी नहीं जा सकी।"
+        "minSaveError": "न्यूनतम ऑर्डर राशि सहेजी नहीं जा सकी।",
+        "storeStatus": "Store status",
+        "pause": {
+          "openBadge": "Open",
+          "closedBadge": "Closed",
+          "closeStore": "Close store",
+          "reopenStore": "Reopen store",
+          "closeTitle": "Close this store?",
+          "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
+          "reopenTitle": "Reopen this store?",
+          "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
+        }
       },
       "orders": {
         "loadError": "ऑर्डर लोड करने में विफल",
@@ -1508,14 +1519,7 @@
         "deleteTitle": "{name} हटाएं?",
         "deleteDesc": "\"{name}\" (इन्व #{id}) को विक्रेता के स्टोर से हटाता है। कारण ऑडिट लॉग में दर्ज किया जाता है।",
         "editTitle": "{name} संपादित करें",
-        "editSubtitle": "इन्वेंट्री #{inv} · उत्पाद #{product}",
-        "closedBadge": "Closed",
-        "closeStore": "Close store",
-        "reopenStore": "Reopen store",
-        "closeTitle": "Close this store?",
-        "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
-        "reopenTitle": "Reopen this store?",
-        "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
+        "editSubtitle": "इन्वेंट्री #{inv} · उत्पाद #{product}"
       },
       "activity": {
         "heading": "गतिविधि लॉग"

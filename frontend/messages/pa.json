@@ -1460,7 +1460,18 @@
         "minOrderAriaLabel": "{name} ਲਈ ਘੱਟੋ-ਘੱਟ ਆਰਡਰ ਰਕਮ",
         "minApprovedOnly": "ਘੱਟੋ-ਘੱਟ ਰਕਮ ਸਿਰਫ਼ ਮਨਜ਼ੂਰ ਵਿਕਰੇਤਿਆਂ ਲਈ ਸੰਪਾਦਿਤ ਕੀਤੀ ਜਾ ਸਕਦੀ ਹੈ।",
         "sellerNotActiveEdit": "ਵਿਕਰੇਤਾ ਸਰਗਰਮ ਨਹੀਂ ਹੈ — ਸੰਪਾਦਿਤ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ।",
-        "minSaveError": "ਘੱਟੋ-ਘੱਟ ਆਰਡਰ ਰਕਮ ਸੰਭਾਲੀ ਨਹੀਂ ਜਾ ਸਕੀ।"
+        "minSaveError": "ਘੱਟੋ-ਘੱਟ ਆਰਡਰ ਰਕਮ ਸੰਭਾਲੀ ਨਹੀਂ ਜਾ ਸਕੀ।",
+        "storeStatus": "Store status",
+        "pause": {
+          "openBadge": "Open",
+          "closedBadge": "Closed",
+          "closeStore": "Close store",
+          "reopenStore": "Reopen store",
+          "closeTitle": "Close this store?",
+          "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
+          "reopenTitle": "Reopen this store?",
+          "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
+        }
       },
       "orders": {
         "loadError": "ਆਰਡਰ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫਲ",
@@ -1508,14 +1519,7 @@
         "deleteTitle": "{name} ਮਿਟਾਉਣਾ ਹੈ?",
         "deleteDesc": "\"{name}\" (ਇਨਵ #{id}) ਨੂੰ ਵਿਕਰੇਤਾ ਦੇ ਸਟੋਰ ਤੋਂ ਹਟਾ ਦਿੰਦਾ ਹੈ। ਕਾਰਨ ਆਡਿਟ ਲੌਗ ਵਿੱਚ ਦਰਜ ਕੀਤਾ ਜਾਂਦਾ ਹੈ।",
         "editTitle": "{name} ਸੰਪਾਦਿਤ ਕਰੋ",
-        "editSubtitle": "ਇਨਵੈਂਟਰੀ #{inv} · ਉਤਪਾਦ #{product}",
-        "closedBadge": "Closed",
-        "closeStore": "Close store",
-        "reopenStore": "Reopen store",
-        "closeTitle": "Close this store?",
-        "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
-        "reopenTitle": "Reopen this store?",
-        "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
+        "editSubtitle": "ਇਨਵੈਂਟਰੀ #{inv} · ਉਤਪਾਦ #{product}"
       },
       "activity": {
         "heading": "ਗਤੀਵਿਧੀ ਲੌਗ"
