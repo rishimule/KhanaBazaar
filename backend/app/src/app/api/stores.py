@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.locale import get_request_locale
@@ -391,6 +391,91 @@ async def get_store_storefront(
     store_read = await _store_read(session, store, lang)
     assert store.id is not None
     return await build_storefront(session, store_read, store.id, lang)
+
+
+@router.get(
+    "/{store_id}/preview",
+    response_model=List[InventoryWithProductPayload],
+)
+async def get_store_service_preview(
+    store_id: int,
+    service_id: int = Query(...),
+    limit: int = Query(10, ge=1, le=20),
+    session: AsyncSession = Depends(get_db_session),
+    lang: str = Depends(get_request_locale),
+) -> List[InventoryWithProductPayload]:
+    """Lightweight product preview for one store + service. Powers the
+    homepage nearby-store rail. Returns up to ``limit`` available products,
+    in-stock first. Public, no auth. 404 when the store is missing/inactive;
+    ``[]`` when the service has no stocked products at this store.
+    """
+    store = await session.get(Store, store_id)
+    if store is None or not store.is_active:
+        raise HTTPException(status_code=404, detail="Store not found or inactive")
+
+    rows = (
+        await session.exec(
+            select(
+                StoreInventory, MasterProduct, Subcategory, Category,
+            )
+            .join(MasterProduct, MasterProduct.id == StoreInventory.product_id)  # type: ignore[arg-type]
+            .join(Subcategory, Subcategory.id == MasterProduct.subcategory_id)  # type: ignore[arg-type]
+            .join(Category, Category.id == Subcategory.category_id)  # type: ignore[arg-type]
+            .join(Service, Service.id == Category.service_id)  # type: ignore[arg-type]
+            .where(
+                StoreInventory.store_id == store_id,
+                Category.service_id == service_id,
+                StoreInventory.is_available,
+                MasterProduct.is_active == True,  # noqa: E712
+                Subcategory.is_active == True,  # noqa: E712
+                Category.is_active == True,  # noqa: E712
+                Service.is_active == True,  # noqa: E712
+            )
+            .order_by((col(StoreInventory.stock) > 0).desc(), col(StoreInventory.id))
+            .limit(limit)
+        )
+    ).all()
+
+    if not rows:
+        return []
+
+    product_ids = [product.id for _, product, _, _ in rows if product.id is not None]
+    sub_ids = [sub.id for _, _, sub, _ in rows if sub.id is not None]
+    product_t = await _translation_map(
+        session, MasterProductTranslation, "master_product_id", product_ids, lang,
+    )
+    sub_t = await _translation_map(
+        session, SubcategoryTranslation, "subcategory_id", sub_ids, lang,
+    )
+
+    out: List[InventoryWithProductPayload] = []
+    for inv, product, sub, cat in rows:
+        assert inv.id is not None
+        assert product.id is not None
+        assert sub.id is not None
+        assert cat.id is not None
+        product_translation = product_t.get(product.id)
+        out.append(
+            InventoryWithProductPayload(
+                id=inv.id,
+                store_id=inv.store_id,
+                product_id=inv.product_id,
+                price=float(inv.price),
+                stock=inv.stock,
+                is_available=inv.is_available,
+                product=MasterProductPayload(
+                    id=product.id,
+                    name=getattr(product_translation, "name", None) or product.slug,
+                    description=getattr(product_translation, "description", None) or "",
+                    image_url=product.image_url,
+                    category_id=cat.id,
+                    subcategory_id=sub.id,
+                    subcategory_name=getattr(sub_t.get(sub.id), "name", None) or sub.slug,
+                    base_price=float(product.base_price),
+                ),
+            )
+        )
+    return out
 
 
 @router.get(
