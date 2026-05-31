@@ -183,6 +183,7 @@ export function SearchDropdown({
                   clicked_product_id: p.id,
                   position: i,
                 });
+                onClose();
               }}
             >
               {p.image_url ? (
@@ -241,6 +242,7 @@ export function SearchDropdown({
                   clicked_store_id: s.id,
                   position: i,
                 });
+                onClose();
               }}
             >
               <span>🏪 {s.name}</span>
