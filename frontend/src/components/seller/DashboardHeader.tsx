@@ -7,9 +7,7 @@ import styles from "./DashboardHeader.module.css";
 interface Props {
   fullName?: string;
   storeName: string;
-  storeActive: boolean;
   storePaused: boolean;
-  pinConfirmed: boolean;
   onRefresh: () => void;
   refreshing?: boolean;
   onTogglePause: () => void;
@@ -31,9 +29,7 @@ function firstName(full?: string): string {
 export default function DashboardHeader({
   fullName,
   storeName,
-  storeActive,
   storePaused,
-  pinConfirmed,
   onRefresh,
   refreshing,
   onTogglePause,
@@ -56,14 +52,8 @@ export default function DashboardHeader({
           {storeName && <span>{storeName}</span>}
           <span className={styles.sep}>·</span>
           <span>{today}</span>
-          <span className={`${styles.chip} ${storeActive ? styles.chipOk : styles.chipWarn}`}>
-            {storeActive ? "Active" : "Inactive"}
-          </span>
-          {storePaused && (
-            <span className={`${styles.chip} ${styles.chipWarn}`}>Closed</span>
-          )}
-          <span className={`${styles.chip} ${pinConfirmed ? styles.chipOk : styles.chipWarn}`}>
-            {pinConfirmed ? "PIN confirmed" : "PIN not confirmed"}
+          <span className={`${styles.chip} ${storePaused ? styles.chipWarn : styles.chipOk}`}>
+            {storePaused ? "Closed" : "Open"}
           </span>
         </p>
       </div>

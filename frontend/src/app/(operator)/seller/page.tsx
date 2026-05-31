@@ -111,9 +111,7 @@ export default function SellerDashboardPage() {
       <DashboardHeader
         fullName={dbUser?.full_name}
         storeName={m.store_name}
-        storeActive={m.store_active}
         storePaused={m.store_paused}
-        pinConfirmed={m.pin_confirmed}
         onRefresh={() => load(true)}
         refreshing={refreshing}
         onTogglePause={handlePauseToggle}
