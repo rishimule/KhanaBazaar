@@ -266,15 +266,48 @@ async def get_seller_metrics(
         .where(StoreInventory.store_id == store.id)
         .group_by(Service.id, ServiceTranslation.name)  # type: ignore[arg-type]
     )).all()
-    inventory_by_service = [
-        InventoryServiceStat(
-            service_id=int(sid or 0),
-            service_name=(name or f"Service {sid}"),
-            in_stock=int(in_stock or 0),
-            total=int(total or 0),
+    # Every service the store offers — so 0-product services still render.
+    enabled_svc_rows = (await session.exec(
+        select(Service.id, ServiceTranslation.name)
+        .select_from(SellerProfileService)
+        .join(Service, Service.id == SellerProfileService.service_id)  # type: ignore[arg-type]
+        .join(
+            ServiceTranslation,
+            and_(
+                ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+                ServiceTranslation.language_code == "en",  # type: ignore[arg-type]
+            ),
+            isouter=True,
         )
+        .where(SellerProfileService.seller_profile_id == store.seller_profile_id)
+        .order_by(Service.sort_order, Service.id)  # type: ignore[arg-type]
+    )).all()
+    stat_by_id = {
+        int(sid or 0): (int(total or 0), int(in_stock or 0))
         for sid, name, total, in_stock in svc_rows
-    ]
+    }
+    inventory_by_service = []
+    seen: set[int] = set()
+    for sid, name in enabled_svc_rows:
+        key = int(sid or 0)
+        total, in_stock = stat_by_id.get(key, (0, 0))
+        inventory_by_service.append(InventoryServiceStat(
+            service_id=key,
+            service_name=(name or f"Service {sid}"),
+            in_stock=in_stock,
+            total=total,
+        ))
+        seen.add(key)
+    # Services with inventory but no longer enabled — keep them visible.
+    for sid, name, total, in_stock in svc_rows:
+        key = int(sid or 0)
+        if key not in seen:
+            inventory_by_service.append(InventoryServiceStat(
+                service_id=key,
+                service_name=(name or f"Service {sid}"),
+                in_stock=int(in_stock or 0),
+                total=int(total or 0),
+            ))
 
     # Most-stocked subcategory (in-stock rows) for the inventory footer.
     top_row = (await session.exec(
