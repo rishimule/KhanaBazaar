@@ -8,6 +8,7 @@ import { get, patch } from "@/lib/api";
 import type { SellerMetrics } from "@/types";
 import StatsCard from "@/components/StatsCard";
 import DashboardHeader from "@/components/seller/DashboardHeader";
+import CloseStoreModal from "@/components/seller/CloseStoreModal";
 import AttentionBanner from "@/components/seller/AttentionBanner";
 import RevenueChart from "@/components/seller/RevenueChart";
 import OrderStatusDonut from "@/components/seller/OrderStatusDonut";
@@ -42,6 +43,7 @@ export default function SellerDashboardPage() {
   const [fetching, setFetching] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pauseBusy, setPauseBusy] = useState(false);
+  const [closePrompt, setClosePrompt] = useState(false);
 
   const load = useCallback(
     (refresh = false) => {
@@ -59,11 +61,12 @@ export default function SellerDashboardPage() {
   );
 
   const togglePause = useCallback(
-    async (next: boolean) => {
+    async (body: { is_paused: boolean; reason?: string; paused_until?: string }) => {
       if (!token) return;
       setPauseBusy(true);
       try {
-        await patch("/api/v1/sellers/me/store/pause", { is_paused: next }, token);
+        await patch("/api/v1/sellers/me/store/pause", body, token);
+        setClosePrompt(false);
         load(true);
       } catch {
         // surfaced via metrics not flipping; keep dashboard responsive
@@ -73,6 +76,16 @@ export default function SellerDashboardPage() {
     },
     [token, load]
   );
+
+  // Closing opens a modal (optional reason + reopen date); reopening is a
+  // direct toggle that also clears any prior reason/date server-side.
+  const handlePauseToggle = useCallback(() => {
+    if (metrics?.store_paused) {
+      togglePause({ is_paused: false });
+    } else {
+      setClosePrompt(true);
+    }
+  }, [metrics?.store_paused, togglePause]);
 
   useEffect(() => {
     if (!loading && (!dbUser || dbUser.role !== "seller")) {
@@ -103,9 +116,19 @@ export default function SellerDashboardPage() {
         pinConfirmed={m.pin_confirmed}
         onRefresh={() => load(true)}
         refreshing={refreshing}
-        onTogglePause={() => togglePause(!m.store_paused)}
+        onTogglePause={handlePauseToggle}
         pauseBusy={pauseBusy}
       />
+
+      {closePrompt && (
+        <CloseStoreModal
+          busy={pauseBusy}
+          onConfirm={({ reason, paused_until }) =>
+            togglePause({ is_paused: true, reason, paused_until })
+          }
+          onClose={() => setClosePrompt(false)}
+        />
+      )}
 
       <AttentionBanner activeOrders={m.active_orders} counts={m.order_status_counts} />
 
