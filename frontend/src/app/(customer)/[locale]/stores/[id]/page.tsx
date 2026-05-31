@@ -348,7 +348,7 @@ export default function StoreDetailPage({ params }: Props) {
                 🔒
               </span>
               <div className={styles.closedBannerText}>
-                <strong className={styles.closedBannerTitle}>{t("storeClosed")}</strong>
+                <strong className={styles.closedBannerTitle}>{t("storeClosedBadge")}</strong>
                 <span className={styles.closedBannerSub}>
                   {store.paused_until
                     ? t("storeClosedUntil", { date: store.paused_until })
