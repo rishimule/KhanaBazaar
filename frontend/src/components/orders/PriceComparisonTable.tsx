@@ -122,7 +122,9 @@ export default function PriceComparisonTable({
                   category_id: 0,
                 }}
               />
-              <span className={styles.itemName}>{src.product_name}</span>
+              <div className={styles.itemMain}>
+                <span className={styles.itemName}>{src.product_name}</span>
+              </div>
               <span className={styles.itemPrice}>
                 {lineTotalLabel(src.price, src.quantity)}
               </span>
@@ -197,12 +199,14 @@ export default function PriceComparisonTable({
                         category_id: cat,
                       }}
                     />
-                    <span className={styles.itemName}>{src.product_name}</span>
-                    {imputed && (
-                      <span className={styles.yourStoreTag}>
-                        {t("yourStoreItemTag")}
-                      </span>
-                    )}
+                    <div className={styles.itemMain}>
+                      <span className={styles.itemName}>{src.product_name}</span>
+                      {imputed && (
+                        <span className={styles.yourStoreTag}>
+                          {t("yourStoreItemTag")}
+                        </span>
+                      )}
+                    </div>
                     <span className={styles.itemPrice}>
                       {lineTotalLabel(unit, qty)}
                     </span>
