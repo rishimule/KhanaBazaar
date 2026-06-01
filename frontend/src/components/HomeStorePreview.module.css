@@ -112,6 +112,20 @@
   font-size: 1.5rem;
 }
 
+/* Each ProductCard sits in a fixed-width, no-shrink rail slot so the flex
+   rail scrolls horizontally instead of squishing the cards. */
+.railItem {
+  flex: 0 0 168px;
+  max-width: 168px;
+}
+
+@media (max-width: 520px) {
+  .railItem {
+    flex-basis: 150px;
+    max-width: 150px;
+  }
+}
+
 /* Loading skeleton */
 .skeletonHead {
   height: 1.5rem;
