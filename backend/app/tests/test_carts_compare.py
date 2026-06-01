@@ -146,13 +146,17 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     await session.flush()
     session.add(SubcategoryTranslation(subcategory_id=sub.id, language_code="en", name="Sub1"))
 
+    product_images = {"p1": "https://img.example/p1.jpg"}
     products: dict[str, MasterProduct] = {}
     for slug, name, base in (
         ("p1", "Product1", 100.0),
         ("p2", "Product2", 50.0),
         ("p3", "Product3", 200.0),
     ):
-        p = MasterProduct(subcategory_id=sub.id, slug=slug, base_price=base)
+        p = MasterProduct(
+            subcategory_id=sub.id, slug=slug, base_price=base,
+            image_url=product_images.get(slug),
+        )
         session.add(p)
         await session.flush()
         session.add(MasterProductTranslation(
@@ -213,6 +217,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
         "service_id": grocery.id,
         "seller_a_profile_id": sellers["A"].id,
         "pharmacy_id": pharmacy.id,
+        "category_id": cat.id,
     }
     await session.commit()
 
@@ -339,3 +344,29 @@ async def test_unauth_returns_401(
         params={"customer_address_id": seed["customer_addr_id"]},
     )
     assert resp.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_items_carry_image_url_and_category_id(
+    client: AsyncClient, seed: dict[str, int],
+) -> None:
+    await _auth(mock_customer)
+    try:
+        resp = await client.get(
+            f"/api/v1/carts/{seed['store_a_id']}/{seed['service_id']}/compare",
+            params={"customer_address_id": seed["customer_addr_id"]},
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        b = next(a for a in body["alternatives"] if a["id"] == seed["store_b_id"])
+        # every item carries the product's category_id
+        assert all(i["category_id"] == seed["category_id"] for i in b["items"])
+        # p1 (Product1) image propagates on both covered and imputed paths
+        p1_items = [i for i in b["items"] if i["product_name"] == "Product1"]
+        assert len(p1_items) == 1
+        assert p1_items[0]["image_url"] == "https://img.example/p1.jpg"
+        # a product with no image_url yields None, not missing
+        p2_items = [i for i in b["items"] if i["product_name"] == "Product2"]
+        assert p2_items[0]["image_url"] is None
+    finally:
+        _clear_auth()
