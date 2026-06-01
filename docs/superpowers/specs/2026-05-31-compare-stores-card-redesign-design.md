@@ -33,19 +33,23 @@ per-store delivery/summary detail.
 
 ## Data change (backend)
 
-The compare payload has no per-item image. Add it:
+The compare payload has no per-item image or category. Items render with the **real
+product image** and fall back to the **category emoji** (reusing `ProductCard`'s
+`CATEGORY_EMOJI` map keyed by `category_id`, fallback 📦). Add both fields:
 
-- `backend/app/src/app/schemas/price_comparison.py` — add
-  `image_url: str | None = None` to `ComparisonItemOut`.
-- `backend/app/src/app/services/price_comparison.py` — populate `image_url` from
-  `MasterProduct.image_url` on **both** construction paths:
-  - covered items (from the price models / `pm`), and
-  - imputed/source-only items (from `src`).
-
-  Ensure the underlying queries select `MasterProduct.image_url` so it is reachable
-  where each `ComparisonItemOut` is built. Imputed items use the source store's master
-  product image (same product).
-- `frontend/src/types/index.ts` — add `image_url: string | null` to `ComparisonItem`.
+- `backend/app/src/app/schemas/price_comparison.py` — add to `ComparisonItem`:
+  - `image_url: Optional[str] = None`
+  - `category_id: int`
+- `backend/app/src/app/services/price_comparison.py` — fetch per-product
+  `image_url` + `category_id` once, alongside the existing name localization (step 4):
+  `select(MasterProduct.id, MasterProduct.image_url, Subcategory.category_id)` joining
+  `MasterProduct.subcategory_id == Subcategory.id`, filtered to `product_ids`. Build a
+  `meta_by_id: dict[int, tuple[str | None, int]]`. Populate `image_url` + `category_id`
+  on **both** `ComparisonItem` construction paths (covered and imputed). The product is
+  the same in both, so imputed items carry the same image/category. Import
+  `MasterProduct` and `Subcategory` from `app.models.catalog`.
+- `frontend/src/types/index.ts` — add `image_url: string | null` and
+  `category_id: number` to `ComparisonItem`.
 
 ## Frontend changes
 
@@ -62,8 +66,6 @@ The compare payload has no per-item image. Add it:
   render when `status.kind === "loaded"`; add the footer note. Behavior unchanged.
 - `frontend/src/components/orders/PriceComparison.module.css` — header, banner, footer
   styles.
-- `frontend/public/product-placeholder.svg` — new branded product placeholder asset
-  (KhanaBazaar mark styling, square). Used as image fallback.
 - `frontend/messages/{en,hi,mr,gu,pa}.json` — new `Checkout.compare` keys (English
   copy in all five).
 
@@ -111,10 +113,13 @@ Outlined "Switch to this store" button pinned at bottom → existing `onShopAt(a
 ### Item rows
 - Price shown = `unit_price × quantity` line total; append "× N" suffix only when
   `quantity > 1`.
-- `CompareItemImage`: mirror `ProductCard.ProductImage` — `useState(failed)`; render
-  `<img src={image_url} referrerPolicy="no-referrer" loading="lazy" onError=…>`; on
-  missing `image_url` or load error, fall back to `/product-placeholder.svg` (rendered
-  as `<img>` so it is always a branded product image, never an emoji).
+- `CompareItemImage`: mirror `ProductCard`'s image logic — `useState(imgFailed)`;
+  `showImage = Boolean(image_url) && !imgFailed`; render
+  `<img src={image_url} referrerPolicy="no-referrer" loading="lazy" onError={() => setImgFailed(true)}>`.
+  When `!showImage`, render the category-emoji glyph span
+  (`CATEGORY_EMOJI[category_id] ?? "📦"`). Define a shared `CATEGORY_EMOJI` constant in
+  the component (same map as `ProductCard`); do not import across components for one
+  small literal.
 
 ### Footer note
 Below the grid: clock icon + "Prices and stock update in real time across nearby stores."
@@ -144,18 +149,18 @@ verify no other consumer first.
 
 ## Tests
 
-- `backend/app/src/app/tests/test_price_comparison.py` — assert `image_url` is present
-  (and correct) on both a covered item and an imputed item in the response.
+- Extend the existing compare tests (`app/tests/test_carts_compare.py`) — assert
+  `image_url` and `category_id` are present and correct on both a covered item and an
+  imputed item in the response.
 - Backend lint/type: `uv run ruff check .`, `uv run mypy .`.
 - Frontend: `npm run lint`, `npm run build`.
 
 ## Risks / notes
 
-- CLAUDE.md notes "No local image files in `frontend/public/`" — that describes the dev
-  seed using remote LoremFlickr URLs. Adding **one** branded placeholder SVG is an
-  intentional, scoped exception (it is UI chrome, not catalog content).
 - Removing the desktop `<table>` removes a semantic-table a11y affordance; the card
   grid must keep accessible structure (cards as `<article aria-labelledby>`, banner with
   appropriate role, item images with `alt`, buttons labeled).
-- Verify the source-only price-model query path still has `MasterProduct` joined so
-  `image_url` is available without an extra query.
+- `category_id` requires a `MasterProduct → Subcategory` join not currently in the
+  service; fold it into the step-4 metadata query so it stays a single round-trip.
+- Item images are remote (dev seed LoremFlickr URLs); keep `referrerPolicy="no-referrer"`
+  to avoid leaking checkout paths to the CDN, consistent with `ProductCard`.
