@@ -3,7 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
+import { HomeStorePreview, PreviewCandidate } from "@/components/HomeStorePreview";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -52,6 +53,17 @@ export default function Home() {
       )
       .catch(() => setServices([]));
   }, []);
+
+  const candidates = useMemo<PreviewCandidate[]>(() => {
+    const out: PreviewCandidate[] = [];
+    for (const service of services) {
+      const store = stores.find((s) =>
+        s.services?.some((sv) => sv.id === service.id),
+      );
+      if (store) out.push({ store, service });
+    }
+    return out;
+  }, [services, stores]);
 
   if (loading || (dbUser && dbUser.role !== "customer")) {
     return (
@@ -117,6 +129,8 @@ export default function Home() {
             </ScrollRail>
           </section>
         )}
+
+        <HomeStorePreview candidates={candidates} />
 
         <section className={styles.section}>
           <div className={styles.sectionHead}>
