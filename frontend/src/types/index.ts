@@ -438,6 +438,8 @@ export interface ComparisonItem {
   stock: number;
   line_total: number;
   imputed: boolean;
+  image_url: string | null;
+  category_id: number;
 }
 
 export interface ComparisonAlternative {
