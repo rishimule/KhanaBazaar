@@ -151,15 +151,16 @@ export function HomeStorePreview({ candidates }: { candidates: PreviewCandidate[
 
       <ScrollRail ariaLabel={t("previewTitle")}>
         {items.map((item) => (
-          <ProductCard
-            key={item.id}
-            item={item}
-            storeId={store.id}
-            storeName={store.name}
-            serviceId={service.id}
-            serviceName={service.name}
-            disabledByPause={disabledByPause}
-          />
+          <div key={item.id} className={styles.railItem}>
+            <ProductCard
+              item={item}
+              storeId={store.id}
+              storeName={store.name}
+              serviceId={service.id}
+              serviceName={service.name}
+              disabledByPause={disabledByPause}
+            />
+          </div>
         ))}
       </ScrollRail>
 
