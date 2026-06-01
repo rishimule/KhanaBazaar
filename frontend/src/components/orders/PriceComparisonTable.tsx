@@ -68,6 +68,21 @@ function lineTotalLabel(unitPrice: number, quantity: number): string {
   return quantity > 1 ? `${total} (×${quantity})` : total;
 }
 
+function PriceDelta({ unit, sourceUnit }: { unit: number; sourceUnit: number }) {
+  const t = useTranslations("Checkout.compare");
+  if (unit > sourceUnit) {
+    return (
+      <span className={styles.arrowUp} aria-label={t("itemCostsMore")}>▲</span>
+    );
+  }
+  if (unit < sourceUnit) {
+    return (
+      <span className={styles.arrowDown} aria-label={t("itemCostsLess")}>▼</span>
+    );
+  }
+  return null;
+}
+
 export default function PriceComparisonTable({
   sourceCart,
   alternatives,
@@ -209,6 +224,7 @@ export default function PriceComparisonTable({
                     </div>
                     <span className={styles.itemPrice}>
                       {lineTotalLabel(unit, qty)}
+                      <PriceDelta unit={unit} sourceUnit={src.price} />
                     </span>
                   </li>
                 );

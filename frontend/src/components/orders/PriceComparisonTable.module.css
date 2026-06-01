@@ -212,6 +212,18 @@
   font-variant-numeric: tabular-nums;
   margin-top: 0.05rem;
 }
+.arrowUp,
+.arrowDown {
+  margin-left: 0.2rem;
+  font-size: 0.7rem;
+  vertical-align: 0.05em;
+}
+.arrowUp {
+  color: var(--mandarin-orange-base-4, #d14343);
+}
+.arrowDown {
+  color: var(--jade-green-dark-1, #018260);
+}
 
 .summary {
   margin-top: 0.4rem;

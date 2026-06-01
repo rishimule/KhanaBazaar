@@ -214,7 +214,9 @@
       "summaryFromThisStore": "{count} from this store",
       "summaryFromSource": "{count} from {store}",
       "footerNote": "Prices and stock update in real time across nearby stores.",
-      "selectedBtn": "Selected"
+      "selectedBtn": "Selected",
+      "itemCostsMore": "Costs more than your store",
+      "itemCostsLess": "Costs less than your store"
     }
   },
   "Login": {
