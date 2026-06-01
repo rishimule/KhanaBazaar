@@ -95,6 +95,21 @@ export default function PriceComparisonTable({
     0,
   );
 
+  // image_url + category_id are product-level (identical across stores). The
+  // cart's own items may lack image_url (e.g. server-synced carts), so borrow
+  // the product meta from the alternatives' payload for the source card.
+  const productMeta = new Map<number, { image_url: string | null; category_id: number }>();
+  for (const alt of alternatives) {
+    for (const it of alt.items) {
+      if (!productMeta.has(it.product_id)) {
+        productMeta.set(it.product_id, {
+          image_url: it.image_url,
+          category_id: it.category_id,
+        });
+      }
+    }
+  }
+
   return (
     <div className={styles.grid}>
       {/* Source store card */}
@@ -120,7 +135,9 @@ export default function PriceComparisonTable({
         </span>
 
         <ul className={styles.itemList}>
-          {sourceCart.items.map((src) => (
+          {sourceCart.items.map((src) => {
+            const meta = productMeta.get(src.product_id);
+            return (
             <li key={src.product_id} className={styles.itemRow}>
               <CompareItemImage
                 item={{
@@ -133,8 +150,8 @@ export default function PriceComparisonTable({
                   stock: 0,
                   line_total: src.price * src.quantity,
                   imputed: false,
-                  image_url: src.image_url ?? null,
-                  category_id: 0,
+                  image_url: meta?.image_url ?? src.image_url ?? null,
+                  category_id: meta?.category_id ?? 0,
                 }}
               />
               <div className={styles.itemMain}>
@@ -144,7 +161,8 @@ export default function PriceComparisonTable({
                 {lineTotalLabel(src.price, src.quantity)}
               </span>
             </li>
-          ))}
+            );
+          })}
         </ul>
 
         <button
@@ -192,11 +210,14 @@ export default function PriceComparisonTable({
             <ul className={styles.itemList}>
               {sourceCart.items.map((src) => {
                 const item = alt.items.find((i) => i.product_id === src.product_id);
+                const meta = productMeta.get(src.product_id);
                 const imputed = !item || item.imputed;
                 const unit = item ? item.unit_price : src.price;
                 const qty = item ? item.quantity : src.quantity;
-                const cat = item ? item.category_id : 0;
-                const img = item ? item.image_url : (src.image_url ?? null);
+                const cat = item ? item.category_id : (meta?.category_id ?? 0);
+                const img = item
+                  ? item.image_url
+                  : (meta?.image_url ?? src.image_url ?? null);
                 return (
                   <li key={src.product_id} className={styles.itemRow}>
                     <CompareItemImage
