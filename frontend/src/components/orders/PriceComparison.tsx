@@ -32,6 +32,37 @@ type Status =
   | { kind: "empty" }
   | { kind: "error"; messageKey: string };
 
+function TagIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <circle cx="7" cy="7" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 2 4 5v6c0 5 3.4 8.6 8 11 4.6-2.4 8-6 8-11V5z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function formatINR(value: number): string {
+  return `₹${value.toFixed(2)}`;
+}
+
 export default function PriceComparison({
   sourceStoreId,
   sourceStoreName,
@@ -150,7 +181,15 @@ export default function PriceComparison({
         aria-expanded={expanded}
         aria-controls="price-comparison-panel"
       >
-        <span>{t("toggleLabel")}</span>
+        <span className={styles.headIcon} aria-hidden><TagIcon /></span>
+        <span className={styles.headText}>
+          <span className={styles.headTitle}>{t("headerTitle")}</span>
+          {status.kind === "loaded" && (
+            <span className={styles.headSub}>
+              {t("headerSubhead", { count: status.alternatives.length })}
+            </span>
+          )}
+        </span>
         <span className={styles.chev}>{expanded ? "▴" : "▾"}</span>
       </button>
       {gateDisabled && (
@@ -177,15 +216,28 @@ export default function PriceComparison({
             </div>
           )}
           {status.kind === "loaded" && (
-            <PriceComparisonTable
-              sourceCart={cart}
-              alternatives={status.alternatives}
-              shopDisabled={chosen !== null || submitting}
-              onShopAt={(alt) => {
-                setChosen(alt);
-                setDialogErrorKey(null);
-              }}
-            />
+            <>
+              <CompareBanner
+                sourceStoreName={sourceStoreName}
+                sourceSubtotal={cart.items.reduce(
+                  (acc, i) => acc + i.price * i.quantity,
+                  0,
+                )}
+                alternatives={status.alternatives}
+              />
+              <PriceComparisonTable
+                sourceCart={cart}
+                alternatives={status.alternatives}
+                shopDisabled={chosen !== null || submitting}
+                onShopAt={(alt) => {
+                  setChosen(alt);
+                  setDialogErrorKey(null);
+                }}
+              />
+              <p className={styles.footerNote}>
+                <ClockIcon /> {t("footerNote")}
+              </p>
+            </>
           )}
         </div>
       )}
@@ -205,5 +257,41 @@ export default function PriceComparison({
         />
       )}
     </section>
+  );
+}
+
+interface BannerProps {
+  sourceStoreName: string;
+  sourceSubtotal: number;
+  alternatives: ComparisonAlternative[];
+}
+
+function CompareBanner({ sourceStoreName, sourceSubtotal, alternatives }: BannerProps) {
+  const t = useTranslations("Checkout.compare");
+  const cheapestAlt = alternatives.reduce<ComparisonAlternative | null>(
+    (best, a) =>
+      best === null || a.effective_total < best.effective_total ? a : best,
+    null,
+  );
+  const sourceIsBest =
+    cheapestAlt === null || sourceSubtotal <= cheapestAlt.effective_total;
+
+  if (sourceIsBest) {
+    return (
+      <div className={`${styles.banner} ${styles.bannerGood}`} role="status">
+        <span className={styles.bannerIcon} aria-hidden><ShieldIcon /></span>
+        <span>{t("bannerBest", { store: sourceStoreName })}</span>
+      </div>
+    );
+  }
+
+  const saved = sourceSubtotal - cheapestAlt.effective_total;
+  return (
+    <div className={`${styles.banner} ${styles.bannerSave}`} role="status">
+      <span className={styles.bannerIcon} aria-hidden><ShieldIcon /></span>
+      <span>
+        {t("bannerSave", { amount: formatINR(saved), store: cheapestAlt.name })}
+      </span>
+    </div>
   );
 }
