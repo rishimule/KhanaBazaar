@@ -24,6 +24,8 @@ class ComparisonItem(BaseModel):
     stock: int
     line_total: float
     imputed: bool
+    image_url: Optional[str] = None
+    category_id: int
 
 
 class ComparisonAlternative(BaseModel):

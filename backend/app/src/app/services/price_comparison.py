@@ -10,7 +10,7 @@ from sqlalchemy import text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.catalog import MasterProductTranslation
+from app.models.catalog import MasterProduct, MasterProductTranslation, Subcategory
 from app.models.store import Store, StoreInventory
 from app.schemas.price_comparison import ComparisonAlternative, ComparisonItem
 
@@ -129,6 +129,22 @@ async def find_alternatives(
             for row in fb_result.all():
                 product_name_by_id.setdefault(row.master_product_id, row.name)
 
+    # product image_url + category_id (one join, used for card display)
+    meta_result = await session.exec(
+        select(
+            MasterProduct.id,
+            MasterProduct.image_url,
+            Subcategory.category_id,
+        )
+        .join(Subcategory, MasterProduct.subcategory_id == Subcategory.id)  # type: ignore[arg-type]
+        .where(MasterProduct.id.in_(product_ids))  # type: ignore[union-attr]
+    )
+    meta_by_id: dict[int, tuple[str | None, int]] = {}
+    for pid, img, cat in meta_result.all():
+        if pid is None or cat is None:
+            continue
+        meta_by_id[int(pid)] = (img, int(cat))
+
     store_result = await session.exec(
         select(Store).where(Store.id.in_(candidate_ids))  # type: ignore[union-attr]
     )
@@ -163,6 +179,8 @@ async def find_alternatives(
                     stock=inv.stock,
                     line_total=line_total,
                     imputed=False,
+                    image_url=meta_by_id.get(product_id, (None, 0))[0],
+                    category_id=meta_by_id.get(product_id, (None, 0))[1],
                 ))
             else:
                 src_price = src_price_by_product.get(product_id, 0.0)
@@ -179,6 +197,8 @@ async def find_alternatives(
                     stock=0,
                     line_total=line_total,
                     imputed=True,
+                    image_url=meta_by_id.get(product_id, (None, 0))[0],
+                    category_id=meta_by_id.get(product_id, (None, 0))[1],
                 ))
         candidates.append(ComparisonAlternative(
             id=store_id,

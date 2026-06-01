@@ -201,7 +201,22 @@
       "onlyAtCurrent": "{count, plural, one {# item only at current store} other {# items only at current store}}",
       "viewItemPrices": "View item prices",
       "hideItemPrices": "Hide item prices",
-      "onlyAtSourceLabel": "Only at {store}"
+      "onlyAtSourceLabel": "Only at {store}",
+      "headerTitle": "Compare nearby stores",
+      "headerSubhead": "Same items, priced at {count} stores near you",
+      "yourCartPill": "Your cart",
+      "currentStoreChip": "Current store",
+      "yourStoreItemTag": "Your store",
+      "shipsOneDelivery": "Ships in one delivery",
+      "arrivesTwoDeliveries": "Arrives in 2 deliveries",
+      "bannerBest": "You're getting the best price. {store} is the cheapest store nearby and ships your whole cart in one delivery.",
+      "bannerSave": "Save {amount} — {store} is cheaper for your cart.",
+      "summaryFromThisStore": "{count} from this store",
+      "summaryFromSource": "{count} from {store}",
+      "footerNote": "Prices and stock update in real time across nearby stores.",
+      "selectedBtn": "Selected",
+      "itemCostsMore": "Costs more than your store",
+      "itemCostsLess": "Costs less than your store"
     }
   },
   "Login": {

@@ -33,6 +33,7 @@ def _alt(
                 stock=10,
                 line_total=effective_total,
                 imputed=False,
+                category_id=1,
             )
         ],
     )
