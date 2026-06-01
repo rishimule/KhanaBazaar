@@ -34,12 +34,15 @@ class PreviewSeed:
     store_id: int
     grocery_service_id: int
     empty_service_id: int
+    food_service_id: int
 
 
 async def _seed_preview(session: AsyncSession) -> PreviewSeed:
-    """One active store, grocery service with two products (apple in stock,
-    banana out of stock, both available) and a second 'pharmacy' service with
-    no products. Returns ids only (instances expire on commit)."""
+    """One active store with three services at the SAME store:
+    - grocery: apple (in stock) + banana (out of stock), both available
+    - food: samosa (in stock, available) — used to prove service isolation
+    - pharmacy: no products — used to prove the empty-list path
+    Returns ids only (instances expire on commit)."""
     seller = User(id=901, email="prev-seller@kb.com", role=UserRole.Seller, is_active=True)
     session.add(seller)
     await session.flush()
@@ -98,6 +101,31 @@ async def _seed_preview(session: AsyncSession) -> PreviewSeed:
         master_product_id=banana.id, language_code="en", name="Banana 1kg", description="d",
     ))
 
+    # Second service (food) with its own catalog tree + a stocked product at
+    # the same store, to prove the service_id filter isolates per service.
+    food = Service(slug="food", sort_order=2)
+    session.add(food)
+    await session.flush()
+    session.add(ServiceTranslation(service_id=food.id, language_code="en", name="Food"))
+    food_cat = Category(service_id=food.id, slug="snacks", sort_order=0)
+    session.add(food_cat)
+    await session.flush()
+    session.add(CategoryTranslation(
+        category_id=food_cat.id, language_code="en", name="Snacks", description="c",
+    ))
+    food_sub = Subcategory(category_id=food_cat.id, slug="fried", sort_order=0)
+    session.add(food_sub)
+    await session.flush()
+    session.add(SubcategoryTranslation(
+        subcategory_id=food_sub.id, language_code="en", name="Fried",
+    ))
+    samosa = MasterProduct(subcategory_id=food_sub.id, slug="samosa", base_price=20)
+    session.add(samosa)
+    await session.flush()
+    session.add(MasterProductTranslation(
+        master_product_id=samosa.id, language_code="en", name="Samosa", description="d",
+    ))
+
     store_addr = Address(**make_address())
     session.add(store_addr)
     await session.flush()
@@ -113,6 +141,7 @@ async def _seed_preview(session: AsyncSession) -> PreviewSeed:
     await session.flush()
     session.add(SellerProfileService(seller_profile_id=profile.id, service_id=grocery.id))
     session.add(SellerProfileService(seller_profile_id=profile.id, service_id=pharmacy.id))
+    session.add(SellerProfileService(seller_profile_id=profile.id, service_id=food.id))
 
     # banana is out of stock, apple in stock — both available.
     session.add(StoreInventory(
@@ -121,14 +150,19 @@ async def _seed_preview(session: AsyncSession) -> PreviewSeed:
     session.add(StoreInventory(
         store_id=store.id, product_id=apple.id, price=100, stock=30, is_available=True,
     ))
+    session.add(StoreInventory(
+        store_id=store.id, product_id=samosa.id, price=20, stock=15, is_available=True,
+    ))
 
     assert store.id is not None
     assert grocery.id is not None
     assert pharmacy.id is not None
+    assert food.id is not None
     seed = PreviewSeed(
         store_id=store.id,
         grocery_service_id=grocery.id,
         empty_service_id=pharmacy.id,
+        food_service_id=food.id,
     )
     await session.commit()
     return seed
@@ -204,3 +238,29 @@ async def test_preview_service_without_products_is_empty(
     )
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+async def test_preview_isolates_to_requested_service(
+    session: AsyncSession, client: AsyncClient,
+) -> None:
+    seed = await _seed_preview(session)
+
+    # Grocery preview must not leak the food (samosa) product.
+    grocery = await client.get(
+        f"/api/v1/stores/{seed.store_id}/preview",
+        params={"service_id": seed.grocery_service_id},
+    )
+    assert grocery.status_code == 200
+    grocery_names = {row["product"]["name"] for row in grocery.json()}
+    assert grocery_names == {"Apple 1kg", "Banana 1kg"}
+    assert "Samosa" not in grocery_names
+
+    # Food preview must return only the food product.
+    food = await client.get(
+        f"/api/v1/stores/{seed.store_id}/preview",
+        params={"service_id": seed.food_service_id},
+    )
+    assert food.status_code == 200
+    food_body = food.json()
+    assert len(food_body) == 1
+    assert food_body[0]["product"]["name"] == "Samosa"

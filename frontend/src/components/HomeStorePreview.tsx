@@ -109,7 +109,11 @@ export function HomeStorePreview({ candidates }: { candidates: PreviewCandidate[
   }
 
   const { store, service, items } = resolved;
-  const disabledByPause = store.is_paused || service.is_paused === true;
+  // Per-service pause lives on the store's own services list (populated by the
+  // store query); the catalog `service.is_paused` is only a schema default.
+  const disabledByPause =
+    store.is_paused ||
+    (store.services.find((s) => s.id === service.id)?.is_paused ?? false);
   const showDistance = hydrated && userSet && store.distance_km != null;
 
   return (
@@ -119,7 +123,9 @@ export function HomeStorePreview({ candidates }: { candidates: PreviewCandidate[
           <h2 className={styles.title}>{t("previewTitle")}</h2>
           <div className={styles.meta}>
             <span className={styles.storeName}>{store.name}</span>
-            <span className={styles.openPill}>{t("previewOpenNow")}</span>
+            {!disabledByPause && (
+              <span className={styles.openPill}>{t("previewOpenNow")}</span>
+            )}
             <span className={styles.serviceTag}>{service.name}</span>
             {showDistance && (
               <span className={styles.distance}>

@@ -12,6 +12,11 @@
   margin-bottom: var(--space-4, 1rem);
 }
 
+.headLeft {
+  flex: 1;
+  min-width: 0;
+}
+
 .title {
   font-size: var(--font-size-xl, 1.25rem);
   font-weight: 700;
