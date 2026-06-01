@@ -19,6 +19,7 @@ from app.core.security import (
 )
 from app.models.address import Address
 from app.models.base import User, UserRole
+from app.models.catalog import Service, ServiceTranslation
 from app.models.commerce import (
     Delivery,
     DeliveryStatus,
@@ -28,7 +29,6 @@ from app.models.commerce import (
     PaymentMethod,
     PaymentStatus,
 )
-from app.models.catalog import Service, ServiceTranslation
 from app.models.profile import (
     CustomerProfile,
     SellerProfile,
