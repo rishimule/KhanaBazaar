@@ -50,6 +50,15 @@ function ShieldIcon() {
   );
 }
 
+function SavingsIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M23 18l-9.5-9.5-5 5L1 6" />
+      <path d="M17 18h6v-6" />
+    </svg>
+  );
+}
+
 function ClockIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -288,7 +297,7 @@ function CompareBanner({ sourceStoreName, sourceSubtotal, alternatives }: Banner
   const saved = sourceSubtotal - cheapestAlt.effective_total;
   return (
     <div className={`${styles.banner} ${styles.bannerSave}`} role="status">
-      <span className={styles.bannerIcon} aria-hidden><ShieldIcon /></span>
+      <span className={styles.bannerIcon} aria-hidden><SavingsIcon /></span>
       <span>
         {t("bannerSave", { amount: formatINR(saved), store: cheapestAlt.name })}
       </span>
