@@ -290,6 +290,55 @@ async def test_other_customer_cannot_read_or_resend_otp(
     assert resend.status_code == 403
 
 
+async def test_admin_sees_otp_and_can_resend_seller_cannot(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        await _packed_then_dispatched(ac, target)
+        # Seller never sees the code and may not resend it.
+        seller_view = await ac.get(f"/api/v1/orders/{target}")
+        seller_resend = await ac.post(f"/api/v1/orders/{target}/delivery-otp/resend")
+    assert seller_view.json()["delivery"]["otp"] is None
+    assert seller_resend.status_code == 403
+
+    code = await _read_code(target)
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        admin_view = await ac.get(f"/api/v1/orders/{target}")
+    assert admin_view.json()["delivery"]["otp"] == code
+
+    # Admin resend is allowed (past the role gate); backdate to clear cooldown.
+    from datetime import datetime, timedelta, timezone
+
+    from tests.conftest import test_engine
+
+    async with AsyncSession(test_engine) as s:
+        d = (
+            await s.exec(select(Delivery).where(Delivery.order_id == target))
+        ).first()
+        assert d is not None
+        d.delivery_otp_sent_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        s.add(d)
+        await s.commit()
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        admin_resend = await ac.post(f"/api/v1/orders/{target}/delivery-otp/resend")
+    assert admin_resend.status_code == 200
+    assert admin_resend.json()["delivery"]["otp"] == code
+
+
 async def test_customer_sees_code_seller_does_not(
     as_customer: Any, seed: dict[str, int]
 ) -> None:

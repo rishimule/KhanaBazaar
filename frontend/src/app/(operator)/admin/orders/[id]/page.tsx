@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { getOrder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import OrderTimeline from "@/components/orders/OrderTimeline";
+import DeliveryOtpPanel from "@/components/orders/DeliveryOtpPanel";
 import OrderItemList from "@/components/orders/OrderItemList";
 import OrderActionButtons from "@/components/orders/OrderActionButtons";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
@@ -47,6 +48,12 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
       <section className={styles.section}>
         <OrderTimeline status={order.status} />
       </section>
+
+      <DeliveryOtpPanel
+        order={order}
+        onChange={setOrder}
+        namespace="Admin.orderDetail"
+      />
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("items")}</h2>

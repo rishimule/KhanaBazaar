@@ -1312,7 +1312,13 @@
       "total": "एकूण",
       "payment": "पेमेंट",
       "deliveryTo": "डिलिव्हरी पत्ता",
-      "customer": "ग्राहक"
+      "customer": "ग्राहक",
+      "deliveryCodeTitle": "Delivery code",
+      "deliveryCodeHint": "The customer's handover code for this dispatched order.",
+      "resendCode": "Resend code",
+      "resendCooldown": "Please wait {seconds}s before resending.",
+      "resendDone": "Code re-sent.",
+      "resendError": "Could not resend the code."
     },
     "catalog": {
       "services": "सेवा",

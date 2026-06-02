@@ -146,7 +146,13 @@ ACTIVE_STATUSES = (OrderStatus.Pending, OrderStatus.Packed, OrderStatus.Dispatch
 HISTORY_STATUSES = (OrderStatus.Delivered, OrderStatus.Cancelled)
 
 
-async def _serialize_order(session: AsyncSession, order: Order, *, include_customer_name: bool) -> OrderRead:
+async def _serialize_order(
+    session: AsyncSession,
+    order: Order,
+    *,
+    include_customer_name: bool,
+    viewer_is_admin: bool = False,
+) -> OrderRead:
     # TODO(perf): when list_orders calls this in a loop the round-trips compound
     # (4-5 SELECTs per order × 50). Batch-load items/payments/deliveries/stores
     # via WHERE order_id IN (...) before scaling list payloads.
@@ -230,7 +236,12 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
             delivered_at=delivery.delivered_at,
             otp=(
                 delivery.delivery_otp
-                if (not include_customer_name and order.status == OrderStatus.Dispatched)
+                if (
+                    order.status == OrderStatus.Dispatched
+                    # Owning customer (include_customer_name is False only for the
+                    # customer's own orders) or an admin. Sellers never see it.
+                    and (not include_customer_name or viewer_is_admin)
+                )
                 else None
             ),
             otp_locked=delivery.delivery_otp_attempts
@@ -418,7 +429,12 @@ async def list_orders(
     orders = list(result.all())
     return OrderListResponse(
         orders=[
-            await _serialize_order(session, o, include_customer_name=include_customer)
+            await _serialize_order(
+                session,
+                o,
+                include_customer_name=include_customer,
+                viewer_is_admin=user.role == UserRole.Admin,
+            )
             for o in orders
         ],
         total=total,
@@ -456,7 +472,12 @@ async def get_order(
     user: User = Depends(get_current_user),
 ) -> OrderRead:
     order, include_customer = await _load_order_for_user(session, order_id, user)
-    return await _serialize_order(session, order, include_customer_name=include_customer)
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=user.role == UserRole.Admin,
+    )
 
 
 @router.post("", response_model=OrderRead, status_code=status.HTTP_201_CREATED)
@@ -508,19 +529,34 @@ async def transition_order(
             ).first()
             if delivery is not None and delivery.delivery_otp is not None:
                 await _send_delivery_otp(session, order, delivery.delivery_otp)
-    return await _serialize_order(session, order, include_customer_name=include_customer)
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=user.role == UserRole.Admin,
+    )
 
 
 @router.post("/{order_id}/delivery-otp/resend", response_model=OrderRead)
 async def resend_delivery_otp_route(
     order_id: int,
     session: AsyncSession = Depends(get_db_session),
-    user: User = Depends(get_current_customer),
+    user: User = Depends(get_current_user),
 ) -> OrderRead:
+    # Owning customer or admin may resend; sellers (the party being verified)
+    # may not. _load_order_for_user already 403s a customer on someone else's
+    # order and a seller on a store they don't own.
+    if user.role == UserRole.Seller:
+        raise HTTPException(status_code=403, detail="forbidden")
     order, include_customer = await _load_order_for_user(session, order_id, user)
     code = await resend_delivery_otp(session, order)
     await _send_delivery_otp(session, order, code)
-    return await _serialize_order(session, order, include_customer_name=include_customer)
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=user.role == UserRole.Admin,
+    )
 
 
 @router.post("/{order_id}/cancel", response_model=OrderRead)

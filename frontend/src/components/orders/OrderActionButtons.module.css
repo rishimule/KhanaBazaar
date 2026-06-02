@@ -70,7 +70,15 @@
   border: 1px solid var(--shade-cool-light-3);
   font-size: var(--body-md);
   font-family: var(--font-family-sans);
-  letter-spacing: 0.15em;
+}
+
+/* OTP-only: wide tracking + centering for the 6-digit code field. */
+.otpInput {
+  composes: modalInput;
+  text-align: center;
+  letter-spacing: 0.4em;
+  font-size: var(--body-lg);
+  font-weight: var(--weight-semibold);
 }
 
 @media (max-width: 640px) {
