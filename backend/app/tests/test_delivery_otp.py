@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
 from app.core.security import get_current_user
+from app.models.admin_audit import AdminActionLog
 from app.models.commerce import Delivery
 from app.models.notification import Notification, NotificationType
 
@@ -18,6 +19,7 @@ from tests.test_orders import (  # noqa: F401
     as_customer,
     mock_admin,
     mock_customer,
+    mock_other_customer,
     mock_seller,
     seed,
 )
@@ -95,15 +97,28 @@ async def test_wrong_otp_increments_then_locks(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         await _packed_then_dispatched(ac, target)
-        # 5 wrong attempts (DELIVERY_OTP_MAX_ATTEMPTS default).
-        last = None
-        for _ in range(5):
+        # First wrong attempt reports the remaining countdown (5 → 4).
+        first = await ac.post(
+            f"/api/v1/orders/{target}/transition",
+            json={"to": "delivered", "otp": "000000"},
+        )
+        assert first.status_code == 422
+        assert first.json()["detail"]["code"] == "delivery_otp_invalid"
+        assert first.json()["detail"]["remaining"] == 4
+        # Exhaust the rest of the cap (DELIVERY_OTP_MAX_ATTEMPTS default 5).
+        last = first
+        for _ in range(4):
             last = await ac.post(
                 f"/api/v1/orders/{target}/transition",
                 json={"to": "delivered", "otp": "000000"},
             )
-        assert last is not None and last.status_code == 422
+        assert last.status_code == 422
         assert last.json()["detail"]["code"] == "delivery_otp_invalid"
+        # Seller read surfaces lock state (but never the code).
+        seller_view = await ac.get(f"/api/v1/orders/{target}")
+        assert seller_view.json()["delivery"]["otp"] is None
+        assert seller_view.json()["delivery"]["otp_locked"] is True
+        assert seller_view.json()["delivery"]["otp_attempts_remaining"] == 0
         # 6th attempt → locked.
         locked = await ac.post(
             f"/api/v1/orders/{target}/transition",
@@ -166,6 +181,7 @@ async def test_resend_resets_attempts(
         too_soon = await ac.post(f"/api/v1/orders/{target}/delivery-otp/resend")
     assert too_soon.status_code == 429
     assert too_soon.json()["detail"]["code"] == "resend_cooldown"
+    assert too_soon.json()["detail"]["retry_after"] > 0
 
     # Backdate sent_at past the cooldown, then resend succeeds.
     from datetime import datetime, timedelta, timezone
@@ -211,7 +227,7 @@ async def test_resend_rejected_when_not_dispatched(
 
 
 async def test_admin_force_deliver_requires_reason(
-    as_customer: Any, seed: dict[str, int]
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
 ) -> None:
     order_ids = await _place_orders(seed)
     target = await _order_id_for_store(order_ids, seed["store_a"])
@@ -237,6 +253,41 @@ async def test_admin_force_deliver_requires_reason(
         )
     assert ok.status_code == 200
     assert ok.json()["status"] == "delivered"
+
+    # Force-deliver writes a distinct audit action carrying the reason.
+    row = (
+        await session.exec(
+            select(AdminActionLog).where(
+                AdminActionLog.action == "order.force_deliver",
+                AdminActionLog.target_id == target,
+            )
+        )
+    ).first()
+    assert row is not None
+    assert row.reason == "customer unreachable at door"
+
+
+async def test_other_customer_cannot_read_or_resend_otp(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        await _packed_then_dispatched(ac, target)
+
+    # A different customer may neither read the code nor resend it.
+    app.dependency_overrides[get_current_user] = lambda: mock_other_customer
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        read = await ac.get(f"/api/v1/orders/{target}")
+        resend = await ac.post(f"/api/v1/orders/{target}/delivery-otp/resend")
+    assert read.status_code == 403
+    assert resend.status_code == 403
 
 
 async def test_customer_sees_code_seller_does_not(

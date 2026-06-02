@@ -147,7 +147,10 @@ async def transition_order_status(
                 raise HTTPException(
                     status_code=422, detail={"code": "delivery_otp_required"}
                 )
-            if not hmac.compare_digest(otp, delivery.delivery_otp):
+            # `otp.isascii()` short-circuits before compare_digest, which raises
+            # TypeError on non-ASCII str input — a non-ASCII code counts as a
+            # wrong attempt (no 500, no counter bypass).
+            if not (otp.isascii() and hmac.compare_digest(otp, delivery.delivery_otp)):
                 delivery.delivery_otp_attempts += 1
                 # Capture before commit() expires the instance (reading the
                 # attribute afterwards would trigger a lazy load → MissingGreenlet).

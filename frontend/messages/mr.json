@@ -443,7 +443,18 @@
       "confirmCancel": "ही ऑर्डर रद्द करायची? साठा परत केला जाईल.",
       "errUpdate": "ऑर्डर अद्ययावत करता आली नाही.",
       "errCancel": "ऑर्डर रद्द करता आली नाही.",
-      "rateOrder": "ऑर्डर रेट करा"
+      "rateOrder": "ऑर्डर रेट करा",
+      "forceDeliver": "Force deliver",
+      "otpTitle": "Confirm delivery code",
+      "otpLabel": "Enter the 6-digit code from the customer",
+      "otpSubmit": "Verify & mark delivered",
+      "otpInvalid": "Wrong code — {remaining} attempts left.",
+      "otpLocked": "Code locked. Ask the customer to resend the code from their app.",
+      "otpRequired": "Enter the delivery code.",
+      "reasonTitle": "Force deliver without code",
+      "reasonLabel": "Reason (at least 10 characters)",
+      "reasonSubmit": "Mark delivered",
+      "reasonTooShort": "Please enter a reason of at least 10 characters."
     },
     "active": {
       "title": "सक्रिय ऑर्डर",

@@ -443,7 +443,18 @@
       "confirmCancel": "ਇਹ ਆਰਡਰ ਰੱਦ ਕਰਨਾ ਹੈ? ਸਟਾਕ ਵਾਪਸ ਜਮ੍ਹਾਂ ਹੋ ਜਾਵੇਗਾ.",
       "errUpdate": "ਆਰਡਰ ਅੱਪਡੇਟ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
       "errCancel": "ਆਰਡਰ ਰੱਦ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
-      "rateOrder": "ਆਰਡਰ ਰੇਟ ਕਰੋ"
+      "rateOrder": "ਆਰਡਰ ਰੇਟ ਕਰੋ",
+      "forceDeliver": "Force deliver",
+      "otpTitle": "Confirm delivery code",
+      "otpLabel": "Enter the 6-digit code from the customer",
+      "otpSubmit": "Verify & mark delivered",
+      "otpInvalid": "Wrong code — {remaining} attempts left.",
+      "otpLocked": "Code locked. Ask the customer to resend the code from their app.",
+      "otpRequired": "Enter the delivery code.",
+      "reasonTitle": "Force deliver without code",
+      "reasonLabel": "Reason (at least 10 characters)",
+      "reasonSubmit": "Mark delivered",
+      "reasonTooShort": "Please enter a reason of at least 10 characters."
     },
     "active": {
       "title": "ਸਰਗਰਮ ਆਰਡਰ",

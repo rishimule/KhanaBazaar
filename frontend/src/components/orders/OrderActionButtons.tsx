@@ -201,11 +201,17 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
               className={styles.modalInput}
               inputMode="numeric"
               autoComplete="one-time-code"
+              autoFocus
               maxLength={6}
+              aria-describedby={otpError ? "delivery-otp-error" : undefined}
               value={otpValue}
               onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ""))}
             />
-            {otpError && <span className={styles.error}>{otpError}</span>}
+            {otpError && (
+              <span id="delivery-otp-error" className={styles.error}>
+                {otpError}
+              </span>
+            )}
             <button
               type="button"
               onClick={submitOtp}
