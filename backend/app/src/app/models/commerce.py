@@ -118,6 +118,16 @@ class Delivery(BaseSchema, table=True):
         sa_type=DateTime(timezone=True),
     )
     tracking_notes: Optional[str] = Field(default=None)
+    delivery_otp: Optional[str] = Field(default=None, max_length=6)
+    delivery_otp_attempts: int = Field(default=0, nullable=False)
+    delivery_otp_sent_at: Optional[datetime] = Field(  # type: ignore[call-overload]
+        default=None,
+        sa_type=DateTime(timezone=True),
+    )
+    delivery_otp_verified_at: Optional[datetime] = Field(  # type: ignore[call-overload]
+        default=None,
+        sa_type=DateTime(timezone=True),
+    )
 
 
 class Review(BaseSchema, table=True):
