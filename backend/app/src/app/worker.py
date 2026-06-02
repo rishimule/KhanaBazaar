@@ -48,6 +48,54 @@ def send_otp_email_async(to: str, code: str) -> None:
     )
 
 
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_delivery_otp_email_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_delivery_otp_email_async(order_id: int, code: str) -> None:
+    """Email the delivery handover code to the customer."""
+    ctx = _load_order_email_context(order_id)
+    to = ctx.get("customer_email")
+    if not to:
+        return
+    subject = f"Delivery code for order #{order_id}"
+    body = (
+        f"Your order #{order_id} is out for delivery.\n\n"
+        f"Share this code with your delivery partner to receive it: {code}\n\n"
+        f"Do not share it with anyone else."
+    )
+    _resolve_email(to, subject, body)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_delivery_otp_sms_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_delivery_otp_sms_async(order_id: int, code: str) -> None:
+    """SMS the delivery handover code to the customer. No-op when no phone."""
+    import asyncio
+    import concurrent.futures
+
+    from app.core.sms import get_sms_sender
+
+    ctx = _load_order_email_context(order_id)
+    phone = ctx.get("customer_phone")
+    if not phone:
+        return
+    text = (
+        f"Khana Bazaar: your delivery code for order #{order_id} is {code}. "
+        f"Share it only with your delivery partner at handover."
+    )
+    sender = get_sms_sender()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(lambda: asyncio.run(sender.send(phone, text))).result()
+
+
 @celery_app.task(name="send_support_email")  # type: ignore[untyped-decorator]
 def send_support_email(customer_email: str, subject: str, message: str) -> None:
     """Forward a customer support message to the configured SUPPORT_EMAIL inbox.
@@ -216,6 +264,9 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     "items": items,
                     "customer_first_name": (
                         customer_profile.first_name if customer_profile else None
+                    ),
+                    "customer_phone": (
+                        customer_profile.phone if customer_profile else None
                     ),
                     "customer_lang": (
                         customer_user.preferred_language if customer_user else "en"

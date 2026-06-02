@@ -15,6 +15,8 @@ from kombu.exceptions import OperationalError as KombuOperationalError
 from app.worker import (
     send_admin_order_action_customer_async,
     send_admin_order_action_seller_async,
+    send_delivery_otp_email_async,
+    send_delivery_otp_sms_async,
     send_order_confirmed_customer_async,
     send_order_placed_seller_async,
     send_order_review_request_async,
@@ -54,6 +56,12 @@ def dispatch_order_placed(order_ids: list[int]) -> None:
     _safe_delay(send_order_confirmed_customer_async, order_ids)
     for oid in order_ids:
         _safe_delay(send_order_placed_seller_async, oid)
+
+
+def dispatch_delivery_otp(order_id: int, code: str) -> None:
+    """Fire the email + SMS handover-code tasks (in-app is recorded separately)."""
+    _safe_delay(send_delivery_otp_email_async, order_id, code)
+    _safe_delay(send_delivery_otp_sms_async, order_id, code)
 
 
 _CUSTOMER_NOTIFY_ACTIONS = frozenset(
