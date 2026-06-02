@@ -198,7 +198,7 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
             </label>
             <input
               id="delivery-otp"
-              className={styles.modalInput}
+              className={styles.otpInput}
               inputMode="numeric"
               autoComplete="one-time-code"
               autoFocus
