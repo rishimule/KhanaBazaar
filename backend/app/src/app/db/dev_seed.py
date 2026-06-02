@@ -11,6 +11,7 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.otp import generate_code
 from app.db._dev_seed_data import (
     EXTRA_APPLICATIONS,
     EXTRA_CATEGORIES,
@@ -2413,6 +2414,11 @@ def _build_demo_delivery(
     packed_at: datetime | None = None
     dispatched_at: datetime | None = None
     delivered_at: datetime | None = None
+    # Mirror transition_order_status: a code is live while Dispatched, consumed
+    # (cleared, verified-stamped) once Delivered.
+    delivery_otp: str | None = None
+    delivery_otp_sent_at: datetime | None = None
+    delivery_otp_verified_at: datetime | None = None
     delivery_status = DeliveryStatus.Pending
     if status is OrderStatus.Packed:
         delivery_status = DeliveryStatus.Packed
@@ -2421,11 +2427,14 @@ def _build_demo_delivery(
         delivery_status = DeliveryStatus.Dispatched
         packed_at = placed_at + timedelta(minutes=30)
         dispatched_at = placed_at + timedelta(hours=2)
+        delivery_otp = generate_code()
+        delivery_otp_sent_at = dispatched_at
     elif status is OrderStatus.Delivered:
         delivery_status = DeliveryStatus.Delivered
         packed_at = placed_at + timedelta(minutes=30)
         dispatched_at = placed_at + timedelta(hours=2)
         delivered_at = placed_at + timedelta(hours=6)
+        delivery_otp_verified_at = delivered_at
     elif status is OrderStatus.Cancelled:
         delivery_status = DeliveryStatus.Cancelled
     return Delivery(
@@ -2434,6 +2443,9 @@ def _build_demo_delivery(
         packed_at=packed_at,
         dispatched_at=dispatched_at,
         delivered_at=delivered_at,
+        delivery_otp=delivery_otp,
+        delivery_otp_sent_at=delivery_otp_sent_at,
+        delivery_otp_verified_at=delivery_otp_verified_at,
     )
 
 
