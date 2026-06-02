@@ -36,6 +36,28 @@ async def record_order_status_notification(
     return notif
 
 
+async def record_delivery_otp_notification(
+    session: AsyncSession,
+    *,
+    customer_profile_id: int,
+    order_id: Optional[int],
+    code: str,
+) -> Notification:
+    """Insert (and commit) one in-app delivery-OTP notification carrying the code."""
+    notif = Notification(
+        customer_profile_id=customer_profile_id,
+        order_id=order_id,
+        type=NotificationType.DeliveryOtp,
+        title=f"Delivery code for order #{order_id}",
+        body=f"Share code {code} with your delivery partner to receive your order.",
+        status_value="dispatched",
+    )
+    session.add(notif)
+    await session.commit()
+    await session.refresh(notif)
+    return notif
+
+
 async def list_notifications(
     session: AsyncSession, *, customer_profile_id: int
 ) -> tuple[list[Notification], int]:

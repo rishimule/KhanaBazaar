@@ -85,9 +85,25 @@ export async function placeOrder(
 export async function transitionOrder(
   token: string,
   orderId: number,
-  to: "packed" | "dispatched" | "delivered"
+  to: "packed" | "dispatched" | "delivered",
+  opts?: { otp?: string; reason?: string }
 ): Promise<Order> {
-  return post<Order>(`/api/v1/orders/${orderId}/transition`, { to }, token);
+  return post<Order>(
+    `/api/v1/orders/${orderId}/transition`,
+    { to, ...(opts ?? {}) },
+    token,
+  );
+}
+
+export async function resendDeliveryOtp(
+  token: string,
+  orderId: number
+): Promise<Order> {
+  return post<Order>(
+    `/api/v1/orders/${orderId}/delivery-otp/resend`,
+    undefined,
+    token,
+  );
 }
 
 export async function cancelOrder(token: string, orderId: number): Promise<Order> {

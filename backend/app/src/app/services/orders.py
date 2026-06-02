@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import hmac
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
@@ -8,6 +9,8 @@ from sqlalchemy import text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
+from app.core.otp import generate_code
 from app.models.address import Address
 from app.models.admin_audit import AdminActionTargetType
 from app.models.base import User, UserRole
@@ -86,7 +89,13 @@ async def _seller_owns_store(session: AsyncSession, user: User, store_id: int) -
 
 
 async def transition_order_status(
-    session: AsyncSession, order: Order, target_str: Literal["packed", "dispatched", "delivered"], actor: User,
+    session: AsyncSession,
+    order: Order,
+    target_str: Literal["packed", "dispatched", "delivered"],
+    actor: User,
+    *,
+    otp: Optional[str] = None,
+    reason: Optional[str] = None,
 ) -> Order:
     target = TARGET_BY_STR[target_str]
     if target not in LEGAL_TRANSITIONS.get(order.status, set()):
@@ -115,6 +124,46 @@ async def transition_order_status(
     before = _order_snapshot(order, payment)
 
     now = datetime.now(timezone.utc)
+
+    # Delivery-OTP gate — runs BEFORE order.status is mutated so a failed
+    # verification never persists a delivered status.
+    if target == OrderStatus.Delivered:
+        if actor.role == UserRole.Admin:
+            # Admin force-deliver escape hatch: reason required, audited below.
+            if not reason or len(reason.strip()) < 10:
+                raise HTTPException(
+                    status_code=422, detail={"code": "reason_required"}
+                )
+        else:
+            if delivery.delivery_otp is None:
+                raise HTTPException(
+                    status_code=409, detail={"code": "delivery_otp_not_issued"}
+                )
+            if delivery.delivery_otp_attempts >= settings.DELIVERY_OTP_MAX_ATTEMPTS:
+                raise HTTPException(
+                    status_code=409, detail={"code": "delivery_otp_locked"}
+                )
+            if not otp:
+                raise HTTPException(
+                    status_code=422, detail={"code": "delivery_otp_required"}
+                )
+            # `otp.isascii()` short-circuits before compare_digest, which raises
+            # TypeError on non-ASCII str input — a non-ASCII code counts as a
+            # wrong attempt (no 500, no counter bypass).
+            if not (otp.isascii() and hmac.compare_digest(otp, delivery.delivery_otp)):
+                delivery.delivery_otp_attempts += 1
+                # Capture before commit() expires the instance (reading the
+                # attribute afterwards would trigger a lazy load → MissingGreenlet).
+                attempts_now = delivery.delivery_otp_attempts
+                await session.commit()  # persist failed attempt; order.status untouched
+                remaining = max(
+                    0, settings.DELIVERY_OTP_MAX_ATTEMPTS - attempts_now
+                )
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": "delivery_otp_invalid", "remaining": remaining},
+                )
+
     order.status = target
     if target == OrderStatus.Packed:
         delivery.status = DeliveryStatus.Packed
@@ -122,9 +171,16 @@ async def transition_order_status(
     elif target == OrderStatus.Dispatched:
         delivery.status = DeliveryStatus.Dispatched
         delivery.dispatched_at = now
+        delivery.delivery_otp = generate_code()
+        delivery.delivery_otp_attempts = 0
+        delivery.delivery_otp_sent_at = now
+        delivery.delivery_otp_verified_at = None
     elif target == OrderStatus.Delivered:
         delivery.status = DeliveryStatus.Delivered
         delivery.delivered_at = now
+        if actor.role != UserRole.Admin:
+            delivery.delivery_otp_verified_at = now
+        delivery.delivery_otp = None  # consume the code (also clears it for admin force)
         if payment is not None:
             payment.status = PaymentStatus.Paid
             payment.paid_at = now
@@ -137,9 +193,14 @@ async def transition_order_status(
             target_seller_id=target_seller_id,
             target_type=AdminActionTargetType.Order,
             target_id=order.id,
-            action="order.transition",
+            action=(
+                "order.force_deliver"
+                if target == OrderStatus.Delivered
+                else "order.transition"
+            ),
             before_json=before,
             after_json=_order_snapshot(order, payment),
+            reason=reason.strip() if reason else None,
         )
 
     await session.commit()
@@ -458,3 +519,36 @@ async def cancel_order(
     await session.commit()
     await session.refresh(order)
     return order
+
+
+async def resend_delivery_otp(session: AsyncSession, order: Order) -> str:
+    """Reset attempts, bump sent_at, return the existing code for re-dispatch.
+
+    Caller must have verified the order belongs to the requesting customer.
+    """
+    if order.status != OrderStatus.Dispatched:
+        raise HTTPException(status_code=409, detail={"code": "not_dispatched"})
+    delivery = (
+        await session.exec(select(Delivery).where(Delivery.order_id == order.id))
+    ).first()
+    if delivery is None or delivery.delivery_otp is None:
+        raise HTTPException(
+            status_code=409, detail={"code": "delivery_otp_not_issued"}
+        )
+    now = datetime.now(timezone.utc)
+    if delivery.delivery_otp_sent_at is not None:
+        elapsed = (now - delivery.delivery_otp_sent_at).total_seconds()
+        if elapsed < settings.DELIVERY_OTP_RESEND_COOLDOWN:
+            retry_after = int(settings.DELIVERY_OTP_RESEND_COOLDOWN - elapsed)
+            raise HTTPException(
+                status_code=429,
+                detail={"code": "resend_cooldown", "retry_after": retry_after},
+            )
+    delivery.delivery_otp_attempts = 0
+    delivery.delivery_otp_sent_at = now
+    code = delivery.delivery_otp
+    await session.commit()
+    # commit() expired `order`; refresh so the caller's fan-out can read its
+    # attributes without triggering a lazy load (→ MissingGreenlet).
+    await session.refresh(order)
+    return code

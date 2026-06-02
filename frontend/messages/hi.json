@@ -443,7 +443,18 @@
       "confirmCancel": "इस ऑर्डर को रद्द करें? स्टॉक वापस कर दिया जाएगा।",
       "errUpdate": "ऑर्डर अपडेट नहीं हो सका।",
       "errCancel": "ऑर्डर रद्द नहीं हो सका।",
-      "rateOrder": "ऑर्डर रेट करें"
+      "rateOrder": "ऑर्डर रेट करें",
+      "forceDeliver": "Force deliver",
+      "otpTitle": "Confirm delivery code",
+      "otpLabel": "Enter the 6-digit code from the customer",
+      "otpSubmit": "Verify & mark delivered",
+      "otpInvalid": "Wrong code — {remaining} attempts left.",
+      "otpLocked": "Code locked. Ask the customer to resend the code from their app.",
+      "otpRequired": "Enter the delivery code.",
+      "reasonTitle": "Force deliver without code",
+      "reasonLabel": "Reason (at least 10 characters)",
+      "reasonSubmit": "Mark delivered",
+      "reasonTooShort": "Please enter a reason of at least 10 characters."
     },
     "active": {
       "title": "सक्रिय ऑर्डर",
@@ -542,7 +553,13 @@
       "deliveryTo": "डिलीवरी पता",
       "loadError": "ऑर्डर लोड नहीं हो सका।",
       "loading": "लोड हो रहा है…",
-      "amount": "₹{amount}"
+      "amount": "₹{amount}",
+      "deliveryCodeTitle": "Delivery code",
+      "deliveryCodeHint": "Share this code with your delivery partner to receive your order.",
+      "resendCode": "Resend code",
+      "resendCooldown": "Please wait {seconds}s before resending.",
+      "resendDone": "Code re-sent.",
+      "resendError": "Could not resend the code."
     },
     "profile": {
       "loading": "प्रोफ़ाइल लोड हो रही है…",

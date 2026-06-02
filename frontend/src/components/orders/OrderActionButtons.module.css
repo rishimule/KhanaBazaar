@@ -50,6 +50,29 @@
   font-size: var(--body-xs);
 }
 
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--font-family-sans);
+}
+
+.modalLabel {
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--shade-cool-base-4);
+}
+
+.modalInput {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--shade-cool-light-3);
+  font-size: var(--body-md);
+  font-family: var(--font-family-sans);
+  letter-spacing: 0.15em;
+}
+
 @media (max-width: 640px) {
   .actions { flex-direction: column; align-items: stretch; }
   .primary, .danger { width: 100%; min-height: 44px; }

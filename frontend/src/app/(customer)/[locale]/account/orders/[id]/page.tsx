@@ -9,6 +9,7 @@ import { formatDeliveryEta } from "@/lib/deliveryEta";
 import { useAuth } from "@/lib/AuthContext";
 import { apiErrorKey } from "@/lib/errors";
 import OrderTimeline from "@/components/orders/OrderTimeline";
+import DeliveryOtpPanel from "@/components/orders/DeliveryOtpPanel";
 import OrderItemList from "@/components/orders/OrderItemList";
 import OrderActionButtons from "@/components/orders/OrderActionButtons";
 import ReorderButton from "@/components/orders/ReorderButton";
@@ -63,6 +64,8 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       <section className={styles.section}>
         <OrderTimeline status={order.status} />
       </section>
+
+      <DeliveryOtpPanel order={order} onChange={setOrder} />
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("items")}</h2>

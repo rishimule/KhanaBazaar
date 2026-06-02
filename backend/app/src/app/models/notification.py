@@ -11,6 +11,7 @@ from app.models.base import BaseSchema
 
 class NotificationType(str, enum.Enum):
     OrderStatus = "order_status"
+    DeliveryOtp = "delivery_otp"
 
 
 class Notification(BaseSchema, table=True):

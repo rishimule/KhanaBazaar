@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     OTP_RESEND_COOLDOWN: int = 60
     OTP_MAX_PER_HOUR: int = 5
 
+    # Delivery-handover OTP (separate from auth OTP; no TTL — valid until delivered)
+    DELIVERY_OTP_MAX_ATTEMPTS: int = 5
+    DELIVERY_OTP_RESEND_COOLDOWN: int = 60
+
     # Email: "console" (dev/test) or "resend" (production)
     EMAIL_PROVIDER: str = "console"
     RESEND_API_KEY: str = ""

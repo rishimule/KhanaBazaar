@@ -66,6 +66,11 @@ ignore = [
     "C901",  # function too complex — request handlers + the seed script naturally have many branches; split out only when it genuinely hurts readability
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Reusing pytest fixtures imported from another test module reads as a
+# redefinition when the fixture name is taken as a test parameter.
+"tests/test_delivery_otp.py" = ["F811"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `cca32f92b5d0`. Regenerate this file when the head changes.
+-- migration head `1a82f642a321`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
@@ -13,7 +13,7 @@
 --   deliverystatus               : 'Pending', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'
 --   locationsource               : 'manual', 'autocomplete', 'pin', 'geocoded'
 --   adminactiontargettype        : 'Inventory', 'Order', 'Store', 'SellerProfile'
---   notificationtype             : 'OrderStatus'  (PG value is the enum member NAME; Python value is 'order_status')
+--   notificationtype             : 'OrderStatus', 'DeliveryOtp'  (PG value is the enum member NAME; Python values are 'order_status', 'delivery_otp')
 --   sellerprofilechangegroup     : 'identity', 'address', 'legal', 'banking', 'services', 'store_basics'
 --   sellerprofilechangestatus    : 'submitted', 'changes_requested', 'approved', 'rejected', 'withdrawn'
 --   sellerprofilechangeeventkind : 'submitted', 'resubmitted', 'changes_requested', 'approved', 'approved_with_edits', 'rejected', 'withdrawn'
@@ -324,7 +324,11 @@ CREATE TABLE "delivery" (
   "packed_at" TIMESTAMPTZ,
   "dispatched_at" TIMESTAMPTZ,
   "delivered_at" TIMESTAMPTZ,
-  "tracking_notes" VARCHAR
+  "tracking_notes" VARCHAR,
+  "delivery_otp" VARCHAR(6),
+  "delivery_otp_attempts" INTEGER NOT NULL DEFAULT 0,
+  "delivery_otp_sent_at" TIMESTAMPTZ,
+  "delivery_otp_verified_at" TIMESTAMPTZ
 );
 
 CREATE TABLE "review" (

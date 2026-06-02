@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.core.security import (  # noqa: F401
     get_current_admin,
     get_current_customer,
@@ -51,13 +52,21 @@ from app.schemas.reorder import ReorderResolveResponse, ResolvedReorderItem
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
 from app.services.checkout import place_order_for_sub_basket
 from app.services.notification_push import dispatch_notification_push
-from app.services.notifications import record_order_status_notification
+from app.services.notifications import (
+    record_delivery_otp_notification,
+    record_order_status_notification,
+)
 from app.services.order_emails import (
     dispatch_admin_order_action,
+    dispatch_delivery_otp,
     dispatch_order_placed,
     dispatch_order_status_changed,
 )
-from app.services.orders import cancel_order, transition_order_status
+from app.services.orders import (
+    cancel_order,
+    resend_delivery_otp,
+    transition_order_status,
+)
 
 router = APIRouter()
 
@@ -106,6 +115,30 @@ async def record_and_dispatch_notification(
         logger.exception(
             "Failed to record/dispatch notification for order_id=%s", order.id
         )
+
+async def _send_delivery_otp(session: AsyncSession, order: Order, code: str) -> None:
+    """Best-effort 3-channel fan-out of the delivery code. Never raises."""
+    try:
+        notif = await record_delivery_otp_notification(
+            session,
+            customer_profile_id=order.customer_profile_id,
+            order_id=order.id,
+            code=code,
+        )
+        if notif.id is not None:
+            dispatch_notification_push(notif.id)
+        await session.refresh(order)
+    except Exception:
+        try:
+            await session.rollback()
+        except Exception:
+            logger.exception("Rollback after delivery-otp notify failure also failed")
+        logger.exception(
+            "Failed to record delivery-otp notification for order_id=%s", order.id
+        )
+    if order.id is not None:
+        dispatch_delivery_otp(order.id, code)
+
 
 REORDER_LANG = "en"
 
@@ -195,6 +228,17 @@ async def _serialize_order(session: AsyncSession, order: Order, *, include_custo
             packed_at=delivery.packed_at,
             dispatched_at=delivery.dispatched_at,
             delivered_at=delivery.delivered_at,
+            otp=(
+                delivery.delivery_otp
+                if (not include_customer_name and order.status == OrderStatus.Dispatched)
+                else None
+            ),
+            otp_locked=delivery.delivery_otp_attempts
+            >= settings.DELIVERY_OTP_MAX_ATTEMPTS,
+            otp_attempts_remaining=max(
+                0,
+                settings.DELIVERY_OTP_MAX_ATTEMPTS - delivery.delivery_otp_attempts,
+            ),
         ),
         review=OrderReviewInOrder(rating=review.rating, comment=review.comment)
         if review is not None
@@ -446,7 +490,9 @@ async def transition_order(
     if user.role not in (UserRole.Seller, UserRole.Admin):
         raise HTTPException(status_code=403, detail="forbidden")
     order, include_customer = await _load_order_for_user(session, order_id, user)
-    order = await transition_order_status(session, order, payload.to, user)
+    order = await transition_order_status(
+        session, order, payload.to, user, otp=payload.otp, reason=payload.reason
+    )
     if order.id is not None:
         dispatch_order_status_changed(order.id, order.status.value)
         if user.role == UserRole.Admin:
@@ -454,6 +500,26 @@ async def transition_order(
                 order.id, "order.transition", f"to {order.status.value}"
             )
         await record_and_dispatch_notification(session, order, order.status.value)
+        if payload.to == "dispatched":
+            delivery = (
+                await session.exec(
+                    select(Delivery).where(Delivery.order_id == order.id)
+                )
+            ).first()
+            if delivery is not None and delivery.delivery_otp is not None:
+                await _send_delivery_otp(session, order, delivery.delivery_otp)
+    return await _serialize_order(session, order, include_customer_name=include_customer)
+
+
+@router.post("/{order_id}/delivery-otp/resend", response_model=OrderRead)
+async def resend_delivery_otp_route(
+    order_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_customer),
+) -> OrderRead:
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    code = await resend_delivery_otp(session, order)
+    await _send_delivery_otp(session, order, code)
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 

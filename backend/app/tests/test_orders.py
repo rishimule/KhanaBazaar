@@ -572,11 +572,7 @@ async def test_delivered_marks_payment_paid(as_customer: Any, seed: dict[str, in
 
     app.dependency_overrides[get_current_user] = lambda: mock_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        r1 = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
-        assert r1.status_code == 200, r1.text
-        r2 = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "dispatched"})
-        assert r2.status_code == 200, r2.text
-        resp = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "delivered"})
+        resp = await _deliver_with_otp(ac, target)
     assert resp.status_code == 200, resp.text
     assert resp.json()["payment"]["status"] == "paid"
     assert resp.json()["payment"]["paid_at"] is not None
@@ -599,6 +595,27 @@ async def _order_id_for_store(order_ids: list[int], store_id: int) -> int:
     return order."""
     stores = [await _get_order_store(oid) for oid in order_ids]
     return next(oid for oid, s in zip(order_ids, stores, strict=True) if s == store_id)
+
+
+async def _deliver_with_otp(ac: AsyncClient, order_id: int) -> Any:
+    """Walk packed→dispatched, read the generated code from the test DB, deliver."""
+    from sqlmodel.ext.asyncio.session import AsyncSession as S
+
+    from tests.conftest import test_engine
+
+    await ac.post(f"/api/v1/orders/{order_id}/transition", json={"to": "packed"})
+    await ac.post(f"/api/v1/orders/{order_id}/transition", json={"to": "dispatched"})
+    async with S(test_engine) as s:
+        code = (
+            await s.exec(
+                select(Delivery.delivery_otp).where(Delivery.order_id == order_id)
+            )
+        ).first()
+    assert code is not None
+    return await ac.post(
+        f"/api/v1/orders/{order_id}/transition",
+        json={"to": "delivered", "otp": code},
+    )
 
 
 async def test_customer_cancels_pending(as_customer: Any, seed: dict[str, int], session: AsyncSession) -> None:
@@ -749,9 +766,8 @@ async def test_admin_refund_delivered_order_marks_payment_refunded(
     # Walk to delivered (transition_order_status flips payment.status to Paid).
     app.dependency_overrides[get_current_user] = lambda: mock_seller
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
-        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "dispatched"})
-        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "delivered"})
+        r = await _deliver_with_otp(ac, target)
+        assert r.status_code == 200, r.text
 
     app.dependency_overrides[get_current_user] = lambda: mock_admin
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
