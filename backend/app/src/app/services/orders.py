@@ -149,11 +149,12 @@ async def transition_order_status(
                 )
             if not hmac.compare_digest(otp, delivery.delivery_otp):
                 delivery.delivery_otp_attempts += 1
+                # Capture before commit() expires the instance (reading the
+                # attribute afterwards would trigger a lazy load → MissingGreenlet).
+                attempts_now = delivery.delivery_otp_attempts
                 await session.commit()  # persist failed attempt; order.status untouched
                 remaining = max(
-                    0,
-                    settings.DELIVERY_OTP_MAX_ATTEMPTS
-                    - delivery.delivery_otp_attempts,
+                    0, settings.DELIVERY_OTP_MAX_ATTEMPTS - attempts_now
                 )
                 raise HTTPException(
                     status_code=422,
@@ -544,4 +545,7 @@ async def resend_delivery_otp(session: AsyncSession, order: Order) -> str:
     delivery.delivery_otp_sent_at = now
     code = delivery.delivery_otp
     await session.commit()
+    # commit() expired `order`; refresh so the caller's fan-out can read its
+    # attributes without triggering a lazy load (→ MissingGreenlet).
+    await session.refresh(order)
     return code

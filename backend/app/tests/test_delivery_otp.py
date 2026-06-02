@@ -1,0 +1,262 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+from typing import Any
+
+from httpx import ASGITransport, AsyncClient
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app import app
+from app.core.security import get_current_user
+from app.models.commerce import Delivery
+from app.models.notification import Notification, NotificationType
+
+# Reuse the full order-test harness (seed fixture, mock users, helpers).
+from tests.test_orders import (  # noqa: F401
+    _order_id_for_store,
+    _place_orders,
+    as_customer,
+    mock_admin,
+    mock_customer,
+    mock_seller,
+    seed,
+)
+
+
+async def _packed_then_dispatched(ac: AsyncClient, order_id: int) -> None:
+    await ac.post(f"/api/v1/orders/{order_id}/transition", json={"to": "packed"})
+    await ac.post(f"/api/v1/orders/{order_id}/transition", json={"to": "dispatched"})
+
+
+async def _read_code(order_id: int) -> str | None:
+    from tests.conftest import test_engine
+
+    async with AsyncSession(test_engine) as s:
+        return (
+            await s.exec(
+                select(Delivery.delivery_otp).where(Delivery.order_id == order_id)
+            )
+        ).first()
+
+
+async def test_dispatch_generates_code_and_records_notification(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        await _packed_then_dispatched(ac, target)
+
+    code = await _read_code(target)
+    assert code is not None and len(code) == 6
+
+    notif = (
+        await session.exec(
+            select(Notification).where(
+                Notification.order_id == target,
+                Notification.type == NotificationType.DeliveryOtp,
+            )
+        )
+    ).first()
+    assert notif is not None
+    assert code in notif.body
+
+
+async def test_seller_cannot_deliver_without_otp(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        await _packed_then_dispatched(ac, target)
+        resp = await ac.post(
+            f"/api/v1/orders/{target}/transition", json={"to": "delivered"}
+        )
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "delivery_otp_required"
+
+
+async def test_wrong_otp_increments_then_locks(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        await _packed_then_dispatched(ac, target)
+        # 5 wrong attempts (DELIVERY_OTP_MAX_ATTEMPTS default).
+        last = None
+        for _ in range(5):
+            last = await ac.post(
+                f"/api/v1/orders/{target}/transition",
+                json={"to": "delivered", "otp": "000000"},
+            )
+        assert last is not None and last.status_code == 422
+        assert last.json()["detail"]["code"] == "delivery_otp_invalid"
+        # 6th attempt → locked.
+        locked = await ac.post(
+            f"/api/v1/orders/{target}/transition",
+            json={"to": "delivered", "otp": "000000"},
+        )
+    assert locked.status_code == 409
+    assert locked.json()["detail"]["code"] == "delivery_otp_locked"
+
+
+async def test_correct_otp_delivers_and_clears_code(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        await _packed_then_dispatched(ac, target)
+        code = await _read_code(target)
+        resp = await ac.post(
+            f"/api/v1/orders/{target}/transition",
+            json={"to": "delivered", "otp": code},
+        )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "delivered"
+    assert resp.json()["payment"]["status"] == "paid"
+
+    delivery = (
+        await session.exec(select(Delivery).where(Delivery.order_id == target))
+    ).first()
+    assert delivery is not None
+    assert delivery.delivery_otp is None
+    assert delivery.delivery_otp_verified_at is not None
+
+
+async def test_resend_resets_attempts(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        await _packed_then_dispatched(ac, target)
+        await ac.post(
+            f"/api/v1/orders/{target}/transition",
+            json={"to": "delivered", "otp": "000000"},
+        )
+    code = await _read_code(target)
+
+    # Resend within the cooldown window is rejected.
+    app.dependency_overrides[get_current_user] = lambda: mock_customer
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        too_soon = await ac.post(f"/api/v1/orders/{target}/delivery-otp/resend")
+    assert too_soon.status_code == 429
+    assert too_soon.json()["detail"]["code"] == "resend_cooldown"
+
+    # Backdate sent_at past the cooldown, then resend succeeds.
+    from datetime import datetime, timedelta, timezone
+
+    from tests.conftest import test_engine
+
+    async with AsyncSession(test_engine) as s:
+        d = (
+            await s.exec(select(Delivery).where(Delivery.order_id == target))
+        ).first()
+        assert d is not None
+        d.delivery_otp_sent_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        s.add(d)
+        await s.commit()
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        resend = await ac.post(f"/api/v1/orders/{target}/delivery-otp/resend")
+    assert resend.status_code == 200
+
+    delivery = (
+        await session.exec(select(Delivery).where(Delivery.order_id == target))
+    ).first()
+    assert delivery is not None
+    assert delivery.delivery_otp_attempts == 0
+    assert delivery.delivery_otp == code  # same code re-sent
+
+
+async def test_resend_rejected_when_not_dispatched(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_customer
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        resp = await ac.post(f"/api/v1/orders/{target}/delivery-otp/resend")
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["code"] == "not_dispatched"
+
+
+async def test_admin_force_deliver_requires_reason(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        await _packed_then_dispatched(ac, target)
+
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        no_reason = await ac.post(
+            f"/api/v1/orders/{target}/transition", json={"to": "delivered"}
+        )
+        assert no_reason.status_code == 422
+        assert no_reason.json()["detail"]["code"] == "reason_required"
+        ok = await ac.post(
+            f"/api/v1/orders/{target}/transition",
+            json={"to": "delivered", "reason": "customer unreachable at door"},
+        )
+    assert ok.status_code == 200
+    assert ok.json()["status"] == "delivered"
+
+
+async def test_customer_sees_code_seller_does_not(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        await _packed_then_dispatched(ac, target)
+        seller_view = await ac.get(f"/api/v1/orders/{target}")
+    assert seller_view.json()["delivery"]["otp"] is None
+
+    app.dependency_overrides[get_current_user] = lambda: mock_customer
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        cust_view = await ac.get(f"/api/v1/orders/{target}")
+    otp = cust_view.json()["delivery"]["otp"]
+    assert otp is not None and len(otp) == 6

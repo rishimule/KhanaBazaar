@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.core.security import (  # noqa: F401
     get_current_admin,
     get_current_customer,
@@ -49,7 +50,6 @@ from app.schemas.orders import (
 from app.schemas.price_comparison import ReplaceAdjustment
 from app.schemas.reorder import ReorderResolveResponse, ResolvedReorderItem
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
-from app.core.config import settings
 from app.services.checkout import place_order_for_sub_basket
 from app.services.notification_push import dispatch_notification_push
 from app.services.notifications import (
