@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { cancelOrder, transitionOrder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
+import { ApiError } from "@/lib/api";
 import Modal from "@/components/Modal";
 import OrderReviewForm from "@/components/orders/OrderReviewForm";
 import type { Order, OrderStatus, UserRole } from "@/types";
@@ -23,6 +24,13 @@ const NEXT_LABEL_KEYS: Record<NonNullable<typeof NEXT_TRANSITION[OrderStatus]>, 
   delivered: "markDelivered",
 };
 
+function errorDetail(e: unknown): { code?: string; remaining?: number } | null {
+  if (e instanceof ApiError && e.detail && typeof e.detail === "object") {
+    return e.detail as { code?: string; remaining?: number };
+  }
+  return null;
+}
+
 interface Props {
   order: Order;
   role: UserRole;
@@ -36,7 +44,20 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const [reviewOpen, setReviewOpen] = useState(false);
-  const canTransition = role === "seller" && NEXT_TRANSITION[order.status] !== undefined;
+
+  // Delivery-handover OTP (seller) / force-deliver reason (admin) modals.
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [reasonOpen, setReasonOpen] = useState(false);
+  const [reasonValue, setReasonValue] = useState("");
+  const [reasonError, setReasonError] = useState<string | null>(null);
+
+  const nextStep = NEXT_TRANSITION[order.status];
+  const isDeliverStep = nextStep === "delivered";
+  const canTransition =
+    (role === "seller" && nextStep !== undefined) ||
+    (role === "admin" && isDeliverStep);
   const canCancelCustomer = role === "customer" && order.status === "pending";
   const canCancelStaff =
     role !== "customer" && order.status !== "delivered" && order.status !== "cancelled";
@@ -44,16 +65,76 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
     role === "customer" && order.status === "delivered" && order.review === null;
 
   const handleTransition = async () => {
-    if (!token) return;
-    const target = NEXT_TRANSITION[order.status]!;
-    if (target === "delivered" && !confirm(t("confirmCashCollected"))) return;
+    if (!token || !nextStep) return;
+    // Delivered requires verification: seller enters the customer's OTP;
+    // admin force-delivers with a reason. Both go through a modal.
+    if (isDeliverStep) {
+      if (role === "admin") {
+        setReasonValue("");
+        setReasonError(null);
+        setReasonOpen(true);
+      } else {
+        setOtpValue("");
+        setOtpError(null);
+        setOtpOpen(true);
+      }
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const next = await transitionOrder(token, order.id, target);
+      const next = await transitionOrder(token, order.id, nextStep);
       onChange(next);
     } catch (e) {
       setError((e as { detail?: string })?.detail ?? t("errUpdate"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitOtp = async () => {
+    if (!token) return;
+    setBusy(true);
+    setOtpError(null);
+    try {
+      const next = await transitionOrder(token, order.id, "delivered", {
+        otp: otpValue.trim(),
+      });
+      onChange(next);
+      setOtpOpen(false);
+    } catch (e) {
+      const d = errorDetail(e);
+      if (d?.code === "delivery_otp_invalid") {
+        setOtpError(t("otpInvalid", { remaining: d.remaining ?? 0 }));
+      } else if (d?.code === "delivery_otp_locked") {
+        setOtpError(t("otpLocked"));
+      } else if (d?.code === "delivery_otp_required") {
+        setOtpError(t("otpRequired"));
+      } else {
+        setOtpError(t("errUpdate"));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitReason = async () => {
+    if (!token) return;
+    if (reasonValue.trim().length < 10) {
+      setReasonError(t("reasonTooShort"));
+      return;
+    }
+    setBusy(true);
+    setReasonError(null);
+    try {
+      const next = await transitionOrder(token, order.id, "delivered", {
+        reason: reasonValue.trim(),
+      });
+      onChange(next);
+      setReasonOpen(false);
+    } catch (e) {
+      const d = errorDetail(e);
+      setReasonError(d?.code === "reason_required" ? t("reasonTooShort") : t("errUpdate"));
     } finally {
       setBusy(false);
     }
@@ -78,7 +159,9 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
     <div className={styles.actions}>
       {canTransition && (
         <button onClick={handleTransition} disabled={busy} className={styles.primary}>
-          {t(NEXT_LABEL_KEYS[NEXT_TRANSITION[order.status]!])}
+          {role === "admin" && isDeliverStep
+            ? t("forceDeliver")
+            : t(NEXT_LABEL_KEYS[nextStep!])}
         </button>
       )}
       {(canCancelCustomer || canCancelStaff) && (
@@ -105,6 +188,58 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
               setReviewOpen(false);
             }}
           />
+        </Modal>
+      )}
+      {otpOpen && (
+        <Modal title={t("otpTitle")} onClose={() => setOtpOpen(false)}>
+          <div className={styles.modalBody}>
+            <label className={styles.modalLabel} htmlFor="delivery-otp">
+              {t("otpLabel")}
+            </label>
+            <input
+              id="delivery-otp"
+              className={styles.modalInput}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otpValue}
+              onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ""))}
+            />
+            {otpError && <span className={styles.error}>{otpError}</span>}
+            <button
+              type="button"
+              onClick={submitOtp}
+              disabled={busy || otpValue.trim().length === 0}
+              className={styles.primary}
+            >
+              {t("otpSubmit")}
+            </button>
+          </div>
+        </Modal>
+      )}
+      {reasonOpen && (
+        <Modal title={t("reasonTitle")} onClose={() => setReasonOpen(false)}>
+          <div className={styles.modalBody}>
+            <label className={styles.modalLabel} htmlFor="force-deliver-reason">
+              {t("reasonLabel")}
+            </label>
+            <textarea
+              id="force-deliver-reason"
+              className={styles.modalInput}
+              rows={3}
+              value={reasonValue}
+              onChange={(e) => setReasonValue(e.target.value)}
+            />
+            {reasonError && <span className={styles.error}>{reasonError}</span>}
+            <button
+              type="button"
+              onClick={submitReason}
+              disabled={busy || reasonValue.trim().length < 10}
+              className={styles.primary}
+            >
+              {t("reasonSubmit")}
+            </button>
+          </div>
         </Modal>
       )}
     </div>

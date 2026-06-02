@@ -542,7 +542,13 @@
       "deliveryTo": "ਡਿਲਿਵਰੀ ਪਤਾ",
       "loadError": "ਆਰਡਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ.",
       "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
-      "amount": "₹{amount}"
+      "amount": "₹{amount}",
+      "deliveryCodeTitle": "Delivery code",
+      "deliveryCodeHint": "Share this code with your delivery partner to receive your order.",
+      "resendCode": "Resend code",
+      "resendCooldown": "Please wait {seconds}s before resending.",
+      "resendDone": "Code re-sent.",
+      "resendError": "Could not resend the code."
     },
     "profile": {
       "loading": "ਪ੍ਰੋਫਾਈਲ ਲੋਡ ਹੋ ਰਹੀ ਹੈ…",

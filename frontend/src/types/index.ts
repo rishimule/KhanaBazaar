@@ -315,6 +315,11 @@ export interface OrderDelivery {
   packed_at: string | null;
   dispatched_at: string | null;
   delivered_at: string | null;
+  // Delivery-handover OTP. `otp` is populated only for the owning customer
+  // while the order is dispatched; sellers/admins always receive null.
+  otp?: string | null;
+  otp_locked?: boolean;
+  otp_attempts_remaining?: number;
 }
 
 export interface OrderReview {

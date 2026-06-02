@@ -542,7 +542,13 @@
       "deliveryTo": "ડિલિવરી સરનામું",
       "loadError": "ઓર્ડર લોડ થઈ શક્યો નહીં.",
       "loading": "લોડ થઈ રહ્યું છે…",
-      "amount": "₹{amount}"
+      "amount": "₹{amount}",
+      "deliveryCodeTitle": "Delivery code",
+      "deliveryCodeHint": "Share this code with your delivery partner to receive your order.",
+      "resendCode": "Resend code",
+      "resendCooldown": "Please wait {seconds}s before resending.",
+      "resendDone": "Code re-sent.",
+      "resendError": "Could not resend the code."
     },
     "profile": {
       "loading": "પ્રોફાઇલ લોડ થઈ રહી છે…",
