@@ -13,15 +13,24 @@ import styles from "./DeliveryOtpPanel.module.css";
 interface Props {
   order: Order;
   onChange: (next: Order) => void;
+  /**
+   * i18n namespace holding the panel copy. Defaults to the customer namespace;
+   * the admin order page passes "Admin.orderDetail" for admin-voiced copy.
+   */
+  namespace?: string;
 }
 
 /**
- * Customer-facing handover code, shown only while the order is dispatched and
- * the backend exposes the code (owning customer only). Includes a cooldown-aware
- * resend button.
+ * Handover code panel, shown only while the order is dispatched and the backend
+ * exposes the code (owning customer or admin). Includes a cooldown-aware resend
+ * button. Sellers never receive the code, so this renders nothing for them.
  */
-export default function DeliveryOtpPanel({ order, onChange }: Props) {
-  const t = useTranslations("Account.orderDetail");
+export default function DeliveryOtpPanel({
+  order,
+  onChange,
+  namespace = "Account.orderDetail",
+}: Props) {
+  const t = useTranslations(namespace);
   const { token } = useAuth();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
