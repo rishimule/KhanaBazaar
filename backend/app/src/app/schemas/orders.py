@@ -34,6 +34,9 @@ class DeliveryRead(BaseModel):
     packed_at: Optional[datetime]
     dispatched_at: Optional[datetime]
     delivered_at: Optional[datetime]
+    otp: Optional[str] = None
+    otp_locked: bool = False
+    otp_attempts_remaining: int = 0
 
 
 class OrderReviewInOrder(BaseModel):
@@ -83,3 +86,5 @@ class PlaceOrderRequest(BaseModel):
 
 class TransitionRequest(BaseModel):
     to: Literal["packed", "dispatched", "delivered"]
+    otp: Optional[str] = None
+    reason: Optional[str] = None
