@@ -16,7 +16,10 @@ const nextConfig: NextConfig = {
     // trailing slash. `:path*` (segments-only) drops the trailing slash,
     // which we cannot afford because FastAPI's redirect_slashes then
     // bounces the request back with an upstream-host Location header.
-    const apiInternal = process.env.API_INTERNAL_URL;
+    // INTERNAL_API_URL is the absolute backend URL used server-side (also by
+    // RSC fetches in lib/api.ts). When set (production), proxy the versioned API
+    // to it; when empty (local dev), fall through to the localhost proxy below.
+    const apiInternal = process.env.INTERNAL_API_URL;
     if (apiInternal) {
       // Production: the web service proxies the versioned API to the internal
       // `api` Cloud Run service. /dev-logs is served by the real page (no proxy).

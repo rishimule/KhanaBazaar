@@ -418,11 +418,12 @@ CMD ["sh", "-c", "npm start -- --port ${PORT:-8080} --hostname 0.0.0.0"]
 
 ```ts
 // next.config.ts
-const API_TARGET = process.env.API_INTERNAL_URL ?? "http://localhost:8000";
+const API_TARGET = process.env.INTERNAL_API_URL ?? "http://localhost:8000";
 // then use `${API_TARGET}/api/v1/:rest`
 ```
 
-Set `API_INTERNAL_URL` on the web Cloud Run service to the api service's `*.run.app` URL.
+Set `INTERNAL_API_URL` on the web Cloud Run service to the api service's `*.run.app` URL.
+(Reuses the existing `INTERNAL_API_URL` that server-side RSC fetches in `lib/api.ts` already read — one var, not two.)
 
 ---
 
@@ -539,7 +540,7 @@ gcloud run deploy khanabazaar-web \
   --min-instances=0 --max-instances=5 --concurrency=80 \
   --port=8080 \
   --allow-unauthenticated \
-  --set-env-vars="API_INTERNAL_URL=https://khanabazaar-api-xxxx-el.a.run.app"
+  --set-env-vars="INTERNAL_API_URL=https://khanabazaar-api-xxxx-el.a.run.app"
 ```
 
 Frontend does not need VPC egress unless you proxy directly to private Redis/PG (you don't).

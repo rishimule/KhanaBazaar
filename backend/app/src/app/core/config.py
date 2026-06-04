@@ -71,10 +71,6 @@ class Settings(BaseSettings):
     DEV_LOGS_USERNAME: str = ""
     DEV_LOGS_PASSWORD: str = ""
 
-    # Production-only: absolute base URL of the internal `api` Cloud Run service.
-    # The Next.js web service rewrites /api/v1/* here. Empty in local dev.
-    API_INTERNAL_URL: str = ""
-
     # Search rate limits (per IP per minute)
     SEARCH_RATE_LIMIT_SUGGEST_PER_MIN: int = 60
     SEARCH_RATE_LIMIT_PRODUCTS_PER_MIN: int = 30
