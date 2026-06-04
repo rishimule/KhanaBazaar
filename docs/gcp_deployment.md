@@ -14,7 +14,7 @@ Production deployment plan for Khana Bazaar on Google Cloud Platform. Target pro
 
 | Khana Bazaar component | GCP service | Tier (MVP starting point) |
 |---|---|---|
-| FastAPI backend (`khanabazaar-api`) | Cloud Run (HTTP) | 1 vCPU / 512 MiB, min=0, max=5 |
+| FastAPI backend (`khanabazaar-api`) | Cloud Run (HTTP) | 1 vCPU / 512 MiB, min=0, max=3 (caps DB conns under db-f1-micro) |
 | Celery worker (`khanabazaar-worker`) | Cloud Run (no ingress, CPU always-allocated) | 1 vCPU / 512 MiB, min=1, max=2 |
 | Celery beat scheduler (`khanabazaar-beat`) | Cloud Run (no ingress, CPU always-allocated) | 0.25 vCPU / 256 MiB, min=1, max=1 |
 | Next.js frontend (`khanabazaar-web`) | Cloud Run (HTTP) | 1 vCPU / 512 MiB, min=0, max=5 |
@@ -463,7 +463,7 @@ gcloud run deploy khanabazaar-api \
   --service-account=$SA \
   --network=kb-vpc --subnet=kb-subnet --vpc-egress=private-ranges-only \
   --cpu=1 --memory=512Mi \
-  --min-instances=0 --max-instances=5 --concurrency=40 \
+  --min-instances=0 --max-instances=3 --concurrency=40 \
   --port=8080 \
   --allow-unauthenticated \
   --set-env-vars="ENVIRONMENT=production" \
