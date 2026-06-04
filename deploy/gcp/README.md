@@ -27,6 +27,13 @@ bash deploy/gcp/bootstrap.sh
 # Replace the Maps key placeholders with real values:
 echo -n "REAL_SERVER_KEY"  | gcloud secrets versions add gmaps-server-key  --data-file=-
 echo -n "REAL_BROWSER_KEY" | gcloud secrets versions add gmaps-browser-key --data-file=-
+# The BROWSER key is HTTP-referrer-restricted: add the prod web origin or the
+# map fails with RefererNotAllowedMapError. Allow both *.run.app URL forms and
+# target the Maps JS + Places APIs:
+#   gcloud services api-keys update <BROWSER_KEY_UID> \
+#     --allowed-referrers="https://khanabazaar-web-<PROJECT_NUMBER>.<REGION>.run.app/*,https://<other-runapp-form>/*" \
+#     --api-target=service=maps-backend.googleapis.com \
+#     --api-target=service=places-backend.googleapis.com
 ```
 
 ## 2. Bootstrap images
