@@ -101,12 +101,13 @@ gcloud run deploy khanabazaar-worker --region=$REGION \
   --set-env-vars=ENVIRONMENT=production,EMAIL_PROVIDER=console,SMS_PROVIDER=console,MEILI_URL=$MEILI_URL \
   --set-secrets=JWT_SECRET=jwt-secret:latest,OTP_PEPPER=otp-pepper:latest,DATABASE_URL=database-url:latest,REDIS_URL=redis-url:latest,MEILI_MASTER_KEY=meili-master-key:latest,GOOGLE_MAPS_SERVER_API_KEY=gmaps-server-key:latest
 
-# web (API_INTERNAL_URL at runtime)
+# web (INTERNAL_API_URL at runtime — drives both the next.config rewrite and
+# server-side RSC fetches in lib/api.ts)
 gcloud run deploy khanabazaar-web --region=$REGION \
   --image=$AR_HOST/$PROJECT_ID/kb/web:bootstrap --service-account=$SA \
   --cpu=1 --memory=512Mi --min-instances=0 --max-instances=5 --concurrency=80 --port=8080 \
   --allow-unauthenticated \
-  --set-env-vars=API_INTERNAL_URL=$API_URL
+  --set-env-vars=INTERNAL_API_URL=$API_URL
 export WEB_URL=$(gcloud run services describe khanabazaar-web --region=$REGION --format='value(status.url)')
 
 # second pass: tell api its CORS origin

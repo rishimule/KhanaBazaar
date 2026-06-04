@@ -8,5 +8,3 @@ def test_deploy_fields_exist_with_safe_defaults():
     assert settings.EXPOSE_DEV_OTPS is False
     assert settings.DEV_LOGS_USERNAME == ""
     assert settings.DEV_LOGS_PASSWORD == ""
-    # Prod API rewrite target is empty in local dev.
-    assert settings.API_INTERNAL_URL == ""
