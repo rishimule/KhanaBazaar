@@ -6,7 +6,7 @@ This code and its associated documentation cannot be copied, modified, or distri
 
 Production deployment plan for Khana Bazaar on Google Cloud Platform. Target profile: **MVP / low traffic, lowest cost**, single region **Mumbai (`asia-south1`)**. Stack favours managed serverless (Cloud Run + Cloud SQL + Memorystore) over GKE — no kubelet babysitting, no VM patching except for one tiny Redis bastion if you choose the cheaper Redis option.
 
-> **Status:** target architecture, parallel to `docs/azure_deployment.md`. None of these GCP resources are provisioned yet. None of the Dockerfiles, Terraform, or GitHub Actions referenced below are committed. Treat this document as the implementation spec.
+> **Status:** target architecture — this is the **canonical deployment plan** for Khana Bazaar (GCP is the sole deployment target). None of these GCP resources are provisioned yet, and none of the Dockerfiles, Terraform, or GitHub Actions referenced below are committed. Treat this document as the implementation spec. Phase 5 in [`../TODO.md`](../TODO.md) tracks the build-out.
 
 ---
 
@@ -788,7 +788,7 @@ Set up alerting policies in Cloud Monitoring for:
 - Memorystore memory > 90%
 - Celery queue depth (custom metric — emit from worker via `monitoring_v3` once tasks back up)
 
-App tracing / structured request logs: not wired yet. `docs/azure_deployment.md` §13 lists this as a launch blocker on the Azure side; the GCP equivalent is OpenTelemetry → Cloud Trace via `opentelemetry-exporter-gcp-trace`. Add when traffic justifies.
+App tracing / structured request logs: not wired yet. OpenTelemetry → Cloud Trace via `opentelemetry-exporter-gcp-trace` is the planned path — guard `configure_opentelemetry()` in `app/__init__.py` on a `GOOGLE_CLOUD_PROJECT` / OTEL env var. This is a launch blocker; add when traffic justifies.
 
 ---
 
@@ -821,13 +821,13 @@ Things to flip **only after MVP traffic is observed**:
 
 ---
 
-## 18. Known gaps vs `azure_deployment.md`
+## 18. Known gaps
 
-Parity not yet reached on the GCP side:
+Not yet addressed at MVP:
 
-- **App Insights / OpenTelemetry**: not wired in either deployment. Same launch-blocker as Azure.
-- **WAF**: Azure plan uses Front Door Premium. GCP equivalent is Cloud Armor in front of an external HTTPS load balancer, which costs ~$18/mo for the LB alone. Skipped at MVP; Cloud Run's built-in DDoS protection is acceptable until traffic justifies the LB spend.
-- **CDN**: same — no Cloud CDN at MVP. Add behind an HTTPS LB once image traffic exceeds the egress free tier.
+- **OpenTelemetry / Cloud Trace**: not wired. Launch blocker — see §15.
+- **WAF**: Cloud Armor in front of an external HTTPS load balancer, ~$18/mo for the LB alone. Skipped at MVP; Cloud Run's built-in DDoS protection is acceptable until traffic justifies the LB spend.
+- **CDN**: no Cloud CDN at MVP. Add behind an HTTPS LB once image traffic exceeds the egress free tier.
 - **Multi-region failover**: not in scope at MVP. Cloud SQL backup + Meili dump = 2-hour RTO from any region.
 - **Mobile testing tunnel**: `scripts/dev.sh start --tunnel` (ngrok) keeps working unchanged — it is a local-dev concern.
 
