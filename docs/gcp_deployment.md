@@ -104,13 +104,13 @@ docker --version           # for local build/push if you do not use Cloud Build
 git --version
 ```
 
-A GCP organisation is not required; a personal billing account on a single project is fine. Pick a project ID — e.g. `kb-prod` — that you do not plan to rename. Project IDs are immutable.
+A GCP organisation is not required; a personal billing account on a single project is fine. This guide uses the project ID **`khanabazaar`** throughout. Project IDs are immutable, so it cannot be renamed later.
 
 ```bash
 gcloud auth login
-gcloud projects create kb-prod --name="Khana Bazaar Prod"
-gcloud config set project kb-prod
-gcloud beta billing projects link kb-prod --billing-account=XXXX-XXXX-XXXX
+gcloud projects create khanabazaar --name="Khana Bazaar"   # one-time; skip if it already exists
+gcloud config set project khanabazaar
+gcloud beta billing projects link khanabazaar --billing-account=XXXX-XXXX-XXXX
 ```
 
 Enable APIs (one-time, can take a few minutes):
@@ -217,7 +217,7 @@ gcloud sql instances create kb-pg \
   --region=$REGION \
   --storage-size=10GB \
   --storage-type=SSD \
-  --network=projects/kb-prod/global/networks/kb-vpc \
+  --network=projects/khanabazaar/global/networks/kb-vpc \
   --no-assign-ip \
   --backup-start-time=18:00 \
   --enable-point-in-time-recovery \
@@ -264,7 +264,7 @@ gcloud redis instances create kb-redis \
   --region=$REGION \
   --tier=BASIC \
   --redis-version=redis_7_2 \
-  --network=projects/kb-prod/global/networks/kb-vpc \
+  --network=projects/khanabazaar/global/networks/kb-vpc \
   --connect-mode=PRIVATE_SERVICE_ACCESS
 ```
 
@@ -342,7 +342,7 @@ gcloud artifacts repositories create kb \
 gcloud auth configure-docker asia-south1-docker.pkg.dev
 ```
 
-Image URIs: `asia-south1-docker.pkg.dev/kb-prod/kb/<service>:<git-sha>`.
+Image URIs: `asia-south1-docker.pkg.dev/khanabazaar/kb/<service>:<git-sha>`.
 
 ### `backend/app/Dockerfile`
 
@@ -438,18 +438,18 @@ gcloud iam service-accounts create kb-deployer
 Grant `kb-runtime` what the apps need at runtime:
 
 ```bash
-SA=kb-runtime@kb-prod.iam.gserviceaccount.com
+SA=kb-runtime@khanabazaar.iam.gserviceaccount.com
 
-gcloud projects add-iam-policy-binding kb-prod \
+gcloud projects add-iam-policy-binding khanabazaar \
   --member="serviceAccount:$SA" --role=roles/cloudsql.client
-gcloud projects add-iam-policy-binding kb-prod \
+gcloud projects add-iam-policy-binding khanabazaar \
   --member="serviceAccount:$SA" --role=roles/secretmanager.secretAccessor
-gcloud projects add-iam-policy-binding kb-prod \
+gcloud projects add-iam-policy-binding khanabazaar \
   --member="serviceAccount:$SA" --role=roles/logging.logWriter
-gcloud projects add-iam-policy-binding kb-prod \
+gcloud projects add-iam-policy-binding khanabazaar \
   --member="serviceAccount:$SA" --role=roles/monitoring.metricWriter
 # Meili service needs GCS access for the Fuse mount
-gcloud projects add-iam-policy-binding kb-prod \
+gcloud projects add-iam-policy-binding khanabazaar \
   --member="serviceAccount:$SA" --role=roles/storage.objectUser
 ```
 
@@ -458,7 +458,7 @@ gcloud projects add-iam-policy-binding kb-prod \
 ```bash
 gcloud run deploy khanabazaar-api \
   --region=$REGION \
-  --image=asia-south1-docker.pkg.dev/kb-prod/kb/api:$GIT_SHA \
+  --image=asia-south1-docker.pkg.dev/khanabazaar/kb/api:$GIT_SHA \
   --service-account=$SA \
   --network=kb-vpc --subnet=kb-subnet --vpc-egress=private-ranges-only \
   --cpu=1 --memory=512Mi \
@@ -491,7 +491,7 @@ Same image, different command, no ingress:
 ```bash
 gcloud run deploy khanabazaar-worker \
   --region=$REGION \
-  --image=asia-south1-docker.pkg.dev/kb-prod/kb/api:$GIT_SHA \
+  --image=asia-south1-docker.pkg.dev/khanabazaar/kb/api:$GIT_SHA \
   --service-account=$SA \
   --network=kb-vpc --subnet=kb-subnet --vpc-egress=private-ranges-only \
   --cpu=1 --memory=512Mi --cpu-boost \
@@ -512,7 +512,7 @@ gcloud run deploy khanabazaar-worker \
 ```bash
 gcloud run deploy khanabazaar-beat \
   --region=$REGION \
-  --image=asia-south1-docker.pkg.dev/kb-prod/kb/api:$GIT_SHA \
+  --image=asia-south1-docker.pkg.dev/khanabazaar/kb/api:$GIT_SHA \
   --service-account=$SA \
   --network=kb-vpc --subnet=kb-subnet --vpc-egress=private-ranges-only \
   --cpu=0.25 --memory=256Mi \
@@ -533,7 +533,7 @@ Beat **must** be a singleton — `max-instances=1`. If you ever bump it, you wil
 ```bash
 gcloud run deploy khanabazaar-web \
   --region=$REGION \
-  --image=asia-south1-docker.pkg.dev/kb-prod/kb/web:$GIT_SHA \
+  --image=asia-south1-docker.pkg.dev/khanabazaar/kb/web:$GIT_SHA \
   --service-account=$SA \
   --cpu=1 --memory=512Mi \
   --min-instances=0 --max-instances=5 --concurrency=80 \
@@ -616,7 +616,7 @@ No long-lived JSON keys. OIDC from GitHub Actions → short-lived GCP token.
 ### 13a. One-time WIF setup
 
 ```bash
-PROJECT_NUMBER=$(gcloud projects describe kb-prod --format='value(projectNumber)')
+PROJECT_NUMBER=$(gcloud projects describe khanabazaar --format='value(projectNumber)')
 GH_REPO="rishimule/KhanaBazaar"   # change to your repo
 
 gcloud iam workload-identity-pools create gh-pool \
@@ -630,14 +630,14 @@ gcloud iam workload-identity-pools providers create-oidc gh-provider \
   --issuer-uri="https://token.actions.githubusercontent.com"
 
 gcloud iam service-accounts add-iam-policy-binding \
-  kb-deployer@kb-prod.iam.gserviceaccount.com \
+  kb-deployer@khanabazaar.iam.gserviceaccount.com \
   --role=roles/iam.workloadIdentityUser \
   --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/gh-pool/attribute.repository/$GH_REPO"
 
 # Deploy permissions
 for ROLE in run.admin artifactregistry.writer iam.serviceAccountUser; do
-  gcloud projects add-iam-policy-binding kb-prod \
-    --member="serviceAccount:kb-deployer@kb-prod.iam.gserviceaccount.com" \
+  gcloud projects add-iam-policy-binding khanabazaar \
+    --member="serviceAccount:kb-deployer@khanabazaar.iam.gserviceaccount.com" \
     --role="roles/$ROLE"
 done
 ```
@@ -646,10 +646,10 @@ Repository secrets to set in GitHub:
 
 | Secret | Value |
 |---|---|
-| `GCP_PROJECT_ID` | `kb-prod` |
+| `GCP_PROJECT_ID` | `khanabazaar` |
 | `GCP_PROJECT_NUMBER` | output of `projects describe` |
 | `GCP_WIF_PROVIDER` | `projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/gh-pool/providers/gh-provider` |
-| `GCP_DEPLOYER_SA` | `kb-deployer@kb-prod.iam.gserviceaccount.com` |
+| `GCP_DEPLOYER_SA` | `kb-deployer@khanabazaar.iam.gserviceaccount.com` |
 | `GCP_REGION` | `asia-south1` |
 
 ### 13b. `.github/workflows/deploy.yml`
@@ -838,7 +838,7 @@ Not yet addressed at MVP:
 If you abandon GCP, kill the bill in one shot:
 
 ```bash
-gcloud projects delete kb-prod
+gcloud projects delete khanabazaar
 ```
 
 Project deletion is reversible for 30 days. Past that, every resource (including the Cloud SQL backups) is gone. Export anything you want before deleting.
