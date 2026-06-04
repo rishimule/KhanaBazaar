@@ -16,9 +16,12 @@ ARG NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=""
 # production `/api/v1/*` -> api proxy destination must be known here, not just
 # at runtime. (The runtime env var below only affects RSC fetches in lib/api.ts.)
 ARG INTERNAL_API_URL=""
+# Browser applicationServerKey for Web Push — NEXT_PUBLIC_*, inlined at build.
+ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=""
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY \
-    INTERNAL_API_URL=$INTERNAL_API_URL
+    INTERNAL_API_URL=$INTERNAL_API_URL \
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
 RUN npm run build
 
 FROM node:22-alpine AS runner

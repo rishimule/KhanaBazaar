@@ -156,7 +156,16 @@ curl "$WEB_URL/api/v1/search/suggest?q=milk"
   `GCP_WIF_PROVIDER` (`projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/gh-pool/providers/gh-provider`),
   `GCP_DEPLOYER_SA` (`kb-deployer@$PROJECT_ID.iam.gserviceaccount.com`),
   `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`,
-  `INTERNAL_API_URL` (`https://khanabazaar-api-$PROJECT_NUMBER.$REGION.run.app` — baked into the web build).
+  `INTERNAL_API_URL` (`https://khanabazaar-api-$PROJECT_NUMBER.$REGION.run.app` — baked into the web build),
+  `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (Web Push browser key — baked into the web build).
+
+**Web Push (VAPID):** generate a raw-base64url EC P-256 keypair (NOT a PKCS8 PEM
+— `pywebpush` rejects PEM). Store the 43-char private key in secret
+`vapid-private-key`; set `VAPID_PUBLIC_KEY` (87-char) + `VAPID_SUBJECT`
+(real deliverable `mailto:` / `https:` — Apple rejects `.example`) as env on the
+**api and worker**, mount `VAPID_PRIVATE_KEY=vapid-private-key:latest`, and pass
+the public key as the `NEXT_PUBLIC_VAPID_PUBLIC_KEY` web build-arg. Push no-ops
+if any are unset.
 - Push to `release` -> CI builds, migrates, and updates the services.
 
 ## Teardown

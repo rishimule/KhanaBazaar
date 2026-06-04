@@ -42,6 +42,7 @@ jobs:
             --build-arg NEXT_PUBLIC_API_URL="" \
             --build-arg NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY }} \
             --build-arg INTERNAL_API_URL=${{ secrets.INTERNAL_API_URL }} \
+            --build-arg NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }} \
             -f frontend/Dockerfile frontend
           docker push $IMG
           echo "WEB_IMAGE=$IMG" >> $GITHUB_ENV

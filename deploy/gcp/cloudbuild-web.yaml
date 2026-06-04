@@ -15,6 +15,8 @@ steps:
       - NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=${_BROWSER_KEY}
       - --build-arg
       - INTERNAL_API_URL=${_INTERNAL_API_URL}
+      - --build-arg
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${_VAPID_PUBLIC_KEY}
       - -f
       - Dockerfile
       - .
