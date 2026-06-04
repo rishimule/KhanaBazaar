@@ -47,7 +47,15 @@ jobs:
 
       - name: Run DB migrations (Cloud Run Job)
         run: |
-          gcloud run jobs update kb-migrate --region=$REGION --image=$API_IMAGE
+          if gcloud run jobs describe kb-migrate --region=$REGION >/dev/null 2>&1; then
+            gcloud run jobs update kb-migrate --region=$REGION --image=$API_IMAGE
+          else
+            gcloud run jobs create kb-migrate --region=$REGION --image=$API_IMAGE \
+              --service-account=kb-runtime@$PROJECT_ID.iam.gserviceaccount.com \
+              --network=kb-vpc --subnet=kb-subnet --vpc-egress=private-ranges-only \
+              --set-secrets=DATABASE_URL=database-url:latest \
+              --command=alembic --args=upgrade,head
+          fi
           gcloud run jobs execute kb-migrate --region=$REGION --wait
 
       - name: Deploy api
