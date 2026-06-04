@@ -34,7 +34,7 @@ This project has a `gemini-worker` subagent that wraps the Gemini CLI. It exists
 | ORM / Migrations | SQLModel 0.0.37+ + Alembic (asyncpg driver) |
 | Database | PostgreSQL 15 |
 | Cache / Broker | Redis 7 (Celery 5.6+ for background tasks) |
-| Search | Meilisearch v1.11 (Docker locally; Azure Container App in prod) |
+| Search | Meilisearch v1.11 (Docker locally; Cloud Run in prod) |
 | Auth | Self-hosted email-OTP + JWT (PyJWT HS256). **No Firebase, no passwords.** |
 | Email | `EMAIL_PROVIDER=console` (dev) or `resend` (prod, raw httpx call — no SDK) |
 | Config | Pydantic-Settings (`.env` files) |
@@ -44,7 +44,7 @@ This project has a `gemini-worker` subagent that wraps the Gemini CLI. It exists
 | Package mgmt | `uv` (backend), `npm` (frontend) |
 | Linting/Types | Ruff + Mypy (backend), ESLint 9 + TypeScript (frontend) |
 | Testing | Pytest + pytest-asyncio (backend). **No frontend tests.** |
-| Deployment | Microsoft Azure (Container Apps + Postgres Flexible Server + Cache for Redis) via Bicep + `azd` (`infra/`, `docs/azure_deployment.md`) |
+| Deployment | Google Cloud Platform (Cloud Run + Cloud SQL for PostgreSQL + Memorystore for Redis), `asia-south1` (Mumbai); Artifact Registry + Secret Manager + Workload Identity Federation (`infra/`, `docs/gcp_deployment.md`) |
 
 ## Project Structure
 
@@ -77,9 +77,9 @@ frontend/
     types/index.ts                    # TS interfaces mirroring backend models
     styles/                           # design-tokens.css, globals.css
   public/                             # icons/, manifest.json, sw.js
-docs/                                 # architecture, flows, local_setup, development_guide, azure_deployment, seller_signup
+docs/                                 # architecture, flows, local_setup, development_guide, gcp_deployment, seller_signup
 docker-compose.yml                    # Postgres + Redis + Meilisearch (+ meilisearch-test under `--profile test`)
-infra/                                # Bicep modules + azure.yaml (azd)
+infra/                                # GCP infra-as-code (Terraform + Cloud Run manifests) — target spec, nothing committed yet
 ```
 
 ## Essential Commands
@@ -258,7 +258,7 @@ No frontend tests configured.
 - `docs/flows.md` — guest cart, auth, cart sync, per-store checkout, order fulfillment, seller signup, catalog, inventory
 - `docs/local_setup.md` — Docker + backend + frontend setup
 - `docs/development_guide.md` — env vars, Alembic workflow, OTP/JWT, Celery, testing patterns, frontend conventions
-- `docs/azure_deployment.md` — Azure deployment plan: Container Apps, Postgres Flexible Server, Cache for Redis, Bicep + `azd`, GitHub Actions OIDC
+- `docs/gcp_deployment.md` — GCP deployment plan: Cloud Run, Cloud SQL for PostgreSQL, Memorystore for Redis, Artifact Registry, Secret Manager, Workload Identity Federation, GitHub Actions OIDC
 - `docs/seller_signup.md` — seller registration wizard, OTP 2-step flow, admin verify, layout guard
 - `docs/google_maps_setup.md` — provision the server + browser API keys for the maps feature, restrictions, env wiring, cost orientation
 - `.claude/docs/architectural_patterns.md` — DI, model hierarchy, auth chain (any Firebase mention is stale)
@@ -266,4 +266,4 @@ No frontend tests configured.
 
 **Known TODOs surfaced during doc rewrite**:
 - `OrderStatus.Paid` defined but never assigned by state machine; `Payment.status` flips to `paid` only on `delivered`.
-- App Insights / OpenTelemetry not yet wired in `app/__init__.py` — `docs/azure_deployment.md` §13 calls this out as a launch blocker.
+- OpenTelemetry → Cloud Trace not yet wired in `app/__init__.py` — `docs/gcp_deployment.md` §15 calls this out as a launch blocker.

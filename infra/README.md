@@ -2,61 +2,47 @@
 Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -->
-# `infra/` — Bicep modules
+# `infra/` — GCP infrastructure-as-code
 
-Per-service Bicep templates wired together by `azd` (`azure.yaml` not yet committed). Tracked in `docs/azure_deployment.md`.
+Khana Bazaar deploys to **Google Cloud Platform** — Cloud Run + Cloud SQL + Memorystore in `asia-south1` (Mumbai). The full target architecture, cost model, and deploy runbook live in [`docs/gcp_deployment.md`](../docs/gcp_deployment.md).
 
-## Current modules
+## Status
 
-| File | What |
-|---|---|
-| `modules/meilisearch.bicep` | Meilisearch v1.11 Container App + Azure Files persistent share for `/meili_data`. Internal-only ingress, single replica. |
+**Nothing is committed here yet.** No Terraform, no Cloud Run service manifests, no Dockerfiles. This directory is the home for that IaC once it lands; until then `docs/gcp_deployment.md` is the implementation spec.
 
-## Wiring `meilisearch.bicep` into `main.bicep`
+## Planned layout
 
-Once a top-level `main.bicep` is committed, wire it like:
+Per `docs/gcp_deployment.md` §5, deployment artifacts will live as:
 
-```bicep
-module meilisearch './modules/meilisearch.bicep' = {
-  name: 'meilisearch'
-  params: {
-    location: location
-    environmentId: env.id
-    environmentName: env.name
-    logAnalyticsWorkspaceId: logAnalytics.id
-    // Bicep reads the value at deploy time via keyVault.getSecret(...).
-    // The module then re-stores it as a Container App secret and exposes
-    // it to the meili container via secretRef — the proper Container Apps
-    // pattern. NEVER use the App Service @Microsoft.KeyVault(...) syntax;
-    // Container Apps does not support it.
-    meiliMasterKey: keyVault.getSecret('meili-master-key')
-  }
-}
-
-// Downstream api / worker / beat apps reference the master key the same
-// way: declare a Container App secret of name `meili-master-key` with
-// `keyVaultUrl` + `identity`, then bind via `env: [{ name: 'MEILI_MASTER_KEY',
-// secretRef: 'meili-master-key' }]`.
-output meiliUrl string = meilisearch.outputs.meiliInternalUrl
+```
+backend/app/Dockerfile          # FastAPI image (uvicorn entrypoint); worker + beat reuse it
+frontend/Dockerfile             # next build → next start (output: "standalone")
+deploy/gcp/
+  cloudrun-api.yaml             # Cloud Run service manifest (api)
+  cloudrun-worker.yaml          # Cloud Run service manifest (worker)
+  cloudrun-beat.yaml            # Cloud Run service manifest (beat)
+  cloudrun-web.yaml             # Cloud Run service manifest (web)
+  cloudrun-meili.yaml           # Cloud Run service manifest (meilisearch, GCS Fuse mount)
+infra/                          # Terraform (Cloud SQL, Memorystore, Artifact Registry,
+                                #   Secret Manager, VPC, Workload Identity Federation)
 ```
 
-## First-deploy runbook (Meilisearch)
+## First-deploy reindex (Meilisearch)
 
-After `azd up` provisions everything:
+After the stack is provisioned, populate the search indexes from a one-shot Cloud Run job or `gcloud run jobs execute`:
 
 ```bash
-# from a one-shot Container App job, or `az containerapp exec` into the api app
 uv run python -m app.search.reindex --all
 ```
 
-Then smoke:
+Then smoke-test (Meili is internal-ingress; hit it from within the VPC / a sibling Cloud Run service):
 
 ```bash
-curl -s 'http://kb-prod-meili-cin:7700/health'
+curl -s 'https://khanabazaar-meili-<hash>-el.a.run.app/health'
 # → {"status":"available"}
 
-curl -s 'https://kb-prod-api-cin/api/v1/search/suggest?q=milk'
+curl -s 'https://khanabazaar-api-<hash>-el.a.run.app/api/v1/search/suggest?q=milk'
 # → {"query_id":"...","terms":[...],"products":[...],"stores":[...]}
 ```
 
-See `docs/azure_deployment.md` §7.5b for the full runbook + disaster recovery.
+See [`docs/gcp_deployment.md`](../docs/gcp_deployment.md) for the full provisioning steps, IAM wiring, and disaster recovery.

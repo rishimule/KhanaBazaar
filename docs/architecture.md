@@ -19,9 +19,9 @@ pieces fit together. Setup commands live in [CLAUDE.md](../CLAUDE.md) and
 |------------------|-------------------------------------------------------|-----|
 | API              | FastAPI 0.135+ (Python 3.12), Uvicorn ASGI            | Async-native, OpenAPI-first, fast dev loop |
 | ORM / Migrations | SQLModel 0.0.37 + Alembic, asyncpg driver             | Pydantic + SQLAlchemy in one type; first-class async |
-| Database         | PostgreSQL 15 + PostGIS 3.4                           | Relational integrity for inventory + orders; PostGIS powers distance sort + per-store delivery radius (`ST_DWithin` / `ST_Distance` on a `geography(Point, 4326)` GENERATED column with GiST index); matches Azure Database for PostgreSQL Flexible Server target |
+| Database         | PostgreSQL 15 + PostGIS 3.4                           | Relational integrity for inventory + orders; PostGIS powers distance sort + per-store delivery radius (`ST_DWithin` / `ST_Distance` on a `geography(Point, 4326)` GENERATED column with GiST index); matches Cloud SQL for PostgreSQL target |
 | Cache / Broker   | Redis 7 (+ Celery 5.6)                                | OTP rate limits, Celery broker, suggest cache + serviceable-store grid |
-| Search           | Meilisearch v1.11 (Docker locally; Azure Container App in prod) | Typo-tolerant multi-language autocomplete with synonyms; ~30 ms p95 query; kept in sync via SQLAlchemy `after_commit` hooks → Celery |
+| Search           | Meilisearch v1.11 (Docker locally; Cloud Run in prod) | Typo-tolerant multi-language autocomplete with synonyms; ~30 ms p95 query; kept in sync via SQLAlchemy `after_commit` hooks → Celery |
 | Auth             | Self-hosted email-OTP + JWT (PyJWT HS256)             | No vendor lock-in, no passwords, low onboarding friction in India |
 | Email            | `EMAIL_PROVIDER=console` (dev) / `resend` (prod)      | Direct httpx POST to Resend REST API; no SDK dependency |
 | Frontend         | Next.js 16.1 (App Router), React 19.2, TypeScript 5   | RSC + streaming, single deploy unit, strong DX |
@@ -29,52 +29,60 @@ pieces fit together. Setup commands live in [CLAUDE.md](../CLAUDE.md) and
 | PWA              | `frontend/public/sw.js` + `manifest.json`             | Installable on low-end Android, offline shell |
 | Tooling          | `uv` (backend), `npm` (frontend), Ruff, Mypy strict, ESLint 9 | Fast, reproducible, strict by default |
 | Testing          | Pytest + pytest-asyncio against real Postgres (`khanabazaar_test`) | Realism over speed; matches prod async stack |
-| Deploy           | Microsoft Azure (Container Apps + Postgres Flexible Server + Cache for Redis) via Bicep + `azd` | Managed PaaS, scales to zero on workers, single IaC repo |
+| Deploy           | Google Cloud Platform (Cloud Run + Cloud SQL for PostgreSQL + Memorystore for Redis), `asia-south1` (Mumbai) | Managed serverless, Cloud Run scales api/web to zero, no VM/kubelet babysitting |
 
 ## System Topology
 
-Five Container Apps + two managed data services in production, all in Azure
-**Central India** (`centralindia`):
+Five Cloud Run services + two managed data services in production, all in
+GCP **Mumbai** (`asia-south1`):
 
 ```
                                  ┌──────────────────────┐
-       browser ────────────────► │  Azure Front Door    │  TLS, WAF, CDN
-                                 │  (Premium tier)      │
+       browser ────────────────► │  Cloud Run domain map│  TLS (managed certs),
+                                 │  khanabazaar.in      │  custom hostname
                                  └────────┬─────────────┘
                                           │
                 ┌─────────────────────────┴──────────────────────────┐
                 ▼                                                    ▼
    +----------------------------+                       +----------------------------+
-   |  Container App: web        |                       |  Container App: api        |
+   |  Cloud Run: web            |                       |  Cloud Run: api            |
    |  Next.js (khanabazaar-web) | ── HTTPS, JWT ──────► |  FastAPI (khanabazaar-api) | --- /health, /api/v1/*
+   |  min=0, public ingress     |                       |  min=0, public ingress     |
    +-------------+--------------+                       +--+-----------+-------------+
                                                   asyncpg    |           | redis-py
-                                                              v           v
+                                                  (priv IP)  v           v
                                                   +-------------+  +----------------------+
-                                                  | Postgres 15 |  |  Azure Cache for     |
-                                                  | Flexible Svr|  |  Redis               |
-                                                  | (private EP)|  |  OTPs, rate limits,  |
-                                                  +------^------+  |  Celery broker       |
-                                                         |         +----------+-----------+
+                                                  | Cloud SQL   |  |  Memorystore for     |
+                                                  | Postgres 15 |  |  Redis (Basic 1 GiB) |
+                                                  | + PostGIS   |  |  OTPs, rate limits,  |
+                                                  | private IP  |  |  Celery broker       |
+                                                  +------^------+  +----------+-----------+
                                                          |                    | broker
                                                          |        ┌───────────┴─────────────┐
                                                          |        ▼                          ▼
                                                          |  +----------------+   +------------------+
-                                                         +- | CA: worker     |   | CA: beat         |
-                                                            | Celery worker  |   | Celery beat,     |
-                                                            | KEDA-scaled    |   | minReplicas=1    |
-                                                            +-------+--------+   +---------+--------+
-                                                                    │ HTTP                  │
-                                                                    ▼                       │
-                                                            +----------------------------+  │
-                                                            | CA: meilisearch            |  │
-                                                            | products / stores /        |◄─┘
+                                                         +- | Cloud Run:     |   | Cloud Run: beat  |
+                                                            | worker         |   | Celery beat,     |
+                                                            | Celery worker  |   | min=max=1        |
+                                                            | min=1 (CPU     |   | (CPU always-on)  |
+                                                            | always-on)     |   +---------+--------+
+                                                            +-------+--------+             │
+                                                                    │ HTTP                 │
+                                                                    ▼                      │
+                                                            +----------------------------+ │
+                                                            | Cloud Run: meilisearch     | │
+                                                            | products / stores /        |◄┘
                                                             | search_terms indexes       |
-                                                            | internal-only TCP :7700    |
+                                                            | internal ingress, GCS Fuse |
+                                                            | → /meili_data, min=max=1    |
                                                             +----------------------------+
 ```
 
-Beat must run in its own Container App (`kb-prod-beat-cin`, single replica) because Container Apps scales all containers in an app together — co-locating beat with the worker would double-fire scheduled tasks on every replica.
+Beat runs as its own Cloud Run service (`khanabazaar-beat`, `min=max=1`, CPU
+always-allocated) — pinned to a single instance so scheduled tasks fire
+exactly once. Worker and beat keep CPU always-allocated because Cloud Run
+otherwise throttles CPU outside request handling, which would stall the
+Celery event loop.
 
 Local dev mirrors this: `docker-compose up` provisions Postgres, Redis, and Meilisearch;
 `uvicorn` and `next dev` run on the host.
@@ -92,7 +100,8 @@ Local dev mirrors this: `docker-compose up` provisions Postgres, Redis, and Meil
    role-checked dependencies to routers (`UserRole.Admin/Seller/Customer`).
 6. CORS is fully driven by `FRONTEND_ORIGIN` (comma-separated). Default
    in `core/config.py` is `http://localhost:3000,http://127.0.0.1:3000`
-   for dev; prod sets it to the public frontend URLs via `azd env`.
+   for dev; prod sets it to the public frontend URLs via the Cloud Run
+   service env (`--set-env-vars FRONTEND_ORIGIN=...`).
 
 API root is `/api/v1` (see `core/config.py`). Routers mounted in
 `api/__init__.py`: `auth`, `catalog`, `catalog_admin`, `stores`, `sellers`,
@@ -169,7 +178,7 @@ Celery beat runs the scheduled side: `search.reconcile_index` hourly per
 kind (`product`, `store`) plus a daily deep pass, `search.verify_drift`
 nightly at 04:30 UTC (legacy safety net), `search.rebuild_search_terms`
 nightly at 03:15 UTC, and `search.prune_query_log` daily at 04:00 UTC.
-In prod, beat lives in its own Container App (see topology above).
+In prod, beat lives in its own Cloud Run service (see topology above).
 Failed Meilisearch sync attempts land in Redis sets
 `search:dlq:{product,store}` and are drained by the reconciler.
 
@@ -183,36 +192,36 @@ test suite yet; type checking and ESLint are the safety net.
 
 ## Deployment
 
-Cloud infra lives in `infra/` as Bicep modules, orchestrated by the Azure
-Developer CLI (`azd up`). Today only `infra/modules/meilisearch.bicep` is
-committed; the rest of the modules below are the target shape (Phase 5).
-See [`azure_deployment.md`](azure_deployment.md) for what is built vs.
-planned and the deploy mechanics.
+Production runs on **Google Cloud Platform** in `asia-south1` (Mumbai),
+managed serverless throughout — Cloud Run for every app tier, Cloud SQL +
+Memorystore for data. Infra-as-code lands in `infra/` (Terraform) +
+`deploy/gcp/` (Cloud Run manifests); nothing is committed there yet
+(Phase 5). See [`gcp_deployment.md`](gcp_deployment.md) for the full
+provisioning runbook, cost model, and deploy mechanics.
 
-| Resource (Azure name)           | Service                                  | Purpose                                       |
-|---------------------------------|------------------------------------------|-----------------------------------------------|
-| `kb-prod-pg-cin`                | Postgres Flexible Server (Burstable B1ms) | Primary data store, private endpoint only    |
-| `kb-prod-redis-cin`             | Azure Cache for Redis (Basic C0)         | Cache + Celery broker, `noeviction`, TLS-only |
-| `kb-prod-api-cin`               | Container Apps (Consumption)             | FastAPI; image from ACR, public ingress       |
-| `kb-prod-worker-cin`            | Container Apps (Consumption)             | Celery worker, no ingress, KEDA Redis-scaled  |
-| `kb-prod-beat-cin`              | Container Apps (Consumption)             | Celery beat scheduler, single replica         |
-| `kb-prod-meili-cin`             | Container Apps (Consumption)             | Meilisearch v1.11, internal TCP `:7700`, Azure Files for `/meili_data` |
-| `kb-prod-web-cin`               | Container Apps (Consumption)             | Next.js (add `output: "standalone"` before building) |
-| `kb-prod-migrate-cin`           | Container Apps Job                       | One-shot `alembic upgrade head` per deploy    |
-| `kbprodacrcin`                  | Azure Container Registry (Basic)         | Image hosting, pulled via managed identity    |
-| `kb-prod-kv-cin`                | Azure Key Vault                          | Secrets — JWT, OTP pepper, Resend, Twilio, DB URL, Meili master key, Google Maps keys |
-| `kb-prod-fd`                    | Azure Front Door (Premium)               | TLS, managed WAF rules, CDN, custom domain, Private Link to Container Apps |
-| `kb-prod-appi-cin` + `kb-prod-law-cin` | App Insights + Log Analytics      | Telemetry, traces, structured logs (SDK wiring is a launch-blocker — see `azure_deployment.md` §13) |
+| Resource (name)            | Service                                  | Purpose                                       |
+|----------------------------|------------------------------------------|-----------------------------------------------|
+| `khanabazaar-pg`           | Cloud SQL for PostgreSQL (`db-f1-micro`) | Primary data store, private IP only, PostGIS extension |
+| `khanabazaar-redis`        | Memorystore for Redis (Basic 1 GiB)      | Cache + Celery broker, `noeviction`, VPC-internal |
+| `khanabazaar-api`          | Cloud Run (HTTP)                         | FastAPI; image from Artifact Registry, public ingress, min=0 |
+| `khanabazaar-worker`       | Cloud Run (no ingress, CPU always-on)    | Celery worker, min=1                          |
+| `khanabazaar-beat`         | Cloud Run (no ingress, CPU always-on)    | Celery beat scheduler, min=max=1              |
+| `khanabazaar-meili`        | Cloud Run (internal ingress)             | Meilisearch v1.11, GCS Fuse mount for `/meili_data`, min=max=1 |
+| `khanabazaar-web`          | Cloud Run (HTTP)                         | Next.js (`output: "standalone"`), min=0       |
+| `khanabazaar-migrate`      | Cloud Run Job                            | One-shot `alembic upgrade head` per deploy    |
+| `khanabazaar` (AR repo)    | Artifact Registry (Docker)               | Image hosting, pulled via service account     |
+| Secret Manager             | Secret Manager                           | Secrets — JWT, OTP pepper, Resend, Twilio, DB URL, Meili master key, Google Maps keys |
+| domain mapping             | Cloud Run domain mapping (managed certs) | TLS + custom domain (`khanabazaar.in`)        |
+| Cloud Logging + Monitoring | Cloud Logging + Cloud Monitoring         | Structured logs, metrics, traces (free tier covers MVP) |
 
-`JWT_SECRET` and `OTP_PEPPER` are stored in Key Vault and referenced from
-each Container App via the two-step `secrets[].keyVaultUrl` +
-`env[].secretRef` pattern (the App-Service `@Microsoft.KeyVault(...)`
-syntax is **not** supported on Container Apps). Resend, Twilio, and
-Google Maps keys are also Key Vault secrets, populated by the GitHub
-Actions workflow on first deploy. `FRONTEND_ORIGIN` is a plain env var
-(not secret) — backend reads it via `Settings.cors_origins`.
-`NEXT_PUBLIC_API_URL` is inlined at build time, so the `web` image must
-be rebuilt for any URL change.
+`JWT_SECRET` and `OTP_PEPPER` live in **Secret Manager** and are mounted on
+each Cloud Run service via `--set-secrets ENV_NAME=secret:version` — Cloud
+Run injects them as env vars at start. Resend, Twilio, and Google Maps keys
+are Secret Manager secrets too, populated by the GitHub Actions workflow on
+first deploy (auth via Workload Identity Federation — no long-lived service
+account keys). `FRONTEND_ORIGIN` is a plain env var (not secret) — backend
+reads it via `Settings.cors_origins`. `NEXT_PUBLIC_API_URL` is inlined at
+build time, so the `web` image must be rebuilt for any URL change.
 
 ## Non-obvious Decisions
 
@@ -241,15 +250,17 @@ be rebuilt for any URL change.
   (the browser key is referrer-restricted but only powers the map render),
   enables Redis caching to cap upstream cost, and lets us swap providers
   later (MapmyIndia, OSM) without touching the frontend.
-- **Azure, all PaaS.** Container Apps + managed Postgres + managed Redis,
-  provisioned by Bicep and deployed by `azd`. No VMs, no AKS, no
-  hand-managed certs — Front Door does TLS + WAF, managed identities
-  remove every static credential except the GitHub OIDC trust.
+- **GCP, all managed serverless.** Cloud Run + managed Cloud SQL + managed
+  Memorystore. No VMs, no GKE, no hand-managed certs — Cloud Run domain
+  mapping does managed TLS, and Workload Identity Federation removes every
+  static credential except the GitHub OIDC trust. api/web scale to zero;
+  worker/beat/meili stay warm at min=1.
 
 ## Further Reading
 
 - [User & Data Flows](flows.md) — guest cart, auth merge, checkout, fulfillment
 - [Local Setup](local_setup.md) — Docker, backend, frontend walkthrough
 - [Development Guide](development_guide.md) — env vars, Alembic, troubleshooting
+- [GCP Deployment](gcp_deployment.md) — Cloud Run, Cloud SQL, Memorystore, deploy runbook
 - [Seller Signup](seller_signup.md) — onboarding wizard, admin approval
 - [Roadmap](../TODO.md) — phase tracker
