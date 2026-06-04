@@ -7,11 +7,23 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=True,  # Set to False in production
-    future=True,
-)
+def _engine_kwargs() -> dict:  # type: ignore[type-arg]
+    """Engine settings tuned for Cloud SQL db-f1-micro (~26 max connections).
+
+    Each Cloud Run instance keeps a small pool so several instances + the
+    Celery worker don't exhaust the DB. pool_pre_ping drops stale conns that
+    Cloud SQL closed during idle scale-to-zero windows.
+    """
+    return {
+        "echo": settings.ENVIRONMENT != "production",
+        "future": True,
+        "pool_size": 2,
+        "max_overflow": 3,
+        "pool_pre_ping": True,
+    }
+
+
+engine = create_async_engine(settings.DATABASE_URL, **_engine_kwargs())
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Dependency object for FastAPI endpoints."""
