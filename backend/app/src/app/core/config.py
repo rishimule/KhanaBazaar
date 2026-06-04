@@ -63,6 +63,18 @@ class Settings(BaseSettings):
     MEILI_URL: str = "http://localhost:7700"
     MEILI_MASTER_KEY: str = "dev-master-key-change-me"
 
+    # Dev OTP inbox (deploy-only; see GCP credit-deploy spec). When True, the
+    # plaintext OTP is mirrored into Redis and GET /api/v1/dev/otps is enabled,
+    # gated by HTTP Basic (DEV_LOGS_USERNAME/PASSWORD). MUST stay False on any
+    # real user-facing deployment — it exposes login codes for every account.
+    EXPOSE_DEV_OTPS: bool = False
+    DEV_LOGS_USERNAME: str = ""
+    DEV_LOGS_PASSWORD: str = ""
+
+    # Production-only: absolute base URL of the internal `api` Cloud Run service.
+    # The Next.js web service rewrites /api/v1/* here. Empty in local dev.
+    API_INTERNAL_URL: str = ""
+
     # Search rate limits (per IP per minute)
     SEARCH_RATE_LIMIT_SUGGEST_PER_MIN: int = 60
     SEARCH_RATE_LIMIT_PRODUCTS_PER_MIN: int = 30
