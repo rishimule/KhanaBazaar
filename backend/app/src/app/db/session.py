@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 
+
 def _engine_kwargs() -> dict:  # type: ignore[type-arg]
     """Engine settings tuned for Cloud SQL db-f1-micro (~26 max connections).
 
