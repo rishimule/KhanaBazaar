@@ -45,15 +45,22 @@ echo ">>   then run: CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF
 DB_IP=$(gcloud sql instances describe kb-pg --format='value(ipAddresses[0].ipAddress)')
 echo ">> Cloud SQL private IP: $DB_IP"
 
-echo "== Redis VM (e2-micro, private) =="
+echo "== Redis VM (e2-micro) =="
 # NOTE: e2-micro is NOT always-free in asia-south1 (free tier is us-west1/
 # us-central1/us-east1 only) — it bills ~$7/mo here, as the cost model assumes.
 # pd-standard boot disk is cheaper than the default balanced disk.
+# The VM gets an EPHEMERAL EXTERNAL IP (no --no-address) so the startup script
+# can apt-install redis-server on first boot — a private-only VM in this custom
+# VPC has NO internet path (no Cloud NAT) and the install fails. Inbound is
+# still fully blocked: this custom VPC has no default allow rules, and the only
+# ingress rule (below) permits tcp:6379 from the subnet range to tag=redis only.
+# So Redis is reachable solely from inside the VPC; the external IP is outbound-
+# only in practice. (Avoids the ~$32/mo Cloud NAT gateway.)
 gcloud compute instances create kb-redis-vm \
   --machine-type=e2-micro --zone="$ZONE" \
   --image-family=debian-12 --image-project=debian-cloud \
   --boot-disk-size=10GB --boot-disk-type=pd-standard \
-  --network=kb-vpc --subnet=kb-subnet --no-address \
+  --network=kb-vpc --subnet=kb-subnet \
   --metadata-from-file=startup-script=deploy/gcp/redis-vm-startup.sh --tags=redis
 gcloud compute firewall-rules create allow-redis-internal \
   --network=kb-vpc --direction=INGRESS --action=ALLOW \
@@ -74,6 +81,9 @@ gcloud artifacts repositories set-cleanup-policies kb --location="$REGION" \
 echo "== Service accounts + IAM =="
 gcloud iam service-accounts create kb-runtime
 gcloud iam service-accounts create kb-deployer
+# Let the new SAs propagate before binding roles — add-iam-policy-binding
+# otherwise intermittently fails with "Service account ... does not exist".
+sleep 15
 SA="kb-runtime@${PROJECT_ID}.iam.gserviceaccount.com"
 for ROLE in cloudsql.client secretmanager.secretAccessor logging.logWriter \
             monitoring.metricWriter storage.objectUser; do

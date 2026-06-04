@@ -20,10 +20,10 @@ The trial pauses at $300 / 90 days on its own, but the alert is your early warni
 export PROJECT_ID REGION=asia-south1 GH_REPO=rishimule/KhanaBazaar
 export DB_PASSWORD="$(openssl rand -hex 16)"
 bash deploy/gcp/bootstrap.sh
-# Then enable PostGIS (the script prints the exact connect command):
-gcloud sql connect kb-pg --user=postgres --database=khanabazaar
-#   CREATE EXTENSION IF NOT EXISTS postgis;
-#   CREATE EXTENSION IF NOT EXISTS postgis_topology;
+# PostGIS: NO manual step needed. The kb-migrate job (step 4) runs migration
+# 8bd3769f0789_enable_postgis (CREATE EXTENSION postgis) + pg_trgm as kb_app,
+# which holds cloudsqlsuperuser. (`gcloud sql connect` can't reach the private-
+# IP instance anyway.)
 # Replace the Maps key placeholders with real values:
 echo -n "REAL_SERVER_KEY"  | gcloud secrets versions add gmaps-server-key  --data-file=-
 echo -n "REAL_BROWSER_KEY" | gcloud secrets versions add gmaps-browser-key --data-file=-
@@ -35,10 +35,20 @@ export AR_HOST=asia-south1-docker.pkg.dev
 gcloud auth configure-docker $AR_HOST --quiet
 docker build -t $AR_HOST/$PROJECT_ID/kb/api:bootstrap -f backend/app/Dockerfile backend/app
 docker push   $AR_HOST/$PROJECT_ID/kb/api:bootstrap
+# INTERNAL_API_URL MUST be a build-arg: Next.js resolves rewrites() at build
+# time into the route manifest, so the /api/v1/* -> api proxy destination is
+# frozen at build (a runtime env var only affects RSC fetches, not the proxy).
+# The api URL is predictable before deploy: https://khanabazaar-api-<PROJECT_NUMBER>.<REGION>.run.app
+export API_URL="https://khanabazaar-api-$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)').$REGION.run.app"
 docker build -t $AR_HOST/$PROJECT_ID/kb/web:bootstrap \
   --build-arg NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY="REAL_BROWSER_KEY" \
+  --build-arg INTERNAL_API_URL="$API_URL" \
   -f frontend/Dockerfile frontend
 docker push   $AR_HOST/$PROJECT_ID/kb/web:bootstrap
+
+# If you build with Cloud Build instead (no local Docker):
+#   gcloud builds submit frontend --config=deploy/gcp/cloudbuild-web.yaml \
+#     --substitutions=_IMAGE=$AR_HOST/$PROJECT_ID/kb/web:bootstrap,_BROWSER_KEY=REAL_BROWSER_KEY,_INTERNAL_API_URL=$API_URL
 export SA=kb-runtime@$PROJECT_ID.iam.gserviceaccount.com
 ```
 
@@ -90,7 +100,7 @@ RUNTIME_SECRETS="JWT_SECRET=jwt-secret:latest,OTP_PEPPER=otp-pepper:latest,DATAB
 # at 5 — it proxies to the api and never connects to Postgres.)
 gcloud run deploy khanabazaar-api --region=$REGION \
   --image=$AR_HOST/$PROJECT_ID/kb/api:bootstrap --service-account=$SA $COMMON_VPC \
-  --cpu=1 --memory=512Mi --min-instances=0 --max-instances=3 --concurrency=40 --port=8080 \
+  --cpu=1 --memory=512Mi --min-instances=1 --max-instances=3 --concurrency=40 --port=8080 \
   --allow-unauthenticated \
   --set-env-vars=ENVIRONMENT=production,API_V1_STR=/api/v1,EMAIL_PROVIDER=console,SMS_PROVIDER=console,EXPOSE_DEV_OTPS=true,MEILI_URL=$MEILI_URL \
   --set-secrets=$RUNTIME_SECRETS
@@ -101,7 +111,8 @@ gcloud run deploy khanabazaar-worker --region=$REGION \
   --image=$AR_HOST/$PROJECT_ID/kb/api:bootstrap --service-account=$SA $COMMON_VPC \
   --cpu=1 --memory=512Mi --no-cpu-throttling --min-instances=1 --max-instances=1 \
   --no-allow-unauthenticated --ingress=internal \
-  --command=celery --args=-A,app.core.celery_app,worker,-B,--loglevel=info,--concurrency=2 \
+  --command=sh \
+  --args='^@^-c@celery -A app.core.celery_app worker -B --loglevel=info --concurrency=2 & exec python -m http.server "$PORT"' \
   --set-env-vars=ENVIRONMENT=production,EMAIL_PROVIDER=console,SMS_PROVIDER=console,MEILI_URL=$MEILI_URL \
   --set-secrets=JWT_SECRET=jwt-secret:latest,OTP_PEPPER=otp-pepper:latest,DATABASE_URL=database-url:latest,REDIS_URL=redis-url:latest,MEILI_MASTER_KEY=meili-master-key:latest,GOOGLE_MAPS_SERVER_API_KEY=gmaps-server-key:latest
 
@@ -109,7 +120,7 @@ gcloud run deploy khanabazaar-worker --region=$REGION \
 # server-side RSC fetches in lib/api.ts)
 gcloud run deploy khanabazaar-web --region=$REGION \
   --image=$AR_HOST/$PROJECT_ID/kb/web:bootstrap --service-account=$SA \
-  --cpu=1 --memory=512Mi --min-instances=0 --max-instances=5 --concurrency=80 --port=8080 \
+  --cpu=1 --memory=512Mi --min-instances=1 --max-instances=5 --concurrency=80 --port=8080 \
   --allow-unauthenticated \
   --set-env-vars=INTERNAL_API_URL=$API_URL
 export WEB_URL=$(gcloud run services describe khanabazaar-web --region=$REGION --format='value(status.url)')
@@ -144,7 +155,8 @@ curl "$WEB_URL/api/v1/search/suggest?q=milk"
 - Set GitHub repo secrets: `GCP_PROJECT_ID`, `GCP_PROJECT_NUMBER`, `GCP_REGION`,
   `GCP_WIF_PROVIDER` (`projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/gh-pool/providers/gh-provider`),
   `GCP_DEPLOYER_SA` (`kb-deployer@$PROJECT_ID.iam.gserviceaccount.com`),
-  `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`.
+  `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`,
+  `INTERNAL_API_URL` (`https://khanabazaar-api-$PROJECT_NUMBER.$REGION.run.app` — baked into the web build).
 - Push to `release` -> CI builds, migrates, and updates the services.
 
 ## Teardown

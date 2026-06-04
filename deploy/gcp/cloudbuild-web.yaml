@@ -1,0 +1,24 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# Cloud Build config for the Next.js web image. Used for local/bootstrap builds
+# when Docker is unavailable; CI (.github/workflows/deploy.yml) builds web with
+# `docker build` on the GitHub runner instead. NEXT_PUBLIC_* are inlined at
+# build time, so the browser Maps key and (empty) API URL are build args.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_IMAGE}
+      - --build-arg
+      - NEXT_PUBLIC_API_URL=
+      - --build-arg
+      - NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=${_BROWSER_KEY}
+      - --build-arg
+      - INTERNAL_API_URL=${_INTERNAL_API_URL}
+      - -f
+      - Dockerfile
+      - .
+images:
+  - ${_IMAGE}
+options:
+  logging: CLOUD_LOGGING_ONLY
