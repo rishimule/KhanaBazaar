@@ -31,12 +31,13 @@ gcloud services vpc-peerings connect \
   --ranges=google-managed-services-kb-vpc --network=kb-vpc
 
 echo "== Cloud SQL (Postgres 15, private IP) =="
+# PITR + automated backups are intentionally OFF: this is a re-seedable test
+# deployment (see spec §4.7), so WAL/backup storage would be pure credit waste.
 gcloud sql instances create kb-pg \
   --database-version=POSTGRES_15 --tier=db-f1-micro --region="$REGION" \
-  --storage-size=10GB --storage-type=SSD \
+  --storage-size=10GB --storage-type=SSD --no-storage-auto-increase \
   --network="projects/$PROJECT_ID/global/networks/kb-vpc" \
-  --no-assign-ip --backup-start-time=18:00 \
-  --enable-point-in-time-recovery --availability-type=ZONAL
+  --no-assign-ip --no-backup --availability-type=ZONAL
 gcloud sql databases create khanabazaar --instance=kb-pg
 gcloud sql users create kb_app --instance=kb-pg --password="$DB_PASSWORD"
 echo ">> Now enable PostGIS: gcloud sql connect kb-pg --user=postgres --database=khanabazaar"
@@ -45,9 +46,13 @@ DB_IP=$(gcloud sql instances describe kb-pg --format='value(ipAddresses[0].ipAdd
 echo ">> Cloud SQL private IP: $DB_IP"
 
 echo "== Redis VM (e2-micro, private) =="
+# NOTE: e2-micro is NOT always-free in asia-south1 (free tier is us-west1/
+# us-central1/us-east1 only) — it bills ~$7/mo here, as the cost model assumes.
+# pd-standard boot disk is cheaper than the default balanced disk.
 gcloud compute instances create kb-redis-vm \
   --machine-type=e2-micro --zone="$ZONE" \
   --image-family=debian-12 --image-project=debian-cloud \
+  --boot-disk-size=10GB --boot-disk-type=pd-standard \
   --network=kb-vpc --subnet=kb-subnet --no-address \
   --metadata-from-file=startup-script=deploy/gcp/redis-vm-startup.sh --tags=redis
 gcloud compute firewall-rules create allow-redis-internal \
@@ -61,6 +66,10 @@ echo "== GCS bucket for Meili + Artifact Registry =="
 gcloud storage buckets create "gs://${PROJECT_ID}-meili-data" \
   --location="$REGION" --uniform-bucket-level-access
 gcloud artifacts repositories create kb --location="$REGION" --repository-format=docker
+# Cap image storage: CI pushes 2 per-SHA images per deploy. Keep the 5 newest
+# versions, delete anything older than 7 days — prevents unbounded AR growth.
+gcloud artifacts repositories set-cleanup-policies kb --location="$REGION" \
+  --policy=deploy/gcp/ar-cleanup-policy.json --no-dry-run
 
 echo "== Service accounts + IAM =="
 gcloud iam service-accounts create kb-runtime

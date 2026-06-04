@@ -1,0 +1,12 @@
+[
+  {
+    "name": "delete-stale",
+    "action": { "type": "Delete" },
+    "condition": { "olderThan": "604800s" }
+  },
+  {
+    "name": "keep-recent-5",
+    "action": { "type": "Keep" },
+    "mostRecentVersions": { "keepCount": 5 }
+  }
+]
