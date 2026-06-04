@@ -84,9 +84,13 @@ gcloud run jobs execute kb-seed --region=$REGION --wait
 RUNTIME_SECRETS="JWT_SECRET=jwt-secret:latest,OTP_PEPPER=otp-pepper:latest,DATABASE_URL=database-url:latest,REDIS_URL=redis-url:latest,MEILI_MASTER_KEY=meili-master-key:latest,GOOGLE_MAPS_SERVER_API_KEY=gmaps-server-key:latest,DEV_LOGS_USERNAME=dev-logs-username:latest,DEV_LOGS_PASSWORD=dev-logs-password:latest"
 
 # api
+# max-instances=3 caps DB usage at 3 × (pool_size 2 + max_overflow 3) = 15
+# connections, leaving headroom under db-f1-micro's ~22 usable (worker ~2 +
+# deploy jobs). Raise only alongside a larger Cloud SQL tier. (web below stays
+# at 5 — it proxies to the api and never connects to Postgres.)
 gcloud run deploy khanabazaar-api --region=$REGION \
   --image=$AR_HOST/$PROJECT_ID/kb/api:bootstrap --service-account=$SA $COMMON_VPC \
-  --cpu=1 --memory=512Mi --min-instances=0 --max-instances=5 --concurrency=40 --port=8080 \
+  --cpu=1 --memory=512Mi --min-instances=0 --max-instances=3 --concurrency=40 --port=8080 \
   --allow-unauthenticated \
   --set-env-vars=ENVIRONMENT=production,API_V1_STR=/api/v1,EMAIL_PROVIDER=console,SMS_PROVIDER=console,EXPOSE_DEV_OTPS=true,MEILI_URL=$MEILI_URL \
   --set-secrets=$RUNTIME_SECRETS
