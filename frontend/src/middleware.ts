@@ -7,6 +7,27 @@ import { isI18nUnsupported } from "./i18n/unsupported-routes";
 
 const intlMiddleware = createMiddleware(routing);
 
+// Behind Cloud Run, the Next server listens on :8080 and next-intl builds
+// absolute redirect URLs (e.g. the default-locale "/en/x" -> "/x" strip) whose
+// Location header leaks ":8080". The public origin is always HTTPS:443, so a
+// ":8080" URL is unreachable from the browser. Strip any port from the redirect
+// Location. No-op for relative Locations and for the standard :443.
+function sanitizeRedirectPort<T extends Response>(res: T): T {
+  const loc = res.headers.get("location");
+  if (loc) {
+    try {
+      const u = new URL(loc);
+      if (u.port) {
+        u.port = "";
+        res.headers.set("location", u.toString());
+      }
+    } catch {
+      // Relative Location — nothing to sanitize.
+    }
+  }
+  return res;
+}
+
 // Non-default locales only. With localePrefix: "as-needed",
 // the default locale ("en") is unprefixed and never appears here.
 const LOCALE_PREFIX_RE = /^\/(hi|mr|gu|pa)(\/.*)?$/;
@@ -25,7 +46,7 @@ export default function middleware(req: NextRequest) {
       // stale trailing slash in .href even after updating pathname.
       const target = new URL(stripped + req.nextUrl.search, req.url);
       // 308 preserves method + body per RFC 7538.
-      return NextResponse.redirect(target, 308);
+      return sanitizeRedirectPort(NextResponse.redirect(target, 308));
     }
   }
 
@@ -35,7 +56,7 @@ export default function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  return intlMiddleware(req);
+  return sanitizeRedirectPort(intlMiddleware(req) as NextResponse);
 }
 
 export const config = {
