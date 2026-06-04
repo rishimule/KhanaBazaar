@@ -12,8 +12,13 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_API_URL=""
 ARG NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=""
+# Next.js resolves rewrites() at BUILD time into routes-manifest.json, so the
+# production `/api/v1/*` -> api proxy destination must be known here, not just
+# at runtime. (The runtime env var below only affects RSC fetches in lib/api.ts.)
+ARG INTERNAL_API_URL=""
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-    NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY
+    NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY \
+    INTERNAL_API_URL=$INTERNAL_API_URL
 RUN npm run build
 
 FROM node:22-alpine AS runner
