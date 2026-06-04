@@ -4,7 +4,7 @@
 import secrets as _secrets
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from app.core.config import settings
@@ -15,31 +15,48 @@ from app.core.redis import get_redis
 router = APIRouter()
 _basic = HTTPBasic(auto_error=False)
 
+# Failed + successful attempts per client IP per minute. Legit polling is ~12/min
+# (5s interval); this caps password brute-forcing well below that ceiling's abuse.
+_RATE_LIMIT_PER_MIN = 60
+
 
 async def _guard(
+    request: Request,
     redis: aioredis.Redis = Depends(get_redis),
     creds: HTTPBasicCredentials | None = Depends(_basic),
 ) -> None:
     # Feature hidden entirely when disabled — 404 regardless of credentials.
     if not settings.EXPOSE_DEV_OTPS:
         raise HTTPException(status_code=404)
+    # Throttle BEFORE evaluating credentials, keyed by client IP, so failed
+    # guesses count toward the limit (brute-force protection on the password).
+    client_ip = request.client.host if request.client else "unknown"
+    count = await incr_with_ttl(redis, f"devotps:rl:{client_ip}", 60)
+    if count > _RATE_LIMIT_PER_MIN:
+        raise HTTPException(status_code=429, detail="rate_limited")
+    # A misconfigured deploy (flag on but creds unset) must never authorize on
+    # empty client credentials — fail closed.
+    if not settings.DEV_LOGS_USERNAME or not settings.DEV_LOGS_PASSWORD:
+        raise HTTPException(status_code=503, detail="dev otp inbox not configured")
     if creds is None:
         raise HTTPException(
             status_code=401,
             detail="authentication required",
             headers={"WWW-Authenticate": "Basic"},
         )
-    user_ok = _secrets.compare_digest(creds.username, settings.DEV_LOGS_USERNAME)
-    pass_ok = _secrets.compare_digest(creds.password, settings.DEV_LOGS_PASSWORD)
+    # Encode to bytes: compare_digest raises TypeError on non-ASCII str operands.
+    user_ok = _secrets.compare_digest(
+        creds.username.encode("utf-8"), settings.DEV_LOGS_USERNAME.encode("utf-8")
+    )
+    pass_ok = _secrets.compare_digest(
+        creds.password.encode("utf-8"), settings.DEV_LOGS_PASSWORD.encode("utf-8")
+    )
     if not (user_ok and pass_ok):
         raise HTTPException(
             status_code=401,
             detail="invalid credentials",
             headers={"WWW-Authenticate": "Basic"},
         )
-    count = await incr_with_ttl(redis, f"devotps:rl:{creds.username}", 60)
-    if count > 120:
-        raise HTTPException(status_code=429, detail="rate_limited")
 
 
 @router.get("/otps", dependencies=[Depends(_guard)])
