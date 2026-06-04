@@ -11,6 +11,9 @@ export PROJECT_ID=khanabazaar-app
 gcloud projects create "$PROJECT_ID" --name="Khana Bazaar"
 gcloud beta billing projects link "$PROJECT_ID" --billing-account=XXXX-XXXX-XXXX
 ```
+**Set the budget alert now, before provisioning** (don't wait until the end):
+Billing → Budgets & alerts → create a $250 budget with alerts at 50/90/100%.
+The trial pauses at $300 / 90 days on its own, but the alert is your early warning.
 
 ## 1. Provision
 ```bash
@@ -64,11 +67,15 @@ gcloud run jobs create kb-migrate --region=$REGION \
 gcloud run jobs execute kb-migrate --region=$REGION --wait
 
 # Seed (full dev seed -> catalog + demo stores + admin@khanabazaar.dev). One-time.
+# Runs scripts/seed_database.py, which seeds demo data AND reindexes Meili.
+# (NOTE: `python -m app.db.dev_seed` is NOT a runnable entrypoint — dev_seed.py
+#  has no __main__; the runnable seeder is scripts/seed_database.py.)
+# Because this reindexes, the separate kb-reindex job in step 6 is optional.
 gcloud run jobs create kb-seed --region=$REGION \
   --image=$AR_HOST/$PROJECT_ID/kb/api:bootstrap --service-account=$SA $COMMON_VPC \
   --set-env-vars=ENVIRONMENT=production,MEILI_URL=$MEILI_URL \
   --set-secrets=DATABASE_URL=database-url:latest,REDIS_URL=redis-url:latest,JWT_SECRET=jwt-secret:latest,OTP_PEPPER=otp-pepper:latest,MEILI_MASTER_KEY=meili-master-key:latest \
-  --command=python --args=-m,app.db.dev_seed
+  --command=python --args=scripts/seed_database.py
 gcloud run jobs execute kb-seed --region=$REGION --wait
 ```
 
@@ -91,8 +98,8 @@ gcloud run deploy khanabazaar-worker --region=$REGION \
   --cpu=1 --memory=512Mi --no-cpu-throttling --min-instances=1 --max-instances=1 \
   --no-allow-unauthenticated --ingress=internal \
   --command=celery --args=-A,app.core.celery_app,worker,-B,--loglevel=info,--concurrency=2 \
-  --set-env-vars=ENVIRONMENT=production,EMAIL_PROVIDER=console,SMS_PROVIDER=console,EXPOSE_DEV_OTPS=true,MEILI_URL=$MEILI_URL \
-  --set-secrets=$RUNTIME_SECRETS
+  --set-env-vars=ENVIRONMENT=production,EMAIL_PROVIDER=console,SMS_PROVIDER=console,MEILI_URL=$MEILI_URL \
+  --set-secrets=JWT_SECRET=jwt-secret:latest,OTP_PEPPER=otp-pepper:latest,DATABASE_URL=database-url:latest,REDIS_URL=redis-url:latest,MEILI_MASTER_KEY=meili-master-key:latest,GOOGLE_MAPS_SERVER_API_KEY=gmaps-server-key:latest
 
 # web (API_INTERNAL_URL at runtime)
 gcloud run deploy khanabazaar-web --region=$REGION \
