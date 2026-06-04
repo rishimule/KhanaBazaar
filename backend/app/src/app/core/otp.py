@@ -8,6 +8,7 @@ import secrets
 import redis.asyncio as aioredis
 
 from app.core.config import settings
+from app.core.dev_otp_log import record_otp
 from app.core.rate_limit import incr_with_ttl, seconds_until
 
 _PHONE_RE = re.compile(r"^\+91[6-9]\d{9}$")
@@ -97,6 +98,7 @@ async def request_otp(
         _key_cooldown(identifier, namespace), "1", ex=settings.OTP_RESEND_COOLDOWN
     )
     await pipe.execute()
+    await record_otp(redis, identifier, code, namespace=namespace)
     return code
 
 

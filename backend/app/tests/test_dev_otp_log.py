@@ -37,3 +37,14 @@ async def test_list_is_capped(redis, monkeypatch):
         await dev_otp_log.record_otp(redis, f"u{i}@b.com", f"{i:06d}", namespace="email")
     rows = await dev_otp_log.recent_otps(redis, limit=500)
     assert len(rows) == 100  # LTRIM keeps newest 100
+
+
+async def test_request_otp_records_when_enabled(redis, monkeypatch):
+    monkeypatch.setattr(settings, "EXPOSE_DEV_OTPS", True)
+    from app.core import otp
+
+    code = await otp.request_otp("login@b.com", redis, namespace="email")
+    rows = await dev_otp_log.recent_otps(redis)
+    assert rows[0]["to"] == "login@b.com"
+    assert rows[0]["code"] == code
+    assert rows[0]["purpose"] == "email"
