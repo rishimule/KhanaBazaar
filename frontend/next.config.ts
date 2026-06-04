@@ -16,20 +16,32 @@ const nextConfig: NextConfig = {
     // trailing slash. `:path*` (segments-only) drops the trailing slash,
     // which we cannot afford because FastAPI's redirect_slashes then
     // bounces the request back with an upstream-host Location header.
-    return [
-      {
-        source: "/api/v1/:rest(.*)",
-        destination: "http://localhost:8000/api/v1/:rest",
-      },
-      {
-        source: "/dev-logs",
-        destination: `http://localhost:${process.env.LOG_VIEWER_PORT ?? "8001"}/`,
-      },
-      {
-        source: "/dev-logs/:rest(.*)",
-        destination: `http://localhost:${process.env.LOG_VIEWER_PORT ?? "8001"}/:rest`,
-      },
-    ];
+    const apiInternal = process.env.API_INTERNAL_URL;
+    if (apiInternal) {
+      // Production: the web service proxies the versioned API to the internal
+      // `api` Cloud Run service. /dev-logs is served by the real page (no proxy).
+      return {
+        beforeFiles: [],
+        afterFiles: [
+          { source: "/api/v1/:rest(.*)", destination: `${apiInternal}/api/v1/:rest` },
+        ],
+        fallback: [],
+      };
+    }
+    // Local dev: proxy the API to the local backend, and the /dev-logs route to
+    // the standalone log viewer. beforeFiles makes the proxy win over the
+    // app/dev-logs/page.tsx file so local logs keep working.
+    const logPort = process.env.LOG_VIEWER_PORT ?? "8001";
+    return {
+      beforeFiles: [
+        { source: "/dev-logs", destination: `http://localhost:${logPort}/` },
+        { source: "/dev-logs/:rest(.*)", destination: `http://localhost:${logPort}/:rest` },
+      ],
+      afterFiles: [
+        { source: "/api/v1/:rest(.*)", destination: "http://localhost:8000/api/v1/:rest" },
+      ],
+      fallback: [],
+    };
   },
 };
 
