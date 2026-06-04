@@ -1,0 +1,68 @@
+name: deploy
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REGION: ${{ secrets.GCP_REGION }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  AR_HOST: ${{ secrets.GCP_REGION }}-docker.pkg.dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker $AR_HOST --quiet
+
+      - name: Build & push api image
+        run: |
+          IMG=$AR_HOST/$PROJECT_ID/kb/api:${{ github.sha }}
+          docker build -t $IMG -f backend/app/Dockerfile backend/app
+          docker push $IMG
+          echo "API_IMAGE=$IMG" >> $GITHUB_ENV
+
+      - name: Build & push web image
+        run: |
+          IMG=$AR_HOST/$PROJECT_ID/kb/web:${{ github.sha }}
+          docker build -t $IMG \
+            --build-arg NEXT_PUBLIC_API_URL="" \
+            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY }} \
+            -f frontend/Dockerfile frontend
+          docker push $IMG
+          echo "WEB_IMAGE=$IMG" >> $GITHUB_ENV
+
+      - name: Run DB migrations (Cloud Run Job)
+        run: |
+          if gcloud run jobs describe kb-migrate --region=$REGION >/dev/null 2>&1; then
+            gcloud run jobs update kb-migrate --region=$REGION --image=$API_IMAGE
+          else
+            gcloud run jobs create kb-migrate --region=$REGION --image=$API_IMAGE \
+              --service-account=kb-runtime@$PROJECT_ID.iam.gserviceaccount.com \
+              --network=kb-vpc --subnet=kb-subnet --vpc-egress=private-ranges-only \
+              --set-secrets=DATABASE_URL=database-url:latest \
+              --command=alembic --args=upgrade,head
+          fi
+          gcloud run jobs execute kb-migrate --region=$REGION --wait
+
+      - name: Deploy api
+        run: gcloud run services update khanabazaar-api --region=$REGION --image=$API_IMAGE
+
+      - name: Deploy worker
+        run: gcloud run services update khanabazaar-worker --region=$REGION --image=$API_IMAGE
+
+      - name: Deploy web
+        run: gcloud run services update khanabazaar-web --region=$REGION --image=$WEB_IMAGE

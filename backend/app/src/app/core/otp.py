@@ -2,12 +2,14 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import hashlib
 import hmac
+import logging
 import re
 import secrets
 
 import redis.asyncio as aioredis
 
 from app.core.config import settings
+from app.core.dev_otp_log import record_otp
 from app.core.rate_limit import incr_with_ttl, seconds_until
 
 _PHONE_RE = re.compile(r"^\+91[6-9]\d{9}$")
@@ -97,6 +99,14 @@ async def request_otp(
         _key_cooldown(identifier, namespace), "1", ex=settings.OTP_RESEND_COOLDOWN
     )
     await pipe.execute()
+    # Best-effort dev-inbox mirror (no-op unless EXPOSE_DEV_OTPS). Never let it
+    # break the auth flow — swallow and log any Redis hiccup.
+    try:
+        await record_otp(redis, identifier, code, namespace=namespace)
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "dev_otp_log.record_otp failed", exc_info=True
+        )
     return code
 
 
