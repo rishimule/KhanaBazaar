@@ -35,3 +35,44 @@ async def test_dev_sms_table_roundtrips(session: AsyncSession) -> None:
     rows = (await session.exec(select(DevSms))).all()
     assert len(rows) == 1
     assert rows[0].to_phone == "+919812345678"
+
+
+@pytest.mark.asyncio
+async def test_record_outbound_email_writes_row(session: AsyncSession, monkeypatch) -> None:
+    from app.core import dev_mailbox
+    from app.core.config import settings
+    from app.models.dev_email import DevEmail
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    await dev_mailbox.record_outbound_email(
+        to="x@y.com", subject="S", text="T", html="<p>T</p>", reply_to=None
+    )
+    rows = (await session.exec(select(DevEmail))).all()
+    assert len(rows) == 1
+    assert rows[0].subject == "S"
+    assert rows[0].body_html == "<p>T</p>"
+
+
+@pytest.mark.asyncio
+async def test_record_outbound_email_noop_outside_dev(session: AsyncSession, monkeypatch) -> None:
+    from app.core import dev_mailbox
+    from app.core.config import settings
+    from app.models.dev_email import DevEmail
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    await dev_mailbox.record_outbound_email(to="x@y.com", subject="S", text="T")
+    rows = (await session.exec(select(DevEmail))).all()
+    assert rows == []
+
+
+@pytest.mark.asyncio
+async def test_record_outbound_sms_writes_row(session: AsyncSession, monkeypatch) -> None:
+    from app.core import dev_mailbox
+    from app.core.config import settings
+    from app.models.dev_sms import DevSms
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    await dev_mailbox.record_outbound_sms(to="+919812345678", text="code 1234")
+    rows = (await session.exec(select(DevSms))).all()
+    assert len(rows) == 1
+    assert rows[0].body == "code 1234"
