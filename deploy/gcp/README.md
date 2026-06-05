@@ -93,7 +93,12 @@ full commands. Summary:
 4. `gcloud run services update khanabazaar-api --update-env-vars=FRONTEND_ORIGIN=$WEB_URL`.
 5. Bring the worker up on the VM (`docker compose up -d worker`).
 6. Add `WEB_URL/*` to the Google Maps browser-key HTTP-referrer allow-list (console).
-7. Smoke: `curl $API_URL/health`, `curl -u devuser:$DEV_INBOX_PASSWORD $API_URL/api/v1/dev/emails?limit=1`.
+7. Smoke (also proves Cloud Run → VM reachability over Direct VPC egress):
+   - `curl $API_URL/health` → `{"status":"ok"}`
+   - `curl "$API_URL/api/v1/search/suggest?q=milk"` → products/terms (**exercises Meilisearch** on the VM)
+   - `curl -X POST $API_URL/api/v1/auth/otp/request -H 'content-type: application/json' -d '{"email":"customer@khanabazaar.dev"}'` → 200 (**exercises Redis** on the VM; OTP then readable at `$WEB_URL/dev-emails`)
+   - `curl -u devuser:$DEV_INBOX_PASSWORD $API_URL/api/v1/dev/emails?limit=1` → JSON (dev-mailbox + Basic auth)
+   - If the search/OTP calls hang or 5xx, Cloud Run can't reach the VM — recheck the `kb-allow-internal` firewall and that the api revision attached `kb-subnet` via Direct VPC egress.
 
 ## Wire GitHub (repo variables + secrets)
 

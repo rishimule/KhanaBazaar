@@ -44,10 +44,11 @@ gcloud sql databases describe khanabazaar --instance=kb-pg >/dev/null 2>&1 || \
 # DB user (password from env DB_PASSWORD)
 gcloud sql users list --instance=kb-pg --format='value(name)' | grep -qx kbuser || \
   gcloud sql users create kbuser --instance=kb-pg --password="${DB_PASSWORD:?set DB_PASSWORD}"
-# PostGIS extension (idempotent)
-gcloud sql connect kb-pg --user=kbuser --database=khanabazaar --quiet <<'SQL' || true
-CREATE EXTENSION IF NOT EXISTS postgis;
-SQL
+# NOTE: PostGIS extension is created by the kb-migrate job (deploy_release.sh),
+# which runs in-VPC via the Cloud SQL connector — reliable and loud on failure,
+# unlike a laptop-side `gcloud sql connect` IP-whitelist dance.
+# The instance is left with NO authorized networks: its public IP rejects all
+# direct connections; only the authenticated connector/proxy path works.
 
 echo "==> 5. Secret Manager"
 create_secret () {  # name value
