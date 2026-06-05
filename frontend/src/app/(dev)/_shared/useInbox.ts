@@ -20,6 +20,7 @@ export interface InboxResult<T> {
   setPage: (p: number) => void;
   refresh: () => void;
   loadNew: () => void;
+  login: () => void;
   logout: () => void;
   pageSize: number;
 }
@@ -119,6 +120,10 @@ export function useInbox<T extends Row>(resource: "emails" | "sms"): InboxResult
       setPage(0);
       void fetchPage();
     },
+    // Called after a successful login: pull the freshly-stored creds into
+    // state so the page re-renders out of the login gate and fetchPage (which
+    // is gated on `basic`) runs.
+    login: () => setBasic(getCreds()),
     logout: () => {
       clearCreds();
       setBasic(null);

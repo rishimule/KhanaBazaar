@@ -37,8 +37,15 @@ def require_dev_inbox(
             detail="Unauthorized",
             headers={"WWW-Authenticate": "Basic"},
         )
-    ok_user = secrets.compare_digest(credentials.username, settings.DEV_INBOX_USER)
-    ok_pass = secrets.compare_digest(credentials.password, settings.DEV_INBOX_PASSWORD)
+    # Compare as bytes: compare_digest rejects non-ASCII str (→ TypeError/500),
+    # so encode both sides. Both checks run unconditionally (no short-circuit)
+    # to avoid leaking which field was wrong.
+    ok_user = secrets.compare_digest(
+        credentials.username.encode("utf-8"), settings.DEV_INBOX_USER.encode("utf-8")
+    )
+    ok_pass = secrets.compare_digest(
+        credentials.password.encode("utf-8"), settings.DEV_INBOX_PASSWORD.encode("utf-8")
+    )
     if not (ok_user and ok_pass):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

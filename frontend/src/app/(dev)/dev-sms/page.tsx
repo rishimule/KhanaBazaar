@@ -23,7 +23,7 @@ export default function DevSmsPage() {
   const inbox = useInbox<DevSms>("sms");
 
   if (!inbox.basic) {
-    return <LoginGate onAuthed={() => inbox.refresh()} />;
+    return <LoginGate onAuthed={inbox.login} />;
   }
 
   return (

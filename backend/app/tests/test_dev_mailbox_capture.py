@@ -104,3 +104,24 @@ async def test_console_sms_sender_captures(session: AsyncSession, monkeypatch: p
     rows = (await session.exec(select(DevSms))).all()
     assert len(rows) == 1
     assert rows[0].body == "your code 9999"
+
+
+@pytest.mark.asyncio
+async def test_worker_resolve_email_captures(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Exercises the sync Celery chokepoint: _resolve_email bridges to the async
+    # recorder via ThreadPoolExecutor + asyncio.run. Runs on the console branch.
+    from app import worker
+    from app.core.config import settings
+    from app.models.dev_email import DevEmail
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "console")
+    worker._resolve_email(
+        "w@x.com", "Worker Subj", "worker body", html="<i>b</i>", reply_to=None
+    )
+    rows = (await session.exec(select(DevEmail))).all()
+    assert len(rows) == 1
+    assert rows[0].subject == "Worker Subj"
+    assert rows[0].body_text == "worker body"

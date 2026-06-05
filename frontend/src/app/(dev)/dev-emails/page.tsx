@@ -29,7 +29,7 @@ export default function DevEmailsPage() {
   const [selected, setSelected] = useState<DevEmail | null>(null);
 
   if (!inbox.basic) {
-    return <LoginGate onAuthed={() => inbox.refresh()} />;
+    return <LoginGate onAuthed={inbox.login} />;
   }
 
   return (
