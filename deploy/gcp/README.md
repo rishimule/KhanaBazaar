@@ -126,10 +126,12 @@ gcloud run services update-traffic khanabazaar-api --region=$REGION --to-revisio
 ## Budget alert (alert-only, $250)
 
 ```bash
+# NOTE: this billing account's currency is INR — --budget-amount currency must
+# match (USD is rejected with INVALID_ARGUMENT). 20000 INR ≈ $240.
+# Enable the API first: gcloud services enable billingbudgets.googleapis.com
 BILLING=01C02F-FB1938-E2F6B2
 gcloud billing budgets create --billing-account=$BILLING \
-  --display-name="kb-mvp-budget-250" --budget-amount=250USD \
-  --filter-projects="projects/$(gcloud projects describe khanabazaar-mvp --format='value(projectNumber)')" \
+  --display-name="kb-mvp-budget" --budget-amount=20000INR \
   --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
 ```
 
