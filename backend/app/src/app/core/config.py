@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_FROM_NUMBER: str = ""  # E.164, e.g. "+15005550006"
 
+    # Dev Mailbox (/dev-emails, /dev-sms) — HTTP Basic creds. Empty = feature
+    # disabled (endpoints 404). Only honoured when ENVIRONMENT == "development".
+    DEV_INBOX_USER: str = ""
+    DEV_INBOX_PASSWORD: str = ""
+
     DATABASE_URL: str
     REDIS_URL: str
 

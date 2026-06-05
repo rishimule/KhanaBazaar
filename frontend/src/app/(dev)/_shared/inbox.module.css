@@ -1,0 +1,31 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+.header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.header h1 { font-size: 20px; margin: 0; }
+.nav { display: flex; gap: 12px; margin-left: auto; font-size: 14px; align-items: center; }
+.nav a { color: #7bb0ff; text-decoration: none; }
+.nav button { background: none; border: 1px solid #333; color: #ccc; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.search { width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #2a2f3a; background: #161922; color: #e6e6e6; margin-bottom: 12px; box-sizing: border-box; }
+.banner { background: #1d3a5f; color: #cfe3ff; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; cursor: pointer; font-size: 14px; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th, .table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #20242e; vertical-align: top; }
+.table th { color: #8a93a6; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+.row { cursor: pointer; }
+.row:hover { background: #161922; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.muted { color: #8a93a6; }
+.pager { display: flex; gap: 12px; align-items: center; margin-top: 16px; font-size: 14px; }
+.pager button { background: #161922; border: 1px solid #2a2f3a; color: #e6e6e6; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.pager button:disabled { opacity: 0.4; cursor: not-allowed; }
+.login { max-width: 320px; margin: 80px auto; display: flex; flex-direction: column; gap: 10px; }
+.login input { padding: 9px 12px; border-radius: 8px; border: 1px solid #2a2f3a; background: #161922; color: #e6e6e6; }
+.login button { padding: 9px 12px; border-radius: 8px; border: none; background: #2b6cb0; color: #fff; cursor: pointer; }
+.error { color: #ff8a8a; font-size: 13px; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 50; }
+.modal { background: #11141b; border: 1px solid #2a2f3a; border-radius: 12px; max-width: 760px; width: 100%; max-height: 85vh; overflow: auto; padding: 20px; }
+.modal h2 { margin: 0 0 12px; font-size: 16px; }
+.kv { font-size: 13px; margin-bottom: 4px; }
+.kv span { color: #8a93a6; display: inline-block; min-width: 80px; }
+.bodyText { white-space: pre-wrap; background: #0b0d12; padding: 12px; border-radius: 8px; font-size: 13px; margin-top: 12px; }
+.iframe { width: 100%; height: 360px; border: 1px solid #2a2f3a; border-radius: 8px; background: #fff; margin-top: 12px; }
+.closeBtn { float: right; background: none; border: 1px solid #333; color: #ccc; border-radius: 6px; padding: 4px 10px; cursor: pointer; }

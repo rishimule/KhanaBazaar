@@ -153,6 +153,7 @@ Admin-only: create categories/products, approve seller applications, **per-selle
 - `SUPPORT_EMAIL` (default `support@khanabazaar.example`) — destination inbox for `/customers/me/support` messages
 - `SMS_PROVIDER` (`console` default | `twilio`)
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` (only when `SMS_PROVIDER=twilio`)
+- `DEV_INBOX_USER`, `DEV_INBOX_PASSWORD` — HTTP Basic creds for the dev-only `/dev-emails` + `/dev-sms` mailbox pages. Both must be set to enable the feature; `/api/v1/dev/*` endpoints `404` unless `ENVIRONMENT=development`. See `docs/superpowers/specs/2026-06-05-dev-mailbox-design.md`.
 - `JWT_EXPIRES_HOURS` (default 24)
 - `OTP_TTL_SECONDS`, `OTP_MAX_ATTEMPTS`, `OTP_RESEND_COOLDOWN`, `OTP_MAX_PER_HOUR`
 - `FRONTEND_ORIGIN` (default `http://localhost:3000,http://127.0.0.1:3000`) — comma-separated CORS allow-list; parsed by `Settings.cors_origins` and passed to `CORSMiddleware`
@@ -188,7 +189,7 @@ No frontend tests configured.
 | `backend/app/src/app/core/config.py` | Pydantic Settings, `API_V1_STR="/api/v1"` |
 | `backend/app/src/app/core/security.py` | JWT encode/decode, role guards |
 | `backend/app/src/app/db/session.py` | Async session factory |
-| `schema.sql` | Full Postgres schema snapshot — source of truth is the SQLModel models + Alembic; pinned to head `1a82f642a321`. Regenerate when the head changes. |
+| `schema.sql` | Full Postgres schema snapshot — source of truth is the SQLModel models + Alembic; pinned to head `ab1154a400fe`. Regenerate when the head changes. |
 | `frontend/src/app/layout.tsx` | Root layout, mounts AuthProvider + CartProvider, registers PWA manifest |
 | `frontend/src/lib/api.ts` | Typed fetch wrapper, `ApiError` class |
 | `frontend/src/lib/AuthContext.tsx` | Auth state (token in `localStorage` key `kb_token`, OTP flow) |

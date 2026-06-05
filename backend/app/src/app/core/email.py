@@ -77,6 +77,12 @@ class ConsoleEmailSender:
                 logger.info("[EMAIL] dev preview written: %s", path)
             except OSError as exc:
                 logger.debug("dev preview write failed: %s", exc)
+        # Dev-only capture into the dev_email table (best-effort).
+        from app.core.dev_mailbox import record_outbound_email
+
+        await record_outbound_email(
+            to=to, subject=subject, text=text, html=html, reply_to=reply_to
+        )
 
 
 class ResendEmailSender:
