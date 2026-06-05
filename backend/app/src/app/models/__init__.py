@@ -29,6 +29,8 @@ from .commerce import (
     PaymentStatus,
     Review,
 )
+from .dev_email import DevEmail
+from .dev_sms import DevSms
 from .notification import Notification, NotificationType, PushSubscription
 from .profile import (
     AdminProfile,
@@ -62,6 +64,8 @@ __all__ = [
     "CustomerProfile",
     "Delivery",
     "DeliveryStatus",
+    "DevEmail",
+    "DevSms",
     "Favorite",
     "Language",
     "LanguageCode",
