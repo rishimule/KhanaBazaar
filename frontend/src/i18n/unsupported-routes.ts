@@ -4,7 +4,13 @@
 // Route prefixes that do NOT carry a locale URL prefix.
 // Middleware uses this list to bypass next-intl URL routing and to strip any
 // locale prefix that lands here (e.g. /hi/seller -> /seller).
-export const I18N_UNSUPPORTED_PREFIXES = ["/seller", "/admin", "/dev-logs"] as const;
+export const I18N_UNSUPPORTED_PREFIXES = [
+  "/seller",
+  "/admin",
+  "/dev-logs",
+  "/dev-emails",
+  "/dev-sms",
+] as const;
 
 export function isI18nUnsupported(pathname: string): boolean {
   return I18N_UNSUPPORTED_PREFIXES.some(
@@ -20,7 +26,7 @@ export type LocaleMode = "url" | "cookie" | "none";
 // switcher and middleware will silently disagree.
 // "none" = routes that are not React pages (dev-logs proxy) — no switcher.
 const COOKIE_LOCALE_PREFIXES = ["/seller", "/admin"] as const;
-const NO_LOCALE_PREFIXES = ["/dev-logs"] as const;
+const NO_LOCALE_PREFIXES = ["/dev-logs", "/dev-emails", "/dev-sms"] as const;
 
 /** How the LocaleSwitcher should behave on a given path.
  * - "url"    : customer routes — locale lives in the URL prefix.
