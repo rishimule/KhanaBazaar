@@ -166,6 +166,32 @@ def _resolve_email(
             logging.getLogger(__name__).info(
                 "EMAIL to=%s subject=%s (body suppressed)", to, subject
             )
+    # Dev-only capture into the dev_email table (best-effort). _resolve_email is
+    # a sync Celery context, so bridge to the async recorder on a worker thread
+    # (same idiom used for the async senders). Never let capture break the send.
+    if settings.ENVIRONMENT == "development":
+        import asyncio
+        import concurrent.futures
+
+        from app.core.dev_mailbox import record_outbound_email
+
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                executor.submit(
+                    lambda: asyncio.run(
+                        record_outbound_email(
+                            to=to,
+                            subject=subject,
+                            text=body,
+                            html=html,
+                            reply_to=reply_to,
+                        )
+                    )
+                ).result()
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).exception(
+                "dev_mailbox: worker email capture failed"
+            )
 
 
 def _load_order_email_context(order_id: int) -> dict[str, Any]:

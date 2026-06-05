@@ -38,7 +38,7 @@ async def test_dev_sms_table_roundtrips(session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_record_outbound_email_writes_row(session: AsyncSession, monkeypatch) -> None:
+async def test_record_outbound_email_writes_row(session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
     from app.core import dev_mailbox
     from app.core.config import settings
     from app.models.dev_email import DevEmail
@@ -54,7 +54,7 @@ async def test_record_outbound_email_writes_row(session: AsyncSession, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_record_outbound_email_noop_outside_dev(session: AsyncSession, monkeypatch) -> None:
+async def test_record_outbound_email_noop_outside_dev(session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
     from app.core import dev_mailbox
     from app.core.config import settings
     from app.models.dev_email import DevEmail
@@ -66,7 +66,7 @@ async def test_record_outbound_email_noop_outside_dev(session: AsyncSession, mon
 
 
 @pytest.mark.asyncio
-async def test_record_outbound_sms_writes_row(session: AsyncSession, monkeypatch) -> None:
+async def test_record_outbound_sms_writes_row(session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
     from app.core import dev_mailbox
     from app.core.config import settings
     from app.models.dev_sms import DevSms
@@ -76,3 +76,31 @@ async def test_record_outbound_sms_writes_row(session: AsyncSession, monkeypatch
     rows = (await session.exec(select(DevSms))).all()
     assert len(rows) == 1
     assert rows[0].body == "code 1234"
+
+
+@pytest.mark.asyncio
+async def test_console_email_sender_captures(session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.config import settings
+    from app.core.email import ConsoleEmailSender
+    from app.models.dev_email import DevEmail
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    await ConsoleEmailSender().send(
+        "u@v.com", "Subject Z", text="hello", html="<b>hello</b>"
+    )
+    rows = (await session.exec(select(DevEmail))).all()
+    assert len(rows) == 1
+    assert rows[0].subject == "Subject Z"
+
+
+@pytest.mark.asyncio
+async def test_console_sms_sender_captures(session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.config import settings
+    from app.core.sms import ConsoleSMSSender
+    from app.models.dev_sms import DevSms
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    await ConsoleSMSSender().send("+919800000000", "your code 9999")
+    rows = (await session.exec(select(DevSms))).all()
+    assert len(rows) == 1
+    assert rows[0].body == "your code 9999"

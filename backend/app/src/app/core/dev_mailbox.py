@@ -10,7 +10,9 @@ core/sms.py, worker._resolve_email).
 import logging
 
 from app.core.config import settings
-from app.db import session as _db_session  # module ref so test engine override is honoured
+from app.db import (
+    session as _db_session,  # module ref so test engine override is honoured
+)
 from app.models.dev_email import DevEmail
 from app.models.dev_sms import DevSms
 

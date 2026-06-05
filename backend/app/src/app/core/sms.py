@@ -25,6 +25,12 @@ class ConsoleSMSSender:
     async def send(self, to: str, text: str) -> None:
         logger.info("[SMS] to=%s\n%s", to, text)
         print(f"[SMS] to={to}\n{text}")
+        # Dev-only capture into the dev_sms table (best-effort). Covers BOTH the
+        # inline seller-phone OTP and the worker delivery-OTP SMS, since both
+        # route through get_sms_sender().send().
+        from app.core.dev_mailbox import record_outbound_sms
+
+        await record_outbound_sms(to=to, text=text)
 
 
 class TwilioSMSSender:
