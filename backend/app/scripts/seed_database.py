@@ -40,6 +40,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip the post-seed Meilisearch reindex step",
     )
+    parser.add_argument(
+        "--skip-if-seeded",
+        action="store_true",
+        help="No-op if the catalog already has products (safe for repeated deploys)",
+    )
     return parser.parse_args()
 
 
@@ -73,6 +78,21 @@ async def main() -> None:
 
     try:
         async with AsyncSession(engine) as session:
+            if args.skip_if_seeded and not args.verify_only:
+                from sqlalchemy import func, select
+
+                from app.models.catalog import MasterProduct
+
+                row = (
+                    await session.exec(select(func.count()).select_from(MasterProduct))
+                ).one()
+                # session.exec returns a Row for a func.count() select; unwrap to the
+                # scalar. (Guard handles a version that already scalarizes it.)
+                existing = row[0] if hasattr(row, "__getitem__") else row
+                if existing and existing > 0:
+                    print(f"Catalog already seeded ({existing} products) — skipping seed.")
+                    return
+
             if not args.verify_only:
                 await seed_demo_data(session)
                 await session.commit()

@@ -72,27 +72,47 @@ class _DLQTask(Task):
             logger.exception("search.dlq.push_failed kind=%s args=%s", kind, args)
 
 
-def _run_async(coro: Any) -> Any:
-    """Run an async coroutine from sync code, even when an event loop is active.
+_loop_lock = threading.Lock()
+_loop: asyncio.AbstractEventLoop | None = None
+_loop_thread: threading.Thread | None = None
 
-    Celery worker processes run sync code, so plain asyncio.run() works there.
-    Eager mode inside an async test, however, already has a running loop —
-    asyncio.run() would raise. Always offloading to a fresh thread covers both.
+
+def _get_loop() -> asyncio.AbstractEventLoop:
+    """Return a persistent event loop running in a dedicated daemon thread.
+
+    Created lazily per process — and re-created after a prefork fork (the
+    inherited loop's thread does not survive fork, so we detect the dead
+    thread and start a fresh loop in the child).
     """
-    result: dict[str, Any] = {}
+    global _loop, _loop_thread
+    with _loop_lock:
+        if (
+            _loop is None
+            or _loop.is_closed()
+            or _loop_thread is None
+            or not _loop_thread.is_alive()
+        ):
+            _loop = asyncio.new_event_loop()
+            _loop_thread = threading.Thread(
+                target=_loop.run_forever, daemon=True, name="kb-search-loop"
+            )
+            _loop_thread.start()
+        return _loop
 
-    def runner() -> None:
-        try:
-            result["value"] = asyncio.run(coro)
-        except BaseException as exc:  # noqa: BLE001
-            result["error"] = exc
 
-    t = threading.Thread(target=runner, daemon=True)
-    t.start()
-    t.join(timeout=60)
-    if "error" in result:
-        raise result["error"]
-    return result.get("value")
+def _run_async(coro: Any) -> Any:
+    """Run an async coroutine from sync (Celery) code on a persistent loop.
+
+    Uses one long-lived event loop per process rather than ``asyncio.run`` per
+    call. A throwaway loop closes after each task, and asyncpg's connection
+    teardown then fires on a dead loop → ``RuntimeError: Event loop is closed``.
+    A persistent loop keeps connection lifecycles valid. Submitting via
+    ``run_coroutine_threadsafe`` from a separate thread also stays safe under
+    eager-mode tests, which already run a loop on the calling thread.
+    """
+    loop = _get_loop()
+    future = asyncio.run_coroutine_threadsafe(coro, loop)
+    return future.result()
 
 
 async def _do_reindex_product(product_id: int) -> None:

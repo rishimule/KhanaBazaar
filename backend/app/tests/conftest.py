@@ -148,7 +148,12 @@ app.dependency_overrides[get_redis] = _override_redis
 # sees the same data the test seeded.
 from app.db import session as _db_session_mod  # noqa: E402
 
+# `engine` backs FastAPI deps; `task_engine` backs `async_session_factory()`
+# (Celery tasks + CLI). Both must point at the test DB — `async_session_factory`
+# resolves `task_engine` from module globals at call time, so patching the
+# global redirects code that imported the factory by reference.
 _db_session_mod.engine = test_engine
+_db_session_mod.task_engine = test_engine
 _db_session_mod.async_session_factory = lambda: AsyncSession(test_engine, expire_on_commit=False)
 
 @pytest.fixture(name="session")

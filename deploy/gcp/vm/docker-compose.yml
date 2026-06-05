@@ -1,0 +1,59 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# Runs on the kb-svc VM. Pulls the api image for the Celery worker.
+# Secrets + VM_INTERNAL_IP come from /opt/kb/.env (see .env.example), which
+# compose auto-loads from the project dir for ${...} interpolation below.
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    # Auth (requirepass) + protected-mode are defense-in-depth on top of the
+    # custom-VPC firewall (which already blocks all ingress except the internal
+    # subnet + IAP SSH). REDIS_PASSWORD comes from /opt/kb/.env.
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+      - "--protected-mode"
+      - "yes"
+      - "--requirepass"
+      - "${REDIS_PASSWORD}"
+    volumes:
+      - redis_data:/data
+    ports:
+      # Publish ONLY on the VM's internal IP (Cloud Run reaches it via Direct
+      # VPC egress) — never on the external interface.
+      - "${VM_INTERNAL_IP}:6379:6379"
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.11
+    restart: always
+    environment:
+      MEILI_MASTER_KEY: "${MEILI_MASTER_KEY}"   # all requests require this key
+      MEILI_ENV: "production"
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - /mnt/disks/meili:/meili_data   # persistent disk
+    ports:
+      - "${VM_INTERNAL_IP}:7700:7700"   # internal IP only
+
+  cloudsql-proxy:
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.13.0
+    restart: always
+    # VM service account provides ADC; no key file needed. No host port is
+    # published — 5432 lives only on the Docker bridge for the worker. The
+    # 0.0.0.0 bind is the container interface (required for cross-container
+    # access); the proxy still enforces Cloud SQL IAM auth upstream.
+    command:
+      - "--address=0.0.0.0"
+      - "--port=5432"
+      - "${CLOUDSQL_INSTANCE}"   # PROJECT:REGION:INSTANCE
+
+  worker:
+    image: ${API_IMAGE}          # AR_HOST/PROJECT/kb/api:latest
+    restart: always
+    depends_on: [redis, cloudsql-proxy]
+    env_file: [/opt/kb/.env]
+    command: ["celery", "-A", "app.core.celery_app", "worker", "--beat", "--loglevel=info"]
+
+volumes:
+  redis_data:
