@@ -1,0 +1,43 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# Runs on the kb-svc VM. Pulls the api image for the Celery worker.
+# Secrets come from /opt/kb/.env (see .env.example), written at bootstrap.
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "0.0.0.0:6379:6379"   # reachable from Cloud Run via Direct VPC egress
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.11
+    restart: always
+    environment:
+      MEILI_MASTER_KEY: "${MEILI_MASTER_KEY}"
+      MEILI_ENV: "production"
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - /mnt/disks/meili:/meili_data   # persistent disk
+    ports:
+      - "0.0.0.0:7700:7700"
+
+  cloudsql-proxy:
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.13.0
+    restart: always
+    # VM service account provides ADC; no key file needed.
+    command:
+      - "--address=0.0.0.0"
+      - "--port=5432"
+      - "${CLOUDSQL_INSTANCE}"   # PROJECT:REGION:INSTANCE
+
+  worker:
+    image: ${API_IMAGE}          # AR_HOST/PROJECT/kb/api:latest
+    restart: always
+    depends_on: [redis, cloudsql-proxy]
+    env_file: [/opt/kb/.env]
+    command: ["celery", "-A", "app.core.celery_app", "worker", "--beat", "--loglevel=info"]
+
+volumes:
+  redis_data:
