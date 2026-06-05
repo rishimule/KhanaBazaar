@@ -16,10 +16,15 @@ const nextConfig: NextConfig = {
     // trailing slash. `:path*` (segments-only) drops the trailing slash,
     // which we cannot afford because FastAPI's redirect_slashes then
     // bounces the request back with an upstream-host Location header.
+    //
+    // In production the api lives at a different origin (Cloud Run), so the
+    // proxy destination is read from INTERNAL_API_URL, baked at build time.
+    // Dev falls back to the local backend.
+    const apiBase = process.env.INTERNAL_API_URL || "http://localhost:8000";
     return [
       {
         source: "/api/v1/:rest(.*)",
-        destination: "http://localhost:8000/api/v1/:rest",
+        destination: `${apiBase}/api/v1/:rest`,
       },
       {
         source: "/dev-logs",
