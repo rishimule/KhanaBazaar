@@ -73,7 +73,9 @@ create_secret vapid-public-key  "${VAPID_PUBLIC_KEY:?}"
 echo "==> 6. Runtime service account for Cloud Run + jobs"
 gcloud iam service-accounts describe kb-runtime@$PROJECT_ID.iam.gserviceaccount.com >/dev/null 2>&1 || \
   gcloud iam service-accounts create kb-runtime --display-name="KB Cloud Run runtime"
-for ROLE in roles/cloudsql.client roles/secretmanager.secretAccessor; do
+# artifactregistry.reader: the VM worker pulls the api image via kb-runtime ADC.
+# (Cloud Run services pull via the Run service agent and don't need this, but the VM does.)
+for ROLE in roles/cloudsql.client roles/secretmanager.secretAccessor roles/artifactregistry.reader; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:kb-runtime@$PROJECT_ID.iam.gserviceaccount.com" --role="$ROLE" --condition=None
 done

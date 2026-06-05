@@ -1,7 +1,10 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import asyncio
+
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import worker_process_init
 
 from app.core.config import settings
 
@@ -10,6 +13,22 @@ celery_app = Celery(
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
 )
+
+
+@worker_process_init.connect
+def _dispose_inherited_db_engine(**_kwargs: object) -> None:
+    """Reset the shared async DB engine after a prefork worker forks.
+
+    The module-level `engine` in `app.db.session` is created in the parent
+    process. Forked children inherit its pooled asyncpg connections; two
+    children using the same inherited socket raises asyncpg's
+    "another operation is in progress". Dispose with ``close=False`` so the
+    child abandons (without closing) the inherited connections and lazily
+    opens its own — the documented SQLAlchemy fork-safety pattern.
+    """
+    from app.db.session import engine
+
+    asyncio.run(engine.dispose(close=False))
 
 celery_app.conf.update(
     task_serializer="json",
