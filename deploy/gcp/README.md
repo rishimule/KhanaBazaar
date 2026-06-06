@@ -135,6 +135,30 @@ gcloud billing budgets create --billing-account=$BILLING \
   --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
 ```
 
+## Custom domain — khanabazaar.rishimule.dev (Firebase Hosting)
+
+The web service is also served at `https://khanabazaar.rishimule.dev` via Firebase
+Hosting (free) rewriting to the `khanabazaar-web` Cloud Run service. Config:
+`firebase.json` + `.firebaserc` at repo root. Spec/plan:
+`docs/superpowers/specs/2026-06-06-custom-domain-firebase-hosting-design.md`.
+
+- Firebase is enabled on the same `khanabazaar-mvp` GCP project (added via the
+  Firebase console — the CLI `projects:addfirebase` 403s on a missing
+  `cloud-platform` OAuth scope).
+- DNS at name.com: a single **CNAME** `khanabazaar` → `khanabazaar-mvp.web.app`.
+  Apex/`www` (the GitHub-Pages portfolio, `185.199.108–111.153`) are untouched.
+- Managed TLS cert auto-provisions after the CNAME verifies (took ~20 min here).
+- `FRONTEND_ORIGIN` on `khanabazaar-api` includes `https://khanabazaar.rishimule.dev`;
+  the Maps browser key allows `https://khanabazaar.rishimule.dev/*` as a referrer.
+- Both the `*.run.app` URL and the custom domain serve the same Cloud Run service.
+
+Redeploy hosting (only needed if `firebase.json` changes — the rewrite tracks the
+live Cloud Run service automatically):
+```bash
+firebase deploy --only hosting --project khanabazaar-mvp
+```
+Re-check domain/cert status: Firebase Console → Hosting → domain row (`Connected`).
+
 ## Teardown
 
 ```bash
@@ -142,4 +166,5 @@ gcloud run services delete khanabazaar-api khanabazaar-web --region=$REGION
 gcloud run jobs delete kb-migrate --region=$REGION
 gcloud compute instances delete kb-svc --zone=$ZONE
 gcloud sql instances delete kb-pg
+# custom domain: remove in Firebase console + delete the CNAME at name.com
 ```
