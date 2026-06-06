@@ -1,0 +1,13 @@
+{
+  "hosting": {
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "khanabazaar-web",
+          "region": "asia-south1"
+        }
+      }
+    ]
+  }
+}
