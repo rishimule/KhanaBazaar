@@ -11,26 +11,18 @@ const intlMiddleware = createMiddleware(routing);
 // the default locale ("en") is unprefixed and never appears here.
 const LOCALE_PREFIX_RE = /^\/(hi|mr|gu|pa)(\/.*)?$/;
 
-// Behind Cloud Run (or any reverse proxy) the container listens on $PORT
-// (8080), and next-intl / Next build redirect `Location` URLs carrying that
-// internal port — `https://<host>:8080/...`. That port is unreachable from
-// outside, so the browser hangs following the redirect. Strip the leaked port
-// from same-origin redirect Locations (the hostname is already correct). Only
-// runs behind a proxy (Cloud Run always sets `x-forwarded-for`), so local dev
-// — which legitimately redirects to localhost:3000 — is untouched.
-function externalizeRedirect(req: NextRequest, res: NextResponse): NextResponse {
+// Behind Cloud Run the container listens on $PORT (8080), and next-intl / Next
+// build redirect `Location` URLs carrying that internal port —
+// `https://<host>:8080/...`. (`req.nextUrl.host` is the internal `0.0.0.0:8080`,
+// while the `Host` header is the correct external host; next-intl combines the
+// external host with the internal port.) That port is unreachable from outside,
+// so the browser hangs following the redirect. Strip the leaked port from
+// redirect Locations. Production only — local `npm run dev` is
+// NODE_ENV=development and legitimately redirects to localhost:3000.
+function externalizeRedirect(_req: NextRequest, res: NextResponse): NextResponse {
+  if (process.env.NODE_ENV !== "production") return res;
   const location = res.headers.get("location");
-  // DEBUG headers (temporary) to see what middleware actually receives.
-  res.headers.set("x-dbg-ran", "1");
-  res.headers.set("x-dbg-env", process.env.NODE_ENV ?? "");
-  res.headers.set("x-dbg-loc", location ?? "");
-  res.headers.set("x-dbg-host", req.headers.get("host") ?? "");
-  res.headers.set("x-dbg-xff", req.headers.get("x-forwarded-for") ?? "");
-  res.headers.set("x-dbg-nexthost", req.nextUrl.host);
-  if (!location) return res;
-  // Production only (local `npm run dev` is NODE_ENV=development and legitimately
-  // redirects to localhost:3000). Strip the leaked internal container port.
-  if (process.env.NODE_ENV === "production" && location.includes(":8080")) {
+  if (location && location.includes(":8080")) {
     res.headers.set("location", location.replace(/:8080(?=\/|$|\?)/, ""));
   }
   return res;
