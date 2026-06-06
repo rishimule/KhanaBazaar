@@ -12,29 +12,28 @@ const intlMiddleware = createMiddleware(routing);
 const LOCALE_PREFIX_RE = /^\/(hi|mr|gu|pa)(\/.*)?$/;
 
 // Behind Cloud Run (or any reverse proxy) the container listens on $PORT
-// (8080), and next-intl / Next build redirect `Location` URLs from the
-// internal request origin — leaking `:8080` into the host. The browser then
-// follows the redirect to `https://<host>:8080/...`, which is unreachable from
-// outside, so the page hangs. Rewrite same-origin redirect Locations to the
-// external host. Only runs when `x-forwarded-proto` is present (i.e. behind a
-// proxy), so local dev (no such header) is untouched.
+// (8080), and next-intl / Next build redirect `Location` URLs carrying that
+// internal port — `https://<host>:8080/...`. That port is unreachable from
+// outside, so the browser hangs following the redirect. Strip the leaked port
+// from same-origin redirect Locations (the hostname is already correct). Only
+// runs behind a proxy (Cloud Run always sets `x-forwarded-for`), so local dev
+// — which legitimately redirects to localhost:3000 — is untouched.
 function externalizeRedirect(req: NextRequest, res: NextResponse): NextResponse {
   const location = res.headers.get("location");
   if (!location) return res;
-  const proto = req.headers.get("x-forwarded-proto");
-  if (!proto) return res; // not behind a proxy (local dev) — leave as-is
-  const host = req.headers.get("host"); // external host, preserved by Cloud Run
-  if (!host) return res;
+  // x-forwarded-for is set by Cloud Run (and proxies generally); absent locally.
+  if (!req.headers.get("x-forwarded-for")) return res;
   let url: URL;
   try {
     url = new URL(location, req.url);
   } catch {
     return res;
   }
-  // Only touch redirects pointing back at our own origin.
-  if (url.hostname !== req.nextUrl.hostname) return res;
-  url.protocol = `${proto}:`;
-  url.host = host; // host header carries no internal :8080
+  // Only touch redirects pointing back at our own origin that carry a port.
+  if (url.hostname !== req.nextUrl.hostname || !url.port) return res;
+  url.port = ""; // drop the internal :8080
+  const proto = req.headers.get("x-forwarded-proto");
+  if (proto) url.protocol = `${proto}:`;
   res.headers.set("location", url.toString());
   return res;
 }
