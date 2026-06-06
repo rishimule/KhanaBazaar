@@ -20,21 +20,19 @@ const LOCALE_PREFIX_RE = /^\/(hi|mr|gu|pa)(\/.*)?$/;
 // — which legitimately redirects to localhost:3000 — is untouched.
 function externalizeRedirect(req: NextRequest, res: NextResponse): NextResponse {
   const location = res.headers.get("location");
+  // DEBUG headers (temporary) to see what middleware actually receives.
+  res.headers.set("x-dbg-ran", "1");
+  res.headers.set("x-dbg-env", process.env.NODE_ENV ?? "");
+  res.headers.set("x-dbg-loc", location ?? "");
+  res.headers.set("x-dbg-host", req.headers.get("host") ?? "");
+  res.headers.set("x-dbg-xff", req.headers.get("x-forwarded-for") ?? "");
+  res.headers.set("x-dbg-nexthost", req.nextUrl.host);
   if (!location) return res;
-  // x-forwarded-for is set by Cloud Run (and proxies generally); absent locally.
-  if (!req.headers.get("x-forwarded-for")) return res;
-  let url: URL;
-  try {
-    url = new URL(location, req.url);
-  } catch {
-    return res;
+  // Production only (local `npm run dev` is NODE_ENV=development and legitimately
+  // redirects to localhost:3000). Strip the leaked internal container port.
+  if (process.env.NODE_ENV === "production" && location.includes(":8080")) {
+    res.headers.set("location", location.replace(/:8080(?=\/|$|\?)/, ""));
   }
-  // Only touch redirects pointing back at our own origin that carry a port.
-  if (url.hostname !== req.nextUrl.hostname || !url.port) return res;
-  url.port = ""; // drop the internal :8080
-  const proto = req.headers.get("x-forwarded-proto");
-  if (proto) url.protocol = `${proto}:`;
-  res.headers.set("location", url.toString());
   return res;
 }
 
