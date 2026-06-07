@@ -117,6 +117,20 @@ gh secret set NEXT_PUBLIC_VAPID_PUBLIC_KEY --body "<vapid public>"
 Merge to `main` → `.github/workflows/deploy.yml` runs automatically (build api+web,
 migrate-seed job, deploy api/web, restart worker on the VM).
 
+## Deploy hardening
+
+- The deploy workflow uses `concurrency: { group: deploy-main, cancel-in-progress: false }`,
+  so back-to-back merges queue instead of racing on Cloud Run updates (which otherwise
+  hit `ABORTED: Conflict`).
+- Artifact Registry has a cleanup policy (`deploy/gcp/ar-cleanup-policy.json`): keep the
+  10 newest versions of each image, delete versions older than 30 days. AR evaluates it
+  asynchronously (~daily); Cloud Run pins running images by digest so a pruned tag never
+  breaks the live revision. Re-apply with:
+  ```bash
+  gcloud artifacts repositories set-cleanup-policies kb --location=asia-south1 \
+    --project=khanabazaar-mvp --policy=deploy/gcp/ar-cleanup-policy.json
+  ```
+
 ## Rollback
 
 ```bash
