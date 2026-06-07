@@ -67,13 +67,7 @@ This is the powerful key. It must never reach the browser.
 6. **Application restrictions** → **IP addresses** → add the public IPs that your backend will call Google from:
 
    - **Local dev**: leave restriction at **None** for now (your laptop's IP changes). Tighten before you go to prod.
-   - **Production on Azure Container Apps**: add the Container App Environment's static outbound IPs. Find them with:
-     ```bash
-     az containerapp env show \
-        --name kb-prod-cae-cin --resource-group kb-prod-rg \
-        --query 'properties.staticIp' -o tsv
-     ```
-     Add that as a single IP (no CIDR mask needed). If you scale into multiple regions, repeat for each.
+   - **Production on Cloud Run**: the egress IP is dynamic, so for the MVP the server key is restricted by **API + quota** rather than IP. The "real launch" fix is a **Cloud NAT** static egress IP, then add that single IP here — see `gcp_deployment.md`.
    - **Self-hosted / VPS**: add the box's public IPv4.
 
 7. **Save**.
@@ -126,9 +120,9 @@ NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY="AIzaSy...your-browser-key..."
 
 `NEXT_PUBLIC_*` is baked in by `next build`. Change the key → rebuild the bundle (`npm run build`) → restart `npm run dev`.
 
-### Production (Azure)
+### Production (GCP)
 
-See `azure_deployment.md` §7.7 — both keys land in Azure Key Vault as `google-maps-server-api-key` and `google-maps-browser-api-key`. The browser key is passed to the web Container App as a build-time env var; the server key is mounted on the API + worker Container Apps via `secretRef`.
+Both keys live in GCP Secret Manager (`google-maps-server-key`, and the browser key as a GitHub repo secret). The browser key is passed to the web Cloud Run build as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` and restricted by HTTP referrer (the `*.run.app` web URL + `https://khanabazaar.rishimule.dev/*`); the server key is injected into the api service via `--set-secrets` and used server-side only.
 
 ## 8. Verify it works
 
