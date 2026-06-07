@@ -20,6 +20,8 @@ encrypted.data
 # Firebase / Secrets
 secrets/
 *firebase*.json
+# Hosting config (no secrets) — must be tracked:
+!firebase.json
 *-key.json
 
 # IDE
