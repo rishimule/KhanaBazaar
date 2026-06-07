@@ -154,7 +154,7 @@ Expected: `{"predictions":[{"place_id":"...","description":"Mumbai, Maharashtra,
 | `OVER_QUERY_LIMIT` | You've blown the daily quota (free tier is well above MVP needs) | Tighten cache TTLs (`GEO_AUTOCOMPLETE_CACHE_TTL_SECONDS`, `GEO_REVERSE_CACHE_TTL_SECONDS`); investigate runaway autocomplete on the FE; raise the quota cap in GCP if legitimate |
 | Autocomplete returns city/country results from outside India | The `components=country:in` filter is set in `core/google_maps.py`; if you removed it, Indian-only is no longer enforced | Don't remove the filter — KhanaBazaar is India-only |
 | The pin loads but reverse-geocode fails on every drag | Geocoding API not enabled OR not on the server key's restricted-API list | Re-check `APIs & Services → Library → Geocoding API` is enabled and the server key has it ticked |
-| 429 from `/api/v1/geo/*` for legitimate users | Per-IP rate limit exceeded (default 30/min) — typical when many users sit behind one NAT | Bump `GEO_RATE_LIMIT_PER_MIN` in backend `.env` (and Key Vault in prod) |
+| 429 from `/api/v1/geo/*` for legitimate users | Per-IP rate limit exceeded (default 30/min) — typical when many users sit behind one NAT | Bump `GEO_RATE_LIMIT_PER_MIN` in backend `.env` (and the Cloud Run env in prod) |
 
 ## 10. Cost & quota orientation
 
@@ -187,7 +187,7 @@ Belt-and-braces against runaway scripts:
 Rotate either key any time the value may have leaked (committed to a repo, screenshot, etc.).
 
 1. Create a **new** key with the same restrictions in GCP.
-2. Update the env var in `.env` (dev) or Key Vault (prod) and restart.
+2. Update the env var in `.env` (dev) or Secret Manager / the Cloud Run env (prod) and restart.
 3. Watch the API and FE logs for ~30 minutes — confirm no requests use the old key.
 4. **Delete** the old key entirely (do not just disable; deletion is irreversible and easier to reason about).
 
