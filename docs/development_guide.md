@@ -6,7 +6,7 @@ This code and its associated documentation cannot be copied, modified, or distri
 
 How we develop on Khana Bazaar day-to-day. Covers env config, Alembic, OTP auth, Celery, tests, lint/types, frontend conventions, and the gotchas that bite us most often.
 
-For one-time setup of Postgres / Redis / dependencies, see [`local_setup.md`](./local_setup.md). For deployment, see [`azure_deployment.md`](./azure_deployment.md). For Google Maps API keys (powering autocomplete + map pin + reverse geocoding), see [`google_maps_setup.md`](./google_maps_setup.md).
+For one-time setup of Postgres / Redis / dependencies, see [`local_setup.md`](./local_setup.md). For deployment, see [`gcp_deployment.md`](./gcp_deployment.md). For Google Maps API keys (powering autocomplete + map pin + reverse geocoding), see [`google_maps_setup.md`](./google_maps_setup.md).
 
 ---
 
@@ -60,7 +60,7 @@ Lives at `frontend/.env.local`. Template is `frontend/.env.example`.
 
 | Var | Default | Purpose |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `""` (empty) | Backend base URL. Used by `frontend/src/lib/api.ts` and `AuthContext.tsx`. Empty means relative paths — the Next.js dev server proxies `/api/v1/*` to `http://localhost:8000` via `rewrites()` in `next.config.ts`, which is what makes the ngrok mobile-test flow work without exposing the backend. In production, override with the absolute backend URL (Azure deploy inlines it at build time). |
+| `NEXT_PUBLIC_API_URL` | `""` (empty) | Backend base URL. Used by `frontend/src/lib/api.ts` and `AuthContext.tsx`. Empty means relative paths — the Next.js dev server proxies `/api/v1/*` to `http://localhost:8000` via `rewrites()` in `next.config.ts`, which is what makes the ngrok mobile-test flow work without exposing the backend. In production, the web service proxies `/api/v1` to the api via `INTERNAL_API_URL` baked into the `web` image at build time (see `gcp_deployment.md`). |
 
 Anything not prefixed with `NEXT_PUBLIC_` is server-only in Next.js 16 — clients won't see it.
 
@@ -392,7 +392,7 @@ Rules:
 
 ## 9. Common gotchas
 
-- **DSN must be `postgresql+asyncpg://`.** Azure Database for PostgreSQL exports a plain `postgresql://` host string and Heroku-style envs sometimes export `postgres://`; the validator rewrites both, but a hand-written `postgresql://` without rewriting still fails. Be explicit.
+- **DSN must be `postgresql+asyncpg://`.** Cloud SQL / managed Postgres providers export a plain `postgresql://` host string and Heroku-style envs sometimes export `postgres://`; the validator rewrites both, but a hand-written `postgresql://` without rewriting still fails. Be explicit.
 - **`Field(default=...)` vs `Field(default_factory=...)`.** Mutable defaults (lists, dicts, `datetime.now`) need `default_factory`. Using `default=[]` shares one list across every row.
 - **Multilingual catalog rows.** When you create a `Category` or `MasterProduct`, also create translation rows for at least `en`. Records without a translation in the active locale silently disappear from listing endpoints.
 - **New router not mounted.** Adding `app/api/foo.py` doesn't expose it — you must `include_router` in `app/api/__init__.py`. The list there is the authoritative route registry.

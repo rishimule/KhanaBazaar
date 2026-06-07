@@ -67,13 +67,7 @@ This is the powerful key. It must never reach the browser.
 6. **Application restrictions** → **IP addresses** → add the public IPs that your backend will call Google from:
 
    - **Local dev**: leave restriction at **None** for now (your laptop's IP changes). Tighten before you go to prod.
-   - **Production on Azure Container Apps**: add the Container App Environment's static outbound IPs. Find them with:
-     ```bash
-     az containerapp env show \
-        --name kb-prod-cae-cin --resource-group kb-prod-rg \
-        --query 'properties.staticIp' -o tsv
-     ```
-     Add that as a single IP (no CIDR mask needed). If you scale into multiple regions, repeat for each.
+   - **Production on Cloud Run**: the egress IP is dynamic, so for the MVP the server key is restricted by **API + quota** rather than IP. The "real launch" fix is a **Cloud NAT** static egress IP, then add that single IP here — see `gcp_deployment.md`.
    - **Self-hosted / VPS**: add the box's public IPv4.
 
 7. **Save**.
@@ -126,9 +120,9 @@ NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY="AIzaSy...your-browser-key..."
 
 `NEXT_PUBLIC_*` is baked in by `next build`. Change the key → rebuild the bundle (`npm run build`) → restart `npm run dev`.
 
-### Production (Azure)
+### Production (GCP)
 
-See `azure_deployment.md` §7.7 — both keys land in Azure Key Vault as `google-maps-server-api-key` and `google-maps-browser-api-key`. The browser key is passed to the web Container App as a build-time env var; the server key is mounted on the API + worker Container Apps via `secretRef`.
+Both keys live in GCP Secret Manager (`google-maps-server-key`, and the browser key as a GitHub repo secret). The browser key is passed to the web Cloud Run build as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` and restricted by HTTP referrer (the `*.run.app` web URL + `https://khanabazaar.rishimule.dev/*`); the server key is injected into the api service via `--set-secrets` and used server-side only.
 
 ## 8. Verify it works
 
@@ -160,7 +154,7 @@ Expected: `{"predictions":[{"place_id":"...","description":"Mumbai, Maharashtra,
 | `OVER_QUERY_LIMIT` | You've blown the daily quota (free tier is well above MVP needs) | Tighten cache TTLs (`GEO_AUTOCOMPLETE_CACHE_TTL_SECONDS`, `GEO_REVERSE_CACHE_TTL_SECONDS`); investigate runaway autocomplete on the FE; raise the quota cap in GCP if legitimate |
 | Autocomplete returns city/country results from outside India | The `components=country:in` filter is set in `core/google_maps.py`; if you removed it, Indian-only is no longer enforced | Don't remove the filter — KhanaBazaar is India-only |
 | The pin loads but reverse-geocode fails on every drag | Geocoding API not enabled OR not on the server key's restricted-API list | Re-check `APIs & Services → Library → Geocoding API` is enabled and the server key has it ticked |
-| 429 from `/api/v1/geo/*` for legitimate users | Per-IP rate limit exceeded (default 30/min) — typical when many users sit behind one NAT | Bump `GEO_RATE_LIMIT_PER_MIN` in backend `.env` (and Key Vault in prod) |
+| 429 from `/api/v1/geo/*` for legitimate users | Per-IP rate limit exceeded (default 30/min) — typical when many users sit behind one NAT | Bump `GEO_RATE_LIMIT_PER_MIN` in backend `.env` (and the Cloud Run env in prod) |
 
 ## 10. Cost & quota orientation
 
@@ -193,7 +187,7 @@ Belt-and-braces against runaway scripts:
 Rotate either key any time the value may have leaked (committed to a repo, screenshot, etc.).
 
 1. Create a **new** key with the same restrictions in GCP.
-2. Update the env var in `.env` (dev) or Key Vault (prod) and restart.
+2. Update the env var in `.env` (dev) or Secret Manager / the Cloud Run env (prod) and restart.
 3. Watch the API and FE logs for ~30 minutes — confirm no requests use the old key.
 4. **Delete** the old key entirely (do not just disable; deletion is irreversible and easier to reason about).
 

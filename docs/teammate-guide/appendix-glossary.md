@@ -32,7 +32,7 @@ Celery is a tool that runs tasks in the background — things like sending email
 
 ## Cluster
 
-A cluster is a group of servers working together as one unit, sharing the load and backing each other up so the app keeps running even if one server hiccups. The KhanaBazaar production deployment on Azure is a cluster — multiple machines running the same app, all coordinated, so shoppers never see downtime.
+A cluster is a group of servers working together as one unit, sharing the load and backing each other up so the app keeps running even if one server hiccups. The KhanaBazaar production deployment on Google Cloud spreads work across managed Cloud Run instances plus a background-services VM, all coordinated, so shoppers never see downtime.
 
 ## Commit
 
