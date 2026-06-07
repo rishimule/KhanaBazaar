@@ -36,18 +36,15 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 - [x] Connect Frontend interfaces with FastAPI endpoints.
 - [x] End-to-end testing of the complete order flow (simulated checkout).
 
-## Phase 5: Deployment & CI/CD (Azure)
-- [x] Author `infra/modules/meilisearch.bicep` (Meilisearch Container App + Azure Files share for `/meili_data`).
-- [ ] Write `Dockerfile` for `backend/app/` (api + worker share the image; beat reuses worker image with different entrypoint).
-- [ ] Write `Dockerfile` for `frontend/` and enable `output: "standalone"` in `next.config.ts`.
-- [ ] Author `infra/main.bicep` + `infra/main.parameters.json` + top-level `azure.yaml` (azd service map: api, worker, beat, web; references the committed Meilisearch module).
-- [ ] Author remaining Bicep modules: `network.bicep`, `container-env.bicep`, `acr.bicep`, `keyvault.bicep`, `postgres.bicep`, `redis.bicep`, `appinsights.bicep`, `container-app-{api,worker,beat,web}.bicep`, `migration-job.bicep`, `frontdoor.bicep`.
-- [ ] Provision Azure subscription + resource groups (`kb-prod-rg`, `kb-network-rg`) and bootstrap GitHub Actions OIDC federated credentials (push-to-main subject + `pull_request` subject).
-- [ ] First `azd up` against `centralindia`: ACA env + Postgres Flexible Server (B1ms, PostGIS extension) + Redis Basic C0 + ACR Basic + Key Vault + Log Analytics + App Insights.
-- [ ] Wire OpenTelemetry into `backend/app/src/app/__init__.py` (`azure-monitor-opentelemetry.configure_azure_monitor()` guarded on `APPLICATIONINSIGHTS_CONNECTION_STRING`).
-- [ ] Author `.github/workflows/deploy.yml` (lint + types + tests → `az acr build` → `containerapp job update + start` for migrations → `containerapp update` with `--revision-suffix` per service → smoke test).
-- [ ] Decide Front Door tier (Premium for managed WAF + Private Link to Container Apps, or Standard with app-layer `X-Azure-FDID` enforcement) and provision custom domain + managed TLS.
-- [ ] First production reindex: `uv run python -m app.search.reindex --all` from a one-shot Container Apps Job.
+## Phase 5: Deployment & CI/CD (GCP) — DONE / LIVE
+- [x] Backend + frontend Dockerfiles; `frontend` bakes `INTERNAL_API_URL` at build time.
+- [x] `deploy/gcp/bootstrap.sh` — APIs, Artifact Registry, VPC + firewall, Cloud SQL (PostGIS), Secret Manager, runtime + deployer service accounts, Workload Identity Federation.
+- [x] e2-small VM `kb-svc` (docker-compose: Celery worker+beat, Redis, Meilisearch, cloud-sql-proxy).
+- [x] Cloud Run `khanabazaar-web` + `khanabazaar-api` (always-warm, Direct VPC egress, Cloud SQL connector).
+- [x] `kb-migrate` Cloud Run Job — alembic migrate → idempotent seed → `python -m app.search.reindex --all`.
+- [x] CI/CD: `.github/workflows/deploy.yml` — merge to `main` builds + deploys api/web and restarts the worker on the VM (GitHub Actions + WIF).
+- [x] Custom domain `https://khanabazaar.rishimule.dev` via Firebase Hosting; billing budget alert at 20000 INR.
+- [ ] Real-launch hardening (post-MVP): switch to Resend + Twilio, set `ENVIRONMENT=production` (disables dev-mailbox), rotate secrets, Cloud NAT static egress IP for the Maps server key, wire OpenTelemetry / Cloud Trace in `backend/app/src/app/__init__.py`.
 
 ## Phase 6: Future Enhancements (Payments)
 - [ ] Integrate Razorpay (or other payment gateways) for UPI checkout intent flows.
