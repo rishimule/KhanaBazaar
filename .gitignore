@@ -55,3 +55,4 @@ htmlcov/
 # Agent scratch
 .agents/
 docs/superpowers/
+.playwright-mcp/
