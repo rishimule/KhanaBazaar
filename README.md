@@ -21,7 +21,7 @@ Search is powered by **Meilisearch** (products / stores / search terms indexes, 
 | Backend | FastAPI 0.135, Python 3.12, Uvicorn, SQLModel + Alembic, asyncpg |
 | Database | PostgreSQL 15 + PostGIS 3.4 (`postgis/postgis:15-3.4` locally) |
 | Cache / Broker | Redis 7, Celery 5.6 |
-| Search | Meilisearch v1.11 (Docker locally; Azure Container App in prod) |
+| Search | Meilisearch v1.11 (Docker locally; on the deploy VM in prod) |
 | Geo | Google Maps Platform (server-side proxy via `/api/v1/geo/*`) |
 | Auth | Self-hosted email-OTP + JWT (PyJWT HS256) |
 | Email | `console` (dev) / `resend` (prod, raw httpx) |
@@ -29,7 +29,7 @@ Search is powered by **Meilisearch** (products / stores / search terms indexes, 
 | Frontend | Next.js 16.1 (App Router), React 19.2, TypeScript 5, CSS Modules + design tokens |
 | PWA | `frontend/public/sw.js` + `manifest.json` |
 | Tooling | `uv` (backend), `npm` (frontend), Ruff + Mypy, ESLint 9, Pytest |
-| Deploy | Microsoft Azure (Container Apps + Postgres Flexible Server + Cache for Redis), provisioned via Bicep + `azd` |
+| Deploy | Google Cloud — Cloud Run (web+api) + Cloud SQL Postgres + e2-small VM (worker/Redis/Meilisearch) + Firebase Hosting; CI on merge to `main` (GitHub Actions + WIF) |
 
 ## Repo Layout
 
@@ -56,11 +56,10 @@ frontend/src/
                           format-address, localCart, remoteCart
   styles/                design-tokens.css, globals.css
   public/                icons/, manifest.json, sw.js
-docs/                    architecture, flows, local_setup, development_guide, azure_deployment,
+docs/                    architecture, flows, local_setup, development_guide, gcp_deployment,
                           seller_signup, google_maps_setup, price_comparison
 scripts/                 dev.sh, reset_local_state.sh, log_viewer.py
-infra/                   Bicep modules (only `modules/meilisearch.bicep` committed today;
-                          `main.bicep` + `azure.yaml` TBD — see `docs/azure_deployment.md`)
+deploy/gcp/              GCP deploy: bootstrap.sh, VM docker-compose, GitHub Actions workflow, runbook
 ```
 
 ## Prerequisites
@@ -244,7 +243,7 @@ npm run lint
 
 ## Deployment
 
-Microsoft Azure — Container Apps (api, worker, beat, meili, web) + Postgres Flexible Server + Cache for Redis, fronted by Azure Front Door (Premium). Infra is Bicep + `azd up`; CI/CD is GitHub Actions with OIDC. Today only `infra/modules/meilisearch.bicep` is committed; the rest of Phase 5 is target spec. See [`docs/azure_deployment.md`](docs/azure_deployment.md).
+Google Cloud — Cloud Run runs the **web** and **api** services (always-warm); a single **e2-small VM** runs the Celery worker+beat, Redis, Meilisearch, and a Cloud SQL proxy; **Cloud SQL** hosts Postgres 15 + PostGIS. Cloud Run reaches the VM over Direct VPC egress. Images live in Artifact Registry, secrets in Secret Manager. CI/CD is GitHub Actions (Workload Identity Federation) on merge to `main`. The app is also served at `https://khanabazaar.rishimule.dev` via Firebase Hosting. See [`docs/gcp_deployment.md`](docs/gcp_deployment.md) and the runbook [`deploy/gcp/README.md`](deploy/gcp/README.md).
 
 ## Documentation
 
@@ -255,7 +254,7 @@ Microsoft Azure — Container Apps (api, worker, beat, meili, web) + Postgres Fl
 - [Seller signup](docs/seller_signup.md) — wizard, 4-OTP email+phone chain, admin approval
 - [Google Maps setup](docs/google_maps_setup.md) — provisioning server + browser API keys, restrictions
 - [Price comparison](docs/price_comparison.md) — cross-store product comparison UX
-- [Azure deployment](docs/azure_deployment.md) — Container Apps, Postgres Flexible Server, Cache for Redis, Bicep + `azd`
+- [GCP deployment](docs/gcp_deployment.md) — Cloud Run + Cloud SQL + VM + Firebase Hosting; runbook in [deploy/gcp/README.md](deploy/gcp/README.md)
 - [Phase tracker](TODO.md)
 
 ## Contributing
