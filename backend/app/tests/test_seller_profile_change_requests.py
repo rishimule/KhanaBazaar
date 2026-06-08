@@ -75,6 +75,71 @@ async def test_create_cr_blocks_when_seller_not_approved(pending_seller, session
 
 
 @pytest.mark.asyncio
+async def test_create_cr_invalid_gst_returns_422(approved_seller, session):
+    from fastapi import HTTPException
+    profile = approved_seller["profile"]
+    with pytest.raises(HTTPException) as excinfo:
+        await create_change_request(
+            session=session,
+            seller_profile=profile,
+            group=SellerProfileChangeGroup.Legal,
+            proposed={"gst_number": "123", "fssai_license": ""},
+            note=None,
+            actor_user_id=approved_seller["user"].id,
+        )
+    assert excinfo.value.status_code == 422
+    assert excinfo.value.detail == "gst_number format invalid"
+
+
+@pytest.mark.asyncio
+async def test_create_cr_invalid_ifsc_returns_422(approved_seller, session):
+    from fastapi import HTTPException
+    profile = approved_seller["profile"]
+    with pytest.raises(HTTPException) as excinfo:
+        await create_change_request(
+            session=session,
+            seller_profile=profile,
+            group=SellerProfileChangeGroup.Banking,
+            proposed={"bank_account_number": "123456789012", "bank_ifsc": "bad"},
+            note=None,
+            actor_user_id=approved_seller["user"].id,
+        )
+    assert excinfo.value.status_code == 422
+    assert excinfo.value.detail == "bank_ifsc format invalid"
+
+
+@pytest.mark.asyncio
+async def test_resubmit_invalid_payload_returns_422(approved_seller, session, admin_user):
+    from fastapi import HTTPException
+
+    from app.services.seller_profile_change_requests import (
+        request_changes,
+        resubmit,
+    )
+    profile = approved_seller["profile"]
+    create = await create_change_request(
+        session=session, seller_profile=profile,
+        group=SellerProfileChangeGroup.Banking,
+        proposed={"bank_account_number": "123456789012", "bank_ifsc": "HDFC0001234"},
+        note=None, actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+    await request_changes(
+        session=session, cr=create.cr,
+        admin_user_id=admin_user.id, note="fix ifsc",
+    )
+    await session.commit()
+    with pytest.raises(HTTPException) as excinfo:
+        await resubmit(
+            session=session, cr=create.cr, seller_profile=profile,
+            proposed={"bank_account_number": "12", "bank_ifsc": "HDFC0001234"},
+            note="bad", actor_user_id=approved_seller["user"].id,
+        )
+    assert excinfo.value.status_code == 422
+    assert excinfo.value.detail == "bank_account_number format invalid"
+
+
+@pytest.mark.asyncio
 async def test_create_cr_duplicate_group_blocks(approved_seller, session):
     from fastapi import HTTPException
     profile = approved_seller["profile"]
