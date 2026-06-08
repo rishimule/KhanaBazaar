@@ -60,6 +60,7 @@
 }
 .addBtn {
   flex-shrink: 0;
+  text-decoration: none;
   width: 32px;
   height: 32px;
   border-radius: 50%;
