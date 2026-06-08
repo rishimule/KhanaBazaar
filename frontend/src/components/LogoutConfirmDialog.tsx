@@ -51,6 +51,11 @@ export default function LogoutConfirmDialog({ onClose, onRedirect }: Props) {
     timerRef.current = setTimeout(() => {
       onRedirect();
       logout();
+      // Explicitly dismiss — do NOT rely on the navigation to unmount us. When
+      // the redirect target is the current route (e.g. a customer logging out
+      // from "/"), router.push is a no-op and the dialog would otherwise stay
+      // mounted, leaving the farewell overlay stuck on screen.
+      onClose();
     }, FAREWELL_HOLD_MS);
   };
 
