@@ -152,7 +152,7 @@ CREATE TABLE "sellerprofile_service" (
   "seller_profile_id" INTEGER NOT NULL,
   "service_id" INTEGER NOT NULL,
   "free_delivery_threshold" DOUBLE PRECISION NOT NULL DEFAULT 0,
-  "delivery_fee" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "delivery_fee" DOUBLE PRECISION NOT NULL,
   "delivery_eta_min_minutes" INTEGER NOT NULL,
   "delivery_eta_max_minutes" INTEGER NOT NULL,
   -- Per-service pause (holiday mode); app-level model default governs new rows.

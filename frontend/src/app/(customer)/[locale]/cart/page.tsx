@@ -356,6 +356,12 @@ export default function CartPage() {
                     <span className={styles.storeSubtotalValue}>
                       {t("subtotal", { value: subtotal })}
                     </span>
+                    {subtotal < (cart.free_delivery_threshold ?? 0) &&
+                      (cart.delivery_fee ?? 0) > 0 && (
+                        <span className={styles.storeSubtotalValue}>
+                          {t("deliveryFee")}: ₹{(cart.delivery_fee ?? 0).toFixed(2)}
+                        </span>
+                      )}
                     {renderCheckoutCta(
                       cart.store_id,
                       cart.service_id,
