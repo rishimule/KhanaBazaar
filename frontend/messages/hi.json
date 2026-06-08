@@ -1044,10 +1044,7 @@
       "yes": "हाँ",
       "no": "नहीं",
       "minOrderCaption": "इस राशि से कम के ऑर्डर उस सेवा के लिए नहीं दिए जा सकते। कोई न्यूनतम न रखने के लिए 0 सेट करें।",
-      "minOrderInputLabel": "{service} के लिए न्यूनतम ऑर्डर मूल्य",
-      "profileServices": "प्रोफ़ाइल और सेवाएँ",
-      "editProfile": "व्यावसायिक प्रोफ़ाइल संपादित करें",
-      "viewStorefront": "स्टोरफ्रंट देखें"
+      "minOrderInputLabel": "{service} के लिए न्यूनतम ऑर्डर मूल्य"
     },
     "profile": {
       "heading": "प्रोफाइल",

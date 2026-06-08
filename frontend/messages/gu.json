@@ -1044,10 +1044,7 @@
       "yes": "હા",
       "no": "ના",
       "minOrderCaption": "આ રકમથી ઓછા ઓર્ડર તે સેવા માટે મૂકી શકાશે નહીં. કોઈ ન્યૂનતમ ન રાખવા માટે 0 સેટ કરો.",
-      "minOrderInputLabel": "{service} માટે ન્યૂનતમ ઓર્ડર મૂલ્ય",
-      "profileServices": "પ્રોફાઇલ અને સેવાઓ",
-      "editProfile": "બિઝનેસ પ્રોફાઇલ સંપાદિત કરો",
-      "viewStorefront": "સ્ટોરફ્રન્ટ જુઓ"
+      "minOrderInputLabel": "{service} માટે ન્યૂનતમ ઓર્ડર મૂલ્ય"
     },
     "profile": {
       "heading": "પ્રોફાઇલ",

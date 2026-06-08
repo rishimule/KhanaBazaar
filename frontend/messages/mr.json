@@ -1044,10 +1044,7 @@
       "yes": "होय",
       "no": "नाही",
       "minOrderCaption": "या रकमेपेक्षा कमी ऑर्डर त्या सेवेसाठी देता येणार नाहीत. किमान नको असल्यास 0 सेट करा.",
-      "minOrderInputLabel": "{service} साठी किमान ऑर्डर मूल्य",
-      "profileServices": "प्रोफाइल आणि सेवा",
-      "editProfile": "व्यवसाय प्रोफाइल संपादित करा",
-      "viewStorefront": "स्टोअरफ्रंट पहा"
+      "minOrderInputLabel": "{service} साठी किमान ऑर्डर मूल्य"
     },
     "profile": {
       "heading": "प्रोफाइल",
