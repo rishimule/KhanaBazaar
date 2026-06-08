@@ -12,6 +12,8 @@ import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import { SearchBar } from "@/components/search/SearchBar";
 import NotificationBell from "@/components/NotificationBell";
 import LocaleSwitcher from "./LocaleSwitcher";
+import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
+import { useLogoutConfirm } from "@/lib/useLogoutConfirm";
 import styles from "./NavbarTopBar.module.css";
 
 function PinIcon() {
@@ -51,9 +53,11 @@ export default function NavbarTopBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { cartCount } = useCart();
-  const { dbUser, loading, logout } = useAuth();
+  const { dbUser, loading } = useAuth();
   const { location } = useDeliveryLocation();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { open: logoutOpen, openDialog: openLogout, closeDialog: closeLogout } =
+    useLogoutConfirm();
 
   const role = dbUser?.role ?? null;
 
@@ -66,11 +70,6 @@ export default function NavbarTopBar() {
     navLinks.push({ href: "/stores", label: t("stores") });
   }
   if (role === "customer") navLinks.push({ href: "/account/orders", label: t("orders") });
-
-  const handleLogout = async () => {
-    await logout();
-    router.push("/");
-  };
 
   return (
     <div className={styles.inner}>
@@ -140,7 +139,7 @@ export default function NavbarTopBar() {
             <button
               type="button"
               className={styles.authBtn}
-              onClick={handleLogout}
+              onClick={openLogout}
               title={t("logoutTitleSignedIn", {
                 who: dbUser.email ?? dbUser.full_name ?? t("drawerUserFallback"),
               })}
@@ -159,6 +158,10 @@ export default function NavbarTopBar() {
       </div>
 
       <DeliveryLocationPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
+
+      {logoutOpen && (
+        <LogoutConfirmDialog onClose={closeLogout} onRedirect={() => router.push("/")} />
+      )}
     </div>
   );
 }
