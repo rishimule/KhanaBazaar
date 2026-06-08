@@ -58,6 +58,16 @@ export function ProductMiniCard({
             🛒
           </div>
         )}
+      </div>
+      <div className={styles.name}>{name}</div>
+      {brand && <div className={styles.brand}>{brand}</div>}
+      <div className={styles.priceRow}>
+        <span className={styles.price}>
+          ₹{minPrice.toFixed(0)}
+          {maxPrice !== minPrice && (
+            <span className={styles.range}> – ₹{maxPrice.toFixed(0)}</span>
+          )}
+        </span>
         {canShop && (
           <button
             type="button"
@@ -68,14 +78,6 @@ export function ProductMiniCard({
           >
             +
           </button>
-        )}
-      </div>
-      <div className={styles.name}>{name}</div>
-      {brand && <div className={styles.brand}>{brand}</div>}
-      <div className={styles.price}>
-        ₹{minPrice.toFixed(0)}
-        {maxPrice !== minPrice && (
-          <span className={styles.range}> – ₹{maxPrice.toFixed(0)}</span>
         )}
       </div>
       {!inStock && <div className={styles.badge}>{outOfStockLabel}</div>}

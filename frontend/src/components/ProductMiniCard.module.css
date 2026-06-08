@@ -19,9 +19,6 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 .imageWrap {
-  /* Must NOT get z-index/transform/opacity/filter: any of those make this a
-     stacking context and would trap .addBtn (z-index:2) below the .stretched
-     link overlay (z-index:1), making the "+" unclickable. */
   position: relative;
   width: 100%;
   aspect-ratio: 1;
@@ -48,6 +45,12 @@
   font-size: 0.8rem;
   color: var(--color-muted, #6b7280);
 }
+.priceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
 .price {
   font-weight: 600;
 }
@@ -69,10 +72,11 @@
   z-index: 1;
 }
 .addBtn {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
+  /* In-flow beside the price. position:relative + z-index lifts it above the
+     .stretched link overlay (z-index:1) so the "+" stays clickable. */
+  position: relative;
   z-index: 2;
+  flex-shrink: 0;
   width: 32px;
   height: 32px;
   border-radius: 50%;
