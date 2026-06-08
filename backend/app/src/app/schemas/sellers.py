@@ -103,15 +103,16 @@ class AdminSetServicesBody(BaseModel):
     service_ids: list[int] = Field(min_length=1)
 
 
-class SetServiceMinOrderValueBody(BaseModel):
-    min_order_value: float = Field(ge=0, le=100000)
+class SetServiceDeliverySettingsBody(BaseModel):
+    free_delivery_threshold: float = Field(ge=0, le=100000)
+    delivery_fee: float = Field(ge=0, le=5000)
     # ETA is an optional partial update: omit both to leave the window
     # untouched, or send both to set it. Sending exactly one is rejected.
     delivery_eta_min_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
     delivery_eta_max_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
 
     @model_validator(mode="after")
-    def _check_window(self) -> "SetServiceMinOrderValueBody":
+    def _check_window(self) -> "SetServiceDeliverySettingsBody":
         low, high = self.delivery_eta_min_minutes, self.delivery_eta_max_minutes
         if (low is None) != (high is None):
             raise ValueError("delivery_eta_min_minutes and delivery_eta_max_minutes must be set together")

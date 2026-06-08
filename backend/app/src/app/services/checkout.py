@@ -26,9 +26,8 @@ from app.schemas.address import address_to_payload
 from app.services.inventory import decrement_stock, lock_inventory_rows
 from app.utils.address import format_address
 
-# MVP pricing constants. When per-store fees and GST plug in, edit here so
-# every Order row built from this service stays in sync.
-MVP_DELIVERY_FEE = 0.0
+# MVP pricing constant. Delivery fee is now per-(store, service) — computed by
+# `_compute_delivery_fee`. Tax stays 0 until GST plugs in.
 MVP_TAX = 0.0
 
 
@@ -159,17 +158,20 @@ async def _validate_service_active_for_store(
         )
 
 
-async def _assert_meets_minimum_order_value(
+async def _compute_delivery_fee(
     session: AsyncSession, store_id: int, service_id: int, subtotal: float
-) -> None:
-    """Raise 409 below_minimum_order_value if `subtotal` is under the seller's
-    configured minimum for this (store, service). A minimum of 0 means no
-    minimum is enforced."""
+) -> float:
+    """Flat delivery fee for this (store, service): the seller's `delivery_fee`
+    when `subtotal` is under their `free_delivery_threshold` (and the fee is
+    positive), else 0. No configured row (or no threshold) means free."""
     from app.models.profile import SellerProfile, SellerProfileService
 
-    minimum = (
+    row = (
         await session.exec(
-            select(SellerProfileService.min_order_value)
+            select(
+                SellerProfileService.free_delivery_threshold,
+                SellerProfileService.delivery_fee,
+            )
             .join(
                 SellerProfile,
                 SellerProfile.id == SellerProfileService.seller_profile_id,  # type: ignore[arg-type]
@@ -181,17 +183,12 @@ async def _assert_meets_minimum_order_value(
             )
         )
     ).first()
-    if minimum and subtotal < minimum:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "detail": "below_minimum_order_value",
-                "service_id": service_id,
-                "min_order_value": minimum,
-                "subtotal": subtotal,
-                "shortfall": round(minimum - subtotal, 2),
-            },
-        )
+    if row is None:
+        return 0.0
+    threshold, fee = row
+    if fee > 0 and subtotal < threshold:
+        return float(fee)
+    return 0.0
 
 
 async def _assert_locked_inventory_matches_service(
@@ -278,11 +275,12 @@ def _build_order_for_cart(
     payment_method: PaymentMethod,
     service_id: int, service_name_snapshot: str,
     delivery_eta_min_minutes: int, delivery_eta_max_minutes: int,
+    delivery_fee: float,
 ) -> tuple[Order, list[OrderItem], Payment, Delivery]:
     """Pure builder. Returns the rows to add and computes the line decrements
     via inv_by_id. Caller does session.add + decrement_stock."""
     subtotal = sum(inv_by_id[i.inventory_id].price * i.quantity for i in items)
-    total = subtotal + MVP_DELIVERY_FEE + MVP_TAX
+    total = subtotal + delivery_fee + MVP_TAX
     order = Order(
         customer_profile_id=profile_id,
         store_id=cart.store_id,
@@ -294,7 +292,7 @@ def _build_order_for_cart(
         delivery_address_snapshot=address_snapshot,
         status=OrderStatus.Pending,
         subtotal=subtotal,
-        delivery_fee=MVP_DELIVERY_FEE,
+        delivery_fee=delivery_fee,
         tax=MVP_TAX,
         total=total,
     )
@@ -451,7 +449,7 @@ async def place_order_for_sub_basket(
     await _assert_locked_inventory_matches_service(session, inv_ids, service_id)
 
     subtotal = sum(inv_by_id[i.inventory_id].price * i.quantity for i in cart_items)
-    await _assert_meets_minimum_order_value(session, store_id, service_id, subtotal)
+    delivery_fee = await _compute_delivery_fee(session, store_id, service_id, subtotal)
 
     name_by_inv = await _snapshot_product_names(session, inv_ids)
     service_name_snapshot = await _snapshot_service_name(session, service_id)
@@ -464,6 +462,7 @@ async def place_order_for_sub_basket(
         payment_method=payment_method,
         service_id=service_id, service_name_snapshot=service_name_snapshot,
         delivery_eta_min_minutes=eta_min, delivery_eta_max_minutes=eta_max,
+        delivery_fee=delivery_fee,
     )
     session.add(order)
     await session.flush()

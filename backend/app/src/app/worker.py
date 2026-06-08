@@ -278,6 +278,8 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                 return {
                     "order_id": order.id,
                     "order_total": order.total,
+                    "subtotal": order.subtotal,
+                    "delivery_fee": order.delivery_fee,
                     "order_status": order.status.value,
                     "service_name": order.service_name_snapshot,
                     "delivery_eta": format_delivery_eta(
@@ -331,6 +333,8 @@ def send_order_placed_seller_async(order_id: int) -> None:
             "store_name": ctx.get("store_name") or "your store",
             "items": ctx.get("items", []),
             "order_total": ctx["order_total"],
+            "subtotal": ctx["subtotal"],
+            "delivery_fee": ctx["delivery_fee"],
         },
         lang=ctx.get("seller_lang") or "en",
     )
@@ -380,6 +384,8 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
                 "store_name": ctx.get("store_name") or "a store",
                 "line_items": ctx.get("items", []),
                 "order_total": ctx["order_total"],
+                "subtotal": ctx["subtotal"],
+                "delivery_fee": ctx["delivery_fee"],
                 "delivery_eta": ctx.get("delivery_eta"),
             }
         )

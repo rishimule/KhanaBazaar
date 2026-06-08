@@ -41,8 +41,10 @@ export default function CartRail({ storeId, serviceId }: Props) {
   const items = cart?.items ?? [];
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const totalQty = items.reduce((n, i) => n + i.quantity, 0);
-  const minOrderValue = cart?.min_order_value ?? 0;
-  const shortfall = Math.max(0, minOrderValue - subtotal);
+  const freeDeliveryThreshold = cart?.free_delivery_threshold ?? 0;
+  const baseFee = cart?.delivery_fee ?? 0;
+  const shortfall = Math.max(0, freeDeliveryThreshold - subtotal);
+  const feeApplies = baseFee > 0 && shortfall > 0;
 
   const onCheckout = () => {
     const target =
@@ -91,17 +93,19 @@ export default function CartRail({ storeId, serviceId }: Props) {
               <span>{t("railSubtotalLabel")}</span>
               <span>₹{subtotal.toFixed(2)}</span>
             </div>
+            {feeApplies && (
+              <div className={styles.sub}>
+                <span>{t("deliveryFee")}</span>
+                <span>₹{baseFee.toFixed(2)}</span>
+              </div>
+            )}
             <div className={styles.eta}>{t("railEta")}</div>
-            {shortfall > 0 && (
+            {feeApplies && (
               <div className={styles.shortfall} role="status">
                 {t("railShortfall", { amount: shortfall.toFixed(2) })}
               </div>
             )}
-            <button
-              className={styles.checkout}
-              onClick={onCheckout}
-              disabled={shortfall > 0}
-            >
+            <button className={styles.checkout} onClick={onCheckout}>
               {t("railCheckout")}
             </button>
           </div>

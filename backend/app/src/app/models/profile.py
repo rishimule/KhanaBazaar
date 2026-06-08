@@ -104,7 +104,8 @@ class SellerProfileService(BaseSchema, table=True):
     service_id: int = Field(
         foreign_key="service.id", nullable=False, index=True
     )
-    min_order_value: float = Field(default=0.0, nullable=False)
+    free_delivery_threshold: float = Field(default=0.0, nullable=False)
+    delivery_fee: float = Field(default=0.0, nullable=False)
     delivery_eta_min_minutes: int = Field(default=30, nullable=False)
     delivery_eta_max_minutes: int = Field(default=60, nullable=False)
     is_paused: bool = Field(default=False, nullable=False)

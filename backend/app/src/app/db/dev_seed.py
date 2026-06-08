@@ -1808,6 +1808,8 @@ async def _upsert_seller_profile_services(
             SellerProfileService(
                 seller_profile_id=profile.id,
                 service_id=service_id,
+                free_delivery_threshold=199.0,
+                delivery_fee=10.0,
                 delivery_eta_min_minutes=eta_min,
                 delivery_eta_max_minutes=eta_max,
             )
@@ -1817,6 +1819,8 @@ async def _upsert_seller_profile_services(
             await session.delete(row)
         else:
             eta_min, eta_max = eta_by_service_id[service_id]
+            row.free_delivery_threshold = 199.0
+            row.delivery_fee = 10.0
             row.delivery_eta_min_minutes = eta_min
             row.delivery_eta_max_minutes = eta_max
             session.add(row)

@@ -45,7 +45,7 @@ from app.schemas.sellers import (
     SellerMetricsRead,
     SellerProfilePayload,
     SellerProfileUpdateBody,
-    SetServiceMinOrderValueBody,
+    SetServiceDeliverySettingsBody,
     TopSubcategory,
 )
 from app.schemas.services import ServicePayload
@@ -530,9 +530,9 @@ async def update_seller_profile(
 
 
 @router.patch("/me/services/{service_id}", response_model=ServicePayload)
-async def set_my_service_min_order_value(
+async def set_my_service_delivery_settings(
     service_id: int,
-    body: SetServiceMinOrderValueBody,
+    body: SetServiceDeliverySettingsBody,
     current_user: User = Depends(get_current_seller),
     session: AsyncSession = Depends(get_db_session),
 ) -> ServicePayload:
@@ -552,7 +552,8 @@ async def set_my_service_min_order_value(
     )).first()
     if row is None:
         raise HTTPException(status_code=404, detail="Service not offered by this seller")
-    row.min_order_value = body.min_order_value
+    row.free_delivery_threshold = body.free_delivery_threshold
+    row.delivery_fee = body.delivery_fee
     if body.delivery_eta_min_minutes is not None and body.delivery_eta_max_minutes is not None:
         row.delivery_eta_min_minutes = body.delivery_eta_min_minutes
         row.delivery_eta_max_minutes = body.delivery_eta_max_minutes
@@ -902,10 +903,10 @@ async def admin_set_services(
 
 
 @router.patch("/admin/{seller_id}/services/{service_id}", response_model=ServicePayload)
-async def admin_set_service_min_order_value(
+async def admin_set_service_delivery_settings(
     seller_id: int,
     service_id: int,
-    body: SetServiceMinOrderValueBody,
+    body: SetServiceDeliverySettingsBody,
     current_user: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> ServicePayload:
@@ -926,7 +927,7 @@ async def admin_set_service_min_order_value(
         seller_profile_id=profile_id,
         group=SellerProfileChangeGroup.Services,
         admin_user_id=current_user.id,
-        action_name="admin_set_service_min_order_value",
+        action_name="admin_set_service_delivery_settings",
     )
     row = (await session.exec(
         select(SellerProfileService).where(
@@ -937,11 +938,13 @@ async def admin_set_service_min_order_value(
     if row is None:
         raise HTTPException(status_code=404, detail="Service not offered by this seller")
     before = {
-        "min_order_value": row.min_order_value,
+        "free_delivery_threshold": row.free_delivery_threshold,
+        "delivery_fee": row.delivery_fee,
         "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
         "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
     }
-    row.min_order_value = body.min_order_value
+    row.free_delivery_threshold = body.free_delivery_threshold
+    row.delivery_fee = body.delivery_fee
     if body.delivery_eta_min_minutes is not None and body.delivery_eta_max_minutes is not None:
         row.delivery_eta_min_minutes = body.delivery_eta_min_minutes
         row.delivery_eta_max_minutes = body.delivery_eta_max_minutes
@@ -952,11 +955,12 @@ async def admin_set_service_min_order_value(
         target_seller_id=profile_id,
         target_type=AdminActionTargetType.SellerProfile,
         target_id=profile_id,
-        action="service.set_min_order_value",
+        action="service.set_delivery_settings",
         before_json={"service_id": service_id, **before},
         after_json={
             "service_id": service_id,
-            "min_order_value": body.min_order_value,
+            "free_delivery_threshold": body.free_delivery_threshold,
+            "delivery_fee": body.delivery_fee,
             "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
             "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
         },

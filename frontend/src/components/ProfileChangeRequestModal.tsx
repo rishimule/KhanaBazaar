@@ -39,7 +39,8 @@ interface ServiceRow {
   service_id: number;
   name: string;
   selected: boolean;
-  min_order_value: string;
+  free_delivery_threshold: string;
+  delivery_fee: string;
   delivery_eta_min_minutes: string;
   delivery_eta_max_minutes: string;
 }
@@ -147,14 +148,15 @@ export default function ProfileChangeRequestModal({
     setServicesLoading(true);
     const subscribed = new Map<
       number,
-      { min: string; etaMin: string; etaMax: string }
+      { min: string; fee: string; etaMin: string; etaMax: string }
     >();
     const subRaw = currentValues["services"];
     if (Array.isArray(subRaw)) {
       for (const row of subRaw) {
         const r = row as Record<string, unknown>;
         subscribed.set(Number(r["service_id"]), {
-          min: String(r["min_order_value"] ?? "0"),
+          min: String(r["free_delivery_threshold"] ?? r["min_order_value"] ?? "0"),
+          fee: String(r["delivery_fee"] ?? "0"),
           etaMin: String(r["delivery_eta_min_minutes"] ?? "30"),
           etaMax: String(r["delivery_eta_max_minutes"] ?? "60"),
         });
@@ -172,7 +174,8 @@ export default function ProfileChangeRequestModal({
                 service_id: s.id,
                 name: s.name,
                 selected: subscribed.has(s.id),
-                min_order_value: sub?.min ?? "0",
+                free_delivery_threshold: sub?.min ?? "0",
+                delivery_fee: sub?.fee ?? "0",
                 delivery_eta_min_minutes: sub?.etaMin ?? "30",
                 delivery_eta_max_minutes: sub?.etaMax ?? "60",
               };
@@ -302,8 +305,9 @@ export default function ProfileChangeRequestModal({
           .filter((s) => s.selected)
           .map((s) => ({
             service_id: s.service_id,
-            min_order_value:
-              s.min_order_value === "" ? 0 : Number(s.min_order_value),
+            free_delivery_threshold:
+              s.free_delivery_threshold === "" ? 0 : Number(s.free_delivery_threshold),
+            delivery_fee: s.delivery_fee === "" ? 0 : Number(s.delivery_fee),
             delivery_eta_min_minutes:
               s.delivery_eta_min_minutes === "" ? 30 : Number(s.delivery_eta_min_minutes),
             delivery_eta_max_minutes:
@@ -406,18 +410,37 @@ export default function ProfileChangeRequestModal({
                 {row.selected && (
                   <>
                     <label className={styles.subField}>
-                      <span>Minimum order value (₹)</span>
+                      <span>Free delivery above (₹)</span>
                       <input
                         type="number"
                         min={0}
                         max={100000}
                         step={10}
-                        value={row.min_order_value}
+                        value={row.free_delivery_threshold}
                         onChange={(e) =>
                           setServices((rows) =>
                             rows.map((r, i) =>
                               i === idx
-                                ? { ...r, min_order_value: e.target.value }
+                                ? { ...r, free_delivery_threshold: e.target.value }
+                                : r,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.subField}>
+                      <span>Delivery fee (₹)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={5000}
+                        step={5}
+                        value={row.delivery_fee}
+                        onChange={(e) =>
+                          setServices((rows) =>
+                            rows.map((r, i) =>
+                              i === idx
+                                ? { ...r, delivery_fee: e.target.value }
                                 : r,
                             ),
                           )

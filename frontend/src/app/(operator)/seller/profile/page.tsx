@@ -76,7 +76,8 @@ function buildCurrentValues(
         services: profile.services.map((s) => ({
           service_id: s.id,
           name: s.name,
-          min_order_value: s.min_order_value ?? 0,
+          free_delivery_threshold: s.free_delivery_threshold ?? 0,
+          delivery_fee: s.delivery_fee ?? 0,
           delivery_eta_min_minutes: s.delivery_eta_min_minutes ?? 30,
           delivery_eta_max_minutes: s.delivery_eta_max_minutes ?? 60,
         })),
@@ -215,7 +216,8 @@ export default function SellerProfilePage() {
   const persistService = (
     serviceId: number,
     body: {
-      min_order_value: number;
+      free_delivery_threshold: number;
+      delivery_fee: number;
       delivery_eta_min_minutes: number;
       delivery_eta_max_minutes: number;
     },
@@ -265,7 +267,8 @@ export default function SellerProfilePage() {
           return;
         }
         persistService(serviceId, {
-          min_order_value: svc.min_order_value ?? 0,
+          free_delivery_threshold: svc.free_delivery_threshold ?? 0,
+          delivery_fee: svc.delivery_fee ?? 0,
           delivery_eta_min_minutes: etaMin,
           delivery_eta_max_minutes: etaMax,
         });
@@ -273,14 +276,29 @@ export default function SellerProfilePage() {
     }, 400);
   };
 
-  const updateMin = (serviceId: number, raw: number) => {
+  const updateThreshold = (serviceId: number, raw: number) => {
     const value = Number.isFinite(raw) ? Math.max(0, Math.min(100000, raw)) : 0;
     setProfile((prev) =>
       prev
         ? {
             ...prev,
             services: prev.services.map((s) =>
-              s.id === serviceId ? { ...s, min_order_value: value } : s,
+              s.id === serviceId ? { ...s, free_delivery_threshold: value } : s,
+            ),
+          }
+        : prev,
+    );
+    schedulePersist(serviceId);
+  };
+
+  const updateFee = (serviceId: number, raw: number) => {
+    const value = Number.isFinite(raw) ? Math.max(0, Math.min(5000, raw)) : 0;
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            services: prev.services.map((s) =>
+              s.id === serviceId ? { ...s, delivery_fee: value } : s,
             ),
           }
         : prev,
@@ -550,11 +568,28 @@ export default function SellerProfilePage() {
                       min={0}
                       max={100000}
                       step={10}
-                      value={svc.min_order_value ?? 0}
+                      value={svc.free_delivery_threshold ?? 0}
                       onChange={(e) =>
-                        updateMin(svc.id, parseFloat(e.target.value))
+                        updateThreshold(svc.id, parseFloat(e.target.value))
                       }
-                      aria-label={tSettings("minOrderInputLabel", {
+                      aria-label={tSettings("freeDeliveryThresholdInputLabel", {
+                        service: svc.name,
+                      })}
+                      readOnly={isApproved}
+                      disabled={isApproved}
+                    />
+                    <span className={styles.unit}>Fee ₹</span>
+                    <input
+                      type="number"
+                      className={styles.radiusInput}
+                      min={0}
+                      max={5000}
+                      step={5}
+                      value={svc.delivery_fee ?? 0}
+                      onChange={(e) =>
+                        updateFee(svc.id, parseFloat(e.target.value))
+                      }
+                      aria-label={tSettings("deliveryFeeInputLabel", {
                         service: svc.name,
                       })}
                       readOnly={isApproved}

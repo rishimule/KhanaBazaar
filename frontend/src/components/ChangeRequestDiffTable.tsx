@@ -78,7 +78,9 @@ function maskAccount(n: string): string {
 
 interface ServiceEntry {
   service_id: number;
-  min_order_value: number;
+  free_delivery_threshold?: number;
+  delivery_fee?: number;
+  min_order_value?: number; // legacy in-flight CRs (pre-rename)
   delivery_eta_min_minutes?: number;
   delivery_eta_max_minutes?: number;
 }
@@ -108,7 +110,7 @@ function renderServiceChips(
           <li key={r.service_id} className={styles.chip}>
             <span className={styles.chipName}>{name}</span>
             <span className={styles.chipMeta}>
-              min ₹{Math.round(r.min_order_value)}
+              free delivery ≥ ₹{Math.round(r.free_delivery_threshold ?? r.min_order_value ?? 0)} · fee ₹{Math.round(r.delivery_fee ?? 0)}
               {r.delivery_eta_min_minutes != null &&
                 r.delivery_eta_max_minutes != null &&
                 ` · ETA ${formatDeliveryEta(r.delivery_eta_min_minutes, r.delivery_eta_max_minutes)}`}

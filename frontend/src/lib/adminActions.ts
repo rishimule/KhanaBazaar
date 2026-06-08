@@ -21,17 +21,19 @@ export function fetchSellerHub(sellerId: number, token: string) {
   return get<SellerHubSummary>(`/api/v1/admin/sellers/${sellerId}`, token);
 }
 
-export function adminSetServiceMinOrderValue(
+export function adminSetServiceDeliverySettings(
   sellerId: number,
   serviceId: number,
-  minOrderValue: number,
+  freeDeliveryThreshold: number,
+  deliveryFee: number,
   token: string,
   deliveryEta?: { min: number; max: number },
 ) {
   return patch<Service>(
     `/api/v1/sellers/admin/${sellerId}/services/${serviceId}`,
     {
-      min_order_value: minOrderValue,
+      free_delivery_threshold: freeDeliveryThreshold,
+      delivery_fee: deliveryFee,
       ...(deliveryEta
         ? {
             delivery_eta_min_minutes: deliveryEta.min,

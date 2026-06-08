@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `ab1154a400fe`. Regenerate this file when the head changes.
+-- migration head `354c7943ff95`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
@@ -151,7 +151,8 @@ CREATE TABLE "sellerprofile_service" (
   "updated_at" TIMESTAMPTZ NOT NULL,
   "seller_profile_id" INTEGER NOT NULL,
   "service_id" INTEGER NOT NULL,
-  "min_order_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "free_delivery_threshold" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "delivery_fee" DOUBLE PRECISION NOT NULL,
   "delivery_eta_min_minutes" INTEGER NOT NULL,
   "delivery_eta_max_minutes" INTEGER NOT NULL,
   -- Per-service pause (holiday mode); app-level model default governs new rows.
@@ -684,7 +685,7 @@ COMMENT ON TABLE "notification" IS
   'In-app notification feed (navbar bell), customers only. type=OrderStatus today; status_value holds the order status string. Push fan-out is best-effort and never blocks the order path.';
 
 COMMENT ON TABLE "sellerprofile_service" IS
-  'M:N junction: seller offers one or more services. Carries per-service config: min_order_value, delivery ETA window, and pause (holiday mode). Replaces the dropped sellerprofile.business_category column.';
+  'M:N junction: seller offers one or more services. Carries per-service config: free_delivery_threshold + delivery_fee (flat fee charged below the threshold), delivery ETA window, and pause (holiday mode). Replaces the dropped sellerprofile.business_category column.';
 
 COMMENT ON TABLE "store" IS
   'pin_confirmed=false until seller confirms the map pin. delivery_radius_km gates serviceability (PostGIS ST_DWithin). is_paused/pause_reason/paused_until drive store-wide holiday mode.';

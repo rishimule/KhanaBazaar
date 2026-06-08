@@ -81,11 +81,12 @@ async def list_profile_services_for_many(
         return {}
     deduped = list(dict.fromkeys(seller_profile_ids))
     stmt = (
-        select(
+        select(  # type: ignore[call-overload]
             SellerProfileService.seller_profile_id,
             Service,
             ServiceTranslation,
-            SellerProfileService.min_order_value,
+            SellerProfileService.free_delivery_threshold,
+            SellerProfileService.delivery_fee,
             SellerProfileService.delivery_eta_min_minutes,
             SellerProfileService.delivery_eta_max_minutes,
             SellerProfileService.is_paused,
@@ -114,7 +115,8 @@ async def list_profile_services_for_many(
         profile_id,
         service,
         translation,
-        min_order_value,
+        free_delivery_threshold,
+        delivery_fee,
         eta_min,
         eta_max,
         is_paused,
@@ -132,7 +134,8 @@ async def list_profile_services_for_many(
                 description=translation.description if translation else None,
                 is_active=service.is_active,
                 sort_order=service.sort_order,
-                min_order_value=min_order_value,
+                free_delivery_threshold=free_delivery_threshold,
+                delivery_fee=delivery_fee,
                 delivery_eta_min_minutes=eta_min,
                 delivery_eta_max_minutes=eta_max,
                 is_paused=is_paused,

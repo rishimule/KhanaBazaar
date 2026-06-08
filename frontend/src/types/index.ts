@@ -35,7 +35,8 @@ export interface Service extends BaseSchema {
   description?: string;
   is_active: boolean;
   sort_order: number;
-  min_order_value?: number;
+  free_delivery_threshold?: number;
+  delivery_fee?: number;
   delivery_eta_min_minutes?: number;
   delivery_eta_max_minutes?: number;
   is_paused?: boolean;
@@ -238,7 +239,8 @@ export interface Cart {
   service_id: number;
   service_name: string;
   items: CartItem[];
-  min_order_value?: number;
+  free_delivery_threshold?: number;
+  delivery_fee?: number;
   delivery_eta_min_minutes?: number;
   delivery_eta_max_minutes?: number;
 }

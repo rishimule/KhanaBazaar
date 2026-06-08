@@ -18,7 +18,8 @@ class ServicePayload(BaseModel):
     description: Optional[str] = None
     is_active: bool
     sort_order: int
-    min_order_value: Optional[float] = None
+    free_delivery_threshold: Optional[float] = None
+    delivery_fee: Optional[float] = None
     delivery_eta_min_minutes: int = 30
     delivery_eta_max_minutes: int = 60
     is_paused: bool = False
