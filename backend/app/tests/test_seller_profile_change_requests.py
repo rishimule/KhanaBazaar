@@ -692,7 +692,7 @@ async def test_supersede_open_cr_marks_withdrawn_system(
     create = await create_change_request(
         session=session, seller_profile=profile,
         group=SellerProfileChangeGroup.Services,
-        proposed={"services": [{"service_id": 1, "min_order_value": 100.0}]},
+        proposed={"services": [{"service_id": 1, "free_delivery_threshold": 100.0, "delivery_fee": 10.0}]},
         note=None, actor_user_id=approved_seller["user"].id,
     )
     await session.commit()

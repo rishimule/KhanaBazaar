@@ -85,12 +85,28 @@ class BankingPayload(BaseModel):
 
 class ServiceRowPayload(BaseModel):
     service_id: int
-    min_order_value: float = Field(ge=0.0, le=100000.0)
+    free_delivery_threshold: float = Field(ge=0.0, le=100000.0)
+    # Defaulted (not required) so an in-flight CR submitted before this field
+    # existed still validates on apply (legacy rows carried no fee).
+    delivery_fee: float = Field(default=0.0, ge=0.0, le=5000.0)
     # ETA is an optional partial update (both-or-neither); omitting both leaves
     # the row's window untouched on apply, which also keeps any in-flight CRs
     # submitted before this field existed valid.
     delivery_eta_min_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
     delivery_eta_max_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_min_order_value(cls, data: Any) -> Any:
+        # CRs submitted before the rename carry `min_order_value`; map it so the
+        # apply-time re-validation (validate_group_payload) does not reject them.
+        if (
+            isinstance(data, dict)
+            and "free_delivery_threshold" not in data
+            and "min_order_value" in data
+        ):
+            data = {**data, "free_delivery_threshold": data["min_order_value"]}
+        return data
 
     @model_validator(mode="after")
     def _window(self) -> "ServiceRowPayload":

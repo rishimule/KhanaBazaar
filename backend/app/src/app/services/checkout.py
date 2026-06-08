@@ -169,7 +169,7 @@ async def _assert_meets_minimum_order_value(
 
     minimum = (
         await session.exec(
-            select(SellerProfileService.min_order_value)
+            select(SellerProfileService.free_delivery_threshold)
             .join(
                 SellerProfile,
                 SellerProfile.id == SellerProfileService.seller_profile_id,  # type: ignore[arg-type]

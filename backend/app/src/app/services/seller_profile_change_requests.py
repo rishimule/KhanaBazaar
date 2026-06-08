@@ -130,7 +130,8 @@ async def _baseline_for_group(
             "services": [
                 {
                     "service_id": row.id,
-                    "min_order_value": row.min_order_value,
+                    "free_delivery_threshold": row.free_delivery_threshold,
+                    "delivery_fee": row.delivery_fee,
                     "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
                     "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
                 }
@@ -517,7 +518,7 @@ async def _apply_services(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await replace_profile_services(session, profile, valid)
-    # second pass: set min_order_value per row
+    # second pass: set free_delivery_threshold + delivery_fee per row
     existing_rows = (
         await session.exec(
             select(SellerProfileService).where(
@@ -529,7 +530,8 @@ async def _apply_services(
     for r in rows:
         sid = int(r["service_id"])
         if sid in by_id:
-            by_id[sid].min_order_value = float(r["min_order_value"])
+            by_id[sid].free_delivery_threshold = float(r["free_delivery_threshold"])
+            by_id[sid].delivery_fee = float(r.get("delivery_fee", 0.0))
             eta_min = r.get("delivery_eta_min_minutes")
             eta_max = r.get("delivery_eta_max_minutes")
             if eta_min is not None and eta_max is not None:

@@ -153,17 +153,20 @@ def seller_client_factory():  # noqa: ANN201
     return _make
 
 
-async def _set_min(session: AsyncSession, sps_id: int, value: float) -> None:
+async def _set_delivery(
+    session: AsyncSession, sps_id: int, threshold: float, fee: float = 10.0
+) -> None:
     sps = await session.get(SellerProfileService, sps_id)
     assert sps is not None
-    sps.min_order_value = value
+    sps.free_delivery_threshold = threshold
+    sps.delivery_fee = fee
     await session.commit()
 
 
 async def test_checkout_below_minimum_rejected(
     client: AsyncClient, session: AsyncSession, seed: dict[str, int],
 ) -> None:
-    await _set_min(session, seed["sps_id"], 100.0)  # subtotal 50 < 100
+    await _set_delivery(session, seed["sps_id"], 100.0)  # subtotal 50 < 100
     resp = await client.post("/api/v1/orders", json={
         "customer_address_id": seed["customer_address_id"],
         "store_id": seed["store_id"],
@@ -183,7 +186,7 @@ async def test_checkout_below_minimum_rejected(
 async def test_checkout_at_minimum_succeeds(
     client: AsyncClient, session: AsyncSession, seed: dict[str, int],
 ) -> None:
-    await _set_min(session, seed["sps_id"], 50.0)  # subtotal 50 == 50
+    await _set_delivery(session, seed["sps_id"], 50.0)  # subtotal 50 == 50
     resp = await client.post("/api/v1/orders", json={
         "customer_address_id": seed["customer_address_id"],
         "store_id": seed["store_id"],
@@ -220,13 +223,15 @@ async def test_seller_sets_min_order_value(
     async with seller_client_factory(mock_seller) as ac:
         resp = await ac.patch(
             f"/api/v1/sellers/me/services/{seed['service_id']}",
-            json={"min_order_value": 150.0},
+            json={"free_delivery_threshold": 150.0, "delivery_fee": 20.0},
         )
     assert resp.status_code == 200, resp.text
-    assert resp.json()["min_order_value"] == 150.0
+    assert resp.json()["free_delivery_threshold"] == 150.0
+    assert resp.json()["delivery_fee"] == 20.0
     sps = await session.get(SellerProfileService, seed["sps_id"])
     await session.refresh(sps)
-    assert sps.min_order_value == 150.0
+    assert sps.free_delivery_threshold == 150.0
+    assert sps.delivery_fee == 20.0
 
 
 async def test_seller_set_min_rejects_negative(
@@ -235,7 +240,7 @@ async def test_seller_set_min_rejects_negative(
     async with seller_client_factory(mock_seller) as ac:
         resp = await ac.patch(
             f"/api/v1/sellers/me/services/{seed['service_id']}",
-            json={"min_order_value": -5},
+            json={"free_delivery_threshold": -5, "delivery_fee": 0},
         )
     assert resp.status_code == 422
 
@@ -254,7 +259,7 @@ async def test_seller_set_min_unknown_service_404(
     async with seller_client_factory(mock_seller) as ac:
         resp = await ac.patch(
             "/api/v1/sellers/me/services/999999",
-            json={"min_order_value": 10.0},
+            json={"free_delivery_threshold": 10.0, "delivery_fee": 0},
         )
     assert resp.status_code == 404
 
@@ -265,7 +270,7 @@ async def test_seller_set_min_rejects_above_cap(
     async with seller_client_factory(mock_seller) as ac:
         resp = await ac.patch(
             f"/api/v1/sellers/me/services/{seed['service_id']}",
-            json={"min_order_value": 100001},
+            json={"free_delivery_threshold": 100001, "delivery_fee": 0},
         )
     assert resp.status_code == 422
 
@@ -277,7 +282,7 @@ async def test_admin_set_min_unknown_service_404(
     async with seller_client_factory(mock_admin) as ac:
         resp = await ac.patch(
             f"/api/v1/sellers/admin/{mock_seller.id}/services/999999",
-            json={"min_order_value": 10.0},
+            json={"free_delivery_threshold": 10.0, "delivery_fee": 0},
         )
     assert resp.status_code == 404
 
@@ -289,7 +294,7 @@ async def test_min_persists_across_profile_service_save(
     # selected. replace_profile_services leaves the existing row untouched, so
     # the minimum must survive. (Service set is locked after approval, so this
     # path uses a Pending seller.)
-    await _set_min(session, seed["sps_id"], 80.0)
+    await _set_delivery(session, seed["sps_id"], 80.0)
     seller = (await session.exec(
         select(SellerProfile).where(SellerProfile.id == seed["seller_id"])
     )).first()
@@ -311,7 +316,7 @@ async def test_min_persists_across_profile_service_save(
     assert resp.status_code in (200, 204), resp.text
     sps = await session.get(SellerProfileService, seed["sps_id"])
     await session.refresh(sps)
-    assert sps.min_order_value == 80.0
+    assert sps.free_delivery_threshold == 80.0
 
 
 async def test_admin_sets_min_order_value(
@@ -320,16 +325,17 @@ async def test_admin_sets_min_order_value(
     async with seller_client_factory(mock_admin) as ac:
         resp = await ac.patch(
             f"/api/v1/sellers/admin/{mock_seller.id}/services/{seed['service_id']}",
-            json={"min_order_value": 200.0},
+            json={"free_delivery_threshold": 200.0, "delivery_fee": 15.0},
         )
     assert resp.status_code == 200, resp.text
     sps = await session.get(SellerProfileService, seed["sps_id"])
     await session.refresh(sps)
-    assert sps.min_order_value == 200.0
+    assert sps.free_delivery_threshold == 200.0
+    assert sps.delivery_fee == 15.0
     # Audit row written.
     from app.models.admin_audit import AdminActionLog
     logs = (await session.exec(select(AdminActionLog))).all()
-    assert any(row.action == "service.set_min_order_value" for row in logs)
+    assert any(row.action == "service.set_delivery_settings" for row in logs)
 
 
 async def test_admin_set_min_rejects_non_approved_seller(
@@ -343,7 +349,7 @@ async def test_admin_set_min_rejects_non_approved_seller(
     async with seller_client_factory(mock_admin) as ac:
         resp = await ac.patch(
             f"/api/v1/sellers/admin/{mock_seller.id}/services/{seed['service_id']}",
-            json={"min_order_value": 50.0},
+            json={"free_delivery_threshold": 50.0, "delivery_fee": 0},
         )
     assert resp.status_code == 409
     assert resp.json()["detail"] == "seller_not_active"
@@ -352,22 +358,22 @@ async def test_admin_set_min_rejects_non_approved_seller(
 async def test_cart_read_includes_min_order_value(
     client: AsyncClient, session: AsyncSession, seed: dict[str, int],
 ) -> None:
-    await _set_min(session, seed["sps_id"], 120.0)
+    await _set_delivery(session, seed["sps_id"], 120.0)
     resp = await client.get("/api/v1/carts")
     assert resp.status_code == 200, resp.text
     carts = resp.json()["carts"]
     assert len(carts) == 1
-    assert carts[0]["min_order_value"] == 120.0
+    assert carts[0]["free_delivery_threshold"] == 120.0
 
 
 async def test_admin_hub_includes_services_with_min(
     seller_client_factory, session: AsyncSession, seed: dict[str, int],
 ) -> None:
-    await _set_min(session, seed["sps_id"], 90.0)
+    await _set_delivery(session, seed["sps_id"], 90.0)
     async with seller_client_factory(mock_admin) as ac:
         resp = await ac.get(f"/api/v1/admin/sellers/{mock_seller.id}")
     assert resp.status_code == 200, resp.text
     services = resp.json()["services"]
     assert len(services) == 1
     assert services[0]["id"] == seed["service_id"]
-    assert services[0]["min_order_value"] == 90.0
+    assert services[0]["free_delivery_threshold"] == 90.0

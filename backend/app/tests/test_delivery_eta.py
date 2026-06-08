@@ -178,7 +178,8 @@ async def test_direct_edit_sets_eta(
         resp = await ac.patch(
             f"/api/v1/sellers/me/services/{seed['service_id']}",
             json={
-                "min_order_value": 100,
+                "free_delivery_threshold": 100,
+                "delivery_fee": 0,
                 "delivery_eta_min_minutes": 30,
                 "delivery_eta_max_minutes": 45,
             },
@@ -197,7 +198,8 @@ async def test_direct_edit_rejects_min_gt_max(
         resp = await ac.patch(
             f"/api/v1/sellers/me/services/{seed['service_id']}",
             json={
-                "min_order_value": 0,
+                "free_delivery_threshold": 0,
+                "delivery_fee": 0,
                 "delivery_eta_min_minutes": 90,
                 "delivery_eta_max_minutes": 30,
             },
@@ -213,7 +215,8 @@ async def test_direct_edit_rejects_over_cap(
         resp = await ac.patch(
             f"/api/v1/sellers/me/services/{seed['service_id']}",
             json={
-                "min_order_value": 0,
+                "free_delivery_threshold": 0,
+                "delivery_fee": 0,
                 "delivery_eta_min_minutes": 1,
                 "delivery_eta_max_minutes": 20161,
             },
@@ -230,12 +233,12 @@ async def test_direct_edit_min_only_preserves_eta(
     async with seller_client_factory(mock_seller) as ac:
         resp = await ac.patch(
             f"/api/v1/sellers/me/services/{seed['service_id']}",
-            json={"min_order_value": 75},
+            json={"free_delivery_threshold": 75, "delivery_fee": 0},
         )
     assert resp.status_code == 200, resp.text
     sps = await session.get(SellerProfileService, seed["sps_id"])
     await session.refresh(sps)
-    assert sps.min_order_value == 75
+    assert sps.free_delivery_threshold == 75
     assert sps.delivery_eta_min_minutes == 25
     assert sps.delivery_eta_max_minutes == 40
 
@@ -249,7 +252,8 @@ async def test_admin_edit_sets_eta_and_audits(
         resp = await ac.patch(
             f"/api/v1/sellers/admin/{mock_seller.id}/services/{seed['service_id']}",
             json={
-                "min_order_value": 50,
+                "free_delivery_threshold": 50,
+                "delivery_fee": 0,
                 "delivery_eta_min_minutes": 60,
                 "delivery_eta_max_minutes": 120,
             },
@@ -260,7 +264,7 @@ async def test_admin_edit_sets_eta_and_audits(
     assert body["delivery_eta_max_minutes"] == 120
     from app.models.admin_audit import AdminActionLog
     logs = (await session.exec(select(AdminActionLog))).all()
-    assert any(row.action == "service.set_min_order_value" for row in logs)
+    assert any(row.action == "service.set_delivery_settings" for row in logs)
 
 
 # --- cart read ------------------------------------------------------------
@@ -297,7 +301,8 @@ async def test_change_request_applies_eta(
         group=SellerProfileChangeGroup.Services,
         proposed={"services": [{
             "service_id": seed["service_id"],
-            "min_order_value": 0.0,
+            "free_delivery_threshold": 0.0,
+            "delivery_fee": 0.0,
             "delivery_eta_min_minutes": 50,
             "delivery_eta_max_minutes": 80,
         }]},
