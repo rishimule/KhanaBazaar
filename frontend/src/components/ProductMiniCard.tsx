@@ -35,22 +35,30 @@ export function ProductMiniCard({
 
   return (
     <Link href={href} className={styles.card}>
-      <div className={styles.imageWrap}>
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt={name}
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            className={styles.img}
-          />
-        ) : (
-          <div aria-hidden className={styles.imgFallback}>
-            🛒
-          </div>
-        )}
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl}
+          alt={name}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          className={styles.img}
+        />
+      ) : (
+        <div aria-hidden className={styles.imgFallback}>
+          🛒
+        </div>
+      )}
+      <div className={styles.name}>{name}</div>
+      {brand && <div className={styles.brand}>{brand}</div>}
+      <div className={styles.priceRow}>
+        <span className={styles.price}>
+          ₹{minPrice.toFixed(0)}
+          {maxPrice !== minPrice && (
+            <span className={styles.range}> – ₹{maxPrice.toFixed(0)}</span>
+          )}
+        </span>
         {canShop && (
           // Decorative only: the whole card is one <Link>, so a nested button or
           // anchor would be invalid HTML. The "+" navigates by bubbling its click
@@ -61,14 +69,6 @@ export function ProductMiniCard({
           >
             +
           </span>
-        )}
-      </div>
-      <div className={styles.name}>{name}</div>
-      {brand && <div className={styles.brand}>{brand}</div>}
-      <div className={styles.price}>
-        ₹{minPrice.toFixed(0)}
-        {maxPrice !== minPrice && (
-          <span className={styles.range}> – ₹{maxPrice.toFixed(0)}</span>
         )}
       </div>
       {!inStock && <div className={styles.badge}>{outOfStockLabel}</div>}
