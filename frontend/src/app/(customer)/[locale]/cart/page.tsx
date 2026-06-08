@@ -162,7 +162,8 @@ export default function CartPage() {
     serviceId: number,
     serviceName: string,
     subtotal: number,
-    minOrderValue: number,
+    freeDeliveryThreshold: number,
+    deliveryFee: number,
   ) => {
     if (!dbUser) {
       return (
@@ -191,24 +192,22 @@ export default function CartPage() {
         </div>
       );
     }
-    const shortfall = Math.max(0, minOrderValue - subtotal);
-    if (shortfall > 0) {
-      return (
-        <div className={styles.shortfallBanner} role="status">
-          {t("minOrderShortfall", { amount: shortfall, service: serviceName })}
-          <span className={styles.checkoutBtn} aria-disabled>
-            {t("checkoutCta", { subtotal, service: serviceName })}
-          </span>
-        </div>
-      );
-    }
+    const shortfall = Math.max(0, freeDeliveryThreshold - subtotal);
+    const feeApplies = deliveryFee > 0 && shortfall > 0;
     return (
-      <Link
-        href={`/checkout/${storeId}/${serviceId}`}
-        className={styles.checkoutBtn}
-      >
-        {t("checkoutCta", { subtotal, service: serviceName })}
-      </Link>
+      <>
+        {feeApplies && (
+          <div className={styles.shortfallBanner} role="status">
+            {t("minOrderShortfall", { amount: shortfall, service: serviceName })}
+          </div>
+        )}
+        <Link
+          href={`/checkout/${storeId}/${serviceId}`}
+          className={styles.checkoutBtn}
+        >
+          {t("checkoutCta", { subtotal, service: serviceName })}
+        </Link>
+      </>
     );
   };
 
@@ -362,7 +361,8 @@ export default function CartPage() {
                       cart.service_id,
                       cart.service_name,
                       subtotal,
-                      cart.min_order_value ?? 0,
+                      cart.free_delivery_threshold ?? 0,
+                      cart.delivery_fee ?? 0,
                     )}
                   </div>
                 </div>
