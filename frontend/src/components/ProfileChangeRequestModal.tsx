@@ -16,8 +16,8 @@ import {
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import { GROUP_LABEL } from "@/lib/changeRequests";
 import {
-  changeRequestErrorMessage,
   normalizeField,
+  profileEditErrorMessage,
   validateField,
 } from "@/lib/sellerProfileValidation";
 import type {
@@ -339,7 +339,7 @@ export default function ProfileChangeRequestModal({
       await onSubmit(payload, note || undefined, phoneChangeToken);
       onClose();
     } catch (e) {
-      setError(changeRequestErrorMessage(e));
+      setError(profileEditErrorMessage(e));
     } finally {
       setBusy(false);
     }
