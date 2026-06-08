@@ -24,6 +24,9 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Deploys run ~6 min; cap the run so a hung deploy can't hold the
+    # `deploy-main` concurrency lane (default is GitHub's 6-hour timeout).
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
