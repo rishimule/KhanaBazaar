@@ -8,6 +8,13 @@ permissions:
   contents: read
   id-token: write
 
+# Serialize deploys: back-to-back merges queue instead of racing on Cloud Run
+# updates (which otherwise hit "ABORTED: Conflict"). Never cancel an in-flight
+# deploy partway — let it finish, then run the next.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   REGION: ${{ vars.GCP_REGION }}
@@ -17,6 +24,9 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Deploys run ~6 min; cap the run so a hung deploy can't hold the
+    # `deploy-main` concurrency lane (default is GitHub's 6-hour timeout).
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 

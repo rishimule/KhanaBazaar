@@ -18,6 +18,10 @@ gcloud services enable run.googleapis.com sqladmin.googleapis.com compute.google
 echo "==> 2. Artifact Registry"
 gcloud artifacts repositories describe kb --location="$REGION" >/dev/null 2>&1 || \
   gcloud artifacts repositories create kb --repository-format=docker --location="$REGION"
+# Cap image storage: keep the 10 newest versions of each image, delete >30d.
+# Cleanup policies are evaluated asynchronously by Artifact Registry (~daily).
+gcloud artifacts repositories set-cleanup-policies kb --location="$REGION" \
+  --policy="$(dirname "$0")/ar-cleanup-policy.json"
 
 echo "==> 3. VPC + subnet + firewall"
 gcloud compute networks describe kb-vpc >/dev/null 2>&1 || \
