@@ -163,30 +163,10 @@ async def _set_delivery(
     await session.commit()
 
 
-async def test_checkout_below_minimum_rejected(
+async def test_checkout_below_threshold_charges_fee(
     client: AsyncClient, session: AsyncSession, seed: dict[str, int],
 ) -> None:
-    await _set_delivery(session, seed["sps_id"], 100.0)  # subtotal 50 < 100
-    resp = await client.post("/api/v1/orders", json={
-        "customer_address_id": seed["customer_address_id"],
-        "store_id": seed["store_id"],
-        "service_id": seed["service_id"],
-        "payment_method": "upi",
-    })
-    assert resp.status_code == 409, resp.text
-    detail = resp.json()["detail"]
-    assert detail["detail"] == "below_minimum_order_value"
-    assert detail["min_order_value"] == 100.0
-    assert detail["subtotal"] == 50.0
-    assert detail["shortfall"] == 50.0
-    # Cart must survive the rejection.
-    assert len((await session.exec(select(Cart))).all()) == 1
-
-
-async def test_checkout_at_minimum_succeeds(
-    client: AsyncClient, session: AsyncSession, seed: dict[str, int],
-) -> None:
-    await _set_delivery(session, seed["sps_id"], 50.0)  # subtotal 50 == 50
+    await _set_delivery(session, seed["sps_id"], threshold=100.0, fee=10.0)  # subtotal 50 < 100
     resp = await client.post("/api/v1/orders", json={
         "customer_address_id": seed["customer_address_id"],
         "store_id": seed["store_id"],
@@ -194,12 +174,16 @@ async def test_checkout_at_minimum_succeeds(
         "payment_method": "upi",
     })
     assert resp.status_code == 201, resp.text
+    order = resp.json()
+    assert order["delivery_fee"] == 10.0
+    assert order["subtotal"] == 50.0
+    assert order["total"] == 60.0
 
 
-async def test_checkout_zero_minimum_no_enforcement(
-    client: AsyncClient, seed: dict[str, int],
+async def test_checkout_at_threshold_is_free(
+    client: AsyncClient, session: AsyncSession, seed: dict[str, int],
 ) -> None:
-    # Default min_order_value is 0.0 — order should place.
+    await _set_delivery(session, seed["sps_id"], threshold=50.0, fee=10.0)  # subtotal 50 == 50
     resp = await client.post("/api/v1/orders", json={
         "customer_address_id": seed["customer_address_id"],
         "store_id": seed["store_id"],
@@ -207,6 +191,37 @@ async def test_checkout_zero_minimum_no_enforcement(
         "payment_method": "upi",
     })
     assert resp.status_code == 201, resp.text
+    assert resp.json()["delivery_fee"] == 0.0
+    assert resp.json()["total"] == 50.0
+
+
+async def test_checkout_zero_threshold_is_free(
+    client: AsyncClient, session: AsyncSession, seed: dict[str, int],
+) -> None:
+    await _set_delivery(session, seed["sps_id"], threshold=0.0, fee=10.0)
+    resp = await client.post("/api/v1/orders", json={
+        "customer_address_id": seed["customer_address_id"],
+        "store_id": seed["store_id"],
+        "service_id": seed["service_id"],
+        "payment_method": "upi",
+    })
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["delivery_fee"] == 0.0
+
+
+async def test_checkout_below_threshold_zero_fee_is_free(
+    client: AsyncClient, session: AsyncSession, seed: dict[str, int],
+) -> None:
+    await _set_delivery(session, seed["sps_id"], threshold=100.0, fee=0.0)  # subtotal 50 < 100
+    resp = await client.post("/api/v1/orders", json={
+        "customer_address_id": seed["customer_address_id"],
+        "store_id": seed["store_id"],
+        "service_id": seed["service_id"],
+        "payment_method": "upi",
+    })
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["delivery_fee"] == 0.0
+    assert resp.json()["total"] == 50.0
 
 
 async def test_seller_sets_min_order_value(
@@ -377,3 +392,13 @@ async def test_admin_hub_includes_services_with_min(
     assert len(services) == 1
     assert services[0]["id"] == seed["service_id"]
     assert services[0]["free_delivery_threshold"] == 90.0
+
+
+async def test_compute_delivery_fee_no_service_row_is_free(
+    session: AsyncSession, seed: dict[str, int],
+) -> None:
+    from app.services.checkout import _compute_delivery_fee
+
+    # service id 999999 is not configured for this store -> free.
+    fee = await _compute_delivery_fee(session, seed["store_id"], 999999, subtotal=10.0)
+    assert fee == 0.0
