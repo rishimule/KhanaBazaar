@@ -19,7 +19,7 @@ const BANK_ACCOUNT_RE = /^[0-9]{9,18}$/;
 // Shared message strings, reused by validateField and changeRequestErrorMessage.
 const MSG = {
   gst: "Enter a valid 15-character GSTIN (capital letters and digits, e.g. 06AAAAA1111A1Z1).",
-  fssai: "FSSAI licence must be exactly 14 digits.",
+  fssai: "FSSAI license must be exactly 14 digits.",
   account: "Account number must be 9 to 18 digits.",
   ifsc: "Enter a valid IFSC code, e.g. HDFC0000001.",
   phone: "Enter a valid Indian mobile number (10 digits starting 6–9).",
@@ -95,6 +95,10 @@ export function changeRequestErrorMessage(e: unknown): string {
         return MSG.phone;
       case "cr_already_open":
         return "You already have a pending change for this section. Review or withdraw it first.";
+      case "cr_not_resubmittable":
+        return "This request can no longer be resubmitted. Start a new change instead.";
+      case "cr_not_open":
+        return "This request is no longer open for changes.";
       case "seller_not_active":
         return "Your store isn't approved yet, so changes can't be submitted.";
       case "phone_verification_required":

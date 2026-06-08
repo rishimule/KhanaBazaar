@@ -49,7 +49,6 @@
 .fieldError {
   color: var(--color-danger, var(--color-error, #b91c1c));
   font-size: 0.8rem;
-  margin-top: 2px;
 }
 
 .checkboxRow {

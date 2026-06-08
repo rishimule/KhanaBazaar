@@ -193,7 +193,17 @@ export default function ProfileChangeRequestModal({
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string | null>>({});
+  // Seed from the initial values so a pre-filled/autofilled invalid value
+  // surfaces its message immediately, rather than leaving Submit disabled with
+  // no visible reason. Valid/empty-optional fields seed to null (no message).
+  const [errors, setErrors] = useState<Record<string, string | null>>(() =>
+    Object.fromEntries(
+      fields.map((f) => [
+        f.name,
+        validateField(f.name, String(currentValues[f.name] ?? "")),
+      ]),
+    ),
+  );
 
   // The active group validates when every one of its generic fields passes.
   // Phone (identity) is gated separately by phoneVerified; address/services use
@@ -468,7 +478,7 @@ export default function ProfileChangeRequestModal({
               onChange={(e) => setNote(e.target.value)}
             />
           </label>
-          {error && <p className={styles.error}>{error}</p>}
+          {error && <p role="alert" className={styles.error}>{error}</p>}
         </form>
       </Modal>
     );
@@ -554,15 +564,18 @@ export default function ProfileChangeRequestModal({
                     setValues((vs) => ({ ...vs, [f.name]: v }));
                     setErrors((es) => ({ ...es, [f.name]: validateField(f.name, v) }));
                   }}
-                  onBlur={(e) =>
-                    setErrors((es) => ({
-                      ...es,
-                      [f.name]: validateField(f.name, e.target.value),
-                    }))
-                  }
+                  onBlur={(e) => {
+                    const v = normalizeField(f.name, e.target.value);
+                    setValues((vs) => ({ ...vs, [f.name]: v }));
+                    setErrors((es) => ({ ...es, [f.name]: validateField(f.name, v) }));
+                  }}
                 />
                 {errors[f.name] && (
-                  <span id={`${f.name}-error`} className={styles.fieldError}>
+                  <span
+                    id={`${f.name}-error`}
+                    role="alert"
+                    className={styles.fieldError}
+                  >
                     {errors[f.name]}
                   </span>
                 )}
@@ -624,7 +637,7 @@ export default function ProfileChangeRequestModal({
             onChange={(e) => setNote(e.target.value)}
           />
         </label>
-        {error && <p className={styles.error}>{error}</p>}
+        {error && <p role="alert" className={styles.error}>{error}</p>}
       </form>
     </Modal>
   );
