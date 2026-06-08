@@ -4,6 +4,10 @@ Order #{{ order_id }}
 {% for item in items -%}
   - {{ item.name }} × {{ item.qty }} = {{ item.line_total|inr }}
 {% endfor %}
+{% if delivery_fee and delivery_fee > 0 -%}
+Subtotal: {{ subtotal|inr }}
+Delivery fee: {{ delivery_fee|inr }}
+{% endif -%}
 Total: {{ order_total|inr }}
 
 Open order: {{ frontend_base_url }}/seller/orders/{{ order_id }}
