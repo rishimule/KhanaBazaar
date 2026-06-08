@@ -8,6 +8,8 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { VerificationStatus } from "@/types";
+import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
+import { useLogoutConfirm } from "@/lib/useLogoutConfirm";
 import styles from "./pending.module.css";
 
 interface StatusResponse {
@@ -19,7 +21,9 @@ export default function SellerPendingPage() {
   const t = useTranslations("Seller.pending");
   const tc = useTranslations("Seller.common");
   const router = useRouter();
-  const { token, dbUser, loading: authLoading, logout } = useAuth();
+  const { token, dbUser, loading: authLoading } = useAuth();
+  const { open: logoutOpen, openDialog: openLogout, closeDialog: closeLogout } =
+    useLogoutConfirm();
 
   const [status, setStatus] = useState<VerificationStatus | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
@@ -60,10 +64,9 @@ export default function SellerPendingPage() {
     };
   }, [authLoading, token, router]);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-  };
+  const logoutDialog = logoutOpen ? (
+    <LogoutConfirmDialog onClose={closeLogout} onRedirect={() => router.push("/login")} />
+  ) : null;
 
   // Auth still hydrating
   if (authLoading || (token && status === null && !fetchError)) {
@@ -102,12 +105,13 @@ export default function SellerPendingPage() {
             <button
               type="button"
               className={styles.logoutBtn}
-              onClick={handleLogout}
+              onClick={openLogout}
             >
               {t("logOut")}
             </button>
           </div>
         </div>
+        {logoutDialog}
       </div>
     );
   }
@@ -137,12 +141,13 @@ export default function SellerPendingPage() {
           <button
             type="button"
             className={styles.logoutBtn}
-            onClick={handleLogout}
+            onClick={openLogout}
           >
             {t("logOut")}
           </button>
         </div>
       </div>
+      {logoutDialog}
     </div>
   );
 }

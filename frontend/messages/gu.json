@@ -501,10 +501,6 @@
     "navSupport": "મદદ",
     "navSettings": "સેટિંગ્સ",
     "navLogout": "લોગ આઉટ",
-    "logoutConfirmTitle": "લોગ આઉટ કરવું?",
-    "logoutConfirmBody": "ઓર્ડર અને સાચવેલા સરનામાં જોવા માટે તમારે ફરીથી સાઇન ઇન કરવું પડશે.",
-    "logoutConfirmCta": "લોગ આઉટ",
-    "logoutCancel": "રદ કરો",
     "dashboardTitle": "મારું ખાતું",
     "orders": {
       "title": "તમારા ઓર્ડર",
@@ -1666,6 +1662,14 @@
       "markerStore": "દુકાન: {label}",
       "markerDelivery": "ડિલિવરી: {label}"
     },
-    "requestFailed": "વિનંતી નિષ્ફળ"
+    "requestFailed": "વિનંતી નિષ્ફળ",
+    "logout": {
+      "confirmTitle": "લોગ આઉટ કરવું?",
+      "confirmBody": "You'll need to sign in again to continue.",
+      "cancel": "રદ કરો",
+      "confirmCta": "લોગ આઉટ",
+      "farewellCustomer": "Thank you for shopping with us 👋",
+      "farewellStaff": "You've been signed out. See you soon!"
+    }
   }
 }

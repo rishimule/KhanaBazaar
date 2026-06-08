@@ -1,0 +1,74 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+
+.confirmBody {
+  margin: 0;
+  color: var(--shade-cool-base-7);
+  font-size: var(--body-sm);
+  line-height: 1.5;
+}
+
+/* Farewell overlay — its own portal branch (NOT the Modal), so there is no
+   close button / backdrop-close / Escape to fight the auto-redirect. */
+.farewellBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--tint-black-54);
+  animation: fwFade var(--duration-fast) var(--ease-out);
+}
+
+.farewellCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 360px;
+  padding: var(--space-6) var(--space-5);
+  background: var(--white);
+  border-radius: var(--radius-modal);
+  box-shadow: var(--shadow-modal);
+  text-align: center;
+  animation: fwPop 220ms var(--ease-out);
+}
+
+.checkCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-primary-1);
+  color: var(--white);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.farewellText {
+  margin: 0;
+  color: var(--shade-cool-dark-7);
+  font-size: var(--display-sm);
+  font-weight: var(--weight-medium);
+}
+
+@keyframes fwFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fwPop {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .farewellBackdrop,
+  .farewellCard {
+    animation: none;
+  }
+}

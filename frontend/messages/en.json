@@ -501,10 +501,6 @@
     "navSupport": "Support",
     "navSettings": "Settings",
     "navLogout": "Log out",
-    "logoutConfirmTitle": "Log out?",
-    "logoutConfirmBody": "You will need to sign in again to view orders and saved addresses.",
-    "logoutConfirmCta": "Log out",
-    "logoutCancel": "Cancel",
     "dashboardTitle": "My account",
     "orders": {
       "title": "Your orders",
@@ -1665,6 +1661,14 @@
       "markerStore": "Store: {label}",
       "markerDelivery": "Delivery: {label}"
     },
-    "requestFailed": "Request failed"
+    "requestFailed": "Request failed",
+    "logout": {
+      "confirmTitle": "Log out?",
+      "confirmBody": "You'll need to sign in again to continue.",
+      "cancel": "Cancel",
+      "confirmCta": "Log out",
+      "farewellCustomer": "Thank you for shopping with us 👋",
+      "farewellStaff": "You've been signed out. See you soon!"
+    }
   }
 }

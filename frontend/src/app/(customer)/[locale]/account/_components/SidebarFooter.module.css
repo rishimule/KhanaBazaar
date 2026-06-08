@@ -36,9 +36,3 @@
   text-align: center;
   flex-shrink: 0;
 }
-
-.modalBody {
-  font-size: var(--body-md);
-  color: var(--shade-cool-base-7);
-  margin: 0;
-}
