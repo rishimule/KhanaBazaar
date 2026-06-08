@@ -156,8 +156,10 @@ export function profileEditErrorMessage(e: unknown, fallback?: string): string {
   switch (field) {
     case "delivery_radius_km":
       return "Delivery radius must be 50 km or less.";
-    case "min_order_value":
-      return "Minimum order value must be between ₹0 and ₹1,00,000.";
+    case "free_delivery_threshold":
+      return "Free-delivery threshold must be between ₹0 and ₹1,00,000.";
+    case "delivery_fee":
+      return "Delivery fee must be between ₹0 and ₹5,000.";
     case "delivery_eta_min_minutes":
     case "delivery_eta_max_minutes":
       return "Delivery time must be between 1 and 20160 minutes.";
