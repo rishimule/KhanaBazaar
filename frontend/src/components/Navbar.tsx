@@ -9,6 +9,8 @@ import { useAuth } from "@/lib/AuthContext";
 import LocaleSwitcher from "./LocaleSwitcher";
 import MobileTabBar from "./MobileTabBar";
 import NavbarTopBar from "./NavbarTopBar";
+import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
+import { useLogoutConfirm } from "@/lib/useLogoutConfirm";
 import styles from "./Navbar.module.css";
 
 function BackIcon() {
@@ -25,9 +27,15 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
   const t = useTranslations("Nav");
   const router = useRouter();
   const pathname = usePathname();
-  const { dbUser, loading, logout } = useAuth();
+  const { dbUser, loading } = useAuth();
+  const { open: logoutOpen, openDialog: openLogout, closeDialog: closeLogout } =
+    useLogoutConfirm();
 
   const role = dbUser?.role ?? null;
+
+  const logoutDialog = logoutOpen ? (
+    <LogoutConfirmDialog onClose={closeLogout} onRedirect={() => router.push("/")} />
+  ) : null;
 
   const effectiveVariant: "customer" | "operator-stripped" | "signup" | "dashboard" =
     variant === "signup"
@@ -38,16 +46,13 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
           ? "operator-stripped"
           : "customer";
 
-  const handleLogout = async () => {
-    await logout();
-    router.push("/");
-  };
-
   if (effectiveVariant === "operator-stripped") {
     const dashboardHref = role === "admin" ? "/admin" : "/seller";
     return (
-      <nav className={styles.nav}>
-        <div className={styles.navInnerStripped}>
+      <>
+        {logoutDialog}
+        <nav className={styles.nav}>
+          <div className={styles.navInnerStripped}>
           <Link href={dashboardHref} className={styles.logo} aria-label="khanabazaar dashboard">
             <span>khanabazaar</span>
             <span className={styles.logoDot} aria-hidden />
@@ -65,7 +70,7 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
             <button
               type="button"
               className={styles.authBtn}
-              onClick={handleLogout}
+              onClick={openLogout}
               title={t("logoutTitleSignedIn", {
                 who: dbUser.email ?? dbUser.full_name ?? t("drawerUserFallback"),
               })}
@@ -76,16 +81,19 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
               <span>{t("logoutLabel")}</span>
             </button>
           )}
-        </div>
-      </nav>
+          </div>
+        </nav>
+      </>
     );
   }
 
   if (effectiveVariant === "dashboard") {
     const dashboardHref = role === "admin" ? "/admin" : "/seller";
     return (
-      <nav className={styles.nav}>
-        <div className={styles.navInnerStripped}>
+      <>
+        {logoutDialog}
+        <nav className={styles.nav}>
+          <div className={styles.navInnerStripped}>
           <Link href={dashboardHref} className={styles.logo} aria-label="khanabazaar dashboard">
             <span>khanabazaar</span>
             <span className={styles.logoDot} aria-hidden />
@@ -95,7 +103,7 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
             <button
               type="button"
               className={styles.authBtn}
-              onClick={handleLogout}
+              onClick={openLogout}
               title={t("logoutTitleSignedIn", {
                 who: dbUser.email ?? dbUser.full_name ?? t("drawerUserFallback"),
               })}
@@ -106,8 +114,9 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
               <span>{t("logoutLabel")}</span>
             </button>
           )}
-        </div>
-      </nav>
+          </div>
+        </nav>
+      </>
     );
   }
 
@@ -118,8 +127,10 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
     // page keeps the navbar logout so pending sellers can sign out.
     const isWizard = pathname === "/seller/signup";
     return (
-      <nav className={styles.nav}>
-        <div className={styles.navInnerStripped}>
+      <>
+        {logoutDialog}
+        <nav className={styles.nav}>
+          <div className={styles.navInnerStripped}>
           <Link href="/" className={styles.logo} aria-label="khanabazaar home">
             <span>khanabazaar</span>
             <span className={styles.logoDot} aria-hidden />
@@ -130,7 +141,7 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
             <button
               type="button"
               className={styles.authBtn}
-              onClick={handleLogout}
+              onClick={openLogout}
               title={t("logoutTitleSignedIn", {
                 who: dbUser.email ?? dbUser.full_name ?? t("drawerUserFallback"),
               })}
@@ -146,8 +157,9 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
               {t("signIn")}
             </Link>
           )}
-        </div>
-      </nav>
+          </div>
+        </nav>
+      </>
     );
   }
 
