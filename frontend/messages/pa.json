@@ -501,10 +501,6 @@
     "navSupport": "ਮਦਦ",
     "navSettings": "ਸੈਟਿੰਗਾਂ",
     "navLogout": "ਲੌਗ ਆਊਟ",
-    "logoutConfirmTitle": "ਲੌਗ ਆਊਟ ਕਰਨਾ ਹੈ?",
-    "logoutConfirmBody": "ਆਰਡਰ ਅਤੇ ਸੰਭਾਲੇ ਪਤੇ ਵੇਖਣ ਲਈ ਤੁਹਾਨੂੰ ਦੁਬਾਰਾ ਸਾਈਨ ਇਨ ਕਰਨਾ ਪਵੇਗਾ।",
-    "logoutConfirmCta": "ਲੌਗ ਆਊਟ",
-    "logoutCancel": "ਰੱਦ ਕਰੋ",
     "dashboardTitle": "ਮੇਰਾ ਖਾਤਾ",
     "orders": {
       "title": "ਤੁਹਾਡੇ ਆਰਡਰ",
@@ -1666,6 +1662,14 @@
       "markerStore": "ਦੁਕਾਨ: {label}",
       "markerDelivery": "ਡਿਲਿਵਰੀ: {label}"
     },
-    "requestFailed": "ਬੇਨਤੀ ਅਸਫਲ"
+    "requestFailed": "ਬੇਨਤੀ ਅਸਫਲ",
+    "logout": {
+      "confirmTitle": "ਲੌਗ ਆਊਟ ਕਰਨਾ ਹੈ?",
+      "confirmBody": "You'll need to sign in again to continue.",
+      "cancel": "ਰੱਦ ਕਰੋ",
+      "confirmCta": "ਲੌਗ ਆਊਟ",
+      "farewellCustomer": "Thank you for shopping with us 👋",
+      "farewellStaff": "You've been signed out. See you soon!"
+    }
   }
 }
