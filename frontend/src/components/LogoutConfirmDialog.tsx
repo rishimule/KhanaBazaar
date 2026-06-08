@@ -24,12 +24,9 @@ export default function LogoutConfirmDialog({ onClose, onRedirect }: Props) {
   const [phase, setPhase] = useState<"confirm" | "farewell">("confirm");
   const [pending, setPending] = useState(false);
 
-  // Capture the role before logout() nulls dbUser, so the farewell copy is
-  // correct. The dialog only mounts while signed in, so mount value is good.
-  const roleRef = useRef(dbUser?.role ?? null);
-  // Hold the latest onRedirect so the timer never fires a stale closure.
-  const onRedirectRef = useRef(onRedirect);
-  onRedirectRef.current = onRedirect;
+  // Capture the role once at mount — before logout() nulls dbUser — so the
+  // farewell copy stays correct. The dialog only mounts while signed in.
+  const [role] = useState(dbUser?.role ?? null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clear the redirect timer if we unmount early (e.g. user navigates away)
@@ -45,8 +42,9 @@ export default function LogoutConfirmDialog({ onClose, onRedirect }: Props) {
     setPending(true);
     logout(); // synchronous; push teardown is its own fire-and-forget inside
     setPhase("farewell");
+    // The closure captures the onRedirect from this click; the timer fires once.
     timerRef.current = setTimeout(() => {
-      onRedirectRef.current();
+      onRedirect();
     }, FAREWELL_HOLD_MS);
   };
 
@@ -89,7 +87,7 @@ export default function LogoutConfirmDialog({ onClose, onRedirect }: Props) {
 
   // Farewell phase.
   const message =
-    roleRef.current === "customer"
+    role === "customer"
       ? t("logout.farewellCustomer")
       : t("logout.farewellStaff");
 
