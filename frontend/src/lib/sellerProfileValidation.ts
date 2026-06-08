@@ -103,7 +103,9 @@ function extractDetail(detail: unknown): { msg: string; field: string } {
  */
 export function profileEditErrorMessage(e: unknown, fallback?: string): string {
   if (!(e instanceof ApiError)) {
-    if (e instanceof Error && e.message) return e.message;
+    // Network failures reject with a TypeError ("Failed to fetch"), and any
+    // unexpected JS error would otherwise leak its raw message. Always use the
+    // caller's context fallback (or the generic line) instead.
     return fallback ?? MSG.checkEntries;
   }
   const d: unknown = e.detail;
