@@ -40,11 +40,17 @@ export default function LogoutConfirmDialog({ onClose, onRedirect }: Props) {
   const handleConfirm = () => {
     if (pending) return;
     setPending(true);
-    logout(); // synchronous; push teardown is its own fire-and-forget inside
+    // Do NOT log out yet. logout() synchronously nulls auth state, and several
+    // consumers stop rendering this dialog the instant that happens — the
+    // account layout guard early-returns + redirects, the operator navbar
+    // variant is role-derived, the seller pending page polls on `token`. Any
+    // of those unmounts the farewell (or redirects) before it can show. So we
+    // keep auth stable for the hold, then navigate + log out together at the
+    // end. The closure captures this click's onRedirect; the timer fires once.
     setPhase("farewell");
-    // The closure captures the onRedirect from this click; the timer fires once.
     timerRef.current = setTimeout(() => {
       onRedirect();
+      logout();
     }, FAREWELL_HOLD_MS);
   };
 

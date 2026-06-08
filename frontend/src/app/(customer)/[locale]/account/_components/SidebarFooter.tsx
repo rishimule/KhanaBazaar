@@ -24,8 +24,10 @@ export default function AccountSidebarFooter() {
         <span className={styles.icon} aria-hidden>🚪</span>
         {t("navLogout")}
       </button>
+      {/* Land on /login: the account layout guard redirects there on a null
+          user anyway, so matching it keeps the farewell race-free. */}
       {open && (
-        <LogoutConfirmDialog onClose={closeDialog} onRedirect={() => router.push("/")} />
+        <LogoutConfirmDialog onClose={closeDialog} onRedirect={() => router.push("/login")} />
       )}
     </>
   );
