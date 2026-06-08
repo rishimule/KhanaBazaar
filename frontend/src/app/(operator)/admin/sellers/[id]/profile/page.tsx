@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
 import { useAuth } from "@/lib/AuthContext";
 import { patch } from "@/lib/api";
-import { adminSetServiceMinOrderValue, fetchSellerHub } from "@/lib/adminActions";
+import { adminSetServiceDeliverySettings, fetchSellerHub } from "@/lib/adminActions";
 import {
   GROUP_LABEL,
   adminListSellerCRs,
@@ -128,10 +128,11 @@ export default function SellerProfileTab({
         setMinError("Maximum delivery time must be at least the minimum.");
         return;
       }
-      adminSetServiceMinOrderValue(
+      adminSetServiceDeliverySettings(
         Number(id),
         serviceId,
-        svc.min_order_value ?? 0,
+        svc.free_delivery_threshold ?? 0,
+        svc.delivery_fee ?? 0,
         token,
         { min: etaMin, max: etaMax },
       )
@@ -147,13 +148,25 @@ export default function SellerProfileTab({
     }, 400);
   };
 
-  const updateMin = (serviceId: number, raw: number) => {
+  const updateThreshold = (serviceId: number, raw: number) => {
     if (!token || !hub) return;
     const value = Number.isFinite(raw) ? Math.max(0, Math.min(100000, raw)) : 0;
     setHub({
       ...hub,
       services: hub.services.map((s) =>
-        s.id === serviceId ? { ...s, min_order_value: value } : s,
+        s.id === serviceId ? { ...s, free_delivery_threshold: value } : s,
+      ),
+    });
+    schedulePersist(serviceId);
+  };
+
+  const updateFee = (serviceId: number, raw: number) => {
+    if (!token || !hub) return;
+    const value = Number.isFinite(raw) ? Math.max(0, Math.min(5000, raw)) : 0;
+    setHub({
+      ...hub,
+      services: hub.services.map((s) =>
+        s.id === serviceId ? { ...s, delivery_fee: value } : s,
       ),
     });
     schedulePersist(serviceId);
@@ -369,9 +382,21 @@ export default function SellerProfileTab({
                 max={100000}
                 step={10}
                 disabled={!isApproved}
-                value={svc.min_order_value ?? 0}
-                onChange={(e) => updateMin(svc.id, parseFloat(e.target.value))}
-                aria-label={t("profile.minOrderAriaLabel", { name: svc.name })}
+                value={svc.free_delivery_threshold ?? 0}
+                onChange={(e) => updateThreshold(svc.id, parseFloat(e.target.value))}
+                aria-label={t("profile.freeDeliveryThresholdAriaLabel", { name: svc.name })}
+                style={{ width: 110, padding: "6px 8px", textAlign: "right" }}
+              />
+              <span>Fee ₹</span>
+              <input
+                type="number"
+                min={0}
+                max={5000}
+                step={5}
+                disabled={!isApproved}
+                value={svc.delivery_fee ?? 0}
+                onChange={(e) => updateFee(svc.id, parseFloat(e.target.value))}
+                aria-label={t("profile.deliveryFeeAriaLabel", { name: svc.name })}
                 style={{ width: 110, padding: "6px 8px", textAlign: "right" }}
               />
               <span>ETA</span>
