@@ -114,11 +114,13 @@ export default function CheckoutPage() {
   }
 
   const subtotal = getTotal(cart);
-  const deliveryFee = 0;
+  const freeDeliveryThreshold = cart.free_delivery_threshold ?? 0;
+  const baseFee = cart.delivery_fee ?? 0;
+  const shortfall = Math.max(0, freeDeliveryThreshold - subtotal);
+  const deliveryFee = shortfall > 0 ? baseFee : 0;
+  const feeApplies = deliveryFee > 0;
   const tax = 0;
   const total = subtotal + deliveryFee + tax;
-  const minOrderValue = cart.min_order_value ?? 0;
-  const shortfall = Math.max(0, minOrderValue - subtotal);
   const etaLabel =
     cart.delivery_eta_min_minutes != null && cart.delivery_eta_max_minutes != null
       ? formatDeliveryEta(cart.delivery_eta_min_minutes, cart.delivery_eta_max_minutes)
@@ -146,17 +148,13 @@ export default function CheckoutPage() {
       }
       router.push("/account/orders?placed=1");
     } catch (e) {
-      // The minimum-order 409 carries a structured dict detail, so it must be
+      // The pause 409 carries a structured dict detail, so it must be
       // matched before apiErrorKey() (which maps every 409 to "conflict").
       const rawDetail = (e as { detail?: unknown })?.detail;
       const structured =
         rawDetail && typeof rawDetail === "object" && "detail" in rawDetail
-          ? (rawDetail as { detail: unknown; shortfall?: number })
+          ? (rawDetail as { detail: unknown })
           : null;
-      if (structured?.detail === "below_minimum_order_value") {
-        setError(t("minOrderShortfall", { amount: structured.shortfall ?? 0 }));
-        return;
-      }
       if (
         structured?.detail === "store_paused" ||
         structured?.detail === "service_paused"
@@ -259,7 +257,7 @@ export default function CheckoutPage() {
           </div>
           <div className={styles.summaryRow}>
             <span>{t("deliveryFee")}</span>
-            <span>₹{deliveryFee}</span>
+            <span>₹{deliveryFee.toFixed(2)}</span>
           </div>
           <div className={styles.summaryRow}>
             <span>{t("tax")}</span>
@@ -290,7 +288,7 @@ export default function CheckoutPage() {
 
         {error && <div className={styles.error}>{error}</div>}
 
-        {shortfall > 0 && (
+        {feeApplies && (
           <p className={styles.shortfallNote} role="status">
             {t("minOrderShortfall", { amount: shortfall })}
           </p>
@@ -303,8 +301,7 @@ export default function CheckoutPage() {
             submitting ||
             pickerState.selectedId === null ||
             pickerState.loading ||
-            !pickerState.serviceable ||
-            shortfall > 0
+            !pickerState.serviceable
           }
         >
           {submitting
