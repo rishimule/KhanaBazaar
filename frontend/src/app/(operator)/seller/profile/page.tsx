@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { serviceGlyph } from "@/lib/serviceGlyph";
+import { profileEditErrorMessage } from "@/lib/sellerProfileValidation";
 import type {
   SellerProfile,
   SellerProfileChangeGroup,
@@ -188,8 +189,9 @@ export default function SellerProfilePage() {
       .then((updated) => {
         if (myReq === reqIdRef.current) setStore(updated);
       })
-      .catch(() => {
-        if (myReq === reqIdRef.current) setSaveError(tSettings("saveRadiusError"));
+      .catch((err) => {
+        if (myReq === reqIdRef.current)
+          setSaveError(profileEditErrorMessage(err, tSettings("saveRadiusError")));
       })
       .finally(() => {
         if (myReq === reqIdRef.current) setSavingRadius(false);
@@ -241,9 +243,9 @@ export default function SellerProfilePage() {
             : prev,
         );
       })
-      .catch(() => {
+      .catch((err) => {
         if (minReqRef.current[serviceId] !== myReq) return;
-        setSaveError(tSettings("saveMinOrderError"));
+        setSaveError(profileEditErrorMessage(err, tSettings("saveMinOrderError")));
       });
   };
 

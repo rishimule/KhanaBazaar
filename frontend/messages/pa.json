@@ -1044,10 +1044,7 @@
       "yes": "ਹਾਂ",
       "no": "ਨਹੀਂ",
       "minOrderCaption": "ਇਸ ਰਕਮ ਤੋਂ ਘੱਟ ਆਰਡਰ ਉਸ ਸੇਵਾ ਲਈ ਨਹੀਂ ਦਿੱਤੇ ਜਾ ਸਕਦੇ। ਕੋਈ ਘੱਟੋ-ਘੱਟ ਨਾ ਰੱਖਣ ਲਈ 0 ਸੈੱਟ ਕਰੋ।",
-      "minOrderInputLabel": "{service} ਲਈ ਘੱਟੋ-ਘੱਟ ਆਰਡਰ ਮੁੱਲ",
-      "profileServices": "ਪ੍ਰੋਫਾਈਲ ਅਤੇ ਸੇਵਾਵਾਂ",
-      "editProfile": "ਕਾਰੋਬਾਰੀ ਪ੍ਰੋਫਾਈਲ ਸੰਪਾਦਿਤ ਕਰੋ",
-      "viewStorefront": "ਸਟੋਰਫ੍ਰੰਟ ਵੇਖੋ"
+      "minOrderInputLabel": "{service} ਲਈ ਘੱਟੋ-ਘੱਟ ਆਰਡਰ ਮੁੱਲ"
     },
     "profile": {
       "heading": "ਪ੍ਰੋਫਾਈਲ",

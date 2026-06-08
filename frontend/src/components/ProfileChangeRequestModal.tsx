@@ -15,6 +15,11 @@ import {
 } from "@/lib/sellerPhone";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import { GROUP_LABEL } from "@/lib/changeRequests";
+import {
+  normalizeField,
+  profileEditErrorMessage,
+  validateField,
+} from "@/lib/sellerProfileValidation";
 import type {
   Address,
   LocationSource,
@@ -188,6 +193,24 @@ export default function ProfileChangeRequestModal({
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Seed from the initial values so a pre-filled/autofilled invalid value
+  // surfaces its message immediately, rather than leaving Submit disabled with
+  // no visible reason. Valid/empty-optional fields seed to null (no message).
+  const [errors, setErrors] = useState<Record<string, string | null>>(() =>
+    Object.fromEntries(
+      fields.map((f) => [
+        f.name,
+        validateField(f.name, String(currentValues[f.name] ?? "")),
+      ]),
+    ),
+  );
+
+  // The active group validates when every one of its generic fields passes.
+  // Phone (identity) is gated separately by phoneVerified; address/services use
+  // their own flows and have empty `fields`, so this is true for them.
+  const groupValid = fields.every(
+    (f) => validateField(f.name, values[f.name] ?? "") === null,
+  );
 
   // --- Identity phone-change verification (OTP on the NEW number) ---
   // Compare against the canonical form so cosmetic formatting (spaces/hyphens,
@@ -308,7 +331,7 @@ export default function ProfileChangeRequestModal({
         if (f.type === "number") {
           payload[f.name] = v === "" ? null : Number(v);
         } else {
-          payload[f.name] = v;
+          payload[f.name] = v.trim();
         }
       }
     }
@@ -316,7 +339,7 @@ export default function ProfileChangeRequestModal({
       await onSubmit(payload, note || undefined, phoneChangeToken);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Submission failed");
+      setError(profileEditErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -455,7 +478,7 @@ export default function ProfileChangeRequestModal({
               onChange={(e) => setNote(e.target.value)}
             />
           </label>
-          {error && <p className={styles.error}>{error}</p>}
+          {error && <p role="alert" className={styles.error}>{error}</p>}
         </form>
       </Modal>
     );
@@ -478,7 +501,7 @@ export default function ProfileChangeRequestModal({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={busy || !phoneVerified}
+            disabled={busy || !phoneVerified || !groupValid}
             onClick={handleSubmit}
           >
             {busy ? "…" : resolvedSubmitLabel}
@@ -534,10 +557,28 @@ export default function ProfileChangeRequestModal({
                   type={f.type ?? "text"}
                   value={values[f.name] ?? ""}
                   required={f.required}
-                  onChange={(e) =>
-                    setValues((vs) => ({ ...vs, [f.name]: e.target.value }))
-                  }
+                  aria-invalid={errors[f.name] ? true : undefined}
+                  aria-describedby={errors[f.name] ? `${f.name}-error` : undefined}
+                  onChange={(e) => {
+                    const v = normalizeField(f.name, e.target.value);
+                    setValues((vs) => ({ ...vs, [f.name]: v }));
+                    setErrors((es) => ({ ...es, [f.name]: validateField(f.name, v) }));
+                  }}
+                  onBlur={(e) => {
+                    const v = normalizeField(f.name, e.target.value);
+                    setValues((vs) => ({ ...vs, [f.name]: v }));
+                    setErrors((es) => ({ ...es, [f.name]: validateField(f.name, v) }));
+                  }}
                 />
+                {errors[f.name] && (
+                  <span
+                    id={`${f.name}-error`}
+                    role="alert"
+                    className={styles.fieldError}
+                  >
+                    {errors[f.name]}
+                  </span>
+                )}
               </label>
             );
           })}
@@ -596,7 +637,7 @@ export default function ProfileChangeRequestModal({
             onChange={(e) => setNote(e.target.value)}
           />
         </label>
-        {error && <p className={styles.error}>{error}</p>}
+        {error && <p role="alert" className={styles.error}>{error}</p>}
       </form>
     </Modal>
   );

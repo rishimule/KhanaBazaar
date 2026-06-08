@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
 from fastapi import HTTPException
+from pydantic import ValidationError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -53,6 +54,25 @@ OPEN_STATUSES = (
     SellerProfileChangeStatus.Submitted,
     SellerProfileChangeStatus.ChangesRequested,
 )
+
+
+def _validate_group_payload_or_422(
+    group: SellerProfileChangeGroup, proposed: dict[str, Any]
+) -> dict[str, Any]:
+    """Validate a proposed payload, turning a Pydantic ValidationError into a
+    422 with the underlying message (e.g. "gst_number format invalid") instead
+    of letting it propagate as an unhandled 500. The detail string matches what
+    the frontend maps to friendly copy (see sellerProfileValidation.ts)."""
+    try:
+        return validate_group_payload(group, proposed)
+    except ValidationError as exc:
+        errors = exc.errors()
+        msg = str(errors[0]["msg"]) if errors else "invalid payload"
+        # Pydantic prefixes messages raised via ValueError with "Value error, ".
+        prefix = "Value error, "
+        if msg.startswith(prefix):
+            msg = msg[len(prefix):]
+        raise HTTPException(status_code=422, detail=msg) from exc
 
 
 @dataclass
@@ -228,7 +248,7 @@ async def create_change_request(
         raise HTTPException(status_code=409, detail="seller_not_active")
     assert seller_profile.id is not None
 
-    canonical = validate_group_payload(group, proposed)
+    canonical = _validate_group_payload_or_422(group, proposed)
     await _require_phone_verification(
         session, seller_profile, group, canonical, phone_change_token
     )
@@ -308,7 +328,7 @@ async def resubmit(
 ) -> CRMutationResult:
     if cr.status is not SellerProfileChangeStatus.ChangesRequested:
         raise HTTPException(status_code=409, detail="cr_not_resubmittable")
-    canonical = validate_group_payload(cr.group, proposed)
+    canonical = _validate_group_payload_or_422(cr.group, proposed)
     await _require_phone_verification(
         session, seller_profile, cr.group, canonical, phone_change_token
     )

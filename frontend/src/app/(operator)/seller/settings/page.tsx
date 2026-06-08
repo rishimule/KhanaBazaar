@@ -61,20 +61,6 @@ export default function SellerSettingsPage() {
           <dd>{store.pin_confirmed ? t("yes") : t("no")}</dd>
         </dl>
       </section>
-
-      <section className={styles.card}>
-        <header className={styles.cardHeader}>
-          <h2 className={styles.cardTitle}>{t("profileServices")}</h2>
-        </header>
-        <div className={styles.linkRow}>
-          <Link href="/seller/signup?resubmit=true" className="btn btn-outline">
-            {t("editProfile")}
-          </Link>
-          <Link href={`/stores/${store.id}`} className="btn btn-outline">
-            {t("viewStorefront")}
-          </Link>
-        </div>
-      </section>
     </div>
   );
 }

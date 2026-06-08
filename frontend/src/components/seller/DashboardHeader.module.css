@@ -21,6 +21,10 @@
   color: var(--color-neutral-600);
   margin: 0;
 }
+.storeName {
+  font-weight: var(--weight-bold, 700);
+  color: var(--color-neutral-700, inherit);
+}
 .sep {
   color: var(--color-neutral-300);
 }

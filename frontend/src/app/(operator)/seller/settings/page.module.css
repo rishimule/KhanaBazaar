@@ -92,9 +92,3 @@
   margin: 0;
   color: var(--shade-cool-dark-7);
 }
-
-.linkRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}

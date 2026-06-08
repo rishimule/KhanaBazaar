@@ -1043,10 +1043,7 @@
       "yes": "Yes",
       "no": "No",
       "minOrderCaption": "Orders below this amount can't be placed for that service. Set to 0 for no minimum.",
-      "minOrderInputLabel": "Minimum order value for {service}",
-      "profileServices": "Profile & services",
-      "editProfile": "Edit business profile",
-      "viewStorefront": "View storefront"
+      "minOrderInputLabel": "Minimum order value for {service}"
     },
     "profile": {
       "heading": "Profile",

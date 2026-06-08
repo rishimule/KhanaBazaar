@@ -46,6 +46,11 @@
   margin: 0;
 }
 
+.fieldError {
+  color: var(--color-danger, var(--color-error, #b91c1c));
+  font-size: 0.8rem;
+}
+
 .checkboxRow {
   display: flex;
   align-items: center;

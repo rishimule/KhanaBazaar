@@ -49,7 +49,7 @@ export default function DashboardHeader({
           {greeting()}, {firstName(fullName)}
         </h1>
         <p className={styles.subtitle}>
-          {storeName && <span>{storeName}</span>}
+          {storeName && <span className={styles.storeName}>{storeName}</span>}
           <span className={styles.sep}>·</span>
           <span>{today}</span>
           <span className={`${styles.chip} ${storePaused ? styles.chipWarn : styles.chipOk}`}>
