@@ -197,7 +197,10 @@ export default function CartPage() {
     return (
       <>
         {feeApplies && (
-          <div className={styles.shortfallBanner} role="status">
+          <div
+            className={`${styles.shortfallBanner} ${styles.shortfallHint}`}
+            role="status"
+          >
             {t("minOrderShortfall", { amount: shortfall, service: serviceName })}
           </div>
         )}

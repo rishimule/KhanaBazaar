@@ -249,6 +249,10 @@
   color: var(--shade-cool-base-7);
 }
 
+.shortfallHint {
+  color: var(--color-error);
+}
+
 .checkoutBtn {
   display: inline-flex;
   align-items: center;
