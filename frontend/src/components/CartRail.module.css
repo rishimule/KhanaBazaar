@@ -132,13 +132,7 @@
   margin: 10px 0 16px;
 }
 
-.shortfall {
-  font-size: var(--body-xs);
-  color: var(--shade-cool-base-7);
-  margin: 0 0 10px;
-  text-align: center;
-}
-
+.shortfall,
 .pausedNote {
   font-size: var(--body-xs);
   color: var(--shade-cool-base-7);
