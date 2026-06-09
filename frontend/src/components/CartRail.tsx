@@ -20,9 +20,11 @@ function CartThumb({ url }: { url?: string }) {
 interface Props {
   storeId?: number;
   serviceId?: number;
+  /** When true, the store/service is paused: disable checkout + show a note. */
+  paused?: boolean;
 }
 
-export default function CartRail({ storeId, serviceId }: Props) {
+export default function CartRail({ storeId, serviceId, paused = false }: Props) {
   const t = useTranslations("Cart");
   const { carts } = useCart();
   const { dbUser } = useAuth();
@@ -105,7 +107,16 @@ export default function CartRail({ storeId, serviceId }: Props) {
                 {t("railShortfall", { amount: shortfall.toFixed(2) })}
               </div>
             )}
-            <button className={styles.checkout} onClick={onCheckout}>
+            {paused && (
+              <div className={styles.pausedNote} role="status">
+                {t("storePausedBanner")}
+              </div>
+            )}
+            <button
+              className={styles.checkout}
+              onClick={onCheckout}
+              disabled={paused}
+            >
               {t("railCheckout")}
             </button>
           </div>

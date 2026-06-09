@@ -444,6 +444,13 @@ export default function StoreDetailPage({ params }: Props) {
         <CartRail
           storeId={store.id}
           serviceId={activeServiceNode?.id}
+          paused={
+            store.is_paused ||
+            (activeServiceNode
+              ? store.services.find((s) => s.id === activeServiceNode.id)
+                  ?.is_paused ?? false
+              : false)
+          }
         />
       </div>
     </div>
