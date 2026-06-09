@@ -79,37 +79,6 @@ export default async function SellPage() {
                 </Link>
               </div>
             </div>
-
-            <div className={styles.storefrontVisual} aria-hidden="true">
-              <div className={styles.storefrontRoof} />
-              <div className={styles.storefrontBody}>
-                <div className={styles.storefrontSign}>
-                  <span className={styles.signMark} />
-                  <span>{t("storefrontSign")}</span>
-                </div>
-                <div className={styles.storefrontWindow}>
-                  <div className={styles.windowShelf}>
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                  <div className={styles.windowShelf}>
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                  <div className={styles.windowShelf}>
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                </div>
-                <div className={styles.storefrontCounter}>
-                  <span>{t("storefrontShelves")}</span>
-                  <span>{t("storefrontVisible")}</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
