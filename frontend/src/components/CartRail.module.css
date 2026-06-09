@@ -139,6 +139,13 @@
   text-align: center;
 }
 
+.pausedNote {
+  font-size: var(--body-xs);
+  color: var(--shade-cool-base-7);
+  margin: 0 0 10px;
+  text-align: center;
+}
+
 .checkout {
   display: block;
   width: 100%;
