@@ -55,7 +55,7 @@ def test_sorts_by_effective_total_ascending() -> None:
         _alt(3, effective_total=130.0, distance_km=0.5),
     ]
     result = rank_candidates(cands)
-    assert [a.id for a in result] == [2, 3]  # top 2
+    assert [a.id for a in result] == [2, 3, 1]  # cheapest first
 
 
 def test_tiebreak_by_distance_when_totals_equal() -> None:
@@ -65,15 +65,15 @@ def test_tiebreak_by_distance_when_totals_equal() -> None:
         _alt(3, effective_total=100.0, distance_km=2.0),
     ]
     result = rank_candidates(cands)
-    assert [a.id for a in result] == [2, 3]
+    assert [a.id for a in result] == [2, 3, 1]
 
 
-def test_returns_at_most_two() -> None:
+def test_returns_at_most_five() -> None:
     cands = [
-        _alt(i, effective_total=100.0 + i, distance_km=1.0) for i in range(5)
+        _alt(i, effective_total=100.0 + i, distance_km=1.0) for i in range(7)
     ]
     result = rank_candidates(cands)
-    assert len(result) == 2
+    assert len(result) == 5
 
 
 def test_empty_input_returns_empty() -> None:

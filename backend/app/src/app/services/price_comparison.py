@@ -14,7 +14,7 @@ from app.models.catalog import MasterProduct, MasterProductTranslation, Subcateg
 from app.models.store import Store, StoreInventory
 from app.schemas.price_comparison import ComparisonAlternative, ComparisonItem
 
-MAX_ALTERNATIVES = 2
+MAX_ALTERNATIVES = 5
 CANDIDATE_POOL_LIMIT = 20
 
 
