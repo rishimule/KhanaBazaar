@@ -74,12 +74,28 @@ class GCSImageStorage:
         await anyio.to_thread.run_sync(_delete)
 
 
-def get_image_storage() -> ImageStorage:
+def get_image_storage(
+    bucket: str | None = None,
+    public_base_url: str | None = None,
+) -> ImageStorage:
     """Construct the storage backend for the current settings.
 
-    Not cached: tests monkeypatch settings between cases, and admin uploads
-    are rare so per-call construction is fine.
+    Optional `bucket`/`public_base_url` override the product-image defaults so
+    other features (avatars) can target a different bucket. Not cached: tests
+    monkeypatch settings between cases, and uploads are rare so per-call
+    construction is fine.
     """
     if settings.IMAGE_STORAGE_BACKEND == "gcs":
-        return GCSImageStorage(settings.GCS_PRODUCT_IMAGES_BUCKET, settings.GCS_PUBLIC_BASE_URL)
+        return GCSImageStorage(
+            bucket or settings.GCS_PRODUCT_IMAGES_BUCKET,
+            public_base_url if public_base_url is not None else settings.GCS_PUBLIC_BASE_URL,
+        )
     return LocalImageStorage(settings.MEDIA_LOCAL_DIR, settings.MEDIA_URL_PREFIX)
+
+
+def get_user_media_storage() -> ImageStorage:
+    """Storage backend pointed at the dedicated user-media bucket (avatars)."""
+    return get_image_storage(
+        bucket=settings.GCS_USER_MEDIA_BUCKET,
+        public_base_url=settings.GCS_USER_MEDIA_PUBLIC_BASE_URL,
+    )

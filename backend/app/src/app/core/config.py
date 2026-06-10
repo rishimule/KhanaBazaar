@@ -104,6 +104,11 @@ class Settings(BaseSettings):
     GCS_PRODUCT_IMAGES_BUCKET: str = ""
     # Optional override for the public object URL base (CDN/custom domain).
     GCS_PUBLIC_BASE_URL: str = ""
+    # Dedicated bucket for user-uploaded media (avatars now, seller banners later).
+    GCS_USER_MEDIA_BUCKET: str = ""
+    GCS_USER_MEDIA_PUBLIC_BASE_URL: str = ""
+    # Avatars are downscaled smaller than catalog product images.
+    AVATAR_MAX_DIMENSION_PX: int = 512
 
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
 
