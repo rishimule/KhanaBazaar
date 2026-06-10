@@ -357,6 +357,7 @@
   },
   "Product": {
     "imageGallery": "Product images",
+    "openZoom": "open zoom",
     "outOfStock": "साठ्यात नाही",
     "outOfStockButton": "साठ्यात नाही",
     "onlyNLeft": "फक्त {count} शिल्लक",

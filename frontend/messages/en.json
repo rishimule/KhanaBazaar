@@ -357,6 +357,7 @@
   },
   "Product": {
     "imageGallery": "Product images",
+    "openZoom": "open zoom",
     "outOfStock": "Out of stock",
     "outOfStockButton": "Out of Stock",
     "onlyNLeft": "Only {count} left",

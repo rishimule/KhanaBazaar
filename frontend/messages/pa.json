@@ -357,6 +357,7 @@
   },
   "Product": {
     "imageGallery": "Product images",
+    "openZoom": "open zoom",
     "outOfStock": "ਸਟਾਕ ਵਿੱਚ ਨਹੀਂ",
     "outOfStockButton": "ਸਟਾਕ ਵਿੱਚ ਨਹੀਂ",
     "onlyNLeft": "ਸਿਰਫ਼ {count} ਬਾਕੀ",
