@@ -24,7 +24,13 @@ export default function ProductModal({ storeUrl, closeLabel, children }: Props) 
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key !== "Escape") return;
+      // A fullscreen image viewer (yet-another-react-lightbox) can be layered
+      // above this modal. Its Escape handler runs as a React synthetic event and
+      // cannot stop this native document listener, so let it close the viewer
+      // first instead of tearing down the whole product modal in one keystroke.
+      if (document.querySelector(".yarl__portal_open")) return;
+      close();
     };
     document.addEventListener("keydown", handler);
     const previousOverflow = document.body.style.overflow;

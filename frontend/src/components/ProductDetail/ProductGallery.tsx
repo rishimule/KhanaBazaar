@@ -53,6 +53,15 @@ export default function ProductGallery({
     return () => obs.disconnect();
   }, [gallery.length]);
 
+  // When the fullscreen viewer closes (possibly on a different image than it
+  // opened on), bring the inline track in line with activeIdx so the rail/dots
+  // and the visible slide stay in agreement.
+  useEffect(() => {
+    if (lightboxOpen) return;
+    const track = trackRef.current;
+    if (track) track.scrollTo({ left: activeIdx * track.clientWidth, behavior: "auto" });
+  }, [activeIdx, lightboxOpen]);
+
   function goTo(i: number) {
     setActiveIdx(i);
     slideRefs.current[i]?.scrollIntoView({
@@ -119,7 +128,9 @@ export default function ProductGallery({
               data-idx={i}
               className={styles.slide}
               aria-label={`${productName} – image ${i + 1}, ${t("openZoom")}`}
-              onClick={() => setLightboxOpen(true)}
+              onClick={() => {
+                if (!failed[i]) setLightboxOpen(true);
+              }}
             >
               {failed[i] ? (
                 <span className={styles.placeholder} aria-hidden>📦</span>
@@ -158,7 +169,7 @@ export default function ProductGallery({
         <ProductLightbox
           slides={slides}
           open={lightboxOpen}
-          index={activeIdx}
+          index={Math.min(activeIdx, gallery.length - 1)}
           onClose={() => setLightboxOpen(false)}
           onIndexChange={setActiveIdx}
         />

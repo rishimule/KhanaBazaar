@@ -16,6 +16,14 @@
   }
 }
 
+/* Used only by ProductDetailSkeleton (the live gallery styles live in
+   ProductGallery.module.css). Keep the loading placeholder's image box shaped. */
+.imageWrap {
+  aspect-ratio: 1;
+  border-radius: 16px;
+  background: var(--shade-cool-light-1, #f1f5f9);
+}
+
 .body {
   display: flex;
   flex-direction: column;
