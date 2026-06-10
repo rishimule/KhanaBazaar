@@ -8,11 +8,15 @@ dedicated user-media bucket under `avatars/{subject}/{profile_id}/{sha}.webp`.
 """
 from __future__ import annotations
 
+import logging
+
 import anyio
 
 from app.core.config import settings
 from app.services.image_processing import process_image
 from app.services.image_storage import get_user_media_storage
+
+logger = logging.getLogger(__name__)
 
 
 async def process_and_store(
@@ -32,7 +36,15 @@ async def process_and_store(
 
 
 async def delete_blob(storage_key: str | None) -> None:
-    """Best-effort delete of an avatar blob; no-op when key is falsy."""
+    """Best-effort delete of an avatar blob; no-op when key is falsy.
+
+    Never raises: a storage error here must not abort the surrounding DB
+    transaction (CR approve / customer replace already committed or are about
+    to). A leaked blob is harmless; the avatar falls back to initials.
+    """
     if not storage_key:
         return
-    await get_user_media_storage().delete(storage_key)
+    try:
+        await get_user_media_storage().delete(storage_key)
+    except Exception:
+        logger.warning("avatar blob delete failed for key=%s", storage_key, exc_info=True)

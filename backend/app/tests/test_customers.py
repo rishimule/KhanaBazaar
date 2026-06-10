@@ -463,3 +463,38 @@ async def test_customer_avatar_rejects_non_image(
             files={"file": ("x.txt", b"not an image", "text/plain")},
         )
     assert bad.status_code == 422
+
+
+async def test_customer_avatar_replace_deletes_old_blob(
+    override_as_customer: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "IMAGE_STORAGE_BACKEND", "local")
+    monkeypatch.setattr(settings, "MEDIA_LOCAL_DIR", str(tmp_path))
+
+    def _png_color(color: str) -> bytes:
+        buf = io.BytesIO()
+        Image.new("RGB", (300, 300), color).save(buf, format="PNG")
+        return buf.getvalue()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        up_a = await ac.post(
+            "/api/v1/customers/me/avatar",
+            files={"file": ("a.png", _png_color("green"), "image/png")},
+        )
+        url_a = up_a.json()["avatar_url"]
+        up_b = await ac.post(
+            "/api/v1/customers/me/avatar",
+            files={"file": ("b.png", _png_color("blue"), "image/png")},
+        )
+        url_b = up_b.json()["avatar_url"]
+
+    assert url_a != url_b
+    name_a = url_a.rsplit("/", 1)[-1]
+    name_b = url_b.rsplit("/", 1)[-1]
+    files = {p.name for p in tmp_path.glob("avatars/customer/*/*.webp")}
+    assert name_b in files
+    assert name_a not in files  # old blob deleted on replace

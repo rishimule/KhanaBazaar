@@ -21,19 +21,22 @@ function initialsAndColor(name: string, seed: string): { initials: string; color
 }
 
 export default function Avatar({ avatarUrl, name, seed, size = 64 }: Props) {
-  const [failed, setFailed] = useState(false);
+  // Track the URL that failed to load (not a bare boolean): when `avatarUrl`
+  // changes after a replace, `failedUrl !== avatarUrl` is true again, so the
+  // new image is retried with no effect/reset needed.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const dim = { width: size, height: size, fontSize: Math.round(size * 0.4) };
 
-  if (avatarUrl && !failed) {
-    // eslint-disable-next-line @next/next/no-img-element
+  if (avatarUrl && failedUrl !== avatarUrl) {
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={avatarUrl}
         alt={name}
         referrerPolicy="no-referrer"
         className={styles.avatar}
         style={dim}
-        onError={() => setFailed(true)}
+        onError={() => setFailedUrl(avatarUrl)}
       />
     );
   }

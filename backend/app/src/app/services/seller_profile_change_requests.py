@@ -311,9 +311,11 @@ async def create_avatar_change_request(
 ) -> CRMutationResult:
     """Upload a pending avatar blob and queue an `avatar` CR for admin approval.
 
-    Auto-supersedes any open avatar CR (re-picking must not 409). The supersede
-    runs BEFORE storing the new blob so an identical re-upload is not deleted by
-    the withdraw cleanup.
+    Auto-supersedes any open avatar CR (re-picking must not 409). Supersede runs
+    first (it withdraws the prior CR, cleaning up that CR's pending blob), THEN
+    we store the new blob. `process_and_store` always re-writes the object, so
+    even a byte-identical re-upload (same sha → same key) ends up present after
+    the prior cleanup deleted it.
     """
     if seller_profile.verification_status is not VerificationStatus.Approved:
         raise HTTPException(status_code=409, detail="seller_not_active")

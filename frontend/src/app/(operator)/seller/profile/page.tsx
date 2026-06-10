@@ -188,10 +188,13 @@ export default function SellerProfilePage() {
     if (!token) return;
     setAvatarBusy(true);
     setAvatarNotice(null);
+    setSaveError(null);
     try {
       await uploadSellerAvatar(blob, token);
       setAvatarNotice("Submitted for admin approval.");
       await refreshOpenCRs();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Avatar upload failed.");
     } finally {
       setAvatarBusy(false);
     }
@@ -201,10 +204,13 @@ export default function SellerProfilePage() {
     if (!token) return;
     setAvatarBusy(true);
     setAvatarNotice(null);
+    setSaveError(null);
     try {
       await createMyChangeRequest(token, { group: "avatar", proposed: { avatar_url: "" } });
       setAvatarNotice("Removal submitted for admin approval.");
       await refreshOpenCRs();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Avatar removal failed.");
     } finally {
       setAvatarBusy(false);
     }
