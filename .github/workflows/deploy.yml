@@ -76,4 +76,11 @@ jobs:
       - name: Deploy worker on VM
         run: |
           gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap --quiet \
-            --command='cd /opt/kb && sudo docker compose pull worker && sudo docker compose up -d worker'
+            --command='cd /opt/kb && sudo docker compose pull worker && sudo docker compose up -d worker && sudo docker image prune -af'
+
+      # Reclaim the VM root disk: every deploy pulls fresh api/web images to the
+      # VM and old ones accumulate. Left unchecked, / hits 100% and Redis can no
+      # longer write its AOF ("MISCONF ... No space left on device") — breaking
+      # search rate-limiting, OTP login, and cart sync. Pruning unused images
+      # after the new worker is live keeps the disk healthy. The prune is part of
+      # the SSH command above (runs once `up -d worker` has the new image active).
