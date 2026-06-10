@@ -1363,6 +1363,7 @@
       "slugExistsDestination": "गंतव्य पॅरेंटमध्ये स्लग आधीच वापरला आहे.",
       "fieldDescription": "वर्णन",
       "fieldImageUrl": "प्रतिमा URL",
+      "fieldImages": "Images",
       "fieldParent": "पॅरेंट {entity}",
       "fieldBasePrice": "मूळ किंमत",
       "fieldBrand": "ब्रँड",

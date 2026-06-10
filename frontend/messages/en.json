@@ -1362,6 +1362,7 @@
       "slugExistsDestination": "Slug already used in destination parent.",
       "fieldDescription": "Description",
       "fieldImageUrl": "Image URL",
+      "fieldImages": "Images",
       "fieldParent": "Parent {entity}",
       "fieldBasePrice": "Base price",
       "fieldBrand": "Brand",

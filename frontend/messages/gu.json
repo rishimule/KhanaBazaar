@@ -1363,6 +1363,7 @@
       "slugExistsDestination": "ગંતવ્ય પેરન્ટમાં સ્લગ પહેલેથી વપરાયેલ છે.",
       "fieldDescription": "વર્ણન",
       "fieldImageUrl": "છબી URL",
+      "fieldImages": "Images",
       "fieldParent": "પેરન્ટ {entity}",
       "fieldBasePrice": "મૂળ કિંમત",
       "fieldBrand": "બ્રાન્ડ",
