@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `a1821934ae26`. Regenerate this file when the head changes.
+-- migration head `8dc9ba5723f1`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
@@ -14,7 +14,7 @@
 --   locationsource               : 'manual', 'autocomplete', 'pin', 'geocoded'
 --   adminactiontargettype        : 'Inventory', 'Order', 'Store', 'SellerProfile'
 --   notificationtype             : 'OrderStatus', 'DeliveryOtp'  (PG value is the enum member NAME; Python values are 'order_status', 'delivery_otp')
---   sellerprofilechangegroup     : 'identity', 'address', 'legal', 'banking', 'services', 'store_basics'
+--   sellerprofilechangegroup     : 'identity', 'address', 'legal', 'banking', 'services', 'store_basics', 'avatar'
 --   sellerprofilechangestatus    : 'submitted', 'changes_requested', 'approved', 'rejected', 'withdrawn'
 --   sellerprofilechangeeventkind : 'submitted', 'resubmitted', 'changes_requested', 'approved', 'approved_with_edits', 'rejected', 'withdrawn'
 --
@@ -82,7 +82,9 @@ CREATE TABLE "customerprofile" (
   "marketing_opt_in" BOOLEAN NOT NULL DEFAULT false,
   "notify_order_email" BOOLEAN NOT NULL DEFAULT true,
   "notify_order_sms" BOOLEAN NOT NULL DEFAULT false,
-  "phone_verified_at" TIMESTAMPTZ
+  "phone_verified_at" TIMESTAMPTZ,
+  "avatar_url" VARCHAR,
+  "avatar_storage_key" VARCHAR
 );
 
 CREATE TABLE "adminprofile" (
@@ -112,7 +114,9 @@ CREATE TABLE "sellerprofile" (
   "bank_ifsc" VARCHAR,
   "verification_status" verificationstatus NOT NULL,
   "rejection_reason" VARCHAR,
-  "business_address_id" INTEGER NOT NULL
+  "business_address_id" INTEGER NOT NULL,
+  "avatar_url" VARCHAR,
+  "avatar_storage_key" VARCHAR
 );
 
 CREATE TABLE "customeraddress" (

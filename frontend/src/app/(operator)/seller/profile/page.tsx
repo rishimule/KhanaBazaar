@@ -17,6 +17,9 @@ import type {
   Store,
 } from "@/types";
 import ProfileSectionCard from "@/components/ProfileSectionCard";
+import Avatar from "@/components/Avatar";
+import AvatarUploader from "@/components/AvatarUploader";
+import { uploadSellerAvatar } from "@/lib/avatars";
 import ProfileChangeRequestModal from "@/components/ProfileChangeRequestModal";
 import VerificationBadge, {
   type VerificationBadgeStatus,
@@ -121,6 +124,8 @@ export default function SellerProfilePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingRadius, setSavingRadius] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarNotice, setAvatarNotice] = useState<string | null>(null);
   const [editingGroup, setEditingGroup] =
     useState<SellerProfileChangeGroup | null>(null);
   const debounceRef = useRef<number | null>(null);
@@ -178,6 +183,38 @@ export default function SellerProfilePage() {
       // best-effort refresh; leave existing state
     }
   }
+
+  const onUploadSellerAvatar = async (blob: Blob) => {
+    if (!token) return;
+    setAvatarBusy(true);
+    setAvatarNotice(null);
+    setSaveError(null);
+    try {
+      await uploadSellerAvatar(blob, token);
+      setAvatarNotice("Submitted for admin approval.");
+      await refreshOpenCRs();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Avatar upload failed.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const onRemoveSellerAvatar = async () => {
+    if (!token) return;
+    setAvatarBusy(true);
+    setAvatarNotice(null);
+    setSaveError(null);
+    try {
+      await createMyChangeRequest(token, { group: "avatar", proposed: { avatar_url: "" } });
+      setAvatarNotice("Removal submitted for admin approval.");
+      await refreshOpenCRs();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Avatar removal failed.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
 
   const tSettings = useTranslations("Seller.settings");
 
@@ -420,6 +457,32 @@ export default function SellerProfilePage() {
       </div>
 
       {saveError && <div className={styles.errorBanner}>{saveError}</div>}
+
+      <div className={styles.avatarSection}>
+        <Avatar
+          avatarUrl={profile.avatar_url}
+          name={profile.full_name}
+          seed={profile.phone}
+          size={72}
+        />
+        <div>
+          <AvatarUploader busy={avatarBusy} onUpload={onUploadSellerAvatar} />
+          {profile.avatar_url && (
+            <button
+              type="button"
+              className={styles.removeAvatar}
+              onClick={onRemoveSellerAvatar}
+              disabled={avatarBusy}
+            >
+              Remove picture
+            </button>
+          )}
+          {avatarNotice && <p className={styles.avatarNotice}>{avatarNotice}</p>}
+          <p className={styles.avatarHint}>
+            Profile picture changes require admin approval.
+          </p>
+        </div>
+      </div>
 
       {(() => {
         const chrome = cardCRChrome("identity");

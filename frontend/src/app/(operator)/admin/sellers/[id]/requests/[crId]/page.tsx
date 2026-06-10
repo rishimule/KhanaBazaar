@@ -310,6 +310,40 @@ export default function AdminCRDetailPage() {
           <div className={styles.applyForm}>
             {cr.group === "address" ? (
               <AddressFields value={addr} onChange={setAddr} requirePin />
+            ) : cr.group === "avatar" ? (
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Profile picture</span>
+                <div className={styles.avatarCompare}>
+                  <figure className={styles.avatarFigure}>
+                    <figcaption>Current</figcaption>
+                    {String((cr.baseline_json as Record<string, unknown>).avatar_url ?? "") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={String((cr.baseline_json as Record<string, unknown>).avatar_url)}
+                        referrerPolicy="no-referrer"
+                        className={styles.avatarPreview}
+                        alt="current"
+                      />
+                    ) : (
+                      <span className={styles.avatarNone}>none</span>
+                    )}
+                  </figure>
+                  <figure className={styles.avatarFigure}>
+                    <figcaption>Proposed</figcaption>
+                    {String((cr.proposed_json as Record<string, unknown>).avatar_url ?? "") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={String((cr.proposed_json as Record<string, unknown>).avatar_url)}
+                        referrerPolicy="no-referrer"
+                        className={styles.avatarPreview}
+                        alt="proposed"
+                      />
+                    ) : (
+                      <span className={styles.avatarNone}>removal</span>
+                    )}
+                  </figure>
+                </div>
+              </div>
             ) : (
               Object.keys(cr.proposed_json)
                 .filter((key) => {

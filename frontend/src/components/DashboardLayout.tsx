@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
+import Avatar from "@/components/Avatar";
 import styles from "./DashboardLayout.module.css";
 
 interface NavItem {
@@ -24,6 +25,7 @@ interface Props {
   title: string;
   navItems: NavItem[];
   footer?: React.ReactNode;
+  avatarUrl?: string | null;
 }
 
 const ROLE_LABEL_KEYS: Record<DashboardRole, string> = {
@@ -51,6 +53,7 @@ export default function DashboardLayout({
   title,
   navItems,
   footer,
+  avatarUrl,
 }: Props) {
   const t = useTranslations("Dashboard");
   const pathname = usePathname();
@@ -73,7 +76,11 @@ export default function DashboardLayout({
           <div
             className={`${styles.roleIcon} ${ROLE_ICON_CLASSES[role]}`}
           >
-            {ROLE_ICONS[role]}
+            {avatarUrl ? (
+              <Avatar avatarUrl={avatarUrl} name={roleName} seed={roleName} size={40} />
+            ) : (
+              ROLE_ICONS[role]
+            )}
           </div>
           <div className={styles.roleInfo}>
             <span className={styles.roleName}>{roleName}</span>

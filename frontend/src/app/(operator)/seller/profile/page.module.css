@@ -269,3 +269,29 @@
   font-weight: var(--weight-medium);
   text-decoration: underline;
 }
+
+.avatarSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.avatarNotice {
+  color: var(--color-success, #1e7e34);
+  font-size: 0.8rem;
+  margin: 0.25rem 0 0;
+}
+.avatarHint {
+  color: var(--color-text-muted, #666);
+  font-size: 0.75rem;
+  margin: 0.25rem 0 0;
+}
+.removeAvatar {
+  margin-top: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--color-danger, #c0392b);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}

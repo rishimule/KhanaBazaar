@@ -1,0 +1,23 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.pickBtn {
+  align-self: flex-start;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--color-border, #d0d0d0);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-surface, #fff);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.pickBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.error {
+  color: var(--color-danger, #c0392b);
+  font-size: 0.8rem;
+}

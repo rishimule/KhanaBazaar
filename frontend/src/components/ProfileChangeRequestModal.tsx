@@ -73,6 +73,9 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
       required: true,
     },
   ],
+  // Avatar changes are driven by <AvatarUploader> on the seller profile page,
+  // not by this generic field-based modal — no fields here.
+  avatar: [],
 };
 
 interface Props {

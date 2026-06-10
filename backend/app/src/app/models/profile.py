@@ -36,6 +36,8 @@ class CustomerProfile(BaseSchema, table=True):
         default=None,
         sa_type=DateTime(timezone=True),
     )
+    avatar_url: Optional[str] = Field(default=None)
+    avatar_storage_key: Optional[str] = Field(default=None)
 
     user: User = Relationship()
 
@@ -86,6 +88,8 @@ class SellerProfile(BaseSchema, table=True):
     verification_status: VerificationStatus = Field(default=VerificationStatus.Pending, nullable=False)
     rejection_reason: Optional[str] = Field(default=None)
     business_address_id: int = Field(foreign_key="address.id", nullable=False, index=True)
+    avatar_url: Optional[str] = Field(default=None)
+    avatar_storage_key: Optional[str] = Field(default=None)
 
     user: User = Relationship()
     business_address: Address = Relationship()

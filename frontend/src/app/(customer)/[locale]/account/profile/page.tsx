@@ -4,7 +4,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import PhoneVerifyModal from "@/components/PhoneVerifyModal";
+import Avatar from "@/components/Avatar";
+import AvatarUploader from "@/components/AvatarUploader";
 import { get, patch } from "@/lib/api";
+import { deleteCustomerAvatar, uploadCustomerAvatar } from "@/lib/avatars";
 import { getCustomerStats } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import { apiErrorKey } from "@/lib/errors";
@@ -57,17 +60,6 @@ function normalizeOptional(value: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function initialsAndColor(name: string, email: string): { initials: string; color: string } {
-  const parts = name.trim().split(/\s+/);
-  const initials =
-    (parts[0]?.charAt(0) ?? "") + (parts[1]?.charAt(0) ?? "");
-  const hue = [...email].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-  return {
-    initials: (initials || "U").toUpperCase(),
-    color: `hsl(${hue}deg 60% 50%)`,
-  };
-}
-
 export default function AccountProfilePage() {
   const { token } = useAuth();
   const t = useTranslations("Account.profile");
@@ -96,6 +88,7 @@ export default function AccountProfilePage() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const [phoneModal, setPhoneModal] = useState<
     { open: false } | { open: true; initialStep: "confirm" | "edit" }
   >({ open: false });
@@ -135,6 +128,30 @@ export default function AccountProfilePage() {
       active = false;
     };
   }, [token, t, localizedError]);
+
+  const onUploadAvatar = async (blob: Blob) => {
+    if (!token) return;
+    setAvatarBusy(true);
+    try {
+      setProfile(await uploadCustomerAvatar(blob, token));
+    } catch (error) {
+      setSectionError(localizedError(error, t("saveProfileError")));
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const onRemoveAvatar = async () => {
+    if (!token) return;
+    setAvatarBusy(true);
+    try {
+      setProfile(await deleteCustomerAvatar(token));
+    } catch (error) {
+      setSectionError(localizedError(error, t("saveProfileError")));
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
 
   const validateProfile = (): ProfileErrors => {
     const errors: ProfileErrors = {};
@@ -188,10 +205,6 @@ export default function AccountProfilePage() {
     );
   }
 
-  const { initials, color } = initialsAndColor(
-    `${profile.first_name} ${profile.last_name ?? ""}`.trim(),
-    profile.email,
-  );
   const phoneVerifiedAt = profile.phone_verified_at;
 
   return (
@@ -226,14 +239,28 @@ export default function AccountProfilePage() {
         </div>
 
         <div className={styles.avatarRow}>
-          <div className={styles.avatar} style={{ background: color }}>
-            {initials}
-          </div>
+          <Avatar
+            avatarUrl={profile.avatar_url}
+            name={`${profile.first_name} ${profile.last_name ?? ""}`}
+            seed={profile.email}
+            size={64}
+          />
           <div>
             <div className={styles.avatarLabel}>
               {profile.first_name} {profile.last_name ?? ""}
             </div>
             <div className={styles.avatarEmail}>{profile.email}</div>
+            <AvatarUploader busy={avatarBusy} onUpload={onUploadAvatar} />
+            {profile.avatar_url && (
+              <button
+                type="button"
+                className={styles.removeAvatar}
+                onClick={onRemoveAvatar}
+                disabled={avatarBusy}
+              >
+                Remove picture
+              </button>
+            )}
           </div>
         </div>
 

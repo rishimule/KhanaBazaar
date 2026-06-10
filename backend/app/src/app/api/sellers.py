@@ -465,6 +465,7 @@ async def get_seller_profile(
         bank_ifsc=profile.bank_ifsc,
         verification_status=profile.verification_status.value,
         rejection_reason=profile.rejection_reason,
+        avatar_url=profile.avatar_url,
     )
 
 

@@ -26,7 +26,7 @@ class ImageValidationError(Exception):
     """Raised when an upload or URL fails validation. `str(exc)` is the code."""
 
 
-def process_image(raw: bytes) -> tuple[bytes, str]:
+def process_image(raw: bytes, max_dimension: int | None = None) -> tuple[bytes, str]:
     """Validate + re-encode to WebP. Returns (webp_bytes, sha256_hex)."""
     max_bytes = settings.IMAGE_MAX_UPLOAD_MB * 1024 * 1024
     if len(raw) > max_bytes:
@@ -49,7 +49,7 @@ def process_image(raw: bytes) -> tuple[bytes, str]:
                 im = im.convert("RGBA")
             elif im.mode not in ("RGB", "RGBA"):
                 im = im.convert("RGBA" if "A" in im.mode else "RGB")
-            max_dim = settings.IMAGE_MAX_DIMENSION_PX
+            max_dim = max_dimension or settings.IMAGE_MAX_DIMENSION_PX
             if max(im.size) > max_dim:
                 im.thumbnail((max_dim, max_dim))
             out = io.BytesIO()

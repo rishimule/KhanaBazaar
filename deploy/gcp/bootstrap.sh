@@ -108,6 +108,19 @@ gcloud storage buckets add-iam-policy-binding "gs://${IMAGES_BUCKET}" \
   --member="serviceAccount:kb-runtime@$PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/storage.objectAdmin" --condition=None
 
+# User-media bucket: avatars now, seller banners later. Same public-read +
+# content-hash-immutable posture as product images (see comment above).
+USER_MEDIA_BUCKET="kb-user-media-${PROJECT_ID}"
+gcloud storage buckets describe "gs://${USER_MEDIA_BUCKET}" >/dev/null 2>&1 || \
+  gcloud storage buckets create "gs://${USER_MEDIA_BUCKET}" \
+    --location="$REGION" --uniform-bucket-level-access --no-public-access-prevention
+gcloud storage buckets add-iam-policy-binding "gs://${USER_MEDIA_BUCKET}" \
+  --member="allUsers" --role="roles/storage.objectViewer" --condition=None
+gcloud storage buckets update "gs://${USER_MEDIA_BUCKET}" --cors-file=/tmp/kb-images-cors.json
+gcloud storage buckets add-iam-policy-binding "gs://${USER_MEDIA_BUCKET}" \
+  --member="serviceAccount:kb-runtime@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/storage.objectAdmin" --condition=None
+
 echo "==> 7. WIF pool + provider + deployer SA"
 gcloud iam workload-identity-pools describe gh-pool --location=global >/dev/null 2>&1 || \
   gcloud iam workload-identity-pools create gh-pool --location=global --display-name="GitHub"

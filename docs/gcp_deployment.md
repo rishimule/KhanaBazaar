@@ -87,6 +87,21 @@ origin from `*` to the real web origin before a real launch. Local dev uses
 the filesystem backend (`IMAGE_STORAGE_BACKEND=local`) served by FastAPI
 StaticFiles at `/media` — no bucket needed.
 
+## User media (avatars)
+
+Customer + seller profile pictures live in a **separate** public-read bucket
+`kb-user-media-<project>` (also provisioned by `deploy/gcp/bootstrap.sh`, same
+public-read + content-hash-immutable posture as product images). It is kept
+distinct from the catalog bucket so avatar lifecycle/retention can be managed
+independently and to leave room for future seller banners. The `api` service
+targets it via `GCS_USER_MEDIA_BUCKET=kb-user-media-<project>` (optional
+`GCS_USER_MEDIA_PUBLIC_BASE_URL` for a CDN/custom domain). Object keys are
+`avatars/{customer|seller}/<id>/<sha256>.webp`, downscaled to
+`AVATAR_MAX_DIMENSION_PX` (512). Customer uploads apply instantly; seller
+uploads queue an admin-approved change request. Local dev shares the single
+filesystem backend (key prefix separates avatars from product images) — no
+bucket needed.
+
 ## Cost
 
 ~$49/mo: Cloud Run web+api always-warm (~$20), e2-small VM + disks (~$15),
