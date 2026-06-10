@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.store_product_detail import ProductImagePayload
+
 
 class SuggestTerm(BaseModel):
     text: str
@@ -60,6 +62,7 @@ class ProductCard(BaseModel):
     slug: str
     name: str
     image_url: Optional[str] = None
+    images: list[ProductImagePayload] = []
     brand: Optional[str] = None
     unit: Optional[str] = None
     service_id: int
