@@ -8,6 +8,8 @@
   gap: 1.5rem;
   align-items: flex-start;
 }
+/* Width fits ProductGallery's desktop row: ~60px thumb rail + 8px gap + a
+   square stage. min-width:0 lets the inner scroll-snap track shrink safely. */
 .galleryCol {
   flex: 0 0 320px;
   max-width: 320px;
