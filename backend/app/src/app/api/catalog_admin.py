@@ -15,7 +15,7 @@ implicitly so customers never see soft-deleted rows.
 import re
 from typing import List, Sequence, Type
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import func
 from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -28,6 +28,7 @@ from app.models.catalog import (
     CategoryTranslation,
     LanguageCode,
     MasterProduct,
+    MasterProductImage,
     MasterProductTranslation,
     Service,
     ServiceTranslation,
@@ -41,6 +42,9 @@ from app.schemas.catalog_admin import (
     ProductAdminCreate,
     ProductAdminRead,
     ProductAdminUpdate,
+    ProductImageRead,
+    ProductImageReorder,
+    ProductImageUrlCreate,
     ServiceAdminRead,
     ServiceCreate,
     ServiceUpdate,
@@ -51,12 +55,14 @@ from app.schemas.catalog_admin import (
     TranslationUpsert,
 )
 from app.schemas.pagination import PagedResponse
+from app.services import product_images as product_image_svc
 from app.services.catalog_translations import (
     load_category_translations,
     load_product_translations,
     load_service_translations,
     load_subcategory_translations,
 )
+from app.services.image_processing import ImageValidationError
 
 router = APIRouter(prefix="/admin", tags=["catalog-admin"])
 
@@ -770,8 +776,15 @@ async def delete_subcategory_admin(
 # ─── Products ──────────────────────────────────────────────────
 
 
+def _image_read(row: MasterProductImage) -> ProductImageRead:
+    assert row.id is not None
+    return ProductImageRead(id=row.id, url=row.url, source=row.source, position=row.position)
+
+
 def _product_admin_read(
-    p: MasterProduct, translations: Sequence[MasterProductTranslation]
+    p: MasterProduct,
+    translations: Sequence[MasterProductTranslation],
+    images: Sequence[MasterProductImage] = (),
 ) -> ProductAdminRead:
     assert p.id is not None
     return ProductAdminRead(
@@ -787,6 +800,7 @@ def _product_admin_read(
         brand=p.brand,
         unit=p.unit,
         is_active=p.is_active,
+        images=[_image_read(i) for i in images],
         translations=_serialize_translations(translations),
     )
 
@@ -850,7 +864,8 @@ async def get_product_admin(
     trans = (await session.exec(
         select(MasterProductTranslation).where(MasterProductTranslation.master_product_id == product_id)
     )).all()
-    return _product_admin_read(prod, list(trans))
+    images = await product_image_svc.list_images(session, product_id)
+    return _product_admin_read(prod, list(trans), images)
 
 
 @router.post("/products", response_model=ProductAdminRead)
@@ -933,8 +948,8 @@ async def update_product_admin(  # noqa: C901
 
     prod.subcategory_id = target_sub
     prod.slug = target_slug
-    if payload.image_url is not None:
-        prod.image_url = payload.image_url
+    # NOTE: image_url is owned by the image collection (see product image
+    # endpoints below); it is intentionally NOT writable via this update.
     if payload.base_price is not None:
         prod.base_price = payload.base_price
     if payload.brand is not None:
@@ -1118,3 +1133,75 @@ async def upsert_product_translation(
     )
     await session.commit()
     return {"detail": "ok"}
+
+
+# ─── Product images ────────────────────────────────────────────
+
+
+@router.post("/products/{product_id}/images/upload", response_model=ProductImageRead)
+async def upload_product_image(
+    product_id: int,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> ProductImageRead:
+    raw = await file.read()
+    try:
+        row = await product_image_svc.add_uploaded_image(session, product_id, raw)
+    except product_image_svc.ProductNotFound:
+        raise HTTPException(status_code=404, detail="not_found") from None
+    except product_image_svc.ProductImageLimitError:
+        raise HTTPException(status_code=409, detail="image_limit_reached") from None
+    except ImageValidationError as exc:
+        code = str(exc)
+        status = 413 if code == "file_too_large" else 422
+        raise HTTPException(status_code=status, detail=code) from exc
+    return _image_read(row)
+
+
+@router.post("/products/{product_id}/images/url", response_model=ProductImageRead)
+async def add_product_image_url(
+    product_id: int,
+    payload: ProductImageUrlCreate,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> ProductImageRead:
+    try:
+        row = await product_image_svc.add_external_image(session, product_id, payload.url)
+    except product_image_svc.ProductNotFound:
+        raise HTTPException(status_code=404, detail="not_found") from None
+    except product_image_svc.ProductImageLimitError:
+        raise HTTPException(status_code=409, detail="image_limit_reached") from None
+    except ImageValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return _image_read(row)
+
+
+@router.patch("/products/{product_id}/images/order", response_model=List[ProductImageRead])
+async def reorder_product_images(
+    product_id: int,
+    payload: ProductImageReorder,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> List[ProductImageRead]:
+    try:
+        rows = await product_image_svc.reorder_images(session, product_id, payload.image_ids)
+    except product_image_svc.ProductNotFound:
+        raise HTTPException(status_code=404, detail="not_found") from None
+    except product_image_svc.ProductImageError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return [_image_read(r) for r in rows]
+
+
+@router.delete("/products/{product_id}/images/{image_id}")
+async def delete_product_image(
+    product_id: int,
+    image_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> dict[str, str]:
+    try:
+        await product_image_svc.delete_image(session, product_id, image_id)
+    except product_image_svc.ProductImageNotFound:
+        raise HTTPException(status_code=404, detail="not_found") from None
+    return {"detail": "deleted"}

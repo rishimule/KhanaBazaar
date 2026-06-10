@@ -45,7 +45,7 @@ class LocalImageStorage:
 
 class GCSImageStorage:
     def __init__(self, bucket: str, public_base_url: str = "") -> None:
-        from google.cloud import storage  # lazy: only imported in prod
+        from google.cloud import storage  # type: ignore[attr-defined]
 
         self._bucket_name = bucket
         self._bucket = storage.Client().bucket(bucket)

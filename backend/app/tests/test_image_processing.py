@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 import io
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -62,7 +63,9 @@ def test_validate_external_url_rejects_bad(bad: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_local_storage_save_and_delete(tmp_path, monkeypatch) -> None:
+async def test_local_storage_save_and_delete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from app.services.image_storage import LocalImageStorage
 
     store = LocalImageStorage(str(tmp_path), "/media")
@@ -75,7 +78,9 @@ async def test_local_storage_save_and_delete(tmp_path, monkeypatch) -> None:
     await store.delete("products/abc.webp")
 
 
-def test_get_image_storage_returns_local_by_default(monkeypatch) -> None:
+def test_get_image_storage_returns_local_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from app.core.config import settings
     from app.services.image_storage import LocalImageStorage, get_image_storage
 

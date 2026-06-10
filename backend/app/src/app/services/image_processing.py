@@ -43,17 +43,17 @@ def process_image(raw: bytes) -> tuple[bytes, str]:
             if w * h > settings.IMAGE_MAX_PIXELS:
                 raise ImageValidationError("image_too_large")
 
-        with Image.open(io.BytesIO(raw)) as img:
-            img = ImageOps.exif_transpose(img)  # apply orientation, drop EXIF
-            if img.mode == "P":
-                img = img.convert("RGBA")
-            elif img.mode not in ("RGB", "RGBA"):
-                img = img.convert("RGBA" if "A" in img.mode else "RGB")
+        with Image.open(io.BytesIO(raw)) as src_img:
+            im: Image.Image = ImageOps.exif_transpose(src_img)  # orientation, drop EXIF
+            if im.mode == "P":
+                im = im.convert("RGBA")
+            elif im.mode not in ("RGB", "RGBA"):
+                im = im.convert("RGBA" if "A" in im.mode else "RGB")
             max_dim = settings.IMAGE_MAX_DIMENSION_PX
-            if max(img.size) > max_dim:
-                img.thumbnail((max_dim, max_dim))
+            if max(im.size) > max_dim:
+                im.thumbnail((max_dim, max_dim))
             out = io.BytesIO()
-            img.save(out, format="WEBP", quality=82, method=4)
+            im.save(out, format="WEBP", quality=82, method=4)
             data = out.getvalue()
     except ImageValidationError:
         raise

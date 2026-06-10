@@ -148,7 +148,7 @@ async def delete_image(session: AsyncSession, product_id: int, image_id: int) ->
     # Reference-aware object delete, AFTER the row is gone + committed.
     if source == "uploaded" and key:
         others = await session.exec(
-            select(MasterProductImage.id).where(MasterProductImage.storage_key == key)  # type: ignore[attr-defined]
+            select(MasterProductImage.id).where(MasterProductImage.storage_key == key)
         )
         if others.first() is None:
             await get_image_storage().delete(key)

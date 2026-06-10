@@ -19,6 +19,21 @@ class TranslationOut(BaseModel):
     description: Optional[str] = None
 
 
+class ProductImageRead(BaseModel):
+    id: int
+    url: str
+    source: str
+    position: int
+
+
+class ProductImageUrlCreate(BaseModel):
+    url: str
+
+
+class ProductImageReorder(BaseModel):
+    image_ids: List[int]
+
+
 class ServiceAdminRead(BaseModel):
     id: int
     created_at: datetime
@@ -76,6 +91,7 @@ class ProductAdminRead(BaseModel):
     brand: Optional[str] = None
     unit: Optional[str] = None
     is_active: bool
+    images: List[ProductImageRead] = Field(default_factory=list)
     translations: List[TranslationOut] = Field(default_factory=list)
 
 
