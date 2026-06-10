@@ -70,29 +70,45 @@ class SellerOtpVerifyBody(BaseModel):
     code: str
 
 
-async def _full_name_for_user(session: AsyncSession, user: User) -> str | None:
+async def _profile_display(
+    session: AsyncSession, user: User
+) -> tuple[str | None, str | None]:
+    """Resolve (full_name, avatar_url) from the user's role profile in one load.
+
+    Admins have no avatar field; both are None for them (and for users without
+    a profile yet).
+    """
     if user.role == UserRole.Customer:
         customer_result = await session.exec(
             select(CustomerProfile).where(CustomerProfile.user_id == user.id)
         )
         profile = customer_result.first()
         if profile is None:
-            return None
-        return compose_full_name(profile.first_name, profile.last_name)
+            return None, None
+        return (
+            compose_full_name(profile.first_name, profile.last_name),
+            profile.avatar_url,
+        )
     if user.role == UserRole.Seller:
         seller_result = await session.exec(
             select(SellerProfile).where(SellerProfile.user_id == user.id)
         )
         seller = seller_result.first()
         if seller is None:
-            return None
-        return compose_full_name(seller.first_name, seller.last_name)
-    return None
+            return None, None
+        return (
+            compose_full_name(seller.first_name, seller.last_name),
+            seller.avatar_url,
+        )
+    return None, None
 
 
-def _user_payload(user: User, full_name: str | None) -> dict:  # type: ignore[type-arg]
+def _user_payload(
+    user: User, full_name: str | None, avatar_url: str | None = None
+) -> dict:  # type: ignore[type-arg]
     payload = user.model_dump()
     payload["full_name"] = full_name
+    payload["avatar_url"] = avatar_url
     return payload
 
 
@@ -152,6 +168,7 @@ async def otp_verify(
     user = result.first()
 
     full_name: str | None
+    avatar_url: str | None = None
     if user is None:
         if not body.full_name:
             return {"access_token": None, "token_type": None, "user": None, "needs_name": True}
@@ -170,14 +187,14 @@ async def otp_verify(
         if user.id is not None:
             dispatch_customer_welcome(user.id)
     else:
-        full_name = await _full_name_for_user(session, user)
+        full_name, avatar_url = await _profile_display(session, user)
 
     await consume_otp_key(email, redis)
     token = create_access_token(user)
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": _user_payload(user, full_name),
+        "user": _user_payload(user, full_name, avatar_url),
         "needs_name": False,
     }
 
@@ -187,8 +204,8 @@ async def me(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:  # type: ignore[type-arg]
-    full_name = await _full_name_for_user(session, user)
-    return _user_payload(user, full_name)
+    full_name, avatar_url = await _profile_display(session, user)
+    return _user_payload(user, full_name, avatar_url)
 
 
 @router.patch("/me/language", status_code=204)
