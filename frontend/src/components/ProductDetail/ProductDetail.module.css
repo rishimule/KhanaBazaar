@@ -165,10 +165,15 @@
   color: #e11d48;
 }
 
+.media {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+}
 .thumbs {
   display: flex;
   gap: var(--space-2, 8px);
-  margin-top: var(--space-2, 8px);
   flex-wrap: wrap;
 }
 .thumb,

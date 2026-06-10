@@ -82,10 +82,10 @@ export default function ProductDetail({ data, variant }: Props) {
 
   return (
     <article className={`${styles.detail} ${styles[variant]}`}>
-      <div className={styles.imageWrap}>
-        {showImage ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+      <div className={styles.media}>
+        <div className={styles.imageWrap}>
+          {showImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={activeUrl}
               alt={`${product.name} – image ${activeIdx + 1}`}
@@ -94,29 +94,29 @@ export default function ProductDetail({ data, variant }: Props) {
               referrerPolicy="no-referrer"
               onError={() => setImgFailed(true)}
             />
-            {gallery.length > 1 && (
-              <div className={styles.thumbs} role="group" aria-label={t("imageGallery")}>
-                {gallery.map((g, i) => (
-                  <button
-                    key={`${i}-${g.url}`}
-                    type="button"
-                    className={i === activeIdx ? styles.thumbActive : styles.thumb}
-                    aria-label={`${product.name} – image ${i + 1}`}
-                    aria-current={i === activeIdx}
-                    onClick={() => {
-                      setActiveIdx(i);
-                      setImgFailed(false);
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={g.url} alt="" referrerPolicy="no-referrer" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
-        ) : (
-          <span className={styles.imagePlaceholder} aria-hidden>📦</span>
+          ) : (
+            <span className={styles.imagePlaceholder} aria-hidden>📦</span>
+          )}
+        </div>
+        {gallery.length > 1 && (
+          <div className={styles.thumbs} role="group" aria-label={t("imageGallery")}>
+            {gallery.map((g, i) => (
+              <button
+                key={`${i}-${g.url}`}
+                type="button"
+                className={i === activeIdx ? styles.thumbActive : styles.thumb}
+                aria-label={`${product.name} – image ${i + 1}`}
+                aria-current={i === activeIdx}
+                onClick={() => {
+                  setActiveIdx(i);
+                  setImgFailed(false);
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={g.url} alt="" referrerPolicy="no-referrer" />
+              </button>
+            ))}
+          </div>
         )}
       </div>
 

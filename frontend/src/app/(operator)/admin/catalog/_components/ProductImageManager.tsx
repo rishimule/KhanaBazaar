@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api";
 import {
   addProductImageUrl,
   deleteProductImage,
+  getProductImages,
   reorderProductImages,
   uploadProductImage,
 } from "@/lib/productImages";
@@ -37,6 +38,22 @@ export function ProductImageManager({ productId, initial }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [editSrc, setEditSrc] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // The catalog list row (which seeds `initial`) omits `images`, so load the
+  // product's real image collection on mount.
+  useEffect(() => {
+    let cancel = false;
+    getProductImages(productId, token)
+      .then((imgs) => {
+        if (!cancel) setImages(imgs);
+      })
+      .catch(() => {
+        /* keep whatever `initial` provided */
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [productId, token]);
 
   // Revoke the object URL whenever editSrc changes (overwrite) or the manager
   // unmounts while the editor is open — prevents blob-URL leaks.
