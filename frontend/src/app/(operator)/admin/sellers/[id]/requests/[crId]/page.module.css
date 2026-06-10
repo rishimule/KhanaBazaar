@@ -190,3 +190,32 @@
   padding: 24px;
   text-align: center;
 }
+
+.avatarCompare {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+.avatarFigure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #666);
+}
+.avatarPreview {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.avatarNone {
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--color-border, #ccc);
+  border-radius: 50%;
+}
