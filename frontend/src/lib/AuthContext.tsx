@@ -33,6 +33,9 @@ interface AuthContextValue {
     fullName?: string
   ) => Promise<{ user: User; needsName: boolean }>;
   logout: () => void;
+  /** Patch the cached user's avatar so the navbar + sidebars update instantly
+   *  after a customer changes their picture (no /auth/me round-trip). */
+  setAvatarUrl: (url: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -161,9 +164,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setDbUser(null);
   }, [token]);
 
+  const setAvatarUrl = useCallback((url: string | null) => {
+    setDbUser((u) => (u ? { ...u, avatar_url: url } : u));
+  }, []);
+
   const value = useMemo(
-    () => ({ dbUser, token, loading, requestOtp, verifyOtp, logout }),
-    [dbUser, token, loading, requestOtp, verifyOtp, logout]
+    () => ({ dbUser, token, loading, requestOtp, verifyOtp, logout, setAvatarUrl }),
+    [dbUser, token, loading, requestOtp, verifyOtp, logout, setAvatarUrl]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -61,7 +61,7 @@ function normalizeOptional(value: string): string | null {
 }
 
 export default function AccountProfilePage() {
-  const { token } = useAuth();
+  const { token, setAvatarUrl } = useAuth();
   const t = useTranslations("Account.profile");
   const tErr = useTranslations("Errors");
 
@@ -133,7 +133,9 @@ export default function AccountProfilePage() {
     if (!token) return;
     setAvatarBusy(true);
     try {
-      setProfile(await uploadCustomerAvatar(blob, token));
+      const next = await uploadCustomerAvatar(blob, token);
+      setProfile(next);
+      setAvatarUrl(next.avatar_url); // update navbar + sidebar immediately
     } catch (error) {
       setSectionError(localizedError(error, t("saveProfileError")));
     } finally {
@@ -145,7 +147,9 @@ export default function AccountProfilePage() {
     if (!token) return;
     setAvatarBusy(true);
     try {
-      setProfile(await deleteCustomerAvatar(token));
+      const next = await deleteCustomerAvatar(token);
+      setProfile(next);
+      setAvatarUrl(next.avatar_url);
     } catch (error) {
       setSectionError(localizedError(error, t("saveProfileError")));
     } finally {
