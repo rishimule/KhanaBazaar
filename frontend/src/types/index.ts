@@ -59,6 +59,14 @@ export interface Subcategory extends BaseSchema {
   slug: string;
 }
 
+/** A single image attached to a master product (admin-managed gallery). */
+export interface ProductImage {
+  id?: number;
+  url: string;
+  source?: "uploaded" | "external";
+  position: number;
+}
+
 /** A product in the master catalog managed by admins. */
 export interface MasterProduct extends BaseSchema {
   name: string;
@@ -67,6 +75,7 @@ export interface MasterProduct extends BaseSchema {
   subcategory_id: number;
   subcategory_name: string;
   image_url?: string;
+  images?: ProductImage[];
   base_price: number;
 }
 
@@ -536,6 +545,7 @@ export interface CatalogEntity {
   base_price?: number;
   brand?: string | null;
   unit?: string | null;
+  images?: ProductImage[];
 }
 
 export interface CatalogListParams {
