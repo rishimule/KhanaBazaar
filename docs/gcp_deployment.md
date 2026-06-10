@@ -71,6 +71,22 @@ No Resend/Twilio yet. The deploy runs with `ENVIRONMENT=development`,
 `/dev-emails` and `/dev-sms` behind HTTP Basic auth (`DEV_INBOX_USER` /
 `DEV_INBOX_PASSWORD`). This is a demo posture, not a production launch.
 
+## Product images
+
+Admin-uploaded product images live in a public-read GCS bucket
+`kb-product-images-<project>` (provisioned by `deploy/gcp/bootstrap.sh`). The
+Cloud Run `api` service writes to it via the `kb-runtime` service account
+(`roles/storage.objectAdmin`) and is configured with
+`IMAGE_STORAGE_BACKEND=gcs` + `GCS_PRODUCT_IMAGES_BUCKET=kb-product-images-<project>`.
+Object keys are content hashes (`products/<sha256>.webp`) written with a
+1-year immutable `Cache-Control`, so the bucket is CDN-cacheable as-is — a
+Cloud CDN / custom domain can be slotted in later by setting
+`GCS_PUBLIC_BASE_URL` (no code change). Bucket CORS allows `GET` so an admin
+can re-fetch a hosted image into a canvas to re-edit it; tighten the CORS
+origin from `*` to the real web origin before a real launch. Local dev uses
+the filesystem backend (`IMAGE_STORAGE_BACKEND=local`) served by FastAPI
+StaticFiles at `/media` — no bucket needed.
+
 ## Cost
 
 ~$49/mo: Cloud Run web+api always-warm (~$20), e2-small VM + disks (~$15),

@@ -84,6 +84,30 @@ for ROLE in roles/cloudsql.client roles/secretmanager.secretAccessor roles/artif
     --member="serviceAccount:kb-runtime@$PROJECT_ID.iam.gserviceaccount.com" --role="$ROLE" --condition=None
 done
 
+echo "==> 6b. Product images bucket (public-read, CDN-cacheable)"
+# Product photos are non-sensitive; public-read + immutable content-hash object
+# keys make them cacheable forever, so a CDN can front the bucket later with no
+# code change (set GCS_PUBLIC_BASE_URL). Signed reads were rejected — they expire
+# and defeat caching. If org policy forbids --no-public-access-prevention, keep
+# the bucket private and front it with Cloud CDN instead of reverting to signed
+# reads, then point GCS_PUBLIC_BASE_URL at the CDN domain.
+IMAGES_BUCKET="kb-product-images-${PROJECT_ID}"
+gcloud storage buckets describe "gs://${IMAGES_BUCKET}" >/dev/null 2>&1 || \
+  gcloud storage buckets create "gs://${IMAGES_BUCKET}" \
+    --location="$REGION" --uniform-bucket-level-access --no-public-access-prevention
+gcloud storage buckets add-iam-policy-binding "gs://${IMAGES_BUCKET}" \
+  --member="allUsers" --role="roles/storage.objectViewer" --condition=None
+# CORS so an admin can re-fetch a hosted image into a canvas to re-edit it.
+# Tighten "origin" to the real web origin(s) before launch.
+cat > /tmp/kb-images-cors.json <<'JSON'
+[{"origin":["*"],"method":["GET"],"responseHeader":["Content-Type"],"maxAgeSeconds":3600}]
+JSON
+gcloud storage buckets update "gs://${IMAGES_BUCKET}" --cors-file=/tmp/kb-images-cors.json
+# Runtime SA (Cloud Run api) needs write/delete on the bucket.
+gcloud storage buckets add-iam-policy-binding "gs://${IMAGES_BUCKET}" \
+  --member="serviceAccount:kb-runtime@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/storage.objectAdmin" --condition=None
+
 echo "==> 7. WIF pool + provider + deployer SA"
 gcloud iam workload-identity-pools describe gh-pool --location=global >/dev/null 2>&1 || \
   gcloud iam workload-identity-pools create gh-pool --location=global --display-name="GitHub"
