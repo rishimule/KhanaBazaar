@@ -59,3 +59,25 @@ def test_validate_external_url_accepts_https() -> None:
 def test_validate_external_url_rejects_bad(bad: str) -> None:
     with pytest.raises(ImageValidationError):
         validate_external_url(bad)
+
+
+@pytest.mark.asyncio
+async def test_local_storage_save_and_delete(tmp_path, monkeypatch) -> None:
+    from app.services.image_storage import LocalImageStorage
+
+    store = LocalImageStorage(str(tmp_path), "/media")
+    url = await store.save("products/abc.webp", b"hello", "image/webp")
+    assert url == "/media/products/abc.webp"
+    assert (tmp_path / "products" / "abc.webp").read_bytes() == b"hello"
+    await store.delete("products/abc.webp")
+    assert not (tmp_path / "products" / "abc.webp").exists()
+    # delete is idempotent
+    await store.delete("products/abc.webp")
+
+
+def test_get_image_storage_returns_local_by_default(monkeypatch) -> None:
+    from app.core.config import settings
+    from app.services.image_storage import LocalImageStorage, get_image_storage
+
+    monkeypatch.setattr(settings, "IMAGE_STORAGE_BACKEND", "local")
+    assert isinstance(get_image_storage(), LocalImageStorage)
