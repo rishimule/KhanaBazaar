@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -32,6 +32,7 @@ from app.schemas.seller_profile_change_request import (
 )
 from app.services.seller_profile_change_requests import (
     OPEN_STATUSES,
+    create_avatar_change_request,
     create_change_request,
     resubmit,
     withdraw,
@@ -196,4 +197,25 @@ async def withdraw_my_change_request(
     )
     await session.commit()
     await session.refresh(res.cr)
+    return await _attach_events(session, res.cr)
+
+
+@router.post("/me/avatar", response_model=ChangeRequestRead, status_code=201)
+async def upload_my_avatar(
+    file: UploadFile = File(...),
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> ChangeRequestRead:
+    profile = await _seller_profile_or_404(session, seller)
+    raw = await file.read()
+    res = await create_avatar_change_request(
+        session=session,
+        seller_profile=profile,
+        raw=raw,
+        actor_user_id=seller.id,
+    )
+    await session.commit()
+    await session.refresh(res.cr)
+    for cb in res.emails:
+        cb()
     return await _attach_events(session, res.cr)

@@ -79,6 +79,7 @@ class SellerProfilePayload(BaseModel):
     bank_ifsc: Optional[str] = None
     verification_status: str
     rejection_reason: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 class SellerApplicationPayload(BaseModel):
