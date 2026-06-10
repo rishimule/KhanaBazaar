@@ -18,6 +18,7 @@ from app.models.catalog import (
     Category,
     CategoryTranslation,
     MasterProduct,
+    MasterProductImage,
     MasterProductTranslation,
     Service,
     ServiceTranslation,
@@ -37,6 +38,7 @@ from app.schemas.store_product_detail import (
     BreadcrumbPayload,
     InventoryWithProductPayload,
     MasterProductPayload,
+    ProductImagePayload,
     ServiceLite,
     StoreProductDetailResponse,
     StoreSummary,
@@ -544,6 +546,17 @@ async def get_store_product_detail(
     category_name = getattr(cat_t.get(cat.id), "name", None) or cat.slug
     subcategory_name = getattr(sub_t.get(sub.id), "name", None) or sub.slug
 
+    image_rows = (
+        await session.exec(
+            select(MasterProductImage)
+            .where(MasterProductImage.master_product_id == product.id)
+            .order_by(MasterProductImage.position)  # type: ignore[arg-type]
+        )
+    ).all()
+    product_images = [
+        ProductImagePayload(url=r.url, position=r.position) for r in image_rows
+    ]
+
     return StoreProductDetailResponse(
         store=StoreSummary(id=store.id, name=store.name),
         service=ServiceLite(id=svc.id, name=service_name),
@@ -559,6 +572,7 @@ async def get_store_product_detail(
                 name=getattr(product_translation, "name", None) or product.slug,
                 description=getattr(product_translation, "description", None) or "",
                 image_url=product.image_url,
+                images=product_images,
                 category_id=cat.id,
                 subcategory_id=sub.id,
                 subcategory_name=subcategory_name,

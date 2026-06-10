@@ -56,3 +56,5 @@ htmlcov/
 .agents/
 docs/superpowers/
 .playwright-mcp/
+# Local product-image uploads (LocalImageStorage backend)
+backend/app/var/

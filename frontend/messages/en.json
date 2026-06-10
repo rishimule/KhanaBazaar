@@ -356,6 +356,8 @@
     "roleCustomerLabel": "Account"
   },
   "Product": {
+    "imageGallery": "Product images",
+    "openZoom": "open zoom",
     "outOfStock": "Out of stock",
     "outOfStockButton": "Out of Stock",
     "onlyNLeft": "Only {count} left",
@@ -1361,6 +1363,7 @@
       "slugExistsDestination": "Slug already used in destination parent.",
       "fieldDescription": "Description",
       "fieldImageUrl": "Image URL",
+      "fieldImages": "Images",
       "fieldParent": "Parent {entity}",
       "fieldBasePrice": "Base price",
       "fieldBrand": "Brand",

@@ -27,6 +27,12 @@ const nextConfig: NextConfig = {
         destination: `${apiBase}/api/v1/:rest`,
       },
       {
+        // Local product-image uploads served by the backend StaticFiles mount
+        // (dev only; prod images come from the public GCS bucket).
+        source: "/media/:rest(.*)",
+        destination: `${apiBase}/media/:rest`,
+      },
+      {
         source: "/dev-logs",
         destination: `http://localhost:${process.env.LOG_VIEWER_PORT ?? "8001"}/`,
       },

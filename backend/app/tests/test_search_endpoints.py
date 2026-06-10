@@ -66,6 +66,34 @@ async def test_compare_404(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_compare_includes_product_images(
+    client: AsyncClient, session: AsyncSession
+):
+    from app.models.catalog import MasterProductImage
+
+    ids = await _seed_chain(session)
+    session.add(
+        MasterProductImage(
+            master_product_id=ids["product_id"], position=0,
+            url="https://x.test/a.jpg", source="external",
+        )
+    )
+    session.add(
+        MasterProductImage(
+            master_product_id=ids["product_id"], position=1,
+            url="https://x.test/b.jpg", source="external",
+        )
+    )
+    await session.commit()
+
+    r = await client.get(f"/api/v1/search/products/{ids['product_id']}/stores")
+    assert r.status_code == 200, r.text
+    imgs = r.json()["product"]["images"]
+    assert [i["url"] for i in imgs] == ["https://x.test/a.jpg", "https://x.test/b.jpg"]
+    assert imgs[0]["position"] == 0
+
+
+@pytest.mark.asyncio
 async def test_stores_endpoint(
     client: AsyncClient, session: AsyncSession, meili_test_client
 ):

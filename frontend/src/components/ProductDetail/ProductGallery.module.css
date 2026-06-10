@@ -1,0 +1,129 @@
+/* Layout: page-desktop = vertical thumb rail | stage; mobile + modal = stage with dots. */
+.media {
+  display: flex;
+  min-width: 0;
+}
+.media.page {
+  flex-direction: row;
+  gap: var(--space-2, 8px);
+  align-items: flex-start;
+}
+.media.modal {
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+@media (max-width: 720px) {
+  .media.page {
+    flex-direction: column;
+  }
+}
+
+/* Vertical thumbnail rail (desktop page only). */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  max-height: 360px;
+  overflow-y: auto;
+  flex: 0 0 auto;
+}
+.media.modal .rail {
+  display: none;
+}
+@media (max-width: 720px) {
+  .media.page .rail {
+    display: none;
+  }
+}
+.thumb,
+.thumbActive {
+  width: 60px;
+  height: 60px;
+  padding: 0;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  border: 2px solid transparent;
+  background: none;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.thumbActive {
+  border-color: var(--color-primary-600, #16a34a);
+}
+.thumb img,
+.thumbActive img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Stage = the swipeable image track + dots. */
+.stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+.track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  border-radius: 16px;
+  background: var(--shade-cool-light-1, #f1f5f9);
+  aspect-ratio: 1;
+}
+.track::-webkit-scrollbar {
+  display: none;
+}
+.slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.placeholder {
+  font-size: 56px;
+}
+
+/* Dot indicators (mobile + modal). */
+.dots {
+  display: none;
+  justify-content: center;
+  gap: 6px;
+}
+.media.modal .dots {
+  display: flex;
+}
+@media (max-width: 720px) {
+  .media.page .dots {
+    display: flex;
+  }
+}
+.dot,
+.dotActive {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  background: var(--color-disabled, #d4d4d8);
+}
+.dotActive {
+  background: var(--color-primary-600, #16a34a);
+}

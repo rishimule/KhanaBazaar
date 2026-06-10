@@ -356,6 +356,8 @@
     "roleCustomerLabel": "ਖਾਤਾ"
   },
   "Product": {
+    "imageGallery": "Product images",
+    "openZoom": "open zoom",
     "outOfStock": "ਸਟਾਕ ਵਿੱਚ ਨਹੀਂ",
     "outOfStockButton": "ਸਟਾਕ ਵਿੱਚ ਨਹੀਂ",
     "onlyNLeft": "ਸਿਰਫ਼ {count} ਬਾਕੀ",
@@ -1362,6 +1364,7 @@
       "slugExistsDestination": "ਮੰਜ਼ਿਲ ਪੇਰੈਂਟ ਵਿੱਚ ਸਲੱਗ ਪਹਿਲਾਂ ਹੀ ਵਰਤਿਆ ਗਿਆ ਹੈ।",
       "fieldDescription": "ਵੇਰਵਾ",
       "fieldImageUrl": "ਚਿੱਤਰ URL",
+      "fieldImages": "Images",
       "fieldParent": "ਪੇਰੈਂਟ {entity}",
       "fieldBasePrice": "ਆਧਾਰ ਕੀਮਤ",
       "fieldBrand": "ਬ੍ਰਾਂਡ",

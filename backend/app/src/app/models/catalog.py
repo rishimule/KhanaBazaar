@@ -89,6 +89,17 @@ class MasterProduct(BaseSchema, table=True):
     is_active: bool = Field(default=True, nullable=False, index=True)
 
 
+class MasterProductImage(BaseSchema, table=True):
+    """Ordered images for a master product. position 0 is the cover (mirrored
+    into MasterProduct.image_url). `source` is "uploaded" (our object, keyed by
+    storage_key) or "external" (a pasted URL we do not host)."""
+    master_product_id: int = Field(foreign_key="masterproduct.id", nullable=False, index=True)
+    position: int = Field(default=0, nullable=False)
+    url: str = Field(nullable=False)
+    source: str = Field(default="uploaded", nullable=False)  # "uploaded" | "external"
+    storage_key: Optional[str] = Field(default=None)
+
+
 class MasterProductTranslation(BaseSchema, table=True):
     __tablename__ = "masterproduct_translation"
     __table_args__ = (UniqueConstraint("master_product_id", "language_code", name="uq_masterproduct_translation"),)

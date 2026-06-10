@@ -23,11 +23,17 @@ class ServiceLite(BaseModel):
     name: str
 
 
+class ProductImagePayload(BaseModel):
+    url: str
+    position: int
+
+
 class MasterProductPayload(BaseModel):
     id: int
     name: str
     description: str
     image_url: Optional[str] = None
+    images: list[ProductImagePayload] = []
     category_id: int
     subcategory_id: int
     subcategory_name: str

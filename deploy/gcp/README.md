@@ -88,7 +88,7 @@ Two-pass because Next bakes the api URL at build time. See plan Task 19 for the
 full commands. Summary:
 
 1. Build + push `kb/api:latest`; create + run the `kb-migrate` job (migrate + seed + reindex).
-2. `gcloud run deploy khanabazaar-api` (min=1, Direct VPC egress, `--set-secrets`, `ENVIRONMENT=development`). Capture `API_URL`.
+2. `gcloud run deploy khanabazaar-api` (min=1, Direct VPC egress, `--set-secrets`, `ENVIRONMENT=development`, plus product-image env vars `IMAGE_STORAGE_BACKEND=gcs,GCS_PRODUCT_IMAGES_BUCKET=kb-product-images-$PROJECT_ID`). Capture `API_URL`.
 3. Build `kb/web:latest` with `--build-arg INTERNAL_API_URL=$API_URL`; `gcloud run deploy khanabazaar-web` (min=1, runtime `INTERNAL_API_URL=$API_URL`). Capture `WEB_URL`.
 4. `gcloud run services update khanabazaar-api --update-env-vars=FRONTEND_ORIGIN=$WEB_URL`.
 5. Bring the worker up on the VM (`docker compose up -d worker`).

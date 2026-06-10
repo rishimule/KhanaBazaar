@@ -23,6 +23,7 @@ from app.models.catalog import (
     Category,
     CategoryTranslation,
     MasterProduct,
+    MasterProductImage,
     MasterProductTranslation,
     Service,
     ServiceTranslation,
@@ -52,6 +53,7 @@ from app.schemas.search import (
     SuggestStoreOfferBest,
     SuggestTerm,
 )
+from app.schemas.store_product_detail import ProductImagePayload
 from app.search.client import get_meili_client
 from app.search.locality import get_serviceable_store_ids, grid_cell_key
 
@@ -867,11 +869,23 @@ async def compare_offers(
 
     offers.sort(key=lambda o: o.price)
 
+    image_rows = (
+        await session.execute(
+            select(MasterProductImage)
+            .where(MasterProductImage.master_product_id == master_product_id)
+            .order_by(MasterProductImage.position)
+        )
+    ).scalars().all()
+    product_images = [
+        ProductImagePayload(url=r.url, position=r.position) for r in image_rows
+    ]
+
     card = ProductCard(
         id=product.id,
         slug=product.slug,
         name=translation.name if translation else product.slug,
         image_url=product.image_url,
+        images=product_images,
         brand=product.brand,
         unit=product.unit,
         service_id=cat.service_id,

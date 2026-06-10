@@ -13,6 +13,7 @@ import type {
 } from "@/types";
 import { useEntityMutation } from "../_hooks/useEntityMutation";
 import { ParentPicker } from "./ParentPicker";
+import { ProductImageManager } from "./ProductImageManager";
 import { TranslationsAccordion } from "./TranslationsAccordion";
 import styles from "./EditModal.module.css";
 
@@ -90,7 +91,8 @@ export function EditModal({
       name,
       slug: slug || undefined,
       description: description || null,
-      image_url: imageUrl || null,
+      image_url:
+        entity === "product" && mode === "edit" ? undefined : imageUrl || null,
       is_active: isActive,
     };
     if (entity === "category") body.service_id = parent ?? undefined;
@@ -202,16 +204,26 @@ export function EditModal({
           />
         </div>
 
-        <div className={modalStyles.formGroup}>
-          <label className={modalStyles.label}>{t("fieldImageUrl")}</label>
-          <input
-            className={modalStyles.input}
-            type="url"
-            placeholder="https://…"
-            value={imageUrl || ""}
-            onChange={(e) => setImageUrl(e.target.value)}
-          />
-        </div>
+        {entity === "product" && mode === "edit" && initial ? (
+          <div className={modalStyles.formGroup}>
+            <label className={modalStyles.label}>{t("fieldImages")}</label>
+            <ProductImageManager
+              productId={initial.id}
+              initial={initial.images ?? []}
+            />
+          </div>
+        ) : (
+          <div className={modalStyles.formGroup}>
+            <label className={modalStyles.label}>{t("fieldImageUrl")}</label>
+            <input
+              className={modalStyles.input}
+              type="url"
+              placeholder="https://…"
+              value={imageUrl || ""}
+              onChange={(e) => setImageUrl(e.target.value)}
+            />
+          </div>
+        )}
 
         {parentEntity && (
           <div className={modalStyles.formGroup}>

@@ -356,6 +356,8 @@
     "roleCustomerLabel": "खाता"
   },
   "Product": {
+    "imageGallery": "Product images",
+    "openZoom": "open zoom",
     "outOfStock": "स्टॉक में नहीं",
     "outOfStockButton": "स्टॉक में नहीं",
     "onlyNLeft": "केवल {count} बचे",
@@ -1362,6 +1364,7 @@
       "slugExistsDestination": "गंतव्य पैरेंट में स्लग पहले से उपयोग में है।",
       "fieldDescription": "विवरण",
       "fieldImageUrl": "छवि URL",
+      "fieldImages": "Images",
       "fieldParent": "पैरेंट {entity}",
       "fieldBasePrice": "आधार मूल्य",
       "fieldBrand": "ब्रांड",

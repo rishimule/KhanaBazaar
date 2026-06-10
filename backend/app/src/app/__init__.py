@@ -20,6 +20,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve uploaded product images from local disk when using the local storage
+# backend (dev/test). In prod (IMAGE_STORAGE_BACKEND=gcs) images come straight
+# from the public bucket, so nothing is mounted.
+if settings.IMAGE_STORAGE_BACKEND == "local":
+    import os
+
+    from fastapi.staticfiles import StaticFiles
+
+    os.makedirs(settings.MEDIA_LOCAL_DIR, exist_ok=True)
+    app.mount(
+        settings.MEDIA_URL_PREFIX,
+        StaticFiles(directory=settings.MEDIA_LOCAL_DIR),
+        name="media",
+    )
+
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok", "environment": settings.ENVIRONMENT}

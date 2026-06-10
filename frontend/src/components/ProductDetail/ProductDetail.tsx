@@ -1,13 +1,14 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useFavorites } from "@/lib/FavoritesContext";
 import { pushRecentlyViewed } from "@/lib/recentlyViewed";
 import type { StoreProductDetail } from "@/types";
+import ProductGallery from "./ProductGallery";
 import ReviewsPanel from "./ReviewsPanel";
 import styles from "./ProductDetail.module.css";
 
@@ -21,7 +22,6 @@ export default function ProductDetail({ data, variant }: Props) {
   const { carts, addItem, removeItem, updateQty } = useCart();
   const { dbUser } = useAuth();
   const { isFavorite, toggle: toggleFav } = useFavorites();
-  const [imgFailed, setImgFailed] = useState(false);
 
   const { store, service, inventory } = data;
   const { product, price, stock, is_available: isAvailable } = inventory;
@@ -70,25 +70,14 @@ export default function ProductDetail({ data, variant }: Props) {
     });
   };
 
-  const showImage = Boolean(product.image_url) && !imgFailed;
-
   return (
     <article className={`${styles.detail} ${styles[variant]}`}>
-      <div className={styles.imageWrap}>
-        {showImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={product.image_url}
-            alt={product.name}
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <span className={styles.imagePlaceholder} aria-hidden>📦</span>
-        )}
-      </div>
+      <ProductGallery
+        images={product.images ?? []}
+        imageUrl={product.image_url}
+        productName={product.name}
+        variant={variant}
+      />
 
       <div className={styles.body}>
         <div className={styles.titleRow}>

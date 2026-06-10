@@ -22,6 +22,7 @@ from app.db._dev_seed_data import (
     EXTRA_STORES,
     EXTRA_SUBCATEGORIES,
     _image_for,
+    _images_for,
     generate_extra_inventories,
 )
 from app.db._dev_seed_i18n import (
@@ -38,6 +39,7 @@ from app.models.catalog import (
     CategoryTranslation,
     Language,
     MasterProduct,
+    MasterProductImage,
     MasterProductTranslation,
     Service,
     ServiceTranslation,
@@ -491,6 +493,7 @@ for _product in PRODUCTS:
     _sub_slug = _product["subcategory_slug"]
     _cat_slug = _SUBCAT_TO_CATEGORY[_sub_slug]
     _product["image_url"] = _image_for(_cat_slug, _anchor_sub_counter[_sub_slug])
+    _product["images"] = _images_for(_cat_slug, _anchor_sub_counter[_sub_slug])
     _anchor_sub_counter[_sub_slug] += 1
 
 del _SUBCAT_TO_CATEGORY, _anchor_sub_counter, _product, _sub_slug, _cat_slug
@@ -2145,6 +2148,30 @@ async def _upsert_product(
         product.image_url = data["image_url"]
         product.base_price = data["base_price"]
     session.add(product)
+    await session.flush()
+    assert product.id is not None
+
+    # Replace the product's image gallery with the seed set so the image
+    # collection (source of truth) matches image_url on a fresh seed and the
+    # gallery feature is exercised. Seed images are all external URLs — no
+    # stored objects to clean up — so a delete + reinsert is safe and idempotent.
+    existing_images = (await session.exec(
+        select(MasterProductImage).where(
+            MasterProductImage.master_product_id == product.id
+        )
+    )).all()
+    for _img in existing_images:
+        await session.delete(_img)
+    gallery = list(data.get("images") or ([data["image_url"]] if data.get("image_url") else []))
+    for _pos, _url in enumerate(gallery):
+        session.add(
+            MasterProductImage(
+                master_product_id=product.id,
+                position=_pos,
+                url=_url,
+                source="external",
+            )
+        )
     await session.flush()
 
     translation_result = await session.exec(
