@@ -237,7 +237,11 @@ async def test_me_endpoint_returns_authenticated_user(auth_client: dict[str, Any
     token = verify.json()["access_token"]
     resp = await c.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
-    assert resp.json()["email"] == "me@example.com"
+    body = resp.json()
+    assert body["email"] == "me@example.com"
+    # avatar_url is resolved from the role profile (None until one is uploaded)
+    assert "avatar_url" in body
+    assert body["avatar_url"] is None
 
 
 async def _make_user_token(session: Any, email: str, role: Any = None) -> str:

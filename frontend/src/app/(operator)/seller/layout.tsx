@@ -9,7 +9,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
-import { SellerProfile, Store, VerificationStatus } from "@/types";
+import { Store, VerificationStatus } from "@/types";
 
 export default function SellerLayout({
   children,
@@ -23,7 +23,6 @@ export default function SellerLayout({
   const [storeName, setStoreName] = useState("");
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Compute before effects so value is stable
   const isSignupRoute = pathname.startsWith("/seller/signup");
@@ -43,14 +42,6 @@ export default function SellerLayout({
       .then((stores) => {
         if (stores.length > 0) setStoreName(stores[0].name);
       })
-      .catch(() => {});
-  }, [loading, dbUser, token, isSignupRoute]);
-
-  // Effect 2b: seller avatar for the sidebar — only for non-signup routes
-  useEffect(() => {
-    if (isSignupRoute || loading || !dbUser || !token) return;
-    get<SellerProfile>("/api/v1/sellers/me", token)
-      .then((p) => setAvatarUrl(p.avatar_url))
       .catch(() => {});
   }, [loading, dbUser, token, isSignupRoute]);
 
@@ -135,7 +126,7 @@ export default function SellerLayout({
         roleName={storeName || t("common.portalName")}
         title={title}
         navItems={sellerNav}
-        avatarUrl={avatarUrl}
+        avatarUrl={dbUser.avatar_url}
       >
         {children}
       </DashboardLayout>

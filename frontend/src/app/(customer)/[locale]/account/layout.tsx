@@ -75,6 +75,7 @@ export default function AccountLayout({
       title={title}
       navItems={customerNav}
       footer={<AccountSidebarFooter />}
+      avatarUrl={dbUser.avatar_url}
     >
       {children}
     </DashboardLayout>

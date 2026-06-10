@@ -11,6 +11,7 @@ import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import { SearchBar } from "@/components/search/SearchBar";
 import NotificationBell from "@/components/NotificationBell";
+import Avatar from "@/components/Avatar";
 import LocaleSwitcher from "./LocaleSwitcher";
 import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
 import { useLogoutConfirm } from "@/lib/useLogoutConfirm";
@@ -144,9 +145,12 @@ export default function NavbarTopBar() {
                 who: dbUser.email ?? dbUser.full_name ?? t("drawerUserFallback"),
               })}
             >
-              <span className={styles.authAvatar}>
-                {(dbUser.full_name ?? dbUser.email ?? "U").charAt(0).toUpperCase()}
-              </span>
+              <Avatar
+                avatarUrl={dbUser.avatar_url}
+                name={dbUser.full_name ?? dbUser.email}
+                seed={dbUser.email}
+                size={28}
+              />
               <span>{t("logoutLabel")}</span>
             </button>
           ) : (
