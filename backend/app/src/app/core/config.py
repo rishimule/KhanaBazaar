@@ -90,6 +90,21 @@ class Settings(BaseSettings):
     # service rejects placeholder/reserved TLDs (.example) with 403 BadJwtToken.
     VAPID_SUBJECT: str = "mailto:support@khanabazaar.dev"
 
+    # Product image storage
+    # IMAGE_STORAGE_BACKEND: "local" (dev/test, FastAPI StaticFiles) | "gcs" (prod)
+    IMAGE_STORAGE_BACKEND: str = "local"
+    IMAGE_MAX_UPLOAD_MB: int = 10
+    IMAGE_MAX_DIMENSION_PX: int = 1600
+    # Decompression-bomb guard: reject images above this many pixels (~40MP).
+    IMAGE_MAX_PIXELS: int = 40_000_000
+    # Local backend: filesystem dir (relative to backend/app CWD) + URL prefix.
+    MEDIA_LOCAL_DIR: str = "var/uploads"
+    MEDIA_URL_PREFIX: str = "/media"
+    # GCS backend
+    GCS_PRODUCT_IMAGES_BUCKET: str = ""
+    # Optional override for the public object URL base (CDN/custom domain).
+    GCS_PUBLIC_BASE_URL: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
 
     @property
