@@ -8,17 +8,20 @@
   gap: 1.5rem;
   align-items: flex-start;
 }
-.heroImg,
-.heroFallback {
-  width: 200px;
-  height: 200px;
-  border-radius: 12px;
-  object-fit: cover;
-  background: var(--color-surface-alt, #f3f4f6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 4rem;
+.galleryCol {
+  flex: 0 0 320px;
+  max-width: 320px;
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .hero {
+    flex-direction: column;
+  }
+  .galleryCol {
+    flex: 1 1 auto;
+    max-width: 100%;
+    width: 100%;
+  }
 }
 .title {
   font-size: 1.5rem;

@@ -5,6 +5,7 @@
  * Talks to /api/v1/search/* through the existing api.ts wrapper for headers.
  */
 import { get, post, ApiError } from "./api";
+import type { ProductImage } from "@/types";
 
 export type SuggestTerm = {
   text: string;
@@ -57,6 +58,7 @@ export type ProductCard = {
   slug: string;
   name: string;
   image_url: string | null;
+  images?: ProductImage[];
   brand: string | null;
   unit: string | null;
   service_id: number;

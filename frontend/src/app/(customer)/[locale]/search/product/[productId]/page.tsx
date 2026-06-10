@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { compareProduct, type CompareResponse } from "@/lib/searchClient";
 import { ProductOfferList } from "@/components/search/ProductOfferList";
+import ProductGallery from "@/components/ProductDetail/ProductGallery";
 import styles from "./page.module.css";
 
 type Params = { productId: string; locale: string };
@@ -43,21 +44,14 @@ export default function ComparePage({ params }: { params: Promise<Params> }) {
   return (
     <main className={styles.page}>
       <div className={styles.hero}>
-        {data.product.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={data.product.image_url}
-            alt={data.product.name}
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            className={styles.heroImg}
+        <div className={styles.galleryCol}>
+          <ProductGallery
+            images={data.product.images ?? []}
+            imageUrl={data.product.image_url ?? undefined}
+            productName={data.product.name}
+            variant="page"
           />
-        ) : (
-          <div aria-hidden className={styles.heroFallback}>
-            🛒
-          </div>
-        )}
+        </div>
         <div>
           <h1 className={styles.title}>{data.product.name}</h1>
           {data.product.brand && (
