@@ -117,7 +117,9 @@ async def reorder_images(
     await _require_product(session, product_id)
     rows = await list_images(session, product_id)
     by_id = {r.id: r for r in rows}
-    if set(image_ids) != set(by_id.keys()):
+    # Reject duplicates (equal-length-but-repeated ids would leave a position
+    # gap) as well as any add/drop relative to the current set.
+    if len(image_ids) != len(by_id) or set(image_ids) != set(by_id.keys()):
         raise ProductImageError("image_set_mismatch")
     for i, iid in enumerate(image_ids):
         r = by_id[iid]

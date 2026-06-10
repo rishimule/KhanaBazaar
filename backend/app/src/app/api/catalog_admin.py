@@ -905,8 +905,23 @@ async def create_product_admin(
         description=payload.description,
     )
     session.add(en)
+    # Seed image row 0 from the create-time image_url so the image collection
+    # (the single source of truth for the cover) and the image_url cover cache
+    # agree from the start — otherwise the first image added later would
+    # silently replace this cover. See spec §6.
+    if payload.image_url:
+        session.add(
+            MasterProductImage(
+                master_product_id=prod.id,
+                position=0,
+                url=payload.image_url,
+                source="external",
+                storage_key=None,
+            )
+        )
     await session.flush()
-    response = _product_admin_read(prod, [en])
+    images = await product_image_svc.list_images(session, prod.id)
+    response = _product_admin_read(prod, [en], images)
     await session.commit()
     return response
 

@@ -206,6 +206,54 @@ async def test_add_url_reorder_delete_flow(
 
 
 @pytest.mark.asyncio
+async def test_create_with_image_url_seeds_cover_row(
+    client: AsyncClient, admin_auth_headers: dict[str, str], seeded_subcategory: _Stub
+) -> None:
+    create = await client.post(
+        "/api/v1/catalog/admin/products",
+        headers=admin_auth_headers,
+        json={
+            "subcategory_id": seeded_subcategory.id,
+            "name": "Seeded",
+            "base_price": 3.0,
+            "image_url": "https://x.test/seed.jpg",
+        },
+    )
+    assert create.status_code == 200, create.text
+    body = create.json()
+    assert body["image_url"] == "https://x.test/seed.jpg"
+    assert len(body["images"]) == 1
+    assert body["images"][0]["url"] == "https://x.test/seed.jpg"
+    assert body["images"][0]["source"] == "external"
+
+
+@pytest.mark.asyncio
+async def test_reorder_rejects_duplicate_ids(
+    client: AsyncClient, admin_auth_headers: dict[str, str], seeded_subcategory: _Stub
+) -> None:
+    create = await client.post(
+        "/api/v1/catalog/admin/products",
+        headers=admin_auth_headers,
+        json={"subcategory_id": seeded_subcategory.id, "name": "Dup", "base_price": 1.0},
+    )
+    pid = create.json()["id"]
+    r1 = await client.post(
+        f"/api/v1/catalog/admin/products/{pid}/images/url",
+        headers=admin_auth_headers, json={"url": "https://x.test/1.jpg"},
+    )
+    await client.post(
+        f"/api/v1/catalog/admin/products/{pid}/images/url",
+        headers=admin_auth_headers, json={"url": "https://x.test/2.jpg"},
+    )
+    id1 = r1.json()["id"]
+    bad = await client.patch(
+        f"/api/v1/catalog/admin/products/{pid}/images/order",
+        headers=admin_auth_headers, json={"image_ids": [id1, id1]},
+    )
+    assert bad.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_store_product_detail_includes_images(
     client: AsyncClient,
     admin_auth_headers: dict[str, str],

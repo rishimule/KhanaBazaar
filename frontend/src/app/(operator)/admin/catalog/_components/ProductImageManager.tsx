@@ -1,7 +1,7 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/lib/AuthContext";
 import { ApiError } from "@/lib/api";
@@ -37,6 +37,14 @@ export function ProductImageManager({ productId, initial }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [editSrc, setEditSrc] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Revoke the object URL whenever editSrc changes (overwrite) or the manager
+  // unmounts while the editor is open — prevents blob-URL leaks.
+  useEffect(() => {
+    return () => {
+      if (editSrc) URL.revokeObjectURL(editSrc);
+    };
+  }, [editSrc]);
 
   const full = images.length >= MAX_IMAGES;
 
@@ -129,7 +137,7 @@ export function ProductImageManager({ productId, initial }: Props) {
     <div className={styles.wrap}>
       <div className={styles.grid}>
         {images.map((img, idx) => (
-          <div key={img.id ?? img.url} className={styles.cell}>
+          <div key={img.id ?? `${idx}-${img.url}`} className={styles.cell}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={img.url} alt="" className={styles.thumb} referrerPolicy="no-referrer" />
             {idx === 0 && <span className={styles.coverBadge}>Cover</span>}
@@ -209,12 +217,8 @@ export function ProductImageManager({ productId, initial }: Props) {
       {editSrc && (
         <ImageCropEditor
           src={editSrc}
-          onCancel={() => {
-            URL.revokeObjectURL(editSrc);
-            setEditSrc(null);
-          }}
+          onCancel={() => setEditSrc(null)}
           onDone={(blob) => {
-            URL.revokeObjectURL(editSrc);
             setEditSrc(null);
             void doUpload(blob);
           }}

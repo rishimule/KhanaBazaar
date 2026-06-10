@@ -97,18 +97,20 @@ export default function ProductDetail({ data, variant }: Props) {
             {gallery.length > 1 && (
               <div className={styles.thumbs} role="group" aria-label={t("imageGallery")}>
                 {gallery.map((g, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={g.url}
-                    src={g.url}
-                    alt=""
+                  <button
+                    key={`${i}-${g.url}`}
+                    type="button"
                     className={i === activeIdx ? styles.thumbActive : styles.thumb}
-                    referrerPolicy="no-referrer"
+                    aria-label={`${product.name} – image ${i + 1}`}
+                    aria-current={i === activeIdx}
                     onClick={() => {
                       setActiveIdx(i);
                       setImgFailed(false);
                     }}
-                  />
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={g.url} alt="" referrerPolicy="no-referrer" />
+                  </button>
                 ))}
               </div>
             )}
