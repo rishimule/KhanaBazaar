@@ -149,6 +149,11 @@ async def _baseline_for_group(
         return {
             "delivery_radius_km": store.delivery_radius_km,
         }
+    if group is SellerProfileChangeGroup.Avatar:
+        return {
+            "avatar_url": profile.avatar_url or "",
+            "storage_key": profile.avatar_storage_key,
+        }
     raise ValueError(f"unknown group {group}")
 
 
@@ -556,6 +561,27 @@ async def _apply_store_basics(
     session.add(store)
 
 
+async def _apply_avatar(
+    session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
+) -> None:
+    new_url = str(payload.get("avatar_url") or "")
+    new_key = payload.get("storage_key") or None
+    old_key = profile.avatar_storage_key
+    if new_url:
+        profile.avatar_url = new_url
+        profile.avatar_storage_key = new_key
+    else:
+        profile.avatar_url = None
+        profile.avatar_storage_key = None
+    session.add(profile)
+    # Best-effort: drop the superseded live blob (runs pre-commit; acceptable
+    # for object storage). Skip when the key is unchanged (identical re-upload).
+    if old_key and old_key != new_key:
+        from app.services.profile_avatars import delete_blob
+
+        await delete_blob(old_key)
+
+
 GROUP_APPLIERS = {
     SellerProfileChangeGroup.Identity: _apply_identity,
     SellerProfileChangeGroup.Address: _apply_address,
@@ -563,6 +589,7 @@ GROUP_APPLIERS = {
     SellerProfileChangeGroup.Banking: _apply_banking,
     SellerProfileChangeGroup.Services: _apply_services,
     SellerProfileChangeGroup.StoreBasics: _apply_store_basics,
+    SellerProfileChangeGroup.Avatar: _apply_avatar,
 }
 
 
