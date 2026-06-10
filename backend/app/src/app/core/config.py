@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     # IMAGE_STORAGE_BACKEND: "local" (dev/test, FastAPI StaticFiles) | "gcs" (prod)
     IMAGE_STORAGE_BACKEND: str = "local"
     IMAGE_MAX_UPLOAD_MB: int = 10
-    IMAGE_MAX_DIMENSION_PX: int = 1600
+    IMAGE_MAX_DIMENSION_PX: int = 2048
     # Decompression-bomb guard: reject images above this many pixels (~40MP).
     IMAGE_MAX_PIXELS: int = 40_000_000
     # Local backend: filesystem dir (relative to backend/app CWD) + URL prefix.

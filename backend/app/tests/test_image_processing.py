@@ -28,9 +28,12 @@ def test_process_image_reencodes_to_webp() -> None:
 
 
 def test_process_image_caps_dimension() -> None:
+    from app.core.config import settings
+
     data, _ = process_image(_png_bytes(4000, 2000))
     out = Image.open(io.BytesIO(data))
-    assert max(out.size) <= 1600
+    # A 4000px-wide input is downscaled to exactly the configured cap, whatever it is.
+    assert max(out.size) == settings.IMAGE_MAX_DIMENSION_PX
 
 
 def test_process_image_preserves_alpha() -> None:
