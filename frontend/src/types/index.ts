@@ -120,6 +120,7 @@ export interface CustomerProfile {
   notify_order_email: boolean;
   notify_order_sms: boolean;
   phone_verified_at: string | null;
+  avatar_url: string | null;
   addresses: CustomerAddress[];
 }
 
@@ -271,6 +272,7 @@ export interface SellerProfile extends BaseSchema {
   bank_ifsc: string | null;
   verification_status: VerificationStatus;
   rejection_reason?: string;
+  avatar_url: string | null;
 }
 
 /** A seller application as returned by GET /sellers/admin/applications. */
@@ -672,7 +674,8 @@ export type SellerProfileChangeGroup =
   | "legal"
   | "banking"
   | "services"
-  | "store_basics";
+  | "store_basics"
+  | "avatar";
 
 export type SellerProfileChangeStatus =
   | "submitted"
