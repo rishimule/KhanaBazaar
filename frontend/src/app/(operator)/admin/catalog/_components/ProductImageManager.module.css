@@ -1,0 +1,63 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+.cell {
+  position: relative;
+  width: 88px;
+}
+.thumb {
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--color-border, #d1d5db);
+}
+.coverBadge {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  background: var(--color-primary-600, #16a34a);
+  color: #fff;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.cellActions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.cellActions button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.addRow,
+.urlRow {
+  display: flex;
+  gap: var(--space-2, 8px);
+  align-items: center;
+}
+.urlRow input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: var(--radius-sm, 6px);
+}
+.note {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.error {
+  font-size: 0.85rem;
+  color: var(--color-danger, #dc2626);
+}
