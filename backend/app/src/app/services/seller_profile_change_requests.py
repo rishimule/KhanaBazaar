@@ -41,6 +41,7 @@ from app.schemas.seller_profile_change_request import (
     validate_group_payload,
 )
 from app.services import admin_audit
+from app.services.image_processing import ImageValidationError
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_services import (
     list_profile_services,
@@ -300,6 +301,69 @@ async def create_change_request(
     )
 
 
+async def create_avatar_change_request(
+    *,
+    session: AsyncSession,
+    seller_profile: SellerProfile,
+    raw: bytes,
+    actor_user_id: int,
+    note: Optional[str] = None,
+) -> CRMutationResult:
+    """Upload a pending avatar blob and queue an `avatar` CR for admin approval.
+
+    Auto-supersedes any open avatar CR (re-picking must not 409). The supersede
+    runs BEFORE storing the new blob so an identical re-upload is not deleted by
+    the withdraw cleanup.
+    """
+    if seller_profile.verification_status is not VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="seller_not_active")
+    assert seller_profile.id is not None
+
+    existing = await _open_cr_for_group(
+        session, seller_profile.id, SellerProfileChangeGroup.Avatar
+    )
+    if existing is not None:
+        await withdraw(session=session, cr=existing, actor_user_id=actor_user_id)
+        await session.flush()
+
+    from app.services.profile_avatars import process_and_store
+
+    try:
+        url, key = await process_and_store(raw, "seller", seller_profile.id)
+    except ImageValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return await create_change_request(
+        session=session,
+        seller_profile=seller_profile,
+        group=SellerProfileChangeGroup.Avatar,
+        proposed={"avatar_url": url, "storage_key": key},
+        note=note,
+        actor_user_id=actor_user_id,
+    )
+
+
+async def _cleanup_pending_avatar_blob(
+    session: AsyncSession, cr: SellerProfileChangeRequest
+) -> None:
+    """Delete an avatar CR's pending blob when the CR is rejected/withdrawn.
+
+    No-op for non-avatar groups. Skips deletion when the pending key equals the
+    seller's current LIVE key (identical re-upload), so the live picture is kept.
+    """
+    if cr.group is not SellerProfileChangeGroup.Avatar:
+        return
+    pending_key = (cr.proposed_json or {}).get("storage_key")
+    if not pending_key:
+        return
+    profile = await session.get(SellerProfile, cr.seller_profile_id)
+    live_key = profile.avatar_storage_key if profile else None
+    if pending_key != live_key:
+        from app.services.profile_avatars import delete_blob
+
+        await delete_blob(pending_key)
+
+
 async def withdraw(
     *,
     session: AsyncSession,
@@ -313,6 +377,7 @@ async def withdraw(
     cr.decided_by_user_id = actor_user_id
     cr.updated_at = _now()
     session.add(cr)
+    await _cleanup_pending_avatar_blob(session, cr)
     _emit_event(
         session=session, cr=cr,
         kind=SellerProfileChangeEventKind.Withdrawn,
@@ -425,6 +490,7 @@ async def reject(
     cr.decided_by_user_id = admin_user_id
     cr.updated_at = _now()
     session.add(cr)
+    await _cleanup_pending_avatar_blob(session, cr)
     _emit_event(
         session=session, cr=cr,
         kind=SellerProfileChangeEventKind.Rejected,
