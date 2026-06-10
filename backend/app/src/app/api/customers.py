@@ -2,7 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import desc
 from sqlalchemy.exc import IntegrityError
@@ -39,6 +39,8 @@ from app.schemas.customers import (
     CustomerProfileUpdate,
 )
 from app.services.customer_stats import compute_stats
+from app.services.image_processing import ImageValidationError
+from app.services.profile_avatars import delete_blob, process_and_store
 
 router = APIRouter()
 
@@ -89,6 +91,7 @@ async def _profile_response(
         notify_order_email=profile.notify_order_email,
         notify_order_sms=profile.notify_order_sms,
         phone_verified_at=profile.phone_verified_at,
+        avatar_url=profile.avatar_url,
         addresses=[
             CustomerAddressRead(
                 id=customer_address.id,
@@ -184,6 +187,48 @@ async def update_customer_profile(
     session.add(profile)
     await session.commit()
     await session.refresh(profile)
+    return await _profile_response(session, current_user, profile)
+
+
+@router.post("/me/avatar", response_model=CustomerProfileRead)
+async def upload_customer_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> CustomerProfileRead:
+    assert current_user.id is not None
+    profile = await _customer_profile_for_user(session, current_user.id)
+    assert profile.id is not None
+    raw = await file.read()
+    try:
+        url, key = await process_and_store(raw, "customer", profile.id)
+    except ImageValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    old_key = profile.avatar_storage_key
+    profile.avatar_url = url
+    profile.avatar_storage_key = key
+    session.add(profile)
+    await session.commit()
+    await session.refresh(profile)
+    if old_key and old_key != key:
+        await delete_blob(old_key)
+    return await _profile_response(session, current_user, profile)
+
+
+@router.delete("/me/avatar", response_model=CustomerProfileRead)
+async def delete_customer_avatar(
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> CustomerProfileRead:
+    assert current_user.id is not None
+    profile = await _customer_profile_for_user(session, current_user.id)
+    old_key = profile.avatar_storage_key
+    profile.avatar_url = None
+    profile.avatar_storage_key = None
+    session.add(profile)
+    await session.commit()
+    await session.refresh(profile)
+    await delete_blob(old_key)
     return await _profile_response(session, current_user, profile)
 
 

@@ -27,6 +27,7 @@ class CustomerProfileRead(BaseModel):
     notify_order_email: bool = True
     notify_order_sms: bool = False
     phone_verified_at: datetime | None = None
+    avatar_url: str | None = None
     addresses: list[CustomerAddressRead]
 
 

@@ -1,10 +1,13 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import io
 from collections.abc import AsyncGenerator, Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from PIL import Image
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -409,3 +412,54 @@ async def test_deleting_non_owned_address_returns_404(
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.delete(f"/api/v1/customers/me/addresses/{other_address.id}")
     assert resp.status_code == 404
+
+
+def _avatar_png() -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (300, 300), "green").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+async def test_customer_avatar_upload_then_delete(
+    override_as_customer: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "IMAGE_STORAGE_BACKEND", "local")
+    monkeypatch.setattr(settings, "MEDIA_LOCAL_DIR", str(tmp_path))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        up = await ac.post(
+            "/api/v1/customers/me/avatar",
+            files={"file": ("a.png", _avatar_png(), "image/png")},
+        )
+        assert up.status_code == 200, up.text
+        url = up.json()["avatar_url"]
+        assert url and "avatars/customer/" in url
+
+        me = await ac.get("/api/v1/customers/me")
+        assert me.json()["avatar_url"] == url
+
+        dele = await ac.delete("/api/v1/customers/me/avatar")
+        assert dele.status_code == 200, dele.text
+        assert dele.json()["avatar_url"] is None
+
+
+async def test_customer_avatar_rejects_non_image(
+    override_as_customer: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "IMAGE_STORAGE_BACKEND", "local")
+    monkeypatch.setattr(settings, "MEDIA_LOCAL_DIR", str(tmp_path))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        bad = await ac.post(
+            "/api/v1/customers/me/avatar",
+            files={"file": ("x.txt", b"not an image", "text/plain")},
+        )
+    assert bad.status_code == 422
