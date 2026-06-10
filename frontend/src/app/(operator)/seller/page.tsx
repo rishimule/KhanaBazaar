@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
-import type { SellerMetrics } from "@/types";
+import type { SellerMetrics, SellerProfile } from "@/types";
 import StatsCard from "@/components/StatsCard";
 import DashboardHeader from "@/components/seller/DashboardHeader";
 import CloseStoreModal from "@/components/seller/CloseStoreModal";
@@ -44,6 +44,7 @@ export default function SellerDashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [pauseBusy, setPauseBusy] = useState(false);
   const [closePrompt, setClosePrompt] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const load = useCallback(
     (refresh = false) => {
@@ -96,6 +97,13 @@ export default function SellerDashboardPage() {
     if (!loading && dbUser && token) load();
   }, [loading, dbUser, token, router, load]);
 
+  useEffect(() => {
+    if (loading || !dbUser || !token) return;
+    get<SellerProfile>("/api/v1/sellers/me", token)
+      .then((p) => setAvatarUrl(p.avatar_url))
+      .catch(() => {});
+  }, [loading, dbUser, token]);
+
   if (loading || fetching) {
     return (
       <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
@@ -116,6 +124,7 @@ export default function SellerDashboardPage() {
         refreshing={refreshing}
         onTogglePause={handlePauseToggle}
         pauseBusy={pauseBusy}
+        avatarUrl={avatarUrl}
       />
 
       {closePrompt && (

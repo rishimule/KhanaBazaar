@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import Link from "next/link";
+import Avatar from "@/components/Avatar";
 import styles from "./DashboardHeader.module.css";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
   refreshing?: boolean;
   onTogglePause: () => void;
   pauseBusy?: boolean;
+  avatarUrl?: string | null;
 }
 
 function greeting(): string {
@@ -34,6 +36,7 @@ export default function DashboardHeader({
   refreshing,
   onTogglePause,
   pauseBusy,
+  avatarUrl,
 }: Props) {
   const today = new Date().toLocaleDateString("en-GB", {
     weekday: "short",
@@ -45,17 +48,25 @@ export default function DashboardHeader({
   return (
     <header className={styles.header}>
       <div className={styles.left}>
-        <h1 className={styles.greeting}>
-          {greeting()}, {firstName(fullName)}
-        </h1>
-        <p className={styles.subtitle}>
-          {storeName && <span className={styles.storeName}>{storeName}</span>}
-          <span className={styles.sep}>·</span>
-          <span>{today}</span>
-          <span className={`${styles.chip} ${storePaused ? styles.chipWarn : styles.chipOk}`}>
-            {storePaused ? "Closed" : "Open"}
-          </span>
-        </p>
+        <Avatar
+          avatarUrl={avatarUrl}
+          name={fullName ?? "Seller"}
+          seed={fullName ?? "seller"}
+          size={48}
+        />
+        <div>
+          <h1 className={styles.greeting}>
+            {greeting()}, {firstName(fullName)}
+          </h1>
+          <p className={styles.subtitle}>
+            {storeName && <span className={styles.storeName}>{storeName}</span>}
+            <span className={styles.sep}>·</span>
+            <span>{today}</span>
+            <span className={`${styles.chip} ${storePaused ? styles.chipWarn : styles.chipOk}`}>
+              {storePaused ? "Closed" : "Open"}
+            </span>
+          </p>
+        </div>
       </div>
       <div className={styles.actions}>
         <button

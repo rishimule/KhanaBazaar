@@ -73,3 +73,9 @@
   background: var(--color-primary);
   color: var(--color-neutral-0);
 }
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
