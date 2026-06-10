@@ -168,6 +168,19 @@ def _image_for(category_slug: str, index: int) -> str:
     return pool[index % len(pool)]
 
 
+def _images_for(category_slug: str, index: int) -> list[str]:
+    """Ordered image gallery for a product: the round-robin cover (matching
+    `_image_for`) first, then the rest of the category pool. Gives each seeded
+    product a small multi-image gallery so the product-image feature is
+    exercised on a fresh seed, while keeping image_url == images[0]."""
+    if category_slug not in CATEGORY_IMAGE_POOLS:
+        raise KeyError(f"no image pool registered for category {category_slug!r}")
+    pool = CATEGORY_IMAGE_POOLS[category_slug]
+    assert pool, f"empty image pool for category {category_slug}"
+    cover = index % len(pool)
+    return [pool[cover], *[url for j, url in enumerate(pool) if j != cover]]
+
+
 # ---------------------------------------------------------------------------
 # EXTRA SERVICES (9 → SERVICES total 12)
 # ---------------------------------------------------------------------------
@@ -1094,6 +1107,7 @@ def _generate_extra_products() -> list[dict[str, Any]]:
                 "name": name,
                 "description": f"{name} — {sub['description'].lower()}",
                 "image_url": _image_for(cat["slug"], i),
+                "images": _images_for(cat["slug"], i),
                 "base_price": price,
             })
             EXTRA_PRODUCT_META[unique_slug] = {
