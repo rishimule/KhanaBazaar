@@ -357,3 +357,13 @@
     flex-direction: column;
   }
 }
+
+.removeAvatar {
+  margin-top: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--color-danger, #c0392b);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
