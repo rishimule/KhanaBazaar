@@ -71,3 +71,33 @@ async def test_seller_avatar_upload_creates_cr(
     assert body["group"] == "avatar"
     assert body["status"] == "submitted"
     assert body["proposed_json"]["avatar_url"]
+
+
+async def test_generic_cr_rejects_forged_avatar(override_as_seller: Any) -> None:
+    # The generic JSON CR path must not accept a non-empty avatar_url / forged
+    # storage_key — real uploads go through POST /me/avatar (server-produced key).
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        res = await ac.post(
+            "/api/v1/sellers/me/change-requests",
+            json={
+                "group": "avatar",
+                "proposed": {
+                    "avatar_url": "https://evil.example/x.png",
+                    "storage_key": "avatars/seller/999/victim.webp",
+                },
+            },
+        )
+    assert res.status_code == 422
+    assert res.json()["detail"] == "avatar_upload_required"
+
+
+async def test_generic_cr_allows_avatar_removal(override_as_seller: Any) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        res = await ac.post(
+            "/api/v1/sellers/me/change-requests",
+            json={"group": "avatar", "proposed": {"avatar_url": ""}},
+        )
+    assert res.status_code == 201, res.text
+    body = res.json()
+    assert body["group"] == "avatar"
+    assert body["status"] == "submitted"
