@@ -356,6 +356,7 @@
     "roleCustomerLabel": "ખાતું"
   },
   "Product": {
+    "imageGallery": "Product images",
     "outOfStock": "સ્ટોકમાં નથી",
     "outOfStockButton": "સ્ટોકમાં નથી",
     "onlyNLeft": "ફક્ત {count} બાકી",

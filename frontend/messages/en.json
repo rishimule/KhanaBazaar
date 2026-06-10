@@ -356,6 +356,7 @@
     "roleCustomerLabel": "Account"
   },
   "Product": {
+    "imageGallery": "Product images",
     "outOfStock": "Out of stock",
     "outOfStockButton": "Out of Stock",
     "onlyNLeft": "Only {count} left",

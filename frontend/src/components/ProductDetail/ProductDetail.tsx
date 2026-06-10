@@ -22,6 +22,7 @@ export default function ProductDetail({ data, variant }: Props) {
   const { dbUser } = useAuth();
   const { isFavorite, toggle: toggleFav } = useFavorites();
   const [imgFailed, setImgFailed] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
 
   const { store, service, inventory } = data;
   const { product, price, stock, is_available: isAvailable } = inventory;
@@ -70,21 +71,48 @@ export default function ProductDetail({ data, variant }: Props) {
     });
   };
 
-  const showImage = Boolean(product.image_url) && !imgFailed;
+  const gallery =
+    product.images && product.images.length > 0
+      ? product.images
+      : product.image_url
+      ? [{ url: product.image_url, position: 0 }]
+      : [];
+  const activeUrl = gallery[activeIdx]?.url;
+  const showImage = Boolean(activeUrl) && !imgFailed;
 
   return (
     <article className={`${styles.detail} ${styles[variant]}`}>
       <div className={styles.imageWrap}>
         {showImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={product.image_url}
-            alt={product.name}
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            onError={() => setImgFailed(true)}
-          />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={activeUrl}
+              alt={`${product.name} – image ${activeIdx + 1}`}
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onError={() => setImgFailed(true)}
+            />
+            {gallery.length > 1 && (
+              <div className={styles.thumbs} role="group" aria-label={t("imageGallery")}>
+                {gallery.map((g, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={g.url}
+                    src={g.url}
+                    alt=""
+                    className={i === activeIdx ? styles.thumbActive : styles.thumb}
+                    referrerPolicy="no-referrer"
+                    onClick={() => {
+                      setActiveIdx(i);
+                      setImgFailed(false);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           <span className={styles.imagePlaceholder} aria-hidden>📦</span>
         )}

@@ -356,6 +356,7 @@
     "roleCustomerLabel": "खाता"
   },
   "Product": {
+    "imageGallery": "Product images",
     "outOfStock": "स्टॉक में नहीं",
     "outOfStockButton": "स्टॉक में नहीं",
     "onlyNLeft": "केवल {count} बचे",

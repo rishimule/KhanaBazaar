@@ -356,6 +356,7 @@
     "roleCustomerLabel": "खाते"
   },
   "Product": {
+    "imageGallery": "Product images",
     "outOfStock": "साठ्यात नाही",
     "outOfStockButton": "साठ्यात नाही",
     "onlyNLeft": "फक्त {count} शिल्लक",

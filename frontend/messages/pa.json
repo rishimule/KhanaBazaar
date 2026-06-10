@@ -356,6 +356,7 @@
     "roleCustomerLabel": "ਖਾਤਾ"
   },
   "Product": {
+    "imageGallery": "Product images",
     "outOfStock": "ਸਟਾਕ ਵਿੱਚ ਨਹੀਂ",
     "outOfStockButton": "ਸਟਾਕ ਵਿੱਚ ਨਹੀਂ",
     "onlyNLeft": "ਸਿਰਫ਼ {count} ਬਾਕੀ",
