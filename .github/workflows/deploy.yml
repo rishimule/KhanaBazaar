@@ -73,6 +73,17 @@ jobs:
           gcloud run services update khanabazaar-web --region=$REGION --image=$WEB_IMAGE \
             --update-env-vars=INTERNAL_API_URL="${{ vars.INTERNAL_API_URL }}"
 
+      # Push firebase.json to the custom domain (khanabazaar.rishimule.dev). The
+      # Hosting rewrite auto-tracks the latest khanabazaar-web revision, so this
+      # is only strictly required when firebase.json changes — but running it
+      # every deploy keeps the CDN config in sync and purges the Hosting CDN
+      # cache, which is the backstop against stale-HTML ChunkLoadErrors (the
+      # cache-control split lives in firebase.json). Auth: firebase-tools reads
+      # the ADC that google-github-actions/auth@v3 exported (no SA key needed);
+      # gh-deployer holds roles/firebasehosting.admin + roles/firebase.viewer.
+      - name: Deploy Firebase Hosting (custom domain)
+        run: npx --yes firebase-tools@13 deploy --only hosting --project "$PROJECT_ID" --non-interactive
+
       - name: Deploy worker on VM
         run: |
           gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap --quiet \
