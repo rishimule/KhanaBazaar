@@ -335,6 +335,11 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     "customer_phone": (
                         customer_profile.phone if customer_profile else None
                     ),
+                    "customer_phone_verified": (
+                        customer_profile.phone_verified_at is not None
+                        if customer_profile
+                        else False
+                    ),
                     "customer_lang": (
                         customer_user.preferred_language if customer_user else "en"
                     ),
