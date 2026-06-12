@@ -12,6 +12,7 @@ import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { prefetchStorefront } from "@/lib/storefrontCache";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
+import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -128,6 +129,7 @@ function StoresPageInner() {
 
   return (
     <div className={styles.page}>
+      <NearbyLocationBanner />
       <div className={styles.pageInner}>
         <div className={styles.header}>
           <h1 className={styles.title}>{t("browse")} {t("stores")}</h1>
