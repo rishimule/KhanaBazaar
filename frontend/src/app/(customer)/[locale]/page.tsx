@@ -13,6 +13,7 @@ import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
 import { HomeStorePreview, PreviewCandidate } from "@/components/HomeStorePreview";
+import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -75,6 +76,7 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
+      <NearbyLocationBanner />
       <div className={styles.shell}>
         <section className={styles.hero}>
           <span className={styles.heroGlyph} aria-hidden>🥢</span>
