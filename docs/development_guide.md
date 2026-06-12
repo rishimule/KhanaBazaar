@@ -36,6 +36,8 @@ Lives at `backend/app/.env`. Template is `backend/app/.env.example`. Loader is t
 | `SUPPORT_EMAIL` | `support@khanabazaar.example` | Destination inbox for `/customers/me/support` messages. Override per environment. |
 | `SMS_PROVIDER` | `console` | `console` logs codes to stdout. `twilio` does direct httpx POST (no SDK). Drives seller phone-OTP step. |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | `""` | Required when `SMS_PROVIDER=twilio`. `TWILIO_FROM_NUMBER` is E.164 (e.g. `+15005550006`). |
+| `WHATSAPP_PROVIDER` | `none` | `none` disables WhatsApp (`get_whatsapp_sender()` → `None`). `console` mocks → captures to `dev_whatsapp` → `/dev-whatsapp`. `twilio` uses the Content API. Set `console` in dev to see captures. |
+| `TWILIO_WHATSAPP_FROM` | `""` | The `whatsapp:+...` sender (sandbox or approved number). Required when `WHATSAPP_PROVIDER=twilio`; reuses `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`. |
 | `JWT_EXPIRES_HOURS` | `24` | Access-token TTL. |
 | `OTP_TTL_SECONDS` | `600` | OTP code lifetime in Redis. |
 | `OTP_MAX_ATTEMPTS` | `5` | Verify failures before key is purged. |
@@ -184,6 +186,7 @@ const me = await get<User>("/api/v1/auth/me", token);
 - `EMAIL_PROVIDER=console` prints `OTP for foo@bar: 123456` to the uvicorn stdout. Tail the backend terminal — don't hunt through Resend dashboards in dev.
 - Rate limits apply in dev too. If you hit them while debugging, `redis-cli FLUSHDB` clears OTP state.
 - The seller signup flow uses a separate short-lived `seller_otp` JWT (`core/security.py:create_email_verification_token`). Treat it as an email-verification token, not an access token.
+- **WhatsApp (template-first):** set `WHATSAPP_PROVIDER=console` to mock sends. With WhatsApp enabled, the phone-OTP sites (seller signup, seller phone-change, delivery OTP) prefer WhatsApp and fall back to SMS only on failure — so in dev the SMS captures for those go quiet and the codes show up under `/dev-whatsapp` instead. Customer login OTP still emails, but also mirrors to WhatsApp when the customer has a verified phone. Captured messages render the template text (copy in `core/whatsapp_templates.py`); going live with Twilio only needs the `TwilioWhatsAppSender` ContentSids — no call-site changes. See the spec in `docs/superpowers/specs/2026-06-11-whatsapp-messaging-channel-design.md`.
 
 ---
 
