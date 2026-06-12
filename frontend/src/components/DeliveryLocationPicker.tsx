@@ -72,13 +72,21 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
   const {
     status: geoStatus,
     request: requestGeo,
+    reset: resetGeo,
     supported: geoSupported,
   } = useDeviceLocation();
 
-  // Close the picker once the device location resolves successfully.
+  // The picker instance stays mounted (parents only toggle `open`), so the
+  // hook status would otherwise linger across open/close. Reset it whenever
+  // the picker is closed — clearing a stale done/denied/error so a reopen
+  // starts fresh — and close the picker once a location resolves successfully.
   useEffect(() => {
+    if (!open) {
+      resetGeo();
+      return;
+    }
     if (geoStatus === "done") onClose();
-  }, [geoStatus, onClose]);
+  }, [open, geoStatus, onClose, resetGeo]);
 
   if (!open) return null;
 

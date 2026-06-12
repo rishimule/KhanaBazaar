@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { useAuth } from "@/lib/AuthContext";
+import { useCustomerAddresses } from "@/lib/CustomerAddressesContext";
 import {
   isDefaultDeliveryLocation,
   useDeliveryLocation,
@@ -27,6 +28,7 @@ export function NearbyLocationBanner() {
   const t = useTranslations("NearbyLocation");
   const { location, hydrated } = useDeliveryLocation();
   const { dbUser, loading } = useAuth();
+  const { loading: addressesLoading } = useCustomerAddresses();
   const { status, request, supported } = useDeviceLocation();
   const [dismissed, setDismissed] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -56,6 +58,11 @@ export function NearbyLocationBanner() {
   if (!mounted || loading) return null; // avoid SSR mismatch + auth flicker
   if (!supported) return null; // insecure context / no geolocation API
   if (!audienceOk) return null; // sellers / admins never see it
+  // Wait for a logged-in customer's saved-address auto-sync to settle before
+  // deciding — otherwise the banner flashes during the /customers/me fetch for
+  // customers who already have a usable saved address. (Guests resolve to
+  // addressesLoading=false immediately, so they are unaffected.)
+  if (role === "customer" && addressesLoading) return null;
   if (!hydrated) return null; // wait for location hydration to avoid flash
   if (!isDefaultDeliveryLocation(location)) return null; // already have a real location
   if (dismissed) return null;
