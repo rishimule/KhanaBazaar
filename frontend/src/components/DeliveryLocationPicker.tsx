@@ -2,11 +2,13 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
+import { useEffect } from "react";
 import {
   APIProvider,
   AdvancedMarker,
   Map,
 } from "@vis.gl/react-google-maps";
+import { useTranslations } from "next-intl";
 
 import Modal from "@/components/Modal";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
@@ -15,6 +17,7 @@ import {
   type GeoPlace,
 } from "@/lib/geo";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { useDeviceLocation } from "@/lib/useDeviceLocation";
 import { useCustomerAddresses } from "@/lib/CustomerAddressesContext";
 import { useAuth } from "@/lib/AuthContext";
 import { formatAddress } from "@/lib/format-address";
@@ -61,10 +64,21 @@ function VisualMap({ lat, lng }: { lat: number; lng: number }) {
 }
 
 export function DeliveryLocationPicker({ open, onClose }: Props) {
+  const t = useTranslations("NearbyLocation");
   const { location, setLocation } = useDeliveryLocation();
   const auth = useAuth();
   const { addresses } = useCustomerAddresses();
   const router = useRouter();
+  const {
+    status: geoStatus,
+    request: requestGeo,
+    supported: geoSupported,
+  } = useDeviceLocation();
+
+  // Close the picker once the device location resolves successfully.
+  useEffect(() => {
+    if (geoStatus === "done") onClose();
+  }, [geoStatus, onClose]);
 
   if (!open) return null;
 
@@ -118,6 +132,32 @@ export function DeliveryLocationPicker({ open, onClose }: Props) {
         >
           + Add address
         </button>
+        {geoSupported && (
+          <>
+            <button
+              type="button"
+              className={styles.useLocationBtn}
+              onClick={requestGeo}
+              disabled={geoStatus === "locating" || geoStatus === "resolving"}
+            >
+              📍{" "}
+              {geoStatus === "locating" || geoStatus === "resolving"
+                ? t("locating")
+                : t("useMyLocation")}
+            </button>
+            {(geoStatus === "denied" ||
+              geoStatus === "outside_india" ||
+              geoStatus === "error") && (
+              <p className={styles.geoMsg} role="alert">
+                {geoStatus === "denied"
+                  ? t("denied")
+                  : geoStatus === "outside_india"
+                    ? t("outsideIndia")
+                    : t("error")}
+              </p>
+            )}
+          </>
+        )}
         {auth.loading ? (
           <div className={styles.skeleton} aria-busy="true" aria-live="polite">
             <div className={styles.skeletonRow} />

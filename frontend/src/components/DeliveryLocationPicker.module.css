@@ -169,6 +169,35 @@
   cursor: not-allowed;
 }
 
+.useLocationBtn {
+  width: 100%;
+  padding: 12px 22px;
+  background: var(--white);
+  color: var(--color-btn-primary-bg);
+  border: 1px solid var(--color-btn-primary-bg);
+  border-radius: var(--radius-card);
+  font-family: var(--font-family-sans);
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-base);
+  cursor: pointer;
+  transition: background var(--duration-fast), transform var(--duration-fast);
+}
+
+.useLocationBtn:hover:not(:disabled) { background: var(--shade-cool-light-6); }
+.useLocationBtn:active:not(:disabled) { transform: scale(0.97); }
+.useLocationBtn:disabled { opacity: 0.7; cursor: progress; }
+
+.useLocationBtn:focus-visible {
+  outline: 2px solid var(--color-btn-primary-bg);
+  outline-offset: 2px;
+}
+
+.geoMsg {
+  margin: 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-5);
+}
+
 @media (max-width: 640px) {
   .visualMapBox,
   .mapFallback {
