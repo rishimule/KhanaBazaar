@@ -75,6 +75,41 @@ def send_login_otp_whatsapp_async(code: str, phone: str) -> None:
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_order_status_whatsapp_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_order_status_whatsapp_async(order_id: int, status: str) -> None:
+    """Best-effort customer order-status WhatsApp. No-op when WhatsApp disabled,
+    status has no template, or the customer has no verified phone."""
+    import asyncio
+    import concurrent.futures
+
+    from app.core.whatsapp import get_whatsapp_sender
+    from app.core.whatsapp_templates import STATUS_TEMPLATES
+
+    sender = get_whatsapp_sender()
+    if sender is None:
+        return
+    template = STATUS_TEMPLATES.get(status)
+    if template is None:
+        return
+    ctx = _load_order_email_context(order_id)
+    phone = ctx.get("customer_phone")
+    if not phone or not ctx.get("customer_phone_verified"):
+        return
+    variables = {
+        "order_no": str(order_id),
+        "store": ctx.get("store_name") or "your store",
+    }
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(
+            lambda: asyncio.run(sender.send_template(phone, template, variables))
+        ).result()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
     name="send_delivery_otp_email_async",
     autoretry_for=(Exception,),
     max_retries=3,
