@@ -18,6 +18,7 @@ from app.core.config import settings
 from app.db.session import get_db_session
 from app.models.dev_email import DevEmail
 from app.models.dev_sms import DevSms
+from app.models.dev_whatsapp import DevWhatsApp
 
 router = APIRouter()
 _basic = HTTPBasic(auto_error=False)
@@ -150,6 +151,59 @@ async def sms_new_count(
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, int]:
     stmt = select(DevSms).where(col(DevSms.id) > after, *_sms_conditions(q, category))
+    count = int(
+        (await session.exec(select(func.count()).select_from(stmt.subquery()))).one()
+    )
+    return {"count": count}
+
+
+def _whatsapp_conditions(q: str | None, category: str | None) -> list[Any]:
+    conds: list[Any] = []
+    if q:
+        like = f"%{q}%"
+        conds.append(
+            or_(
+                col(DevWhatsApp.to_phone).ilike(like),
+                col(DevWhatsApp.body).ilike(like),
+                col(DevWhatsApp.template).ilike(like),
+                col(DevWhatsApp.category).ilike(like),
+            )
+        )
+    if category:
+        conds.append(DevWhatsApp.category == category)
+    return conds
+
+
+@router.get("/whatsapp", dependencies=[Depends(require_dev_inbox)])
+async def list_whatsapp(
+    q: str | None = Query(None),
+    category: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    stmt = select(DevWhatsApp).where(*_whatsapp_conditions(q, category))
+    total = int(
+        (await session.exec(select(func.count()).select_from(stmt.subquery()))).one()
+    )
+    items = (
+        await session.exec(
+            stmt.order_by(col(DevWhatsApp.id).desc()).limit(limit).offset(offset)
+        )
+    ).all()
+    return {"items": items, "total": total}
+
+
+@router.get("/whatsapp/new-count", dependencies=[Depends(require_dev_inbox)])
+async def whatsapp_new_count(
+    after: int = Query(0, ge=0),
+    q: str | None = Query(None),
+    category: str | None = Query(None),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, int]:
+    stmt = select(DevWhatsApp).where(
+        col(DevWhatsApp.id) > after, *_whatsapp_conditions(q, category)
+    )
     count = int(
         (await session.exec(select(func.count()).select_from(stmt.subquery()))).one()
     )

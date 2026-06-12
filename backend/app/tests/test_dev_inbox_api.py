@@ -114,3 +114,64 @@ async def test_sms_listing(
     data = resp.json()
     assert data["total"] == 2
     assert data["items"][0]["body"] == "otp 2222"  # newest first
+
+
+@pytest.mark.asyncio
+async def test_list_whatsapp_requires_auth(
+    client: AsyncClient, _dev_inbox_creds: tuple[str, str]
+) -> None:
+    resp = await client.get("/api/v1/dev/whatsapp")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_listing_and_search(
+    client: AsyncClient, session: AsyncSession, _dev_inbox_creds: tuple[str, str]
+) -> None:
+    from app.models.dev_whatsapp import DevWhatsApp
+
+    session.add(
+        DevWhatsApp(
+            to_phone="+919800000001", body="login code 1111",
+            template="otp_login", category="AUTHENTICATION", provider="console",
+        )
+    )
+    session.add(
+        DevWhatsApp(
+            to_phone="+919800000002", body="order #5 dispatched",
+            template="order_dispatched", category="UTILITY", provider="console",
+        )
+    )
+    await session.commit()
+
+    resp = await client.get("/api/v1/dev/whatsapp", auth=_dev_inbox_creds)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 2
+    assert data["items"][0]["template"] == "order_dispatched"  # newest first
+
+    # Search matches the template column too.
+    resp = await client.get("/api/v1/dev/whatsapp?q=otp_login", auth=_dev_inbox_creds)
+    items = resp.json()["items"]
+    assert len(items) == 1
+    assert items[0]["to_phone"] == "+919800000001"
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_new_count(
+    client: AsyncClient, session: AsyncSession, _dev_inbox_creds: tuple[str, str]
+) -> None:
+    from app.models.dev_whatsapp import DevWhatsApp
+
+    session.add(DevWhatsApp(to_phone="+919800000001", body="a", provider="console"))
+    await session.commit()
+    listing = (await client.get("/api/v1/dev/whatsapp", auth=_dev_inbox_creds)).json()
+    latest_id = listing["items"][0]["id"]
+    session.add(DevWhatsApp(to_phone="+919800000002", body="b", provider="console"))
+    session.add(DevWhatsApp(to_phone="+919800000003", body="c", provider="console"))
+    await session.commit()
+    resp = await client.get(
+        f"/api/v1/dev/whatsapp/new-count?after={latest_id}", auth=_dev_inbox_creds
+    )
+    assert resp.status_code == 200
+    assert resp.json()["count"] == 2
