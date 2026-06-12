@@ -49,6 +49,67 @@ def send_otp_email_async(to: str, code: str) -> None:
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_login_otp_whatsapp_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_login_otp_whatsapp_async(code: str, phone: str) -> None:
+    """Best-effort WhatsApp mirror of the customer login OTP. No-op if WhatsApp
+    is disabled."""
+    import asyncio
+    import concurrent.futures
+
+    from app.core.whatsapp import get_whatsapp_sender
+    from app.core.whatsapp_templates import TEMPLATES
+
+    sender = get_whatsapp_sender()
+    if sender is None:
+        return
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(
+            lambda: asyncio.run(
+                sender.send_template(phone, TEMPLATES["otp_login"], {"code": code})
+            )
+        ).result()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_order_status_whatsapp_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_order_status_whatsapp_async(order_id: int, status: str) -> None:
+    """Best-effort customer order-status WhatsApp. No-op when WhatsApp disabled,
+    status has no template, or the customer has no verified phone."""
+    import asyncio
+    import concurrent.futures
+
+    from app.core.whatsapp import get_whatsapp_sender
+    from app.core.whatsapp_templates import STATUS_TEMPLATES
+
+    sender = get_whatsapp_sender()
+    if sender is None:
+        return
+    template = STATUS_TEMPLATES.get(status)
+    if template is None:
+        return
+    ctx = _load_order_email_context(order_id)
+    phone = ctx.get("customer_phone")
+    if not phone or not ctx.get("customer_phone_verified"):
+        return
+    variables = {
+        "order_no": str(order_id),
+        "store": ctx.get("store_name") or "your store",
+    }
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(
+            lambda: asyncio.run(sender.send_template(phone, template, variables))
+        ).result()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
     name="send_delivery_otp_email_async",
     autoretry_for=(Exception,),
     max_retries=3,
@@ -76,24 +137,37 @@ def send_delivery_otp_email_async(order_id: int, code: str) -> None:
     retry_backoff=True,
 )
 def send_delivery_otp_sms_async(order_id: int, code: str) -> None:
-    """SMS the delivery handover code to the customer. No-op when no phone."""
+    """Deliver the handover code to the customer: WhatsApp-preferred, SMS
+    fallback. No-op when the customer has no phone on file."""
     import asyncio
     import concurrent.futures
 
+    from app.core.otp_delivery import deliver_phone_otp
     from app.core.sms import get_sms_sender
+    from app.core.whatsapp import get_whatsapp_sender
 
     ctx = _load_order_email_context(order_id)
     phone = ctx.get("customer_phone")
     if not phone:
         return
-    text = (
+    sms_text = (
         f"Khana Bazaar: your delivery code for order #{order_id} is {code}. "
         f"Share it only with your delivery partner at handover."
     )
-    sender = get_sms_sender()
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        executor.submit(lambda: asyncio.run(sender.send(phone, text))).result()
+        executor.submit(
+            lambda: asyncio.run(
+                deliver_phone_otp(
+                    to=phone,
+                    template_name="otp_delivery",
+                    variables={"order_no": str(order_id), "code": code},
+                    sms_text=sms_text,
+                    sms_sender=get_sms_sender(),
+                    whatsapp_sender=get_whatsapp_sender(),
+                )
+            )
+        ).result()
 
 
 @celery_app.task(name="send_support_email")  # type: ignore[untyped-decorator]
@@ -295,6 +369,11 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     ),
                     "customer_phone": (
                         customer_profile.phone if customer_profile else None
+                    ),
+                    "customer_phone_verified": (
+                        customer_profile.phone_verified_at is not None
+                        if customer_profile
+                        else False
                     ),
                     "customer_lang": (
                         customer_user.preferred_language if customer_user else "en"

@@ -51,6 +51,7 @@ export function InboxHeader({
       <nav className={styles.nav}>
         <Link href="/dev-emails">Emails</Link>
         <Link href="/dev-sms">SMS</Link>
+        <Link href="/dev-whatsapp">WhatsApp</Link>
         <button type="button" onClick={onLogout}>
           Logout
         </button>

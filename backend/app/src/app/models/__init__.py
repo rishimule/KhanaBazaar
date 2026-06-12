@@ -31,6 +31,7 @@ from .commerce import (
 )
 from .dev_email import DevEmail
 from .dev_sms import DevSms
+from .dev_whatsapp import DevWhatsApp
 from .notification import Notification, NotificationType, PushSubscription
 from .profile import (
     AdminProfile,
@@ -66,6 +67,7 @@ __all__ = [
     "DeliveryStatus",
     "DevEmail",
     "DevSms",
+    "DevWhatsApp",
     "Favorite",
     "Language",
     "LanguageCode",

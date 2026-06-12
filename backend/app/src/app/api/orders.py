@@ -17,6 +17,7 @@ from app.core.security import (  # noqa: F401
     get_current_seller,
     get_current_user,
 )
+from app.core.whatsapp import get_whatsapp_sender
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User, UserRole
@@ -62,6 +63,7 @@ from app.services.order_emails import (
     dispatch_order_placed,
     dispatch_order_status_changed,
 )
+from app.services.order_whatsapp import dispatch_order_status_whatsapp
 from app.services.orders import (
     cancel_order,
     resend_delivery_otp,
@@ -115,6 +117,11 @@ async def record_and_dispatch_notification(
         logger.exception(
             "Failed to record/dispatch notification for order_id=%s", order.id
         )
+    # Best-effort, additive customer WhatsApp (outside the try so a notification
+    # hiccup doesn't skip it, and vice versa). Phone-verified gate is in the task.
+    if get_whatsapp_sender() is not None and order.id is not None:
+        dispatch_order_status_whatsapp(order.id, status_value)
+
 
 async def _send_delivery_otp(session: AsyncSession, order: Order, code: str) -> None:
     """Best-effort 3-channel fan-out of the delivery code. Never raises."""

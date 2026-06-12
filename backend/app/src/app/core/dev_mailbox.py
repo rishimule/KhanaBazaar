@@ -27,6 +27,7 @@ from app.db import (
 from app.models.base import BaseSchema
 from app.models.dev_email import DevEmail
 from app.models.dev_sms import DevSms
+from app.models.dev_whatsapp import DevWhatsApp
 
 logger = logging.getLogger(__name__)
 
@@ -80,3 +81,22 @@ async def record_outbound_sms(
     provider: str = "console",
 ) -> None:
     await _persist(DevSms(to_phone=to, body=text, category=category, provider=provider))
+
+
+async def record_outbound_whatsapp(
+    *,
+    to: str,
+    body: str,
+    template: str | None = None,
+    category: str | None = None,
+    provider: str = "console",
+) -> None:
+    await _persist(
+        DevWhatsApp(
+            to_phone=to,
+            body=body,
+            template=template,
+            category=category,
+            provider=provider,
+        )
+    )

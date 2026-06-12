@@ -22,6 +22,7 @@ from app.core.otp import (
     request_otp,
     verify_otp,
 )
+from app.core.otp_delivery import deliver_phone_otp
 from app.core.redis import get_redis
 from app.core.security import (
     create_access_token,
@@ -32,6 +33,7 @@ from app.core.security import (
     get_current_user,
 )
 from app.core.sms import SMSSender, get_sms_sender
+from app.core.whatsapp import WhatsAppSender, get_whatsapp_sender
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User, UserRole
@@ -115,6 +117,7 @@ def _user_payload(
 @router.post("/otp/request")
 async def otp_request(
     body: OTPRequestBody,
+    session: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
     sender: EmailSender = Depends(get_email_sender),
 ) -> dict:  # type: ignore[type-arg]
@@ -144,6 +147,29 @@ async def otp_request(
         from app.worker import send_otp_email_async
 
         send_otp_email_async.delay(email, code)
+    # Best-effort WhatsApp mirror: an existing customer with a verified phone
+    # gets the same code over WhatsApp too. Email stays the primary channel.
+    if get_whatsapp_sender() is not None:
+        user = (await session.exec(select(User).where(User.email == email))).first()
+        if user is not None:
+            profile = (
+                await session.exec(
+                    select(CustomerProfile).where(
+                        CustomerProfile.user_id == user.id
+                    )
+                )
+            ).first()
+            if (
+                profile is not None
+                and profile.phone
+                and profile.phone_verified_at is not None
+            ):
+                from app.services.order_emails import _safe_delay
+                from app.worker import send_login_otp_whatsapp_async
+
+                # Broker-safe dispatch: a Redis/broker outage must never break
+                # the login 200 (the mirror is purely best-effort).
+                _safe_delay(send_login_otp_whatsapp_async, code, profile.phone)
     return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
 
 
@@ -320,6 +346,7 @@ async def seller_phone_otp_request(
     session: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
     sender: SMSSender = Depends(get_sms_sender),
+    whatsapp_sender: WhatsAppSender | None = Depends(get_whatsapp_sender),
 ) -> dict:  # type: ignore[type-arg]
     decode_seller_email_token(body.email_token)
 
@@ -346,12 +373,16 @@ async def seller_phone_otp_request(
             detail={"error": "rate_limited", "retry_after": exc.retry_after},
         ) from exc
 
-    await sender.send(
+    await deliver_phone_otp(
         to=phone,
-        text=(
+        template_name="otp_seller_phone",
+        variables={"code": code},
+        sms_text=(
             f"Your Khana Bazaar seller verification code is: {code}\n"
             "Expires in 10 minutes."
         ),
+        sms_sender=sender,
+        whatsapp_sender=whatsapp_sender,
     )
     return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
 
