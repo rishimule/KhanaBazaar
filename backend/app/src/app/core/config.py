@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_FROM_NUMBER: str = ""  # E.164, e.g. "+15005550006"
 
+    # WhatsApp: "none" (disabled) | "console" (mock → dev_whatsapp) | "twilio".
+    # `none` is the safe default; OTP falls back to SMS and order-update
+    # WhatsApp is skipped when disabled.
+    WHATSAPP_PROVIDER: str = "none"
+    TWILIO_WHATSAPP_FROM: str = ""  # e.g. "whatsapp:+14155238886" (sandbox/approved)
+
     # Dev Mailbox (/dev-emails, /dev-sms) — HTTP Basic creds. Empty = feature
     # disabled (endpoints 404). Only honoured when ENVIRONMENT == "development".
     DEV_INBOX_USER: str = ""
