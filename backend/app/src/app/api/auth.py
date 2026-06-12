@@ -117,6 +117,7 @@ def _user_payload(
 @router.post("/otp/request")
 async def otp_request(
     body: OTPRequestBody,
+    session: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
     sender: EmailSender = Depends(get_email_sender),
 ) -> dict:  # type: ignore[type-arg]
@@ -146,6 +147,26 @@ async def otp_request(
         from app.worker import send_otp_email_async
 
         send_otp_email_async.delay(email, code)
+    # Best-effort WhatsApp mirror: an existing customer with a verified phone
+    # gets the same code over WhatsApp too. Email stays the primary channel.
+    if get_whatsapp_sender() is not None:
+        user = (await session.exec(select(User).where(User.email == email))).first()
+        if user is not None:
+            profile = (
+                await session.exec(
+                    select(CustomerProfile).where(
+                        CustomerProfile.user_id == user.id
+                    )
+                )
+            ).first()
+            if (
+                profile is not None
+                and profile.phone
+                and profile.phone_verified_at is not None
+            ):
+                from app.worker import send_login_otp_whatsapp_async
+
+                send_login_otp_whatsapp_async.delay(code, profile.phone)
     return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
 
 

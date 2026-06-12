@@ -49,6 +49,32 @@ def send_otp_email_async(to: str, code: str) -> None:
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_login_otp_whatsapp_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_login_otp_whatsapp_async(code: str, phone: str) -> None:
+    """Best-effort WhatsApp mirror of the customer login OTP. No-op if WhatsApp
+    is disabled."""
+    import asyncio
+    import concurrent.futures
+
+    from app.core.whatsapp import get_whatsapp_sender
+    from app.core.whatsapp_templates import TEMPLATES
+
+    sender = get_whatsapp_sender()
+    if sender is None:
+        return
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(
+            lambda: asyncio.run(
+                sender.send_template(phone, TEMPLATES["otp_login"], {"code": code})
+            )
+        ).result()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
     name="send_delivery_otp_email_async",
     autoretry_for=(Exception,),
     max_retries=3,
