@@ -164,9 +164,12 @@ async def otp_request(
                 and profile.phone
                 and profile.phone_verified_at is not None
             ):
+                from app.services.order_emails import _safe_delay
                 from app.worker import send_login_otp_whatsapp_async
 
-                send_login_otp_whatsapp_async.delay(code, profile.phone)
+                # Broker-safe dispatch: a Redis/broker outage must never break
+                # the login 200 (the mirror is purely best-effort).
+                _safe_delay(send_login_otp_whatsapp_async, code, profile.phone)
     return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
 
 
