@@ -26,6 +26,16 @@
     "setDeliveryLocation": "Set delivery location",
     "setLocation": "Set location"
   },
+  "NearbyLocation": {
+    "regionLabel": "Nearby stores",
+    "bannerPrompt": "Use your location to see stores near you",
+    "useMyLocation": "Use my location",
+    "locating": "Locating…",
+    "denied": "Location access denied. Enable it in your browser settings, or set your location manually.",
+    "outsideIndia": "KhanaBazaar serves India only.",
+    "error": "Couldn't get your location. Please try again or set it manually.",
+    "dismiss": "Dismiss"
+  },
   "Home": {
     "badge": "Premium local grocery",
     "heroTitle": "Daily essentials from trusted neighborhood stores",
