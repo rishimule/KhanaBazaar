@@ -29,7 +29,7 @@ interface Row {
   id: number;
 }
 
-export function useInbox<T extends Row>(resource: "emails" | "sms"): InboxResult<T> {
+export function useInbox<T extends Row>(resource: "emails" | "sms" | "whatsapp"): InboxResult<T> {
   const [basic, setBasic] = useState<string | null>(null);
   const [items, setItems] = useState<T[]>([]);
   const [total, setTotal] = useState(0);
