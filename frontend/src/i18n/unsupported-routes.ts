@@ -10,6 +10,7 @@ export const I18N_UNSUPPORTED_PREFIXES = [
   "/dev-logs",
   "/dev-emails",
   "/dev-sms",
+  "/dev-whatsapp",
 ] as const;
 
 export function isI18nUnsupported(pathname: string): boolean {
@@ -26,7 +27,7 @@ export type LocaleMode = "url" | "cookie" | "none";
 // switcher and middleware will silently disagree.
 // "none" = routes that are not React pages (dev-logs proxy) — no switcher.
 const COOKIE_LOCALE_PREFIXES = ["/seller", "/admin"] as const;
-const NO_LOCALE_PREFIXES = ["/dev-logs", "/dev-emails", "/dev-sms"] as const;
+const NO_LOCALE_PREFIXES = ["/dev-logs", "/dev-emails", "/dev-sms", "/dev-whatsapp"] as const;
 
 /** How the LocaleSwitcher should behave on a given path.
  * - "url"    : customer routes — locale lives in the URL prefix.
