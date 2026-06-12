@@ -11,13 +11,13 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
-from app.core.whatsapp import get_whatsapp_sender
 from app.core.security import (  # noqa: F401
     get_current_admin,
     get_current_customer,
     get_current_seller,
     get_current_user,
 )
+from app.core.whatsapp import get_whatsapp_sender
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User, UserRole

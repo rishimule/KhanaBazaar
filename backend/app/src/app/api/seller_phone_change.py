@@ -26,12 +26,12 @@ from app.core.otp import (
     request_otp,
     verify_otp,
 )
+from app.core.otp_delivery import deliver_phone_otp
 from app.core.redis import get_redis
 from app.core.security import (
     create_seller_phone_change_token,
     get_current_seller,
 )
-from app.core.otp_delivery import deliver_phone_otp
 from app.core.sms import SMSSender, get_sms_sender
 from app.core.whatsapp import WhatsAppSender, get_whatsapp_sender
 from app.db.session import get_db_session
