@@ -31,7 +31,9 @@ from app.core.security import (
     decode_seller_signup_token,
     get_current_user,
 )
+from app.core.otp_delivery import deliver_phone_otp
 from app.core.sms import SMSSender, get_sms_sender
+from app.core.whatsapp import WhatsAppSender, get_whatsapp_sender
 from app.db.session import get_db_session
 from app.models.address import Address
 from app.models.base import User, UserRole
@@ -320,6 +322,7 @@ async def seller_phone_otp_request(
     session: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
     sender: SMSSender = Depends(get_sms_sender),
+    whatsapp_sender: WhatsAppSender | None = Depends(get_whatsapp_sender),
 ) -> dict:  # type: ignore[type-arg]
     decode_seller_email_token(body.email_token)
 
@@ -346,12 +349,16 @@ async def seller_phone_otp_request(
             detail={"error": "rate_limited", "retry_after": exc.retry_after},
         ) from exc
 
-    await sender.send(
+    await deliver_phone_otp(
         to=phone,
-        text=(
+        template_name="otp_seller_phone",
+        variables={"code": code},
+        sms_text=(
             f"Your Khana Bazaar seller verification code is: {code}\n"
             "Expires in 10 minutes."
         ),
+        sms_sender=sender,
+        whatsapp_sender=whatsapp_sender,
     )
     return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
 
