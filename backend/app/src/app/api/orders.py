@@ -95,6 +95,17 @@ async def record_and_dispatch_notification(
         title_tpl, body = _STATUS_COPY.get(
             status_value, ("Order #{oid} updated", "Your order status changed.")
         )
+        if (
+            status_value == "pending"
+            and order.preferred_delivery_date
+            and order.preferred_delivery_window
+        ):
+            from app.utils.delivery_window import format_delivery_window
+
+            body = (
+                f"{body} Requested delivery: "
+                f"{format_delivery_window(order.preferred_delivery_date, order.preferred_delivery_window)}."
+            )
         notif = await record_order_status_notification(
             session,
             customer_profile_id=order.customer_profile_id,

@@ -1066,3 +1066,36 @@ async def test_place_order_rejects_past_preferred_date(
             },
         )
     assert resp.status_code == 422, resp.text
+
+
+async def test_pending_notification_body_includes_preferred_window(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    from app.models.notification import Notification
+    from app.utils.delivery_window import ist_today
+
+    target = (ist_today() + timedelta(days=1)).isoformat()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
+                "payment_method": "upi",
+                "preferred_delivery_date": target,
+                "preferred_delivery_window": "evening",
+            },
+        )
+    assert resp.status_code == 201, resp.text
+    session.expire_all()
+    notif = (
+        await session.exec(
+            select(Notification).where(
+                Notification.customer_profile_id == seed["customer_profile"]
+            )
+        )
+    ).first()
+    assert notif is not None
+    assert "Requested delivery" in notif.body
+    assert "Evening (3–9 PM)" in notif.body
