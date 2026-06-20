@@ -774,6 +774,38 @@ async def replace_sub_basket(
         session.add(CartItem(
             cart_id=cart_id, inventory_id=inventory_id, quantity=quantity,
         ))
+
+    # Move semantics: when this replace is the target side of a checkout
+    # "Shop at B" switch, remove the moved items from the source sub-basket
+    # in the SAME transaction so the move is atomic (a failure above rolls
+    # back both sides). Scoped by profile_id → cannot touch another user.
+    if (
+        payload.source_store_id is not None
+        and payload.source_store_id != store_id
+        and payload.source_inventory_ids
+    ):
+        source_cart = (await session.exec(
+            select(Cart).where(
+                Cart.customer_profile_id == profile_id,
+                Cart.store_id == payload.source_store_id,
+                Cart.service_id == service_id,
+            )
+        )).first()
+        if source_cart is not None:
+            move_ids = set(payload.source_inventory_ids)
+            source_items = (await session.exec(
+                select(CartItem).where(CartItem.cart_id == source_cart.id)
+            )).all()
+            for item in source_items:
+                if item.inventory_id in move_ids:
+                    await session.delete(item)
+            await session.flush()
+            remaining = (await session.exec(
+                select(CartItem).where(CartItem.cart_id == source_cart.id)
+            )).first()
+            if remaining is None:
+                await session.delete(source_cart)
+
     await session.commit()
 
     refreshed = await session.get(Cart, cart_id)

@@ -407,3 +407,131 @@ async def test_unauth_returns_401(
         json={"items": [{"inventory_id": seed["inv_b_p1"], "quantity": 1}]},
     )
     assert resp.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_move_full_coverage_deletes_source_cart(
+    client: AsyncClient, seed: dict[str, int], session: AsyncSession,
+) -> None:
+    await _auth(mock_customer)
+    try:
+        resp = await client.post(
+            f"/api/v1/carts/{seed['store_b_id']}/{seed['service_id']}/replace",
+            json={
+                "items": [
+                    {"inventory_id": seed["inv_b_p1"], "quantity": 1},
+                    {"inventory_id": seed["inv_b_p2"], "quantity": 1},
+                ],
+                "source_store_id": seed["store_a_id"],
+                "source_inventory_ids": [seed["inv_a_p1"], seed["inv_a_p2"]],
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        items_a = (await session.exec(
+            select(CartItem).where(CartItem.cart_id == seed["cart_a_id"])
+        )).all()
+        assert items_a == []
+        cart_a = (await session.exec(
+            select(Cart).where(Cart.id == seed["cart_a_id"])
+        )).first()
+        assert cart_a is None
+    finally:
+        _clear_auth()
+
+
+@pytest.mark.asyncio
+async def test_move_partial_keeps_leftover_in_source(
+    client: AsyncClient, seed: dict[str, int], session: AsyncSession,
+) -> None:
+    await _auth(mock_customer)
+    try:
+        resp = await client.post(
+            f"/api/v1/carts/{seed['store_b_id']}/{seed['service_id']}/replace",
+            json={
+                "items": [{"inventory_id": seed["inv_b_p1"], "quantity": 1}],
+                "source_store_id": seed["store_a_id"],
+                "source_inventory_ids": [seed["inv_a_p1"]],
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        items_a = (await session.exec(
+            select(CartItem).where(CartItem.cart_id == seed["cart_a_id"])
+        )).all()
+        assert len(items_a) == 1
+        assert items_a[0].inventory_id == seed["inv_a_p2"]
+    finally:
+        _clear_auth()
+
+
+@pytest.mark.asyncio
+async def test_move_source_clear_scoped_to_acting_customer(
+    client: AsyncClient, seed: dict[str, int], session: AsyncSession,
+) -> None:
+    other_user = User(id=699, email="rep-cust2@kb.com", role=UserRole.Customer, is_active=True)
+    session.add(other_user)
+    await session.flush()
+    other_profile = CustomerProfile(user_id=other_user.id, first_name="C2")
+    session.add(other_profile)
+    await session.flush()
+    other_cart = Cart(
+        customer_profile_id=other_profile.id,
+        store_id=seed["store_a_id"],
+        service_id=seed["service_id"],
+    )
+    session.add(other_cart)
+    await session.flush()
+    session.add(CartItem(cart_id=other_cart.id, inventory_id=seed["inv_a_p1"], quantity=1))
+    other_cart_id = other_cart.id
+    await session.commit()
+
+    await _auth(mock_customer)
+    try:
+        resp = await client.post(
+            f"/api/v1/carts/{seed['store_b_id']}/{seed['service_id']}/replace",
+            json={
+                "items": [{"inventory_id": seed["inv_b_p1"], "quantity": 1}],
+                "source_store_id": seed["store_a_id"],
+                "source_inventory_ids": [seed["inv_a_p1"], seed["inv_a_p2"]],
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        other_items = (await session.exec(
+            select(CartItem).where(CartItem.cart_id == other_cart_id)
+        )).all()
+        assert len(other_items) == 1
+    finally:
+        _clear_auth()
+
+
+@pytest.mark.asyncio
+async def test_move_target_failure_leaves_source_intact(
+    client: AsyncClient, seed: dict[str, int], session: AsyncSession,
+) -> None:
+    inv1 = await session.get(StoreInventory, seed["inv_b_p1"])
+    inv2 = await session.get(StoreInventory, seed["inv_b_p2"])
+    assert inv1 is not None and inv2 is not None
+    inv1.is_available = False
+    inv2.stock = 0
+    await session.commit()
+
+    await _auth(mock_customer)
+    try:
+        resp = await client.post(
+            f"/api/v1/carts/{seed['store_b_id']}/{seed['service_id']}/replace",
+            json={
+                "items": [
+                    {"inventory_id": seed["inv_b_p1"], "quantity": 1},
+                    {"inventory_id": seed["inv_b_p2"], "quantity": 1},
+                ],
+                "source_store_id": seed["store_a_id"],
+                "source_inventory_ids": [seed["inv_a_p1"], seed["inv_a_p2"]],
+            },
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "empty_items"
+        items_a = (await session.exec(
+            select(CartItem).where(CartItem.cart_id == seed["cart_a_id"])
+        )).all()
+        assert len(items_a) == 2
+    finally:
+        _clear_auth()

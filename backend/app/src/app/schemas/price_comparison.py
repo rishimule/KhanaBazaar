@@ -59,6 +59,12 @@ class ReplaceRequest(BaseModel):
     # an unauthenticated-cost amplification path on this endpoint (each
     # item triggers two DB lookups). 200 is well past any realistic cart.
     items: List[ReplaceItemRequest] = Field(min_length=1, max_length=200)
+    # Move semantics: when this replace is the target side of a checkout
+    # "Shop at B" switch, the same transaction removes these inventory rows
+    # from the customer's source (A) sub-basket. Both optional → omitting
+    # them preserves the legacy "build a new cart, keep source" behavior.
+    source_store_id: Optional[int] = None
+    source_inventory_ids: List[int] = Field(default_factory=list, max_length=200)
 
 
 ReplaceAdjustmentReason = Literal[
