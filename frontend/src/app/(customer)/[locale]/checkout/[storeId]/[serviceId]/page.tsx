@@ -17,11 +17,15 @@ import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import PaymentMethodPicker from "@/components/orders/PaymentMethodPicker";
 import PriceComparison from "@/components/orders/PriceComparison";
 import ReplaceAdjustmentsBanner from "@/components/orders/ReplaceAdjustmentsBanner";
+import DeliveryTimePicker, {
+  type PreferredWindowValue,
+} from "@/components/orders/DeliveryTimePicker";
 import type { PaymentMethod, Store } from "@/types";
 import styles from "./page.module.css";
 
 export default function CheckoutPage() {
   const t = useTranslations("Checkout");
+  const td = useTranslations("Order.delivery");
   const tErr = useTranslations("Errors");
   const params = useParams<{ storeId: string; serviceId: string }>();
   const storeId = Number(params.storeId);
@@ -40,6 +44,7 @@ export default function CheckoutPage() {
   });
   const [storeDetails, setStoreDetails] = useState<Store | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
+  const [preferredWindow, setPreferredWindow] = useState<PreferredWindowValue | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
@@ -138,6 +143,8 @@ export default function CheckoutPage() {
         storeId,
         serviceId,
         paymentMethod,
+        preferredDeliveryDate: preferredWindow?.date ?? null,
+        preferredDeliveryWindow: preferredWindow?.window ?? null,
       });
       // Placing the order clears this sub-basket server-side. Refresh cart
       // state so the navbar count + cart pages reflect it immediately instead
@@ -252,6 +259,12 @@ export default function CheckoutPage() {
           />
         </section>
 
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{td("preferredTitle")}</h2>
+          <p className={styles.shortfallNote}>{td("preferredHint")}</p>
+          <DeliveryTimePicker value={preferredWindow} onChange={setPreferredWindow} />
+        </section>
+
         <section className={styles.summary}>
           <div className={styles.summaryRow}>
             <span>{t("subtotal")}</span>
@@ -269,6 +282,20 @@ export default function CheckoutPage() {
             <div className={styles.summaryRow}>
               <span>{t("estimatedDelivery")}</span>
               <span>{etaLabel}</span>
+            </div>
+          )}
+          {preferredWindow && (
+            <div className={styles.summaryRow}>
+              <span>{td("requested")}</span>
+              <span>
+                {td(
+                  preferredWindow.window === "morning"
+                    ? "windowMorning"
+                    : preferredWindow.window === "afternoon"
+                      ? "windowAfternoon"
+                      : "windowEvening",
+                )}
+              </span>
             </div>
           )}
           <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>

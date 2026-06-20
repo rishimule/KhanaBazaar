@@ -64,6 +64,8 @@ export interface PlaceOrderArgs {
   storeId: number;
   serviceId: number;
   paymentMethod: PaymentMethod;
+  preferredDeliveryDate?: string | null;
+  preferredDeliveryWindow?: string | null;
 }
 
 export async function placeOrder(
@@ -77,6 +79,8 @@ export async function placeOrder(
       store_id: args.storeId,
       service_id: args.serviceId,
       payment_method: args.paymentMethod,
+      preferred_delivery_date: args.preferredDeliveryDate ?? null,
+      preferred_delivery_window: args.preferredDeliveryWindow ?? null,
     },
     token,
   );
