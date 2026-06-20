@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from collections.abc import AsyncGenerator, Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -975,3 +975,24 @@ async def test_admin_orders_search_oversized_numeric_q_no_500(
         resp = await ac.get("/api/v1/orders?q=99999999999999")
     assert resp.status_code == 200
     assert resp.json()["orders"] == []
+
+
+async def test_order_model_accepts_preferred_window(
+    seed: dict[str, int], session: AsyncSession
+) -> None:
+    order = Order(
+        customer_profile_id=seed["customer_profile"],
+        store_id=seed["store_a"],
+        service_id=seed["grocery_service_id"],
+        service_name_snapshot="Apple",
+        delivery_address_id=seed["customer_address_id"],
+        delivery_address_snapshot="x",
+        subtotal=1.0, delivery_fee=0.0, tax=0.0, total=1.0,
+        preferred_delivery_date=date(2026, 6, 21),
+        preferred_delivery_window="evening",
+    )
+    session.add(order)
+    await session.commit()
+    await session.refresh(order)
+    assert order.preferred_delivery_date == date(2026, 6, 21)
+    assert order.preferred_delivery_window == "evening"

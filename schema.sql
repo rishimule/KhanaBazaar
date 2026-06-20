@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `c3f2a1b4d5e6`. Regenerate this file when the head changes.
+-- migration head `d7e8f9a0b1c2`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
@@ -304,7 +304,10 @@ CREATE TABLE "order" (
   "placed_at" TIMESTAMPTZ NOT NULL,
   -- Delivery-ETA window snapshot, frozen at order time.
   "delivery_eta_min_minutes" INTEGER NOT NULL,
-  "delivery_eta_max_minutes" INTEGER NOT NULL
+  "delivery_eta_max_minutes" INTEGER NOT NULL,
+  -- Optional customer-requested delivery window (soft hint; date + time-of-day band).
+  "preferred_delivery_date" DATE,
+  "preferred_delivery_window" VARCHAR(16)
 );
 
 CREATE TABLE "orderitem" (
