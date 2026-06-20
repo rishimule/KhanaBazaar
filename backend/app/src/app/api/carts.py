@@ -792,6 +792,10 @@ async def replace_sub_basket(
             )
         )).first()
         if source_cart is not None:
+            # No source-side store/service validation (unlike the strict target
+            # path above): we only ever delete rows that already live in the
+            # caller's own source cart, so "delete-what's-there" cannot leak
+            # across users or services — unmatched ids simply no-op.
             move_ids = set(payload.source_inventory_ids)
             source_items = (await session.exec(
                 select(CartItem).where(CartItem.cart_id == source_cart.id)
