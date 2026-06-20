@@ -424,6 +424,18 @@
     "cashHint": "मिळाल्यावर पैसे भरा"
   },
   "Order": {
+    "delivery": {
+      "preferredTitle": "पसंतीची डिलिव्हरी वेळ",
+      "preferredHint": "ऐच्छिक — ही विनंती आहे, हमी नाही.",
+      "asap": "शक्य तितक्या लवकर",
+      "choose": "डिलिव्हरी वेळ निवडा",
+      "today": "आज",
+      "tomorrow": "उद्या",
+      "requested": "विनंती केलेली डिलिव्हरी",
+      "windowMorning": "सकाळ",
+      "windowAfternoon": "दुपार",
+      "windowEvening": "संध्याकाळ"
+    },
     "status": {
       "pending": "प्रलंबित",
       "packed": "पॅक केले",

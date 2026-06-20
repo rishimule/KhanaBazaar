@@ -424,6 +424,18 @@
     "cashHint": "ਮਿਲਣ 'ਤੇ ਭੁਗਤਾਨ ਕਰੋ"
   },
   "Order": {
+    "delivery": {
+      "preferredTitle": "ਪਸੰਦੀਦਾ ਡਿਲੀਵਰੀ ਸਮਾਂ",
+      "preferredHint": "ਚੋਣਵਾਂ — ਇਹ ਇੱਕ ਬੇਨਤੀ ਹੈ, ਗਾਰੰਟੀ ਨਹੀਂ।",
+      "asap": "ਜਿੰਨੀ ਜਲਦੀ ਹੋ ਸਕੇ",
+      "choose": "ਡਿਲੀਵਰੀ ਸਮਾਂ ਚੁਣੋ",
+      "today": "ਅੱਜ",
+      "tomorrow": "ਭਲਕੇ",
+      "requested": "ਬੇਨਤੀ ਕੀਤੀ ਡਿਲੀਵਰੀ",
+      "windowMorning": "ਸਵੇਰ",
+      "windowAfternoon": "ਦੁਪਹਿਰ",
+      "windowEvening": "ਸ਼ਾਮ"
+    },
     "status": {
       "pending": "ਬਾਕੀ",
       "packed": "ਪੈਕ ਕੀਤਾ",

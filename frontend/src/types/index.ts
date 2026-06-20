@@ -349,6 +349,8 @@ export interface Order {
   service_name: string;
   delivery_eta_min_minutes?: number;
   delivery_eta_max_minutes?: number;
+  preferred_delivery_date?: string | null;
+  preferred_delivery_window?: string | null;
   customer_name?: string | null;
   status: OrderStatus;
   subtotal: number;
