@@ -27,6 +27,8 @@ def _fake_ctx(order_id: int = 7, service_name: str = "Grocery") -> dict[str, Any
     return {
         "order_id": order_id,
         "order_total": 123.45,
+        "subtotal": 123.45,
+        "delivery_fee": 0.0,
         "order_status": "pending",
         "service_name": service_name,
         "store_name": "Test Store",
@@ -39,6 +41,7 @@ def _fake_ctx(order_id: int = 7, service_name: str = "Grocery") -> dict[str, Any
         "customer_lang": "en",
         "seller_lang": "en",
         "delivery_address_snapshot": "1 Test Street, Bengaluru 560300",
+        "preferred_delivery": None,
     }
 
 
@@ -55,6 +58,7 @@ def test_loader_dict_shape_includes_new_fields() -> None:
         "customer_lang",
         "seller_lang",
         "delivery_address_snapshot",
+        "preferred_delivery",
     ):
         assert key in ctx
 
@@ -237,3 +241,44 @@ def test_cancelled_status_email_includes_reason(
     assert "out of stock" in captured["html"]
     assert "out of stock" in captured["body"]
     assert "Cancellation reason" in captured["html"]
+
+
+def test_placed_seller_email_includes_preferred_window() -> None:
+    from app import worker
+
+    captured: dict[str, str] = {}
+
+    def _capture(to, subject, body, *, html=None, reply_to=None):
+        captured["html"] = html or ""
+        captured["body"] = body
+
+    ctx = {**_fake_ctx(), "preferred_delivery": "Sun 21 Jun · Evening (3–9 PM)"}
+    with (
+        patch("app.worker._load_order_email_context", return_value=ctx),
+        patch("app.worker._resolve_email", side_effect=_capture),
+    ):
+        worker.send_order_placed_seller_async(7)
+
+    assert "Requested delivery" in captured["html"]
+    assert "Sun 21 Jun · Evening (3–9 PM)" in captured["html"]
+    assert "Requested delivery" in captured["body"]
+
+
+def test_confirmed_customer_email_includes_preferred_window() -> None:
+    from app import worker
+
+    captured: dict[str, str] = {}
+
+    def _capture(to, subject, body, *, html=None, reply_to=None):
+        captured["html"] = html or ""
+        captured["body"] = body
+
+    ctx = {**_fake_ctx(), "preferred_delivery": "Sun 21 Jun · Morning (7–11 AM)"}
+    with (
+        patch("app.worker._load_order_email_context", return_value=ctx),
+        patch("app.worker._resolve_email", side_effect=_capture),
+    ):
+        worker.send_order_confirmed_customer_async([7])
+
+    assert "Requested delivery" in captured["html"]
+    assert "Sun 21 Jun · Morning (7–11 AM)" in captured["html"]

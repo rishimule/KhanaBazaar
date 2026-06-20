@@ -1,6 +1,9 @@
 You have a new {{ service_name }} order at {{ store_name }}.
 
 Order #{{ order_id }}
+{% if preferred_delivery -%}
+Requested delivery: {{ preferred_delivery }}
+{% endif -%}
 {% for item in items -%}
   - {{ item.name }} × {{ item.qty }} = {{ item.line_total|inr }}
 {% endfor %}

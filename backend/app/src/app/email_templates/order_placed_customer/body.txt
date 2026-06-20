@@ -4,6 +4,9 @@ Thanks for shopping with {{ brand_name }}.
 
 {% for o in orders -%}
 Order #{{ o.order_id }} — {{ o.service_name }} ({{ o.store_name }})
+{% if o.preferred_delivery -%}
+Requested delivery: {{ o.preferred_delivery }}
+{% endif -%}
 {% for item in o.line_items -%}
   - {{ item.name }} × {{ item.qty }} = {{ item.line_total|inr }}
 {% endfor -%}

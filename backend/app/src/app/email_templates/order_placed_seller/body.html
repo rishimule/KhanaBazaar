@@ -2,6 +2,9 @@
 {% block body %}
   <p>You have a new <strong>{{ service_name }}</strong> order at <strong>{{ store_name }}</strong>.</p>
   <div style="font-size:18px;font-weight:700;margin:8px 0;">Order #{{ order_id }}</div>
+  {% if preferred_delivery %}
+    <div style="font-size:14px;color:#374151;margin:4px 0 8px;">Requested delivery: {{ preferred_delivery }}</div>
+  {% endif %}
   {% include "_partials/line_items.html" %}
   {% set cta_url = frontend_base_url ~ "/seller/orders/" ~ order_id|string %}
   {% set cta_label = "Open order" %}
