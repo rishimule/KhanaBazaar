@@ -996,3 +996,73 @@ async def test_order_model_accepts_preferred_window(
     await session.refresh(order)
     assert order.preferred_delivery_date == date(2026, 6, 21)
     assert order.preferred_delivery_window == "evening"
+
+
+async def test_place_order_with_preferred_window_persists_and_returns(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    from app.utils.delivery_window import ist_today
+
+    target = (ist_today() + timedelta(days=1)).isoformat()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
+                "payment_method": "upi",
+                "preferred_delivery_date": target,
+                "preferred_delivery_window": "evening",
+            },
+        )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["preferred_delivery_date"] == target
+    assert body["preferred_delivery_window"] == "evening"
+
+    session.expire_all()
+    order = (await session.exec(select(Order))).first()
+    assert order is not None
+    assert order.preferred_delivery_window == "evening"
+    assert order.preferred_delivery_date.isoformat() == target
+
+
+async def test_place_order_without_preferred_window_is_null(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
+                "payment_method": "upi",
+            },
+        )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["preferred_delivery_date"] is None
+    assert body["preferred_delivery_window"] is None
+
+
+async def test_place_order_rejects_past_preferred_date(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    from app.utils.delivery_window import ist_today
+
+    past = (ist_today() - timedelta(days=1)).isoformat()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
+                "payment_method": "upi",
+                "preferred_delivery_date": past,
+                "preferred_delivery_window": "morning",
+            },
+        )
+    assert resp.status_code == 422, resp.text

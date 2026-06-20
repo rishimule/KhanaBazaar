@@ -213,6 +213,8 @@ async def _serialize_order(
         service_name=order.service_name_snapshot,
         delivery_eta_min_minutes=order.delivery_eta_min_minutes,
         delivery_eta_max_minutes=order.delivery_eta_max_minutes,
+        preferred_delivery_date=order.preferred_delivery_date,
+        preferred_delivery_window=order.preferred_delivery_window,
         customer_name=customer_name,
         status=order.status,
         subtotal=order.subtotal,
@@ -501,6 +503,8 @@ async def place_order(
         payload.store_id,
         payload.service_id,
         payload.payment_method,
+        preferred_delivery_date=payload.preferred_delivery_date,
+        preferred_delivery_window=payload.preferred_delivery_window,
     )
     if order.id is not None:
         dispatch_order_placed([order.id])
