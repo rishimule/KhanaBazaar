@@ -27,6 +27,10 @@ _WINDOW_META: dict[str, tuple[str, str]] = {
     "evening": ("Evening", "3–9 PM"),
 }
 
+# Guard against the enum and the label map drifting apart (single source of
+# truth for the three valid window keys).
+assert {w.value for w in DeliveryWindow} == set(_WINDOW_META)
+
 
 def ist_today() -> date:
     """Today's calendar date in IST (the scheduling baseline)."""

@@ -27,13 +27,13 @@ def test_accepts_valid_preference():
 
 def test_rejects_only_date():
     d = ist_today().isoformat()
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError, match="preferred_delivery_incomplete"):
         PlaceOrderRequest(**BASE, preferred_delivery_date=d)
 
 
 def test_rejects_unknown_window():
     d = ist_today().isoformat()
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError, match="preferred_delivery_window_invalid"):
         PlaceOrderRequest(
             **BASE, preferred_delivery_date=d, preferred_delivery_window="night"
         )
@@ -41,7 +41,15 @@ def test_rejects_unknown_window():
 
 def test_rejects_past_date():
     d = (ist_today() - timedelta(days=1)).isoformat()
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError, match="preferred_delivery_date_in_past"):
         PlaceOrderRequest(
             **BASE, preferred_delivery_date=d, preferred_delivery_window="morning"
+        )
+
+
+def test_rejects_beyond_horizon():
+    d = (ist_today() + timedelta(days=7)).isoformat()
+    with pytest.raises(ValidationError, match="preferred_delivery_date_beyond_horizon"):
+        PlaceOrderRequest(
+            **BASE, preferred_delivery_date=d, preferred_delivery_window="evening"
         )

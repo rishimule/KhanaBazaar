@@ -5,13 +5,14 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
 import { apiErrorKey } from "@/lib/errors";
 import { get } from "@/lib/api";
 import { placeOrder } from "@/lib/orders";
 import { formatDeliveryEta } from "@/lib/deliveryEta";
+import { WINDOW_META, formatDateLabel } from "@/lib/deliveryWindows";
 import AddressPicker, { type PickerState } from "@/components/orders/AddressPicker";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import PaymentMethodPicker from "@/components/orders/PaymentMethodPicker";
@@ -27,6 +28,7 @@ export default function CheckoutPage() {
   const t = useTranslations("Checkout");
   const td = useTranslations("Order.delivery");
   const tErr = useTranslations("Errors");
+  const locale = useLocale();
   const params = useParams<{ storeId: string; serviceId: string }>();
   const storeId = Number(params.storeId);
   const serviceId = Number(params.serviceId);
@@ -288,13 +290,15 @@ export default function CheckoutPage() {
             <div className={styles.summaryRow}>
               <span>{td("requested")}</span>
               <span>
+                {formatDateLabel(preferredWindow.date, locale)} ·{" "}
                 {td(
                   preferredWindow.window === "morning"
                     ? "windowMorning"
                     : preferredWindow.window === "afternoon"
                       ? "windowAfternoon"
                       : "windowEvening",
-                )}
+                )}{" "}
+                ({WINDOW_META[preferredWindow.window].hours})
               </span>
             </div>
           )}

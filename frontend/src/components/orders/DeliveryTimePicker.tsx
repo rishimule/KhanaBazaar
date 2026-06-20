@@ -45,6 +45,22 @@ export default function DeliveryTimePicker({
     onChange(null);
   };
 
+  const handleDateClick = (date: string) => {
+    setActiveDate(date);
+    // Keep the committed value in sync with the visible date: if a window was
+    // already chosen, carry it to the newly selected day (so the summary and
+    // submit never disagree with the highlighted date). Drop it only if that
+    // day doesn't offer the window (the late-today edge).
+    if (value) {
+      const day = days.find((d) => d.date === date);
+      onChange(
+        day && day.windows.includes(value.window)
+          ? { date, window: value.window }
+          : null,
+      );
+    }
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.options}>
@@ -74,7 +90,8 @@ export default function DeliveryTimePicker({
                 type="button"
                 key={d.date}
                 className={`${styles.dateChip} ${d.date === activeDate ? styles.chipActive : ""}`}
-                onClick={() => setActiveDate(d.date)}
+                aria-pressed={d.date === activeDate}
+                onClick={() => handleDateClick(d.date)}
               >
                 {d.relative ? t(d.relative) : formatDateLabel(d.date, locale)}
               </button>
@@ -89,6 +106,7 @@ export default function DeliveryTimePicker({
                   type="button"
                   key={w}
                   className={`${styles.windowBtn} ${selected ? styles.windowActive : ""}`}
+                  aria-pressed={selected}
                   onClick={() => onChange({ date: activeDay.date, window: w })}
                 >
                   <span className={styles.windowName}>{t(LABEL_KEY[w])}</span>

@@ -34,6 +34,11 @@ export interface SelectableDay {
  * The selectable days (today + 6) with each day's still-offerable windows.
  * On today, a window whose end-hour has already passed is dropped. A day with
  * no remaining windows (late today) is omitted.
+ *
+ * Note: this trusts the browser's local clock as an IST proxy (the app targets
+ * India). The backend validates the chosen date against IST [today, today+6];
+ * a user whose browser TZ differs from IST near midnight could be offered a
+ * boundary date the backend then rejects with 422. Acceptable for a soft hint.
  */
 export function buildSelectableOptions(now: Date = new Date()): SelectableDay[] {
   const days: SelectableDay[] = [];
