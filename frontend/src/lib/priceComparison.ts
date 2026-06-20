@@ -27,10 +27,19 @@ export async function replaceSubBasket(
   storeId: number,
   serviceId: number,
   items: ReplaceItem[],
+  source?: { storeId: number; inventoryIds: number[] },
 ): Promise<ReplaceResponse> {
   return post<ReplaceResponse>(
     `/api/v1/carts/${storeId}/${serviceId}/replace`,
-    { items },
+    {
+      items,
+      ...(source
+        ? {
+            source_store_id: source.storeId,
+            source_inventory_ids: source.inventoryIds,
+          }
+        : {}),
+    },
     token,
   );
 }

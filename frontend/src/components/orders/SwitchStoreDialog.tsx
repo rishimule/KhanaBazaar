@@ -98,7 +98,12 @@ export default function SwitchStoreDialog({
         )}
 
         <p className={styles.note}>
-          {t("dialogSourcePreserved", { store: sourceStoreName })}
+          {missing.length > 0
+            ? t("dialogLeftoverStays", {
+                store: alternative.name,
+                sourceStore: sourceStoreName,
+              })
+            : t("dialogSourcePreserved", { store: sourceStoreName })}
         </p>
 
         {errKey && (
