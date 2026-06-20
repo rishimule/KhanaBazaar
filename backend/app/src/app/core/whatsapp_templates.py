@@ -54,9 +54,10 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
     "order_placed": WhatsAppTemplate(
         name="order_placed",
         category="UTILITY",
-        variables=("order_no", "store"),
+        variables=("order_no", "store", "when"),
         render=lambda v: (
             f"Order #{v['order_no']} placed at {v['store']}. "
+            f"Delivery: {v['when']}. "
             "We'll let you know as it progresses."
         ),
     ),

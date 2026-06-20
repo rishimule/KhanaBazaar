@@ -104,6 +104,12 @@ def send_order_status_whatsapp_async(order_id: int, status: str) -> None:
         "order_no": str(order_id),
         "store": ctx.get("store_name") or "your store",
     }
+    if status == "pending":
+        variables["when"] = (
+            ctx.get("preferred_delivery")
+            or ctx.get("delivery_eta")
+            or "as soon as possible"
+        )
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(
             lambda: asyncio.run(sender.send_template(phone, template, variables))

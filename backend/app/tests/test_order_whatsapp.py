@@ -93,3 +93,47 @@ def test_order_status_whatsapp_noop_for_unmapped_status():
         worker.send_order_status_whatsapp_async(42, "paid")
     assert rec.calls == []
     loader.assert_not_called()
+
+
+def test_order_placed_whatsapp_includes_preferred_window():
+    rec = _RecordingWhatsApp()
+    _run_status_task(
+        {"customer_phone": "+919999999999", "customer_phone_verified": True,
+         "store_name": "Anand Stores",
+         "preferred_delivery": "Sun 21 Jun · Evening (3–9 PM)",
+         "delivery_eta": "30–60 min"},
+        status="pending",
+        sender=rec,
+    )
+    assert rec.calls == [
+        ("+919999999999", "order_placed",
+         {"order_no": "42", "store": "Anand Stores",
+          "when": "Sun 21 Jun · Evening (3–9 PM)"})
+    ]
+
+
+def test_order_placed_whatsapp_falls_back_to_eta():
+    rec = _RecordingWhatsApp()
+    _run_status_task(
+        {"customer_phone": "+919999999999", "customer_phone_verified": True,
+         "store_name": "Anand Stores", "preferred_delivery": None,
+         "delivery_eta": "30–60 min"},
+        status="pending",
+        sender=rec,
+    )
+    assert rec.calls[0][2]["when"] == "30–60 min"
+
+
+def test_non_placed_whatsapp_has_no_when_variable():
+    rec = _RecordingWhatsApp()
+    _run_status_task(
+        {"customer_phone": "+919999999999", "customer_phone_verified": True,
+         "store_name": "Anand Stores"},
+        status="dispatched",
+        sender=rec,
+    )
+    assert "when" not in rec.calls[0][2]
+
+
+def test_order_placed_template_declares_when_variable():
+    assert TEMPLATES["order_placed"].variables == ("order_no", "store", "when")
