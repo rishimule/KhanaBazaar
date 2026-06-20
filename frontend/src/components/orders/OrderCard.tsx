@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import OrderStatusBadge from "./OrderStatusBadge";
 import PaymentStatusBadge from "./PaymentStatusBadge";
+import RequestedDeliveryLine from "./RequestedDeliveryLine";
 import type { Order, UserRole } from "@/types";
 import styles from "./OrderCard.module.css";
 
@@ -52,6 +53,7 @@ export default function OrderCard({ order, role }: Props) {
       {order.customer_name && (
         <div className={styles.subtitle}>{t("forCustomer", { name: order.customer_name })}</div>
       )}
+      <RequestedDeliveryLine order={order} className={styles.subtitle} />
       <div className={styles.meta}>
         <span className={styles.total}>₹{order.total.toFixed(2)}</span>
         <span className={styles.time}>{relativeTime(order.placed_at, t)}</span>

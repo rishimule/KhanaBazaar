@@ -12,6 +12,7 @@ import OrderItemList from "@/components/orders/OrderItemList";
 import OrderActionButtons from "@/components/orders/OrderActionButtons";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
+import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -44,6 +45,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
         {order.store_name} <span className={styles.serviceChip}>· {order.service_name}</span>
         {order.customer_name && ` · ${order.customer_name}`}
       </p>
+      <RequestedDeliveryLine order={order} className={styles.subtitle} />
 
       <section className={styles.section}>
         <OrderTimeline status={order.status} />
