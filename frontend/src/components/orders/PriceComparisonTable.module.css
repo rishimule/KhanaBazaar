@@ -8,6 +8,11 @@
   align-items: stretch;
   width: 100%;
   overflow-x: auto;
+  /* overflow-x:auto makes the browser compute overflow-y to auto too, which
+     would clip the "Your cart" pill that overhangs the source card's top edge
+     (top: -0.7rem). Top padding keeps the pill inside the scroll container's
+     visible (padding) region. */
+  padding-top: 1rem;
 }
 
 .card {
