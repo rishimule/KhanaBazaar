@@ -23,6 +23,7 @@ interface Props {
   serviceable: boolean;
   pickerLoading: boolean;
   cart: Cart;
+  onSwitchStart: () => void;
 }
 
 type Status =
@@ -80,6 +81,7 @@ export default function PriceComparison({
   serviceable,
   pickerLoading,
   cart,
+  onSwitchStart,
 }: Props) {
   const t = useTranslations("Checkout.compare");
   const tErr = useTranslations("Errors");
@@ -152,7 +154,24 @@ export default function PriceComparison({
           inventory_id: i.inventory_id as number,
           quantity: i.quantity,
         }));
-      const res = await replaceSubBasket(token, chosen.id, serviceId, items);
+      // Products the alternative can fulfil leave the source (A) sub-basket.
+      // Map those product ids to A's own inventory rows so the backend can
+      // delete them from A in the same transaction that writes B.
+      const movedProductIds = new Set(
+        chosen.items
+          .filter((i) => !i.imputed && i.inventory_id !== null)
+          .map((i) => i.product_id),
+      );
+      const sourceInventoryIds = cart.items
+        .filter((i) => movedProductIds.has(i.product_id))
+        .map((i) => i.inventory_id);
+      // Tell the source checkout page a switch is underway so it does not
+      // bounce to /cart when A empties out from under it (full coverage).
+      onSwitchStart();
+      const res = await replaceSubBasket(token, chosen.id, serviceId, items, {
+        storeId: sourceStoreId,
+        inventoryIds: sourceInventoryIds,
+      });
       setReplaceAdjustments(res.adjustments);
       await refresh();
       const altId = chosen.id;
@@ -170,7 +189,7 @@ export default function PriceComparison({
     } finally {
       setSubmitting(false);
     }
-  }, [token, chosen, serviceId, setReplaceAdjustments, clearReplaceAdjustments, refresh, router]);
+  }, [token, chosen, serviceId, cart, sourceStoreId, onSwitchStart, setReplaceAdjustments, clearReplaceAdjustments, refresh, router]);
 
   const preExistingCount = chosen
     ? (carts.find((c) => c.store_id === chosen.id && c.service_id === serviceId)?.items.length ?? 0)

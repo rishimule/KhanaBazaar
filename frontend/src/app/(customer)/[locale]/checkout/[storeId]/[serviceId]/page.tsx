@@ -42,6 +42,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
     if (!storeId || Number.isNaN(storeId)) return;
@@ -51,6 +52,7 @@ export default function CheckoutPage() {
   }, [storeId]);
 
   useEffect(() => {
+    setSwitching(false);
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, serviceId]);
@@ -66,10 +68,10 @@ export default function CheckoutPage() {
   const isCustomer = dbUser?.role === "customer";
 
   useEffect(() => {
-    if (!authLoading && !cartLoading && isCustomer && !cart) {
+    if (!authLoading && !cartLoading && isCustomer && !cart && !switching) {
       router.replace("/cart");
     }
-  }, [authLoading, cartLoading, isCustomer, cart, router]);
+  }, [authLoading, cartLoading, isCustomer, cart, switching, router]);
 
   if (authLoading || cartLoading) {
     return (
@@ -284,6 +286,7 @@ export default function CheckoutPage() {
           serviceable={pickerState.serviceable}
           pickerLoading={pickerState.loading}
           cart={cart}
+          onSwitchStart={() => setSwitching(true)}
         />
 
         {error && <div className={styles.error}>{error}</div>}
