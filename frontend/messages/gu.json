@@ -424,6 +424,18 @@
     "cashHint": "મળે ત્યારે ચૂકવો"
   },
   "Order": {
+    "delivery": {
+      "preferredTitle": "પસંદગીનો ડિલિવરી સમય",
+      "preferredHint": "વૈકલ્પિક — આ વિનંતી છે, ગેરંટી નથી.",
+      "asap": "શક્ય તેટલું જલ્દી",
+      "choose": "ડિલિવરી સમય પસંદ કરો",
+      "today": "આજે",
+      "tomorrow": "આવતીકાલે",
+      "requested": "વિનંતી કરેલ ડિલિવરી",
+      "windowMorning": "સવાર",
+      "windowAfternoon": "બપોર",
+      "windowEvening": "સાંજ"
+    },
     "status": {
       "pending": "બાકી",
       "packed": "પેક કરેલ",

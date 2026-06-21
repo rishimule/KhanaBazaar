@@ -95,6 +95,17 @@ async def record_and_dispatch_notification(
         title_tpl, body = _STATUS_COPY.get(
             status_value, ("Order #{oid} updated", "Your order status changed.")
         )
+        if (
+            status_value == "pending"
+            and order.preferred_delivery_date
+            and order.preferred_delivery_window
+        ):
+            from app.utils.delivery_window import format_delivery_window
+
+            body = (
+                f"{body} Requested delivery: "
+                f"{format_delivery_window(order.preferred_delivery_date, order.preferred_delivery_window)}."
+            )
         notif = await record_order_status_notification(
             session,
             customer_profile_id=order.customer_profile_id,
@@ -213,6 +224,8 @@ async def _serialize_order(
         service_name=order.service_name_snapshot,
         delivery_eta_min_minutes=order.delivery_eta_min_minutes,
         delivery_eta_max_minutes=order.delivery_eta_max_minutes,
+        preferred_delivery_date=order.preferred_delivery_date,
+        preferred_delivery_window=order.preferred_delivery_window,
         customer_name=customer_name,
         status=order.status,
         subtotal=order.subtotal,
@@ -501,6 +514,8 @@ async def place_order(
         payload.store_id,
         payload.service_id,
         payload.payment_method,
+        preferred_delivery_date=payload.preferred_delivery_date,
+        preferred_delivery_window=payload.preferred_delivery_window,
     )
     if order.id is not None:
         dispatch_order_placed([order.id])

@@ -1,5 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+from datetime import date
+
 from fastapi import HTTPException
 from sqlalchemy import and_, text
 from sqlmodel import select
@@ -276,6 +278,8 @@ def _build_order_for_cart(
     service_id: int, service_name_snapshot: str,
     delivery_eta_min_minutes: int, delivery_eta_max_minutes: int,
     delivery_fee: float,
+    preferred_delivery_date: date | None = None,
+    preferred_delivery_window: str | None = None,
 ) -> tuple[Order, list[OrderItem], Payment, Delivery]:
     """Pure builder. Returns the rows to add and computes the line decrements
     via inv_by_id. Caller does session.add + decrement_stock."""
@@ -288,6 +292,8 @@ def _build_order_for_cart(
         service_name_snapshot=service_name_snapshot,
         delivery_eta_min_minutes=delivery_eta_min_minutes,
         delivery_eta_max_minutes=delivery_eta_max_minutes,
+        preferred_delivery_date=preferred_delivery_date,
+        preferred_delivery_window=preferred_delivery_window,
         delivery_address_id=address_id,
         delivery_address_snapshot=address_snapshot,
         status=OrderStatus.Pending,
@@ -422,6 +428,8 @@ async def place_order_for_sub_basket(
     store_id: int,
     service_id: int,
     payment_method: PaymentMethod,
+    preferred_delivery_date: date | None = None,
+    preferred_delivery_window: str | None = None,
 ) -> Order:
     profile = await _customer_profile(session, user)
     assert profile.id is not None
@@ -463,6 +471,8 @@ async def place_order_for_sub_basket(
         service_id=service_id, service_name_snapshot=service_name_snapshot,
         delivery_eta_min_minutes=eta_min, delivery_eta_max_minutes=eta_max,
         delivery_fee=delivery_fee,
+        preferred_delivery_date=preferred_delivery_date,
+        preferred_delivery_window=preferred_delivery_window,
     )
     session.add(order)
     await session.flush()

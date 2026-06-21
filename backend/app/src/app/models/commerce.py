@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import enum
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from sqlmodel import DateTime, Field, UniqueConstraint
@@ -66,6 +66,10 @@ class Order(BaseSchema, table=True):
     service_name_snapshot: str = Field(nullable=False)
     delivery_eta_min_minutes: int = Field(default=30, nullable=False)
     delivery_eta_max_minutes: int = Field(default=60, nullable=False)
+    preferred_delivery_date: Optional[date] = Field(default=None, nullable=True)
+    preferred_delivery_window: Optional[str] = Field(
+        default=None, max_length=16, nullable=True
+    )
     delivery_address_id: int = Field(foreign_key="address.id", nullable=False)
     status: OrderStatus = Field(default=OrderStatus.Pending, nullable=False, index=True)
     subtotal: float = Field(nullable=False)

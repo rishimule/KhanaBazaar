@@ -424,6 +424,18 @@
     "cashHint": "मिलने पर भुगतान करें"
   },
   "Order": {
+    "delivery": {
+      "preferredTitle": "पसंदीदा डिलीवरी समय",
+      "preferredHint": "वैकल्पिक — यह एक अनुरोध है, गारंटी नहीं।",
+      "asap": "जितनी जल्दी हो सके",
+      "choose": "डिलीवरी समय चुनें",
+      "today": "आज",
+      "tomorrow": "कल",
+      "requested": "अनुरोधित डिलीवरी",
+      "windowMorning": "सुबह",
+      "windowAfternoon": "दोपहर",
+      "windowEvening": "शाम"
+    },
     "status": {
       "pending": "लंबित",
       "packed": "पैक किया गया",

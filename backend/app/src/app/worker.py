@@ -11,6 +11,7 @@ import app.search.tasks  # noqa: F401
 from app.core.celery_app import celery_app
 from app.core.config import settings
 from app.utils.delivery_eta import format_delivery_eta
+from app.utils.delivery_window import format_delivery_window
 
 
 @celery_app.task(name="test_celery_task", bind=True)  # type: ignore[untyped-decorator]
@@ -103,6 +104,12 @@ def send_order_status_whatsapp_async(order_id: int, status: str) -> None:
         "order_no": str(order_id),
         "store": ctx.get("store_name") or "your store",
     }
+    if status == "pending":
+        variables["when"] = (
+            ctx.get("preferred_delivery")
+            or ctx.get("delivery_eta")
+            or "as soon as possible"
+        )
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(
             lambda: asyncio.run(sender.send_template(phone, template, variables))
@@ -360,6 +367,15 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                         order.delivery_eta_min_minutes,
                         order.delivery_eta_max_minutes,
                     ),
+                    "preferred_delivery": (
+                        format_delivery_window(
+                            order.preferred_delivery_date,
+                            order.preferred_delivery_window,
+                        )
+                        if order.preferred_delivery_date
+                        and order.preferred_delivery_window
+                        else None
+                    ),
                     "store_name": store.name if store is not None else None,
                     "seller_email": seller_user.email if seller_user is not None else None,
                     "customer_email": customer_user.email if customer_user is not None else None,
@@ -414,6 +430,7 @@ def send_order_placed_seller_async(order_id: int) -> None:
             "order_total": ctx["order_total"],
             "subtotal": ctx["subtotal"],
             "delivery_fee": ctx["delivery_fee"],
+            "preferred_delivery": ctx.get("preferred_delivery"),
         },
         lang=ctx.get("seller_lang") or "en",
     )
@@ -466,6 +483,7 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
                 "subtotal": ctx["subtotal"],
                 "delivery_fee": ctx["delivery_fee"],
                 "delivery_eta": ctx.get("delivery_eta"),
+                "preferred_delivery": ctx.get("preferred_delivery"),
             }
         )
         grand_total += float(ctx["order_total"])

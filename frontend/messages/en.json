@@ -424,6 +424,18 @@
     "cashHint": "Pay when you receive"
   },
   "Order": {
+    "delivery": {
+      "preferredTitle": "Preferred delivery time",
+      "preferredHint": "Optional — a request, not a guarantee.",
+      "asap": "As soon as possible",
+      "choose": "Choose a delivery time",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "requested": "Requested delivery",
+      "windowMorning": "Morning",
+      "windowAfternoon": "Afternoon",
+      "windowEvening": "Evening"
+    },
     "status": {
       "pending": "Pending",
       "packed": "Packed",

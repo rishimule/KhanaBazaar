@@ -1,9 +1,9 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.models.commerce import (
     DeliveryStatus,
@@ -11,6 +11,7 @@ from app.models.commerce import (
     PaymentMethod,
     PaymentStatus,
 )
+from app.utils.delivery_window import ist_today, validate_preferred_window
 
 
 class OrderItemRead(BaseModel):
@@ -52,6 +53,8 @@ class OrderRead(BaseModel):
     service_name: str
     delivery_eta_min_minutes: int = 30
     delivery_eta_max_minutes: int = 60
+    preferred_delivery_date: Optional[date] = None
+    preferred_delivery_window: Optional[str] = None
     customer_name: Optional[str] = None
     status: OrderStatus
     subtotal: float
@@ -82,6 +85,17 @@ class PlaceOrderRequest(BaseModel):
     store_id: int = Field(gt=0)
     service_id: int = Field(gt=0)
     payment_method: PaymentMethod
+    preferred_delivery_date: Optional[date] = None
+    preferred_delivery_window: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _check_preferred_window(self) -> "PlaceOrderRequest":
+        validate_preferred_window(
+            self.preferred_delivery_date,
+            self.preferred_delivery_window,
+            today=ist_today(),
+        )
+        return self
 
 
 class TransitionRequest(BaseModel):

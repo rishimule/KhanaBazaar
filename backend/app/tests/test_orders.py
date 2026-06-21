@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from collections.abc import AsyncGenerator, Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -975,3 +975,127 @@ async def test_admin_orders_search_oversized_numeric_q_no_500(
         resp = await ac.get("/api/v1/orders?q=99999999999999")
     assert resp.status_code == 200
     assert resp.json()["orders"] == []
+
+
+async def test_order_model_accepts_preferred_window(
+    seed: dict[str, int], session: AsyncSession
+) -> None:
+    order = Order(
+        customer_profile_id=seed["customer_profile"],
+        store_id=seed["store_a"],
+        service_id=seed["grocery_service_id"],
+        service_name_snapshot="Apple",
+        delivery_address_id=seed["customer_address_id"],
+        delivery_address_snapshot="x",
+        subtotal=1.0, delivery_fee=0.0, tax=0.0, total=1.0,
+        preferred_delivery_date=date(2026, 6, 21),
+        preferred_delivery_window="evening",
+    )
+    session.add(order)
+    await session.commit()
+    await session.refresh(order)
+    assert order.preferred_delivery_date == date(2026, 6, 21)
+    assert order.preferred_delivery_window == "evening"
+
+
+async def test_place_order_with_preferred_window_persists_and_returns(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    from app.utils.delivery_window import ist_today
+
+    target = (ist_today() + timedelta(days=1)).isoformat()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
+                "payment_method": "upi",
+                "preferred_delivery_date": target,
+                "preferred_delivery_window": "evening",
+            },
+        )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["preferred_delivery_date"] == target
+    assert body["preferred_delivery_window"] == "evening"
+
+    session.expire_all()
+    order = (await session.exec(select(Order))).first()
+    assert order is not None
+    assert order.preferred_delivery_window == "evening"
+    assert order.preferred_delivery_date.isoformat() == target
+
+
+async def test_place_order_without_preferred_window_is_null(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
+                "payment_method": "upi",
+            },
+        )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["preferred_delivery_date"] is None
+    assert body["preferred_delivery_window"] is None
+
+
+async def test_place_order_rejects_past_preferred_date(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    from app.utils.delivery_window import ist_today
+
+    past = (ist_today() - timedelta(days=1)).isoformat()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
+                "payment_method": "upi",
+                "preferred_delivery_date": past,
+                "preferred_delivery_window": "morning",
+            },
+        )
+    assert resp.status_code == 422, resp.text
+
+
+async def test_pending_notification_body_includes_preferred_window(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    from app.models.notification import Notification
+    from app.utils.delivery_window import ist_today
+
+    target = (ist_today() + timedelta(days=1)).isoformat()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/orders",
+            json={
+                "customer_address_id": seed["customer_address_id"],
+                "store_id": seed["store_a"],
+                "service_id": seed["grocery_service_id"],
+                "payment_method": "upi",
+                "preferred_delivery_date": target,
+                "preferred_delivery_window": "evening",
+            },
+        )
+    assert resp.status_code == 201, resp.text
+    session.expire_all()
+    notif = (
+        await session.exec(
+            select(Notification).where(
+                Notification.customer_profile_id == seed["customer_profile"]
+            )
+        )
+    ).first()
+    assert notif is not None
+    assert "Requested delivery" in notif.body
+    assert "Evening (3–9 PM)" in notif.body

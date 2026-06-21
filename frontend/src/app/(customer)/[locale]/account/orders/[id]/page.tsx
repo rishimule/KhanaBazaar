@@ -16,6 +16,7 @@ import ReorderButton from "@/components/orders/ReorderButton";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusBadge from "@/components/orders/PaymentStatusBadge";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
+import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -60,6 +61,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
           {formatDeliveryEta(order.delivery_eta_min_minutes, order.delivery_eta_max_minutes)}
         </p>
       )}
+      <RequestedDeliveryLine order={order} className={styles.subtitle} />
 
       <section className={styles.section}>
         <OrderTimeline status={order.status} />

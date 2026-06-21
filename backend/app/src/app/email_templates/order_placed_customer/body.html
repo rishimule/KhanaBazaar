@@ -10,6 +10,9 @@
       {% if o.delivery_eta %}
         <div style="font-size:14px;color:#374151;margin-bottom:8px;">Estimated delivery: {{ o.delivery_eta }}</div>
       {% endif %}
+      {% if o.preferred_delivery %}
+        <div style="font-size:14px;color:#374151;margin-bottom:8px;">Requested delivery: {{ o.preferred_delivery }}</div>
+      {% endif %}
       {% with items=o.line_items, order_total=o.order_total, subtotal=o.subtotal, delivery_fee=o.delivery_fee %}
         {% include "_partials/line_items.html" %}
       {% endwith %}
