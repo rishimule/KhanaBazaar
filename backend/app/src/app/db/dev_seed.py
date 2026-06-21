@@ -1172,6 +1172,7 @@ DEMO_ORDERS: list[dict[str, Any]] = [
         "status": "delivered",
         "payment_method": "upi",
         "days_ago": 7,
+        "preferred_delivery": (0, "evening"),
         "items": [
             ("fresh-tomatoes", 2),
             ("amul-taza-milk-1l", 1),
@@ -1186,6 +1187,7 @@ DEMO_ORDERS: list[dict[str, Any]] = [
         "status": "dispatched",
         "payment_method": "upi",
         "days_ago": 1,
+        "preferred_delivery": (0, "afternoon"),
         "items": [
             ("sony-wh-1000xm5", 1),
             ("anker-65w-gan-charger", 1),
@@ -1199,6 +1201,7 @@ DEMO_ORDERS: list[dict[str, Any]] = [
         "status": "packed",
         "payment_method": "cash",
         "days_ago": 0,
+        "preferred_delivery": (1, "morning"),
         "items": [
             ("crocin-advance-500mg-15s", 2),
             ("vicks-vaporub-50g", 1),
@@ -1289,6 +1292,7 @@ DEMO_ORDERS: list[dict[str, Any]] = [
         "status": "packed",
         "payment_method": "upi",
         "days_ago": 0,
+        "preferred_delivery": (2, "evening"),
         "items": [
             ("colgate-strong-teeth-200g", 1),
             ("eno-fruit-salt-100g", 1),
@@ -2329,6 +2333,18 @@ async def _seed_demo_orders(session: AsyncSession) -> None:
         status = OrderStatus(spec["status"])
         payment_method = PaymentMethod(spec["payment_method"])
 
+        # Optional soft "preferred delivery window" the customer requested at
+        # checkout. Spec value is (offset_days_from_placed, window_key); the date
+        # is anchored to placed_at so history reads coherently.
+        preferred_delivery_date = None
+        preferred_delivery_window = None
+        pref = spec.get("preferred_delivery")
+        if pref is not None:
+            offset_days, preferred_delivery_window = pref
+            preferred_delivery_date = (
+                placed_at + timedelta(days=int(offset_days))
+            ).date()
+
         order_items: list[tuple[OrderItem, StoreInventory, int]] = []
         subtotal = 0.0
         for product_slug, qty in spec["items"]:
@@ -2382,6 +2398,8 @@ async def _seed_demo_orders(session: AsyncSession) -> None:
             service_name_snapshot=service_name,
             delivery_eta_min_minutes=eta_min,
             delivery_eta_max_minutes=eta_max,
+            preferred_delivery_date=preferred_delivery_date,
+            preferred_delivery_window=preferred_delivery_window,
             delivery_address_id=address.id,
             delivery_address_snapshot=address_snapshot,
             status=status,
