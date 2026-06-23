@@ -7,8 +7,8 @@
     {% for step in steps %}
       {% set reached = loop.index0 <= current_idx %}
       <td align="center" style="padding:4px;">
-        <div style="width:24px;height:24px;border-radius:50%;background:{{ '#0b8457' if reached else '#d1d5db' }};margin:0 auto 6px;"></div>
-        <div style="font-size:12px;color:{{ '#0b8457' if reached else '#9ca3af' }};text-transform:capitalize;">{{ step }}</div>
+        <div style="width:24px;height:24px;border-radius:50%;background:{{ '#0F6B06' if reached else '#d1d5db' }};margin:0 auto 6px;"></div>
+        <div style="font-size:12px;color:{{ '#0F6B06' if reached else '#9ca3af' }};text-transform:capitalize;">{{ step }}</div>
       </td>
     {% endfor %}
   </tr>
