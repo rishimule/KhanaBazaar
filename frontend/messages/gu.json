@@ -1698,5 +1698,11 @@
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
     }
+  },
+  "Info": {
+    "aboutTitle": "ખાના બજાર વિશે",
+    "privacyTitle": "ગોપનીયતા નીતિ",
+    "termsTitle": "સેવાની શરતો",
+    "comingSoon": "આ પેજ ટૂંક સમયમાં આવી રહ્યું છે — થોડી વારે ફરી તપાસો."
   }
 }

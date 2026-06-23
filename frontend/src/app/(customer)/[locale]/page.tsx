@@ -101,13 +101,13 @@ export default function Home() {
             <span className={styles.promoGlyph} aria-hidden>🎁</span>
             <div className={styles.promoEyebrow}>{t("trustPincode")}</div>
             <h3 className={styles.promoTitle}>Same-day delivery in 2 hours</h3>
-            <span className={styles.promoLink}>Browse nearby stores →</span>
+            <Link href="/stores" className={styles.promoLink}>Browse nearby stores →</Link>
           </div>
           <div className={`${styles.promoCard} ${styles.promoCardMember}`}>
             <span className={styles.promoGlyph} aria-hidden>👑</span>
             <div className={styles.promoEyebrow}>{t("trustUpi")}</div>
             <h3 className={styles.promoTitle}>Pay with UPI · zero card hassle</h3>
-            <span className={`${styles.promoLink} ${styles.promoLinkDark}`}>Learn how →</span>
+            <Link href="/sell" className={`${styles.promoLink} ${styles.promoLinkDark}`}>Learn how →</Link>
           </div>
         </section>
 

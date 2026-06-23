@@ -1698,5 +1698,11 @@
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
     }
+  },
+  "Info": {
+    "aboutTitle": "खाना बाजार विषयी",
+    "privacyTitle": "गोपनीयता धोरण",
+    "termsTitle": "सेवा अटी",
+    "comingSoon": "हे पान लवकरच येत आहे — कृपया नंतर पुन्हा पहा."
   }
 }

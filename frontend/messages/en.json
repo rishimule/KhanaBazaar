@@ -1697,5 +1697,11 @@
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
     }
+  },
+  "Info": {
+    "aboutTitle": "About Khana Bazaar",
+    "privacyTitle": "Privacy Policy",
+    "termsTitle": "Terms of Service",
+    "comingSoon": "This page is on its way — check back soon."
   }
 }
