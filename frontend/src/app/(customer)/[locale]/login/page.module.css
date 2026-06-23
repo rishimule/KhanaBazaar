@@ -97,7 +97,7 @@
 
 .input:focus {
   border-color: var(--color-primary-1);
-  box-shadow: 0 0 0 2px rgba(184,71,15,0.12);
+  box-shadow: 0 0 0 2px rgba(15, 107, 6,0.12);
 }
 
 .input::placeholder { color: var(--shade-cool-base-5); }

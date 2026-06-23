@@ -51,7 +51,7 @@
 }
 
 .addBtn:hover:not(:disabled) {
-  background: rgba(184, 71, 15, 0.06);
+  background: rgba(15, 107, 6, 0.06);
 }
 
 .addBtn:disabled {
@@ -97,7 +97,7 @@
 .modalInput:focus {
   outline: none;
   border-color: var(--color-primary-1);
-  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
+  box-shadow: 0 0 0 2px rgba(15, 107, 6, 0.12);
 }
 
 .modalCheckboxRow {
@@ -144,7 +144,7 @@
 .comboTrigger:focus {
   outline: none;
   border-color: var(--color-primary-1);
-  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
+  box-shadow: 0 0 0 2px rgba(15, 107, 6, 0.12);
 }
 
 .comboTrigger:disabled {
@@ -205,7 +205,7 @@
 }
 
 .option[data-active="true"] {
-  background: rgba(184, 71, 15, 0.08);
+  background: rgba(15, 107, 6, 0.08);
 }
 
 .optionSelected .optionCheck {

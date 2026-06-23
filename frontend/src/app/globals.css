@@ -4,7 +4,7 @@
  */
 /* ============================================================
    Khana Bazaar — Global Styles
-   Cobalt + teal brand, Poppins, dense flat surfaces.
+   India-green chrome + saffron action, Poppins, dense flat surfaces.
    ============================================================ */
 
 @import url("../styles/design-tokens.css");
@@ -199,8 +199,8 @@ ul, ol {
 
 /* --------------------------------------------------------
    BUTTONS
-   Primary = teal CTA; secondary = cobalt-bordered pill;
-   tertiary = inline cobalt text; destructive = tomato.
+   Primary = saffron CTA; secondary = green-bordered pill;
+   tertiary = inline green text; destructive = tomato.
    -------------------------------------------------------- */
 .btn {
   display: inline-flex;
@@ -352,7 +352,7 @@ ul, ol {
 :where(select):focus {
   outline: none;
   border-color: var(--color-primary-1);
-  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
+  box-shadow: 0 0 0 2px rgba(15, 107, 6, 0.12);
 }
 
 :where(.input--error),

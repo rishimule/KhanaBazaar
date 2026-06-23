@@ -25,7 +25,7 @@
 .trigger:focus-visible {
   outline: none;
   border-color: var(--color-primary-1, #b8470f);
-  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
+  box-shadow: 0 0 0 2px rgba(15, 107, 6, 0.12);
 }
 
 .triggerLabel {
@@ -114,7 +114,7 @@
 }
 
 .optionSelected {
-  background: rgba(184, 71, 15, 0.08);
+  background: rgba(15, 107, 6, 0.08);
   color: var(--color-primary-1, #b8470f);
 }
 
