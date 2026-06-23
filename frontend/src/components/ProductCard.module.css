@@ -212,8 +212,8 @@
 }
 
 .addBtn {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--white);
   border: 1px solid rgba(15, 107, 6, 0.20);
@@ -243,7 +243,7 @@
   background: var(--color-primary-1);
   color: var(--white);
   border-radius: var(--radius-pill);
-  height: 32px;
+  height: 44px;
   padding: 0 2px;
   font-variant-numeric: tabular-nums;
   font-weight: var(--weight-semibold);
@@ -255,8 +255,8 @@
   background: transparent;
   border: none;
   color: var(--white);
-  width: 26px;
-  height: 26px;
+  width: 44px;
+  height: 44px;
   font-size: 16px;
   cursor: pointer;
   padding: 0;
