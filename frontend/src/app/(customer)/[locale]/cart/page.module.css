@@ -295,5 +295,5 @@
 
 .serviceName {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-text-strong);
 }
