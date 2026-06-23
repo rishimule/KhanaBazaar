@@ -81,8 +81,8 @@
 .reviewNote {
   margin-top: var(--space-4);
   padding: var(--space-3) var(--space-4);
-  border-left: 3px solid var(--color-accent-500);
-  background: var(--color-accent-50);
+  border-left: 3px solid var(--color-primary-1);
+  background: var(--leaf-green-light-1);
   color: var(--color-neutral-700);
   border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
 }
