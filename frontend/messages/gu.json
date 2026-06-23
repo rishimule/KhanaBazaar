@@ -1595,6 +1595,7 @@
     }
   },
   "Shared": {
+    "skipToContent": "મુખ્ય સામગ્રી પર જાઓ",
     "edit": "સંપાદિત કરો",
     "delete": "કાઢી નાખો",
     "dataTable": {

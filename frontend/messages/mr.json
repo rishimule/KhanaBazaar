@@ -1595,6 +1595,7 @@
     }
   },
   "Shared": {
+    "skipToContent": "मुख्य मजकुरावर जा",
     "edit": "संपादित करा",
     "delete": "हटवा",
     "dataTable": {

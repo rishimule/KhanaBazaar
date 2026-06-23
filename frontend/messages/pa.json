@@ -1595,6 +1595,7 @@
     }
   },
   "Shared": {
+    "skipToContent": "ਮੁੱਖ ਸਮੱਗਰੀ 'ਤੇ ਜਾਓ",
     "edit": "ਸੰਪਾਦਿਤ ਕਰੋ",
     "delete": "ਮਿਟਾਓ",
     "dataTable": {
