@@ -4,20 +4,20 @@
  */
 /* ============================================================
    Khana Bazaar — Design Tokens
-   Cobalt navy chrome + bright teal action, food-themed palette,
-   Poppins type. Source: design bundle DESIGN.md.
+   India-green chrome + saffron action (patriotic, green-led),
+   food-themed palette, Poppins type.
    ============================================================ */
 
 :root {
   /* --------------------------------------------------------
-     BRAND & PRIMARY — Saffron / Turmeric warmth
-     Chrome: deep saffron (was cobalt navy).
-     CTA:    golden saffron (was bright teal).
+     BRAND & PRIMARY — India green chrome + saffron action
+     Chrome: deep India green (was deep saffron).
+     CTA:    golden saffron (unchanged — the warm action accent).
      -------------------------------------------------------- */
-  --color-primary-1:        #B8470F; /* Saffron Deep — wordmark, nav, links, active */
-  --color-btn-primary-bg:   #F18A1F; /* Golden Saffron — primary CTA */
-  --color-btn-primary-hover:#D9731B; /* Saffron CTA hover */
-  --color-link:             #E8611A; /* Saffron Base — inline links, accents */
+  --color-primary-1:        #0F6B06; /* India Green Deep — wordmark, nav, active */
+  --color-btn-primary-bg:   #F18A1F; /* Golden Saffron — primary CTA (unchanged) */
+  --color-btn-primary-hover:#D9731B; /* Saffron CTA hover (unchanged) */
+  --color-link:             #138808; /* India Flag Green — inline links, accents */
 
   /* Saffron / Turmeric ramp (replaces Energy Blue) */
   --saffron-light-1:        #FFEFE0;
@@ -35,6 +35,16 @@
   --turmeric-base-4:        #F18A1F;
   --turmeric-base-7:        #D9731B;
   --turmeric-dark-1:        #A8590E;
+
+  /* India Green — brand chrome (NEW lead color) */
+  --leaf-green-light-1:     #E9F6EC; /* page / selected tint */
+  --leaf-green-light-2:     #C8E6CD; /* hover tint, soft borders */
+  --leaf-green-base-1:      #57B368; /* light accent */
+  --leaf-green-base-4:      #1B9E3E; /* fresh mid-green — secondary, hovers */
+  --leaf-green-base-7:      #138808; /* India flag green — links, accents */
+  --leaf-green-dark-1:      #0F6B06; /* deep chrome — wordmark, nav, active */
+  --leaf-green-dark-4:      #0A4D04; /* hover / pressed chrome */
+  --leaf-green-dark-7:      #063302; /* deepest — footer bg */
 
   /* Legacy Energy Blue / Flow Teal aliases — remap to warm so any rule that
      still references them inherits saffron instead of cobalt/teal. */
@@ -122,7 +132,7 @@
   /* --------------------------------------------------------
      GRADIENTS
      -------------------------------------------------------- */
-  --gradient-brand-sweep:   linear-gradient(135deg, #B8470F 0%, #E8611A 50%, #F18A1F 100%);
+  --gradient-brand-sweep:   linear-gradient(135deg, #0F6B06 0%, #138808 50%, #1B9E3E 100%);
   --gradient-sale-sweep:    linear-gradient(90deg,  #ec4143 0%, #f43c7e 100%);
   --gradient-member-sweep:  linear-gradient(135deg, #ffd600 0%, #ff5026 100%);
 
@@ -318,16 +328,16 @@
      --color-neutral-* to the new warm system so untouched components inherit
      saffron/turmeric without breaking. Saffron is brand; turmeric is action.
      -------------------------------------------------------- */
-  --color-primary-50:  #FFEFE0;
-  --color-primary-100: #FFD9B8;
-  --color-primary-200: #FFB987;
-  --color-primary-300: #FF9959;
-  --color-primary-400: #F2782A;
-  --color-primary-500: #B8470F; /* saffron deep — brand */
-  --color-primary-600: #9C3B0C;
-  --color-primary-700: #7E2F0A;
-  --color-primary-800: #5C2106;
-  --color-primary-900: #3A1404;
+  --color-primary-50:  #E9F6EC;
+  --color-primary-100: #C8E6CD;
+  --color-primary-200: #9AD2A4;
+  --color-primary-300: #5FB873;
+  --color-primary-400: #2A9D45;
+  --color-primary-500: #0F6B06; /* India green deep — brand */
+  --color-primary-600: #0C5705;
+  --color-primary-700: #0A4604;
+  --color-primary-800: #073302;
+  --color-primary-900: #042001;
 
   --color-accent-50:  #FFF4D6;
   --color-accent-100: #FFE4A8;
@@ -361,7 +371,7 @@
   --gradient-primary: var(--gradient-brand-sweep);
   --gradient-accent:  linear-gradient(135deg, #F18A1F 0%, #E8611A 100%);
   --gradient-hero:    var(--gradient-brand-sweep);
-  --gradient-dark:    linear-gradient(135deg, #3A1404 0%, #B8470F 100%);
+  --gradient-dark:    linear-gradient(135deg, #063302 0%, #0F6B06 100%);
 
   /* Even-older single-token names used by some account/order styles */
   --color-primary: var(--color-primary-1);
