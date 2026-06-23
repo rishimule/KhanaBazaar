@@ -48,3 +48,7 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 
 ## Phase 6: Future Enhancements (Payments)
 - [ ] Integrate Razorpay (or other payment gateways) for UPI checkout intent flows.
+
+## Design / UI follow-ups
+- [ ] Redraw PWA icons (`frontend/public/icons/icon-192x192.png`, `icon-512x512.png`, `icon-180x180.png`) + `frontend/src/app/favicon.ico` in brand green (deferred from the 2026-06-23 green recolor — code/CSS are green; raster assets are still saffron).
+- [ ] A11y: primary buttons (`.btn-primary` / `.btn-accent`) use white text on saffron `#F18A1F` (~2:1, fails WCAG AA). Switch to dark-green text `#063302` (~7:1) — pre-existing debt, deferred from the green recolor.
