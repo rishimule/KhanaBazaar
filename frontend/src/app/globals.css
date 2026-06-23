@@ -386,3 +386,17 @@ ul, ol {
 .animate-fade-in     { animation: fadeIn     var(--duration-slow) var(--ease-out); }
 .animate-fade-in-up  { animation: fadeInUp   var(--duration-slow) var(--ease-out); }
 .animate-slide-in-right { animation: slideInRight var(--duration-slow) var(--ease-out); }
+
+/* --------------------------------------------------------
+   REDUCED MOTION — honor the OS preference globally
+   -------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
