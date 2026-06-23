@@ -4,19 +4,18 @@
  */
 /* ============================================================
    Khana Bazaar — Design Tokens
-   India-green chrome + saffron action (patriotic, green-led),
+   India-green chrome + action (patriotic, fully green-led),
    food-themed palette, Poppins type.
    ============================================================ */
 
 :root {
   /* --------------------------------------------------------
-     BRAND & PRIMARY — India green chrome + saffron action
-     Chrome: deep India green (was deep saffron).
-     CTA:    golden saffron (unchanged — the warm action accent).
+     BRAND & PRIMARY — fully green (chrome + action)
+     Chrome: deep India green. CTA: India flag green (white text ≥ AA).
      -------------------------------------------------------- */
   --color-primary-1:        #0F6B06; /* India Green Deep — wordmark, nav, active */
-  --color-btn-primary-bg:   #F18A1F; /* Golden Saffron — primary CTA (unchanged) */
-  --color-btn-primary-hover:#D9731B; /* Saffron CTA hover (unchanged) */
+  --color-btn-primary-bg:   #138808; /* India Flag Green — primary CTA */
+  --color-btn-primary-hover:#0F6B06; /* Deep green — CTA hover */
   --color-link:             #138808; /* India Flag Green — inline links, accents */
 
   /* Saffron / Turmeric ramp (replaces Energy Blue) */

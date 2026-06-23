@@ -4,7 +4,7 @@
  */
 /* ============================================================
    Khana Bazaar — Global Styles
-   India-green chrome + saffron action, Poppins, dense flat surfaces.
+   India-green chrome + action, Poppins, dense flat surfaces.
    ============================================================ */
 
 @import url("../styles/design-tokens.css");
@@ -199,7 +199,7 @@ ul, ol {
 
 /* --------------------------------------------------------
    BUTTONS
-   Primary = saffron CTA; secondary = green-bordered pill;
+   Primary = green CTA; secondary = green-bordered pill;
    tertiary = inline green text; destructive = tomato.
    -------------------------------------------------------- */
 .btn {
