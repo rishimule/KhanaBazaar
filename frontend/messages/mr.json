@@ -384,7 +384,8 @@
     "closeModal": "बंद करा",
     "loadError": "हे उत्पाद लोड होऊ शकले नाही.",
     "addToFavorites": "आवडत्यांमध्ये जोडा",
-    "removeFromFavorites": "आवडत्यांमधून काढा"
+    "removeFromFavorites": "आवडत्यांमधून काढा",
+    "addToCartFailed": "कार्टमध्ये जोडता आले नाही. कृपया पुन्हा प्रयत्न करा."
   },
   "Address": {
     "line1Label": "पत्ता ओळ 1",

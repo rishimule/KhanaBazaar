@@ -384,7 +384,8 @@
     "closeModal": "Close",
     "loadError": "Couldn't load this product.",
     "addToFavorites": "Add to favourites",
-    "removeFromFavorites": "Remove from favourites"
+    "removeFromFavorites": "Remove from favourites",
+    "addToCartFailed": "Couldn't add to cart. Please try again."
   },
   "Address": {
     "line1Label": "Address line 1",

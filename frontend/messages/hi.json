@@ -384,7 +384,8 @@
     "closeModal": "बंद करें",
     "loadError": "यह उत्पाद लोड नहीं हो सका।",
     "addToFavorites": "पसंदीदा में जोड़ें",
-    "removeFromFavorites": "पसंदीदा से हटाएं"
+    "removeFromFavorites": "पसंदीदा से हटाएं",
+    "addToCartFailed": "कार्ट में नहीं जोड़ सका। कृपया फिर से प्रयास करें।"
   },
   "Address": {
     "line1Label": "पता पंक्ति 1",

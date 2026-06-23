@@ -384,7 +384,8 @@
     "closeModal": "ਬੰਦ ਕਰੋ",
     "loadError": "ਇਹ ਉਤਪਾਦ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।",
     "addToFavorites": "ਪਸੰਦੀਦਾ ਵਿੱਚ ਜੋੜੋ",
-    "removeFromFavorites": "ਪਸੰਦੀਦਾ ਤੋਂ ਹਟਾਓ"
+    "removeFromFavorites": "ਪਸੰਦੀਦਾ ਤੋਂ ਹਟਾਓ",
+    "addToCartFailed": "ਕਾਰਟ ਵਿੱਚ ਸ਼ਾਮਲ ਨਹੀਂ ਕਰ ਸਕੇ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
   },
   "Address": {
     "line1Label": "ਪਤਾ ਲਾਈਨ 1",

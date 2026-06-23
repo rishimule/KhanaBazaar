@@ -384,7 +384,8 @@
     "closeModal": "બંધ કરો",
     "loadError": "આ ઉત્પાદન લોડ થઈ શક્યું નહીં.",
     "addToFavorites": "પ્રિયમાં ઉમેરો",
-    "removeFromFavorites": "પ્રિયમાંથી દૂર કરો"
+    "removeFromFavorites": "પ્રિયમાંથી દૂર કરો",
+    "addToCartFailed": "કાર્ટમાં ઉમેરી શકાયું નથી. કૃપા કરી ફરી પ્રયાસ કરો."
   },
   "Address": {
     "line1Label": "સરનામું લાઇન 1",

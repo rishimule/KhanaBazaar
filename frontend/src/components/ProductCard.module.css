@@ -196,6 +196,21 @@
   right: 8px;
 }
 
+/* Transient failure cue — absolute so it never shifts the card grid. */
+.addError {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  background: var(--tomato-red-base-4);
+  color: var(--white);
+  font-size: var(--body-3xs);
+  font-weight: var(--weight-semibold);
+  padding: 2px 8px;
+  border-radius: var(--radius-badge);
+}
+
 .addBtn {
   width: 32px;
   height: 32px;
