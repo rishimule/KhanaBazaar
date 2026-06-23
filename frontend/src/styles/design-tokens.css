@@ -74,12 +74,14 @@
   --mandarin-orange-light-1:#feefdb;
   --mandarin-orange-base-1: #ff8a5f;
   --mandarin-orange-base-4: #ff5026;
+  --mandarin-orange-dark-1: #9a3412; /* warning badge text (AA on light-1) */
 
   /* Durian Yellow — member / EBT / stars */
   --durian-yellow-base-1:   #ffed8e;
   --durian-yellow-base-4:   #ffd600;
   --durian-yellow-base-7:   #ffb700;
   --durian-yellow-dark-1:   #ab8403;
+  --durian-yellow-dark-2:   #6b5300; /* member badge text (AA on base-1) */
 
   /* Saffron Yellow — warning / pending (amber; was inline-fallback only) */
   --saffron-yellow-light-1: #fffbeb;

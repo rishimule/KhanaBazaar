@@ -161,7 +161,7 @@
 .priceStrike {
   font-size: var(--body-2xs);
   font-weight: var(--weight-regular);
-  color: var(--shade-cool-base-4);
+  color: var(--shade-cool-base-5);
   text-decoration: line-through;
 }
 
@@ -185,7 +185,7 @@
   align-self: flex-start;
   margin-top: 6px;
 }
-.inStock   { background: var(--chive-green-light-1); color: var(--chive-green-base-4); }
+.inStock   { background: var(--chive-green-light-1); color: var(--chive-green-dark-1); }
 .lowStock  { background: var(--mandarin-orange-light-1); color: var(--mandarin-orange-base-4); }
 .outOfStock { background: var(--tomato-red-light-1); color: var(--tomato-red-base-4); }
 
@@ -217,7 +217,7 @@
 .addBtn:active { transform: scale(0.97); }
 .addBtn:disabled {
   background: var(--shade-cool-light-5);
-  color: var(--shade-cool-base-4);
+  color: var(--shade-cool-base-7);
   cursor: not-allowed;
   border-color: transparent;
 }

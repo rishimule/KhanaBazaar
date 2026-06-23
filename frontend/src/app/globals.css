@@ -167,7 +167,7 @@ ul, ol {
 .price--member { color: var(--jade-green-dark-1); }
 .price--strike {
   font-weight: var(--weight-regular);
-  color: var(--shade-cool-base-4);
+  color: var(--shade-cool-base-5);
   text-decoration: line-through;
 }
 
@@ -189,12 +189,12 @@ ul, ol {
 .badge--new     { background: var(--energy-blue-base-4);    color: var(--white); }
 .badge--hot     { background: var(--mandarin-orange-base-4);color: var(--white); }
 .badge--ebt     { background: var(--durian-yellow-base-4);  color: var(--color-primary-1); }
-.badge--member  { background: var(--durian-yellow-base-1);  color: var(--durian-yellow-dark-1); }
+.badge--member  { background: var(--durian-yellow-base-1);  color: var(--durian-yellow-dark-2); }
 .badge--limited { background: var(--eggplant-purple-base-4);color: var(--white); }
 .badge--local   { background: var(--chive-green-light-1);   color: var(--chive-green-dark-1); }
-.badge--instock { background: var(--chive-green-light-1);   color: var(--chive-green-base-4); }
+.badge--instock { background: var(--chive-green-light-1);   color: var(--chive-green-dark-1); }
 .badge--success { background: var(--jade-green-light-1);    color: var(--jade-green-dark-1); }
-.badge--warning { background: var(--mandarin-orange-light-1); color: var(--mandarin-orange-base-4); }
+.badge--warning { background: var(--mandarin-orange-light-1); color: var(--mandarin-orange-dark-1); }
 .badge--neutral { background: var(--shade-cool-light-2);    color: var(--shade-cool-base-7); }
 
 /* --------------------------------------------------------
@@ -225,7 +225,7 @@ ul, ol {
 .btn:disabled,
 .btn[aria-disabled="true"] {
   background: var(--shade-cool-light-5);
-  color: var(--shade-cool-base-4);
+  color: var(--shade-cool-base-7);
   cursor: not-allowed;
   transform: none;
 }
