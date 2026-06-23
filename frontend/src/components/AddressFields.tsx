@@ -148,9 +148,11 @@ export function AddressFields({
           placeholder={t("line1Placeholder")}
           maxLength={120}
           disabled={disabled}
+          aria-invalid={Boolean(errors?.address_line1)}
+          aria-describedby={errors?.address_line1 ? "addr-line1-error" : undefined}
           required
         />
-        {errors?.address_line1 && <span className={styles.error}>{errors.address_line1}</span>}
+        {errors?.address_line1 && <span id="addr-line1-error" className={styles.error} role="alert">{errors.address_line1}</span>}
       </div>
 
       <div className={`${styles.field} ${styles.span2}`}>
@@ -191,9 +193,11 @@ export function AddressFields({
           onChange={(e) => update("city", e.target.value)}
           maxLength={80}
           disabled={disabled}
+          aria-invalid={Boolean(errors?.city)}
+          aria-describedby={errors?.city ? "addr-city-error" : undefined}
           required
         />
-        {errors?.city && <span className={styles.error}>{errors.city}</span>}
+        {errors?.city && <span id="addr-city-error" className={styles.error} role="alert">{errors.city}</span>}
       </div>
 
       <div className={styles.field}>
@@ -204,6 +208,8 @@ export function AddressFields({
           value={value.state}
           onChange={(e) => update("state", e.target.value)}
           disabled={disabled}
+          aria-invalid={Boolean(errors?.state)}
+          aria-describedby={errors?.state ? "addr-state-error" : undefined}
           required
         >
           <option value="">{t("stateSelectPlaceholder")}</option>
@@ -211,8 +217,8 @@ export function AddressFields({
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-        {statesError && <span className={styles.error}>{statesError}</span>}
-        {errors?.state && <span className={styles.error}>{errors.state}</span>}
+        {statesError && <span className={styles.error} role="alert">{statesError}</span>}
+        {errors?.state && <span id="addr-state-error" className={styles.error} role="alert">{errors.state}</span>}
       </div>
 
       <div className={styles.field}>
@@ -227,9 +233,11 @@ export function AddressFields({
           value={value.pincode}
           onChange={(e) => update("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
           disabled={disabled}
+          aria-invalid={Boolean(errors?.pincode)}
+          aria-describedby={errors?.pincode ? "addr-pincode-error" : undefined}
           required
         />
-        {errors?.pincode && <span className={styles.error}>{errors.pincode}</span>}
+        {errors?.pincode && <span id="addr-pincode-error" className={styles.error} role="alert">{errors.pincode}</span>}
       </div>
 
       <div className={styles.field}>
@@ -261,7 +269,7 @@ export function AddressFields({
             <> <span className={styles.required}>{t("verifyRequired")}</span></>
           )}
         </p>
-        {verifyError && <span className={styles.error}>{verifyError}</span>}
+        {verifyError && <span className={styles.error} role="alert">{verifyError}</span>}
       </div>
 
       {showMap && (
@@ -274,7 +282,7 @@ export function AddressFields({
             onPlace={(p) => onChange(applyGeoOnly(p, value, "pin"))}
             onError={setMapError}
           />
-          {mapError && <span className={styles.error}>{mapError}</span>}
+          {mapError && <span className={styles.error} role="alert">{mapError}</span>}
         </div>
       )}
     </div>

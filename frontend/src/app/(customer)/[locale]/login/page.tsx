@@ -170,7 +170,7 @@ function LoginPageInner() {
 
         {step === "email" && (
           <form className={styles.form} onSubmit={handleRequestOtp}>
-            {error && <div className={styles.error}>{error}</div>}
+            {error && <div className={styles.error} role="alert">{error}</div>}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="login-email">
                 {t("emailLabel")}
@@ -198,7 +198,7 @@ function LoginPageInner() {
 
         {step === "code" && (
           <form className={styles.form} onSubmit={handleVerifyCode}>
-            {error && <div className={styles.error}>{error}</div>}
+            {error && <div className={styles.error} role="alert">{error}</div>}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="login-code">
                 {t("codeLabel")}
@@ -258,7 +258,7 @@ function LoginPageInner() {
 
         {step === "name" && (
           <form className={styles.form} onSubmit={handleSubmitName}>
-            {error && <div className={styles.error}>{error}</div>}
+            {error && <div className={styles.error} role="alert">{error}</div>}
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="login-name">
                 {t("nameLabel")}

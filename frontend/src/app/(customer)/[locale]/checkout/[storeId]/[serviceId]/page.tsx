@@ -320,7 +320,7 @@ export default function CheckoutPage() {
           onSwitchStart={() => setSwitching(true)}
         />
 
-        {error && <div className={styles.error}>{error}</div>}
+        {error && <div className={styles.error} role="alert">{error}</div>}
 
         {feeApplies && (
           <p className={styles.shortfallNote} role="status">
