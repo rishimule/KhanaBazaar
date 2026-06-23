@@ -9,6 +9,9 @@ import styles from "./Modal.module.css";
 
 type ModalSize = "default" | "wide" | "sheet";
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
 interface Props {
   title: string;
   children: React.ReactNode;
@@ -23,15 +26,20 @@ export default function Modal({ title, children, footer, onClose, size = "defaul
   const t = useTranslations("Shared");
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
-
-  const FOCUSABLE =
-    'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+  // Keep the latest onClose without re-running the mount effect. Callers pass
+  // inline arrow handlers whose identity changes on every parent render; if the
+  // effect below depended on onClose, those re-renders would tear it down and
+  // its cleanup would yank focus out of the open dialog back to the trigger.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // Mount + portal-ready (SSR safety) + Escape close + body scroll lock so
   // the page (and sidebar) underneath can't be interacted with while a modal
   // is open. Portaling to <body> escapes any parent stacking context that
   // would otherwise let the dashboard sidebar paint on top of the scrim.
   // Also traps Tab within the dialog and restores focus to the trigger on close.
+  // Mount-only ([] deps): teardown/focus-restore must fire on real unmount, not
+  // on every onClose identity change.
   useEffect(() => {
     setMounted(true);
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -39,12 +47,12 @@ export default function Modal({ title, children, footer, onClose, size = "defaul
     document.body.style.overflow = "hidden";
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === "Tab" && dialogRef.current) {
         const focusables =
-          dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE);
+          dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
         if (focusables.length === 0) return;
         const first = focusables[0];
         const last = focusables[focusables.length - 1];
@@ -63,14 +71,14 @@ export default function Modal({ title, children, footer, onClose, size = "defaul
       document.body.style.overflow = prevOverflow;
       previouslyFocused?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   // Move focus into the dialog once its portal content exists.
   useEffect(() => {
     if (!mounted) return;
     const node = dialogRef.current;
     if (!node) return;
-    const first = node.querySelector<HTMLElement>(FOCUSABLE);
+    const first = node.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
     (first ?? node).focus();
   }, [mounted]);
 

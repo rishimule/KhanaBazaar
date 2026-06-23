@@ -107,7 +107,7 @@ export default function Home() {
             <span className={styles.promoGlyph} aria-hidden>👑</span>
             <div className={styles.promoEyebrow}>{t("trustUpi")}</div>
             <h3 className={styles.promoTitle}>Pay with UPI · zero card hassle</h3>
-            <Link href="/sell" className={`${styles.promoLink} ${styles.promoLinkDark}`}>Learn how →</Link>
+            <Link href="/about" className={`${styles.promoLink} ${styles.promoLinkDark}`}>Learn how →</Link>
           </div>
         </section>
 
