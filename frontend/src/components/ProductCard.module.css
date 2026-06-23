@@ -201,7 +201,7 @@
   height: 32px;
   border-radius: 50%;
   background: var(--white);
-  border: 1px solid rgba(15, 107, 6,0.20);
+  border: 1px solid rgba(15, 107, 6, 0.20);
   color: var(--color-primary-1);
   font-size: 18px;
   font-weight: var(--weight-medium);

@@ -118,7 +118,7 @@
 }
 .deltaMore {
   color: var(--mandarin-orange-base-4, #b45309);
-  background: var(--leaf-green-light-1, #E9F6EC);
+  background: var(--mandarin-orange-light-1, #feefdb);
 }
 .deltaSame {
   color: var(--shade-cool-base-7, #52667d);
@@ -141,7 +141,7 @@
 }
 .deliveryWarn {
   color: var(--mandarin-orange-base-4, #b45309);
-  background: var(--leaf-green-light-1, #E9F6EC);
+  background: var(--mandarin-orange-light-1, #feefdb);
 }
 
 .itemList {
@@ -207,7 +207,7 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--mandarin-orange-base-4, #b45309);
-  background: var(--leaf-green-light-2, #C8E6CD);
+  background: var(--mandarin-orange-light-1, #feefdb);
   padding: 0.15rem 0.4rem;
   border-radius: 0.35rem;
 }

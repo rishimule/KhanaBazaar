@@ -90,7 +90,7 @@
 }
 .bannerSave {
   color: var(--mandarin-orange-base-4, #b45309);
-  background: var(--leaf-green-light-1, #E9F6EC);
+  background: var(--mandarin-orange-light-1, #feefdb);
 }
 .bannerIcon {
   flex-shrink: 0;
