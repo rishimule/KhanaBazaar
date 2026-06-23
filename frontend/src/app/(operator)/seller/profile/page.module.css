@@ -237,7 +237,7 @@
 }
 
 .editBtn:hover {
-  background: var(--saffron-light-1, #fff7ed);
+  background: var(--leaf-green-light-1, #E9F6EC);
   border-color: var(--color-primary-1);
 }
 

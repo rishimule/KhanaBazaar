@@ -161,7 +161,7 @@
 }
 
 .categoryAddBtn:hover {
-  background: var(--saffron-light-1);
+  background: var(--leaf-green-light-1);
   border-color: var(--color-primary-1);
 }
 

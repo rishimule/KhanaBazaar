@@ -56,8 +56,8 @@
   width: 2.4rem;
   height: 2.4rem;
   border-radius: 0.6rem;
-  background: var(--saffron-light-1, #FFEFE0);
-  color: var(--color-primary, #B8470F);
+  background: var(--leaf-green-light-1, #E9F6EC);
+  color: var(--color-primary, #0F6B06);
   flex-shrink: 0;
 }
 .headText {
@@ -90,7 +90,7 @@
 }
 .bannerSave {
   color: var(--mandarin-orange-base-4, #b45309);
-  background: var(--saffron-light-1, #FFEFE0);
+  background: var(--leaf-green-light-1, #E9F6EC);
 }
 .bannerIcon {
   flex-shrink: 0;
