@@ -629,7 +629,9 @@
         },
         "confirmPrompt": "We'll send a 6-digit code to:",
         "editPhone": "Change",
-        "changePhone": "Change number"
+        "changePhone": "Change number",
+        "resendCode": "Resend code",
+        "resendIn": "Resend code in {seconds}s"
       }
     },
     "preferences": {
@@ -1168,7 +1170,8 @@
         "invalidGst": "Enter a valid 15-character GST number (e.g., 27AAPFU0939F1ZV)",
         "invalidBankAccount": "Enter a valid bank account number (9–18 digits)",
         "invalidIfsc": "Enter a valid 11-character IFSC code (e.g., HDFC0001234)"
-      }
+      },
+      "resendIn": "Resend code in {seconds}s"
     },
     "pending": {
       "rejectedTitle": "Application not approved",

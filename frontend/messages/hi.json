@@ -629,7 +629,9 @@
         },
         "confirmPrompt": "हम 6-अंकीय कोड भेजेंगे:",
         "editPhone": "बदलें",
-        "changePhone": "नंबर बदलें"
+        "changePhone": "नंबर बदलें",
+        "resendCode": "कोड फिर भेजें",
+        "resendIn": "{seconds}s में कोड फिर भेजें"
       }
     },
     "preferences": {
@@ -1169,7 +1171,8 @@
         "invalidGst": "मान्य 15-अक्षरों का GST नंबर दर्ज करें (जैसे, 27AAPFU0939F1ZV)",
         "invalidBankAccount": "मान्य बैंक खाता संख्या दर्ज करें (9–18 अंक)",
         "invalidIfsc": "मान्य 11-अक्षरों का IFSC कोड दर्ज करें (जैसे, HDFC0001234)"
-      }
+      },
+      "resendIn": "{seconds}s में कोड फिर भेजें"
     },
     "pending": {
       "rejectedTitle": "आवेदन स्वीकृत नहीं हुआ",

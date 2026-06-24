@@ -629,7 +629,9 @@
         },
         "confirmPrompt": "आम्ही 6-अंकी कोड पाठवू:",
         "editPhone": "बदला",
-        "changePhone": "नंबर बदला"
+        "changePhone": "नंबर बदला",
+        "resendCode": "कोड पुन्हा पाठवा",
+        "resendIn": "{seconds}s मध्ये कोड पुन्हा पाठवा"
       }
     },
     "preferences": {
@@ -1169,7 +1171,8 @@
         "invalidGst": "वैध 15-अक्षरी GST क्रमांक टाका (उदा., 27AAPFU0939F1ZV)",
         "invalidBankAccount": "वैध बँक खाते क्रमांक टाका (9–18 अंक)",
         "invalidIfsc": "वैध 11-अक्षरी IFSC कोड टाका (उदा., HDFC0001234)"
-      }
+      },
+      "resendIn": "{seconds}s मध्ये कोड पुन्हा पाठवा"
     },
     "pending": {
       "rejectedTitle": "अर्ज मंजूर झाला नाही",
