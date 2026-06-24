@@ -45,20 +45,8 @@
   --leaf-green-dark-4:      #0A4D04; /* hover / pressed chrome */
   --leaf-green-dark-7:      #063302; /* deepest — footer bg */
 
-  /* Legacy Energy Blue / Flow Teal aliases — remap to warm so any rule that
-     still references them inherits saffron instead of cobalt/teal. */
-  --energy-blue-light-1:    var(--saffron-light-1);
-  --energy-blue-light-2:    var(--saffron-light-2);
-  --energy-blue-base-1:     var(--saffron-base-1);
+  /* Legacy alias still consumed by the "NEW" badge → saffron accent. */
   --energy-blue-base-4:     var(--saffron-base-4);
-  --energy-blue-dark-1:     var(--saffron-dark-1);
-  --energy-blue-dark-4:     var(--saffron-dark-1);
-  --energy-blue-dark-7:     var(--saffron-dark-7);
-  --flow-teal-light-1:      var(--turmeric-light-1);
-  --flow-teal-base-1:       var(--turmeric-base-1);
-  --flow-teal-base-4:       var(--turmeric-base-4);
-  --flow-teal-base-7:       var(--turmeric-base-7);
-  --flow-teal-dark-1:       var(--turmeric-dark-1);
 
   /* --------------------------------------------------------
      FOOD-THEMED ACCENTS
@@ -147,8 +135,6 @@
      GRADIENTS
      -------------------------------------------------------- */
   --gradient-brand-sweep:   linear-gradient(135deg, #0F6B06 0%, #138808 50%, #1B9E3E 100%);
-  --gradient-sale-sweep:    linear-gradient(90deg,  #ec4143 0%, #f43c7e 100%);
-  --gradient-member-sweep:  linear-gradient(135deg, #ffd600 0%, #ff5026 100%);
 
   /* --------------------------------------------------------
      TYPOGRAPHY — Poppins everywhere
@@ -183,10 +169,8 @@
   --font-lg:   1.125rem;  /* 18px */
   --font-xl:   1.25rem;   /* 20px */
   --font-2xl:  1.5rem;    /* 24px */
-  --font-3xl:  1.875rem;  /* 30px */
   --font-4xl:  2.25rem;   /* 36px */
   --font-5xl:  3rem;      /* 48px */
-  --font-6xl:  3.75rem;   /* 60px */
 
   /* Weights */
   --weight-regular:  400;
@@ -201,15 +185,7 @@
   --lh-body:         1.25;
 
   /* Legacy line-height + tracking aliases */
-  --leading-none:    1;
-  --leading-tight:   1.0;
-  --leading-snug:    1.25;
-  --leading-normal:  1.25;
   --leading-relaxed: 1.4;
-  --leading-loose:   1.6;
-  --tracking-tighter: -0.04em;
-  --tracking-tight:   -0.02em;
-  --tracking-normal:  0;
   --tracking-wide:    0.02em;
   --tracking-wider:   0.04em;
 
@@ -248,7 +224,6 @@
   --radius-md:   8px;
   --radius-lg:   10px;
   --radius-xl:   12px;
-  --radius-2xl:  16px;
   --radius-full: 100px;
 
   /* --------------------------------------------------------
@@ -262,14 +237,8 @@
   --shadow-toast:       1.5px 1.5px 5px rgba(0,0,0,0.15);
 
   /* Legacy shadow aliases — collapse to subtle, system stays flat */
-  --shadow-xs:  0 1px 2px rgba(0,0,0,0.04);
-  --shadow-sm:  0 1px 3px rgba(0,0,0,0.06);
   --shadow-md:  0 2px 6px rgba(0,0,0,0.08);
   --shadow-lg:  var(--shadow-search);
-  --shadow-xl:  var(--shadow-modal);
-  --shadow-2xl: var(--shadow-modal);
-  --shadow-glow-primary: none;
-  --shadow-glow-accent:  none;
 
   /* --------------------------------------------------------
      TRANSITIONS
@@ -309,13 +278,6 @@
   --container-2xl: 1600px;
   --container-3xl: 1920px;
 
-  --bp-xs:  0;
-  --bp-sm:  480px;
-  --bp-md:  768px;
-  --bp-lg:  1024px;
-  --bp-xl:  1280px;
-  --bp-2xl: 1440px;
-  --bp-3xl: 1920px;
 
   /* Sticky navbar height */
   --nav-height: 64px;
@@ -383,9 +345,6 @@
   --color-info:    var(--energy-blue-base-4);
 
   /* Legacy gradients — map to new warm sweeps */
-  --gradient-primary: var(--gradient-brand-sweep);
-  --gradient-accent:  linear-gradient(135deg, #F18A1F 0%, #E8611A 100%);
-  --gradient-hero:    var(--gradient-brand-sweep);
   --gradient-dark:    linear-gradient(135deg, #063302 0%, #0F6B06 100%);
 
   /* Even-older single-token names used by some account/order styles */
