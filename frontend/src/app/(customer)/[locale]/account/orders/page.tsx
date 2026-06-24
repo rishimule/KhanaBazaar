@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { type Column } from "@/components/DataTable";
+import Skeleton from "@/components/Skeleton";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
 import { listOrders } from "@/lib/orders";
@@ -205,7 +206,12 @@ export default function CustomerOrdersPage() {
       </div>
 
       {loading ? (
-        <div className={styles.empty}>{t("loading")}</div>
+        <div aria-busy="true" style={{ display: "grid", gap: "10px" }}>
+          <Skeleton height={64} radius="var(--radius-card)" />
+          <Skeleton height={64} radius="var(--radius-card)" />
+          <Skeleton height={64} radius="var(--radius-card)" />
+          <Skeleton height={64} radius="var(--radius-card)" />
+        </div>
       ) : (
         <>
           <div

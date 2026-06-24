@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { type Column } from "@/components/DataTable";
+import Skeleton from "@/components/Skeleton";
 import Pager from "@/components/Pager";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
@@ -29,7 +30,6 @@ const STATUS_FILTER_KEYS: Record<StatusFilter, string> = {
 
 export default function AdminOrdersPage() {
   const t = useTranslations("Admin.orders");
-  const tc = useTranslations("Admin.common");
   const { token } = useAuth();
   const router = useRouter();
 
@@ -198,7 +198,13 @@ export default function AdminOrdersPage() {
       </div>
 
       {loading ? (
-        <div className={styles.empty}>{tc("loading")}</div>
+        <div aria-busy="true" style={{ display: "grid", gap: "10px" }}>
+          <Skeleton height={56} radius="var(--radius-card)" />
+          <Skeleton height={56} radius="var(--radius-card)" />
+          <Skeleton height={56} radius="var(--radius-card)" />
+          <Skeleton height={56} radius="var(--radius-card)" />
+          <Skeleton height={56} radius="var(--radius-card)" />
+        </div>
       ) : (
         <>
           <div

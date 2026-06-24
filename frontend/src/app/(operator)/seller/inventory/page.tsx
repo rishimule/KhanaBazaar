@@ -8,6 +8,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { Column } from "@/components/DataTable";
 import Modal, { modalStyles } from "@/components/Modal";
+import Skeleton from "@/components/Skeleton";
 import { useAuth } from "@/lib/AuthContext";
 import { get, post, put, del } from "@/lib/api";
 import {
@@ -340,8 +341,11 @@ export default function SellerInventoryPage() {
 
   if (authLoading || fetching) {
     return (
-      <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
-        {tc("loading")}
+      <div style={{ padding: "2rem", display: "grid", gap: "12px" }} aria-busy="true">
+        <Skeleton height={32} width="40%" />
+        <Skeleton height={80} radius="var(--radius-card)" />
+        <Skeleton height={80} radius="var(--radius-card)" />
+        <Skeleton height={80} radius="var(--radius-card)" />
       </div>
     );
   }

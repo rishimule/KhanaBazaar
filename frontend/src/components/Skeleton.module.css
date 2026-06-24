@@ -1,0 +1,23 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--shade-cool-light-2) 25%,
+    var(--shade-cool-light-4) 37%,
+    var(--shade-cool-light-2) 63%
+  );
+  background-size: 400% 100%;
+  border-radius: var(--radius-md);
+  animation: kbShimmer 1.4s ease infinite;
+}
+@keyframes kbShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}

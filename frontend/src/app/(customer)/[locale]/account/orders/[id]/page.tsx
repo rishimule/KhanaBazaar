@@ -17,6 +17,7 @@ import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusBadge from "@/components/orders/PaymentStatusBadge";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
+import Skeleton from "@/components/Skeleton";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -44,7 +45,15 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
   }, [token, id, t, tErr]);
 
   if (error) return <div className={styles.error}>{error}</div>;
-  if (!order) return <div className={styles.loading}>{t("loading")}</div>;
+  if (!order)
+    return (
+      <div className={styles.page} aria-busy="true" style={{ display: "grid", gap: "12px" }}>
+        <Skeleton height={28} width="55%" />
+        <Skeleton height={16} width="35%" />
+        <Skeleton height={140} radius="var(--radius-card)" />
+        <Skeleton height={220} radius="var(--radius-card)" />
+      </div>
+    );
 
   return (
     <div className={styles.page}>

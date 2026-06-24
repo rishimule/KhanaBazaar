@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import type { OrderListResponse } from "@/types";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
+import Skeleton from "@/components/Skeleton";
 import styles from "./RecentOrders.module.css";
 
 type Tab = "all" | "active" | "delivered" | "cancelled";
@@ -120,7 +121,11 @@ export default function RecentOrders() {
       {error ? (
         <div className={styles.empty}>Couldn&apos;t load orders.</div>
       ) : loading ? (
-        <div className={styles.empty}>Loading…</div>
+        <div aria-busy="true" style={{ display: "grid", gap: "8px" }}>
+          <Skeleton height={40} radius="var(--radius-md)" />
+          <Skeleton height={40} radius="var(--radius-md)" />
+          <Skeleton height={40} radius="var(--radius-md)" />
+        </div>
       ) : orders.length === 0 ? (
         <div className={styles.empty}>No orders in the last 7 days.</div>
       ) : (
