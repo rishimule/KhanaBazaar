@@ -528,7 +528,6 @@
     "dashboardTitle": "ਮੇਰਾ ਖਾਤਾ",
     "orders": {
       "title": "ਤੁਹਾਡੇ ਆਰਡਰ",
-      "placedToast": "{count, plural, one {# ਆਰਡਰ} other {# ਆਰਡਰ}} ਸਫਲਤਾਪੂਰਵਕ ਦਿੱਤੇ ਗਏ.",
       "tabActive": "ਸਰਗਰਮ",
       "tabHistory": "ਇਤਿਹਾਸ",
       "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
@@ -1714,7 +1713,6 @@
     "subtitle": "ਧੰਨਵਾਦ — ਤੁਹਾਡਾ ਆਰਡਰ ਪੱਕਾ ਹੋ ਗਿਆ ਹੈ।",
     "orderNumber": "ਆਰਡਰ #{id}",
     "estimatedDelivery": "ਅਨੁਮਾਨਿਤ ਡਿਲਿਵਰੀ",
-    "total": "ਕੁੱਲ",
     "itemsCount": "{count, plural, one {# ਵਸਤੂ} other {# ਵਸਤੂਆਂ}}",
     "trackOrder": "ਆਰਡਰ ਟਰੈਕ ਕਰੋ",
     "continueShopping": "ਖਰੀਦਾਰੀ ਜਾਰੀ ਰੱਖੋ",

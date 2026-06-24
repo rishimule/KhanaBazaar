@@ -528,7 +528,6 @@
     "dashboardTitle": "મારું ખાતું",
     "orders": {
       "title": "તમારા ઓર્ડર",
-      "placedToast": "{count, plural, one {# ઓર્ડર} other {# ઓર્ડર}} સફળતાપૂર્વક આપવામાં આવ્યા.",
       "tabActive": "સક્રિય",
       "tabHistory": "ઇતિહાસ",
       "loading": "લોડ થઈ રહ્યું છે…",
@@ -1714,7 +1713,6 @@
     "subtitle": "આભાર — તમારો ઓર્ડર કન્ફર્મ થઈ ગયો છે.",
     "orderNumber": "ઓર્ડર #{id}",
     "estimatedDelivery": "અંદાજિત ડિલિવરી",
-    "total": "કુલ",
     "itemsCount": "{count, plural, one {# વસ્તુ} other {# વસ્તુઓ}}",
     "trackOrder": "ઓર્ડર ટ્રૅક કરો",
     "continueShopping": "ખરીદી ચાલુ રાખો",

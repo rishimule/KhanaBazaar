@@ -13,7 +13,7 @@ import styles from "./page.module.css";
 
 export default function OrderConfirmedPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { token } = useAuth();
+  const { token, loading: authLoading } = useAuth();
   const t = useTranslations("OrderConfirmed");
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState(false);
@@ -23,8 +23,12 @@ export default function OrderConfirmedPage({ params }: { params: Promise<{ id: s
     getOrder(token, Number(id)).then(setOrder).catch(() => setError(true));
   }, [token, id]);
 
-  if (error) return <div className={styles.state} role="alert">{t("loadError")}</div>;
-  if (!order) return <div className={styles.state}>{t("loading")}</div>;
+  // No session once auth has settled (guest / expired / logged out elsewhere):
+  // show the error instead of an infinite spinner.
+  if (error || (!authLoading && !token))
+    return <div className={styles.state} role="alert">{t("loadError")}</div>;
+  if (!order)
+    return <div className={styles.state} role="status" aria-busy="true">{t("loading")}</div>;
 
   const itemCount = order.items.reduce((n, it) => n + it.quantity, 0);
 

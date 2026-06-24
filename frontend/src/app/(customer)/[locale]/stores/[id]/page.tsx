@@ -554,7 +554,7 @@ function CategorySection({
 
       {shownCount > 0 ? (
         <div className={styles.productsGrid}>
-          {visibleSubs.flatMap((sub) =>
+          {visibleSubs.flatMap((sub, subIndex) =>
             sub.items.map((item, index) => {
               // ProductCard was written against `InventoryWithProduct`
               // (flat catalog era). Adapt the storefront tree node to
@@ -591,7 +591,7 @@ function CategorySection({
                   serviceId={service.id}
                   serviceName={service.name}
                   disabledByPause={disabledByPause}
-                  priority={index < 4}
+                  priority={subIndex === 0 && index < 4}
                 />
               );
             }),

@@ -528,7 +528,6 @@
     "dashboardTitle": "My account",
     "orders": {
       "title": "Your orders",
-      "placedToast": "{count, plural, one {# order} other {# orders}} placed successfully.",
       "tabActive": "Active",
       "tabHistory": "History",
       "loading": "Loading…",
@@ -1713,7 +1712,6 @@
     "subtitle": "Thanks — your order is confirmed.",
     "orderNumber": "Order #{id}",
     "estimatedDelivery": "Estimated delivery",
-    "total": "Total",
     "itemsCount": "{count, plural, one {# item} other {# items}}",
     "trackOrder": "Track order",
     "continueShopping": "Continue shopping",
