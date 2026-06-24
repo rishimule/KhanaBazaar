@@ -1705,5 +1705,17 @@
     "privacyTitle": "ਗੋਪਨੀਯਤਾ ਨੀਤੀ",
     "termsTitle": "ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ",
     "comingSoon": "ਇਹ ਪੰਨਾ ਜਲਦੀ ਆ ਰਿਹਾ ਹੈ — ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਦੇਖੋ।"
+  },
+  "OrderConfirmed": {
+    "title": "ਆਰਡਰ ਹੋ ਗਿਆ!",
+    "subtitle": "ਧੰਨਵਾਦ — ਤੁਹਾਡਾ ਆਰਡਰ ਪੱਕਾ ਹੋ ਗਿਆ ਹੈ।",
+    "orderNumber": "ਆਰਡਰ #{id}",
+    "estimatedDelivery": "ਅਨੁਮਾਨਿਤ ਡਿਲਿਵਰੀ",
+    "total": "ਕੁੱਲ",
+    "itemsCount": "{count, plural, one {# ਵਸਤੂ} other {# ਵਸਤੂਆਂ}}",
+    "trackOrder": "ਆਰਡਰ ਟਰੈਕ ਕਰੋ",
+    "continueShopping": "ਖਰੀਦਾਰੀ ਜਾਰੀ ਰੱਖੋ",
+    "loading": "ਤੁਹਾਡਾ ਆਰਡਰ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+    "loadError": "ਇਹ ਆਰਡਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਆਪਣੀ ਆਰਡਰ ਸੂਚੀ ਵੇਖੋ।"
   }
 }

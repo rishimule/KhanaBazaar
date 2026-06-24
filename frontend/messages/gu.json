@@ -1705,5 +1705,17 @@
     "privacyTitle": "ગોપનીયતા નીતિ",
     "termsTitle": "સેવાની શરતો",
     "comingSoon": "આ પેજ ટૂંક સમયમાં આવી રહ્યું છે — થોડી વારે ફરી તપાસો."
+  },
+  "OrderConfirmed": {
+    "title": "ઓર્ડર થઈ ગયો!",
+    "subtitle": "આભાર — તમારો ઓર્ડર કન્ફર્મ થઈ ગયો છે.",
+    "orderNumber": "ઓર્ડર #{id}",
+    "estimatedDelivery": "અંદાજિત ડિલિવરી",
+    "total": "કુલ",
+    "itemsCount": "{count, plural, one {# વસ્તુ} other {# વસ્તુઓ}}",
+    "trackOrder": "ઓર્ડર ટ્રૅક કરો",
+    "continueShopping": "ખરીદી ચાલુ રાખો",
+    "loading": "તમારો ઓર્ડર લોડ થઈ રહ્યો છે…",
+    "loadError": "આ ઓર્ડર લોડ થઈ શક્યો નથી. તમારી ઓર્ડર યાદી તપાસો."
   }
 }

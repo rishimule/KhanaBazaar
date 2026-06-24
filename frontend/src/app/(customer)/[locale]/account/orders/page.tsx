@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { type Column } from "@/components/DataTable";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
@@ -22,8 +22,6 @@ export default function CustomerOrdersPage() {
   const { token } = useAuth();
   const t = useTranslations("Account.orders");
   const router = useRouter();
-  const search = useSearchParams();
-  const justPlaced = search.get("placed");
 
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -138,11 +136,6 @@ export default function CustomerOrdersPage() {
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>{t("title")}</h1>
-      {justPlaced && (
-        <div className={styles.toast}>
-          {t("placedToast", { count: Number(justPlaced) })}
-        </div>
-      )}
 
       <div className={styles.controls}>
         <div className={styles.chips} role="tablist">

@@ -1705,5 +1705,17 @@
     "privacyTitle": "गोपनीयता धोरण",
     "termsTitle": "सेवा अटी",
     "comingSoon": "हे पान लवकरच येत आहे — कृपया नंतर पुन्हा पहा."
+  },
+  "OrderConfirmed": {
+    "title": "ऑर्डर झाली!",
+    "subtitle": "धन्यवाद — तुमची ऑर्डर निश्चित झाली आहे.",
+    "orderNumber": "ऑर्डर #{id}",
+    "estimatedDelivery": "अंदाजे वितरण",
+    "total": "एकूण",
+    "itemsCount": "{count, plural, one {# वस्तू} other {# वस्तू}}",
+    "trackOrder": "ऑर्डर ट्रॅक करा",
+    "continueShopping": "खरेदी सुरू ठेवा",
+    "loading": "तुमची ऑर्डर लोड होत आहे…",
+    "loadError": "ही ऑर्डर लोड होऊ शकली नाही. तुमची ऑर्डर यादी पहा."
   }
 }

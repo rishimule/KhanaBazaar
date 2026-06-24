@@ -1,0 +1,82 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.wrap {
+  max-width: var(--container-xs);
+  margin-inline: auto;
+  padding: var(--space-16) var(--space-4);
+  text-align: center;
+}
+.state {
+  padding: var(--space-16) var(--space-4);
+  text-align: center;
+  color: var(--color-text);
+}
+.check {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--space-4);
+  border-radius: 50%;
+  background: var(--leaf-green-light-1);
+  color: var(--color-primary-1);
+  font-size: 34px;
+  font-weight: var(--weight-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.title {
+  font-size: var(--display-xl);
+  letter-spacing: var(--display-xl-track);
+}
+.subtitle {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+}
+.card {
+  margin-top: var(--space-6);
+  text-align: left;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+  background: var(--color-surface);
+}
+.orderNo {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-strong);
+}
+.store {
+  color: var(--color-text-muted);
+  font-size: var(--body-sm);
+  margin-top: 2px;
+}
+.requested {
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--body-sm);
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: var(--space-3);
+  color: var(--color-text);
+}
+.total {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+@media (min-width: 480px) {
+  .actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+}

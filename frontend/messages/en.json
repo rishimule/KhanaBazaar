@@ -1704,5 +1704,17 @@
     "privacyTitle": "Privacy Policy",
     "termsTitle": "Terms of Service",
     "comingSoon": "This page is on its way — check back soon."
+  },
+  "OrderConfirmed": {
+    "title": "Order placed!",
+    "subtitle": "Thanks — your order is confirmed.",
+    "orderNumber": "Order #{id}",
+    "estimatedDelivery": "Estimated delivery",
+    "total": "Total",
+    "itemsCount": "{count, plural, one {# item} other {# items}}",
+    "trackOrder": "Track order",
+    "continueShopping": "Continue shopping",
+    "loading": "Loading your order…",
+    "loadError": "Couldn't load this order. Check your orders list."
   }
 }
