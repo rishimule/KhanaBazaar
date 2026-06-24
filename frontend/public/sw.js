@@ -3,7 +3,7 @@
 // Khana Bazaar — Service Worker
 // Provides offline-capable PWA shell caching.
 
-const CACHE_NAME = "khanabazaar-v3";
+const CACHE_NAME = "khanabazaar-v4";
 const SHELL_ASSETS = [
   "/",
   "/manifest.json",
@@ -56,9 +56,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Static assets: stale-while-revalidate — serve the cached copy instantly,
+  // then refresh it in the background so a deploy's new assets are picked up
+  // without a manual cache-name bump (avoids serving stale chunks indefinitely).
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.match(request).then((cached) => {
+        const network = fetch(request)
+          .then((response) => {
+            if (response && response.status === 200 && response.type === "basic") {
+              cache.put(request, response.clone());
+            }
+            return response;
+          })
+          .catch(() => cached);
+        return cached || network;
+      })
+    )
   );
 });
 
