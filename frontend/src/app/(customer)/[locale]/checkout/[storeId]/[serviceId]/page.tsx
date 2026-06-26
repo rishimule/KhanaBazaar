@@ -140,7 +140,7 @@ export default function CheckoutPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await placeOrder(token, {
+      const placedOrder = await placeOrder(token, {
         customerAddressId: addressId,
         storeId,
         serviceId,
@@ -157,7 +157,7 @@ export default function CheckoutPage() {
       } catch {
         /* non-fatal */
       }
-      router.push("/account/orders?placed=1");
+      router.push(`/order-confirmed/${placedOrder.id}`);
     } catch (e) {
       // The pause 409 carries a structured dict detail, so it must be
       // matched before apiErrorKey() (which maps every 409 to "conflict").

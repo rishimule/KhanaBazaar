@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { apiErrorKey } from "@/lib/errors";
+import { useResendCountdown } from "@/lib/useResendCountdown";
 import { User } from "@/types";
 import styles from "./page.module.css";
 
@@ -47,21 +48,12 @@ function LoginPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
-  const [resendIn, setResendIn] = useState(0);
+  const { secondsLeft: resendIn, start: startResend } = useResendCountdown(RESEND_COOLDOWN_SECONDS);
 
   useEffect(() => {
     if (!dbUser) return;
     router.push(resolveTarget(dbUser, nextParam));
   }, [dbUser, router, nextParam]);
-
-  useEffect(() => {
-    if (step !== "code") return;
-    if (resendIn <= 0) return;
-    const timer = window.setInterval(() => {
-      setResendIn((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [step, resendIn]);
 
   if (dbUser) {
     return null;
@@ -74,7 +66,7 @@ function LoginPageInner() {
     try {
       await requestOtp(email);
       setStep("code");
-      setResendIn(RESEND_COOLDOWN_SECONDS);
+      startResend();
     } catch (err) {
       const key = apiErrorKey(err);
       if (key) {
@@ -94,7 +86,7 @@ function LoginPageInner() {
     try {
       await requestOtp(email);
       setCode("");
-      setResendIn(RESEND_COOLDOWN_SECONDS);
+      startResend();
     } catch (err) {
       const key = apiErrorKey(err);
       if (key) {
@@ -248,7 +240,6 @@ function LoginPageInner() {
                 setStep("email");
                 setCode("");
                 setError(null);
-                setResendIn(0);
               }}
             >
               {t("useDifferentEmail")}

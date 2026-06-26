@@ -528,7 +528,6 @@
     "dashboardTitle": "माझे खाते",
     "orders": {
       "title": "तुमच्या ऑर्डर",
-      "placedToast": "{count, plural, one {# ऑर्डर} other {# ऑर्डर}} यशस्वीपणे दिल्या.",
       "tabActive": "सक्रिय",
       "tabHistory": "इतिहास",
       "loading": "लोड होत आहे…",
@@ -629,7 +628,9 @@
         },
         "confirmPrompt": "आम्ही 6-अंकी कोड पाठवू:",
         "editPhone": "बदला",
-        "changePhone": "नंबर बदला"
+        "changePhone": "नंबर बदला",
+        "resendCode": "कोड पुन्हा पाठवा",
+        "resendIn": "{seconds}s मध्ये कोड पुन्हा पाठवा"
       }
     },
     "preferences": {
@@ -1169,7 +1170,8 @@
         "invalidGst": "वैध 15-अक्षरी GST क्रमांक टाका (उदा., 27AAPFU0939F1ZV)",
         "invalidBankAccount": "वैध बँक खाते क्रमांक टाका (9–18 अंक)",
         "invalidIfsc": "वैध 11-अक्षरी IFSC कोड टाका (उदा., HDFC0001234)"
-      }
+      },
+      "resendIn": "{seconds}s मध्ये कोड पुन्हा पाठवा"
     },
     "pending": {
       "rejectedTitle": "अर्ज मंजूर झाला नाही",
@@ -1705,5 +1707,16 @@
     "privacyTitle": "गोपनीयता धोरण",
     "termsTitle": "सेवा अटी",
     "comingSoon": "हे पान लवकरच येत आहे — कृपया नंतर पुन्हा पहा."
+  },
+  "OrderConfirmed": {
+    "title": "ऑर्डर झाली!",
+    "subtitle": "धन्यवाद — तुमची ऑर्डर निश्चित झाली आहे.",
+    "orderNumber": "ऑर्डर #{id}",
+    "estimatedDelivery": "अंदाजे वितरण",
+    "itemsCount": "{count, plural, one {# वस्तू} other {# वस्तू}}",
+    "trackOrder": "ऑर्डर ट्रॅक करा",
+    "continueShopping": "खरेदी सुरू ठेवा",
+    "loading": "तुमची ऑर्डर लोड होत आहे…",
+    "loadError": "ही ऑर्डर लोड होऊ शकली नाही. तुमची ऑर्डर यादी पहा."
   }
 }

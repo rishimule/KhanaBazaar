@@ -104,3 +104,9 @@
   justify-content: space-between;
   gap: 12px;
 }
+
+.resendRow {
+  margin-top: 12px;
+  text-align: center;
+  font-size: var(--body-sm);
+}

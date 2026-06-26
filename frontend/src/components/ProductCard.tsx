@@ -19,6 +19,9 @@ interface Props {
   serviceName: string;
   /** When the store or this service is paused, ordering is disabled. */
   disabledByPause?: boolean;
+  /** Set for the first above-the-fold cards so their image loads eagerly with
+   *  high fetch priority (LCP). Default false → lazy. */
+  priority?: boolean;
 }
 
 const CATEGORY_EMOJI: Record<number, string> = {
@@ -44,7 +47,7 @@ function HeartIcon({ filled }: { filled: boolean }) {
 }
 
 export default function ProductCard({
-  item, storeId, storeName, serviceId, serviceName, disabledByPause = false,
+  item, storeId, storeName, serviceId, serviceName, disabledByPause = false, priority = false,
 }: Props) {
   const t = useTranslations("Product");
   const locale = useLocale();
@@ -108,7 +111,8 @@ export default function ProductCard({
             <img
               src={product.image_url}
               alt={product.name}
-              loading="lazy"
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : "auto"}
               decoding="async"
               referrerPolicy="no-referrer"
               onError={() => setImgFailed(true)}

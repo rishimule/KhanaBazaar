@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import { post } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { useResendCountdown } from "@/lib/useResendCountdown";
 import type { CustomerProfile } from "@/types";
 import styles from "./PhoneVerifyModal.module.css";
 
@@ -54,6 +55,7 @@ export default function PhoneVerifyModal({
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const resend = useResendCountdown();
 
   const errorKey = (e: unknown): string => {
     const detail = (e as { detail?: { error?: string } }).detail;
@@ -67,6 +69,7 @@ export default function PhoneVerifyModal({
     try {
       await post("/api/v1/customers/me/phone/otp/request", { phone }, token);
       setStep("code");
+      resend.start();
     } catch (e) {
       setError(t(`error.${errorKey(e)}`));
     } finally {
@@ -188,6 +191,20 @@ export default function PhoneVerifyModal({
             >
               {t("verify")}
             </button>
+          </div>
+          <div className={styles.resendRow}>
+            {resend.active ? (
+              <span className={styles.muted}>{t("resendIn", { seconds: resend.secondsLeft })}</span>
+            ) : (
+              <button
+                type="button"
+                className={styles.linkBtn}
+                onClick={requestOtp}
+                disabled={busy}
+              >
+                {t("resendCode")}
+              </button>
+            )}
           </div>
           {error && <div className={styles.error}>{error}</div>}
         </div>

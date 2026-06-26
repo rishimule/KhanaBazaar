@@ -2,9 +2,10 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { type Column } from "@/components/DataTable";
+import Skeleton from "@/components/Skeleton";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
 import { listOrders } from "@/lib/orders";
@@ -22,8 +23,6 @@ export default function CustomerOrdersPage() {
   const { token } = useAuth();
   const t = useTranslations("Account.orders");
   const router = useRouter();
-  const search = useSearchParams();
-  const justPlaced = search.get("placed");
 
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -138,11 +137,6 @@ export default function CustomerOrdersPage() {
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>{t("title")}</h1>
-      {justPlaced && (
-        <div className={styles.toast}>
-          {t("placedToast", { count: Number(justPlaced) })}
-        </div>
-      )}
 
       <div className={styles.controls}>
         <div className={styles.chips} role="tablist">
@@ -212,7 +206,12 @@ export default function CustomerOrdersPage() {
       </div>
 
       {loading ? (
-        <div className={styles.empty}>{t("loading")}</div>
+        <div aria-busy="true" style={{ display: "grid", gap: "10px" }}>
+          <Skeleton height={64} radius="var(--radius-card)" />
+          <Skeleton height={64} radius="var(--radius-card)" />
+          <Skeleton height={64} radius="var(--radius-card)" />
+          <Skeleton height={64} radius="var(--radius-card)" />
+        </div>
       ) : (
         <>
           <div

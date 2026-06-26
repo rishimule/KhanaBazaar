@@ -528,7 +528,6 @@
     "dashboardTitle": "ਮੇਰਾ ਖਾਤਾ",
     "orders": {
       "title": "ਤੁਹਾਡੇ ਆਰਡਰ",
-      "placedToast": "{count, plural, one {# ਆਰਡਰ} other {# ਆਰਡਰ}} ਸਫਲਤਾਪੂਰਵਕ ਦਿੱਤੇ ਗਏ.",
       "tabActive": "ਸਰਗਰਮ",
       "tabHistory": "ਇਤਿਹਾਸ",
       "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
@@ -629,7 +628,9 @@
         },
         "confirmPrompt": "ਅਸੀਂ 6-ਅੰਕੀ ਕੋਡ ਭੇਜਾਂਗੇ:",
         "editPhone": "ਬਦਲੋ",
-        "changePhone": "ਨੰਬਰ ਬਦਲੋ"
+        "changePhone": "ਨੰਬਰ ਬਦਲੋ",
+        "resendCode": "ਕੋਡ ਮੁੜ ਭੇਜੋ",
+        "resendIn": "{seconds}s ਵਿੱਚ ਕੋਡ ਮੁੜ ਭੇਜੋ"
       }
     },
     "preferences": {
@@ -1169,7 +1170,8 @@
         "invalidGst": "ਵੈਧ 15-ਅੱਖਰ ਦਾ GST ਨੰਬਰ ਦਰਜ ਕਰੋ (ਜਿਵੇਂ, 27AAPFU0939F1ZV)",
         "invalidBankAccount": "ਵੈਧ ਬੈਂਕ ਖਾਤਾ ਨੰਬਰ ਦਰਜ ਕਰੋ (9–18 ਅੰਕ)",
         "invalidIfsc": "ਵੈਧ 11-ਅੱਖਰ ਦਾ IFSC ਕੋਡ ਦਰਜ ਕਰੋ (ਜਿਵੇਂ, HDFC0001234)"
-      }
+      },
+      "resendIn": "{seconds}s ਵਿੱਚ ਕੋਡ ਮੁੜ ਭੇਜੋ"
     },
     "pending": {
       "rejectedTitle": "ਅਰਜ਼ੀ ਮਨਜ਼ੂਰ ਨਹੀਂ ਹੋਈ",
@@ -1705,5 +1707,16 @@
     "privacyTitle": "ਗੋਪਨੀਯਤਾ ਨੀਤੀ",
     "termsTitle": "ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ",
     "comingSoon": "ਇਹ ਪੰਨਾ ਜਲਦੀ ਆ ਰਿਹਾ ਹੈ — ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਦੇਖੋ।"
+  },
+  "OrderConfirmed": {
+    "title": "ਆਰਡਰ ਹੋ ਗਿਆ!",
+    "subtitle": "ਧੰਨਵਾਦ — ਤੁਹਾਡਾ ਆਰਡਰ ਪੱਕਾ ਹੋ ਗਿਆ ਹੈ।",
+    "orderNumber": "ਆਰਡਰ #{id}",
+    "estimatedDelivery": "ਅਨੁਮਾਨਿਤ ਡਿਲਿਵਰੀ",
+    "itemsCount": "{count, plural, one {# ਵਸਤੂ} other {# ਵਸਤੂਆਂ}}",
+    "trackOrder": "ਆਰਡਰ ਟਰੈਕ ਕਰੋ",
+    "continueShopping": "ਖਰੀਦਾਰੀ ਜਾਰੀ ਰੱਖੋ",
+    "loading": "ਤੁਹਾਡਾ ਆਰਡਰ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+    "loadError": "ਇਹ ਆਰਡਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਆਪਣੀ ਆਰਡਰ ਸੂਚੀ ਵੇਖੋ।"
   }
 }

@@ -528,7 +528,6 @@
     "dashboardTitle": "મારું ખાતું",
     "orders": {
       "title": "તમારા ઓર્ડર",
-      "placedToast": "{count, plural, one {# ઓર્ડર} other {# ઓર્ડર}} સફળતાપૂર્વક આપવામાં આવ્યા.",
       "tabActive": "સક્રિય",
       "tabHistory": "ઇતિહાસ",
       "loading": "લોડ થઈ રહ્યું છે…",
@@ -629,7 +628,9 @@
         },
         "confirmPrompt": "અમે 6-અંકનો કોડ મોકલીશું:",
         "editPhone": "બદલો",
-        "changePhone": "નંબર બદલો"
+        "changePhone": "નંબર બદલો",
+        "resendCode": "કોડ ફરી મોકલો",
+        "resendIn": "{seconds}s માં કોડ ફરી મોકલો"
       }
     },
     "preferences": {
@@ -1169,7 +1170,8 @@
         "invalidGst": "માન્ય 15-અક્ષરનો GST નંબર દાખલ કરો (દા.ત., 27AAPFU0939F1ZV)",
         "invalidBankAccount": "માન્ય બેંક ખાતા નંબર દાખલ કરો (9–18 અંક)",
         "invalidIfsc": "માન્ય 11-અક્ષરનો IFSC કોડ દાખલ કરો (દા.ત., HDFC0001234)"
-      }
+      },
+      "resendIn": "{seconds}s માં કોડ ફરી મોકલો"
     },
     "pending": {
       "rejectedTitle": "અરજી મંજૂર થઈ નથી",
@@ -1705,5 +1707,16 @@
     "privacyTitle": "ગોપનીયતા નીતિ",
     "termsTitle": "સેવાની શરતો",
     "comingSoon": "આ પેજ ટૂંક સમયમાં આવી રહ્યું છે — થોડી વારે ફરી તપાસો."
+  },
+  "OrderConfirmed": {
+    "title": "ઓર્ડર થઈ ગયો!",
+    "subtitle": "આભાર — તમારો ઓર્ડર કન્ફર્મ થઈ ગયો છે.",
+    "orderNumber": "ઓર્ડર #{id}",
+    "estimatedDelivery": "અંદાજિત ડિલિવરી",
+    "itemsCount": "{count, plural, one {# વસ્તુ} other {# વસ્તુઓ}}",
+    "trackOrder": "ઓર્ડર ટ્રૅક કરો",
+    "continueShopping": "ખરીદી ચાલુ રાખો",
+    "loading": "તમારો ઓર્ડર લોડ થઈ રહ્યો છે…",
+    "loadError": "આ ઓર્ડર લોડ થઈ શક્યો નથી. તમારી ઓર્ડર યાદી તપાસો."
   }
 }

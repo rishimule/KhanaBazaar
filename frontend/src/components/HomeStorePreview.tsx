@@ -150,7 +150,7 @@ export function HomeStorePreview({ candidates }: { candidates: PreviewCandidate[
       )}
 
       <ScrollRail ariaLabel={t("previewTitle")}>
-        {items.map((item) => (
+        {items.map((item, idx) => (
           <div key={item.id} className={styles.railItem}>
             <ProductCard
               item={item}
@@ -159,6 +159,7 @@ export function HomeStorePreview({ candidates }: { candidates: PreviewCandidate[
               serviceId={service.id}
               serviceName={service.name}
               disabledByPause={disabledByPause}
+              priority={idx < 4}
             />
           </div>
         ))}

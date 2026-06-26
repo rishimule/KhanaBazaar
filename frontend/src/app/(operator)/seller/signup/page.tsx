@@ -6,6 +6,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
+import { useResendCountdown } from "@/lib/useResendCountdown";
 import { ApiError, get, patch, post } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
@@ -75,6 +76,8 @@ function SellerSignupPageInner() {
   const searchParams = useSearchParams();
   const isResubmit = searchParams.get("resubmit") === "true";
   const { token, dbUser, logout } = useAuth();
+  const emailResend = useResendCountdown();
+  const phoneResend = useResendCountdown();
 
   /* ---- wizard data state ---- */
   const [currentStep, setCurrentStep] = useState(1);
@@ -188,7 +191,10 @@ function SellerSignupPageInner() {
     setSubmitting(true);
     const ok = await sendOtpRequest();
     setSubmitting(false);
-    if (ok) setCurrentStep(2);
+    if (ok) {
+      setCurrentStep(2);
+      emailResend.start();
+    }
   };
 
   const handleResendOtp = async () => {
@@ -196,7 +202,10 @@ function SellerSignupPageInner() {
     setSubmitting(true);
     const ok = await sendOtpRequest();
     setSubmitting(false);
-    if (ok) setToast({ message: t("toast.codeResentInbox"), type: "success" });
+    if (ok) {
+      setToast({ message: t("toast.codeResentInbox"), type: "success" });
+      emailResend.start();
+    }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -289,12 +298,18 @@ function SellerSignupPageInner() {
       return;
     }
     const ok = await handleSendPhoneCode();
-    if (ok) setCurrentStep(4);
+    if (ok) {
+      setCurrentStep(4);
+      phoneResend.start();
+    }
   };
 
   const handleResendPhoneCode = async () => {
     const ok = await handleSendPhoneCode();
-    if (ok) setToast({ message: t("toast.codeResentPhone"), type: "success" });
+    if (ok) {
+      setToast({ message: t("toast.codeResentPhone"), type: "success" });
+      phoneResend.start();
+    }
   };
 
   const handleVerifyPhoneCode = async (e: React.FormEvent) => {
@@ -562,15 +577,21 @@ function SellerSignupPageInner() {
               {submitting ? t("verifying") : t("verifyCode")}
             </button>
             <div className={styles.resendRow}>
-              <span>{t("didntReceive")}</span>
-              <button
-                type="button"
-                className={styles.resendBtn}
-                onClick={handleResendOtp}
-                disabled={submitting}
-              >
-                {t("resendCode")}
-              </button>
+              {emailResend.active ? (
+                <span>{t("resendIn", { seconds: emailResend.secondsLeft })}</span>
+              ) : (
+                <>
+                  <span>{t("didntReceive")}</span>
+                  <button
+                    type="button"
+                    className={styles.resendBtn}
+                    onClick={handleResendOtp}
+                    disabled={submitting}
+                  >
+                    {t("resendCode")}
+                  </button>
+                </>
+              )}
             </div>
           </form>
         )}
@@ -699,15 +720,21 @@ function SellerSignupPageInner() {
               </button>
             </div>
             <div className={styles.resendRow}>
-              <span>{t("didntReceive")}</span>
-              <button
-                type="button"
-                className={styles.resendBtn}
-                onClick={handleResendPhoneCode}
-                disabled={submitting}
-              >
-                {t("resendCode")}
-              </button>
+              {phoneResend.active ? (
+                <span>{t("resendIn", { seconds: phoneResend.secondsLeft })}</span>
+              ) : (
+                <>
+                  <span>{t("didntReceive")}</span>
+                  <button
+                    type="button"
+                    className={styles.resendBtn}
+                    onClick={handleResendPhoneCode}
+                    disabled={submitting}
+                  >
+                    {t("resendCode")}
+                  </button>
+                </>
+              )}
             </div>
           </form>
         )}
