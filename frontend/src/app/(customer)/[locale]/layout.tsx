@@ -3,7 +3,7 @@
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages, setRequestLocale } from "next-intl/server";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import "@/app/globals.css";
@@ -82,6 +82,7 @@ export default async function CustomerLayout({
   }
   setRequestLocale(locale);
   const messages = await getMessages();
+  const tShared = await getTranslations("Shared");
 
   return (
     <html lang={locale} className={poppins.variable}>
@@ -91,6 +92,7 @@ export default async function CustomerLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="kb-customer-root">
+        <a href="#main" className="skip-link">{tShared("skipToContent")}</a>
         <RouteProgressProvider>
           <NextIntlClientProvider messages={messages}>
             <AuthProvider>
@@ -105,7 +107,7 @@ export default async function CustomerLayout({
                             <Navbar />
                           </SearchOverlayProvider>
                           <CartSyncBanner />
-                          <main>{children}</main>
+                          <main id="main">{children}</main>
                           <FooterGate />
                         </NotificationProvider>
                       </PWAInstallProvider>

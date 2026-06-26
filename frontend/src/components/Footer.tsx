@@ -32,12 +32,18 @@ export default function Footer() {
 
         <div className={styles.footerColumn}>
           <span className={styles.footerColumnTitle}>{t("company")}</span>
-          <span className={styles.footerLink}>{t("aboutUs")}</span>
+          <Link href="/about" className={styles.footerLink}>
+            {t("aboutUs")}
+          </Link>
           <Link href="/sell" className={styles.footerLink}>
             {t("forSellers")}
           </Link>
-          <span className={styles.footerLink}>{t("privacy")}</span>
-          <span className={styles.footerLink}>{t("terms")}</span>
+          <Link href="/privacy" className={styles.footerLink}>
+            {t("privacy")}
+          </Link>
+          <Link href="/terms" className={styles.footerLink}>
+            {t("terms")}
+          </Link>
         </div>
       </div>
 

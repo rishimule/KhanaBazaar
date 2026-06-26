@@ -1,7 +1,7 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -22,6 +22,7 @@ export default function ProductDetail({ data, variant }: Props) {
   const { carts, addItem, removeItem, updateQty } = useCart();
   const { dbUser } = useAuth();
   const { isFavorite, toggle: toggleFav } = useFavorites();
+  const [addError, setAddError] = useState(false);
 
   const { store, service, inventory } = data;
   const { product, price, stock, is_available: isAvailable } = inventory;
@@ -59,15 +60,21 @@ export default function ProductDetail({ data, variant }: Props) {
       ? styles.lowStock
       : styles.inStock;
 
-  const handleAdd = () => {
-    addItem(store.id, store.name, service.id, service.name, {
-      product_id: product.id,
-      inventory_id: inventory.id,
-      product_name: product.name,
-      quantity: 1,
-      price,
-      image_url: product.image_url,
-    });
+  const handleAdd = async () => {
+    setAddError(false);
+    try {
+      await addItem(store.id, store.name, service.id, service.name, {
+        product_id: product.id,
+        inventory_id: inventory.id,
+        product_name: product.name,
+        quantity: 1,
+        price,
+        image_url: product.image_url,
+      });
+    } catch {
+      setAddError(true);
+      setTimeout(() => setAddError(false), 3000);
+    }
   };
 
   return (
@@ -110,7 +117,7 @@ export default function ProductDetail({ data, variant }: Props) {
             {qty === 0 ? (
               <button
                 className={styles.addBtn}
-                onClick={handleAdd}
+                onClick={() => void handleAdd()}
                 disabled={!canBuy}
                 aria-label={canBuy ? t("addToCart") : t("outOfStockButton")}
               >
@@ -143,6 +150,9 @@ export default function ProductDetail({ data, variant }: Props) {
               </div>
             )}
           </div>
+        )}
+        {addError && (
+          <p className={styles.addError} role="alert">{t("addToCartFailed")}</p>
         )}
 
         {product.description && (

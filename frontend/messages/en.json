@@ -384,7 +384,8 @@
     "closeModal": "Close",
     "loadError": "Couldn't load this product.",
     "addToFavorites": "Add to favourites",
-    "removeFromFavorites": "Remove from favourites"
+    "removeFromFavorites": "Remove from favourites",
+    "addToCartFailed": "Couldn't add to cart. Please try again."
   },
   "Address": {
     "line1Label": "Address line 1",
@@ -1594,6 +1595,7 @@
     }
   },
   "Shared": {
+    "skipToContent": "Skip to content",
     "edit": "Edit",
     "delete": "Delete",
     "dataTable": {
@@ -1696,5 +1698,11 @@
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
     }
+  },
+  "Info": {
+    "aboutTitle": "About Khana Bazaar",
+    "privacyTitle": "Privacy Policy",
+    "termsTitle": "Terms of Service",
+    "comingSoon": "This page is on its way — check back soon."
   }
 }

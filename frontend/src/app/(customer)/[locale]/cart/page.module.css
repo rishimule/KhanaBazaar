@@ -138,6 +138,13 @@
   font-size: 32px;
   flex-shrink: 0;
 }
+.itemImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
 @media (max-width: 640px) { .itemEmoji { width: 56px; height: 56px; font-size: 28px; } }
 
 .itemInfo {
@@ -171,14 +178,14 @@
   border: 1px solid var(--shade-cool-light-6);
   border-radius: var(--radius-pill);
   background: var(--white);
-  height: 36px;
+  height: 44px;
   padding: 0 4px;
   flex-shrink: 0;
 }
 
 .qtyBtn {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   background: transparent;
   border: none;
   color: var(--color-primary-1);
@@ -217,6 +224,8 @@
   color: var(--shade-cool-base-5);
   font-size: 18px;
   cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
   padding: 4px 8px;
   flex-shrink: 0;
   border-radius: 4px;
@@ -295,5 +304,5 @@
 
 .serviceName {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-text-strong);
 }

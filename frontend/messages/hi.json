@@ -384,7 +384,8 @@
     "closeModal": "बंद करें",
     "loadError": "यह उत्पाद लोड नहीं हो सका।",
     "addToFavorites": "पसंदीदा में जोड़ें",
-    "removeFromFavorites": "पसंदीदा से हटाएं"
+    "removeFromFavorites": "पसंदीदा से हटाएं",
+    "addToCartFailed": "कार्ट में नहीं जोड़ सका। कृपया फिर से प्रयास करें।"
   },
   "Address": {
     "line1Label": "पता पंक्ति 1",
@@ -1595,6 +1596,7 @@
     }
   },
   "Shared": {
+    "skipToContent": "मुख्य सामग्री पर जाएँ",
     "edit": "संपादित करें",
     "delete": "हटाएं",
     "dataTable": {
@@ -1697,5 +1699,11 @@
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
     }
+  },
+  "Info": {
+    "aboutTitle": "खाना बाज़ार के बारे में",
+    "privacyTitle": "गोपनीयता नीति",
+    "termsTitle": "सेवा की शर्तें",
+    "comingSoon": "यह पेज जल्द ही आ रहा है — कृपया बाद में देखें।"
   }
 }

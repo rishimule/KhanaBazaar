@@ -290,7 +290,21 @@ export default function CartPage() {
 
                   {cart.items.map((item) => (
                     <div key={item.product_id} className={styles.cartItem}>
-                      <div className={styles.itemEmoji}>📦</div>
+                      <div className={styles.itemEmoji}>
+                        {item.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.image_url}
+                            alt={item.product_name}
+                            className={styles.itemImage}
+                            loading="lazy"
+                            decoding="async"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <span aria-hidden>📦</span>
+                        )}
+                      </div>
 
                       <div className={styles.itemInfo}>
                         <div className={styles.itemName}>{item.product_name}</div>

@@ -53,6 +53,7 @@ export default function ProductCard({
   const { isFavorite, toggle } = useFavorites();
   const { product, price, stock } = item;
   const [imgFailed, setImgFailed] = useState(false);
+  const [addError, setAddError] = useState(false);
   const isCustomer = dbUser?.role === "customer";
   const wishlist = isCustomer && isFavorite(product.id);
 
@@ -76,16 +77,22 @@ export default function ProductCard({
   const stockClass =
     stock === 0 ? styles.outOfStock : stock <= 5 ? styles.lowStock : styles.inStock;
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (disabledByPause) return;
-    addItem(storeId, storeName, serviceId, serviceName, {
-      product_id: product.id,
-      inventory_id: item.id,
-      product_name: product.name,
-      quantity: 1,
-      price,
-      image_url: product.image_url,
-    });
+    setAddError(false);
+    try {
+      await addItem(storeId, storeName, serviceId, serviceName, {
+        product_id: product.id,
+        inventory_id: item.id,
+        product_name: product.name,
+        quantity: 1,
+        price,
+        image_url: product.image_url,
+      });
+    } catch {
+      setAddError(true);
+      setTimeout(() => setAddError(false), 3000);
+    }
   };
 
   const accent = CATEGORY_ACCENT[product.category_id] ?? "var(--shade-cool-light-1)";
@@ -142,10 +149,15 @@ export default function ProductCard({
 
         {canShop && (
           <div className={styles.actions}>
+            {addError && (
+              <span className={styles.addError} role="alert">
+                {t("addToCartFailed")}
+              </span>
+            )}
             {qty === 0 ? (
               <button
                 className={styles.addBtn}
-                onClick={handleAdd}
+                onClick={() => void handleAdd()}
                 disabled={stock === 0 || disabledByPause}
                 aria-label={stock === 0 ? t("outOfStockButton") : t("addToCart")}
               >

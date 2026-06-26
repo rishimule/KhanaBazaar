@@ -384,7 +384,8 @@
     "closeModal": "ਬੰਦ ਕਰੋ",
     "loadError": "ਇਹ ਉਤਪਾਦ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।",
     "addToFavorites": "ਪਸੰਦੀਦਾ ਵਿੱਚ ਜੋੜੋ",
-    "removeFromFavorites": "ਪਸੰਦੀਦਾ ਤੋਂ ਹਟਾਓ"
+    "removeFromFavorites": "ਪਸੰਦੀਦਾ ਤੋਂ ਹਟਾਓ",
+    "addToCartFailed": "ਕਾਰਟ ਵਿੱਚ ਸ਼ਾਮਲ ਨਹੀਂ ਕਰ ਸਕੇ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
   },
   "Address": {
     "line1Label": "ਪਤਾ ਲਾਈਨ 1",
@@ -1595,6 +1596,7 @@
     }
   },
   "Shared": {
+    "skipToContent": "ਮੁੱਖ ਸਮੱਗਰੀ 'ਤੇ ਜਾਓ",
     "edit": "ਸੰਪਾਦਿਤ ਕਰੋ",
     "delete": "ਮਿਟਾਓ",
     "dataTable": {
@@ -1697,5 +1699,11 @@
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
     }
+  },
+  "Info": {
+    "aboutTitle": "ਖਾਨਾ ਬਾਜ਼ਾਰ ਬਾਰੇ",
+    "privacyTitle": "ਗੋਪਨੀਯਤਾ ਨੀਤੀ",
+    "termsTitle": "ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ",
+    "comingSoon": "ਇਹ ਪੰਨਾ ਜਲਦੀ ਆ ਰਿਹਾ ਹੈ — ਕਿਰਪਾ ਕਰਕੇ ਬਾਅਦ ਵਿੱਚ ਦੇਖੋ।"
   }
 }

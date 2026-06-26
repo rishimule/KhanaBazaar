@@ -74,12 +74,25 @@
   --mandarin-orange-light-1:#feefdb;
   --mandarin-orange-base-1: #ff8a5f;
   --mandarin-orange-base-4: #ff5026;
+  --mandarin-orange-dark-1: #9a3412; /* warning badge text (AA on light-1) */
 
   /* Durian Yellow — member / EBT / stars */
   --durian-yellow-base-1:   #ffed8e;
   --durian-yellow-base-4:   #ffd600;
   --durian-yellow-base-7:   #ffb700;
   --durian-yellow-dark-1:   #ab8403;
+  --durian-yellow-dark-2:   #6b5300; /* member badge text (AA on base-1) */
+
+  /* Saffron Yellow — warning / pending (amber; was inline-fallback only) */
+  --saffron-yellow-light-1: #fffbeb;
+  --saffron-yellow-light-3: #fde68a;
+  --saffron-yellow-base-3:  #f59e0b;
+  --saffron-yellow-dark-1:  #92400e;
+
+  /* Vermillion Red — danger / rejected (was inline-fallback only) */
+  --vermillion-red-light-1: #fef2f2;
+  --vermillion-red-base-3:  #b91c1c;
+  --vermillion-red-dark-1:  #7f1d1d;
 
   /* Jade Green — savings */
   --jade-green-light-1:     #f3fefb;
@@ -105,6 +118,7 @@
      -------------------------------------------------------- */
   --shade-cool-dark-7:      #07101a; /* near-black, headings */
   --shade-cool-dark-3:      #3a4c60; /* sub-headings */
+  --shade-cool-dark-5:      #46586c; /* metadata text (was used w/o fallback) */
   --shade-cool-base-7:      #52667d; /* body */
   --shade-cool-base-5:      #758296; /* secondary metadata */
   --shade-cool-base-4:      #9299ae; /* disabled, strikethrough */
@@ -112,6 +126,7 @@
   --shade-cool-light-6:     #d3daeb; /* input borders */
   --shade-cool-light-5:     #dee4f3; /* disabled bg */
   --shade-cool-light-4:     #e4eaf5; /* hairline in cart */
+  --shade-cool-light-3:     #e9eef7; /* subtle chip bg / border (was used w/o fallback) */
   --shade-cool-light-2:     #eef2fb; /* search bg, selected sidebar */
   --shade-cool-light-1:     #f6f9fc; /* page tint */
 
@@ -155,6 +170,7 @@
   --body-xl:    20px;
   --body-lg:    18px;
   --body-base:  16px;
+  --body-md:    15px;
   --body-sm:    14px;
   --body-xs:    13px;
   --body-2xs:   12px;

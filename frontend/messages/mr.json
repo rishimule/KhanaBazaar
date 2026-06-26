@@ -384,7 +384,8 @@
     "closeModal": "बंद करा",
     "loadError": "हे उत्पाद लोड होऊ शकले नाही.",
     "addToFavorites": "आवडत्यांमध्ये जोडा",
-    "removeFromFavorites": "आवडत्यांमधून काढा"
+    "removeFromFavorites": "आवडत्यांमधून काढा",
+    "addToCartFailed": "कार्टमध्ये जोडता आले नाही. कृपया पुन्हा प्रयत्न करा."
   },
   "Address": {
     "line1Label": "पत्ता ओळ 1",
@@ -1595,6 +1596,7 @@
     }
   },
   "Shared": {
+    "skipToContent": "मुख्य मजकुरावर जा",
     "edit": "संपादित करा",
     "delete": "हटवा",
     "dataTable": {
@@ -1697,5 +1699,11 @@
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
     }
+  },
+  "Info": {
+    "aboutTitle": "खाना बाजार विषयी",
+    "privacyTitle": "गोपनीयता धोरण",
+    "termsTitle": "सेवा अटी",
+    "comingSoon": "हे पान लवकरच येत आहे — कृपया नंतर पुन्हा पहा."
   }
 }
