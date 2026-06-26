@@ -16,7 +16,7 @@
 }
 
 .pending    { background: var(--mandarin-orange-light-1); color: var(--mandarin-orange-base-4); }
-.packed     { background: var(--saffron-light-1);          color: var(--color-primary-1); }
+.packed     { background: var(--leaf-green-light-1);          color: var(--color-primary-1); }
 .dispatched { background: var(--eggplant-purple-light-1);  color: var(--eggplant-purple-base-4); }
 .delivered  { background: var(--chive-green-light-1);      color: var(--chive-green-base-4); }
 .cancelled  { background: var(--tomato-red-light-1);       color: var(--tomato-red-dark-1); }

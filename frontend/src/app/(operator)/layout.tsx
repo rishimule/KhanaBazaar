@@ -31,7 +31,7 @@ const poppins = Poppins({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#B8470F",
+  themeColor: "#0F6B06",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,

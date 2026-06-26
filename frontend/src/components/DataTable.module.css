@@ -79,7 +79,7 @@
   border-color: var(--shade-cool-light-6);
 }
 .editBtn:hover {
-  background: var(--saffron-light-1);
+  background: var(--leaf-green-light-1);
   border-color: var(--color-primary-1);
 }
 
@@ -140,7 +140,7 @@
 }
 
 .statusActive {
-  background: var(--saffron-light-1);
+  background: var(--leaf-green-light-1);
   color: var(--color-primary-1);
 }
 

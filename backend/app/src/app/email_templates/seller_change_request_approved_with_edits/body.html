@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
-  <h1 style="margin:0 0 16px;font-size:22px;color:#0b8457;">Change approved with edits</h1>
+  <h1 style="margin:0 0 16px;font-size:22px;color:#0F6B06;">Change approved with edits</h1>
   <p>Hi {{ business_name }} team,</p>
   <p>Your change request for <strong>{{ group_label }}</strong> has been approved. An admin adjusted some values before applying:</p>
   <table cellpadding="8" cellspacing="0" border="0" style="border-collapse:collapse;margin:12px 0;width:100%;font-size:14px;">
@@ -17,5 +17,5 @@
   {% set cta_url = frontend_base_url ~ "/seller/profile/requests/" ~ cr_id %}
   {% set cta_label = "View change request" %}
   {% include "_partials/button.html" %}
-  <p style="color:#6b7280;font-size:14px;">If you didn't request this, write to <a href="mailto:{{ support_email }}" style="color:#0b8457;">{{ support_email }}</a>.</p>
+  <p style="color:#6b7280;font-size:14px;">If you didn't request this, write to <a href="mailto:{{ support_email }}" style="color:#0F6B06;">{{ support_email }}</a>.</p>
 {% endblock %}

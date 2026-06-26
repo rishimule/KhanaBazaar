@@ -24,8 +24,8 @@
 
 .trigger:focus-visible {
   outline: none;
-  border-color: var(--color-primary-1, #b8470f);
-  box-shadow: 0 0 0 2px rgba(184, 71, 15, 0.12);
+  border-color: var(--color-primary-1, #0F6B06);
+  box-shadow: 0 0 0 2px rgba(15, 107, 6, 0.12);
 }
 
 .triggerLabel {
@@ -77,7 +77,7 @@
 
 .search:focus {
   outline: none;
-  border-color: var(--color-primary-1, #b8470f);
+  border-color: var(--color-primary-1, #0F6B06);
 }
 
 .list {
@@ -114,8 +114,8 @@
 }
 
 .optionSelected {
-  background: rgba(184, 71, 15, 0.08);
-  color: var(--color-primary-1, #b8470f);
+  background: rgba(15, 107, 6, 0.08);
+  color: var(--color-primary-1, #0F6B06);
 }
 
 .optionName {

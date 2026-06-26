@@ -81,8 +81,8 @@
   height: 32px;
   border-radius: 50%;
   background: var(--white, #fff);
-  border: 1px solid rgba(184, 71, 15, 0.20);
-  color: var(--color-primary-1, #b8470f);
+  border: 1px solid rgba(15, 107, 6, 0.20);
+  color: var(--color-primary-1, #0F6B06);
   font-size: 18px;
   font-weight: var(--weight-medium, 500);
   cursor: pointer;
@@ -96,8 +96,8 @@
     transform var(--duration-fast, 150ms);
 }
 .addBtn:hover {
-  background: var(--saffron-light-1, #ffefe0);
-  border-color: rgba(184, 71, 15, 0.40);
+  background: var(--leaf-green-light-1, #E9F6EC);
+  border-color: rgba(15, 107, 6, 0.40);
 }
 .addBtn:active {
   transform: scale(0.97);

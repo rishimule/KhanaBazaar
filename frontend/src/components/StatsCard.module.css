@@ -39,7 +39,7 @@
   line-height: 1;
 }
 
-.iconPrimary { background: var(--saffron-light-1);     color: var(--color-primary-1); }
+.iconPrimary { background: var(--leaf-green-light-1);     color: var(--color-primary-1); }
 .iconAccent  { background: var(--turmeric-light-1);    color: var(--turmeric-base-7); }
 .iconInfo    { background: var(--shade-cool-light-2);  color: var(--shade-cool-dark-3); }
 .iconWarning { background: var(--mandarin-orange-light-1); color: var(--mandarin-orange-base-4); }

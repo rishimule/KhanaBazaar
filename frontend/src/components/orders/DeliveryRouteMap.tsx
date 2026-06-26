@@ -57,7 +57,7 @@ function StraightLine({
         { lat: customer.lat, lng: customer.lng },
       ],
       geodesic: true,
-      strokeColor: "#e8611a",
+      strokeColor: "#0F6B06",
       strokeOpacity: 0.9,
       strokeWeight: 4,
       map,

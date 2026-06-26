@@ -147,13 +147,13 @@
 }
 
 .promoCardRefer {
-  background: var(--mandarin-orange-light-1);
+  background: var(--leaf-green-light-1);
   color: var(--shade-cool-dark-3);
 }
 
 .promoCardMember {
-  background: var(--gradient-member-sweep);
-  color: var(--shade-cool-dark-7);
+  background: var(--gradient-dark);
+  color: var(--white);
 }
 
 .promoEyebrow {
@@ -177,14 +177,14 @@
   font-size: var(--body-xs);
   font-weight: var(--weight-semibold);
   margin-top: 8px;
-  color: var(--tomato-red-base-4);
+  color: var(--color-primary-1);
   text-decoration: none;
   display: inline-block;
   width: fit-content;
 }
 .promoLink:hover { text-decoration: none; opacity: 0.85; }
 
-.promoLinkDark { color: var(--shade-cool-dark-7); }
+.promoLinkDark { color: var(--white); }
 
 .promoGlyph {
   position: absolute;

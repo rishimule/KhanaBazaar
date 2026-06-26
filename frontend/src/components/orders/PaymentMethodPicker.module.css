@@ -40,7 +40,7 @@
 
 .selected {
   border-color: var(--color-primary-1);
-  background-color: var(--saffron-light-1);
+  background-color: var(--leaf-green-light-1);
 }
 
 .radio {

@@ -27,8 +27,8 @@
 }
 
 .sourceCard {
-  border: 2px solid var(--color-primary, #B8470F);
-  background: var(--saffron-light-1, #FFEFE0);
+  border: 2px solid var(--color-primary, #0F6B06);
+  background: var(--leaf-green-light-1, #E9F6EC);
 }
 
 .yourCartPill {
@@ -43,7 +43,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--white, #ffffff);
-  background: var(--color-primary, #B8470F);
+  background: var(--color-primary, #0F6B06);
   padding: 0.3rem 0.65rem;
   border-radius: 999px;
 }
@@ -62,7 +62,7 @@
   height: 2.4rem;
   border-radius: 0.6rem;
   background: var(--color-surface-muted, #f3f4f6);
-  color: var(--color-primary, #B8470F);
+  color: var(--color-primary, #0F6B06);
   flex-shrink: 0;
 }
 
@@ -97,8 +97,8 @@
   align-self: flex-start;
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--color-primary, #B8470F);
-  background: var(--saffron-light-2, #ffe0c7);
+  color: var(--color-primary, #0F6B06);
+  background: var(--leaf-green-light-2, #C8E6CD);
   padding: 0.3rem 0.6rem;
   border-radius: 0.5rem;
 }
@@ -118,7 +118,7 @@
 }
 .deltaMore {
   color: var(--mandarin-orange-base-4, #b45309);
-  background: var(--saffron-light-1, #FFEFE0);
+  background: var(--mandarin-orange-light-1, #feefdb);
 }
 .deltaSame {
   color: var(--shade-cool-base-7, #52667d);
@@ -141,7 +141,7 @@
 }
 .deliveryWarn {
   color: var(--mandarin-orange-base-4, #b45309);
-  background: var(--saffron-light-1, #FFEFE0);
+  background: var(--mandarin-orange-light-1, #feefdb);
 }
 
 .itemList {
@@ -207,7 +207,7 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--mandarin-orange-base-4, #b45309);
-  background: var(--saffron-light-2, #ffe0c7);
+  background: var(--mandarin-orange-light-1, #feefdb);
   padding: 0.15rem 0.4rem;
   border-radius: 0.35rem;
 }
@@ -264,11 +264,11 @@
 }
 .switchBtn {
   background: transparent;
-  color: var(--color-primary, #B8470F);
-  border: 1.5px solid var(--color-primary, #B8470F);
+  color: var(--color-primary, #0F6B06);
+  border: 1.5px solid var(--color-primary, #0F6B06);
 }
 .switchBtn:hover:not(:disabled) {
-  background: var(--saffron-light-1, #FFEFE0);
+  background: var(--leaf-green-light-1, #E9F6EC);
 }
 .switchBtn:disabled {
   opacity: 0.55;
