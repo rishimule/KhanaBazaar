@@ -118,3 +118,51 @@ async def test_public_policy_get_rejects_unknown_kind(session: AsyncSession) -> 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         r = await ac.get("/api/v1/policies/marketing")
         assert r.status_code == 422
+
+
+@pytest.fixture
+def override_admin():  # type: ignore[no-untyped-def]
+    from app.core.security import get_current_admin, get_current_user
+    admin = User(id=90100, email="admin-p@kb.test", role=UserRole.Admin, is_active=True)
+    app.dependency_overrides[get_current_admin] = lambda: admin
+    app.dependency_overrides[get_current_user] = lambda: admin
+    yield admin
+    app.dependency_overrides.pop(get_current_admin, None)
+    app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_admin_publish_increments_version(override_admin, session: AsyncSession) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.post("/api/v1/admin/policies/terms", json={"body": "first"})
+        assert r.status_code == 200, r.text
+        assert r.json()["version"] == 1
+        r = await ac.post("/api/v1/admin/policies/terms", json={"body": "second"})
+        assert r.json()["version"] == 2
+        # Public GET reflects the latest.
+        pub = await ac.get("/api/v1/policies/terms")
+        assert pub.json()["version"] == 2 and pub.json()["body"] == "second"
+        # History lists both, newest first.
+        hist = await ac.get("/api/v1/admin/policies/terms/history")
+        versions = [row["version"] for row in hist.json()]
+        assert versions == [2, 1]
+
+
+@pytest.mark.asyncio
+async def test_admin_publish_requires_admin(customer_auth_headers) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.post("/api/v1/admin/policies/terms", json={"body": "x"})
+        assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_list_policies(override_admin, session: AsyncSession) -> None:
+    session.add(PolicyDocument(kind=PolicyKind.privacy, version=1, body="p1"))
+    await session.commit()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.get("/api/v1/admin/policies")
+        assert r.status_code == 200
+        by_kind = {row["kind"]: row for row in r.json()}
+        assert by_kind["privacy"]["version"] == 1 and by_kind["privacy"]["body"] == "p1"
+        # Unpublished kind appears with version 0 / empty body.
+        assert by_kind["terms"]["version"] == 0
