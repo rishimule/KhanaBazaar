@@ -29,6 +29,7 @@ from .commerce import (
     PaymentStatus,
     Review,
 )
+from .consent import PolicyAcceptance, PolicyDocument, PolicyKind
 from .dev_email import DevEmail
 from .dev_sms import DevSms
 from .dev_whatsapp import DevWhatsApp
@@ -81,6 +82,9 @@ __all__ = [
     "Payment",
     "PaymentMethod",
     "PaymentStatus",
+    "PolicyAcceptance",
+    "PolicyDocument",
+    "PolicyKind",
     "PushSubscription",
     "Review",
     "SearchQueryLog",
