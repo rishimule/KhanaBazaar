@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
@@ -13,10 +14,15 @@ import { useAuth } from "@/lib/AuthContext";
 export default function PolicyConsentGate() {
   const t = useTranslations("PolicyConsent");
   const { dbUser, loading, acceptPolicies, logout } = useAuth();
+  const pathname = usePathname();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (loading || !dbUser || !dbUser.needs_policy_acceptance) return null;
+  // Don't block the very pages the modal links to — a re-consenting user must
+  // be able to read the Terms/Privacy before accepting. (Matches /terms,
+  // /privacy and their locale-prefixed variants e.g. /hi/terms.)
+  if (pathname.endsWith("/terms") || pathname.endsWith("/privacy")) return null;
 
   const handleAccept = async () => {
     setError(null);
