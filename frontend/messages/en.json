@@ -1211,7 +1211,8 @@
       "applications": "Applications",
       "changeRequests": "Change requests",
       "catalog": "Catalog",
-      "settings": "Settings"
+      "settings": "Settings",
+      "policies": "Policies"
     },
     "titles": {
       "dashboard": "Admin Dashboard",
@@ -1222,7 +1223,8 @@
       "orders": "All Orders",
       "panel": "Admin Panel",
       "settings": "Settings",
-      "changeRequests": "Change requests"
+      "changeRequests": "Change requests",
+      "policies": "Policies"
     },
     "settings": {
       "title": "Settings"
@@ -1596,6 +1598,21 @@
       "acting": "<strong>Acting as</strong> {name} — changes are logged",
       "viewing": "<strong>{name}</strong> — admin activity log",
       "exit": "Exit"
+    },
+    "policies": {
+      "heading": "Privacy Policy & Terms",
+      "intro": "Edit and publish the policy text. Publishing a new version requires all users to re-accept on their next visit.",
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy",
+      "currentVersion": "Current version: v{version}",
+      "notPublished": "Not published yet",
+      "bodyLabel": "Content (Markdown)",
+      "publish": "Publish new version",
+      "publishing": "Publishing…",
+      "confirmPublish": "This will require all users to re-accept the policies. Publish a new version?",
+      "published": "Published v{version}.",
+      "loadError": "Could not load policies.",
+      "publishError": "Could not publish. Please try again."
     }
   },
   "Shared": {

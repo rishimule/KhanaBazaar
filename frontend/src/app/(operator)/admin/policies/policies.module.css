@@ -1,0 +1,39 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.page { max-width: 860px; }
+.heading { font-size: var(--display-lg); margin-bottom: var(--space-2); }
+.intro { color: var(--shade-cool-base-7); margin-bottom: var(--space-6); }
+.error { color: var(--color-danger, #c0392b); }
+.toast { color: var(--color-primary-1); }
+.card {
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+.cardHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+.version { color: var(--shade-cool-base-7); font-size: var(--body-sm); }
+.label {
+  display: block;
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  margin-bottom: 6px;
+}
+.textarea {
+  width: 100%;
+  font-family: var(--font-family-mono, monospace);
+  font-size: var(--body-sm);
+  padding: 12px 14px;
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-card);
+  margin-bottom: var(--space-4);
+  resize: vertical;
+}
