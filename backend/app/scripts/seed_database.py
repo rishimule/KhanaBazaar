@@ -24,6 +24,7 @@ from app.db.dev_seed import (
     seed_demo_data,
     verify_expected_counts,
 )
+from app.db.seed_policies import seed_policies
 from app.search.client import get_meili_client
 from app.search.reindex import reindex_all
 
@@ -96,6 +97,11 @@ async def main() -> None:
             if not args.verify_only:
                 await seed_demo_data(session)
                 await session.commit()
+                # Seed v1 Privacy + Terms so consent is active for dev/manual
+                # testing (idempotent; prod also runs this as a standalone step
+                # in deploy_release.sh for the --skip-if-seeded path).
+                created = await seed_policies(session)
+                print(f"Policy documents seeded: {created}")
 
             counts = await verify_expected_counts(session)
             print_counts(counts)
