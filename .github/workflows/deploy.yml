@@ -81,8 +81,16 @@ jobs:
       # cache-control split lives in firebase.json). Auth: firebase-tools reads
       # the ADC that google-github-actions/auth@v3 exported (no SA key needed);
       # gh-deployer holds roles/firebasehosting.admin + roles/firebase.viewer.
+      # continue-on-error: this push is a no-op unless firebase.json changes
+      # (the rewrite auto-tracks the latest khanabazaar-web revision), so a
+      # firebase-tools WIF/STS auth hiccup must NOT abort the job and skip the
+      # worker restart below. Bumped @13 -> @15: with a byte-identical,
+      # previously-green toolchain (same auth@v3 SHA, same WIF), @13 (13.35.1)
+      # began failing the WIF token exchange with "Failed to authenticate";
+      # firebase-tools@15 bundles a newer google-auth library.
       - name: Deploy Firebase Hosting (custom domain)
-        run: npx --yes firebase-tools@13 deploy --only hosting --project "$PROJECT_ID" --non-interactive
+        continue-on-error: true
+        run: npx --yes firebase-tools@15 deploy --only hosting --project "$PROJECT_ID" --non-interactive
 
       - name: Deploy worker on VM
         run: |
