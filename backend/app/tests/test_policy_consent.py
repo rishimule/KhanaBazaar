@@ -1,9 +1,12 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import app
 from app.models.base import User, UserRole
 from app.models.consent import PolicyAcceptance, PolicyDocument, PolicyKind
 from app.services import consent as consent_svc
@@ -78,3 +81,40 @@ async def test_version_bump_unsets_acceptance(session: AsyncSession) -> None:
     await session.commit()
     assert await consent_svc.get_effective_policy_version(session) == "t2-p1"
     assert await consent_svc.has_accepted_current_policy(session, user.id) is False
+
+
+@pytest.mark.asyncio
+async def test_public_policy_get_404_then_content(session: AsyncSession) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.get("/api/v1/policies/terms")
+        assert r.status_code == 404
+        # Publish two versions; GET returns the latest.
+        session.add(PolicyDocument(kind=PolicyKind.terms, version=1, body="old"))
+        session.add(PolicyDocument(kind=PolicyKind.terms, version=2, body="new terms"))
+        await session.commit()
+        r = await ac.get("/api/v1/policies/terms")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["version"] == 2
+        assert data["body"] == "new terms"
+        assert data["kind"] == "terms"
+
+
+@pytest.mark.asyncio
+async def test_public_policy_status(session: AsyncSession) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.get("/api/v1/policies/status")
+        assert r.status_code == 200
+        assert r.json() == {"required": False, "version": None}
+        session.add(PolicyDocument(kind=PolicyKind.terms, version=1, body="t"))
+        session.add(PolicyDocument(kind=PolicyKind.privacy, version=1, body="p"))
+        await session.commit()
+        r = await ac.get("/api/v1/policies/status")
+        assert r.json() == {"required": True, "version": "t1-p1"}
+
+
+@pytest.mark.asyncio
+async def test_public_policy_get_rejects_unknown_kind(session: AsyncSession) -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.get("/api/v1/policies/marketing")
+        assert r.status_code == 422
