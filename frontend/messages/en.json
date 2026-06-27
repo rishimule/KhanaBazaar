@@ -1717,5 +1717,13 @@
     "continueShopping": "Continue shopping",
     "loading": "Loading your order…",
     "loadError": "Couldn't load this order. Check your orders list."
+  },
+  "PolicyConsent": {
+    "title": "We've updated our policies",
+    "body": "To continue using Khana Bazaar, please review and accept our <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>.",
+    "accept": "Accept and continue",
+    "accepting": "Saving…",
+    "logout": "Log out",
+    "error": "Could not save your acceptance. Please try again."
   }
 }

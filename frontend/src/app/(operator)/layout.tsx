@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
 
 import "@/app/globals.css";
+import PolicyConsentGate from "@/components/PolicyConsentGate";
 import RouteProgressProvider from "@/components/RouteProgressProvider";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
@@ -71,6 +72,7 @@ export default async function OperatorLayout({
         <RouteProgressProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
             <AuthProvider>
+              <PolicyConsentGate />
               <DeliveryLocationProvider>
                 <CartProvider>
                   <main>{children}</main>
