@@ -16,3 +16,42 @@
   color: var(--color-text);
   line-height: 1.6;
 }
+
+.markdown {
+  margin-top: var(--space-6);
+  color: var(--color-text);
+  line-height: 1.7;
+}
+.markdown h2 {
+  font-size: var(--display-md, 1.25rem);
+  margin-top: var(--space-8);
+  margin-bottom: var(--space-2);
+}
+.markdown h3 {
+  font-size: 1.05rem;
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-2);
+}
+.markdown p {
+  margin: var(--space-3) 0;
+}
+.markdown ul,
+.markdown ol {
+  margin: var(--space-3) 0;
+  padding-left: var(--space-6);
+}
+.markdown li {
+  margin: var(--space-1) 0;
+}
+.markdown a {
+  color: var(--color-primary-1);
+  text-decoration: underline;
+}
+.markdown strong {
+  font-weight: var(--weight-medium, 600);
+}
+.markdown code {
+  background: var(--shade-cool-light-1, #f1f1f1);
+  padding: 0 4px;
+  border-radius: 4px;
+}
