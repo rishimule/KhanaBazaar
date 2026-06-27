@@ -6,6 +6,7 @@
 `admin_router`  — admin publish/list/history, mounted at /api/v1/admin.
 """
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -93,12 +94,22 @@ async def admin_publish_policy(
     admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> PolicyDocumentRead:
-    next_version = await get_current_version(session, kind) + 1
-    doc = PolicyDocument(
-        kind=kind, version=next_version, body=body.body, published_by=admin.id
-    )
-    session.add(doc)
-    await session.commit()
+    # Retry on the (kind, version) unique-constraint race: a concurrent publish
+    # of the same kind commits version N+1 first, so recompute and retry rather
+    # than 500.
+    for _ in range(3):
+        next_version = await get_current_version(session, kind) + 1
+        doc = PolicyDocument(
+            kind=kind, version=next_version, body=body.body, published_by=admin.id
+        )
+        session.add(doc)
+        try:
+            await session.commit()
+            break
+        except IntegrityError:
+            await session.rollback()
+    else:
+        raise HTTPException(status_code=409, detail={"error": "version_conflict"})
     await session.refresh(doc)
     return PolicyDocumentRead(
         kind=doc.kind.value,

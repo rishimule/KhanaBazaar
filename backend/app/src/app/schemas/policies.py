@@ -19,7 +19,7 @@ class PolicyStatusRead(BaseModel):
 
 
 class PolicyPublishBody(BaseModel):
-    body: str = Field(min_length=1)
+    body: str = Field(min_length=1, max_length=200_000)
 
 
 class PolicyAdminItem(BaseModel):

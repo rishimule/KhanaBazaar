@@ -35,9 +35,12 @@ async def seed_policies(session: AsyncSession) -> dict[str, int]:
 
 
 async def _main() -> None:
-    async with AsyncSession(engine, expire_on_commit=False) as session:
-        result = await seed_policies(session)
-        print({"seeded": result})
+    try:
+        async with AsyncSession(engine, expire_on_commit=False) as session:
+            result = await seed_policies(session)
+            print({"seeded": result})
+    finally:
+        await engine.dispose()
 
 
 if __name__ == "__main__":

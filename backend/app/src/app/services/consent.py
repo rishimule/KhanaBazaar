@@ -8,6 +8,7 @@ until BOTH kinds have a published document. The policy_document table is
 tiny (~2 rows), so these are computed directly with no caching.
 """
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -60,6 +61,12 @@ async def record_acceptance(session: AsyncSession, user_id: int) -> str | None:
     )
     if existing.first() is not None:
         return version
-    session.add(PolicyAcceptance(user_id=user_id, policy_version=version))
-    await session.flush()
+    # Savepoint so a concurrent identical insert (gate double-fire / retry)
+    # losing the (user_id, policy_version) unique-constraint race is swallowed
+    # without poisoning the caller's outer transaction.
+    try:
+        async with session.begin_nested():
+            session.add(PolicyAcceptance(user_id=user_id, policy_version=version))
+    except IntegrityError:
+        pass
     return version
