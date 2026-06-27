@@ -252,7 +252,8 @@
     "nameLabel": "ਤੁਹਾਡਾ ਨਾਮ",
     "namePlaceholder": "ਪ੍ਰਿਆ ਵਰਮਾ",
     "creatingAccount": "ਖਾਤਾ ਬਣਾਇਆ ਜਾ ਰਿਹਾ ਹੈ…",
-    "continue": "ਜਾਰੀ ਰੱਖੋ"
+    "continue": "ਜਾਰੀ ਰੱਖੋ",
+    "consent": "ਮੈਂ <terms>ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</terms> ਅਤੇ <privacy>ਪਰਾਈਵੇਸੀ ਨੀਤੀ</privacy> ਨਾਲ ਸਹਿਮਤ ਹਾਂ"
   },
   "Sell": {
     "metaTitle": "ਵਿਕਰੇਤਾ ਬਣੋ",
@@ -1171,7 +1172,8 @@
         "invalidBankAccount": "ਵੈਧ ਬੈਂਕ ਖਾਤਾ ਨੰਬਰ ਦਰਜ ਕਰੋ (9–18 ਅੰਕ)",
         "invalidIfsc": "ਵੈਧ 11-ਅੱਖਰ ਦਾ IFSC ਕੋਡ ਦਰਜ ਕਰੋ (ਜਿਵੇਂ, HDFC0001234)"
       },
-      "resendIn": "{seconds}s ਵਿੱਚ ਕੋਡ ਮੁੜ ਭੇਜੋ"
+      "resendIn": "{seconds}s ਵਿੱਚ ਕੋਡ ਮੁੜ ਭੇਜੋ",
+      "consent": "ਮੈਂ <terms>ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</terms> ਅਤੇ <privacy>ਪਰਾਈਵੇਸੀ ਨੀਤੀ</privacy> ਨਾਲ ਸਹਿਮਤ ਹਾਂ"
     },
     "pending": {
       "rejectedTitle": "ਅਰਜ਼ੀ ਮਨਜ਼ੂਰ ਨਹੀਂ ਹੋਈ",

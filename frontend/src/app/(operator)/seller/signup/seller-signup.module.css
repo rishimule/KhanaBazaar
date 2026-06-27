@@ -668,3 +668,21 @@
     text-align: left;
   }
 }
+
+.consentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--body-sm);
+  color: var(--color-text);
+  margin-bottom: var(--space-3);
+  text-align: left;
+}
+.consentRow input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.consentRow a {
+  color: var(--color-primary-1);
+  text-decoration: underline;
+}

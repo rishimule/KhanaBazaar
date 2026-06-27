@@ -100,6 +100,8 @@ function SellerSignupPageInner() {
   /* ---- UI state ---- */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [consentRequired, setConsentRequired] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     type: "error" | "success";
@@ -115,6 +117,13 @@ function SellerSignupPageInner() {
       delete next[key];
       return next;
     });
+
+  // Show the consent checkbox only when policies are published (consent active).
+  useEffect(() => {
+    get<{ required: boolean }>("/api/v1/policies/status")
+      .then((s) => setConsentRequired(s.required))
+      .catch(() => setConsentRequired(false));
+  }, []);
 
   /* ---------------------------------------------------------------- */
   /* Resubmit: jump to step 5 (personal info), pre-fill from profile  */
@@ -381,6 +390,7 @@ function SellerSignupPageInner() {
             fssai_license: fssaiLicense,
             bank_account_number: bankAccountNumber,
             bank_ifsc: bankIfsc,
+            accept_policies: agreed,
           }
         );
         localStorage.setItem("kb_token", data.access_token);
@@ -1183,6 +1193,26 @@ function SellerSignupPageInner() {
               </div>
             </div>
 
+            {!isResubmit && consentRequired && (
+              <label className={styles.consentRow}>
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  required
+                />
+                <span>
+                  {t.rich("consent", {
+                    terms: (c) => (
+                      <a href="/terms" target="_blank" rel="noopener noreferrer">{c}</a>
+                    ),
+                    privacy: (c) => (
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer">{c}</a>
+                    ),
+                  })}
+                </span>
+              </label>
+            )}
             <div className={styles.btnRow}>
               <button
                 type="button"
@@ -1194,7 +1224,7 @@ function SellerSignupPageInner() {
               <button
                 type="submit"
                 className={styles.submitBtn}
-                disabled={submitting}
+                disabled={submitting || (!isResubmit && consentRequired && !agreed)}
               >
                 {submitting ? t("submitting") : t("submitApplication")}
               </button>

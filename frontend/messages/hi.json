@@ -252,7 +252,8 @@
     "nameLabel": "आपका नाम",
     "namePlaceholder": "प्रिया वर्मा",
     "creatingAccount": "खाता बनाया जा रहा है…",
-    "continue": "जारी रखें"
+    "continue": "जारी रखें",
+    "consent": "मैं <terms>सेवा की शर्तों</terms> और <privacy>गोपनीयता नीति</privacy> से सहमत हूँ"
   },
   "Sell": {
     "metaTitle": "विक्रेता बनें",
@@ -1171,7 +1172,8 @@
         "invalidBankAccount": "मान्य बैंक खाता संख्या दर्ज करें (9–18 अंक)",
         "invalidIfsc": "मान्य 11-अक्षरों का IFSC कोड दर्ज करें (जैसे, HDFC0001234)"
       },
-      "resendIn": "{seconds}s में कोड फिर भेजें"
+      "resendIn": "{seconds}s में कोड फिर भेजें",
+      "consent": "मैं <terms>सेवा की शर्तों</terms> और <privacy>गोपनीयता नीति</privacy> से सहमत हूँ"
     },
     "pending": {
       "rejectedTitle": "आवेदन स्वीकृत नहीं हुआ",

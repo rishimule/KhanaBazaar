@@ -252,7 +252,8 @@
     "nameLabel": "तुमचे नाव",
     "namePlaceholder": "प्रिया वर्मा",
     "creatingAccount": "खाते तयार करत आहे…",
-    "continue": "सुरू ठेवा"
+    "continue": "सुरू ठेवा",
+    "consent": "मी <terms>सेवा अटी</terms> आणि <privacy>गोपनीयता धोरण</privacy> यांना सहमती देतो"
   },
   "Sell": {
     "metaTitle": "विक्रेता बना",
@@ -1171,7 +1172,8 @@
         "invalidBankAccount": "वैध बँक खाते क्रमांक टाका (9–18 अंक)",
         "invalidIfsc": "वैध 11-अक्षरी IFSC कोड टाका (उदा., HDFC0001234)"
       },
-      "resendIn": "{seconds}s मध्ये कोड पुन्हा पाठवा"
+      "resendIn": "{seconds}s मध्ये कोड पुन्हा पाठवा",
+      "consent": "मी <terms>सेवा अटी</terms> आणि <privacy>गोपनीयता धोरण</privacy> यांना सहमती देतो"
     },
     "pending": {
       "rejectedTitle": "अर्ज मंजूर झाला नाही",
