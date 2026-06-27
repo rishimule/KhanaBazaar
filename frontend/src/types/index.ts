@@ -27,6 +27,7 @@ export interface User extends BaseSchema {
   preferred_language: string;
   full_name?: string;
   avatar_url?: string | null;
+  needs_policy_acceptance?: boolean;
 }
 
 /** A top-level service / vertical (Grocery, Electronics, Pharmacy, etc.). */
