@@ -304,3 +304,20 @@ async def test_me_reports_needs_then_clears(override_admin, session: AsyncSessio
         await ac.post("/api/v1/auth/policy/accept")
         me2 = await ac.get("/api/v1/auth/me")
         assert me2.json()["needs_policy_acceptance"] is False
+
+
+@pytest.mark.asyncio
+async def test_seed_policies_idempotent(session: AsyncSession) -> None:
+    from app.db.seed_policies import seed_policies
+    created = await seed_policies(session)
+    assert created == {"terms": 1, "privacy": 1}
+    # Both kinds now have v1 → consent active.
+    assert await consent_svc.get_effective_policy_version(session) == "t1-p1"
+    terms = await session.exec(
+        select(PolicyDocument).where(PolicyDocument.kind == PolicyKind.terms)
+    )
+    terms_doc = terms.first()
+    assert terms_doc is not None and terms_doc.body.strip() != ""
+    # Re-running creates nothing.
+    again = await seed_policies(session)
+    assert again == {"terms": 0, "privacy": 0}

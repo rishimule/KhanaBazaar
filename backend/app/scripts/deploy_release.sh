@@ -32,6 +32,9 @@ PY
 echo "==> alembic upgrade head"
 alembic upgrade head
 
+echo "==> seed policy documents (idempotent; inserts v1 only if absent)"
+python -m app.db.seed_policies
+
 echo "==> seed (skips if catalog already populated)"
 python scripts/seed_database.py --skip-if-seeded --no-reindex
 
