@@ -27,6 +27,7 @@ class SellerRegisterBody(BaseModel):
     fssai_license: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    accept_policies: bool = False
 
 
 class SellerPhoneOtpRequestBody(BaseModel):
