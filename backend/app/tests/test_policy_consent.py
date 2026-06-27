@@ -6,6 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.base import User, UserRole
 from app.models.consent import PolicyAcceptance, PolicyDocument, PolicyKind
+from app.services import consent as consent_svc
 
 
 @pytest.mark.asyncio
@@ -28,3 +29,52 @@ async def test_policy_acceptance_unique_user_version(session: AsyncSession) -> N
     session.add(PolicyAcceptance(user_id=user.id, policy_version="t1-p1"))
     with pytest.raises(IntegrityError):
         await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_effective_version_none_until_both_published(session: AsyncSession) -> None:
+    assert await consent_svc.get_effective_policy_version(session) is None
+    session.add(PolicyDocument(kind=PolicyKind.terms, version=1, body="t"))
+    await session.commit()
+    # Only terms published → still dormant.
+    assert await consent_svc.get_effective_policy_version(session) is None
+    session.add(PolicyDocument(kind=PolicyKind.privacy, version=1, body="p"))
+    await session.commit()
+    assert await consent_svc.get_effective_policy_version(session) == "t1-p1"
+
+
+@pytest.mark.asyncio
+async def test_record_and_has_accepted(session: AsyncSession) -> None:
+    session.add(PolicyDocument(kind=PolicyKind.terms, version=1, body="t"))
+    session.add(PolicyDocument(kind=PolicyKind.privacy, version=1, body="p"))
+    user = User(email="acc@kb.test", role=UserRole.Customer)
+    session.add(user)
+    await session.commit()
+    assert user.id is not None
+
+    assert await consent_svc.has_accepted_current_policy(session, user.id) is False
+    version = await consent_svc.record_acceptance(session, user.id)
+    await session.commit()
+    assert version == "t1-p1"
+    assert await consent_svc.has_accepted_current_policy(session, user.id) is True
+    # Idempotent: second call inserts nothing and does not raise.
+    assert await consent_svc.record_acceptance(session, user.id) == "t1-p1"
+    await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_version_bump_unsets_acceptance(session: AsyncSession) -> None:
+    session.add(PolicyDocument(kind=PolicyKind.terms, version=1, body="t"))
+    session.add(PolicyDocument(kind=PolicyKind.privacy, version=1, body="p"))
+    user = User(email="bump@kb.test", role=UserRole.Customer)
+    session.add(user)
+    await session.commit()
+    assert user.id is not None
+    await consent_svc.record_acceptance(session, user.id)
+    await session.commit()
+    assert await consent_svc.has_accepted_current_policy(session, user.id) is True
+    # Publish terms v2 → effective version changes → acceptance is stale.
+    session.add(PolicyDocument(kind=PolicyKind.terms, version=2, body="t2"))
+    await session.commit()
+    assert await consent_svc.get_effective_policy_version(session) == "t2-p1"
+    assert await consent_svc.has_accepted_current_policy(session, user.id) is False
