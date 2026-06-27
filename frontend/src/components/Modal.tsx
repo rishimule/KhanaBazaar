@@ -20,9 +20,19 @@ interface Props {
   /** "default" = 500px max-width (existing behavior), "wide" = 720px for
    *  rich content, "sheet" = slide-up bottom-sheet on mobile (centered on tablet+). */
   size?: ModalSize;
+  /** When false, the modal cannot be dismissed by backdrop, Escape, or ✕
+   *  (the close button is hidden). Used by the blocking policy-consent gate. */
+  dismissible?: boolean;
 }
 
-export default function Modal({ title, children, footer, onClose, size = "default" }: Props) {
+export default function Modal({
+  title,
+  children,
+  footer,
+  onClose,
+  size = "default",
+  dismissible = true,
+}: Props) {
   const t = useTranslations("Shared");
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -38,8 +48,9 @@ export default function Modal({ title, children, footer, onClose, size = "defaul
   // is open. Portaling to <body> escapes any parent stacking context that
   // would otherwise let the dashboard sidebar paint on top of the scrim.
   // Also traps Tab within the dialog and restores focus to the trigger on close.
-  // Mount-only ([] deps): teardown/focus-restore must fire on real unmount, not
-  // on every onClose identity change.
+  // Effectively mount-only: `dismissible` is a stable per-instance boolean, so
+  // teardown/focus-restore still fires only on real unmount (onClose identity
+  // changes are absorbed via onCloseRef).
   useEffect(() => {
     setMounted(true);
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -47,7 +58,7 @@ export default function Modal({ title, children, footer, onClose, size = "defaul
     document.body.style.overflow = "hidden";
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onCloseRef.current();
+        if (dismissible) onCloseRef.current();
         return;
       }
       if (e.key === "Tab" && dialogRef.current) {
@@ -71,7 +82,7 @@ export default function Modal({ title, children, footer, onClose, size = "defaul
       document.body.style.overflow = prevOverflow;
       previouslyFocused?.focus?.();
     };
-  }, []);
+  }, [dismissible]);
 
   // Move focus into the dialog once its portal content exists.
   useEffect(() => {
@@ -85,7 +96,7 @@ export default function Modal({ title, children, footer, onClose, size = "defaul
   if (!mounted) return null;
 
   return createPortal(
-    <div className={styles.backdrop} onClick={onClose}>
+    <div className={styles.backdrop} onClick={dismissible ? onClose : undefined}>
       <div
         ref={dialogRef}
         tabIndex={-1}
@@ -103,13 +114,15 @@ export default function Modal({ title, children, footer, onClose, size = "defaul
       >
         <div className={styles.header}>
           <h2 className={styles.title}>{title}</h2>
-          <button
-            className={styles.closeBtn}
-            onClick={onClose}
-            aria-label={t("modal.close")}
-          >
-            ✕
-          </button>
+          {dismissible && (
+            <button
+              className={styles.closeBtn}
+              onClick={onClose}
+              aria-label={t("modal.close")}
+            >
+              ✕
+            </button>
+          )}
         </div>
         <div className={styles.body}>{children}</div>
         {footer && <div className={styles.footer}>{footer}</div>}
