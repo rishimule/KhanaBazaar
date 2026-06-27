@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
+import { get } from "@/lib/api";
 import { apiErrorKey } from "@/lib/errors";
 import { useResendCountdown } from "@/lib/useResendCountdown";
 import { User } from "@/types";
@@ -48,12 +49,20 @@ function LoginPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
+  const [consentRequired, setConsentRequired] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const { secondsLeft: resendIn, start: startResend } = useResendCountdown(RESEND_COOLDOWN_SECONDS);
 
   useEffect(() => {
     if (!dbUser) return;
     router.push(resolveTarget(dbUser, nextParam));
   }, [dbUser, router, nextParam]);
+
+  useEffect(() => {
+    get<{ required: boolean }>("/api/v1/policies/status")
+      .then((s) => setConsentRequired(s.required))
+      .catch(() => setConsentRequired(false));
+  }, []);
 
   if (dbUser) {
     return null;
@@ -127,7 +136,7 @@ function LoginPageInner() {
     setError(null);
     setSubmitting(true);
     try {
-      const result = await verifyOtp(email, code, fullName);
+      const result = await verifyOtp(email, code, fullName, agreed);
       router.push(resolveTarget(result.user, nextParam));
     } catch (err) {
       const key = apiErrorKey(err);
@@ -266,10 +275,30 @@ function LoginPageInner() {
                 autoFocus
               />
             </div>
+            {consentRequired && (
+              <label className={styles.consentRow}>
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  required
+                />
+                <span>
+                  {t.rich("consent", {
+                    terms: (c) => (
+                      <a href="/terms" target="_blank" rel="noopener noreferrer">{c}</a>
+                    ),
+                    privacy: (c) => (
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer">{c}</a>
+                    ),
+                  })}
+                </span>
+              </label>
+            )}
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={submitting}
+              disabled={submitting || (consentRequired && !agreed)}
             >
               {submitting ? t("creatingAccount") : t("continue")}
             </button>

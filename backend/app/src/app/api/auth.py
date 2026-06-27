@@ -45,6 +45,11 @@ from app.schemas.sellers import (
     SellerPhoneOtpVerifyBody,
     SellerRegisterBody,
 )
+from app.services.consent import (
+    get_effective_policy_version,
+    has_accepted_current_policy,
+    record_acceptance,
+)
 from app.services.profiles import compose_full_name, split_full_name
 
 router = APIRouter()
@@ -61,6 +66,7 @@ class OTPVerifyBody(BaseModel):
     # `customer_welcome` email subject. CRLF is additionally stripped by
     # `core.email_render.render_email`.
     full_name: str | None = Field(default=None, max_length=120)
+    accept_policies: bool = False
 
 
 class UpdateLanguageBody(BaseModel):
@@ -106,11 +112,15 @@ async def _profile_display(
 
 
 def _user_payload(
-    user: User, full_name: str | None, avatar_url: str | None = None
+    user: User,
+    full_name: str | None,
+    avatar_url: str | None = None,
+    needs_policy_acceptance: bool = False,
 ) -> dict:  # type: ignore[type-arg]
     payload = user.model_dump()
     payload["full_name"] = full_name
     payload["avatar_url"] = avatar_url
+    payload["needs_policy_acceptance"] = needs_policy_acceptance
     return payload
 
 
@@ -198,6 +208,11 @@ async def otp_verify(
     if user is None:
         if not body.full_name:
             return {"access_token": None, "token_type": None, "user": None, "needs_name": True}
+        effective = await get_effective_policy_version(session)
+        if effective is not None and not body.accept_policies:
+            raise HTTPException(
+                status_code=400, detail={"error": "policy_acceptance_required"}
+            )
         first_name, last_name = split_full_name(body.full_name)
         user = User(email=email, role=UserRole.Customer)
         session.add(user)
@@ -205,6 +220,7 @@ async def otp_verify(
         assert user.id is not None
         profile = CustomerProfile(user_id=user.id, first_name=first_name, last_name=last_name)
         session.add(profile)
+        await record_acceptance(session, user.id)
         await session.commit()
         await session.refresh(user)
         full_name = compose_full_name(first_name, last_name)
@@ -217,10 +233,12 @@ async def otp_verify(
 
     await consume_otp_key(email, redis)
     token = create_access_token(user)
+    assert user.id is not None
+    needs = not await has_accepted_current_policy(session, user.id)
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": _user_payload(user, full_name, avatar_url),
+        "user": _user_payload(user, full_name, avatar_url, needs_policy_acceptance=needs),
         "needs_name": False,
     }
 
@@ -231,7 +249,20 @@ async def me(
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:  # type: ignore[type-arg]
     full_name, avatar_url = await _profile_display(session, user)
-    return _user_payload(user, full_name, avatar_url)
+    assert user.id is not None
+    needs = not await has_accepted_current_policy(session, user.id)
+    return _user_payload(user, full_name, avatar_url, needs_policy_acceptance=needs)
+
+
+@router.post("/policy/accept")
+async def accept_policy(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    assert user.id is not None
+    version = await record_acceptance(session, user.id)
+    await session.commit()
+    return {"accepted": True, "version": version}
 
 
 @router.patch("/me/language", status_code=204)
@@ -277,6 +308,12 @@ async def seller_register(
 
     email, phone = decode_seller_signup_token(body.signup_token)
 
+    effective = await get_effective_policy_version(session)
+    if effective is not None and not body.accept_policies:
+        raise HTTPException(
+            status_code=400, detail={"error": "policy_acceptance_required"}
+        )
+
     user_exists = await session.exec(select(User).where(User.email == email))
     if user_exists.first():
         raise HTTPException(
@@ -299,6 +336,8 @@ async def seller_register(
     user = User(email=email, role=UserRole.Seller)
     session.add(user)
     await session.flush()
+    assert user.id is not None
+    await record_acceptance(session, user.id)
 
     address = Address(**address_from_payload(body.address))
     session.add(address)

@@ -10,6 +10,7 @@ import "@/app/globals.css";
 import CartSyncBanner from "@/components/CartSyncBanner";
 import FooterGate from "@/components/FooterGate";
 import Navbar from "@/components/Navbar";
+import PolicyConsentGate from "@/components/PolicyConsentGate";
 import RouteProgressProvider from "@/components/RouteProgressProvider";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import ThirdPartyErrorSuppressor from "@/components/ThirdPartyErrorSuppressor";
@@ -96,6 +97,7 @@ export default async function CustomerLayout({
         <RouteProgressProvider>
           <NextIntlClientProvider messages={messages}>
             <AuthProvider>
+              <PolicyConsentGate />
               <DeliveryLocationProvider>
                 <CustomerAddressesProvider>
                   <DeliveryLocationAutoSync />

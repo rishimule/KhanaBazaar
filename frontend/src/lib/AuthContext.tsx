@@ -30,9 +30,13 @@ interface AuthContextValue {
   verifyOtp: (
     email: string,
     code: string,
-    fullName?: string
+    fullName?: string,
+    acceptPolicies?: boolean
   ) => Promise<{ user: User; needsName: boolean }>;
   logout: () => void;
+  /** Record acceptance of the current policy version for the logged-in user,
+   *  then clear the local needs_policy_acceptance flag (no /auth/me round-trip). */
+  acceptPolicies: () => Promise<void>;
   /** Patch the cached user's avatar so the navbar + sidebars update instantly
    *  after a customer changes their picture (no /auth/me round-trip). */
   setAvatarUrl: (url: string | null) => void;
@@ -102,12 +106,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (
       email: string,
       code: string,
-      fullName?: string
+      fullName?: string,
+      acceptPolicies?: boolean
     ): Promise<{ user: User; needsName: boolean }> => {
       const res = await fetch(`${API_BASE}/api/v1/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, full_name: fullName ?? null }),
+        body: JSON.stringify({
+          email,
+          code,
+          full_name: fullName ?? null,
+          accept_policies: acceptPolicies ?? false,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -168,9 +178,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setDbUser((u) => (u ? { ...u, avatar_url: url } : u));
   }, []);
 
+  const acceptPolicies = useCallback(async () => {
+    const stored =
+      typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY);
+    if (!stored) return;
+    const res = await fetch(`${API_BASE}/api/v1/auth/policy/accept`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${stored}` },
+    });
+    if (!res.ok) throw new Error("Could not record acceptance.");
+    setDbUser((u) => (u ? { ...u, needs_policy_acceptance: false } : u));
+  }, []);
+
   const value = useMemo(
-    () => ({ dbUser, token, loading, requestOtp, verifyOtp, logout, setAvatarUrl }),
-    [dbUser, token, loading, requestOtp, verifyOtp, logout, setAvatarUrl]
+    () => ({ dbUser, token, loading, requestOtp, verifyOtp, logout, acceptPolicies, setAvatarUrl }),
+    [dbUser, token, loading, requestOtp, verifyOtp, logout, acceptPolicies, setAvatarUrl]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
