@@ -148,6 +148,7 @@ Admin-only: create categories/products, approve seller applications, **per-selle
 **Required**: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `OTP_PEPPER`
 **Optional**:
 - `ENVIRONMENT` (development/production)
+- `COMPANY_NAME` (default `Khanabazaar`) — single source for the displayed brand name. `EMAIL_BRAND_NAME` and the OpenAPI `PROJECT_NAME` derive from it when unset (an explicit `EMAIL_BRAND_NAME`/`PROJECT_NAME` still overrides). Drives email + SMS + WhatsApp-mock copy. NOTE: production WhatsApp text comes from Twilio-approved templates, not this var.
 - `EMAIL_PROVIDER` (`console` default | `resend`)
 - `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (only when `EMAIL_PROVIDER=resend`)
 - `SUPPORT_EMAIL` (default `support@khanabazaar.example`) — destination inbox for `/customers/me/support` messages
@@ -169,6 +170,7 @@ Admin-only: create categories/products, approve seller applications, **per-selle
 
 ### Frontend `frontend/.env.local`
 - `NEXT_PUBLIC_API_URL` — backend base URL. Default `""` (empty). Empty means relative paths; Next.js `rewrites()` in `next.config.ts` proxies `/api/v1/:rest(.*)` to `http://localhost:8000`. Production overrides this with the absolute backend URL (inlined at build time).
+- `NEXT_PUBLIC_COMPANY_NAME` (default `Khanabazaar`) — displayed brand name across all pages, titles, navbar/footer, login, and the PWA manifest (`src/app/manifest.ts`). **Inlined at build time** (rebuild to change). Code reads it via `src/lib/brand.ts`; i18n copy uses a `{brand}` token in `messages/*.json` substituted at message-load time by `src/i18n/brand-messages.ts`.
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` — must equal the backend `VAPID_PUBLIC_KEY` (the browser's `applicationServerKey`).
 
 ## Testing
