@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     template: `%s | ${COMPANY_NAME}`,
   },
   description: `Shop groceries & essentials from nearby local stores. Pay seamlessly with UPI. ${COMPANY_NAME} connects you to your neighborhood sellers.`,
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -89,7 +89,7 @@ export default async function CustomerLayout({
     <html lang={locale} className={poppins.variable}>
       <head>
         <ThirdPartyErrorSuppressor />
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="kb-customer-root">

@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     default: `${COMPANY_NAME} — Operator`,
     template: `%s | ${COMPANY_NAME}`,
   },
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: [
       { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
@@ -69,7 +69,7 @@ export default async function OperatorLayout({
     <html lang={locale} className={poppins.variable}>
       <head>
         <ThirdPartyErrorSuppressor />
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body>

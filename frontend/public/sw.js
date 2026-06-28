@@ -6,7 +6,7 @@
 const CACHE_NAME = "khanabazaar-v4";
 const SHELL_ASSETS = [
   "/",
-  "/manifest.json",
+  "/manifest.webmanifest",
 ];
 
 // Install: pre-cache the app shell
