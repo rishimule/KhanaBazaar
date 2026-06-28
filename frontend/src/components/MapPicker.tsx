@@ -10,6 +10,7 @@ import {
 } from "@vis.gl/react-google-maps";
 
 import { reverseGeocode, type GeoPlace } from "@/lib/geo";
+import { COMPANY_NAME } from "@/lib/brand";
 
 import styles from "./MapPicker.module.css";
 
@@ -120,7 +121,7 @@ export function MapPicker({
         const place = await reverseGeocode(lat, lng);
         const country = place.components.find((c) => c.types.includes("country"));
         if (country && country.short_name !== "IN") {
-          onError?.("KhanaBazaar serves India only");
+          onError?.(`${COMPANY_NAME} serves India only`);
           return;
         }
         setResolved(true);

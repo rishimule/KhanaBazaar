@@ -2,6 +2,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { COMPANY_NAME } from "@/lib/brand";
 import styles from "./Footer.module.css";
 
 export default function Footer() {
@@ -11,7 +12,7 @@ export default function Footer() {
       <div className={styles.footerInner}>
         <div className={styles.footerBrand}>
           <div className={styles.footerLogo}>
-            <span>khanabazaar</span>
+            <span>{COMPANY_NAME}</span>
             <span className={styles.footerLogoAccent} aria-hidden />
           </div>
           <p className={styles.footerDescription}>{t("tagline")}</p>

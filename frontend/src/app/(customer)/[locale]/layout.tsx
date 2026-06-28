@@ -25,6 +25,7 @@ import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
 import { SearchOverlayProvider } from "@/lib/SearchOverlayContext";
 import { alternateLanguages } from "@/i18n/metadata";
 import { routing } from "@/i18n/routing";
+import { COMPANY_NAME } from "@/lib/brand";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -43,16 +44,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "Khana Bazaar — Your Hyperlocal Indian Marketplace",
-    template: "%s | Khana Bazaar",
+    default: `${COMPANY_NAME} — Your Hyperlocal Indian Marketplace`,
+    template: `%s | ${COMPANY_NAME}`,
   },
-  description:
-    "Shop groceries & essentials from nearby local stores. Pay seamlessly with UPI. Khana Bazaar connects you to your neighborhood sellers.",
+  description: `Shop groceries & essentials from nearby local stores. Pay seamlessly with UPI. ${COMPANY_NAME} connects you to your neighborhood sellers.`,
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Khana Bazaar",
+    title: COMPANY_NAME,
   },
   icons: {
     icon: [

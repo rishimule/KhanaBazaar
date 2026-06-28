@@ -15,6 +15,7 @@ import Avatar from "@/components/Avatar";
 import LocaleSwitcher from "./LocaleSwitcher";
 import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
 import { useLogoutConfirm } from "@/lib/useLogoutConfirm";
+import { COMPANY_NAME } from "@/lib/brand";
 import styles from "./NavbarTopBar.module.css";
 
 function PinIcon() {
@@ -75,8 +76,8 @@ export default function NavbarTopBar() {
   return (
     <div className={styles.inner}>
       <div className={styles.row1}>
-        <Link href="/" className={styles.logo} aria-label="khanabazaar home">
-          <span>khanabazaar</span>
+        <Link href="/" className={styles.logo} aria-label={`${COMPANY_NAME} home`}>
+          <span>{COMPANY_NAME}</span>
           <span className={styles.logoDot} aria-hidden />
         </Link>
 

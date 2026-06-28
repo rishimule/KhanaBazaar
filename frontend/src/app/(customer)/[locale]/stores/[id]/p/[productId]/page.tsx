@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { ApiError } from "@/lib/api";
 import { getStoreProduct } from "@/lib/api/products";
 import ProductDetail from "@/components/ProductDetail/ProductDetail";
+import { COMPANY_NAME } from "@/lib/brand";
 import styles from "./ProductFullPage.module.css";
 
 type Params = Promise<{ locale: string; id: string; productId: string }>;
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     const indexable = isAvailable && stock > 0;
     const description = (product.description || "").slice(0, 160);
     return {
-      title: `${product.name} — ${data.store.name} | Khana Bazaar`,
+      title: `${product.name} — ${data.store.name} | ${COMPANY_NAME}`,
       description,
       robots: indexable ? undefined : { index: false },
       openGraph: {

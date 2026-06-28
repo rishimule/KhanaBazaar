@@ -11,6 +11,7 @@ import MobileTabBar from "./MobileTabBar";
 import NavbarTopBar from "./NavbarTopBar";
 import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
 import { useLogoutConfirm } from "@/lib/useLogoutConfirm";
+import { COMPANY_NAME } from "@/lib/brand";
 import styles from "./Navbar.module.css";
 
 function BackIcon() {
@@ -53,8 +54,8 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
         {logoutDialog}
         <nav className={styles.nav}>
           <div className={styles.navInnerStripped}>
-          <Link href={dashboardHref} className={styles.logo} aria-label="khanabazaar dashboard">
-            <span>khanabazaar</span>
+          <Link href={dashboardHref} className={styles.logo} aria-label={`${COMPANY_NAME} dashboard`}>
+            <span>{COMPANY_NAME}</span>
             <span className={styles.logoDot} aria-hidden />
           </Link>
           <Link
@@ -94,8 +95,8 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
         {logoutDialog}
         <nav className={styles.nav}>
           <div className={styles.navInnerStripped}>
-          <Link href={dashboardHref} className={styles.logo} aria-label="khanabazaar dashboard">
-            <span>khanabazaar</span>
+          <Link href={dashboardHref} className={styles.logo} aria-label={`${COMPANY_NAME} dashboard`}>
+            <span>{COMPANY_NAME}</span>
             <span className={styles.logoDot} aria-hidden />
           </Link>
           <span className={styles.strippedSpacer} />
@@ -131,8 +132,8 @@ export default function Navbar({ variant = "auto" }: { variant?: NavbarVariant }
         {logoutDialog}
         <nav className={styles.nav}>
           <div className={styles.navInnerStripped}>
-          <Link href="/" className={styles.logo} aria-label="khanabazaar home">
-            <span>khanabazaar</span>
+          <Link href="/" className={styles.logo} aria-label={`${COMPANY_NAME} home`}>
+            <span>{COMPANY_NAME}</span>
             <span className={styles.logoDot} aria-hidden />
           </Link>
           <span className={styles.strippedSpacer} />
