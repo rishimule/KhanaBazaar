@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { apiErrorKey } from "@/lib/errors";
 import { useResendCountdown } from "@/lib/useResendCountdown";
+import { COMPANY_NAME } from "@/lib/brand";
 import { User } from "@/types";
 import styles from "./page.module.css";
 
@@ -164,7 +165,7 @@ function LoginPageInner() {
           <div className={styles.cardLogo}>🛍️</div>
           <h1 className={styles.cardTitle}>
             {t("welcomeTo")}{" "}
-            <span className={styles.cardTitleAccent}>KhanaBazaar</span>
+            <span className={styles.cardTitleAccent}>{COMPANY_NAME}</span>
           </h1>
           <p className={styles.cardSubtitle}>{subtitle}</p>
         </div>

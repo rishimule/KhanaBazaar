@@ -13,6 +13,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
+from app.core.config import settings
+
 
 @dataclass(frozen=True)
 class WhatsAppTemplate:
@@ -29,7 +31,7 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
         category="AUTHENTICATION",
         variables=("code",),
         render=lambda v: (
-            f"Your Khana Bazaar login code is {v['code']}. "
+            f"Your {settings.COMPANY_NAME} login code is {v['code']}. "
             "It expires in 10 minutes. Do not share it with anyone."
         ),
     ),
@@ -38,7 +40,7 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
         category="AUTHENTICATION",
         variables=("code",),
         render=lambda v: (
-            f"Your Khana Bazaar seller verification code is {v['code']}. "
+            f"Your {settings.COMPANY_NAME} seller verification code is {v['code']}. "
             "It expires in 10 minutes."
         ),
     ),
@@ -47,7 +49,7 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
         category="AUTHENTICATION",
         variables=("order_no", "code"),
         render=lambda v: (
-            f"Your Khana Bazaar delivery code for order #{v['order_no']} is "
+            f"Your {settings.COMPANY_NAME} delivery code for order #{v['order_no']} is "
             f"{v['code']}. Share it only with your delivery partner at handover."
         ),
     ),

@@ -14,7 +14,7 @@ def test_render_email_returns_subject_preheader_html_text():
     assert "Hello Ravi" in payload.html
     assert "₹1,234.50" in payload.html
     assert "Hello Ravi" in payload.text
-    assert "Khana Bazaar" in payload.html
+    assert "Khanabazaar" in payload.html  # brand_name injected into base.html
     assert "{{ " not in payload.html
     assert "{{ " not in payload.text
 

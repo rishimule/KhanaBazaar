@@ -25,6 +25,7 @@ import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
 import { SearchOverlayProvider } from "@/lib/SearchOverlayContext";
 import { alternateLanguages } from "@/i18n/metadata";
 import { routing } from "@/i18n/routing";
+import { COMPANY_NAME } from "@/lib/brand";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -43,16 +44,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "Khana Bazaar — Your Hyperlocal Indian Marketplace",
-    template: "%s | Khana Bazaar",
+    default: `${COMPANY_NAME} — Your Hyperlocal Indian Marketplace`,
+    template: `%s | ${COMPANY_NAME}`,
   },
-  description:
-    "Shop groceries & essentials from nearby local stores. Pay seamlessly with UPI. Khana Bazaar connects you to your neighborhood sellers.",
-  manifest: "/manifest.json",
+  description: `Shop groceries & essentials from nearby local stores. Pay seamlessly with UPI. ${COMPANY_NAME} connects you to your neighborhood sellers.`,
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Khana Bazaar",
+    title: COMPANY_NAME,
   },
   icons: {
     icon: [
@@ -89,7 +89,7 @@ export default async function CustomerLayout({
     <html lang={locale} className={poppins.variable}>
       <head>
         <ThirdPartyErrorSuppressor />
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="kb-customer-root">

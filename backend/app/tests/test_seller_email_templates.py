@@ -30,7 +30,7 @@ def test_seller_approved_email_renders_dashboard_cta():
         send_seller_approved_async("seller@example.com", "Sample Mart")
 
     assert cap["to"] == "seller@example.com"
-    assert "[Khana Bazaar]" in cap["subject"]
+    assert "[Khanabazaar]" in cap["subject"]
     assert "approved" in cap["subject"].lower()
     assert "Sample Mart" in cap["html"]
     assert "/seller" in cap["html"]
@@ -47,7 +47,7 @@ def test_seller_rejected_email_renders_reason_and_resubmit_cta():
         )
 
     assert cap["to"] == "seller@example.com"
-    assert "[Khana Bazaar]" in cap["subject"]
+    assert "[Khanabazaar]" in cap["subject"]
     assert "Documents missing" in cap["html"]
     assert "Documents missing" in cap["body"]
     assert "/seller/signup" in cap["html"]

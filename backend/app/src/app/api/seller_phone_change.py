@@ -102,7 +102,7 @@ async def request_phone_change_otp(
         template_name="otp_seller_phone",
         variables={"code": code},
         sms_text=(
-            f"Your Khana Bazaar phone-change verification code is: {code}\n"
+            f"Your {settings.COMPANY_NAME} phone-change verification code is: {code}\n"
             "Expires in 10 minutes."
         ),
         sms_sender=sender,

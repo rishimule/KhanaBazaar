@@ -32,7 +32,7 @@
     "useMyLocation": "मेरा स्थान इस्तेमाल करें",
     "locating": "स्थान खोजा जा रहा है…",
     "denied": "स्थान की अनुमति अस्वीकृत। इसे अपनी ब्राउज़र सेटिंग में चालू करें, या स्थान मैन्युअल रूप से सेट करें।",
-    "outsideIndia": "खाना बाज़ार केवल भारत में सेवा देता है।",
+    "outsideIndia": "{brand} केवल भारत में सेवा देता है।",
     "error": "आपका स्थान प्राप्त नहीं हो सका। कृपया फिर से प्रयास करें या इसे मैन्युअल रूप से सेट करें।",
     "dismiss": "खारिज करें"
   },
@@ -43,7 +43,7 @@
     "ctaStartShopping": "शॉपिंग शुरू करें",
     "ctaExploreProducts": "उत्पाद देखें",
     "ctaSignInToShop": "खरीदारी के लिए साइन इन करें",
-    "ctaSellOnKB": "Khana Bazaar पर बेचें",
+    "ctaSellOnKB": "{brand} पर बेचें",
     "highlightsAria": "मार्केटप्लेस की मुख्य बातें",
     "trustPincode": "पिनकोड-आधारित खोज",
     "trustInventory": "स्थानीय विक्रेता इन्वेंट्री",
@@ -60,7 +60,7 @@
     "benefitFreshTitle": "ताज़ी ज़रूरतें",
     "benefitFreshBody": "स्थानीय विक्रेताओं से किराना और रोज़मर्रा की ज़रूरतें ब्राउज़ करें, इन्वेंट्री अपडेट के साथ।",
     "benefitMobileTitle": "मोबाइल के लिए बना",
-    "benefitMobileBody": "ऐप जैसा फ़ोकस्ड ऑर्डरिंग अनुभव पाने के लिए Khana Bazaar को अपने होम स्क्रीन पर जोड़ें।",
+    "benefitMobileBody": "ऐप जैसा फ़ोकस्ड ऑर्डरिंग अनुभव पाने के लिए {brand} को अपने होम स्क्रीन पर जोड़ें।",
     "popularEyebrow": "पास का मार्केटप्लेस",
     "popularTitle": "लोकप्रिय स्टोर",
     "popularSubtitle": "स्थानीय विक्रेताओं से शुरुआत करें और जो आपके पास उपलब्ध है उसी के आधार पर अपनी टोकरी बनाएं।",
@@ -79,7 +79,7 @@
     "previewSetLocationCard": "Set your location to see nearby products",
     "sellerBandEyebrow": "स्थानीय विक्रेताओं के लिए",
     "sellerBandTitle": "लोकल स्टोर चलाते हैं?",
-    "sellerBandBody": "अपना कैटलॉग ऑनलाइन लाएँ, स्थानीय इन्वेंट्री प्रबंधित करें, और Khana Bazaar के माध्यम से पास के ग्राहकों तक पहुँचें।",
+    "sellerBandBody": "अपना कैटलॉग ऑनलाइन लाएँ, स्थानीय इन्वेंट्री प्रबंधित करें, और {brand} के माध्यम से पास के ग्राहकों तक पहुँचें।",
     "becomeSeller": "विक्रेता बनें"
   },
   "Stores": {
@@ -257,7 +257,7 @@
   },
   "Sell": {
     "metaTitle": "विक्रेता बनें",
-    "metaDescription": "Khana Bazaar पर बेचने के लिए आवेदन करें और अपने पड़ोस के स्टोर को पास के ग्राहकों के लिए ऑनलाइन लाएँ।",
+    "metaDescription": "{brand} पर बेचने के लिए आवेदन करें और अपने पड़ोस के स्टोर को पास के ग्राहकों के लिए ऑनलाइन लाएँ।",
     "heroEyebrow": "स्थानीय स्टोर के लिए",
     "heroTitle": "अपने पड़ोस के स्टोर को ऑनलाइन लाएँ",
     "heroBody": "अपने किराना, फार्मेसी, इलेक्ट्रॉनिक्स काउंटर, या जनरल स्टोर से पास के ग्राहकों तक पहुँचें और साथ ही अपने उत्पादों, क़ीमतों और स्टॉक पर नियंत्रण बनाए रखें।",
@@ -358,7 +358,7 @@
     "forSellers": "विक्रेताओं के लिए",
     "privacy": "गोपनीयता नीति",
     "terms": "सेवा की शर्तें",
-    "copyright": "© {year} Khana Bazaar. सर्वाधिकार सुरक्षित।",
+    "copyright": "© {year} {brand}. सर्वाधिकार सुरक्षित।",
     "madeWith": "भारत के स्थानीय विक्रेताओं के लिए 🧡 से बनाया गया"
   },
   "Dashboard": {
@@ -771,7 +771,7 @@
       "shortcutFavorites": "पसंदीदा",
       "shortcutAddresses": "पते",
       "shortcutSupport": "सहायता",
-      "installAppTitle": "Install Khana Bazaar",
+      "installAppTitle": "Install {brand}",
       "installAppSubtitle": "Quick access from your home screen",
       "reorderCta": "फिर ऑर्डर करें",
       "viewAll": "सभी देखें"
@@ -824,12 +824,12 @@
   "PWAInstall": {
     "__translatorNote": "All PWAInstall, Footer.getApp/installApp, and Account.dashboard.shortcutInstallApp values are English fallbacks pending translation.",
     "iosSheet": {
-      "title": "Install Khana Bazaar",
+      "title": "Install {brand}",
       "subtitle": "Add it to your home screen in 3 steps",
       "step1": "Tap the Share button below",
       "step2": "Choose \"Add to Home Screen\"",
       "step3": "Tap Add to confirm",
-      "footnote": "Khana Bazaar will appear on your home screen like any app.",
+      "footnote": "{brand} will appear on your home screen like any app.",
       "dismiss": "Got it"
     },
     "fallbackSheet": {
@@ -1093,7 +1093,7 @@
     },
     "signup": {
       "stepCounter": "चरण {current} / {total}",
-      "title": "<accent>KhanaBazaar</accent> पर बेचें",
+      "title": "<accent>{brand}</accent> पर बेचें",
       "accountNotice": "<strong>{email}</strong> के रूप में साइन इन हैं। अपने विक्रेता खाते के लिए दूसरा ईमेल इस्तेमाल करें, या साइन आउट करें।",
       "signOut": "साइन आउट",
       "emailLabel": "ईमेल पता",
@@ -1722,7 +1722,7 @@
     }
   },
   "Info": {
-    "aboutTitle": "खाना बाज़ार के बारे में",
+    "aboutTitle": "{brand} के बारे में",
     "privacyTitle": "गोपनीयता नीति",
     "termsTitle": "सेवा की शर्तें",
     "comingSoon": "यह पेज जल्द ही आ रहा है — कृपया बाद में देखें।"
@@ -1740,7 +1740,7 @@
   },
   "PolicyConsent": {
     "title": "हमने अपनी नीतियाँ अपडेट की हैं",
-    "body": "Khana Bazaar का उपयोग जारी रखने के लिए, कृपया हमारी <terms>सेवा की शर्तें</terms> और <privacy>गोपनीयता नीति</privacy> देखें और स्वीकार करें।",
+    "body": "{brand} का उपयोग जारी रखने के लिए, कृपया हमारी <terms>सेवा की शर्तें</terms> और <privacy>गोपनीयता नीति</privacy> देखें और स्वीकार करें।",
     "accept": "स्वीकार करें और जारी रखें",
     "accepting": "सहेजा जा रहा है…",
     "logout": "लॉग आउट",

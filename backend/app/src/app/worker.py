@@ -158,7 +158,7 @@ def send_delivery_otp_sms_async(order_id: int, code: str) -> None:
     if not phone:
         return
     sms_text = (
-        f"Khana Bazaar: your delivery code for order #{order_id} is {code}. "
+        f"{settings.COMPANY_NAME}: your delivery code for order #{order_id} is {code}. "
         f"Share it only with your delivery partner at handover."
     )
 

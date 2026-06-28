@@ -14,6 +14,8 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
 import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
 import { routing } from "@/i18n/routing";
+import { applyBrandToMessages } from "@/i18n/brand-messages";
+import { COMPANY_NAME } from "@/lib/brand";
 
 async function resolveOperatorLocale(): Promise<string> {
   const cookieLocale = (await cookies()).get("NEXT_LOCALE")?.value;
@@ -40,10 +42,10 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "Khana Bazaar — Operator",
-    template: "%s | Khana Bazaar",
+    default: `${COMPANY_NAME} — Operator`,
+    template: `%s | ${COMPANY_NAME}`,
   },
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: [
       { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
@@ -59,13 +61,15 @@ export default async function OperatorLayout({
   children: React.ReactNode;
 }) {
   const locale = await resolveOperatorLocale();
-  const messages = (await import(`../../../messages/${locale}.json`)).default;
+  const messages = applyBrandToMessages(
+    (await import(`../../../messages/${locale}.json`)).default,
+  );
 
   return (
     <html lang={locale} className={poppins.variable}>
       <head>
         <ThirdPartyErrorSuppressor />
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body>

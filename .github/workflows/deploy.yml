@@ -52,6 +52,7 @@ jobs:
           IMG=$AR_HOST/$PROJECT_ID/kb/web:${{ github.sha }}
           docker build -t $IMG \
             --build-arg NEXT_PUBLIC_API_URL="" \
+            --build-arg NEXT_PUBLIC_COMPANY_NAME="Sarvaka" \
             --build-arg NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY="${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY }}" \
             --build-arg NEXT_PUBLIC_VAPID_PUBLIC_KEY="${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}" \
             --build-arg INTERNAL_API_URL="${{ vars.INTERNAL_API_URL }}" \
@@ -66,7 +67,9 @@ jobs:
           gcloud run jobs execute kb-migrate --region=$REGION --wait
 
       - name: Deploy api
-        run: gcloud run services update khanabazaar-api --region=$REGION --image=$API_IMAGE
+        run: |
+          gcloud run services update khanabazaar-api --region=$REGION --image=$API_IMAGE \
+            --update-env-vars=COMPANY_NAME="Sarvaka"
 
       - name: Deploy web (runtime INTERNAL_API_URL too)
         run: |
