@@ -417,7 +417,7 @@ async def seller_phone_otp_request(
         template_name="otp_seller_phone",
         variables={"code": code},
         sms_text=(
-            f"Your Khana Bazaar seller verification code is: {code}\n"
+            f"Your {settings.COMPANY_NAME} seller verification code is: {code}\n"
             "Expires in 10 minutes."
         ),
         sms_sender=sender,
