@@ -14,6 +14,7 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
 import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
 import { routing } from "@/i18n/routing";
+import { applyBrandToMessages } from "@/i18n/brand-messages";
 
 async function resolveOperatorLocale(): Promise<string> {
   const cookieLocale = (await cookies()).get("NEXT_LOCALE")?.value;
@@ -59,7 +60,9 @@ export default async function OperatorLayout({
   children: React.ReactNode;
 }) {
   const locale = await resolveOperatorLocale();
-  const messages = (await import(`../../../messages/${locale}.json`)).default;
+  const messages = applyBrandToMessages(
+    (await import(`../../../messages/${locale}.json`)).default,
+  );
 
   return (
     <html lang={locale} className={poppins.variable}>

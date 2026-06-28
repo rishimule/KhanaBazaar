@@ -4,6 +4,7 @@ import { getRequestConfig } from "next-intl/server";
 import { hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 import { routing } from "./routing";
+import { applyBrandToMessages } from "./brand-messages";
 
 export default getRequestConfig(async ({ requestLocale }) => {
   const requested = await requestLocale;
@@ -11,7 +12,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
 
   let messages;
   try {
-    messages = (await import(`../../messages/${locale}.json`)).default;
+    messages = applyBrandToMessages((await import(`../../messages/${locale}.json`)).default);
   } catch {
     notFound();
   }

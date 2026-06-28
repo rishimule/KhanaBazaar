@@ -32,7 +32,7 @@
     "useMyLocation": "Use my location",
     "locating": "Locating…",
     "denied": "Location access denied. Enable it in your browser settings, or set your location manually.",
-    "outsideIndia": "KhanaBazaar serves India only.",
+    "outsideIndia": "{brand} serves India only.",
     "error": "Couldn't get your location. Please try again or set it manually.",
     "dismiss": "Dismiss"
   },
@@ -43,7 +43,7 @@
     "ctaStartShopping": "Start shopping",
     "ctaExploreProducts": "Explore products",
     "ctaSignInToShop": "Sign in to shop",
-    "ctaSellOnKB": "Sell on Khana Bazaar",
+    "ctaSellOnKB": "Sell on {brand}",
     "highlightsAria": "Marketplace highlights",
     "trustPincode": "Pincode-first discovery",
     "trustInventory": "Local seller inventory",
@@ -60,7 +60,7 @@
     "benefitFreshTitle": "Fresh essentials",
     "benefitFreshBody": "Browse groceries and daily needs from local sellers with practical inventory updates.",
     "benefitMobileTitle": "Built for mobile",
-    "benefitMobileBody": "Add Khana Bazaar to your home screen for a focused app-like ordering experience.",
+    "benefitMobileBody": "Add {brand} to your home screen for a focused app-like ordering experience.",
     "popularEyebrow": "Nearby marketplace",
     "popularTitle": "Popular stores",
     "popularSubtitle": "Start with local sellers and build your basket around what is available near you.",
@@ -79,7 +79,7 @@
     "previewSetLocationCard": "Set your location to see nearby products",
     "sellerBandEyebrow": "For local sellers",
     "sellerBandTitle": "Run a local store?",
-    "sellerBandBody": "Bring your catalog online, manage local inventory, and reach nearby customers through Khana Bazaar.",
+    "sellerBandBody": "Bring your catalog online, manage local inventory, and reach nearby customers through {brand}.",
     "becomeSeller": "Become a seller"
   },
   "Stores": {
@@ -257,7 +257,7 @@
   },
   "Sell": {
     "metaTitle": "Become a Seller",
-    "metaDescription": "Apply to sell on Khana Bazaar and bring your neighborhood store online for nearby shoppers.",
+    "metaDescription": "Apply to sell on {brand} and bring your neighborhood store online for nearby shoppers.",
     "heroEyebrow": "For local stores",
     "heroTitle": "Bring your neighborhood store online",
     "heroBody": "Reach nearby customers from your kirana, pharmacy, electronics counter, or general store while keeping control of your products, prices, and stock.",
@@ -358,7 +358,7 @@
     "forSellers": "For Sellers",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
-    "copyright": "© {year} Khana Bazaar. All rights reserved.",
+    "copyright": "© {year} {brand}. All rights reserved.",
     "madeWith": "Made with 🧡 for India's local sellers"
   },
   "Dashboard": {
@@ -771,7 +771,7 @@
       "shortcutFavorites": "Favourites",
       "shortcutAddresses": "Addresses",
       "shortcutSupport": "Support",
-      "installAppTitle": "Install Khana Bazaar",
+      "installAppTitle": "Install {brand}",
       "installAppSubtitle": "Quick access from your home screen",
       "reorderCta": "Reorder",
       "viewAll": "View all"
@@ -823,12 +823,12 @@
   },
   "PWAInstall": {
     "iosSheet": {
-      "title": "Install Khana Bazaar",
+      "title": "Install {brand}",
       "subtitle": "Add it to your home screen in 3 steps",
       "step1": "Tap the Share button below",
       "step2": "Choose \"Add to Home Screen\"",
       "step3": "Tap Add to confirm",
-      "footnote": "Khana Bazaar will appear on your home screen like any app.",
+      "footnote": "{brand} will appear on your home screen like any app.",
       "dismiss": "Got it"
     },
     "fallbackSheet": {
@@ -1092,7 +1092,7 @@
     },
     "signup": {
       "stepCounter": "Step {current} of {total}",
-      "title": "Sell on <accent>KhanaBazaar</accent>",
+      "title": "Sell on <accent>{brand}</accent>",
       "accountNotice": "Signed in as <strong>{email}</strong>. Use a different email for your seller account, or sign out.",
       "signOut": "Sign out",
       "emailLabel": "Email address",
@@ -1721,7 +1721,7 @@
     }
   },
   "Info": {
-    "aboutTitle": "About Khana Bazaar",
+    "aboutTitle": "About {brand}",
     "privacyTitle": "Privacy Policy",
     "termsTitle": "Terms of Service",
     "comingSoon": "This page is on its way — check back soon."
@@ -1739,7 +1739,7 @@
   },
   "PolicyConsent": {
     "title": "We've updated our policies",
-    "body": "To continue using Khana Bazaar, please review and accept our <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>.",
+    "body": "To continue using {brand}, please review and accept our <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>.",
     "accept": "Accept and continue",
     "accepting": "Saving…",
     "logout": "Log out",

@@ -43,7 +43,7 @@
     "ctaStartShopping": "શોપિંગ શરૂ કરો",
     "ctaExploreProducts": "ઉત્પાદનો જુઓ",
     "ctaSignInToShop": "ખરીદી માટે સાઇન ઇન કરો",
-    "ctaSellOnKB": "Khana Bazaar પર વેચો",
+    "ctaSellOnKB": "{brand} પર વેચો",
     "highlightsAria": "માર્કેટપ્લેસની મુખ્ય બાબતો",
     "trustPincode": "પિનકોડ-આધારિત શોધ",
     "trustInventory": "સ્થાનિક વિક્રેતા ઇન્વેન્ટરી",
@@ -60,7 +60,7 @@
     "benefitFreshTitle": "તાજી જરૂરિયાતો",
     "benefitFreshBody": "વ્યવહારુ ઇન્વેન્ટરી અપડેટ્સ સાથે સ્થાનિક વિક્રેતાઓ પાસેથી કરિયાણું અને રોજિંદી જરૂરિયાતો બ્રાઉઝ કરો.",
     "benefitMobileTitle": "મોબાઇલ માટે બનાવેલ",
-    "benefitMobileBody": "ફોકસ્ડ એપ-જેવા ઓર્ડરિંગ અનુભવ માટે Khana Bazaar ને તમારી હોમ સ્ક્રીન પર ઉમેરો.",
+    "benefitMobileBody": "ફોકસ્ડ એપ-જેવા ઓર્ડરિંગ અનુભવ માટે {brand} ને તમારી હોમ સ્ક્રીન પર ઉમેરો.",
     "popularEyebrow": "નજીકનું માર્કેટપ્લેસ",
     "popularTitle": "લોકપ્રિય દુકાનો",
     "popularSubtitle": "સ્થાનિક વિક્રેતાઓથી શરૂઆત કરો અને તમારી નજીક જે ઉપલબ્ધ છે તેની આસપાસ તમારી ટોપલી બનાવો.",
@@ -79,7 +79,7 @@
     "previewSetLocationCard": "Set your location to see nearby products",
     "sellerBandEyebrow": "સ્થાનિક વિક્રેતાઓ માટે",
     "sellerBandTitle": "સ્થાનિક દુકાન ચલાવો છો?",
-    "sellerBandBody": "તમારો કેટલોગ ઓનલાઇન લાવો, સ્થાનિક ઇન્વેન્ટરી મેનેજ કરો, અને Khana Bazaar દ્વારા નજીકના ગ્રાહકો સુધી પહોંચો.",
+    "sellerBandBody": "તમારો કેટલોગ ઓનલાઇન લાવો, સ્થાનિક ઇન્વેન્ટરી મેનેજ કરો, અને {brand} દ્વારા નજીકના ગ્રાહકો સુધી પહોંચો.",
     "becomeSeller": "વિક્રેતા બનો"
   },
   "Stores": {
@@ -257,7 +257,7 @@
   },
   "Sell": {
     "metaTitle": "વિક્રેતા બનો",
-    "metaDescription": "Khana Bazaar પર વેચવા માટે અરજી કરો અને તમારી પડોશની દુકાનને નજીકના ખરીદદારો માટે ઓનલાઇન લાવો.",
+    "metaDescription": "{brand} પર વેચવા માટે અરજી કરો અને તમારી પડોશની દુકાનને નજીકના ખરીદદારો માટે ઓનલાઇન લાવો.",
     "heroEyebrow": "સ્થાનિક દુકાનો માટે",
     "heroTitle": "તમારી પડોશની દુકાનને ઓનલાઇન લાવો",
     "heroBody": "તમારા કરિયાણા, ફાર્મસી, ઇલેક્ટ્રોનિક્સ કાઉન્ટર, અથવા જનરલ સ્ટોરમાંથી નજીકના ગ્રાહકો સુધી પહોંચો અને તમારા ઉત્પાદનો, કિંમતો અને સ્ટોક પર નિયંત્રણ રાખો.",
@@ -358,7 +358,7 @@
     "forSellers": "વિક્રેતાઓ માટે",
     "privacy": "ગોપનીયતા નીતિ",
     "terms": "સેવાની શરતો",
-    "copyright": "© {year} Khana Bazaar. તમામ અધિકારો સુરક્ષિત.",
+    "copyright": "© {year} {brand}. તમામ અધિકારો સુરક્ષિત.",
     "madeWith": "ભારતના સ્થાનિક વિક્રેતાઓ માટે 🧡 થી બનાવેલ"
   },
   "Dashboard": {
@@ -771,7 +771,7 @@
       "shortcutFavorites": "પ્રિય",
       "shortcutAddresses": "સરનામાં",
       "shortcutSupport": "સહાય",
-      "installAppTitle": "Install Khana Bazaar",
+      "installAppTitle": "Install {brand}",
       "installAppSubtitle": "Quick access from your home screen",
       "reorderCta": "ફરી ઓર્ડર",
       "viewAll": "બધું જુઓ"
@@ -824,12 +824,12 @@
   "PWAInstall": {
     "__translatorNote": "All PWAInstall, Footer.getApp/installApp, and Account.dashboard.shortcutInstallApp values are English fallbacks pending translation.",
     "iosSheet": {
-      "title": "Install Khana Bazaar",
+      "title": "Install {brand}",
       "subtitle": "Add it to your home screen in 3 steps",
       "step1": "Tap the Share button below",
       "step2": "Choose \"Add to Home Screen\"",
       "step3": "Tap Add to confirm",
-      "footnote": "Khana Bazaar will appear on your home screen like any app.",
+      "footnote": "{brand} will appear on your home screen like any app.",
       "dismiss": "Got it"
     },
     "fallbackSheet": {
@@ -1093,7 +1093,7 @@
     },
     "signup": {
       "stepCounter": "પગલું {current} / {total}",
-      "title": "<accent>KhanaBazaar</accent> પર વેચો",
+      "title": "<accent>{brand}</accent> પર વેચો",
       "accountNotice": "<strong>{email}</strong> તરીકે સાઇન ઇન છો. તમારા વિક્રેતા ખાતા માટે અલગ ઈમેઇલ વાપરો, અથવા સાઇન આઉટ કરો.",
       "signOut": "સાઇન આઉટ",
       "emailLabel": "ઈમેઇલ સરનામું",
@@ -1740,7 +1740,7 @@
   },
   "PolicyConsent": {
     "title": "અમે અમારી નીતિઓ અપડેટ કરી છે",
-    "body": "Khana Bazaar વાપરવાનું ચાલુ રાખવા માટે, કૃપા કરીને અમારી <terms>સેવાની શરતો</terms> અને <privacy>ગોપનીયતા નીતિ</privacy> જુઓ અને સ્વીકારો.",
+    "body": "{brand} વાપરવાનું ચાલુ રાખવા માટે, કૃપા કરીને અમારી <terms>સેવાની શરતો</terms> અને <privacy>ગોપનીયતા નીતિ</privacy> જુઓ અને સ્વીકારો.",
     "accept": "સ્વીકારો અને ચાલુ રાખો",
     "accepting": "સાચવી રહ્યું છે…",
     "logout": "લૉગ આઉટ",
