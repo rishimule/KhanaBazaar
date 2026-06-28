@@ -129,6 +129,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _resolve_defaults(self) -> "Settings":
+        object.__setattr__(self, "COMPANY_NAME", self.COMPANY_NAME.strip() or "Khanabazaar")
         if not self.EMAIL_BRAND_NAME:
             object.__setattr__(self, "EMAIL_BRAND_NAME", self.COMPANY_NAME)
         if not self.PROJECT_NAME:

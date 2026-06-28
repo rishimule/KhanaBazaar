@@ -59,6 +59,12 @@ def test_company_name_default():
     assert s.COMPANY_NAME == "Khanabazaar"
 
 
+def test_company_name_whitespace_falls_back_to_default():
+    s = _make(COMPANY_NAME="   ")
+    assert s.COMPANY_NAME == "Khanabazaar"
+    assert s.EMAIL_BRAND_NAME == "Khanabazaar"
+
+
 def test_email_brand_name_defaults_to_company_name():
     s = _make(COMPANY_NAME="Acme Foods")
     assert s.EMAIL_BRAND_NAME == "Acme Foods"
