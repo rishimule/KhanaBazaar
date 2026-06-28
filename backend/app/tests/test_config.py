@@ -51,7 +51,32 @@ def test_support_email_example_in_development_does_not_warn(caplog):
 
 def test_brand_name_default():
     s = _make()
-    assert s.EMAIL_BRAND_NAME == "Khana Bazaar"
+    assert s.EMAIL_BRAND_NAME == "Khanabazaar"
+
+
+def test_company_name_default():
+    s = _make()
+    assert s.COMPANY_NAME == "Khanabazaar"
+
+
+def test_email_brand_name_defaults_to_company_name():
+    s = _make(COMPANY_NAME="Acme Foods")
+    assert s.EMAIL_BRAND_NAME == "Acme Foods"
+
+
+def test_explicit_email_brand_name_overrides_company_name():
+    s = _make(COMPANY_NAME="Acme Foods", EMAIL_BRAND_NAME="Acme Mail")
+    assert s.EMAIL_BRAND_NAME == "Acme Mail"
+
+
+def test_project_name_defaults_from_company_name():
+    s = _make(COMPANY_NAME="Acme Foods")
+    assert s.PROJECT_NAME == "Acme Foods API"
+
+
+def test_explicit_project_name_overrides_company_name():
+    s = _make(PROJECT_NAME="Custom API")
+    assert s.PROJECT_NAME == "Custom API"
 
 
 def test_frontend_base_url_default():

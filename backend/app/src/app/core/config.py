@@ -7,10 +7,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Khana Bazaar API"
+    PROJECT_NAME: str = ""
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
+
+    # Branding — single source for the displayed company/brand name. Falls back
+    # to "Khanabazaar". EMAIL_BRAND_NAME and PROJECT_NAME derive from this when
+    # left unset (see _resolve_defaults).
+    COMPANY_NAME: str = "Khanabazaar"
 
     # JWT
     JWT_SECRET: str
@@ -36,7 +41,7 @@ class Settings(BaseSettings):
     SUPPORT_EMAIL: str = "support@khanabazaar.example"
     # Reply-to header on customer-facing emails. Falls back to SUPPORT_EMAIL.
     EMAIL_REPLY_TO: str | None = None
-    EMAIL_BRAND_NAME: str = "Khana Bazaar"
+    EMAIL_BRAND_NAME: str = ""
     # Base URL used to build CTA links inside email templates.
     EMAIL_FRONTEND_BASE_URL: str = "http://localhost:3000"
 
@@ -123,7 +128,11 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.FRONTEND_ORIGIN.split(",") if o.strip()]
 
     @model_validator(mode="after")
-    def _resolve_email_defaults(self) -> "Settings":
+    def _resolve_defaults(self) -> "Settings":
+        if not self.EMAIL_BRAND_NAME:
+            object.__setattr__(self, "EMAIL_BRAND_NAME", self.COMPANY_NAME)
+        if not self.PROJECT_NAME:
+            object.__setattr__(self, "PROJECT_NAME", f"{self.COMPANY_NAME} API")
         if self.EMAIL_REPLY_TO is None:
             object.__setattr__(self, "EMAIL_REPLY_TO", self.SUPPORT_EMAIL)
         if self.ENVIRONMENT == "production" and ".example" in self.SUPPORT_EMAIL:
