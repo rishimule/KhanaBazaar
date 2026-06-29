@@ -907,9 +907,11 @@ async def admin_list_onboarding_requests(
                 SellerOnboardingRequest.contact_phone.ilike(like),  # type: ignore[attr-defined]
             )
         )
-    total = (
-        await session.exec(select(func.count()).select_from(stmt.subquery()))  # type: ignore[arg-type]
-    ).one()
+    total = int(
+        (
+            await session.exec(select(func.count()).select_from(stmt.subquery()))  # type: ignore[arg-type]
+        ).one()
+    )
     rows = (
         await session.exec(
             stmt.order_by(SellerOnboardingRequest.created_at.desc())  # type: ignore[attr-defined]
@@ -937,6 +939,7 @@ async def admin_update_onboarding_request(
     if row is None:
         raise HTTPException(status_code=404, detail={"error": "not_found"})
     row.status = body.status
+    row.updated_at = datetime.now(timezone.utc)
     session.add(row)
     await session.commit()
     await session.refresh(row)

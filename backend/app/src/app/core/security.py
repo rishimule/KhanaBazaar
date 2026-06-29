@@ -92,7 +92,11 @@ async def get_optional_current_user(
     user_id = payload.get("sub")
     if not user_id:
         return None
-    result = await session.exec(select(User).where(User.id == int(str(user_id))))
+    try:
+        uid = int(str(user_id))
+    except (ValueError, TypeError):
+        return None
+    result = await session.exec(select(User).where(User.id == uid))
     user = result.first()
     if not user or not user.is_active:
         return None
