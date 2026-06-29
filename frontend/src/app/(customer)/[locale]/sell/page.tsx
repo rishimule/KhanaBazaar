@@ -3,6 +3,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { get } from "@/lib/api";
+import type { Service } from "@/types";
 import HowItWorksStepper from "./HowItWorksStepper";
 import styles from "./page.module.css";
 
@@ -16,6 +18,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SellPage() {
   const t = await getTranslations("Sell");
+
+  let services: Service[] = [];
+  try {
+    services = await get<Service[]>("/api/v1/catalog/services");
+  } catch {
+    services = [];
+  }
 
   const whyItems = [
     { lead: t("why1Lead"), desc: t("why1Desc") },
@@ -31,13 +40,6 @@ export default async function SellPage() {
     { number: "03", title: t("step3Title"), body: t("step3Body") },
     { number: "04", title: t("step4Title"), body: t("step4Body") },
     { number: "05", title: t("step5Title"), body: t("step5Body") },
-  ];
-
-  const categories = [
-    t("categoryGrocery"),
-    t("categoryPharmacy"),
-    t("categoryElectronics"),
-    t("categoryGeneral"),
   ];
 
   const dashboardRows = [
@@ -116,16 +118,15 @@ export default async function SellPage() {
 
       <section className={styles.section}>
         <div className="container">
-          <div className={styles.sectionHeader}>
-            <p className={styles.sectionKicker}>{t("categoriesKicker")}</p>
-            <h2 className={styles.sectionTitle}>{t("categoriesTitle")}</h2>
-          </div>
-
-          <div className={styles.categoryGrid}>
-            {categories.map((category) => (
-              <article key={category} className={styles.categoryCard}>
-                <h3>{category}</h3>
-              </article>
+          <div className={styles.categoryPath}>
+            <h2 className={styles.categoryPathLabel}>{t("categoriesTitle")}</h2>
+            {services.map((service) => (
+              <span key={service.slug} className={styles.categoryPathItem}>
+                <span className={styles.categoryPathSep} aria-hidden="true">
+                  {">>"}
+                </span>
+                <span className={styles.categoryPathName}>{service.name}</span>
+              </span>
             ))}
           </div>
         </div>
