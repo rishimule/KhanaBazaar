@@ -73,6 +73,7 @@ const ICON_PATHS = {
       <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
     </>
   ),
+  check: <polyline points="20 6 9 17 4 12" />,
 } satisfies Record<string, ReactNode>;
 
 export type SellIconName = keyof typeof ICON_PATHS;

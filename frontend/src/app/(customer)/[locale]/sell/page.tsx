@@ -213,7 +213,10 @@ export default async function SellPage() {
                 <ul className={styles.checklist}>
                   {group.items.map((item) => (
                     <li key={item} className={styles.checklistItem}>
-                      {item}
+                      <span className={styles.checklistCheck}>
+                        <SellIcon name="check" size={14} />
+                      </span>
+                      <span className={styles.checklistText}>{item}</span>
                     </li>
                   ))}
                 </ul>
