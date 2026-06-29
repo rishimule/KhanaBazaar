@@ -21,20 +21,17 @@
 }
 
 .heroGrid,
-.previewGrid,
 .finalCtaInner {
   display: grid;
   gap: var(--space-8);
 }
 
 .heroCopy,
-.previewCopy,
 .finalCtaInner > div {
   min-width: 0;
 }
 
-.eyebrow,
-.sectionKicker {
+.eyebrow {
   display: inline-flex;
   width: fit-content;
   padding: var(--space-1-5) var(--space-3);
@@ -69,9 +66,7 @@
 .heroBody,
 .previewBody,
 .finalBody,
-.valueCard p,
-.stepCard p,
-.faqRow p {
+.valueCard p {
   max-width: 60ch;
   margin-top: var(--space-4);
   color: var(--color-neutral-600);
@@ -127,46 +122,24 @@
   overflow-wrap: anywhere;
 }
 
-.valueGrid,
-.stepsGrid,
-.categoryGrid,
-.checklist,
-.faqList {
+.valueGrid {
   display: grid;
   gap: var(--space-4);
   margin-top: var(--space-8);
 }
 
-.valueCard,
-.stepCard,
-.categoryCard,
-.faqRow {
+.valueCard {
   min-width: 0;
   padding: var(--space-5);
   border: 1px solid var(--hairline);
+  border-top: 1px solid var(--color-primary-1);
   border-radius: var(--radius-card);
   background: var(--white);
 }
 
-.valueCard {
-  border-top: 1px solid var(--color-primary-1);
-}
-
-.stepCard {
-  border-top: 1px solid var(--color-btn-primary-bg);
-}
-
-.categoryCard {
-  border-left: 1px solid var(--color-primary-1);
-}
-
-.stepNumber {
-  display: inline-flex;
-  margin-bottom: var(--space-3);
-  color: var(--color-accent-700);
-  font-size: var(--font-sm);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-wider);
+.valueCard h3 {
+  color: var(--color-neutral-900);
+  overflow-wrap: anywhere;
 }
 
 .categoryPath {
@@ -205,10 +178,6 @@
   overflow-wrap: anywhere;
 }
 
-.previewGrid {
-  align-items: start;
-}
-
 .dashboardGrid {
   display: grid;
   gap: var(--space-4);
@@ -242,90 +211,14 @@
   overflow-wrap: anywhere;
 }
 
-.dashboardMockup {
-  min-width: 0;
-  padding: var(--space-4);
-  border-radius: var(--radius-card);
-  border: 1px solid var(--hairline);
-  background: var(--white);
-}
-
-.dashboardTopbar,
-.dashboardPanelHeader,
-.dashboardRow {
-  display: grid;
-  gap: var(--space-3);
-  align-items: center;
-}
-
-.dashboardTopbar {
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-neutral-100);
-}
-
-.dashboardPanelHeader {
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
-}
-
-.dashboardRow {
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.65fr) minmax(0, 0.95fr);
-}
-
-.dashboardStatusPill,
-.dashboardMetric {
-  display: inline-flex;
-  min-width: 0;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-full);
-  background: var(--color-neutral-100);
-  color: var(--color-neutral-700);
-  font-size: var(--font-sm);
-  font-weight: var(--weight-semibold);
-  overflow-wrap: anywhere;
-}
-
-.dashboardMetric {
-  justify-content: flex-end;
-  text-align: right;
-}
-
-.dashboardPanel {
-  margin-top: var(--space-4);
-  padding: var(--space-4);
-  border-radius: var(--radius-xl);
-  background: var(--color-neutral-50);
-}
-
-.dashboardTable {
-  display: grid;
-}
-
-.dashboardPanelHeader,
-.dashboardRow {
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--color-neutral-100);
-  color: var(--color-neutral-600);
-}
-
-.dashboardRow:last-child {
-  border-bottom: 0;
-}
-
-.dashboardPanelHeader {
-  color: var(--color-neutral-500);
-  font-size: var(--font-sm);
-}
-
-.dashboardRowName {
-  font-weight: var(--weight-semibold);
-  color: var(--color-neutral-800);
-}
-
 .checklistGroups {
   display: grid;
   gap: var(--space-6);
   margin-top: var(--space-8);
+}
+
+.checklistGroup {
+  min-width: 0;
 }
 
 .checklistGroupTitle {
@@ -338,7 +231,9 @@
 }
 
 .checklist {
-  margin-left: 0;
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
 }
 
 .checklistItem {
@@ -390,21 +285,9 @@
   text-decoration: underline;
 }
 
-.faqRow h3,
-.valueCard h3,
-.stepCard h3,
-.categoryCard h3 {
-  color: var(--color-neutral-900);
-  overflow-wrap: anywhere;
-}
-
-.faqRow p {
-  margin-top: var(--space-3);
-}
-
 .finalCta {
   background:
-    linear-gradient(180deg, rgba(243, 124, 33, 0.08) 0%, rgba(255, 255, 255, 0) 100%),
+    linear-gradient(180deg, rgba(15, 107, 6, 0.06) 0%, rgba(255, 255, 255, 0) 100%),
     var(--color-neutral-0);
 }
 
@@ -423,15 +306,12 @@
     padding: var(--space-20) 0;
   }
 
-  .previewGrid,
   .finalCtaInner {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: center;
   }
 
-  .valueGrid,
-  .stepsGrid,
-  .categoryGrid {
+  .valueGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -442,10 +322,6 @@
   .checklistGroups {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .faqList {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (min-width: 1024px) {
@@ -453,17 +329,8 @@
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
 
-  .stepsGrid,
-  .categoryGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
   .dashboardGrid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .faqList {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .finalCtaInner {
