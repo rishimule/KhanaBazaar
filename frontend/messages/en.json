@@ -1246,7 +1246,8 @@
       "changeRequests": "Change requests",
       "catalog": "Catalog",
       "settings": "Settings",
-      "policies": "Policies"
+      "policies": "Policies",
+      "onboardingRequests": "Onboarding"
     },
     "titles": {
       "dashboard": "Admin Dashboard",
@@ -1258,7 +1259,8 @@
       "panel": "Admin Panel",
       "settings": "Settings",
       "changeRequests": "Change requests",
-      "policies": "Policies"
+      "policies": "Policies",
+      "onboardingRequests": "Seller Onboarding Requests"
     },
     "settings": {
       "title": "Settings"
@@ -1647,6 +1649,25 @@
       "published": "Published v{version}.",
       "loadError": "Could not load policies.",
       "publishError": "Could not publish. Please try again."
+    },
+    "onboarding": {
+      "colStore": "Store",
+      "colContact": "Contact",
+      "colArea": "Area",
+      "colSource": "Source",
+      "colStatus": "Status",
+      "colSubmitted": "Submitted",
+      "colActions": "Actions",
+      "filterAll": "All",
+      "statusNew": "New",
+      "statusContacted": "Contacted",
+      "statusOnboarded": "Onboarded",
+      "statusDismissed": "Dismissed",
+      "markContacted": "Mark contacted",
+      "markOnboarded": "Mark onboarded",
+      "markDismissed": "Dismiss",
+      "empty": "No onboarding requests yet.",
+      "searchPlaceholder": "Search by store, email, or phone"
     }
   },
   "Shared": {
@@ -1778,5 +1799,33 @@
     "accepting": "Saving…",
     "logout": "Log out",
     "error": "Could not save your acceptance. Please try again."
+  },
+  "Deliverability": {
+    "noStores": "Currently, no stores are available for delivery in your area. Help us bring your preferred sellers online.",
+    "noProducts": "Currently, no Products are available for delivery in your area. Help us bring your preferred sellers online.",
+    "shareSeller": "Share seller details",
+    "setLocationTitle": "Set your delivery location",
+    "setLocationBody": "Tell us where to deliver so we can show what is available near you.",
+    "setLocationCta": "Set location",
+    "useMyLocation": "Use my location"
+  },
+  "SuggestStore": {
+    "title": "Suggest a seller or store",
+    "intro": "Tell us about a seller or store you would like to see on the platform. Our team will reach out to onboard them.",
+    "storeName": "Seller / store name",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address",
+    "preferredCategories": "Preferred product categories / services",
+    "optional": "optional",
+    "submit": "Submit",
+    "submitting": "Submitting…",
+    "successTitle": "Thanks — we have your details",
+    "successBody": "We have recorded the details and our team will look into onboarding this seller.",
+    "backToBrowsing": "Back to browsing",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "errorPhone": "Enter a valid Indian mobile number, for example +919812345678.",
+    "errorRateLimited": "You have submitted several times recently. Please try again later.",
+    "errorRequired": "Please fill in all required fields."
   }
 }
