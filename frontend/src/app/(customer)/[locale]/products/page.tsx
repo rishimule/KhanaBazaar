@@ -9,20 +9,24 @@ import { useLocale, useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { browseProducts, type BrowseResponse } from "@/lib/searchClient";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { useDeliverability } from "@/lib/useDeliverability";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
 import { CategoryCarousel } from "@/components/CategoryCarousel";
 import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
 import { SearchFilters } from "@/components/search/SearchFilters";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
+import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import { Service } from "@/types";
 import styles from "./page.module.css";
 
 function ProductsInner() {
   const t = useTranslations("Products");
+  const td = useTranslations("Deliverability");
   const locale = useLocale();
   const sp = useSearchParams();
-  const { location } = useDeliveryLocation();
+  const { location, userSet } = useDeliveryLocation();
+  const { status: deliverability } = useDeliverability();
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const serviceSlug = sp.get("service");
@@ -71,6 +75,8 @@ function ProductsInner() {
   // category's subcategory list for the see-all grid's filter chips.
   useEffect(() => {
     if (!activeService) return;
+    // Only browse with a real location (no silent Mumbai default).
+    if (!userSet) return;
     let cancel = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- show skeleton synchronously while fetching
     setLoading(true);
@@ -90,26 +96,36 @@ function ProductsInner() {
     return () => {
       cancel = true;
     };
-  }, [activeService, categoryId, location, locale]);
+  }, [activeService, categoryId, location, locale, userSet]);
 
   return (
     <div className={styles.page}>
       <div className={styles.inner}>
         <h1 className={styles.title}>{t("title")}</h1>
 
-        {!location && (
-          <div className={styles.banner}>
-            <span>⚠ {t("setLocationBanner")}</span>
+        {deliverability === "needs_location" ? (
+          <div style={{ textAlign: "center", padding: "48px 16px" }}>
+            <h2 className={styles.categoryTitle}>{td("setLocationTitle")}</h2>
+            <p>{td("setLocationBody")}</p>
             <button
               type="button"
-              className={styles.bannerBtn}
+              className="btn btn-primary"
+              style={{ marginTop: "16px" }}
               onClick={() => setPickerOpen(true)}
             >
-              {t("setLocationCta")}
+              {td("setLocationCta")}
             </button>
           </div>
-        )}
-
+        ) : deliverability === "fallback" ? (
+          <DeliverabilityFallback
+            variant="products"
+            source="products"
+            areaLabel={location.label}
+          />
+        ) : deliverability === "loading" ? (
+          <div className={styles.empty}>{t("loading")}</div>
+        ) : (
+          <>
         {services.length > 0 && (
           <div className={styles.svcSection}>
             <ScrollRail
@@ -205,6 +221,8 @@ function ProductsInner() {
                   serviceSlug={activeService.slug}
                 />
               ))}
+          </>
+        )}
           </>
         )}
 
