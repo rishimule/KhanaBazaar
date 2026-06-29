@@ -380,6 +380,16 @@
   text-decoration: underline;
 }
 
+.faqBack {
+  margin-top: var(--space-8);
+}
+
+.faqBack a {
+  color: var(--color-primary-700);
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+}
+
 .faqRow h3,
 .valueCard h3,
 .stepCard h3,

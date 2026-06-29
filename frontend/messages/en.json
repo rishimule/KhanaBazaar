@@ -390,7 +390,10 @@
     "faq12Q": "Can I sell across multiple categories?",
     "faq12A": "Yes, as long as you meet compliance requirements (e.g., FSSAI for food, GST for taxable goods).",
     "faq13Q": "How do I update my business details later?",
-    "faq13A": "You can edit your profile, documents, or bank details from the seller dashboard."
+    "faq13A": "You can edit your profile, documents, or bank details from the seller dashboard.",
+    "faqMetaTitle": "Seller FAQ",
+    "faqMetaDescription": "Answers to common questions from store owners about selling, approval, payments, and delivery.",
+    "faqPageBack": "Back to selling"
   },
   "Errors": {
     "network": "Network error. Try again.",
