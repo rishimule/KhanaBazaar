@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -28,6 +28,11 @@ function SuggestStoreInner() {
   });
   const [state, setState] = useState<"idle" | "submitting" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   function update(field: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -104,7 +109,9 @@ function SuggestStoreInner() {
 
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <label className={styles.field}>
-            <span className={styles.label}>{t("storeName")}</span>
+            <span className={styles.label}>
+              {t("storeName")} <span aria-hidden="true" className={styles.req}>*</span>
+            </span>
             <input
               className={styles.input}
               type="text"
@@ -117,7 +124,9 @@ function SuggestStoreInner() {
           </label>
 
           <label className={styles.field}>
-            <span className={styles.label}>{t("phone")}</span>
+            <span className={styles.label}>
+              {t("phone")} <span aria-hidden="true" className={styles.req}>*</span>
+            </span>
             <input
               className={styles.input}
               type="tel"
@@ -131,7 +140,9 @@ function SuggestStoreInner() {
           </label>
 
           <label className={styles.field}>
-            <span className={styles.label}>{t("email")}</span>
+            <span className={styles.label}>
+              {t("email")} <span aria-hidden="true" className={styles.req}>*</span>
+            </span>
             <input
               className={styles.input}
               type="email"
@@ -144,7 +155,9 @@ function SuggestStoreInner() {
           </label>
 
           <label className={styles.field}>
-            <span className={styles.label}>{t("address")}</span>
+            <span className={styles.label}>
+              {t("address")} <span aria-hidden="true" className={styles.req}>*</span>
+            </span>
             <textarea
               className={styles.textarea}
               value={form.contact_address}
@@ -170,7 +183,7 @@ function SuggestStoreInner() {
           </label>
 
           {error && (
-            <p className={styles.error} role="alert">
+            <p className={styles.error} role="alert" ref={errorRef} tabIndex={-1}>
               {error}
             </p>
           )}

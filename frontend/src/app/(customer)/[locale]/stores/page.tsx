@@ -9,12 +9,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
-import { useDeviceLocation } from "@/lib/useDeviceLocation";
 import { useDeliverability } from "@/lib/useDeliverability";
 import { prefetchStorefront } from "@/lib/storefrontCache";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
 import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
+import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
@@ -55,7 +55,7 @@ function StoresPageInner() {
   const requestIdRef = useRef(0);
   const { location, userSet } = useDeliveryLocation();
   const { status: deliverability } = useDeliverability();
-  const { request: requestGeo, supported: geoSupported } = useDeviceLocation();
+  const [pickerOpen, setPickerOpen] = useState(false);
   const td = useTranslations("Deliverability");
 
   const fetchPage = useCallback(
@@ -167,16 +167,14 @@ function StoresPageInner() {
           <div style={{ textAlign: "center", padding: "48px 16px" }}>
             <h2 className={styles.svcTitle}>{td("setLocationTitle")}</h2>
             <p className={styles.subtitle}>{td("setLocationBody")}</p>
-            {geoSupported && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ marginTop: "16px" }}
-                onClick={requestGeo}
-              >
-                {td("useMyLocation")}
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ marginTop: "16px" }}
+              onClick={() => setPickerOpen(true)}
+            >
+              {td("setLocationCta")}
+            </button>
           </div>
         ) : deliverability === "fallback" ? (
           <DeliverabilityFallback
@@ -318,6 +316,10 @@ function StoresPageInner() {
           </>
         )}
       </div>
+      <DeliveryLocationPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+      />
     </div>
   );
 }

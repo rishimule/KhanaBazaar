@@ -73,10 +73,19 @@
   outline-offset: 1px;
 }
 
+.req {
+  color: var(--color-error);
+}
+
 .error {
   margin: 0;
   color: var(--color-error);
   font-size: 0.9375rem;
+}
+
+.error:focus-visible {
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
 }
 
 .successIcon {

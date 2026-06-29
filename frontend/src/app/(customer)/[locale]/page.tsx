@@ -10,12 +10,12 @@ import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { useAuth } from "@/lib/AuthContext";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
-import { useDeviceLocation } from "@/lib/useDeviceLocation";
 import { useDeliverability } from "@/lib/useDeliverability";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
 import { HomeStorePreview, PreviewCandidate } from "@/components/HomeStorePreview";
 import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
+import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
@@ -28,7 +28,7 @@ export default function Home() {
   const [services, setServices] = useState<Service[]>([]);
   const { location, userSet } = useDeliveryLocation();
   const { status: deliverability } = useDeliverability();
-  const { request: requestGeo, supported: geoSupported } = useDeviceLocation();
+  const [pickerOpen, setPickerOpen] = useState(false);
   const td = useTranslations("Deliverability");
 
   useEffect(() => {
@@ -141,11 +141,13 @@ export default function Home() {
           <div className={styles.emptyState}>
             <h3 className={styles.emptyTitle}>{td("setLocationTitle")}</h3>
             <p className={styles.emptyBody}>{td("setLocationBody")}</p>
-            {geoSupported && (
-              <button type="button" className="btn btn-primary" onClick={requestGeo}>
-                {td("useMyLocation")}
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setPickerOpen(true)}
+            >
+              {td("setLocationCta")}
+            </button>
           </div>
         ) : deliverability === "fallback" ? (
           <DeliverabilityFallback
@@ -229,6 +231,10 @@ export default function Home() {
           </>
         )}
       </div>
+      <DeliveryLocationPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+      />
     </div>
   );
 }
