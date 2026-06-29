@@ -42,10 +42,14 @@ export default async function SellPage() {
     { number: "05", title: t("step5Title"), body: t("step5Body") },
   ];
 
-  const dashboardRows = [
-    { name: t("rowDailyName"), stock: t("rowDailyStock"), visibility: t("rowDailyVisibility") },
-    { name: t("rowPharmacyName"), stock: t("rowPharmacyStock"), visibility: t("rowPharmacyVisibility") },
-    { name: t("rowMobileName"), stock: t("rowMobileStock"), visibility: t("rowMobileVisibility") },
+  const dashboardBlocks = [
+    { title: t("dashSalesTitle"), items: [t("dashSalesItem1"), t("dashSalesItem2")] },
+    {
+      title: t("dashOrdersTitle"),
+      items: [t("dashOrdersItem1"), t("dashOrdersItem2"), t("dashOrdersItem3")],
+    },
+    { title: t("dashCustomerTitle"), items: [t("dashCustomerItem1"), t("dashCustomerItem2")] },
+    { title: t("dashAlertsTitle"), items: [t("dashAlertsItem1"), t("dashAlertsItem2")] },
   ];
 
   const checklistItems = [
@@ -134,37 +138,23 @@ export default async function SellPage() {
 
       <section className={`${styles.section} ${styles.previewSection}`}>
         <div className="container">
-          <div className={styles.previewGrid}>
-            <div className={styles.previewCopy}>
-              <div className={styles.sectionHeader}>
-                <p className={styles.sectionKicker}>{t("previewKicker")}</p>
-                <h2 className={styles.sectionTitle}>{t("previewTitle")}</h2>
-              </div>
-              <p className={styles.previewBody}>{t("previewBody")}</p>
-            </div>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>{t("previewTitle")}</h2>
+            <p className={styles.sectionSubtitle}>{t("previewSubtitle")}</p>
+            <p className={styles.previewBody}>{t("previewBody")}</p>
+          </div>
 
-            <div className={styles.dashboardMockup} aria-hidden="true">
-              <div className={styles.dashboardTopbar}>
-                <span className={styles.dashboardStatusPill}>{t("dashboardStatus")}</span>
-                <span className={styles.dashboardMetric}>{t("dashboardTotal")}</span>
-              </div>
-
-              <div className={styles.dashboardPanel}>
-                <div className={styles.dashboardPanelHeader}>
-                  <span>{t("dashboardSnapshot")}</span>
-                  <span>{t("dashboardVisibility")}</span>
-                </div>
-                <div className={styles.dashboardTable}>
-                  {dashboardRows.map((row) => (
-                    <div key={row.name} className={styles.dashboardRow}>
-                      <span className={styles.dashboardRowName}>{row.name}</span>
-                      <span>{row.stock}</span>
-                      <span>{row.visibility}</span>
-                    </div>
+          <div className={styles.dashboardGrid} aria-hidden="true">
+            {dashboardBlocks.map((block) => (
+              <article key={block.title} className={styles.dashboardBlock}>
+                <h3 className={styles.dashboardBlockTitle}>{block.title}</h3>
+                <ul className={styles.dashboardBlockList}>
+                  {block.items.map((item) => (
+                    <li key={item}>{item}</li>
                   ))}
-                </div>
-              </div>
-            </div>
+                </ul>
+              </article>
+            ))}
           </div>
         </div>
       </section>

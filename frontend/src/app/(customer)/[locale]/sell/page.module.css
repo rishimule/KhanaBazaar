@@ -209,6 +209,39 @@
   align-items: start;
 }
 
+.dashboardGrid {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+}
+
+.dashboardBlock {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--white);
+}
+
+.dashboardBlockTitle {
+  color: var(--color-neutral-900);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.dashboardBlockList {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-5);
+  color: var(--color-neutral-600);
+}
+
+.dashboardBlockList li {
+  margin-top: var(--space-1-5);
+  overflow-wrap: anywhere;
+}
+
 .dashboardMockup {
   min-width: 0;
   padding: var(--space-4);
@@ -359,6 +392,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dashboardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .checklist {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -375,6 +412,10 @@
 
   .stepsGrid,
   .categoryGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboardGrid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
