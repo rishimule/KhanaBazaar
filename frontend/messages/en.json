@@ -265,7 +265,7 @@
     "applyToSell": "Get Started",
     "seeHowItWorks": "See how it works",
     "whyKicker": "Why sellers choose it",
-    "whyTitle": "Built for the way local stores already work",
+    "whyTitle": "Why Sellers Choose Us",
     "valueLocalReachTitle": "Local reach",
     "valueLocalReachBody": "Show your store to nearby shoppers who already look for daily essentials in your area.",
     "valueInventoryTitle": "Inventory control",
@@ -329,7 +329,17 @@
     "faq6A": "Neighborhood stores such as kiranas, pharmacies, electronics shops, and general retail businesses can apply.",
     "finalTitle": "Ready to bring your store online?",
     "finalBody": "Start your seller application and keep your business details ready.",
-    "finalCta": "Start your seller application"
+    "finalCta": "Start your seller application",
+    "why1Lead": "Be Seen, Be Found",
+    "why1Desc": "Make your store visible online and capture customer attention — your digital destination.",
+    "why2Lead": "Digital Bridge",
+    "why2Desc": "Connect your customers; your digital presence keeps loyal customers close and attracts new ones.",
+    "why3Lead": "Your Control",
+    "why3Desc": "Decide what to showcase, set your prices, and manage stock in real time — your shop, your rules.",
+    "why4Lead": "Trust That Builds Loyalty",
+    "why4Desc": "Verified sellers inspire confidence, turning first-time buyers into repeat customers.",
+    "why5Lead": "Local Roots, Digital Reach",
+    "why5Desc": "Grow beyond your street while staying true to your neighbourhood's identity."
   },
   "Errors": {
     "network": "Network error. Try again.",

@@ -16,11 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function SellPage() {
   const t = await getTranslations("Sell");
 
-  const valueCards = [
-    { title: t("valueLocalReachTitle"), body: t("valueLocalReachBody") },
-    { title: t("valueInventoryTitle"), body: t("valueInventoryBody") },
-    { title: t("valueVerifiedTitle"), body: t("valueVerifiedBody") },
-    { title: t("valueCommerceTitle"), body: t("valueCommerceBody") },
+  const whyItems = [
+    { lead: t("why1Lead"), desc: t("why1Desc") },
+    { lead: t("why2Lead"), desc: t("why2Desc") },
+    { lead: t("why3Lead"), desc: t("why3Desc") },
+    { lead: t("why4Lead"), desc: t("why4Desc") },
+    { lead: t("why5Lead"), desc: t("why5Desc") },
   ];
 
   const steps = [
@@ -86,15 +87,14 @@ export default async function SellPage() {
       <section className={styles.section}>
         <div className="container">
           <div className={styles.sectionHeader}>
-            <p className={styles.sectionKicker}>{t("whyKicker")}</p>
             <h2 className={styles.sectionTitle}>{t("whyTitle")}</h2>
           </div>
 
           <div className={styles.valueGrid}>
-            {valueCards.map((card) => (
-              <article key={card.title} className={styles.valueCard}>
-                <h3>{card.title}</h3>
-                <p>{card.body}</p>
+            {whyItems.map((item) => (
+              <article key={item.lead} className={styles.valueCard}>
+                <h3>{item.lead}</h3>
+                <p>{item.desc}</p>
               </article>
             ))}
           </div>
