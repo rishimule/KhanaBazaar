@@ -120,6 +120,13 @@
   max-width: 42rem;
 }
 
+.sectionSubtitle {
+  max-width: 60ch;
+  margin-top: var(--space-3);
+  color: var(--color-neutral-600);
+  overflow-wrap: anywhere;
+}
+
 .valueGrid,
 .stepsGrid,
 .categoryGrid,

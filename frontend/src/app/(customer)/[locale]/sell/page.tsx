@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import HowItWorksStepper from "./HowItWorksStepper";
 import styles from "./page.module.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,10 +26,11 @@ export default async function SellPage() {
   ];
 
   const steps = [
-    { title: t("step1Title"), body: t("step1Body") },
-    { title: t("step2Title"), body: t("step2Body") },
-    { title: t("step3Title"), body: t("step3Body") },
-    { title: t("step4Title"), body: t("step4Body") },
+    { number: "01", title: t("step1Title"), body: t("step1Body") },
+    { number: "02", title: t("step2Title"), body: t("step2Body") },
+    { number: "03", title: t("step3Title"), body: t("step3Body") },
+    { number: "04", title: t("step4Title"), body: t("step4Body") },
+    { number: "05", title: t("step5Title"), body: t("step5Body") },
   ];
 
   const categories = [
@@ -104,19 +106,11 @@ export default async function SellPage() {
       <section className={`${styles.section} ${styles.sectionTint}`} id="how-it-works">
         <div className="container">
           <div className={styles.sectionHeader}>
-            <p className={styles.sectionKicker}>{t("howKicker")}</p>
             <h2 className={styles.sectionTitle}>{t("howTitle")}</h2>
+            <p className={styles.sectionSubtitle}>{t("howSubtitle")}</p>
           </div>
 
-          <div className={styles.stepsGrid}>
-            {steps.map((step, index) => (
-              <article key={step.title} className={styles.stepCard}>
-                <span className={styles.stepNumber}>0{index + 1}</span>
-                <h3>{step.title}</h3>
-                <p>{step.body}</p>
-              </article>
-            ))}
-          </div>
+          <HowItWorksStepper steps={steps} />
         </div>
       </section>
 
