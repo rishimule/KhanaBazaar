@@ -8,6 +8,7 @@ import type { Service } from "@/types";
 import { Link as LocaleLink } from "@/i18n/navigation";
 import FaqAccordion from "@/components/FaqAccordion";
 import HowItWorksStepper from "./HowItWorksStepper";
+import { SellIcon, type SellIconName } from "./SellIcons";
 import styles from "./page.module.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -28,12 +29,12 @@ export default async function SellPage() {
     services = [];
   }
 
-  const whyItems = [
-    { lead: t("why1Lead"), desc: t("why1Desc") },
-    { lead: t("why2Lead"), desc: t("why2Desc") },
-    { lead: t("why3Lead"), desc: t("why3Desc") },
-    { lead: t("why4Lead"), desc: t("why4Desc") },
-    { lead: t("why5Lead"), desc: t("why5Desc") },
+  const whyItems: { lead: string; desc: string; icon: SellIconName }[] = [
+    { lead: t("why1Lead"), desc: t("why1Desc"), icon: "eye" },
+    { lead: t("why2Lead"), desc: t("why2Desc"), icon: "share" },
+    { lead: t("why3Lead"), desc: t("why3Desc"), icon: "sliders" },
+    { lead: t("why4Lead"), desc: t("why4Desc"), icon: "shield" },
+    { lead: t("why5Lead"), desc: t("why5Desc"), icon: "mapPin" },
   ];
 
   const steps = [
@@ -44,14 +45,19 @@ export default async function SellPage() {
     { number: "05", title: t("step5Title"), body: t("step5Body") },
   ];
 
-  const dashboardBlocks = [
-    { title: t("dashSalesTitle"), items: [t("dashSalesItem1"), t("dashSalesItem2")] },
+  const dashboardBlocks: { title: string; items: string[]; icon: SellIconName }[] = [
+    { title: t("dashSalesTitle"), items: [t("dashSalesItem1"), t("dashSalesItem2")], icon: "trendingUp" },
     {
       title: t("dashOrdersTitle"),
       items: [t("dashOrdersItem1"), t("dashOrdersItem2"), t("dashOrdersItem3")],
+      icon: "package",
     },
-    { title: t("dashCustomerTitle"), items: [t("dashCustomerItem1"), t("dashCustomerItem2")] },
-    { title: t("dashAlertsTitle"), items: [t("dashAlertsItem1"), t("dashAlertsItem2")] },
+    {
+      title: t("dashCustomerTitle"),
+      items: [t("dashCustomerItem1"), t("dashCustomerItem2")],
+      icon: "users",
+    },
+    { title: t("dashAlertsTitle"), items: [t("dashAlertsItem1"), t("dashAlertsItem2")], icon: "bell" },
   ];
 
   const checklistGroups = [
@@ -122,6 +128,9 @@ export default async function SellPage() {
           <div className={styles.valueGrid}>
             {whyItems.map((item) => (
               <article key={item.lead} className={styles.valueCard}>
+                <span className={styles.valueCardIcon}>
+                  <SellIcon name={item.icon} />
+                </span>
                 <h3>{item.lead}</h3>
                 <p>{item.desc}</p>
               </article>
@@ -173,7 +182,12 @@ export default async function SellPage() {
           <div className={styles.dashboardGrid} aria-hidden="true">
             {dashboardBlocks.map((block) => (
               <article key={block.title} className={styles.dashboardBlock}>
-                <h3 className={styles.dashboardBlockTitle}>{block.title}</h3>
+                <div className={styles.dashboardBlockHead}>
+                  <span className={styles.dashboardBlockIcon}>
+                    <SellIcon name={block.icon} size={18} />
+                  </span>
+                  <h3 className={styles.dashboardBlockTitle}>{block.title}</h3>
+                </div>
                 <ul className={styles.dashboardBlockList}>
                   {block.items.map((item) => (
                     <li key={item}>{item}</li>
