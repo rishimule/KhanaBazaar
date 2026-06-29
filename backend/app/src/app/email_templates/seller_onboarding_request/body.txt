@@ -1,0 +1,11 @@
+A visitor submitted a seller/store they'd like onboarded.
+
+Store name: {{ store_name }}
+Phone: {{ contact_phone }}
+Email: {{ contact_email }}
+Address: {{ contact_address }}
+Preferred categories: {{ preferred_categories or "—" }}
+Area: {{ area_label or "—" }}
+Source: {{ source or "—" }}
+
+— Reply directly to this email to reach the contact.
