@@ -1,0 +1,26 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-4);
+  max-width: 32rem;
+  margin: var(--space-12) auto;
+  padding: var(--space-8) var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.message {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: var(--color-neutral-700);
+}

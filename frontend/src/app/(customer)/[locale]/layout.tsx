@@ -20,6 +20,7 @@ import { NotificationProvider } from "@/lib/NotificationContext";
 import PWAInstallProvider from "@/components/pwa/PWAInstallProvider";
 import { FavoritesProvider } from "@/lib/FavoritesContext";
 import { CustomerAddressesProvider } from "@/lib/CustomerAddressesContext";
+import DeliveryLocationAutoDetect from "@/components/DeliveryLocationAutoDetect";
 import { DeliveryLocationAutoSync } from "@/components/DeliveryLocationAutoSync";
 import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
 import { SearchOverlayProvider } from "@/lib/SearchOverlayContext";
@@ -101,6 +102,7 @@ export default async function CustomerLayout({
               <DeliveryLocationProvider>
                 <CustomerAddressesProvider>
                   <DeliveryLocationAutoSync />
+                  <DeliveryLocationAutoDetect />
                   <FavoritesProvider>
                     <CartProvider>
                       <PWAInstallProvider>

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block body %}
+  <h1 style="font-size:18px;color:#1f2937;margin:0 0 12px;">New seller suggestion</h1>
+  <p style="color:#6b7280;font-size:14px;">A visitor submitted a seller/store they'd like onboarded.</p>
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
+  <table style="font-size:15px;line-height:1.7;border-collapse:collapse;">
+    <tr><td style="color:#6b7280;padding-right:12px;">Store name</td><td style="color:#1f2937;"><strong>{{ store_name }}</strong></td></tr>
+    <tr><td style="color:#6b7280;padding-right:12px;">Phone</td><td style="color:#1f2937;">{{ contact_phone }}</td></tr>
+    <tr><td style="color:#6b7280;padding-right:12px;">Email</td><td style="color:#1f2937;">{{ contact_email }}</td></tr>
+    <tr><td style="color:#6b7280;padding-right:12px;">Address</td><td style="color:#1f2937;">{{ contact_address }}</td></tr>
+    <tr><td style="color:#6b7280;padding-right:12px;">Preferred categories</td><td style="color:#1f2937;">{{ preferred_categories or "—" }}</td></tr>
+    <tr><td style="color:#6b7280;padding-right:12px;">Area</td><td style="color:#1f2937;">{{ area_label or "—" }}</td></tr>
+    <tr><td style="color:#6b7280;padding-right:12px;">Source</td><td style="color:#1f2937;">{{ source or "—" }}</td></tr>
+  </table>
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
+  <p style="color:#6b7280;font-size:13px;">Reply directly to this email to reach the contact.</p>
+{% endblock %}

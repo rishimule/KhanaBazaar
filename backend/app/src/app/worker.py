@@ -205,6 +205,45 @@ def send_support_email(customer_email: str, subject: str, message: str) -> None:
     )
 
 
+@celery_app.task(name="send_seller_onboarding_request_email")  # type: ignore[untyped-decorator]
+def send_seller_onboarding_request_email(
+    store_name: str,
+    contact_phone: str,
+    contact_email: str,
+    contact_address: str,
+    preferred_categories: str | None,
+    area_label: str | None,
+    source: str | None,
+) -> None:
+    """Notify the support inbox of a new seller-onboarding suggestion.
+
+    reply_to is the prospective seller's email so admins can reply directly.
+    """
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    payload = render_email(
+        "seller_onboarding_request",
+        {
+            "store_name": store_name,
+            "contact_phone": contact_phone,
+            "contact_email": contact_email,
+            "contact_address": contact_address,
+            "preferred_categories": preferred_categories,
+            "area_label": area_label,
+            "source": source,
+        },
+        lang="en",
+    )
+    _resolve_email(
+        settings.SUPPORT_EMAIL,
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=contact_email,
+    )
+
+
 def _resolve_email(
     to: str,
     subject: str,

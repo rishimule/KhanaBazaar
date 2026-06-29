@@ -364,6 +364,21 @@ def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, Non
         yield
 
 
+@pytest.fixture(autouse=True)
+def _patch_onboarding_email() -> Generator[None, None, None]:
+    """No-op the seller-onboarding admin email. In EAGER test mode its
+    .delay() runs inline → _resolve_email → dev-mailbox capture opens an engine
+    to the dev DB on a worker thread, racing the test loop (same hazard
+    _patch_email_dispatch guards against)."""
+    from unittest.mock import patch
+
+    with patch(
+        "app.worker.send_seller_onboarding_request_email.delay",
+        lambda *a, **kw: None,
+    ):
+        yield
+
+
 # ─── Seller-profile-change-request fixtures ──────────────────────────────
 import uuid as _uuid  # noqa: E402
 

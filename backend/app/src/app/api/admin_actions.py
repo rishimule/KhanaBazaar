@@ -40,6 +40,10 @@ from app.models.catalog import (
 )
 from app.models.commerce import Delivery, Order, OrderStatus
 from app.models.profile import SellerProfile, VerificationStatus
+from app.models.seller_onboarding_request import (
+    OnboardingRequestStatus,
+    SellerOnboardingRequest,
+)
 from app.models.seller_profile_change_request import (
     SellerProfileChangeRequest,
     SellerProfileChangeRequestEvent,
@@ -57,6 +61,10 @@ from app.schemas.admin_actions import (
     SellerHubSummary,
 )
 from app.schemas.pagination import PagedResponse
+from app.schemas.seller_onboarding import (
+    SellerOnboardingRequestRead,
+    SellerOnboardingRequestStatusUpdate,
+)
 from app.schemas.seller_profile_change_request import (
     AdminQueueRow,
     ChangeRequestApproveBody,
@@ -858,3 +866,81 @@ async def admin_list_all_change_requests(
         for cr, profile in rows
     ]
     return PagedResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+# --- Seller onboarding requests (visitor-submitted leads) -----------------
+
+
+@router.get(
+    "/onboarding-requests",
+    response_model=PagedResponse[SellerOnboardingRequestRead],
+)
+async def admin_list_onboarding_requests(
+    status: str = "all",
+    q: Optional[str] = Query(default=None, max_length=120),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> PagedResponse[SellerOnboardingRequestRead]:
+    """List visitor-submitted seller-onboarding leads, newest first.
+
+    ``status`` filters by lifecycle (``all`` = no filter); ``q`` matches store
+    name / email / phone (case-insensitive).
+    """
+    stmt = select(SellerOnboardingRequest)
+    if status != "all":
+        try:
+            stmt = stmt.where(
+                SellerOnboardingRequest.status == OnboardingRequestStatus(status)
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422, detail={"error": "invalid_status"}
+            ) from exc
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(
+            or_(
+                SellerOnboardingRequest.store_name.ilike(like),  # type: ignore[attr-defined]
+                SellerOnboardingRequest.contact_email.ilike(like),  # type: ignore[attr-defined]
+                SellerOnboardingRequest.contact_phone.ilike(like),  # type: ignore[attr-defined]
+            )
+        )
+    total = int(
+        (
+            await session.exec(select(func.count()).select_from(stmt.subquery()))  # type: ignore[arg-type]
+        ).one()
+    )
+    rows = (
+        await session.exec(
+            stmt.order_by(SellerOnboardingRequest.created_at.desc())  # type: ignore[attr-defined]
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+    return PagedResponse(
+        items=list(rows), total=total, page=page, page_size=page_size
+    )
+
+
+@router.patch(
+    "/onboarding-requests/{request_id}",
+    response_model=SellerOnboardingRequestRead,
+)
+async def admin_update_onboarding_request(
+    request_id: int,
+    body: SellerOnboardingRequestStatusUpdate,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> SellerOnboardingRequest:
+    """Update the lifecycle status of an onboarding lead (admin triage)."""
+    row = await session.get(SellerOnboardingRequest, request_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    row.status = body.status
+    row.updated_at = datetime.now(timezone.utc)
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return row

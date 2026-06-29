@@ -526,6 +526,32 @@ export interface PagedResponse<T> {
   page_size: number;
 }
 
+export type OnboardingRequestStatus =
+  | "new"
+  | "contacted"
+  | "onboarded"
+  | "dismissed";
+
+export interface SellerOnboardingRequestCreate {
+  store_name: string;
+  contact_phone: string;
+  contact_email: string;
+  contact_address: string;
+  preferred_categories?: string | null;
+  area_lat?: number | null;
+  area_lng?: number | null;
+  area_label?: string | null;
+  source?: string | null;
+}
+
+export interface SellerOnboardingRequest extends SellerOnboardingRequestCreate {
+  id: number;
+  submitted_by_user_id: number | null;
+  status: OnboardingRequestStatus;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TranslationOut {
   language_code: string;
   name: string;

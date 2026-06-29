@@ -9,10 +9,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { useDeliverability } from "@/lib/useDeliverability";
 import { prefetchStorefront } from "@/lib/storefrontCache";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
 import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
+import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
+import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -50,7 +53,10 @@ function StoresPageInner() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const requestIdRef = useRef(0);
-  const { location } = useDeliveryLocation();
+  const { location, userSet } = useDeliveryLocation();
+  const { status: deliverability } = useDeliverability();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const td = useTranslations("Deliverability");
 
   const fetchPage = useCallback(
     async (skipValue: number, append: boolean): Promise<void> => {
@@ -106,8 +112,11 @@ function StoresPageInner() {
   );
 
   useEffect(() => {
+    // Only fetch with a real location (no silent Mumbai default); the store
+    // list is not rendered until the deliverable branch anyway.
+    if (!userSet) return;
     fetchPage(0, false);
-  }, [fetchPage]);
+  }, [fetchPage, userSet]);
 
   useEffect(() => {
     get<Service[]>("/api/v1/catalog/services")
@@ -154,6 +163,34 @@ function StoresPageInner() {
           )}
         </div>
 
+        {deliverability === "needs_location" ? (
+          <div style={{ textAlign: "center", padding: "48px 16px" }}>
+            <h2 className={styles.svcTitle}>{td("setLocationTitle")}</h2>
+            <p className={styles.subtitle}>{td("setLocationBody")}</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ marginTop: "16px" }}
+              onClick={() => setPickerOpen(true)}
+            >
+              {td("setLocationCta")}
+            </button>
+          </div>
+        ) : deliverability === "fallback" ? (
+          <DeliverabilityFallback
+            variant="stores"
+            source="stores"
+            areaLabel={location.label}
+          />
+        ) : deliverability === "loading" ? (
+          <p
+            className={styles.subtitle}
+            style={{ textAlign: "center", padding: "32px 0" }}
+          >
+            {t("loading")}
+          </p>
+        ) : (
+          <>
         {services.length > 0 && (
           <section className={styles.svcSection}>
             <h2 className={styles.svcTitle}>{t("shopByService")}</h2>
@@ -276,7 +313,13 @@ function StoresPageInner() {
         )}
           </>
         )}
+          </>
+        )}
       </div>
+      <DeliveryLocationPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+      />
     </div>
   );
 }

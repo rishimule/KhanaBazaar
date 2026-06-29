@@ -1,0 +1,96 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.page {
+  min-height: 60vh;
+  padding: var(--space-8) var(--space-4);
+  display: flex;
+  justify-content: center;
+}
+
+.card {
+  width: 100%;
+  max-width: 34rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: var(--space-8) var(--space-6);
+}
+
+.title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+}
+
+.intro {
+  margin: 0 0 var(--space-6);
+  color: var(--color-neutral-600);
+  line-height: 1.55;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--color-neutral-500);
+}
+
+.input,
+.textarea {
+  width: 100%;
+  padding: var(--space-3);
+  font-size: 1rem;
+  color: var(--color-neutral-900);
+  background: var(--color-page);
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-md);
+  min-height: 44px;
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.req {
+  color: var(--color-error);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: 0.9375rem;
+}
+
+.error:focus-visible {
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
+}
+
+.successIcon {
+  display: block;
+  font-size: 2.5rem;
+  line-height: 1;
+  margin-bottom: var(--space-3);
+}

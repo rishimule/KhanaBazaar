@@ -76,6 +76,33 @@ async def get_current_user(
     return user
 
 
+async def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    session: AsyncSession = Depends(get_db_session),
+) -> User | None:
+    """Like get_current_user but never raises: returns None when no/invalid
+    bearer token is present. For public endpoints that want to *attribute* a
+    submission to a logged-in user without requiring auth."""
+    if credentials is None:
+        return None
+    try:
+        payload = decode_access_token(credentials.credentials)
+    except HTTPException:
+        return None
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    try:
+        uid = int(str(user_id))
+    except (ValueError, TypeError):
+        return None
+    result = await session.exec(select(User).where(User.id == uid))
+    user = result.first()
+    if not user or not user.is_active:
+        return None
+    return user
+
+
 async def get_current_customer(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != UserRole.Customer:
         raise HTTPException(

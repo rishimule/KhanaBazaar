@@ -193,6 +193,21 @@ async def suggest(
     else:
         store_filter = await get_serviceable_store_ids(session, redis, lat, lng)
 
+    # Location set but no store delivers here → nothing to suggest (distinct
+    # from store_filter is None, which means no/invalid location → show all).
+    if store_filter is not None and not store_filter:
+        query_id = str(uuid.uuid4())
+        empty = SuggestResponse(
+            query_id=uuid.UUID(query_id), terms=[], products=[], stores=[]
+        )
+        await redis.set(
+            cache_key,
+            empty.model_dump_json(),
+            ex=settings.SEARCH_SUGGEST_CACHE_TTL_SECONDS,
+        )
+        response.headers["X-Search-Query-ID"] = query_id
+        return empty
+
     products_filter_parts: list[str] = ["is_active = true"]
     if store_filter is not None and store_filter:
         ids = ",".join(str(s) for s in store_filter)
@@ -348,6 +363,32 @@ async def products(
         serviceable: Optional[list[int]] = [store_id]
     else:
         serviceable = await get_serviceable_store_ids(session, redis, lat, lng)
+
+    # Location set but no store delivers here → no products (distinct from
+    # serviceable is None, which means no/invalid location → show all).
+    if serviceable is not None and not serviceable:
+        query_id = str(uuid.uuid4())
+        response.headers["X-Search-Query-ID"] = query_id
+        return ProductsResponse(
+            query_id=uuid.UUID(query_id),
+            query=q,
+            total=0,
+            page=page,
+            page_size=page_size,
+            products=[],
+            facets=FacetBuckets(
+                service_id={},
+                category_id={},
+                min_price_bucket={
+                    "0_50": 0,
+                    "50_100": 0,
+                    "100_200": 0,
+                    "200_plus": 0,
+                },
+            ),
+            applied_filters={},
+            sort=sort,
+        )
 
     filters: list[str] = ["is_active = true"]
     if serviceable is not None and serviceable:
