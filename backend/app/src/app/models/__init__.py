@@ -43,6 +43,10 @@ from .profile import (
     VerificationStatus,
 )
 from .search_log import SearchQueryLog
+from .seller_onboarding_request import (
+    OnboardingRequestStatus,
+    SellerOnboardingRequest,
+)
 from .seller_profile_change_request import (
     SellerProfileChangeEventKind,
     SellerProfileChangeGroup,
@@ -76,6 +80,7 @@ __all__ = [
     "MasterProductTranslation",
     "Notification",
     "NotificationType",
+    "OnboardingRequestStatus",
     "Order",
     "OrderItem",
     "OrderStatus",
@@ -88,6 +93,7 @@ __all__ = [
     "PushSubscription",
     "Review",
     "SearchQueryLog",
+    "SellerOnboardingRequest",
     "SellerProfile",
     "SellerProfileChangeEventKind",
     "SellerProfileChangeGroup",
