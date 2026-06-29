@@ -1,0 +1,142 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.stepper {
+  margin-top: var(--space-8);
+}
+
+.rail {
+  display: none;
+}
+
+.cards {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.card {
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--hairline);
+  border-top: 1px solid var(--color-btn-primary-bg);
+  border-radius: var(--radius-card);
+  background: var(--white);
+  transition:
+    box-shadow var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out);
+}
+
+.cardActive {
+  box-shadow: 0 8px 24px rgba(15, 107, 6, 0.12);
+  transform: translateY(-2px);
+}
+
+.cardNumber {
+  display: inline-flex;
+  margin-bottom: var(--space-3);
+  color: var(--color-accent-700);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wider);
+}
+
+.cardTitle {
+  color: var(--color-neutral-900);
+  overflow-wrap: anywhere;
+}
+
+.cardBody {
+  max-width: 60ch;
+  margin-top: var(--space-3);
+  color: var(--color-neutral-600);
+  overflow-wrap: anywhere;
+}
+
+.railDot {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-neutral-200);
+  background: var(--white);
+  color: var(--color-neutral-500);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-bold);
+  transition:
+    transform var(--duration-normal) var(--ease-out),
+    background var(--duration-normal) var(--ease-out),
+    color var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out);
+}
+
+@media (min-width: 768px) {
+  .rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    align-items: center;
+    margin: 0 0 var(--space-8);
+    padding: 0;
+    list-style: none;
+  }
+
+  .railNode {
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+
+  .railNode::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: -50%;
+    width: 100%;
+    height: 2px;
+    background: var(--color-neutral-200);
+    transform: translateY(-50%);
+    z-index: 0;
+  }
+
+  .railNode:first-child::before {
+    display: none;
+  }
+
+  .railNodeDone::before,
+  .railNodeActive::before {
+    background: var(--color-btn-primary-bg);
+  }
+
+  .cards {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+.railNodeDone .railDot {
+  background: var(--color-btn-primary-bg);
+  border-color: var(--color-btn-primary-bg);
+  color: var(--white);
+}
+
+.railNodeActive .railDot {
+  background: var(--color-primary-1);
+  border-color: var(--color-primary-1);
+  color: var(--white);
+  transform: scale(1.12);
+  box-shadow: 0 0 0 6px var(--leaf-green-light-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .railDot,
+  .card {
+    transition: none;
+  }
+  .cardActive {
+    transform: none;
+  }
+}
