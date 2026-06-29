@@ -35,6 +35,7 @@ export default function AdminLayout({
     { href: "/admin/sellers", label: t("nav.sellers"), icon: "🏪" },
     { href: "/admin/sellers/applications", label: t("nav.applications"), icon: "✅" },
     { href: "/admin/change-requests", label: t("nav.changeRequests"), icon: "🔔" },
+    { href: "/admin/onboarding-requests", label: t("nav.onboardingRequests"), icon: "📨" },
     { href: "/admin/catalog", label: t("nav.catalog"), icon: "🗂️" },
     { href: "/admin/policies", label: t("nav.policies"), icon: "📜" },
     { href: "/admin/settings", label: t("nav.settings"), icon: "⚙️" },
@@ -49,6 +50,8 @@ export default function AdminLayout({
           ? t("titles.applications")
           : pathname.startsWith("/admin/change-requests")
             ? t("titles.changeRequests")
+            : pathname.startsWith("/admin/onboarding-requests")
+            ? t("titles.onboardingRequests")
             : pathname.startsWith("/admin/sellers/")
             ? t("titles.sellerStore")
             : pathname.startsWith("/admin/catalog")
