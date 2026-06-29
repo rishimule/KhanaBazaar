@@ -1,0 +1,80 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.list {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+  max-width: 48rem;
+}
+
+.row {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--white);
+  overflow: hidden;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 44px;
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  list-style: none;
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-900);
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.question {
+  overflow-wrap: anywhere;
+}
+
+.icon {
+  position: relative;
+  flex: 0 0 auto;
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.icon::before,
+.icon::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--color-primary-1);
+  transform: translateY(-50%);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.icon::after {
+  transform: translateY(-50%) rotate(90deg);
+}
+
+.row[open] .icon::after {
+  transform: translateY(-50%) rotate(0);
+}
+
+.answer {
+  margin: 0;
+  padding: 0 var(--space-5) var(--space-4);
+  color: var(--color-neutral-600);
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon::before,
+  .icon::after {
+    transition: none;
+  }
+}

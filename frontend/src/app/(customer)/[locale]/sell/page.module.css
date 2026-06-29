@@ -362,6 +362,24 @@
   background: var(--color-accent-500);
 }
 
+.faqHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  max-width: none;
+}
+
+.faqMoreLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-primary-700);
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+}
+
 .faqRow h3,
 .valueCard h3,
 .stepCard h3,

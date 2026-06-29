@@ -5,6 +5,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { get } from "@/lib/api";
 import type { Service } from "@/types";
+import { Link as LocaleLink } from "@/i18n/navigation";
+import FaqAccordion from "@/components/FaqAccordion";
 import HowItWorksStepper from "./HowItWorksStepper";
 import styles from "./page.module.css";
 
@@ -202,19 +204,14 @@ export default async function SellPage() {
 
       <section className={`${styles.section} ${styles.sectionTint}`}>
         <div className="container">
-          <div className={styles.sectionHeader}>
-            <p className={styles.sectionKicker}>{t("faqKicker")}</p>
+          <div className={`${styles.sectionHeader} ${styles.faqHeader}`}>
             <h2 className={styles.sectionTitle}>{t("faqTitle")}</h2>
+            <LocaleLink href="/sell/faq" className={styles.faqMoreLink}>
+              {t("moreFaq")}
+            </LocaleLink>
           </div>
 
-          <div className={styles.faqList}>
-            {faqs.map((faq) => (
-              <article key={faq.question} className={styles.faqRow}>
-                <h3>{faq.question}</h3>
-                <p>{faq.answer}</p>
-              </article>
-            ))}
-          </div>
+          <FaqAccordion items={faqs} />
         </div>
       </section>
 
