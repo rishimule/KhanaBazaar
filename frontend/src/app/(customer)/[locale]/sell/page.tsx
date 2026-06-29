@@ -52,12 +52,30 @@ export default async function SellPage() {
     { title: t("dashAlertsTitle"), items: [t("dashAlertsItem1"), t("dashAlertsItem2")] },
   ];
 
-  const checklistItems = [
-    t("checklistEmail"),
-    t("checklistBusiness"),
-    t("checklistGst"),
-    t("checklistFssai"),
-    t("checklistBank"),
+  const checklistGroups = [
+    {
+      title: t("checklistGroup1Title"),
+      items: [t("checklistGroup1Item1"), t("checklistGroup1Item2"), t("checklistGroup1Item3")],
+    },
+    {
+      title: t("checklistGroup2Title"),
+      items: [t("checklistGroup2Item1"), t("checklistGroup2Item2"), t("checklistGroup2Item3")],
+    },
+    {
+      title: t("checklistGroup3Title"),
+      items: [t("checklistGroup3Item1"), t("checklistGroup3Item2"), t("checklistGroup3Item3")],
+    },
+    {
+      title: t("checklistGroup4Title"),
+      items: [
+        t("checklistGroup4Item1"),
+        t("checklistGroup4Item2"),
+        t("checklistGroup4Item3"),
+        t("checklistGroup4Item4"),
+        t("checklistGroup4Item5"),
+        t("checklistGroup4Item6"),
+      ],
+    },
   ];
 
   const faqs = [
@@ -162,17 +180,23 @@ export default async function SellPage() {
       <section className={styles.section}>
         <div className="container">
           <div className={styles.sectionHeader}>
-            <p className={styles.sectionKicker}>{t("checklistKicker")}</p>
             <h2 className={styles.sectionTitle}>{t("checklistTitle")}</h2>
           </div>
 
-          <ul className={styles.checklist}>
-            {checklistItems.map((item) => (
-              <li key={item} className={styles.checklistItem}>
-                {item}
-              </li>
+          <div className={styles.checklistGroups}>
+            {checklistGroups.map((group) => (
+              <section key={group.title} className={styles.checklistGroup}>
+                <h3 className={styles.checklistGroupTitle}>{group.title}</h3>
+                <ul className={styles.checklist}>
+                  {group.items.map((item) => (
+                    <li key={item} className={styles.checklistItem}>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         </div>
       </section>
 

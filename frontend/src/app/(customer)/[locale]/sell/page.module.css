@@ -322,6 +322,21 @@
   color: var(--color-neutral-800);
 }
 
+.checklistGroups {
+  display: grid;
+  gap: var(--space-6);
+  margin-top: var(--space-8);
+}
+
+.checklistGroupTitle {
+  margin-bottom: var(--space-4);
+  color: var(--color-neutral-900);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
 .checklist {
   margin-left: 0;
 }
@@ -396,7 +411,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .checklist {
+  .checklistGroups {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
