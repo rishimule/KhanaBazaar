@@ -61,6 +61,7 @@ export default function DashboardLayout({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time client-mount gate (SSR safety)
     setMounted(true);
   }, []);
 

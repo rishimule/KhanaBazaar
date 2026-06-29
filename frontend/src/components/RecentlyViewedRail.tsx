@@ -11,6 +11,7 @@ export default function RecentlyViewedRail() {
   const [items, setItems] = useState<RecentlyViewedEntry[]>([]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from localStorage on mount
     setItems(getRecentlyViewed().slice(0, 6));
   }, []);
 

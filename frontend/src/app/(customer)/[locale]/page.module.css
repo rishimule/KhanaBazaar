@@ -130,10 +130,9 @@
 
 .promoRow {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
 }
-@media (max-width: 640px) { .promoRow { grid-template-columns: 1fr; } }
 
 .promoCard {
   border-radius: var(--radius-card);
@@ -149,11 +148,6 @@
 .promoCardRefer {
   background: var(--leaf-green-light-1);
   color: var(--shade-cool-dark-3);
-}
-
-.promoCardMember {
-  background: var(--gradient-dark);
-  color: var(--white);
 }
 
 .promoEyebrow {
@@ -183,8 +177,6 @@
   width: fit-content;
 }
 .promoLink:hover { text-decoration: none; opacity: 0.85; }
-
-.promoLinkDark { color: var(--white); }
 
 .promoGlyph {
   position: absolute;
@@ -223,43 +215,92 @@
 }
 .sectionMore:hover { text-decoration: none; opacity: 0.85; }
 
-.catGrid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 12px;
-}
-@media (max-width: 1280px) { .catGrid { grid-template-columns: repeat(6, 1fr); } }
-@media (max-width: 768px)  { .catGrid { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 480px)  { .catGrid { grid-template-columns: repeat(3, 1fr); } }
-
-/* Service tiles: single horizontal row inside a shared ScrollRail. */
-.catTile {
+/* Shop-by-service honeycomb: hexagon tiles in a centered, responsive grid.
+   Colours cycle through a green-dominant palette (see .hexC0–5). */
+/* Flat-top honeycomb strip — reuses <ScrollRail> for scroll + arrows.
+   Columns alternate: one centred hex, then a stacked top+bottom pair. Columns
+   overlap a quarter-width so the flat-top hexes interlock into a two-row band. */
+.honeycombInner {
   flex: 0 0 auto;
-  width: 120px;
-  background: var(--shade-cool-light-1);
-  border-radius: var(--radius-card);
-  padding: 14px 8px;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  --hex-w: 156px;
+  --hex-h: 135px; /* ≈ hex-w × √3/2 for a regular flat-top hexagon */
+  padding: 2px 2px 6px;
+}
+
+.hcCol {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: var(--hex-w);
+}
+.hcCol + .hcCol {
+  margin-left: calc(var(--hex-w) / -4); /* interlock overlap */
+}
+/* Pair columns are two hexes tall and top-aligned so the neighbouring centred
+   column nestles into the notch between them (and a lone trailing tile stays
+   on the top row rather than re-centring). */
+.hcColPair {
+  height: calc(var(--hex-h) * 2);
+  justify-content: flex-start;
+}
+
+.hexCell {
+  flex: 0 0 auto;
+  width: var(--hex-w);
+  height: var(--hex-h);
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: var(--white);
+  -webkit-tap-highlight-color: transparent;
+}
+
+a.hexCell { transition: transform var(--duration-fast) var(--ease-default); }
+@media (prefers-reduced-motion: no-preference) {
+  a.hexCell:hover { transform: scale(1.05); text-decoration: none; }
+}
+/* clip-path crops a normal outline, so focus is shown with an inset ring
+   that follows the hex edges. */
+a.hexCell:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 3px var(--white), inset 0 0 0 6px rgba(0, 0, 0, 0.35);
+}
+
+.hexInner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  text-decoration: none;
-  border: 1px solid transparent;
-  transition: border-color var(--duration-fast), background var(--duration-fast);
-}
-.catTile:hover {
-  background: var(--white);
-  border-color: var(--hairline);
-  text-decoration: none;
-}
-.catTileGlyph { font-size: 36px; line-height: 1; }
-.catTileLabel {
-  font-size: var(--body-xs);
-  font-weight: var(--weight-medium);
-  color: var(--shade-cool-dark-3);
+  justify-content: center;
+  gap: 5px;
+  padding: 6px;
   text-align: center;
-  line-height: 1.2;
 }
+.hexGlyph {
+  font-size: 36px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+.hexLabel {
+  font-size: var(--body-xs);
+  font-weight: var(--weight-semibold);
+  line-height: 1.15;
+  max-width: 88%;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+/* Green-dominant palette, biased to the darker ramps so white labels stay
+   AA-legible (the text-shadow covers the single mid-green, .hexC4). */
+.hexC0 { background: var(--leaf-green-dark-1); }
+.hexC1 { background: var(--leaf-green-base-7); }
+.hexC2 { background: var(--jade-green-dark-1); }
+.hexC3 { background: var(--leaf-green-dark-4); }
+.hexC4 { background: var(--leaf-green-base-4); }
+.hexC5 { background: var(--chive-green-dark-1); }
 
 .storesGrid {
   display: grid;
@@ -374,29 +415,4 @@
   font-size: var(--body-sm);
   color: var(--shade-cool-base-7);
   margin-bottom: var(--space-3);
-}
-
-.sellerBand {
-  background: var(--shade-cool-dark-7);
-  color: var(--white);
-  border-radius: var(--radius-card);
-  padding: 32px 40px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-6);
-  flex-wrap: wrap;
-}
-.sellerBandTitle {
-  font-size: 28px;
-  font-weight: var(--weight-medium);
-  letter-spacing: -0.30px;
-  margin: 0;
-  color: var(--white);
-}
-.sellerBandSub {
-  font-size: var(--body-base);
-  color: var(--shade-cool-light-7);
-  margin-top: 6px;
-  max-width: 540px;
 }

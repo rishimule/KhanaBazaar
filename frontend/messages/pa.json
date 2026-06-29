@@ -348,7 +348,7 @@
     "store_paused": "This store is temporarily closed and isn't taking orders right now."
   },
   "Footer": {
-    "tagline": "ਤੁਹਾਡੇ ਆਂਢ-ਗੁਆਂਢ ਦੇ ਸਟੋਰ, ਹੁਣ ਤੁਹਾਡੀਆਂ ਉਂਗਲੀਆਂ 'ਤੇ. ਸਥਾਨਕ ਵਿਕਰੇਤਾਵਾਂ ਤੋਂ ਤਾਜ਼ਾ ਕਰਿਆਨਾ ਅਤੇ ਜ਼ਰੂਰੀ ਚੀਜ਼ਾਂ ਖਰੀਦੋ ਅਤੇ UPI ਨਾਲ ਤੁਰੰਤ ਭੁਗਤਾਨ ਕਰੋ.",
+    "tagline": "ਸਥਾਨਕ ਵਿਕਰੇਤਾਵਾਂ ਨੂੰ ਡਿਜੀਟਲ ਪਛਾਣ ਦਿਓ। ਮਿਲ ਕੇ ਅਸੀਂ ਇੱਕ ਮਜ਼ਬੂਤ, ਆਪਸ ਵਿੱਚ ਜੁੜਿਆ ਈਕੋਸਿਸਟਮ ਬਣਾਉਂਦੇ ਹਾਂ।",
     "quickLinks": "ਤੇਜ਼ ਲਿੰਕ",
     "home": "ਹੋਮ",
     "browseStores": "ਸਟੋਰ ਬ੍ਰਾਊਜ਼ ਕਰੋ",
@@ -358,7 +358,7 @@
     "forSellers": "ਵਿਕਰੇਤਾਵਾਂ ਲਈ",
     "privacy": "ਗੋਪਨੀਯਤਾ ਨੀਤੀ",
     "terms": "ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ",
-    "copyright": "© {year} {brand}. ਸਾਰੇ ਅਧਿਕਾਰ ਰਾਖਵੇਂ.",
+    "copyright": "© {year} <brand>{brand}</brand>. ਸਾਰੇ ਅਧਿਕਾਰ ਰਾਖਵੇਂ.",
     "madeWith": "ਭਾਰਤ ਦੇ ਸਥਾਨਕ ਵਿਕਰੇਤਾਵਾਂ ਲਈ 🧡 ਨਾਲ ਬਣਾਇਆ"
   },
   "Dashboard": {

@@ -41,6 +41,7 @@ export default function AdminProductsTab({
   }, [id, token, t]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load sets state inside async callbacks
     load();
   }, [load]);
 

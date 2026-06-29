@@ -97,10 +97,9 @@
   color: var(--shade-cool-base-4);
 }
 
-.madeWith {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
+.footerCopyrightBrand {
+  color: var(--white);
+  font-weight: var(--weight-semibold);
 }
 
 @media (max-width: 1023px) {

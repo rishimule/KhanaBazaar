@@ -36,8 +36,10 @@ export default function AdminCRQueuePage() {
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
+    /* eslint-disable react-hooks/set-state-in-effect -- start loading state synchronously before the async fetch */
     setLoading(true);
     setError(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
     adminListAllChangeRequests(token, tab, {
       q: debouncedQuery,
       page,
