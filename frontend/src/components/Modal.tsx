@@ -41,6 +41,7 @@ export default function Modal({
   // effect below depended on onClose, those re-renders would tear it down and
   // its cleanup would yank focus out of the open dialog back to the trigger.
   const onCloseRef = useRef(onClose);
+  // eslint-disable-next-line react-hooks/refs -- intentional latest-callback ref so the mount-only Escape effect always sees the current onClose without re-subscribing (see comment above)
   onCloseRef.current = onClose;
 
   // Mount + portal-ready (SSR safety) + Escape close + body scroll lock so

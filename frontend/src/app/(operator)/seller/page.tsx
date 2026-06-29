@@ -92,7 +92,7 @@ export default function SellerDashboardPage() {
       router.push(dbUser ? "/" : "/login");
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial metrics fetch sets state in async callbacks
+    // initial metrics fetch sets state in async callbacks
     if (!loading && dbUser && token) load();
   }, [loading, dbUser, token, router, load]);
 

@@ -172,12 +172,14 @@ export default function StoreDetailPage({ params }: Props) {
       storefront.services.find((s) => s.id === parsed) ?? null;
     const inStore =
       storefront.store.services.find((s) => s.id === parsed) ?? null;
+    /* eslint-disable react-hooks/set-state-in-effect -- sync active service/category from the resolved storefront + URL param */
     if (inStorefront) {
       setActiveServiceId(inStorefront.id);
       setActiveCategoryId(inStorefront.categories[0]?.id ?? null);
     } else if (inStore) {
       setRequestedMissingServiceId(parsed);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
     router.replace(`/stores/${storeId}`, { scroll: false });
   }, [storefront, searchParams, router, storeId]);
 

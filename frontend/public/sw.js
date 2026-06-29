@@ -81,7 +81,7 @@ self.addEventListener("push", (event) => {
   let payload = {};
   try {
     payload = event.data ? event.data.json() : {};
-  } catch (e) {
+  } catch {
     payload = {};
   }
   const title = payload.title || "Khana Bazaar";
@@ -101,7 +101,7 @@ self.addEventListener("push", (event) => {
         const bc = new BroadcastChannel("kb-notifications");
         bc.postMessage({ type: "order-status" });
         bc.close();
-      } catch (e) {
+      } catch {
         /* BroadcastChannel unsupported — bell refreshes on next focus */
       }
     })()
@@ -123,7 +123,7 @@ self.addEventListener("notificationclick", (event) => {
             // back to opening a fresh window if it throws.
             try {
               if ("navigate" in client) client.navigate(url);
-            } catch (e) {
+            } catch {
               return clients.openWindow(url);
             }
             return client.focus();
@@ -142,7 +142,7 @@ self.addEventListener("pushsubscriptionchange", (event) => {
         const bc = new BroadcastChannel("kb-notifications");
         bc.postMessage({ type: "subscription-change" });
         bc.close();
-      } catch (e) {
+      } catch {
         /* no-op */
       }
     })()

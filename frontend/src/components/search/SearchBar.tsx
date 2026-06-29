@@ -46,7 +46,7 @@ export function SearchBar() {
 
   const [scopeStore, setScopeStore] = useState<boolean>(!!storeId);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync scope toggle when navigating into/out of a store page
+    // sync scope toggle when navigating into/out of a store page
     setScopeStore(!!storeId);
   }, [storeId]);
 
@@ -69,14 +69,13 @@ export function SearchBar() {
 
   useEffect(() => {
     if (!q.trim()) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale suggestions when input empties
+      // clear stale suggestions when input empties
       setData(null);
       return;
     }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     // Clear stale dropdown content immediately so the user never sees previous
     // query's results while the new request is in flight.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- discard stale data on every new keystroke
     setData(null);
     debounceRef.current = window.setTimeout(async () => {
       try {
@@ -170,12 +169,7 @@ export function SearchBar() {
   }
 
   return (
-    <div
-      className={styles.wrap}
-      role="combobox"
-      aria-expanded={open}
-      aria-haspopup="listbox"
-    >
+    <div className={styles.wrap}>
       <span className={styles.searchIcon}>
         <SearchIcon />
       </span>
