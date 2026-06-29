@@ -357,7 +357,13 @@
     "faq13A": "You can edit your profile, documents, or bank details from the seller dashboard.",
     "faqMetaTitle": "Seller FAQ",
     "faqMetaDescription": "Answers to common questions from store owners about selling, approval, payments, and delivery.",
-    "faqPageBack": "Back to selling"
+    "faqPageBack": "Back to selling",
+    "whyKicker": "Benefits",
+    "howKicker": "Getting started",
+    "categoriesKicker": "What you can sell",
+    "previewKicker": "Your dashboard",
+    "checklistKicker": "Before you apply",
+    "faqKicker": "FAQ"
   },
   "Errors": {
     "network": "Network error. Try again.",

@@ -115,6 +115,7 @@ export default async function SellPage() {
       <section className={styles.section}>
         <div className="container">
           <div className={styles.sectionHeader}>
+            <p className={styles.sectionKicker}>{t("whyKicker")}</p>
             <h2 className={styles.sectionTitle}>{t("whyTitle")}</h2>
           </div>
 
@@ -132,6 +133,7 @@ export default async function SellPage() {
       <section className={`${styles.section} ${styles.sectionTint}`} id="how-it-works">
         <div className="container">
           <div className={styles.sectionHeader}>
+            <p className={styles.sectionKicker}>{t("howKicker")}</p>
             <h2 className={styles.sectionTitle}>{t("howTitle")}</h2>
             <p className={styles.sectionSubtitle}>{t("howSubtitle")}</p>
           </div>
@@ -142,6 +144,9 @@ export default async function SellPage() {
 
       <section className={styles.section}>
         <div className="container">
+          <div className={styles.sectionHeader}>
+            <p className={styles.sectionKicker}>{t("categoriesKicker")}</p>
+          </div>
           <div className={styles.categoryPath}>
             <h2 className={styles.categoryPathLabel}>{t("categoriesTitle")}</h2>
             {services.map((service) => (
@@ -159,6 +164,7 @@ export default async function SellPage() {
       <section className={`${styles.section} ${styles.previewSection}`}>
         <div className="container">
           <div className={styles.sectionHeader}>
+            <p className={styles.sectionKicker}>{t("previewKicker")}</p>
             <h2 className={styles.sectionTitle}>{t("previewTitle")}</h2>
             <p className={styles.sectionSubtitle}>{t("previewSubtitle")}</p>
             <p className={styles.previewBody}>{t("previewBody")}</p>
@@ -182,6 +188,7 @@ export default async function SellPage() {
       <section className={styles.section}>
         <div className="container">
           <div className={styles.sectionHeader}>
+            <p className={styles.sectionKicker}>{t("checklistKicker")}</p>
             <h2 className={styles.sectionTitle}>{t("checklistTitle")}</h2>
           </div>
 
@@ -204,11 +211,14 @@ export default async function SellPage() {
 
       <section className={`${styles.section} ${styles.sectionTint}`}>
         <div className="container">
-          <div className={`${styles.sectionHeader} ${styles.faqHeader}`}>
-            <h2 className={styles.sectionTitle}>{t("faqTitle")}</h2>
-            <LocaleLink href="/sell/faq" className={styles.faqMoreLink}>
-              {t("moreFaq")}
-            </LocaleLink>
+          <div className={styles.sectionHeader}>
+            <p className={styles.sectionKicker}>{t("faqKicker")}</p>
+            <div className={styles.faqHeader}>
+              <h2 className={styles.sectionTitle}>{t("faqTitle")}</h2>
+              <LocaleLink href="/sell/faq" className={styles.faqMoreLink}>
+                {t("moreFaq")}
+              </LocaleLink>
+            </div>
           </div>
 
           <FaqAccordion items={faqs} />
