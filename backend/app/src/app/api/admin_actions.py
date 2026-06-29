@@ -40,6 +40,10 @@ from app.models.catalog import (
 )
 from app.models.commerce import Delivery, Order, OrderStatus
 from app.models.profile import SellerProfile, VerificationStatus
+from app.models.seller_onboarding_request import (
+    OnboardingRequestStatus,
+    SellerOnboardingRequest,
+)
 from app.models.seller_profile_change_request import (
     SellerProfileChangeRequest,
     SellerProfileChangeRequestEvent,
@@ -55,10 +59,6 @@ from app.schemas.admin_actions import (
     RefundOrderRequest,
     RewindOrderRequest,
     SellerHubSummary,
-)
-from app.models.seller_onboarding_request import (
-    OnboardingRequestStatus,
-    SellerOnboardingRequest,
 )
 from app.schemas.pagination import PagedResponse
 from app.schemas.seller_onboarding import (
@@ -865,6 +865,7 @@ async def admin_list_all_change_requests(
         )
         for cr, profile in rows
     ]
+    return PagedResponse(items=items, total=total, page=page, page_size=page_size)
 
 
 # --- Seller onboarding requests (visitor-submitted leads) -----------------
@@ -940,4 +941,3 @@ async def admin_update_onboarding_request(
     await session.commit()
     await session.refresh(row)
     return row
-    return PagedResponse(items=items, total=total, page=page, page_size=page_size)
