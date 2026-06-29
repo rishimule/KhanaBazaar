@@ -10,10 +10,13 @@ import { get } from "@/lib/api";
 import { formatAddress } from "@/lib/format-address";
 import { useAuth } from "@/lib/AuthContext";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import { useDeviceLocation } from "@/lib/useDeviceLocation";
+import { useDeliverability } from "@/lib/useDeliverability";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
 import { HomeStorePreview, PreviewCandidate } from "@/components/HomeStorePreview";
 import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
+import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -23,7 +26,10 @@ export default function Home() {
   const router = useRouter();
   const [stores, setStores] = useState<Store[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const { location } = useDeliveryLocation();
+  const { location, userSet } = useDeliveryLocation();
+  const { status: deliverability } = useDeliverability();
+  const { request: requestGeo, supported: geoSupported } = useDeviceLocation();
+  const td = useTranslations("Deliverability");
 
   useEffect(() => {
     if (loading || !dbUser) return;
@@ -35,13 +41,16 @@ export default function Home() {
   }, [loading, dbUser, router]);
 
   useEffect(() => {
-    const url = location
-      ? `/api/v1/stores/?lat=${location.lat}&lng=${location.lng}&sort=distance`
-      : "/api/v1/stores/";
-    get<Store[]>(url)
+    // Only fetch once we have a real location (no silent Mumbai default).
+    // When unset, the store sections aren't rendered, so leaving stale state
+    // is harmless and avoids a synchronous setState in the effect body.
+    if (!userSet) return;
+    get<Store[]>(
+      `/api/v1/stores/?lat=${location.lat}&lng=${location.lng}&sort=distance`,
+    )
       .then(setStores)
       .catch(() => setStores([]));
-  }, [location]);
+  }, [userSet, location.lat, location.lng]);
 
   useEffect(() => {
     get<Service[]>("/api/v1/catalog/services")
@@ -128,67 +137,97 @@ export default function Home() {
           </div>
         </section>
 
-        {services.length > 0 && (
-          <section className={styles.section}>
-            <div className={styles.sectionHead}>
-              <h2 className={styles.sectionTitle}>Shop by service</h2>
-              <Link href="/products" className={styles.sectionMore}>More ›</Link>
-            </div>
-            <ScrollRail ariaLabel="Shop by service">
-              <div className={styles.honeycombInner}>
-                {hexColumns.map((col, ci) => (
-                  <div
-                    key={ci}
-                    className={col.center ? styles.hcCol : `${styles.hcCol} ${styles.hcColPair}`}
-                  >
-                    {col.tiles}
-                  </div>
-                ))}
-              </div>
-            </ScrollRail>
-          </section>
-        )}
-
-        <HomeStorePreview candidates={candidates} />
-
-        <section className={styles.section}>
-          <div className={styles.sectionHead}>
-            <h2 className={styles.sectionTitle}>{t("popularTitle")}</h2>
-            <Link href="/stores" className={styles.sectionMore}>{t("viewAllStores")} ›</Link>
+        {deliverability === "needs_location" ? (
+          <div className={styles.emptyState}>
+            <h3 className={styles.emptyTitle}>{td("setLocationTitle")}</h3>
+            <p className={styles.emptyBody}>{td("setLocationBody")}</p>
+            {geoSupported && (
+              <button type="button" className="btn btn-primary" onClick={requestGeo}>
+                {td("useMyLocation")}
+              </button>
+            )}
           </div>
+        ) : deliverability === "fallback" ? (
+          <DeliverabilityFallback
+            variant="stores"
+            source="home"
+            areaLabel={location.label}
+          />
+        ) : deliverability === "loading" ? (
+          <div
+            style={{
+              padding: "3rem",
+              textAlign: "center",
+              color: "var(--color-neutral-500)",
+            }}
+          >
+            Loading…
+          </div>
+        ) : (
+          <>
+            {services.length > 0 && (
+              <section className={styles.section}>
+                <div className={styles.sectionHead}>
+                  <h2 className={styles.sectionTitle}>Shop by service</h2>
+                  <Link href="/products" className={styles.sectionMore}>More ›</Link>
+                </div>
+                <ScrollRail ariaLabel="Shop by service">
+                  <div className={styles.honeycombInner}>
+                    {hexColumns.map((col, ci) => (
+                      <div
+                        key={ci}
+                        className={col.center ? styles.hcCol : `${styles.hcCol} ${styles.hcColPair}`}
+                      >
+                        {col.tiles}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollRail>
+              </section>
+            )}
 
-          {stores.length > 0 ? (
-            <div className={styles.storesGrid}>
-              {stores.slice(0, 8).map((store) => (
-                <Link
-                  key={store.id}
-                  href={`/stores/${store.id}`}
-                  className={styles.storeCard}
-                >
-                  <div className={styles.storeCardTop}>
-                    <span className={styles.storeAvatar}>
-                      {store.name.charAt(0).toUpperCase()}
-                    </span>
-                    <span className={styles.storeCardStatus}>{t("storeOpenNow")}</span>
-                  </div>
-                  <div className={styles.storeCardBody}>
-                    <h3 className={styles.storeName}>{store.name}</h3>
-                    <p className={styles.storeAddr}>{formatAddress(store.address)}</p>
-                    <span className={styles.storeCardAction}>{t("storeBrowse")} →</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className={styles.emptyState}>
-              <h3 className={styles.emptyTitle}>{t("emptyTitle")}</h3>
-              <p className={styles.emptyBody}>{t("emptyBody")}</p>
-              <Link href="/stores" className="btn btn-secondary">
-                {t("emptyBrowseAll")}
-              </Link>
-            </div>
-          )}
-        </section>
+            <HomeStorePreview candidates={candidates} />
+
+            <section className={styles.section}>
+              <div className={styles.sectionHead}>
+                <h2 className={styles.sectionTitle}>{t("popularTitle")}</h2>
+                <Link href="/stores" className={styles.sectionMore}>{t("viewAllStores")} ›</Link>
+              </div>
+
+              {stores.length > 0 ? (
+                <div className={styles.storesGrid}>
+                  {stores.slice(0, 8).map((store) => (
+                    <Link
+                      key={store.id}
+                      href={`/stores/${store.id}`}
+                      className={styles.storeCard}
+                    >
+                      <div className={styles.storeCardTop}>
+                        <span className={styles.storeAvatar}>
+                          {store.name.charAt(0).toUpperCase()}
+                        </span>
+                        <span className={styles.storeCardStatus}>{t("storeOpenNow")}</span>
+                      </div>
+                      <div className={styles.storeCardBody}>
+                        <h3 className={styles.storeName}>{store.name}</h3>
+                        <p className={styles.storeAddr}>{formatAddress(store.address)}</p>
+                        <span className={styles.storeCardAction}>{t("storeBrowse")} →</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.emptyState}>
+                  <h3 className={styles.emptyTitle}>{t("emptyTitle")}</h3>
+                  <p className={styles.emptyBody}>{t("emptyBody")}</p>
+                  <Link href="/stores" className="btn btn-secondary">
+                    {t("emptyBrowseAll")}
+                  </Link>
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </div>
     </div>
   );
