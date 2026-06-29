@@ -348,7 +348,7 @@
     "store_paused": "This store is temporarily closed and isn't taking orders right now."
   },
   "Footer": {
-    "tagline": "Your neighbourhood stores, now at your fingertips. Shop fresh groceries & essentials from local sellers and pay instantly with UPI.",
+    "tagline": "Empower local sellers with a digital presence. Together, we grow a stronger, connected ecosystem.",
     "quickLinks": "Quick Links",
     "home": "Home",
     "browseStores": "Browse Stores",
@@ -358,7 +358,7 @@
     "forSellers": "For Sellers",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
-    "copyright": "© {year} {brand}. All rights reserved.",
+    "copyright": "© {year} <brand>{brand}</brand>. All rights reserved.",
     "madeWith": "Made with 🧡 for India's local sellers"
   },
   "Dashboard": {

@@ -74,6 +74,29 @@ export default function Home() {
     );
   }
 
+  // Honeycomb tiles, one per active service (capped at 40).
+  const hexTiles = services.slice(0, 40).map((s, i) => (
+    <Link
+      key={s.id}
+      href={`/products?service=${encodeURIComponent(s.slug)}`}
+      className={`${styles.hexCell} ${styles[`hexC${i % 6}`]}`}
+    >
+      <span className={styles.hexInner}>
+        <span className={styles.hexGlyph} aria-hidden>{serviceGlyph(s.slug)}</span>
+        <span className={styles.hexLabel}>{s.name}</span>
+      </span>
+    </Link>
+  ));
+  // Group into interlocking columns: a single centred hex, then a stacked
+  // top+bottom pair, alternating — the flat-top honeycomb pattern.
+  const hexColumns: { center: boolean; tiles: typeof hexTiles }[] = [];
+  for (let i = 0; i < hexTiles.length; ) {
+    const center = hexColumns.length % 2 === 0;
+    const take = center ? 1 : 2;
+    hexColumns.push({ center, tiles: hexTiles.slice(i, i + take) });
+    i += take;
+  }
+
   return (
     <div className={styles.page}>
       <NearbyLocationBanner />
@@ -103,12 +126,6 @@ export default function Home() {
             <h3 className={styles.promoTitle}>Same-day delivery in 2 hours</h3>
             <Link href="/stores" className={styles.promoLink}>Browse nearby stores →</Link>
           </div>
-          <div className={`${styles.promoCard} ${styles.promoCardMember}`}>
-            <span className={styles.promoGlyph} aria-hidden>👑</span>
-            <div className={styles.promoEyebrow}>{t("trustUpi")}</div>
-            <h3 className={styles.promoTitle}>Pay with UPI · zero card hassle</h3>
-            <Link href="/about" className={`${styles.promoLink} ${styles.promoLinkDark}`}>Learn how →</Link>
-          </div>
         </section>
 
         {services.length > 0 && (
@@ -118,16 +135,16 @@ export default function Home() {
               <Link href="/products" className={styles.sectionMore}>More ›</Link>
             </div>
             <ScrollRail ariaLabel="Shop by service">
-              {services.map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/products?service=${encodeURIComponent(s.slug)}`}
-                  className={styles.catTile}
-                >
-                  <span className={styles.catTileGlyph} aria-hidden>{serviceGlyph(s.slug)}</span>
-                  <span className={styles.catTileLabel}>{s.name}</span>
-                </Link>
-              ))}
+              <div className={styles.honeycombInner}>
+                {hexColumns.map((col, ci) => (
+                  <div
+                    key={ci}
+                    className={col.center ? styles.hcCol : `${styles.hcCol} ${styles.hcColPair}`}
+                  >
+                    {col.tiles}
+                  </div>
+                ))}
+              </div>
             </ScrollRail>
           </section>
         )}
@@ -171,17 +188,6 @@ export default function Home() {
               </Link>
             </div>
           )}
-        </section>
-
-        <section className={styles.sellerBand}>
-          <div>
-            <span className={styles.eyebrow}>{t("sellerBandEyebrow")}</span>
-            <h2 className={styles.sellerBandTitle}>{t("sellerBandTitle")}</h2>
-            <p className={styles.sellerBandSub}>{t("sellerBandBody")}</p>
-          </div>
-          <Link href="/sell" className="btn btn-primary">
-            {t("becomeSeller")}
-          </Link>
         </section>
       </div>
     </div>

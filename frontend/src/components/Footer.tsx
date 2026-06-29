@@ -49,8 +49,14 @@ export default function Footer() {
       </div>
 
       <div className={styles.footerBottom}>
-        <span>{t("copyright", { year: new Date().getFullYear() })}</span>
-        <span className={styles.madeWith}>{t("madeWith")}</span>
+        <span>
+          {t.rich("copyright", {
+            year: new Date().getFullYear(),
+            brand: (chunks) => (
+              <span className={styles.footerCopyrightBrand}>{chunks}</span>
+            ),
+          })}
+        </span>
       </div>
     </footer>
   );
