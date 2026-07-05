@@ -9,7 +9,7 @@ Admins curate a master product catalog. Sellers register, get admin-approved, ru
 
 ## Subagent routing (gemini-worker)
 
-This project has a `gemini-worker` subagent that wraps the Gemini CLI. It exists to preserve Claude context for planning, writing code, and reviewing diffs.
+This project has a `gemini-worker` subagent that wraps the Antigravity CLI (`agy`, running the `Gemini 3.1 Pro (High)` model). It exists to preserve Claude context for planning, writing code, and reviewing diffs.
 
 **Delegate to `gemini-worker` before:**
 - Reading more than 3 files to answer a question
@@ -247,6 +247,18 @@ No frontend tests configured.
 **Async DB everywhere**: All routes use async sessions (`get_db_session`). When writing services, use `await session.exec(...)`, `await session.commit()`, `await session.refresh(obj)`.
 
 **Admin seller supervisor + audit log**: Admins can act on a single seller's products and orders through `/admin/sellers/[id]/{profile,products,orders,activity}` (frontend) → `/api/v1/admin/*` + reused `/stores/{id}/inventory/*` and `/orders/{id}/{cancel,transition}` endpoints. Service functions accept `acting_admin_id: int | None = None`; when set, `admin_audit.log()` is called and the audit row commits in the **same transaction** as the mutation (no post-commit logging — rollback is atomic). Audit data lives in `admin_action_log` (new table, no FKs on `target_id` so deleted-row history survives). Admin order-mutating routes also enqueue `send_admin_order_action_email` Celery task to notify the seller. Admin writes against non-Approved sellers reject with `409 seller_not_active`. Frontend uses an `<ImpersonationBanner>` ("acting" vs "viewing" copy) + reason-required modal for destructive actions. See `docs/superpowers/specs/2026-05-16-admin-seller-supervisor-design.md`.
+
+## Frontend Design Workflow (Figma-first)
+
+**Every change to the web-app frontend MUST be designed in Figma before it is implemented in code.** The Figma file is the source of truth for the visual design and must stay accurate to the shipped UI at all times.
+
+- **Figma file**: `Khana Bazaar — Web App Screens` (`https://www.figma.com/design/xE7k2Kll3aXDornOut63gC/Khana-Bazaar-%E2%80%94-Web-App-Screens`, file key `xE7k2Kll3aXDornOut63gC`). Existing screens: all 108 KB screens (customer/seller/admin × desktop + mobile) — see the `project_figma_screens.md` memory for component IDs + coordinate conventions.
+- **Order of operations** for any new or changed frontend UI (new page, redesign, component tweak, layout/style change):
+  1. Design the change in Figma first (use the `figma-generate-design` / `figma-use` skills; load the mandatory skill before any `use_figma` call).
+  2. Get the Figma design correct — new screens added, changed screens updated to match the intended result.
+  3. **Only then** implement the change in the Next.js code so the code matches the approved Figma design.
+- **Keep them in sync**: when the code changes, the Figma file must be updated in the same effort so it never drifts from what's live. Treat an out-of-date Figma screen as a bug.
+- **Scope**: applies to `frontend/` UI work. Pure backend, config, docs, or non-visual refactors (no rendered-output change) do not need a Figma pass.
 
 ## Git & GitHub Workflow
 

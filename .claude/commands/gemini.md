@@ -10,4 +10,4 @@ This code and its associated documentation cannot be copied, modified, or distri
 
 Use the gemini-worker subagent to handle this research request: $ARGUMENTS
 
-Return Gemini's raw output, then interpret it in your response.
+The worker runs the Antigravity CLI (`agy`, Gemini 3.1 Pro). Return its raw output verbatim, then interpret it in your response.
