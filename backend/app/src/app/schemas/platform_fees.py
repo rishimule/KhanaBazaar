@@ -71,3 +71,56 @@ class SubscriptionPlansPut(BaseModel):
 class ServiceFeeConfigWithPlans(BaseModel):
     config: ServiceFeeConfigRead
     plans: list[SubscriptionPlanItem]
+
+
+class SellerPaymentDetails(BaseModel):
+    bank_account_name: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_ifsc: Optional[str] = None
+    upi_id: Optional[str] = None
+    qr_image_url: Optional[str] = None
+    gstin: Optional[str] = None
+
+
+class SellerPlanServiceView(BaseModel):
+    service_id: int
+    service_name: str
+    model: str
+    status: str
+    valid_until: Optional[str] = None
+    subscription_enabled: bool
+    subscription_plans: list[SubscriptionPlanItem] = []
+    payment_pending: bool = False
+    amount_due: Optional[float] = None
+    cancel_requested: bool = False
+
+
+class SellerPlanView(BaseModel):
+    services: list[SellerPlanServiceView]
+    payment_details: SellerPaymentDetails
+
+
+class OptInBody(BaseModel):
+    duration_months: int  # 3, 6, or 12 (validated against active plans)
+
+
+class MarkPaidBody(BaseModel):
+    seller_note: Optional[str] = Field(default=None, max_length=200)
+
+
+class PaymentQueueItem(BaseModel):
+    payment_id: int
+    arrangement_id: int
+    store_id: int
+    store_name: str
+    service_id: int
+    service_name: str
+    kind: str
+    amount: float
+    seller_note: Optional[str] = None
+    pending_since: Optional[str] = None
+    created_at: str
+
+
+class RejectBody(BaseModel):
+    reason: str = Field(min_length=1, max_length=200)
