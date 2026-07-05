@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.security import get_current_customer
+from app.core.security import get_current_customer, get_current_seller
 from app.db.session import get_db_session
 from app.models.base import User
-from app.models.profile import CustomerProfile
+from app.models.profile import CustomerProfile, SellerProfile
 from app.schemas.notifications import (
     NotificationListResponse,
     NotificationRead,
@@ -114,4 +114,67 @@ async def unsubscribe_push(
     await delete_push_subscription(
         session, customer_profile_id=cpid, endpoint=payload.endpoint
     )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+seller_router = APIRouter()
+
+
+async def _seller_profile_id(session: AsyncSession, user: User) -> int:
+    result = await session.exec(
+        select(SellerProfile.id).where(SellerProfile.user_id == user.id)
+    )
+    spid = result.first()
+    if spid is None:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+    return spid
+
+
+@seller_router.get("/me/notifications", response_model=NotificationListResponse)
+async def get_seller_notifications(
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_seller),
+) -> NotificationListResponse:
+    spid = await _seller_profile_id(session, user)
+    items, unread = await list_notifications(session, seller_profile_id=spid)
+    return NotificationListResponse(
+        notifications=[
+            NotificationRead(
+                id=n.id if n.id is not None else 0,
+                order_id=n.order_id,
+                type=n.type.value,
+                title=n.title,
+                body=n.body,
+                status_value=n.status_value,
+                read=n.read,
+                created_at=n.created_at,
+            )
+            for n in items
+        ],
+        unread_count=unread,
+    )
+
+
+@seller_router.post("/me/notifications/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
+async def read_seller_notification(
+    notification_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_seller),
+) -> Response:
+    spid = await _seller_profile_id(session, user)
+    ok = await mark_notification_read(
+        session, seller_profile_id=spid, notification_id=notification_id
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@seller_router.post("/me/notifications/read-all", status_code=status.HTTP_204_NO_CONTENT)
+async def read_all_seller_notifications(
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_seller),
+) -> Response:
+    spid = await _seller_profile_id(session, user)
+    await mark_all_read(session, seller_profile_id=spid)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
