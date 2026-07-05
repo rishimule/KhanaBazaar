@@ -32,6 +32,9 @@ PY
 echo "==> alembic upgrade head"
 alembic upgrade head
 
+echo "==> backfill freebie fee arrangements (idempotent)"
+python scripts/backfill_freebie_arrangements.py
+
 echo "==> seed policy documents (idempotent; inserts v1 only if absent)"
 python -m app.db.seed_policies
 

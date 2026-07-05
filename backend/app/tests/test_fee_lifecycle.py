@@ -117,3 +117,23 @@ async def test_approval_enrolls_services(
     arr = (await session.exec(select(FeeArrangement).where(FeeArrangement.store_id == store.id))).one()
     assert arr.service_id == svc.id
     assert arr.status == ArrangementStatus.Trial
+
+
+@pytest.mark.asyncio
+async def test_backfill_enrolls_existing_stores(
+    session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app.models.platform_fee import FeeArrangement
+    from scripts.backfill_freebie_arrangements import backfill_all
+
+    n = await backfill_all(session)
+    await session.commit()
+    assert n >= 1
+    arrs = (
+        await session.exec(
+            select(FeeArrangement).where(
+                FeeArrangement.store_id == approved_seller_with_store.store.id
+            )
+        )
+    ).all()
+    assert len(arrs) == 1
