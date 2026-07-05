@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
 from app.models.base import User
-from app.models.catalog import Service
+from app.models.catalog import Service, ServiceTranslation
 from app.models.platform_fee import (
     ArrangementStatus,
     FeeArrangement,
@@ -27,8 +27,10 @@ from app.models.store import Store
 from app.schemas.platform_fees import (
     MarkPaidBody,
     OptInBody,
+    PaymentQueueItem,
     PlatformFeeSettingsPatch,
     PlatformFeeSettingsRead,
+    RejectBody,
     SellerPaymentDetails,
     SellerPlanServiceView,
     SellerPlanView,
@@ -42,7 +44,9 @@ from app.services import platform_fees as fees
 from app.services import seller_services
 from app.services.fee_lifecycle import (
     FeeError,
+    confirm_subscription_payment,
     opt_into_subscription,
+    reject_payment,
     request_cancellation,
 )
 
@@ -192,6 +196,90 @@ async def put_service_plans(
         )
         for p in plans
     ]
+
+
+@admin_router.get("/fees/queue", response_model=list[PaymentQueueItem])
+async def fee_payment_queue(
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[PaymentQueueItem]:
+    rows = (
+        await session.exec(
+            select(FeePayment, FeeArrangement, Store)
+            .join(FeeArrangement, FeeArrangement.id == FeePayment.arrangement_id)
+            .join(Store, Store.id == FeeArrangement.store_id)
+            .where(FeePayment.status == FeePaymentStatus.Pending)
+            .order_by(FeePayment.created_at)  # type: ignore[arg-type]
+        )
+    ).all()
+    # Resolve service names (English) in one batched lookup.
+    service_ids = {arr.service_id for _p, arr, _s in rows}
+    names: dict[int, str] = {}
+    if service_ids:
+        for svc_id, name in (
+            await session.exec(
+                select(ServiceTranslation.service_id, ServiceTranslation.name).where(
+                    ServiceTranslation.service_id.in_(service_ids),  # type: ignore[attr-defined]
+                    ServiceTranslation.language_code == "en",
+                )
+            )
+        ).all():
+            names[svc_id] = name
+    return [
+        PaymentQueueItem(
+            payment_id=p.id,
+            arrangement_id=arr.id,
+            store_id=store.id,
+            store_name=store.name,
+            service_id=arr.service_id,
+            service_name=names.get(arr.service_id, f"Service {arr.service_id}"),
+            kind=p.kind.value,
+            amount=p.amount,
+            seller_note=p.seller_note,
+            pending_since=arr.pending_since.isoformat() if arr.pending_since else None,
+            created_at=p.created_at.isoformat(),
+        )
+        for p, arr, store in rows
+    ]
+
+
+async def _pending_payment(session: AsyncSession, payment_id: int) -> FeePayment:
+    payment = await session.get(FeePayment, payment_id)
+    if payment is None or payment.status != FeePaymentStatus.Pending:
+        raise HTTPException(status_code=404, detail={"error": "pending_payment_not_found"})
+    return payment
+
+
+@admin_router.post("/fees/payments/{payment_id}/confirm")
+async def confirm_payment(
+    payment_id: int,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    payment = await _pending_payment(session, payment_id)
+    assert admin.id is not None
+    arr = await confirm_subscription_payment(session, payment, admin.id)
+    result = {
+        "arrangement_id": arr.id,
+        "status": arr.status.value,
+        "valid_until": arr.valid_until.isoformat() if arr.valid_until else None,
+    }
+    await session.commit()
+    return result
+
+
+@admin_router.post("/fees/payments/{payment_id}/reject")
+async def reject_fee_payment(
+    payment_id: int,
+    body: RejectBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    payment = await _pending_payment(session, payment_id)
+    assert admin.id is not None
+    await reject_payment(session, payment, admin.id, body.reason)
+    await session.commit()
+    return {"payment_id": payment_id, "status": "rejected"}
 
 
 seller_router = APIRouter()
