@@ -59,4 +59,8 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=4, minute=45),
         "args": ("store", True),
     },
+    "fees-daily-sweep": {
+        "task": "fees.run_daily_sweep",
+        "schedule": crontab(hour=2, minute=0),
+    },
 }

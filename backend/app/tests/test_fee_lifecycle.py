@@ -259,3 +259,12 @@ async def test_sweep_ignores_unexpired_and_suspended(
     await session.refresh(arr)
     assert arr.status == ArrangementStatus.Trial
     assert counts == {"to_grace": 0, "to_suspended": 0, "held": 0}
+
+
+def test_daily_sweep_task_registered_and_scheduled() -> None:
+    from app.core.celery_app import celery_app
+
+    assert "fees.run_daily_sweep" in celery_app.tasks
+    sched = celery_app.conf.beat_schedule
+    assert "fees-daily-sweep" in sched
+    assert sched["fees-daily-sweep"]["task"] == "fees.run_daily_sweep"

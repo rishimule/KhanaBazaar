@@ -1,7 +1,9 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import asyncio
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
 from pywebpush import WebPushException, webpush
@@ -1382,3 +1384,21 @@ def send_order_push_async(notification_id: int) -> None:
                 "Unexpected web push error endpoint=%s", sub.get("endpoint")
             )
     _delete_dead_subscriptions(dead)
+
+
+@celery_app.task(name="fees.run_daily_sweep")  # type: ignore[untyped-decorator]
+def run_daily_fee_sweep() -> dict[str, int]:
+    """Daily: expire freebie trials (Trial→Grace→Suspended, holding when no paid
+    model is offerable). Runs the async sweep on a worker thread so it works in
+    both the real worker and eager tests."""
+    from app.db.session import async_session_factory
+    from app.services.fee_lifecycle import run_fee_sweep
+
+    async def _run() -> dict[str, int]:
+        async with async_session_factory() as session:
+            counts = await run_fee_sweep(session)
+            await session.commit()
+            return counts
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_run())).result()
