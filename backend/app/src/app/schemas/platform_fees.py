@@ -124,3 +124,28 @@ class PaymentQueueItem(BaseModel):
 
 class RejectBody(BaseModel):
     reason: str = Field(min_length=1, max_length=200)
+
+
+class ArrangementSummary(BaseModel):
+    id: int
+    service_id: int
+    service_name: str
+    model: str
+    status: str
+    valid_until: Optional[str] = None
+    cancel_requested: bool = False
+    pending: bool = False
+
+
+class ExtendBody(BaseModel):
+    days: int = Field(ge=1, le=3650)
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class TerminateBody(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class CompBody(BaseModel):
+    duration_months: int = Field(ge=1, le=60)
+    reason: Optional[str] = Field(default=None, max_length=500)
