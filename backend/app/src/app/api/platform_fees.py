@@ -11,7 +11,11 @@ from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.base import User
 from app.models.catalog import Service
-from app.models.platform_fee import PlatformFeeSettings, ServiceFeeConfig
+from app.models.platform_fee import (
+    PlatformFeeSettings,
+    ServiceFeeConfig,
+    ServiceSubscriptionPlan,
+)
 from app.schemas.platform_fees import (
     PlatformFeeSettingsPatch,
     PlatformFeeSettingsRead,
@@ -19,6 +23,7 @@ from app.schemas.platform_fees import (
     ServiceFeeConfigRead,
     ServiceFeeConfigWithPlans,
     SubscriptionPlanItem,
+    SubscriptionPlansPut,
 )
 from app.services import platform_fees as fees
 
@@ -121,3 +126,50 @@ async def patch_service_fee_config(
     await session.commit()
     await session.refresh(cfg)
     return _config_read(cfg)
+
+
+@admin_router.put(
+    "/fees/services/{service_id}/plans", response_model=list[SubscriptionPlanItem]
+)
+async def put_service_plans(
+    service_id: int,
+    body: SubscriptionPlansPut,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[SubscriptionPlanItem]:
+    await _require_service(session, service_id)
+    for item in body.plans:
+        if item.duration_months not in fees.ALLOWED_DURATIONS:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "invalid_duration", "duration_months": item.duration_months},
+            )
+    existing = {p.duration_months: p for p in await fees.list_plans(session, service_id)}
+    seen: set[int] = set()
+    for item in body.plans:
+        seen.add(item.duration_months)
+        row = existing.get(item.duration_months)
+        if row is None:
+            session.add(
+                ServiceSubscriptionPlan(
+                    service_id=service_id,
+                    duration_months=item.duration_months,
+                    price=item.price,
+                    is_active=item.is_active,
+                )
+            )
+        else:
+            row.price = item.price
+            row.is_active = item.is_active
+            session.add(row)
+    for duration, row in existing.items():
+        if duration not in seen:
+            await session.delete(row)
+    await session.commit()
+    plans = await fees.list_plans(session, service_id)
+    return [
+        SubscriptionPlanItem(
+            duration_months=p.duration_months, price=p.price, is_active=p.is_active
+        )
+        for p in plans
+    ]

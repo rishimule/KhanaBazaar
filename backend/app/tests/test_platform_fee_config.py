@@ -65,3 +65,35 @@ async def test_patch_service_config(client: AsyncClient, admin_auth_headers, see
 async def test_service_config_unknown_service_404(client: AsyncClient, admin_auth_headers) -> None:
     r = await client.get("/api/v1/admin/fees/services/999999", headers=admin_auth_headers)
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_put_plans_replaces_set(client: AsyncClient, admin_auth_headers, seeded_service) -> None:
+    r = await client.put(
+        f"/api/v1/admin/fees/services/{seeded_service.id}/plans",
+        headers=admin_auth_headers,
+        json={"plans": [
+            {"duration_months": 3, "price": 300, "is_active": True},
+            {"duration_months": 6, "price": 500, "is_active": True},
+        ]},
+    )
+    assert r.status_code == 200
+    assert {p["duration_months"] for p in r.json()} == {3, 6}
+    # Replace: send only the 12-month plan; 3 and 6 must be dropped.
+    r2 = await client.put(
+        f"/api/v1/admin/fees/services/{seeded_service.id}/plans",
+        headers=admin_auth_headers,
+        json={"plans": [{"duration_months": 12, "price": 900, "is_active": True}]},
+    )
+    assert r2.status_code == 200
+    assert [p["duration_months"] for p in r2.json()] == [12]
+
+
+@pytest.mark.asyncio
+async def test_put_plans_rejects_bad_duration(client: AsyncClient, admin_auth_headers, seeded_service) -> None:
+    r = await client.put(
+        f"/api/v1/admin/fees/services/{seeded_service.id}/plans",
+        headers=admin_auth_headers,
+        json={"plans": [{"duration_months": 4, "price": 100, "is_active": True}]},
+    )
+    assert r.status_code == 422
