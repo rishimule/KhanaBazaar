@@ -296,6 +296,77 @@ def request_cancellation(session: AsyncSession, arrangement: FeeArrangement) -> 
     )
 
 
+def admin_extend(
+    session: AsyncSession, arrangement: FeeArrangement, days: int, admin_user_id: int
+) -> None:
+    """Push the arrangement's validity out by `days` (from its current expiry,
+    or today if none). Caller commits + audits."""
+    base = arrangement.valid_until or date.today()
+    arrangement.valid_until = base + timedelta(days=days)
+    session.add(arrangement)
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.Extended,
+            actor=f"admin:{admin_user_id}",
+            note=f"+{days}d → {arrangement.valid_until.isoformat()}",
+        )
+    )
+
+
+def admin_terminate(
+    session: AsyncSession, arrangement: FeeArrangement, reason: str, admin_user_id: int
+) -> None:
+    """Force-suspend immediately + stop auto-renew. Caller commits + audits."""
+    arrangement.status = ArrangementStatus.Suspended
+    arrangement.suspended_at = datetime.now(timezone.utc)
+    arrangement.suspended_reason = reason
+    arrangement.auto_renew = False
+    session.add(arrangement)
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.Terminated,
+            actor=f"admin:{admin_user_id}",
+            note=reason,
+        )
+    )
+
+
+def admin_comp_subscription(
+    session: AsyncSession,
+    arrangement: FeeArrangement,
+    duration_months: int,
+    admin_user_id: int,
+    *,
+    today: date | None = None,
+) -> None:
+    """Comp: activate as Subscription for `duration_months` with no payment
+    (price_snapshot=0). Bypasses opt-in gating (admin authority). Caller commits
+    + audits."""
+    today = today or date.today()
+    arrangement.model = FeeModel.Subscription
+    arrangement.status = ArrangementStatus.Active
+    arrangement.subscription_duration_months = duration_months
+    arrangement.price_snapshot = 0.0
+    arrangement.valid_until = today + timedelta(days=duration_months * _MONTH_DAYS)
+    arrangement.pending_since = None
+    arrangement.queued_model = None
+    arrangement.queued_duration_months = None
+    arrangement.suspended_at = None
+    arrangement.suspended_reason = None
+    session.add(arrangement)
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.Activated,
+            amount_delta=0.0,
+            actor=f"admin:{admin_user_id}",
+            note=f"comp subscription {duration_months}m",
+        )
+    )
+
+
 async def _paid_model_offerable(
     session: AsyncSession, service_ids: set[int]
 ) -> dict[int, bool]:

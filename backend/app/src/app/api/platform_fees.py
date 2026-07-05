@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
+from app.models.admin_audit import AdminActionTargetType
 from app.models.base import User
 from app.models.catalog import Service, ServiceTranslation
 from app.models.platform_fee import (
@@ -22,9 +23,12 @@ from app.models.platform_fee import (
     ServiceFeeConfig,
     ServiceSubscriptionPlan,
 )
-from app.models.profile import SellerProfile
+from app.models.profile import SellerProfile, VerificationStatus
 from app.models.store import Store
 from app.schemas.platform_fees import (
+    ArrangementSummary,
+    CompBody,
+    ExtendBody,
     MarkPaidBody,
     OptInBody,
     PaymentQueueItem,
@@ -39,11 +43,15 @@ from app.schemas.platform_fees import (
     ServiceFeeConfigWithPlans,
     SubscriptionPlanItem,
     SubscriptionPlansPut,
+    TerminateBody,
 )
+from app.services import admin_audit, seller_services
 from app.services import platform_fees as fees
-from app.services import seller_services
 from app.services.fee_lifecycle import (
     FeeError,
+    admin_comp_subscription,
+    admin_extend,
+    admin_terminate,
     confirm_subscription_payment,
     opt_into_subscription,
     reject_payment,
@@ -280,6 +288,134 @@ async def reject_fee_payment(
     await reject_payment(session, payment, admin.id, body.reason)
     await session.commit()
     return {"payment_id": payment_id, "status": "rejected"}
+
+
+async def _arrangement_with_seller(
+    session: AsyncSession, arrangement_id: int
+) -> tuple[FeeArrangement, SellerProfile]:
+    arr = await session.get(FeeArrangement, arrangement_id)
+    if arr is None:
+        raise HTTPException(status_code=404, detail={"error": "arrangement_not_found"})
+    store = await session.get(Store, arr.store_id)
+    if store is None:
+        raise HTTPException(status_code=404, detail={"error": "store_not_found"})
+    profile = await session.get(SellerProfile, store.seller_profile_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail={"error": "seller_not_found"})
+    if profile.verification_status != VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail={"error": "seller_not_active"})
+    return arr, profile
+
+
+def _arr_before(arr: FeeArrangement) -> dict:  # type: ignore[type-arg]
+    return {
+        "model": arr.model.value,
+        "status": arr.status.value,
+        "valid_until": arr.valid_until.isoformat() if arr.valid_until else None,
+    }
+
+
+@admin_router.get(
+    "/fees/arrangements/{store_id}", response_model=list[ArrangementSummary]
+)
+async def admin_list_arrangements(
+    store_id: int,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[ArrangementSummary]:
+    arrs = (
+        await session.exec(
+            select(FeeArrangement).where(FeeArrangement.store_id == store_id)
+        )
+    ).all()
+    service_ids = {a.service_id for a in arrs}
+    names: dict[int, str] = {}
+    if service_ids:
+        for sid, name in (
+            await session.exec(
+                select(ServiceTranslation.service_id, ServiceTranslation.name).where(
+                    ServiceTranslation.service_id.in_(service_ids),  # type: ignore[attr-defined]
+                    ServiceTranslation.language_code == "en",
+                )
+            )
+        ).all():
+            names[sid] = name
+    return [
+        ArrangementSummary(
+            id=a.id,
+            service_id=a.service_id,
+            service_name=names.get(a.service_id, f"Service {a.service_id}"),
+            model=a.model.value,
+            status=a.status.value,
+            valid_until=a.valid_until.isoformat() if a.valid_until else None,
+            cancel_requested=a.cancel_requested,
+            pending=a.pending_since is not None,
+        )
+        for a in arrs
+    ]
+
+
+@admin_router.post("/fees/arrangements/{arrangement_id}/extend")
+async def admin_extend_arrangement(
+    arrangement_id: int,
+    body: ExtendBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    arr, profile = await _arrangement_with_seller(session, arrangement_id)
+    assert admin.id is not None and profile.id is not None
+    before = _arr_before(arr)
+    admin_extend(session, arr, body.days, admin.id)
+    after = _arr_before(arr)
+    await admin_audit.log(
+        session=session, admin_user_id=admin.id, target_seller_id=profile.id,
+        target_type=AdminActionTargetType.SellerProfile, target_id=profile.id,
+        action="fee.extend", before_json=before, after_json=after, reason=body.reason,
+    )
+    await session.commit()
+    return {"arrangement_id": arrangement_id, "valid_until": after["valid_until"]}
+
+
+@admin_router.post("/fees/arrangements/{arrangement_id}/terminate")
+async def admin_terminate_arrangement(
+    arrangement_id: int,
+    body: TerminateBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    arr, profile = await _arrangement_with_seller(session, arrangement_id)
+    assert admin.id is not None and profile.id is not None
+    before = _arr_before(arr)
+    admin_terminate(session, arr, body.reason, admin.id)
+    await admin_audit.log(
+        session=session, admin_user_id=admin.id, target_seller_id=profile.id,
+        target_type=AdminActionTargetType.SellerProfile, target_id=profile.id,
+        action="fee.terminate", before_json=before, after_json=_arr_before(arr),
+        reason=body.reason,
+    )
+    await session.commit()
+    return {"arrangement_id": arrangement_id, "status": "suspended"}
+
+
+@admin_router.post("/fees/arrangements/{arrangement_id}/comp")
+async def admin_comp_arrangement(
+    arrangement_id: int,
+    body: CompBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    arr, profile = await _arrangement_with_seller(session, arrangement_id)
+    assert admin.id is not None and profile.id is not None
+    before = _arr_before(arr)
+    admin_comp_subscription(session, arr, body.duration_months, admin.id)
+    after = _arr_before(arr)
+    await admin_audit.log(
+        session=session, admin_user_id=admin.id, target_seller_id=profile.id,
+        target_type=AdminActionTargetType.SellerProfile, target_id=profile.id,
+        action="fee.comp", before_json=before, after_json=after, reason=body.reason,
+    )
+    await session.commit()
+    return {"arrangement_id": arrangement_id, "status": after["status"], "valid_until": after["valid_until"]}
 
 
 seller_router = APIRouter()
