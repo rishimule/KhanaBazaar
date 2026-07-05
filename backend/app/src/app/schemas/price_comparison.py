@@ -38,6 +38,7 @@ class ComparisonAlternative(BaseModel):
     imputed_subtotal: float
     effective_total: float
     items: List[ComparisonItem]
+    is_freebie: bool = True
 
 
 class CompareResponse(BaseModel):
