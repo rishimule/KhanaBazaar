@@ -41,6 +41,7 @@ from app.schemas.seller_profile_change_request import (
     validate_group_payload,
 )
 from app.services import admin_audit
+from app.services.fee_lifecycle import sync_store_arrangements
 from app.services.image_processing import ImageValidationError
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_services import (
@@ -611,6 +612,8 @@ async def _apply_services(
                 by_id[sid].delivery_eta_min_minutes = int(eta_min)
                 by_id[sid].delivery_eta_max_minutes = int(eta_max)
             session.add(by_id[sid])
+    assert profile.id is not None
+    await sync_store_arrangements(session, profile.id)
 
 
 async def _apply_store_basics(

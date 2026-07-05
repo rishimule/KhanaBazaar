@@ -52,6 +52,7 @@ from app.schemas.services import ServicePayload
 from app.schemas.stores import StorePauseBody, StoreRead
 from app.services import admin_audit
 from app.services.eligible_products import list_eligible_products
+from app.services.fee_lifecycle import sync_store_arrangements
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_emails import (
     dispatch_seller_application_submitted,
@@ -688,6 +689,7 @@ async def admin_verify_seller(
         profile.verification_status = VerificationStatus.Approved
         profile.rejection_reason = None
 
+        assert profile.id is not None
         # Idempotent store provisioning
         existing_store = (await session.exec(
             select(Store).where(Store.seller_profile_id == profile.id)
@@ -737,6 +739,11 @@ async def admin_verify_seller(
                 address_id=store_addr.id,
                 pin_confirmed=inherits_pin,
             ))
+            await session.flush()
+        # Enroll each offered service into a Freebie trial (idempotent; no-op
+        # if the store already existed). Runs whether or not the store was just
+        # created, so a re-approval of an existing store also reconciles.
+        await sync_store_arrangements(session, profile.id)
     elif body.action == "reject":
         if not body.rejection_reason or not body.rejection_reason.strip():
             raise HTTPException(status_code=400, detail="rejection_reason required when rejecting")
@@ -898,6 +905,7 @@ async def admin_set_services(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     await replace_profile_services(session, profile, valid_ids)
+    await sync_store_arrangements(session, profile_id)
     await session.commit()
     services = await list_profile_services(session, profile_id)
     return {"seller_id": seller_id, "services": [s.model_dump() for s in services]}

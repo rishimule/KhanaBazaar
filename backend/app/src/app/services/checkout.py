@@ -159,6 +159,26 @@ async def _validate_service_active_for_store(
             },
         )
 
+    from app.models.platform_fee import ArrangementStatus, FeeArrangement
+
+    suspended = (
+        await session.exec(
+            select(FeeArrangement.status).where(
+                FeeArrangement.store_id == store_id,
+                FeeArrangement.service_id == service_id,
+            )
+        )
+    ).first()
+    if suspended == ArrangementStatus.Suspended:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "detail": "service_suspended",
+                "store_id": store_id,
+                "service_id": service_id,
+            },
+        )
+
 
 async def _compute_delivery_fee(
     session: AsyncSession, store_id: int, service_id: int, subtotal: float
