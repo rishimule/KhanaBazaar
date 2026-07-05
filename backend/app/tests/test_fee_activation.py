@@ -19,6 +19,7 @@ from app.services.fee_lifecycle import (
     opt_into_subscription,
     reject_payment,
     request_cancellation,
+    run_fee_sweep,
 )
 
 
@@ -121,3 +122,40 @@ async def test_cancel_sets_flags(session: AsyncSession, approved_seller_with_sto
     await session.refresh(arr)
     assert arr.cancel_requested is True
     assert arr.auto_renew is False
+
+
+@pytest.mark.asyncio
+async def test_sweep_protects_pending_arrangement(session: AsyncSession, approved_seller_with_store) -> None:
+    # Expired trial that WOULD suspend (paid model offerable), but has a live
+    # pending payment → protected, not suspended.
+    session.add(ServiceFeeConfig(service_id=approved_seller_with_store.service_id, subscription_enabled=True))
+    now = datetime(2026, 7, 10, tzinfo=timezone.utc)
+    arr = FeeArrangement(
+        store_id=approved_seller_with_store.store.id, service_id=approved_seller_with_store.service_id,
+        model=FeeModel.Freebie, status=ArrangementStatus.Trial,
+        valid_until=date(2026, 7, 1), pending_since=now,
+    )
+    session.add(arr)
+    await session.flush()
+    counts = await run_fee_sweep(session, today=date(2026, 7, 10))
+    await session.refresh(arr)
+    assert arr.status == ArrangementStatus.Trial  # protected
+    assert counts["protected"] == 1
+
+
+@pytest.mark.asyncio
+async def test_sweep_stops_protecting_after_window(session: AsyncSession, approved_seller_with_store) -> None:
+    session.add(ServiceFeeConfig(service_id=approved_seller_with_store.service_id, subscription_enabled=True))
+    # pending_since 10 days ago, protect window default 7 → no longer protected.
+    stale = datetime(2026, 6, 25, tzinfo=timezone.utc)
+    arr = FeeArrangement(
+        store_id=approved_seller_with_store.store.id, service_id=approved_seller_with_store.service_id,
+        model=FeeModel.Freebie, status=ArrangementStatus.Trial,
+        valid_until=date(2026, 7, 1), pending_since=stale,
+    )
+    session.add(arr)
+    await session.flush()
+    counts = await run_fee_sweep(session, today=date(2026, 7, 10))
+    await session.refresh(arr)
+    assert arr.status == ArrangementStatus.Grace  # protection lapsed → normal expiry
+    assert counts["to_grace"] == 1

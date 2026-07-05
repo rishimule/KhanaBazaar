@@ -258,7 +258,7 @@ async def test_sweep_ignores_unexpired_and_suspended(
     counts = await run_fee_sweep(session, today=date(2026, 7, 10))
     await session.refresh(arr)
     assert arr.status == ArrangementStatus.Trial
-    assert counts == {"to_grace": 0, "to_suspended": 0, "held": 0}
+    assert counts == {"to_grace": 0, "to_suspended": 0, "held": 0, "protected": 0}
 
 
 def test_daily_sweep_task_registered_and_scheduled() -> None:

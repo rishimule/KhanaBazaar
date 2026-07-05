@@ -343,6 +343,9 @@ async def run_fee_sweep(
         )
     ).first()
     grace_days = settings_row.grace_period_days if settings_row else DEFAULT_GRACE_DAYS
+    protect_days = (
+        settings_row.pending_payment_protect_days if settings_row else 7
+    )
 
     rows = (
         await session.exec(
@@ -359,10 +362,16 @@ async def run_fee_sweep(
         )
     ).all()
     paid_offerable = await _paid_model_offerable(session, {r.service_id for r in rows})
-    counts = {"to_grace": 0, "to_suspended": 0, "held": 0}
+    counts = {"to_grace": 0, "to_suspended": 0, "held": 0, "protected": 0}
 
     for arr in rows:
         assert arr.valid_until is not None
+        if (
+            arr.pending_since is not None
+            and (today - arr.pending_since.date()) <= timedelta(days=protect_days)
+        ):
+            counts["protected"] += 1
+            continue
         if arr.status in (ArrangementStatus.Trial, ArrangementStatus.Active):
             if today <= arr.valid_until:
                 continue
