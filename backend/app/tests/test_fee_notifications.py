@@ -79,3 +79,58 @@ async def test_confirm_notifies_seller(
         session, seller_profile_id=approved_seller_with_store.profile.id
     )
     assert unread >= 1  # seller got a FeeActivated notification
+
+
+@pytest.mark.asyncio
+async def test_sweep_reminds_before_expiry(
+    session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app.services.fee_lifecycle import run_fee_sweep
+
+    session.add(ServiceFeeConfig(service_id=approved_seller_with_store.service_id, subscription_enabled=True))
+    # Active subscription expiring in 3 days (within default 7-day reminder window).
+    arr = FeeArrangement(
+        store_id=approved_seller_with_store.store.id, service_id=approved_seller_with_store.service_id,
+        model=FeeModel.Subscription, status=ArrangementStatus.Active,
+        valid_until=date(2026, 7, 8),
+    )
+    session.add(arr)
+    await session.flush()
+    counts = await run_fee_sweep(session, today=date(2026, 7, 5))
+    await session.commit()
+    assert counts["reminded"] == 1
+    await session.refresh(arr)
+    assert arr.last_reminder_sent_on == date(2026, 7, 5)
+    _items, unread = await list_notifications(
+        session, seller_profile_id=approved_seller_with_store.profile.id
+    )
+    assert unread == 1  # FeeExpiring
+    # Second sweep same day → throttled, no duplicate.
+    counts2 = await run_fee_sweep(session, today=date(2026, 7, 5))
+    assert counts2["reminded"] == 0
+
+
+@pytest.mark.asyncio
+async def test_sweep_suspend_notifies(
+    session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app.services.fee_lifecycle import run_fee_sweep
+
+    # grace=0 default? Use an expired Active with a paid model so it suspends.
+    session.add(ServiceFeeConfig(service_id=approved_seller_with_store.service_id, subscription_enabled=True))
+    from app.models.platform_fee import PlatformFeeSettings
+    session.add(PlatformFeeSettings(grace_period_days=0))
+    arr = FeeArrangement(
+        store_id=approved_seller_with_store.store.id, service_id=approved_seller_with_store.service_id,
+        model=FeeModel.Subscription, status=ArrangementStatus.Active,
+        valid_until=date(2026, 7, 1),
+    )
+    session.add(arr)
+    await session.flush()
+    counts = await run_fee_sweep(session, today=date(2026, 7, 10))
+    await session.commit()
+    assert counts["to_suspended"] == 1
+    _items, unread = await list_notifications(
+        session, seller_profile_id=approved_seller_with_store.profile.id
+    )
+    assert any(i.status_value == "suspended" for i in _items)

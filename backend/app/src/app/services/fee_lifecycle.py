@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models.notification import NotificationType
 from app.models.platform_fee import (
     ArrangementStatus,
     FeeArrangement,
@@ -26,6 +27,7 @@ from app.models.platform_fee import (
 )
 from app.models.profile import SellerProfileService
 from app.models.store import Store
+from app.services.fee_notifications import notify_seller_fee_event
 
 DEFAULT_FREEBIE_DAYS = 30
 DEFAULT_GRACE_DAYS = 2
@@ -419,6 +421,9 @@ async def run_fee_sweep(
     protect_days = (
         settings_row.pending_payment_protect_days if settings_row else 7
     )
+    reminder_days = (
+        settings_row.expiry_reminder_start_days if settings_row else 7
+    )
 
     rows = (
         await session.exec(
@@ -435,7 +440,17 @@ async def run_fee_sweep(
         )
     ).all()
     paid_offerable = await _paid_model_offerable(session, {r.service_id for r in rows})
-    counts = {"to_grace": 0, "to_suspended": 0, "held": 0, "protected": 0}
+    already_held = set(
+        (
+            await session.exec(
+                select(FeeEvent.arrangement_id).where(
+                    FeeEvent.event_type == FeeEventType.TrialHeld,
+                    FeeEvent.arrangement_id.in_([r.id for r in rows]),  # type: ignore[union-attr]
+                )
+            )
+        ).all()
+    ) if rows else set()
+    counts = {"to_grace": 0, "to_suspended": 0, "held": 0, "protected": 0, "reminded": 0}
 
     for arr in rows:
         assert arr.valid_until is not None
@@ -445,12 +460,36 @@ async def run_fee_sweep(
         ):
             counts["protected"] += 1
             continue
+        is_held_exempt = arr.model == FeeModel.Freebie and not paid_offerable.get(
+            arr.service_id, False
+        )
         if arr.status in (ArrangementStatus.Trial, ArrangementStatus.Active):
             if today <= arr.valid_until:
+                # Approaching expiry (and will actually expire) → daily reminder.
+                if (
+                    not is_held_exempt
+                    and (arr.valid_until - today) <= timedelta(days=reminder_days)
+                    and arr.last_reminder_sent_on != today
+                ):
+                    arr.last_reminder_sent_on = today
+                    session.add(arr)
+                    await notify_seller_fee_event(
+                        session, store_id=arr.store_id,
+                        type=NotificationType.FeeExpiring, valid_until=arr.valid_until,
+                    )
+                    counts["reminded"] += 1
                 continue
-            if arr.model == FeeModel.Freebie and not paid_offerable.get(
-                arr.service_id, False
-            ):
+            if is_held_exempt:
+                if arr.id not in already_held:
+                    already_held.add(arr.id)
+                    session.add(
+                        FeeEvent(
+                            arrangement_id=arr.id,
+                            event_type=FeeEventType.TrialHeld,
+                            actor="system",
+                            note="held: no paid model offerable",
+                        )
+                    )
                 counts["held"] += 1
                 continue
             if grace_days > 0:
@@ -466,10 +505,16 @@ async def run_fee_sweep(
                 counts["to_grace"] += 1
             else:
                 _suspend(session, arr, "expired")
+                await notify_seller_fee_event(
+                    session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
+                )
                 counts["to_suspended"] += 1
         elif arr.status == ArrangementStatus.Grace:
             if today > arr.valid_until + timedelta(days=grace_days):
                 _suspend(session, arr, "grace_elapsed")
+                await notify_seller_fee_event(
+                    session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
+                )
                 counts["to_suspended"] += 1
     await session.flush()
     return counts
