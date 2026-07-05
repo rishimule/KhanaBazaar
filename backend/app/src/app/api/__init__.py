@@ -64,3 +64,6 @@ api_router.include_router(favorites.router, prefix="/favorites", tags=["favorite
 api_router.include_router(
     notifications.router, prefix="/notifications", tags=["notifications"]
 )
+api_router.include_router(
+    notifications.seller_router, prefix="/sellers", tags=["sellers", "notifications"]
+)
