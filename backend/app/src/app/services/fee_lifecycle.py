@@ -17,14 +17,19 @@ from app.models.platform_fee import (
     FeeEvent,
     FeeEventType,
     FeeModel,
+    FeePayment,
+    FeePaymentKind,
+    FeePaymentStatus,
     PlatformFeeSettings,
     ServiceFeeConfig,
+    ServiceSubscriptionPlan,
 )
 from app.models.profile import SellerProfileService
 from app.models.store import Store
 
 DEFAULT_FREEBIE_DAYS = 30
 DEFAULT_GRACE_DAYS = 2
+_MONTH_DAYS = 30  # dependency-free month arithmetic for validity windows
 
 
 async def _freebie_days_by_service(
@@ -111,6 +116,186 @@ async def sync_store_arrangements(
     await session.flush()
 
 
+class FeeError(Exception):
+    """Invalid fee operation (bad opt-in, missing plan, etc.)."""
+
+
+async def opt_into_subscription(
+    session: AsyncSession,
+    arrangement: FeeArrangement,
+    duration_months: int,
+    *,
+    now: datetime | None = None,
+) -> FeePayment:
+    """Record a seller's intent to subscribe: create a Pending SubscriptionFee
+    payment and mark the arrangement pending. Does NOT change the arrangement's
+    commercial status/model/validity — that happens on admin confirmation.
+    Caller commits. Raises FeeError if subscription isn't offerable, the plan is
+    missing/inactive, or a pending payment already exists."""
+    now = now or datetime.now(timezone.utc)
+    cfg = (
+        await session.exec(
+            select(ServiceFeeConfig).where(
+                ServiceFeeConfig.service_id == arrangement.service_id
+            )
+        )
+    ).first()
+    if cfg is None or not cfg.subscription_enabled:
+        raise FeeError("subscription_not_offerable")
+    plan = (
+        await session.exec(
+            select(ServiceSubscriptionPlan).where(
+                ServiceSubscriptionPlan.service_id == arrangement.service_id,
+                ServiceSubscriptionPlan.duration_months == duration_months,
+                ServiceSubscriptionPlan.is_active == True,  # noqa: E712
+            )
+        )
+    ).first()
+    if plan is None:
+        raise FeeError("plan_not_available")
+
+    existing_pending = (
+        await session.exec(
+            select(FeePayment).where(
+                FeePayment.arrangement_id == arrangement.id,
+                FeePayment.status == FeePaymentStatus.Pending,
+            )
+        )
+    ).first()
+    if existing_pending is not None:
+        raise FeeError("payment_already_pending")
+
+    arrangement.pending_since = now
+    arrangement.queued_model = FeeModel.Subscription
+    arrangement.queued_duration_months = duration_months
+    session.add(arrangement)
+    payment = FeePayment(
+        arrangement_id=arrangement.id,
+        kind=FeePaymentKind.SubscriptionFee,
+        amount=plan.price,
+        status=FeePaymentStatus.Pending,
+    )
+    session.add(payment)
+    await session.flush()
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.PaymentRecorded,
+            amount_delta=plan.price,
+            actor="seller",
+            note=f"opt-in subscription {duration_months}m",
+        )
+    )
+    return payment
+
+
+async def confirm_subscription_payment(
+    session: AsyncSession,
+    payment: FeePayment,
+    admin_user_id: int,
+    *,
+    today: date | None = None,
+) -> FeeArrangement:
+    """Admin confirms an offline SubscriptionFee payment → activate the
+    arrangement. Stacks onto the current expiry when renewing early, else starts
+    from today. Caller commits."""
+    today = today or date.today()
+    arrangement = (
+        await session.exec(
+            select(FeeArrangement).where(FeeArrangement.id == payment.arrangement_id)
+        )
+    ).one()
+    duration = arrangement.queued_duration_months or 0
+    if duration <= 0:
+        raise FeeError("no_queued_duration")
+
+    span = timedelta(days=duration * _MONTH_DAYS)
+    if (
+        arrangement.status == ArrangementStatus.Active
+        and arrangement.valid_until is not None
+        and today <= arrangement.valid_until
+    ):
+        new_valid_until = arrangement.valid_until + span  # renew early → stack
+        event_type = FeeEventType.Renewed
+    else:
+        new_valid_until = today + span  # fresh / lapsed / reactivate
+        event_type = FeeEventType.Activated
+
+    arrangement.model = FeeModel.Subscription
+    arrangement.status = ArrangementStatus.Active
+    arrangement.subscription_duration_months = duration
+    arrangement.price_snapshot = payment.amount
+    arrangement.valid_until = new_valid_until
+    arrangement.pending_since = None
+    arrangement.queued_model = None
+    arrangement.queued_duration_months = None
+    arrangement.suspended_at = None
+    arrangement.suspended_reason = None
+    session.add(arrangement)
+
+    payment.status = FeePaymentStatus.Confirmed
+    payment.confirmed_by_admin_id = admin_user_id
+    payment.confirmed_at = datetime.now(timezone.utc)
+    session.add(payment)
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=event_type,
+            amount_delta=payment.amount,
+            actor=f"admin:{admin_user_id}",
+            note=f"subscription {duration}m → {new_valid_until.isoformat()}",
+        )
+    )
+    await session.flush()
+    return arrangement
+
+
+async def reject_payment(
+    session: AsyncSession, payment: FeePayment, admin_user_id: int, reason: str
+) -> None:
+    """Admin rejects a pending payment: mark it rejected, clear the arrangement's
+    pending markers, leave its commercial state untouched. Caller commits."""
+    payment.status = FeePaymentStatus.Rejected
+    payment.reject_reason = reason
+    payment.confirmed_by_admin_id = admin_user_id
+    payment.confirmed_at = datetime.now(timezone.utc)
+    session.add(payment)
+    arrangement = (
+        await session.exec(
+            select(FeeArrangement).where(FeeArrangement.id == payment.arrangement_id)
+        )
+    ).one()
+    arrangement.pending_since = None
+    arrangement.queued_model = None
+    arrangement.queued_duration_months = None
+    session.add(arrangement)
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.PaymentRejected,
+            actor=f"admin:{admin_user_id}",
+            note=reason,
+        )
+    )
+    await session.flush()
+
+
+def request_cancellation(session: AsyncSession, arrangement: FeeArrangement) -> None:
+    """Seller cancels auto-renewal; the arrangement runs to its paid expiry then
+    the sweep suspends it. Non-refundable. Caller commits."""
+    arrangement.cancel_requested = True
+    arrangement.auto_renew = False
+    session.add(arrangement)
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.ModelChanged,
+            actor="seller",
+            note="cancellation requested",
+        )
+    )
+
+
 async def _paid_model_offerable(
     session: AsyncSession, service_ids: set[int]
 ) -> dict[int, bool]:
@@ -158,6 +343,9 @@ async def run_fee_sweep(
         )
     ).first()
     grace_days = settings_row.grace_period_days if settings_row else DEFAULT_GRACE_DAYS
+    protect_days = (
+        settings_row.pending_payment_protect_days if settings_row else 7
+    )
 
     rows = (
         await session.exec(
@@ -174,10 +362,16 @@ async def run_fee_sweep(
         )
     ).all()
     paid_offerable = await _paid_model_offerable(session, {r.service_id for r in rows})
-    counts = {"to_grace": 0, "to_suspended": 0, "held": 0}
+    counts = {"to_grace": 0, "to_suspended": 0, "held": 0, "protected": 0}
 
     for arr in rows:
         assert arr.valid_until is not None
+        if (
+            arr.pending_since is not None
+            and (today - arr.pending_since.date()) <= timedelta(days=protect_days)
+        ):
+            counts["protected"] += 1
+            continue
         if arr.status in (ArrangementStatus.Trial, ArrangementStatus.Active):
             if today <= arr.valid_until:
                 continue
