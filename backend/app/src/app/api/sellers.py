@@ -52,6 +52,7 @@ from app.schemas.services import ServicePayload
 from app.schemas.stores import StorePauseBody, StoreRead
 from app.services import admin_audit
 from app.services.eligible_products import list_eligible_products
+from app.services.fee_gating import is_store_premium, should_gate_reports
 from app.services.fee_lifecycle import sync_store_arrangements
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_emails import (
@@ -134,6 +135,7 @@ async def get_seller_metrics(
             unavailable=0,
             store_active=False,
             store_paused=False,
+            is_premium=False,
             pin_confirmed=False,
             store_name="",
             order_status_counts=OrderStatusCounts(),
@@ -350,6 +352,7 @@ async def get_seller_metrics(
         else 0.0
     )
 
+    is_premium = await is_store_premium(session, store.id)
     return SellerMetricsRead(
         active_orders=int(active_orders),
         orders_today=int(orders_today),
@@ -362,6 +365,7 @@ async def get_seller_metrics(
         unavailable=int(unavailable),
         store_active=bool(store.is_active),
         store_paused=bool(store.is_paused),
+        is_premium=is_premium,
         pin_confirmed=bool(store.pin_confirmed),
         store_name=store.name,
         order_status_counts=counts,
@@ -393,6 +397,10 @@ async def get_revenue_series(
         select(Store).where(Store.seller_profile_id == profile_id)
     )
     store = store_res.first()
+    if store is not None and await should_gate_reports(session, store.id):
+        raise HTTPException(
+            status_code=403, detail={"detail": "reports_premium_only"}
+        )
 
     ist = ZoneInfo("Asia/Kolkata")
     today = datetime.now(ist).date()

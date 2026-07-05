@@ -45,3 +45,56 @@ async def test_store_list_marks_premium(
     assert r.status_code == 200
     row = next(s for s in r.json() if s["id"] == approved_seller_with_store.store.id)
     assert row["is_premium"] is True
+
+
+@pytest.mark.asyncio
+async def test_revenue_series_open_when_no_paid_model(
+    client: AsyncClient, approved_seller_with_store
+) -> None:
+    # Freebie store, no paid model configured → hold: reports stay open (200).
+    from app import app
+    from app.core.security import get_current_seller
+    app.dependency_overrides[get_current_seller] = lambda: approved_seller_with_store.user
+    try:
+        r = await client.get("/api/v1/sellers/me/revenue-series")
+        assert r.status_code == 200
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+
+
+@pytest.mark.asyncio
+async def test_revenue_series_403_when_gated(
+    client: AsyncClient, session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app import app
+    from app.core.security import get_current_seller
+    from app.models.platform_fee import ServiceFeeConfig
+
+    session.add(ServiceFeeConfig(
+        service_id=approved_seller_with_store.service_id, subscription_enabled=True
+    ))
+    await session.commit()
+    app.dependency_overrides[get_current_seller] = lambda: approved_seller_with_store.user
+    try:
+        r = await client.get("/api/v1/sellers/me/revenue-series")
+        assert r.status_code == 403
+        assert r.json()["detail"]["detail"] == "reports_premium_only"
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+
+
+@pytest.mark.asyncio
+async def test_metrics_is_premium_flag(
+    client: AsyncClient, session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app import app
+    from app.core.security import get_current_seller
+
+    await _paid_active(session, approved_seller_with_store.store.id, approved_seller_with_store.service_id)
+    app.dependency_overrides[get_current_seller] = lambda: approved_seller_with_store.user
+    try:
+        r = await client.get("/api/v1/sellers/me/metrics")
+        assert r.status_code == 200
+        assert r.json()["is_premium"] is True
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)

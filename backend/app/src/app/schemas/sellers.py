@@ -156,6 +156,7 @@ class SellerMetricsRead(BaseModel):
     unavailable: int
     store_active: bool
     store_paused: bool = False
+    is_premium: bool = False
     pin_confirmed: bool
     store_name: str
     order_status_counts: OrderStatusCounts
