@@ -46,6 +46,7 @@ from app.schemas.store_product_detail import (
 from app.schemas.storefront import StorefrontResponse
 from app.schemas.stores import StoreCreate, StoreRead, StoreUpdate
 from app.services import inventory as services_inventory
+from app.services.fee_gating import is_store_premium, premium_store_ids
 from app.services.inventory import (
     assert_products_in_seller_services,
     bulk_upsert_inventory,
@@ -79,6 +80,7 @@ async def _store_read(
     *,
     distance_km: Optional[float] = None,
     services: Optional[list[ServicePayload]] = None,
+    premium: bool = False,
 ) -> StoreRead:
     assert store.id is not None
     if services is None:
@@ -90,6 +92,7 @@ async def _store_read(
         name=store.name,
         address=address_to_payload(store.address),
         is_active=store.is_active,
+        is_premium=premium,
         seller_id=store.seller_profile.user_id,
         services=services,
         delivery_radius_km=store.delivery_radius_km,
@@ -163,6 +166,7 @@ async def list_stores(
             [s.seller_profile_id for s in stores],
             language_code=lang,
         )
+        premium_ids = await premium_store_ids(session, [s.id for s in stores if s.id is not None])
         return [
             await _store_read(
                 session,
@@ -170,6 +174,7 @@ async def list_stores(
                 lang,
                 distance_km=None,
                 services=services_by_profile.get(store.seller_profile_id, []),
+                premium=store.id in premium_ids,
             )
             for store in stores
         ]
@@ -228,6 +233,7 @@ async def list_stores(
         [s.seller_profile_id for s in ordered],
         language_code=lang,
     )
+    premium_ids = await premium_store_ids(session, [s.id for s in ordered if s.id is not None])
     return [
         await _store_read(
             session,
@@ -235,6 +241,7 @@ async def list_stores(
             lang,
             distance_km=distance_by_id[store.id],
             services=services_by_profile.get(store.seller_profile_id, []),
+            premium=store.id in premium_ids,
         )
         for store in ordered
     ]
@@ -299,7 +306,7 @@ async def get_store(
     store = await _get_store_with_relations(session, store_id)
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
-    return await _store_read(session, store, lang)
+    return await _store_read(session, store, lang, premium=await is_store_premium(session, store_id))
 
 
 @router.patch("/{store_id}", response_model=StoreRead)

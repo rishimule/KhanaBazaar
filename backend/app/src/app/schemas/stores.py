@@ -29,6 +29,7 @@ class StoreRead(BaseModel):
     name: str
     address: AddressPayload
     is_active: bool
+    is_premium: bool = False
     seller_id: int
     services: list[ServicePayload] = []
     delivery_radius_km: float
