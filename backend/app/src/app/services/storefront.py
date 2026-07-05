@@ -36,6 +36,7 @@ from app.schemas.storefront import (
     StorefrontSubcategory,
 )
 from app.schemas.stores import StoreRead
+from app.services.fee_gating import suspended_service_ids
 
 _EN = LanguageCode.English.value
 
@@ -117,6 +118,10 @@ async def build_storefront(
         )
     )
     rows = list((await session.exec(join_stmt)).all())
+
+    suspended = await suspended_service_ids(session, store_id)
+    if suspended:
+        rows = [r for r in rows if r[4].id not in suspended]
 
     if not rows:
         return StorefrontResponse(store=store_read, services=[])

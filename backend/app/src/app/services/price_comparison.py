@@ -11,6 +11,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.catalog import MasterProduct, MasterProductTranslation, Subcategory
+from app.models.platform_fee import ArrangementStatus, FeeArrangement, FeeModel
 from app.models.store import Store, StoreInventory
 from app.schemas.price_comparison import ComparisonAlternative, ComparisonItem
 
@@ -21,10 +22,10 @@ CANDIDATE_POOL_LIMIT = 20
 def rank_candidates(
     candidates: list[ComparisonAlternative],
 ) -> list[ComparisonAlternative]:
-    """Drop zero-coverage stores, sort by (effective_total ASC, distance_km
-    ASC), return top MAX_ALTERNATIVES."""
+    """Drop zero-coverage stores, sort by (is_freebie ASC → paid first,
+    effective_total ASC, distance_km ASC), return top MAX_ALTERNATIVES."""
     eligible = [c for c in candidates if c.covered_count > 0]
-    eligible.sort(key=lambda c: (c.effective_total, c.distance_km))
+    eligible.sort(key=lambda c: (c.is_freebie, c.effective_total, c.distance_km))
     return eligible[:MAX_ALTERNATIVES]
 
 
@@ -82,6 +83,28 @@ async def find_alternatives(
     ).all()
     distance_by_store: dict[int, float] = {int(r[0]): float(r[1]) for r in rows}
     candidate_ids = list(distance_by_store.keys())
+    if not candidate_ids:
+        return []
+
+    # Fee arrangements for the compared service: drop suspended candidates,
+    # tag the rest freebie/paid for freebie-last ranking.
+    arr_rows = (
+        await session.exec(
+            select(
+                FeeArrangement.store_id,
+                FeeArrangement.status,
+                FeeArrangement.model,
+            ).where(
+                FeeArrangement.store_id.in_(candidate_ids),  # type: ignore[attr-defined]
+                FeeArrangement.service_id == service_id,
+            )
+        )
+    ).all()
+    arr_by_store = {int(sid): (status, model) for sid, status, model in arr_rows}
+    candidate_ids = [
+        cid for cid in candidate_ids
+        if arr_by_store.get(cid, (None, None))[0] != ArrangementStatus.Suspended
+    ]
     if not candidate_ids:
         return []
 
@@ -155,6 +178,8 @@ async def find_alternatives(
     # --- step 5: build candidate DTOs ------------------------------------
     candidates: list[ComparisonAlternative] = []
     for store_id, store in store_by_id.items():
+        model = arr_by_store.get(store_id, (None, FeeModel.Freebie))[1]
+        is_freebie = model is None or model == FeeModel.Freebie
         store_inv = inv_by_store.get(store_id, {})
         items: list[ComparisonItem] = []
         covered_subtotal = 0.0
@@ -210,6 +235,7 @@ async def find_alternatives(
             imputed_subtotal=round(imputed_subtotal, 2),
             effective_total=round(covered_subtotal + imputed_subtotal, 2),
             items=items,
+            is_freebie=is_freebie,
         ))
 
     return rank_candidates(candidates)

@@ -83,3 +83,18 @@ async def test_premium_store_never_gated(session: AsyncSession, approved_seller_
     await _arr(session, approved_seller_with_store.store.id, approved_seller_with_store.service_id,
                model=FeeModel.Subscription, status=ArrangementStatus.Active)
     assert await should_gate_reports(session, approved_seller_with_store.store.id) is False
+
+
+@pytest.mark.asyncio
+async def test_suspended_service_ids(session: AsyncSession, approved_seller_with_store) -> None:
+    from app.services.fee_gating import suspended_service_ids
+
+    sid = approved_seller_with_store.service_id
+    store_id = approved_seller_with_store.store.id
+    assert await suspended_service_ids(session, store_id) == set()
+    session.add(FeeArrangement(
+        store_id=store_id, service_id=sid, model=FeeModel.Subscription,
+        status=ArrangementStatus.Suspended, valid_until=date(2026, 12, 1),
+    ))
+    await session.flush()
+    assert await suspended_service_ids(session, store_id) == {sid}

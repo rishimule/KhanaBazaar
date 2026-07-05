@@ -43,6 +43,19 @@ async def is_store_premium(session: AsyncSession, store_id: int) -> bool:
     return bool(await premium_store_ids(session, [store_id]))
 
 
+async def suspended_service_ids(session: AsyncSession, store_id: int) -> set[int]:
+    """service_ids whose (store, service) arrangement is Suspended."""
+    rows = (
+        await session.exec(
+            select(FeeArrangement.service_id).where(
+                FeeArrangement.store_id == store_id,
+                FeeArrangement.status == ArrangementStatus.Suspended,
+            )
+        )
+    ).all()
+    return {int(sid) for sid in rows}
+
+
 async def store_has_offerable_paid_model(
     session: AsyncSession, store_id: int
 ) -> bool:
