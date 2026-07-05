@@ -4,16 +4,21 @@
 
 `admin_router` mounted at /api/v1/admin. Global settings + per-service fee config
 + subscription-plan pricing."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.base import User
-from app.models.platform_fee import PlatformFeeSettings
+from app.models.catalog import Service
+from app.models.platform_fee import PlatformFeeSettings, ServiceFeeConfig
 from app.schemas.platform_fees import (
     PlatformFeeSettingsPatch,
     PlatformFeeSettingsRead,
+    ServiceFeeConfigPatch,
+    ServiceFeeConfigRead,
+    ServiceFeeConfigWithPlans,
+    SubscriptionPlanItem,
 )
 from app.services import platform_fees as fees
 
@@ -55,3 +60,64 @@ async def patch_fee_settings(
     await session.commit()
     await session.refresh(row)
     return _settings_read(row)
+
+
+def _config_read(c: ServiceFeeConfig) -> ServiceFeeConfigRead:
+    return ServiceFeeConfigRead(
+        service_id=c.service_id,
+        freebie_enabled=c.freebie_enabled,
+        freebie_default_days=c.freebie_default_days,
+        subscription_enabled=c.subscription_enabled,
+        order_value_enabled=c.order_value_enabled,
+        order_value_percent=c.order_value_percent,
+        order_value_min_deposit=c.order_value_min_deposit,
+        order_value_billing_day=c.order_value_billing_day,
+        pay_per_txn_enabled=c.pay_per_txn_enabled,
+        pay_per_txn_fee=c.pay_per_txn_fee,
+        pay_per_txn_min_deposit=c.pay_per_txn_min_deposit,
+        pay_per_txn_low_balance_threshold=c.pay_per_txn_low_balance_threshold,
+    )
+
+
+async def _require_service(session: AsyncSession, service_id: int) -> Service:
+    svc = await session.get(Service, service_id)
+    if svc is None:
+        raise HTTPException(status_code=404, detail={"error": "service_not_found"})
+    return svc
+
+
+@admin_router.get("/fees/services/{service_id}", response_model=ServiceFeeConfigWithPlans)
+async def get_service_fee_config(
+    service_id: int,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ServiceFeeConfigWithPlans:
+    await _require_service(session, service_id)
+    cfg = await fees.load_service_config(session, service_id)
+    plans = await fees.list_plans(session, service_id)
+    return ServiceFeeConfigWithPlans(
+        config=_config_read(cfg),
+        plans=[
+            SubscriptionPlanItem(
+                duration_months=p.duration_months, price=p.price, is_active=p.is_active
+            )
+            for p in plans
+        ],
+    )
+
+
+@admin_router.patch("/fees/services/{service_id}", response_model=ServiceFeeConfigRead)
+async def patch_service_fee_config(
+    service_id: int,
+    body: ServiceFeeConfigPatch,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ServiceFeeConfigRead:
+    await _require_service(session, service_id)
+    cfg = await fees.get_or_create_service_config(session, service_id)
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(cfg, key, value)
+    session.add(cfg)
+    await session.commit()
+    await session.refresh(cfg)
+    return _config_read(cfg)
