@@ -4,6 +4,7 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import CheckConstraint
 from sqlmodel import DateTime, Field, Index
 
 from app.models.base import BaseSchema
@@ -12,14 +13,25 @@ from app.models.base import BaseSchema
 class NotificationType(str, enum.Enum):
     OrderStatus = "order_status"
     DeliveryOtp = "delivery_otp"
+    FeeActivated = "fee_activated"
+    FeeExpiring = "fee_expiring"
+    FeeSuspended = "fee_suspended"
 
 
 class Notification(BaseSchema, table=True):
     __table_args__ = (
         Index("ix_notification_customer_created", "customer_profile_id", "created_at"),
+        Index("ix_notification_seller_created", "seller_profile_id", "created_at"),
+        CheckConstraint(
+            "(customer_profile_id IS NOT NULL) <> (seller_profile_id IS NOT NULL)",
+            name="ck_notification_one_recipient",
+        ),
     )
-    customer_profile_id: int = Field(
-        foreign_key="customerprofile.id", nullable=False, index=True
+    customer_profile_id: Optional[int] = Field(
+        default=None, foreign_key="customerprofile.id", nullable=True, index=True
+    )
+    seller_profile_id: Optional[int] = Field(
+        default=None, foreign_key="sellerprofile.id", nullable=True, index=True
     )
     order_id: Optional[int] = Field(default=None, foreign_key="order.id")
     type: NotificationType = Field(default=NotificationType.OrderStatus, nullable=False)
