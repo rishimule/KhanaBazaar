@@ -86,3 +86,34 @@ async def test_sync_noop_without_store(session: AsyncSession, approved_seller) -
     await session.commit()
     count = len((await session.exec(select(FeeArrangement))).all())
     assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_approval_enrolls_services(
+    client, admin_auth_headers, pending_seller, session: AsyncSession
+) -> None:
+    from app.models.catalog import Service, ServiceTranslation
+    from app.models.profile import SellerProfileService
+
+    profile = pending_seller["profile"]
+    svc = Service(slug="grocery-enroll", is_active=True, sort_order=0)
+    session.add(svc)
+    await session.flush()
+    session.add(ServiceTranslation(service_id=svc.id, language_code="en", name="Grocery"))
+    session.add(SellerProfileService(seller_profile_id=profile.id, service_id=svc.id))
+    await session.commit()
+
+    r = await client.patch(
+        f"/api/v1/sellers/admin/{pending_seller['user'].id}/verify",
+        headers=admin_auth_headers,
+        json={"action": "approve"},
+    )
+    assert r.status_code == 200
+
+    from app.models.platform_fee import ArrangementStatus, FeeArrangement
+    from app.models.store import Store
+
+    store = (await session.exec(select(Store).where(Store.seller_profile_id == profile.id))).one()
+    arr = (await session.exec(select(FeeArrangement).where(FeeArrangement.store_id == store.id))).one()
+    assert arr.service_id == svc.id
+    assert arr.status == ArrangementStatus.Trial
