@@ -2,7 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """DB operations for customer notifications + web-push subscriptions."""
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -10,6 +10,20 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.notification import Notification, NotificationType, PushSubscription
 
 _LIST_LIMIT = 50
+
+
+def _recipient_filter(
+    customer_profile_id: int | None, seller_profile_id: int | None
+) -> tuple[Any, int]:
+    """Return the (column, value) to scope a notification query by recipient.
+
+    Exactly one of the two ids must be provided.
+    """
+    if (customer_profile_id is None) == (seller_profile_id is None):
+        raise ValueError("exactly one of customer_profile_id / seller_profile_id required")
+    if seller_profile_id is not None:
+        return Notification.seller_profile_id, seller_profile_id
+    return Notification.customer_profile_id, customer_profile_id
 
 
 async def record_order_status_notification(
@@ -58,14 +72,40 @@ async def record_delivery_otp_notification(
     return notif
 
 
+async def record_seller_notification(
+    session: AsyncSession,
+    *,
+    seller_profile_id: int,
+    type: NotificationType,  # noqa: A002 - matches the model field name
+    title: str,
+    body: str,
+    status_value: str,
+) -> Notification:
+    """Insert (flush, not commit) one seller notification row."""
+    notif = Notification(
+        seller_profile_id=seller_profile_id,
+        type=type,
+        title=title,
+        body=body,
+        status_value=status_value,
+    )
+    session.add(notif)
+    await session.flush()
+    return notif
+
+
 async def list_notifications(
-    session: AsyncSession, *, customer_profile_id: int
+    session: AsyncSession,
+    *,
+    customer_profile_id: int | None = None,
+    seller_profile_id: int | None = None,
 ) -> tuple[list[Notification], int]:
-    """Return (newest-first notifications, unread_count) for one customer."""
+    """Return (newest-first notifications, unread_count) for one recipient."""
+    col_, val = _recipient_filter(customer_profile_id, seller_profile_id)
     rows = (
         await session.exec(
             select(Notification)
-            .where(Notification.customer_profile_id == customer_profile_id)
+            .where(col_ == val)
             .order_by(col(Notification.created_at).desc())
             .limit(_LIST_LIMIT)
         )
@@ -74,7 +114,7 @@ async def list_notifications(
         await session.exec(
             select(func.count())
             .select_from(Notification)
-            .where(Notification.customer_profile_id == customer_profile_id)
+            .where(col_ == val)
             .where(Notification.read == False)  # noqa: E712
         )
     ).one()
@@ -82,15 +122,20 @@ async def list_notifications(
 
 
 async def mark_notification_read(
-    session: AsyncSession, *, customer_profile_id: int, notification_id: int
+    session: AsyncSession,
+    *,
+    notification_id: int,
+    customer_profile_id: int | None = None,
+    seller_profile_id: int | None = None,
 ) -> bool:
     """Mark one notification read. Returns False if not found or not owned."""
+    col_, val = _recipient_filter(customer_profile_id, seller_profile_id)
     notif = (
         await session.exec(
             select(Notification).where(Notification.id == notification_id)
         )
     ).first()
-    if notif is None or notif.customer_profile_id != customer_profile_id:
+    if notif is None or getattr(notif, col_.key) != val:
         return False
     if not notif.read:
         notif.read = True
@@ -99,12 +144,18 @@ async def mark_notification_read(
     return True
 
 
-async def mark_all_read(session: AsyncSession, *, customer_profile_id: int) -> int:
-    """Mark all of a customer's notifications read. Returns count flipped."""
+async def mark_all_read(
+    session: AsyncSession,
+    *,
+    customer_profile_id: int | None = None,
+    seller_profile_id: int | None = None,
+) -> int:
+    """Mark all of a recipient's notifications read. Returns count flipped."""
+    col_, val = _recipient_filter(customer_profile_id, seller_profile_id)
     rows = (
         await session.exec(
             select(Notification)
-            .where(Notification.customer_profile_id == customer_profile_id)
+            .where(col_ == val)
             .where(Notification.read == False)  # noqa: E712
         )
     ).all()
