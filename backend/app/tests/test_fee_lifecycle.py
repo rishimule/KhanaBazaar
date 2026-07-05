@@ -137,3 +137,125 @@ async def test_backfill_enrolls_existing_stores(
         )
     ).all()
     assert len(arrs) == 1
+
+
+async def _make_arrangement(session, store_id, service_id, *, model, status, valid_until):
+    from app.models.platform_fee import FeeArrangement
+
+    arr = FeeArrangement(
+        store_id=store_id, service_id=service_id, model=model,
+        status=status, valid_until=valid_until,
+    )
+    session.add(arr)
+    await session.flush()
+    return arr
+
+
+@pytest.mark.asyncio
+async def test_sweep_holds_expired_freebie_when_no_paid_model(
+    session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app.models.platform_fee import ArrangementStatus, FeeModel
+    from app.services.fee_lifecycle import run_fee_sweep
+
+    arr = await _make_arrangement(
+        session, approved_seller_with_store.store.id,
+        approved_seller_with_store.service_id,
+        model=FeeModel.Freebie, status=ArrangementStatus.Trial,
+        valid_until=date(2026, 7, 1),
+    )
+    counts = await run_fee_sweep(session, today=date(2026, 7, 10))
+    await session.refresh(arr)
+    assert arr.status == ArrangementStatus.Trial  # held
+    assert counts["held"] == 1
+
+
+@pytest.mark.asyncio
+async def test_sweep_trial_to_grace_when_paid_model_offerable(
+    session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app.models.platform_fee import ArrangementStatus, FeeModel, ServiceFeeConfig
+    from app.services.fee_lifecycle import run_fee_sweep
+
+    session.add(ServiceFeeConfig(
+        service_id=approved_seller_with_store.service_id, subscription_enabled=True
+    ))
+    arr = await _make_arrangement(
+        session, approved_seller_with_store.store.id,
+        approved_seller_with_store.service_id,
+        model=FeeModel.Freebie, status=ArrangementStatus.Trial,
+        valid_until=date(2026, 7, 1),
+    )
+    counts = await run_fee_sweep(session, today=date(2026, 7, 10))
+    await session.refresh(arr)
+    assert arr.status == ArrangementStatus.Grace
+    assert counts["to_grace"] == 1
+
+
+@pytest.mark.asyncio
+async def test_sweep_grace_to_suspended(
+    session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app.models.platform_fee import ArrangementStatus, FeeModel
+    from app.services.fee_lifecycle import run_fee_sweep
+
+    # default grace = 2 (no PlatformFeeSettings row). valid_until 2026-07-01,
+    # grace ends 07-03; today 07-10 → suspend.
+    arr = await _make_arrangement(
+        session, approved_seller_with_store.store.id,
+        approved_seller_with_store.service_id,
+        model=FeeModel.Freebie, status=ArrangementStatus.Grace,
+        valid_until=date(2026, 7, 1),
+    )
+    counts = await run_fee_sweep(session, today=date(2026, 7, 10))
+    await session.refresh(arr)
+    assert arr.status == ArrangementStatus.Suspended
+    assert arr.suspended_at is not None
+    assert counts["to_suspended"] == 1
+
+
+@pytest.mark.asyncio
+async def test_sweep_suspends_immediately_when_grace_zero(
+    session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app.models.platform_fee import (
+        ArrangementStatus,
+        FeeModel,
+        PlatformFeeSettings,
+        ServiceFeeConfig,
+    )
+    from app.services.fee_lifecycle import run_fee_sweep
+
+    session.add(PlatformFeeSettings(grace_period_days=0))
+    session.add(ServiceFeeConfig(
+        service_id=approved_seller_with_store.service_id, subscription_enabled=True
+    ))
+    arr = await _make_arrangement(
+        session, approved_seller_with_store.store.id,
+        approved_seller_with_store.service_id,
+        model=FeeModel.Freebie, status=ArrangementStatus.Trial,
+        valid_until=date(2026, 7, 1),
+    )
+    counts = await run_fee_sweep(session, today=date(2026, 7, 10))
+    await session.refresh(arr)
+    assert arr.status == ArrangementStatus.Suspended
+    assert counts["to_suspended"] == 1
+
+
+@pytest.mark.asyncio
+async def test_sweep_ignores_unexpired_and_suspended(
+    session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app.models.platform_fee import ArrangementStatus, FeeModel
+    from app.services.fee_lifecycle import run_fee_sweep
+
+    arr = await _make_arrangement(
+        session, approved_seller_with_store.store.id,
+        approved_seller_with_store.service_id,
+        model=FeeModel.Freebie, status=ArrangementStatus.Trial,
+        valid_until=date(2026, 12, 1),  # future
+    )
+    counts = await run_fee_sweep(session, today=date(2026, 7, 10))
+    await session.refresh(arr)
+    assert arr.status == ArrangementStatus.Trial
+    assert counts == {"to_grace": 0, "to_suspended": 0, "held": 0}
