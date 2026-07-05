@@ -355,6 +355,8 @@ def admin_comp_subscription(
     arrangement.queued_duration_months = None
     arrangement.suspended_at = None
     arrangement.suspended_reason = None
+    arrangement.cancel_requested = False
+    arrangement.auto_renew = True
     session.add(arrangement)
     session.add(
         FeeEvent(

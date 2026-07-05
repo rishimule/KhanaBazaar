@@ -13,6 +13,7 @@ from app.db.session import get_db_session
 from app.models.admin_audit import AdminActionTargetType
 from app.models.base import User
 from app.models.catalog import Service, ServiceTranslation
+from app.models.notification import NotificationType
 from app.models.platform_fee import (
     ArrangementStatus,
     FeeArrangement,
@@ -57,6 +58,7 @@ from app.services.fee_lifecycle import (
     reject_payment,
     request_cancellation,
 )
+from app.services.fee_notifications import notify_seller_fee_event
 
 admin_router = APIRouter()
 
@@ -272,6 +274,10 @@ async def confirm_payment(
         "status": arr.status.value,
         "valid_until": arr.valid_until.isoformat() if arr.valid_until else None,
     }
+    await notify_seller_fee_event(
+        session, store_id=arr.store_id,
+        type=NotificationType.FeeActivated, valid_until=arr.valid_until,
+    )
     await session.commit()
     return result
 
@@ -393,6 +399,9 @@ async def admin_terminate_arrangement(
         action="fee.terminate", before_json=before, after_json=_arr_before(arr),
         reason=body.reason,
     )
+    await notify_seller_fee_event(
+        session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
+    )
     await session.commit()
     return {"arrangement_id": arrangement_id, "status": "suspended"}
 
@@ -413,6 +422,10 @@ async def admin_comp_arrangement(
         session=session, admin_user_id=admin.id, target_seller_id=profile.id,
         target_type=AdminActionTargetType.SellerProfile, target_id=profile.id,
         action="fee.comp", before_json=before, after_json=after, reason=body.reason,
+    )
+    await notify_seller_fee_event(
+        session, store_id=arr.store_id,
+        type=NotificationType.FeeActivated, valid_until=arr.valid_until,
     )
     await session.commit()
     return {"arrangement_id": arrangement_id, "status": after["status"], "valid_until": after["valid_until"]}

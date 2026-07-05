@@ -6,6 +6,13 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.notification import NotificationType
+from app.models.platform_fee import (
+    ArrangementStatus,
+    FeeArrangement,
+    FeeModel,
+    ServiceFeeConfig,
+    ServiceSubscriptionPlan,
+)
 from app.services.fee_notifications import notify_seller_fee_event
 from app.services.notifications import list_notifications
 
@@ -34,3 +41,41 @@ async def test_notify_noop_when_store_missing(session: AsyncSession) -> None:
         session, store_id=999999, type=NotificationType.FeeSuspended
     )
     await session.commit()  # nothing recorded, no error
+
+
+async def _enrolled(session, bundle):
+    session.add(ServiceFeeConfig(service_id=bundle.service_id, subscription_enabled=True))
+    session.add(ServiceSubscriptionPlan(service_id=bundle.service_id, duration_months=3, price=300.0, is_active=True))
+    session.add(FeeArrangement(
+        store_id=bundle.store.id, service_id=bundle.service_id,
+        model=FeeModel.Freebie, status=ArrangementStatus.Trial, valid_until=None,
+    ))
+    await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_confirm_notifies_seller(
+    client, session: AsyncSession, approved_seller_with_store, admin_auth_headers
+) -> None:
+    from app import app
+    from app.core.security import get_current_seller
+
+    await _enrolled(session, approved_seller_with_store)
+    sid = approved_seller_with_store.service_id
+    # Persist a real admin (audit/confirm FK); seller opts in.
+    from app.models.base import User, UserRole
+    admin = User(id=99001, email="admin-test@kb.com", role=UserRole.Admin, is_active=True)
+    session.add(admin)
+    await session.commit()
+    app.dependency_overrides[get_current_seller] = lambda: approved_seller_with_store.user
+    try:
+        await client.post(f"/api/v1/sellers/me/plan/{sid}/opt-in", json={"duration_months": 3})
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+    q = await client.get("/api/v1/admin/fees/queue", headers=admin_auth_headers)
+    pid = next(i for i in q.json() if i["service_id"] == sid)["payment_id"]
+    await client.post(f"/api/v1/admin/fees/payments/{pid}/confirm", headers=admin_auth_headers)
+    _items, unread = await list_notifications(
+        session, seller_profile_id=approved_seller_with_store.profile.id
+    )
+    assert unread >= 1  # seller got a FeeActivated notification
