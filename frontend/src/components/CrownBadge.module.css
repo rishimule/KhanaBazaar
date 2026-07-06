@@ -4,6 +4,7 @@
   color: var(--durian-yellow-base-7);
   vertical-align: middle;
   margin-inline-start: 6px;
+  flex-shrink: 0;
 }
 .icon svg {
   width: 16px;
