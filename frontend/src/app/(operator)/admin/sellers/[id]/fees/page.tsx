@@ -178,7 +178,12 @@ export default function AdminSellerFeesPage({
           footer={
             <div className={styles.modalFooter}>
               <button type="button" className={styles.cancelBtn} onClick={() => setAction(null)} disabled={busy}>Cancel</button>
-              <button type="button" className="btn btn-primary" onClick={submitAction} disabled={busy}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={submitAction}
+                disabled={busy || (action.type === "terminate" && !reason.trim())}
+              >
                 {action.type === "terminate" ? "Terminate" : "Confirm"}
               </button>
             </div>
