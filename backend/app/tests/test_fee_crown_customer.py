@@ -14,6 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.catalog import Category, MasterProduct, Subcategory
 from app.models.platform_fee import ArrangementStatus, FeeArrangement, FeeModel
 from app.models.store import StoreInventory
+from app.search.reindex import reindex_all
 
 
 async def _paid_active(session, store_id, service_id):
@@ -76,3 +77,31 @@ async def test_store_product_detail_is_premium(
     r = await client.get(f"/api/v1/stores/{b.store.id}/products/{pid}")
     assert r.status_code == 200, r.text
     assert r.json()["store"]["is_premium"] is True
+
+
+@pytest.mark.asyncio
+async def test_search_stores_is_premium(
+    client: AsyncClient, session: AsyncSession, meili_test_client, approved_seller_with_store
+) -> None:
+    b = approved_seller_with_store
+    await _stock_one_product(session, b)
+    await _paid_active(session, b.store.id, b.service_id)
+    await reindex_all(session, meili_test_client)
+    r = await client.get("/api/v1/search/stores", params={"q": b.store.name})
+    assert r.status_code == 200, r.text
+    hit = next(s for s in r.json()["stores"] if s["id"] == b.store.id)
+    assert hit["is_premium"] is True
+
+
+@pytest.mark.asyncio
+async def test_compare_offers_is_premium(
+    client: AsyncClient, session: AsyncSession, meili_test_client, approved_seller_with_store
+) -> None:
+    b = approved_seller_with_store
+    pid, _ = await _stock_one_product(session, b)
+    await _paid_active(session, b.store.id, b.service_id)
+    await reindex_all(session, meili_test_client)
+    r = await client.get(f"/api/v1/search/products/{pid}/stores")
+    assert r.status_code == 200, r.text
+    offer = next(o for o in r.json()["offers"] if o["store"]["id"] == b.store.id)
+    assert offer["store"]["is_premium"] is True
