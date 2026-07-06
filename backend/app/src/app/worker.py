@@ -1386,6 +1386,157 @@ def send_order_push_async(notification_id: int) -> None:
     _delete_dead_subscriptions(dead)
 
 
+# ---------------------------------------------------------------------------
+# Seller fee-notification channels (best-effort). Each task resolves the
+# seller's phone/email via the thread-bridged async_session_factory pattern
+# and no-ops when the channel/contact is unavailable.
+# ---------------------------------------------------------------------------
+
+
+_FEE_CHANNEL_COPY: dict[str, tuple[str, str]] = {
+    # type_value: (subject, body). {until} filled when provided.
+    "fee_activated": (
+        "Your subscription is active",
+        "Your store subscription is active{until}. Thank you for subscribing.",
+    ),
+    "fee_expiring": (
+        "Your plan is expiring soon",
+        "Your store plan expires{until}. Renew from your seller dashboard to stay active.",
+    ),
+    "fee_suspended": (
+        "A service on your store was suspended",
+        "A service on your store has been suspended. Renew or clear your balance to reactivate it.",
+    ),
+}
+
+
+async def _seller_contact(
+    session: Any, seller_profile_id: int
+) -> tuple[str | None, str | None]:
+    """Return (phone, email) for a seller, or (None, None)."""
+    from sqlmodel import select
+
+    from app.models.base import User
+    from app.models.profile import SellerProfile
+
+    row = (
+        await session.exec(
+            select(SellerProfile.phone, User.email)
+            .join(User, User.id == SellerProfile.user_id)  # type: ignore[arg-type]
+            .where(SellerProfile.id == seller_profile_id)
+        )
+    ).first()
+    if row is None:
+        return None, None
+    return row[0], row[1]
+
+
+def _until_clause(until: str | None, *, on: bool = False) -> str:
+    if not until:
+        return " soon" if on else ""
+    return f" on {until}" if on else f" until {until}"
+
+
+@celery_app.task(name="send_seller_fee_sms_async")  # type: ignore[untyped-decorator]
+def send_seller_fee_sms_async(
+    seller_profile_id: int, type_value: str, until: str | None
+) -> None:
+    """Best-effort SMS for a seller fee-notification event."""
+    import asyncio
+    import concurrent.futures
+
+    from app.core.sms import get_sms_sender
+    from app.db.session import async_session_factory
+
+    async def _run() -> None:
+        async with async_session_factory() as session:
+            phone, _email = await _seller_contact(session, seller_profile_id)
+        if not phone:
+            return
+        subject, body_tmpl = _FEE_CHANNEL_COPY.get(type_value, ("", ""))
+        if not subject:
+            return
+        on = type_value == "fee_expiring"
+        body = body_tmpl.format(until=_until_clause(until, on=on))
+        try:
+            await get_sms_sender().send(phone, f"{subject}. {body}")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "seller fee SMS failed for seller_profile_id=%s", seller_profile_id
+            )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        ex.submit(lambda: asyncio.run(_run())).result()
+
+
+@celery_app.task(name="send_seller_fee_whatsapp_async")  # type: ignore[untyped-decorator]
+def send_seller_fee_whatsapp_async(
+    seller_profile_id: int, type_value: str, until: str | None
+) -> None:
+    """Best-effort WhatsApp for a seller fee-notification event. No-op when
+    WhatsApp is disabled or the event has no registered template."""
+    import asyncio
+    import concurrent.futures
+
+    from app.core.whatsapp import get_whatsapp_sender
+    from app.core.whatsapp_templates import FEE_TEMPLATES
+    from app.db.session import async_session_factory
+
+    async def _run() -> None:
+        sender = get_whatsapp_sender()
+        if sender is None:
+            return
+        tmpl = FEE_TEMPLATES.get(type_value)
+        if tmpl is None:
+            return
+        async with async_session_factory() as session:
+            phone, _email = await _seller_contact(session, seller_profile_id)
+        if not phone:
+            return
+        variables = {"until": until or ""} if "until" in tmpl.variables else {}
+        try:
+            await sender.send_template(phone, tmpl, variables)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "seller fee WhatsApp failed for seller_profile_id=%s",
+                seller_profile_id,
+            )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        ex.submit(lambda: asyncio.run(_run())).result()
+
+
+@celery_app.task(name="send_seller_fee_email_async")  # type: ignore[untyped-decorator]
+def send_seller_fee_email_async(
+    seller_profile_id: int, type_value: str, until: str | None
+) -> None:
+    """Best-effort email for a seller fee-notification event."""
+    import asyncio
+    import concurrent.futures
+
+    from app.db.session import async_session_factory
+
+    async def _run() -> None:
+        async with async_session_factory() as session:
+            _phone, email = await _seller_contact(session, seller_profile_id)
+        if not email:
+            return
+        subject, body_tmpl = _FEE_CHANNEL_COPY.get(type_value, ("", ""))
+        if not subject:
+            return
+        on = type_value == "fee_expiring"
+        body = body_tmpl.format(until=_until_clause(until, on=on))
+        try:
+            _resolve_email(email, subject, body, reply_to=settings.EMAIL_REPLY_TO)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "seller fee email failed for seller_profile_id=%s", seller_profile_id
+            )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        ex.submit(lambda: asyncio.run(_run())).result()
+
+
 @celery_app.task(name="fees.run_daily_sweep")  # type: ignore[untyped-decorator]
 def run_daily_fee_sweep() -> dict[str, int]:
     """Daily: expire freebie trials (Trial→Grace→Suspended, holding when no paid
