@@ -39,19 +39,21 @@ async def notify_seller_fee_event(
     store_id: int,
     type: NotificationType,  # noqa: A002 - matches the model field name
     valid_until: date | None = None,
-) -> None:
-    """Record an in-app seller notification for a fee event. No-op if the store
-    or its seller can't be resolved. Caller commits."""
+) -> int | None:
+    """Record an in-app seller notification for a fee event. No-op (returns
+    None) if the store or its seller can't be resolved. On success, returns
+    the resolved seller_profile_id so sweep-driven callers can fan out to
+    other channels post-commit. Caller commits."""
     copy = _COPY.get(type)
     if copy is None:
-        return
+        return None
     seller_profile_id = (
         await session.exec(
             select(Store.seller_profile_id).where(Store.id == store_id)
         )
     ).first()
     if seller_profile_id is None:
-        return
+        return None
     title, status_value, body_tmpl = copy
     until_clause = f" until {valid_until.isoformat()}" if valid_until else ""
     if type is NotificationType.FeeExpiring:
@@ -65,3 +67,4 @@ async def notify_seller_fee_event(
         body=body,
         status_value=status_value,
     )
+    return seller_profile_id

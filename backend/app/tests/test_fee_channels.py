@@ -62,3 +62,23 @@ async def test_confirm_dispatches_channels(
         await client.post(f"/api/v1/admin/fees/payments/{pid}/confirm", headers=admin_auth_headers)
     disp.assert_called_once()
     assert disp.call_args.args[1] == "fee_activated"
+
+
+@pytest.mark.asyncio
+async def test_sweep_collects_channel_notices(session, approved_seller_with_store) -> None:
+    from datetime import date
+
+    from app.models.platform_fee import (
+        ArrangementStatus,
+        FeeArrangement,
+        FeeModel,
+        ServiceFeeConfig,
+    )
+    from app.services.fee_lifecycle import run_fee_sweep
+    session.add(ServiceFeeConfig(service_id=approved_seller_with_store.service_id, subscription_enabled=True))
+    session.add(FeeArrangement(store_id=approved_seller_with_store.store.id, service_id=approved_seller_with_store.service_id,
+        model=FeeModel.Subscription, status=ArrangementStatus.Active, valid_until=date(2026, 7, 8)))
+    await session.flush()
+    notices: list = []
+    await run_fee_sweep(session, today=date(2026, 7, 5), notices=notices)
+    assert any(n[1] == "fee_expiring" and n[0] == approved_seller_with_store.profile.id for n in notices)

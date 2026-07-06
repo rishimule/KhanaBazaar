@@ -1541,15 +1541,28 @@ def send_seller_fee_email_async(
 def run_daily_fee_sweep() -> dict[str, int]:
     """Daily: expire freebie trials (Trial→Grace→Suspended, holding when no paid
     model is offerable). Runs the async sweep on a worker thread so it works in
-    both the real worker and eager tests."""
+    both the real worker and eager tests. After the sweep commits, best-effort
+    fans out any collected fee notifications (reminder/suspension) to SMS +
+    WhatsApp + email — dispatch happens post-commit so a channel hiccup can
+    never roll back the sweep."""
+    from datetime import date
+
     from app.db.session import async_session_factory
+    from app.services.fee_channels import dispatch_seller_fee_channels
     from app.services.fee_lifecycle import run_fee_sweep
 
-    async def _run() -> dict[str, int]:
+    async def _run() -> tuple[dict[str, int], list[tuple[int, str, str | None]]]:
+        notices: list[tuple[int, str, str | None]] = []
         async with async_session_factory() as session:
-            counts = await run_fee_sweep(session)
+            counts = await run_fee_sweep(session, notices=notices)
             await session.commit()
-            return counts
+            return counts, notices
 
     with ThreadPoolExecutor(max_workers=1) as executor:
-        return executor.submit(lambda: asyncio.run(_run())).result()
+        counts, notices = executor.submit(lambda: asyncio.run(_run())).result()
+
+    for spid, type_value, until in notices:
+        dispatch_seller_fee_channels(
+            spid, type_value, date.fromisoformat(until) if until else None
+        )
+    return counts
