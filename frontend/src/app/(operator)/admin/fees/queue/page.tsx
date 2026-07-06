@@ -75,13 +75,18 @@ export default function AdminFeeQueuePage() {
 
   async function handleReject(reason: string) {
     if (!rejectTarget) return;
+    const id = rejectTarget.payment_id;
+    setBusyId(id);
+    setActionError(null);
     try {
-      await rejectFeePayment(token, rejectTarget.payment_id, reason);
+      await rejectFeePayment(token, id, reason);
       setRejectTarget(null);
       await load();
     } catch {
       setActionError("Couldn't reject that payment. It may have already been handled.");
       setRejectTarget(null);
+    } finally {
+      setBusyId(null);
     }
   }
 
