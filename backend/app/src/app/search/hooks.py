@@ -26,6 +26,7 @@ from app.models.catalog import (
     MasterProductTranslation,
     SubcategoryTranslation,
 )
+from app.models.platform_fee import FeeArrangement
 from app.models.profile import SellerProfileService
 from app.models.store import Store, StoreInventory
 
@@ -71,6 +72,9 @@ def _after_flush(session: SyncSession, flush_context: Any) -> None:
         elif isinstance(obj, Store):
             bag["store"].add(obj.id)
             bag["products_for_store"].add(obj.id)
+        elif isinstance(obj, FeeArrangement):
+            bag["store"].add(obj.store_id)
+            bag["products_for_store"].add(obj.store_id)
         elif isinstance(obj, SubcategoryTranslation):
             bag["subcategory"].add(obj.subcategory_id)
         elif isinstance(obj, CategoryTranslation):
