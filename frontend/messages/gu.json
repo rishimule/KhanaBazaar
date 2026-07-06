@@ -1246,7 +1246,8 @@
       "catalog": "કેટલોગ",
       "settings": "સેટિંગ્સ",
       "policies": "નીતિઓ",
-      "onboardingRequests": "ઓનબોર્ડિંગ"
+      "onboardingRequests": "ઓનબોર્ડિંગ",
+      "fees": "ફી"
     },
     "titles": {
       "dashboard": "એડમિન ડેશબોર્ડ",
@@ -1259,7 +1260,8 @@
       "settings": "સેટિંગ્સ",
       "changeRequests": "બદલાવ વિનંતી",
       "policies": "નીતિઓ",
-      "onboardingRequests": "વિક્રેતા ઓનબોર્ડિંગ વિનંતીઓ"
+      "onboardingRequests": "વિક્રેતા ઓનબોર્ડિંગ વિનંતીઓ",
+      "fees": "પ્લેટફોર્મ ફી"
     },
     "settings": {
       "title": "સેટિંગ્સ"

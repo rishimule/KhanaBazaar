@@ -1246,7 +1246,8 @@
       "catalog": "ਕੈਟਾਲਾਗ",
       "settings": "ਸੈਟਿੰਗਾਂ",
       "policies": "ਨੀਤੀਆਂ",
-      "onboardingRequests": "ਆਨਬੋਰਡਿੰਗ"
+      "onboardingRequests": "ਆਨਬੋਰਡਿੰਗ",
+      "fees": "ਫ਼ੀਸ"
     },
     "titles": {
       "dashboard": "ਐਡਮਿਨ ਡੈਸ਼ਬੋਰਡ",
@@ -1259,7 +1260,8 @@
       "settings": "ਸੈਟਿੰਗਾਂ",
       "changeRequests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
       "policies": "ਨੀਤੀਆਂ",
-      "onboardingRequests": "ਵਿਕਰੇਤਾ ਆਨਬੋਰਡਿੰਗ ਬੇਨਤੀਆਂ"
+      "onboardingRequests": "ਵਿਕਰੇਤਾ ਆਨਬੋਰਡਿੰਗ ਬੇਨਤੀਆਂ",
+      "fees": "ਪਲੇਟਫਾਰਮ ਫ਼ੀਸ"
     },
     "settings": {
       "title": "ਸੈਟਿੰਗਾਂ"

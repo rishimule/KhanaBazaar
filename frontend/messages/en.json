@@ -1245,7 +1245,8 @@
       "catalog": "Catalog",
       "settings": "Settings",
       "policies": "Policies",
-      "onboardingRequests": "Onboarding"
+      "onboardingRequests": "Onboarding",
+      "fees": "Fees"
     },
     "titles": {
       "dashboard": "Admin Dashboard",
@@ -1258,7 +1259,8 @@
       "settings": "Settings",
       "changeRequests": "Change requests",
       "policies": "Policies",
-      "onboardingRequests": "Seller Onboarding Requests"
+      "onboardingRequests": "Seller Onboarding Requests",
+      "fees": "Platform Fees"
     },
     "settings": {
       "title": "Settings"
