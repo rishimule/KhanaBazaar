@@ -11,6 +11,8 @@ import DashboardHeader from "@/components/seller/DashboardHeader";
 import CloseStoreModal from "@/components/seller/CloseStoreModal";
 import AttentionBanner from "@/components/seller/AttentionBanner";
 import RevenueChart from "@/components/seller/RevenueChart";
+import ReportsUpsellCard from "@/components/seller/ReportsUpsellCard";
+import PlanValidityBanner from "@/components/seller/PlanValidityBanner";
 import OrderStatusDonut from "@/components/seller/OrderStatusDonut";
 import InventoryByService from "@/components/seller/InventoryByService";
 import RecentOrders from "@/components/seller/RecentOrders";
@@ -29,6 +31,7 @@ const EMPTY: SellerMetrics = {
   unavailable: 0,
   store_active: false,
   store_paused: false,
+  is_premium: false,
   pin_confirmed: false,
   store_name: "",
   order_status_counts: { delivered: 0, packed: 0, dispatched: 0, pending: 0, cancelled: 0 },
@@ -119,6 +122,8 @@ export default function SellerDashboardPage() {
         avatarUrl={dbUser?.avatar_url}
       />
 
+      <PlanValidityBanner isPremium={m.is_premium} />
+
       {closePrompt && (
         <CloseStoreModal
           busy={pauseBusy}
@@ -158,7 +163,7 @@ export default function SellerDashboardPage() {
 
       <div className={styles.grid}>
         <div className={styles.main}>
-          <RevenueChart />
+          {m.is_premium ? <RevenueChart /> : <ReportsUpsellCard />}
           <RecentOrders />
         </div>
         <aside className={styles.rail}>
