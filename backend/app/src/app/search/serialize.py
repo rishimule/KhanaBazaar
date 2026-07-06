@@ -20,6 +20,7 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
+from app.models.platform_fee import ArrangementStatus, FeeArrangement
 from app.models.profile import SellerProfileService
 from app.models.store import Store, StoreInventory
 
@@ -111,6 +112,20 @@ async def build_product_document(
         ).all()
     }
 
+    # Stores whose arrangement for THIS product's service is Suspended — their
+    # offers are hidden from customer search (mirrors store_paused, but hard-hide).
+    suspended_store_ids = {
+        sid
+        for (sid,) in (
+            await session.execute(
+                select(FeeArrangement.store_id).where(
+                    FeeArrangement.service_id == service.id,
+                    FeeArrangement.status == ArrangementStatus.Suspended,
+                )
+            )
+        ).all()
+    }
+
     per_store_offers: list[dict[str, Any]] = []
     store_ids: list[int] = []
     for inv, store in inv_rows:
@@ -122,12 +137,14 @@ async def build_product_document(
                 "stock": int(inv.stock),
                 "is_available": bool(inv.is_available),
                 "store_paused": store_paused,
+                "suspended": store.id in suspended_store_ids,
             }
         )
         store_ids.append(store.id)
 
     available_prices = [
-        o["price"] for o in per_store_offers if o["is_available"] and o["stock"] > 0
+        o["price"] for o in per_store_offers
+        if o["is_available"] and o["stock"] > 0 and not o["suspended"]
     ]
     if available_prices:
         min_price = min(available_prices)
@@ -212,6 +229,16 @@ async def build_store_document(
     ).all()
     paused_service_ids = sorted({sid for (sid,) in paused_rows})
 
+    suspended_rows = (
+        await session.execute(
+            select(FeeArrangement.service_id).where(
+                FeeArrangement.store_id == store_id,
+                FeeArrangement.status == ArrangementStatus.Suspended,
+            )
+        )
+    ).all()
+    suspended_service_ids = sorted({sid for (sid,) in suspended_rows})
+
     return {
         "id": store.id,
         "name": store.name,
@@ -223,6 +250,7 @@ async def build_store_document(
         "is_paused": bool(store.is_paused),
         "paused_until": store.paused_until.isoformat() if store.paused_until else None,
         "paused_service_ids": paused_service_ids,
+        "suspended_service_ids": suspended_service_ids,
         "db_updated_at": int(store.updated_at.timestamp()),
     }
 
