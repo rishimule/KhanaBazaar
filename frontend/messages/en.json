@@ -1552,7 +1552,8 @@
         "products": "Products",
         "orders": "Orders",
         "requests": "Change requests",
-        "activity": "Activity"
+        "activity": "Activity",
+        "fees": "Fees / Plans"
       },
       "loadSellerError": "Failed to load seller",
       "loadingSeller": "Loading seller…",

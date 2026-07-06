@@ -1553,7 +1553,8 @@
         "products": "ਉਤਪਾਦ",
         "orders": "ਆਰਡਰ",
         "requests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
-        "activity": "ਗਤੀਵਿਧੀ"
+        "activity": "ਗਤੀਵਿਧੀ",
+        "fees": "ਫ਼ੀਸ / ਪਲਾਨ"
       },
       "loadSellerError": "ਵਿਕਰੇਤਾ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫਲ",
       "loadingSeller": "ਵਿਕਰੇਤਾ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",

@@ -1553,7 +1553,8 @@
         "products": "उत्पाद",
         "orders": "ऑर्डर",
         "requests": "परिवर्तन अनुरोध",
-        "activity": "गतिविधि"
+        "activity": "गतिविधि",
+        "fees": "शुल्क / योजनाएँ"
       },
       "loadSellerError": "विक्रेता लोड करने में विफल",
       "loadingSeller": "विक्रेता लोड हो रहा है…",
