@@ -1,0 +1,152 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.page {
+  max-width: 760px;
+}
+
+.title {
+  font-size: var(--body-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-strong);
+  margin: 0 0 4px;
+}
+
+.intro {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin-bottom: 16px;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+}
+
+.row {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--white);
+  padding: 14px 16px;
+}
+
+.rowMain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.service {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-strong);
+}
+
+.model {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
+.rowMeta {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin-top: 4px;
+}
+
+.rowActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  border: 1px solid var(--hairline);
+  background: var(--white);
+  border-radius: var(--radius-card);
+  padding: 6px 14px;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.terminateBtn {
+  border: 1px solid var(--tomato-red-light-2);
+  background: var(--white);
+  color: var(--tomato-red-dark-1);
+  border-radius: var(--radius-card);
+  padding: 6px 14px;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.actionBtn:disabled,
+.terminateBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.empty,
+.loader {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--shade-cool-base-7);
+}
+
+.errorBanner {
+  background: var(--tomato-red-light-1);
+  color: var(--tomato-red-dark-1);
+  border: 1px solid var(--tomato-red-light-2);
+  border-radius: var(--radius-card);
+  padding: 12px 16px;
+  font-size: var(--body-sm);
+}
+
+/* Modal */
+.modalService {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin-bottom: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: var(--body-sm);
+}
+
+.field > span {
+  color: var(--shade-cool-base-7);
+  font-weight: var(--weight-medium);
+}
+
+.field input,
+.field textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+
+.field textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.modalError {
+  color: var(--tomato-red-dark-1);
+  font-size: var(--body-sm);
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancelBtn {
+  background: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 10px 18px;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
