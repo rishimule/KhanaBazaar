@@ -38,16 +38,21 @@ function rupees(n: number): string {
   return `₹${n.toLocaleString("en-IN")}`;
 }
 
+// valid_until is a date string per the contract; slice defensively so a full
+// ISO timestamp (if ever returned) still parses instead of yielding NaN.
+function parseDate(iso: string): Date {
+  return new Date(`${iso.slice(0, 10)}T00:00:00`);
+}
+
 function fmtDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const d = parseDate(iso);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
 function daysLeft(iso: string): number {
-  return Math.ceil((new Date(`${iso}T00:00:00`).getTime() - Date.now()) / 86_400_000);
+  return Math.ceil((parseDate(iso).getTime() - Date.now()) / 86_400_000);
 }
 
 export default function PlanServiceCard({
@@ -78,10 +83,11 @@ export default function PlanServiceCard({
     !service.cancel_requested;
   const showCancel =
     isPaidSub && service.status === "active" && !service.cancel_requested && !service.payment_pending;
-  const noPaidPlans =
-    !service.payment_pending &&
-    (!service.subscription_enabled || activePlans.length === 0) &&
-    service.model === "freebie";
+  // Nothing to act on (no opt-in panel, no pending payment, no cancel) — show
+  // an explanatory line instead of a bare card. Covers freebie-with-no-plans
+  // and a subscription whose plans were all deactivated.
+  const noActionable =
+    !showOptIn && !showCancel && !service.payment_pending && !service.cancel_requested;
 
   // Validity line
   let validity: string | null = null;
@@ -89,7 +95,11 @@ export default function PlanServiceCard({
     validity = `Cancellation scheduled — access until ${fmtDate(service.valid_until)}.`;
   } else if (service.valid_until) {
     const d = daysLeft(service.valid_until);
-    const left = d > 0 ? ` · ${d} day${d === 1 ? "" : "s"} left` : " · expired";
+    const left = Number.isFinite(d)
+      ? d > 0
+        ? ` · ${d} day${d === 1 ? "" : "s"} left`
+        : " · expired"
+      : "";
     validity =
       service.model === "freebie"
         ? `Trial ends ${fmtDate(service.valid_until)}${left}`
@@ -114,8 +124,8 @@ export default function PlanServiceCard({
       <p className={styles.model}>{MODEL_LABEL[service.model] ?? service.model}</p>
       {validity && <p className={styles.validity}>{validity}</p>}
 
-      {noPaidPlans && (
-        <p className={styles.muted}>No paid plans are available for this service yet.</p>
+      {noActionable && (
+        <p className={styles.muted}>No paid plans are available for this service right now.</p>
       )}
 
       {service.payment_pending && (
