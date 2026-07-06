@@ -1,0 +1,187 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.card {
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  font-size: var(--body-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+
+.model {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin-top: 4px;
+}
+
+.validity {
+  font-size: var(--body-sm);
+  color: var(--color-text);
+  margin-top: 2px;
+}
+
+.muted {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin-top: 12px;
+}
+
+/* Offline payment block ------------------------------------------------ */
+.payBox {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+}
+
+.payHead {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-strong);
+}
+
+.amount {
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+
+.payIntro {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin: 8px 0 12px;
+}
+
+.payRows {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.payRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--body-sm);
+}
+
+.payLabel {
+  color: var(--shade-cool-base-7);
+}
+
+.payValue {
+  color: var(--color-text-strong);
+  font-weight: var(--weight-medium);
+  text-align: right;
+  word-break: break-word;
+}
+
+.qr {
+  width: 140px;
+  height: 140px;
+  margin: 12px 0 0;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--white);
+}
+
+.noteWrap {
+  margin-top: 12px;
+}
+
+.noteLabel {
+  display: block;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin-bottom: 4px;
+}
+
+.note {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Opt-in / renew panel ------------------------------------------------- */
+.section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+
+.sectionTitle {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-strong);
+  margin-bottom: 10px;
+}
+
+.options {
+  display: grid;
+  gap: 8px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+}
+
+.optionSelected {
+  border-color: var(--color-primary-1);
+  background: var(--leaf-green-light-1);
+}
+
+.optionMonths {
+  flex: 1;
+  font-weight: var(--weight-medium);
+}
+
+.optionPrice {
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cancel -------------------------------------------------------------- */
+.cancelBtn {
+  margin-top: 14px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--tomato-red-base-4);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cancelBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

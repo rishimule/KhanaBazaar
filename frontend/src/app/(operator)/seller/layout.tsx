@@ -100,6 +100,7 @@ export default function SellerLayout({
     { href: "/seller/orders", label: t("nav.orders"), icon: "📦" },
     { href: "/seller/inventory", label: t("nav.inventory"), icon: "🏷️" },
     { href: "/seller/settings", label: t("nav.settings"), icon: "⚙️" },
+    { href: "/seller/plan", label: t("nav.plan"), icon: "💳" },
   ];
 
   // Derive title from current route
@@ -116,7 +117,9 @@ export default function SellerLayout({
               ? t("changeRequests.indexTitle")
               : pathname === "/seller/profile"
                 ? t("titles.profile")
-                : t("titles.portal");
+                : pathname.startsWith("/seller/plan")
+                  ? t("titles.plan")
+                  : t("titles.portal");
 
   return (
     <>

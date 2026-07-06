@@ -906,7 +906,8 @@
       "orders": "Orders",
       "inventory": "Inventory",
       "settings": "Settings",
-      "profile": "Profile"
+      "profile": "Profile",
+      "plan": "Plan"
     },
     "titles": {
       "dashboard": "Seller Dashboard",
@@ -914,7 +915,8 @@
       "orders": "Store Orders",
       "settings": "Settings",
       "profile": "Profile",
-      "portal": "Seller Portal"
+      "portal": "Seller Portal",
+      "plan": "Plan & Billing"
     },
     "common": {
       "save": "Save",
