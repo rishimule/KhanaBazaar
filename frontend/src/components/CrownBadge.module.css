@@ -1,0 +1,16 @@
+.icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--durian-yellow-base-7);
+  vertical-align: middle;
+  margin-inline-start: 6px;
+}
+.icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.pill svg {
+  width: 12px;
+  height: 12px;
+}

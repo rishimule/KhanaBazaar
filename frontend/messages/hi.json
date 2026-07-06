@@ -1670,6 +1670,8 @@
     }
   },
   "Shared": {
+    "premiumBadge": "प्रीमियम",
+    "premiumBadgeAria": "प्रीमियम स्टोर",
     "skipToContent": "मुख्य सामग्री पर जाएँ",
     "edit": "संपादित करें",
     "delete": "हटाएं",

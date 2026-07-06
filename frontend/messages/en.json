@@ -1669,6 +1669,8 @@
     }
   },
   "Shared": {
+    "premiumBadge": "Premium",
+    "premiumBadgeAria": "Premium store",
     "skipToContent": "Skip to content",
     "edit": "Edit",
     "delete": "Delete",
