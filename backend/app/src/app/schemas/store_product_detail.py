@@ -16,6 +16,7 @@ from pydantic import BaseModel
 class StoreSummary(BaseModel):
     id: int
     name: str
+    is_premium: bool = False
 
 
 class ServiceLite(BaseModel):

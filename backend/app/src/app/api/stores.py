@@ -417,8 +417,10 @@ async def get_store_storefront(
     store = await _get_store_with_relations(session, store_id)
     if store is None or not store.is_active:
         raise HTTPException(status_code=404, detail="Store not found or inactive")
-    store_read = await _store_read(session, store, lang)
     assert store.id is not None
+    store_read = await _store_read(
+        session, store, lang, premium=await is_store_premium(session, store.id)
+    )
     return await build_storefront(session, store_read, store.id, lang)
 
 
@@ -585,7 +587,11 @@ async def get_store_product_detail(
     ]
 
     return StoreProductDetailResponse(
-        store=StoreSummary(id=store.id, name=store.name),
+        store=StoreSummary(
+            id=store.id,
+            name=store.name,
+            is_premium=await is_store_premium(session, store.id),
+        ),
         service=ServiceLite(id=svc.id, name=service_name),
         inventory=InventoryWithProductPayload(
             id=inv.id,
