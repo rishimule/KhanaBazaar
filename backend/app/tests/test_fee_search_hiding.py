@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.catalog import Category, MasterProduct, Subcategory
@@ -103,3 +104,21 @@ async def test_search_results_exclude_suspended_offer(
     product = next((p for p in body["products"] if p["id"] == pid), None)
     assert product is not None, body
     assert all(o["store_id"] != bundle.store.id for o in product["per_store_offers"])
+
+
+@pytest.mark.asyncio
+async def test_store_listing_excludes_suspended_for_service(
+    client, session, approved_seller_with_store
+) -> None:
+    bundle = approved_seller_with_store
+    # bundle's service has a slug; resolve it for the ?service= filter.
+    from app.models.catalog import Service
+    slug = (await session.exec(select(Service.slug).where(Service.id == bundle.service_id))).first()
+    # Baseline: store lists for its service.
+    r = await client.get(f"/api/v1/stores/?service={slug}")
+    assert any(s["id"] == bundle.store.id for s in r.json())
+    # Suspend (store, service) → excluded from the service-filtered listing.
+    await _suspend(session, bundle.store.id, bundle.service_id)
+    await session.commit()
+    r2 = await client.get(f"/api/v1/stores/?service={slug}")
+    assert all(s["id"] != bundle.store.id for s in r2.json())
