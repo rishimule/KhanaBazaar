@@ -48,6 +48,7 @@ from app.schemas.platform_fees import (
 )
 from app.services import admin_audit, seller_services
 from app.services import platform_fees as fees
+from app.services.fee_channels import dispatch_seller_fee_channels
 from app.services.fee_lifecycle import (
     FeeError,
     admin_comp_subscription,
@@ -253,6 +254,12 @@ async def fee_payment_queue(
     ]
 
 
+async def _store_seller_id(session: AsyncSession, store_id: int) -> int | None:
+    return (
+        await session.exec(select(Store.seller_profile_id).where(Store.id == store_id))
+    ).first()
+
+
 async def _pending_payment(session: AsyncSession, payment_id: int) -> FeePayment:
     payment = await session.get(FeePayment, payment_id)
     if payment is None or payment.status != FeePaymentStatus.Pending:
@@ -278,7 +285,11 @@ async def confirm_payment(
         session, store_id=arr.store_id,
         type=NotificationType.FeeActivated, valid_until=arr.valid_until,
     )
+    store_id, valid_until = arr.store_id, arr.valid_until
     await session.commit()
+    spid = await _store_seller_id(session, store_id)
+    if spid is not None:
+        dispatch_seller_fee_channels(spid, NotificationType.FeeActivated.value, valid_until)
     return result
 
 
@@ -402,7 +413,11 @@ async def admin_terminate_arrangement(
     await notify_seller_fee_event(
         session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
     )
+    store_id = arr.store_id
     await session.commit()
+    spid = await _store_seller_id(session, store_id)
+    if spid is not None:
+        dispatch_seller_fee_channels(spid, NotificationType.FeeSuspended.value, None)
     return {"arrangement_id": arrangement_id, "status": "suspended"}
 
 
@@ -427,7 +442,11 @@ async def admin_comp_arrangement(
         session, store_id=arr.store_id,
         type=NotificationType.FeeActivated, valid_until=arr.valid_until,
     )
+    store_id, valid_until = arr.store_id, arr.valid_until
     await session.commit()
+    spid = await _store_seller_id(session, store_id)
+    if spid is not None:
+        dispatch_seller_fee_channels(spid, NotificationType.FeeActivated.value, valid_until)
     return {"arrangement_id": arrangement_id, "status": after["status"], "valid_until": after["valid_until"]}
 
 
