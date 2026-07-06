@@ -1249,7 +1249,8 @@
       "settings": "સેટિંગ્સ",
       "policies": "નીતિઓ",
       "onboardingRequests": "ઓનબોર્ડિંગ",
-      "fees": "ફી"
+      "fees": "ફી",
+      "feeQueue": "ફી કતાર"
     },
     "titles": {
       "dashboard": "એડમિન ડેશબોર્ડ",
@@ -1263,7 +1264,8 @@
       "changeRequests": "બદલાવ વિનંતી",
       "policies": "નીતિઓ",
       "onboardingRequests": "વિક્રેતા ઓનબોર્ડિંગ વિનંતીઓ",
-      "fees": "પ્લેટફોર્મ ફી"
+      "fees": "પ્લેટફોર્મ ફી",
+      "feeQueue": "ફી પુષ્ટિ કતાર"
     },
     "settings": {
       "title": "સેટિંગ્સ"

@@ -1249,7 +1249,8 @@
       "settings": "ਸੈਟਿੰਗਾਂ",
       "policies": "ਨੀਤੀਆਂ",
       "onboardingRequests": "ਆਨਬੋਰਡਿੰਗ",
-      "fees": "ਫ਼ੀਸ"
+      "fees": "ਫ਼ੀਸ",
+      "feeQueue": "ਫ਼ੀਸ ਕਤਾਰ"
     },
     "titles": {
       "dashboard": "ਐਡਮਿਨ ਡੈਸ਼ਬੋਰਡ",
@@ -1263,7 +1264,8 @@
       "changeRequests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
       "policies": "ਨੀਤੀਆਂ",
       "onboardingRequests": "ਵਿਕਰੇਤਾ ਆਨਬੋਰਡਿੰਗ ਬੇਨਤੀਆਂ",
-      "fees": "ਪਲੇਟਫਾਰਮ ਫ਼ੀਸ"
+      "fees": "ਪਲੇਟਫਾਰਮ ਫ਼ੀਸ",
+      "feeQueue": "ਫ਼ੀਸ ਪੁਸ਼ਟੀ ਕਤਾਰ"
     },
     "settings": {
       "title": "ਸੈਟਿੰਗਾਂ"

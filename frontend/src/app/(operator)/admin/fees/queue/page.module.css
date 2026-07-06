@@ -1,0 +1,70 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.page {
+  max-width: 960px;
+}
+
+.intro {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin-bottom: 16px;
+}
+
+.actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.rejectBtn {
+  background: none;
+  border: 1px solid var(--tomato-red-light-2);
+  color: var(--tomato-red-dark-1);
+  border-radius: var(--radius-card);
+  padding: 8px 14px;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.rejectBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.errorBanner {
+  background: var(--tomato-red-light-1);
+  color: var(--tomato-red-dark-1);
+  border: 1px solid var(--tomato-red-light-2);
+  border-radius: var(--radius-card);
+  padding: 12px 16px;
+  font-size: var(--body-sm);
+  margin-bottom: 16px;
+}
+
+.loader {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--shade-cool-base-7);
+}
+
+/* Mobile card */
+.card {
+  display: grid;
+  gap: 6px;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--body-base);
+}
+
+.cardMeta {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
+.cardNote {
+  font-size: var(--body-sm);
+  color: var(--color-text);
+  font-style: italic;
+}
