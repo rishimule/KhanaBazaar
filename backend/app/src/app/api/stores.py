@@ -25,6 +25,7 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
+from app.models.platform_fee import ArrangementStatus, FeeArrangement
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_from_payload, address_to_payload
@@ -145,6 +146,19 @@ async def list_stores(
         if service_id is None:
             raise HTTPException(status_code=400, detail="unknown_service")
 
+    suspended_store_ids: set[int] = set()
+    if service_id is not None:
+        suspended_store_ids = set(
+            (
+                await session.exec(
+                    select(FeeArrangement.store_id).where(
+                        FeeArrangement.service_id == service_id,
+                        FeeArrangement.status == ArrangementStatus.Suspended,
+                    )
+                )
+            ).all()
+        )
+
     if lat is None or lng is None:
         stmt = (
             _store_with_relations_stmt()
@@ -158,6 +172,8 @@ async def list_stores(
                     )
                 )
             )
+        if suspended_store_ids:
+            stmt = stmt.where(Store.id.not_in(suspended_store_ids))  # type: ignore[attr-defined]
         stmt = stmt.offset(skip).limit(limit)
         result = await session.exec(stmt)
         stores = result.all()
@@ -218,6 +234,10 @@ async def list_stores(
         await session.exec(sql.bindparams(**bind_params))  # type: ignore[call-overload]
     ).all()
     distance_by_id: dict[int, float] = {int(r[0]): float(r[1]) for r in rows}
+    if suspended_store_ids:
+        distance_by_id = {
+            i: d for i, d in distance_by_id.items() if i not in suspended_store_ids
+        }
     if not distance_by_id:
         return []
     stmt = (

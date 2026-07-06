@@ -236,7 +236,8 @@ async def suggest(
         offers = [
             o
             for o in hit.get("per_store_offers", [])
-            if store_filter is None or o["store_id"] in store_filter
+            if not o.get("suspended", False)
+            and (store_filter is None or o["store_id"] in store_filter)
         ]
         in_stock = [o for o in offers if o["is_available"] and o["stock"] > 0]
         best = (
@@ -423,6 +424,8 @@ async def products(
     for hit in res.hits:
         offers: list[PerStoreOffer] = []
         for o in hit.get("per_store_offers", []):
+            if o.get("suspended", False):
+                continue
             try:
                 store_doc = await client.index("stores").get_document(o["store_id"])
                 store_name = store_doc.get("name", f"Store {o['store_id']}")
