@@ -17,6 +17,7 @@ import { HomeStorePreview, PreviewCandidate } from "@/components/HomeStorePrevie
 import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
+import CrownBadge from "@/components/CrownBadge";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -211,7 +212,7 @@ export default function Home() {
                         <span className={styles.storeCardStatus}>{t("storeOpenNow")}</span>
                       </div>
                       <div className={styles.storeCardBody}>
-                        <h3 className={styles.storeName}>{store.name}</h3>
+                        <h3 className={styles.storeName}>{store.name}{store.is_premium && <CrownBadge />}</h3>
                         <p className={styles.storeAddr}>{formatAddress(store.address)}</p>
                         <span className={styles.storeCardAction}>{t("storeBrowse")} →</span>
                       </div>

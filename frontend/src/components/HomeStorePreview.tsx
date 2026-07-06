@@ -10,6 +10,7 @@ import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { ScrollRail } from "@/components/ScrollRail";
 import ProductCard from "@/components/ProductCard";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
+import CrownBadge from "@/components/CrownBadge";
 import { InventoryWithProduct, Service, Store } from "@/types";
 import styles from "./HomeStorePreview.module.css";
 
@@ -122,7 +123,7 @@ export function HomeStorePreview({ candidates }: { candidates: PreviewCandidate[
         <div className={styles.headLeft}>
           <h2 className={styles.title}>{t("previewTitle")}</h2>
           <div className={styles.meta}>
-            <span className={styles.storeName}>{store.name}</span>
+            <span className={styles.storeName}>{store.name}{store.is_premium && <CrownBadge />}</span>
             {!disabledByPause && (
               <span className={styles.openPill}>{t("previewOpenNow")}</span>
             )}

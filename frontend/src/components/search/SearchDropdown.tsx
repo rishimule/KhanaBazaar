@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import * as recent from "@/lib/recentSearches";
 import { logClick, type SuggestResponse } from "@/lib/searchClient";
+import CrownBadge from "@/components/CrownBadge";
 import styles from "./SearchDropdown.module.css";
 
 type Props = {
@@ -245,7 +246,7 @@ export function SearchDropdown({
                 onClose();
               }}
             >
-              <span>🏪 {s.name}</span>
+              <span>🏪 {s.name}{s.is_premium && <CrownBadge />}</span>
               {s.distance_km !== null && <span>{s.distance_km} km</span>}
             </Link>
             );

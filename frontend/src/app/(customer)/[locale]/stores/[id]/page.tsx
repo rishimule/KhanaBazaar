@@ -24,6 +24,7 @@ import ProductCard from "@/components/ProductCard";
 import CategorySidebar from "@/components/CategorySidebar";
 import CartRail from "@/components/CartRail";
 import FavoritesHere from "@/components/FavoritesHere";
+import CrownBadge from "@/components/CrownBadge";
 import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
 import { ScrollRail } from "@/components/ScrollRail";
 import { serviceGlyph } from "@/lib/serviceGlyph";
@@ -295,7 +296,7 @@ export default function StoreDetailPage({ params }: Props) {
                   {store.name.charAt(0).toUpperCase()}
                 </div>
                 <div className={styles.storeInfo}>
-                  <h1 className={styles.storeName}>{store.name}</h1>
+                  <h1 className={styles.storeName}>{store.name}{store.is_premium && <CrownBadge variant="pill" />}</h1>
                   <p className={styles.storeAddress}>
                     {formatAddress(store.address)}
                   </p>
@@ -332,7 +333,7 @@ export default function StoreDetailPage({ params }: Props) {
                 {store.name.charAt(0).toUpperCase()}
               </div>
               <div className={styles.storeInfo}>
-                <h1 className={styles.storeName}>{store.name}</h1>
+                <h1 className={styles.storeName}>{store.name}{store.is_premium && <CrownBadge variant="pill" />}</h1>
                 <p className={styles.storeAddress}>{formatAddress(store.address)}</p>
               </div>
             </div>

@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Cart, ComparisonAlternative, ComparisonItem } from "@/types";
+import CrownBadge from "@/components/CrownBadge";
 import styles from "./PriceComparisonTable.module.css";
 
 interface Props {
@@ -188,7 +189,7 @@ export default function PriceComparisonTable({
             <header className={styles.cardHead}>
               <span className={styles.avatar} aria-hidden><StoreGlyph /></span>
               <div className={styles.headText}>
-                <span id={headerId} className={styles.cardName}>{alt.name}</span>
+                <span id={headerId} className={styles.cardName}>{alt.name}{alt.is_premium && <CrownBadge />}</span>
                 <span className={styles.cardSub}>
                   {t("kmAway", { km: alt.distance_km.toFixed(1) })}
                 </span>

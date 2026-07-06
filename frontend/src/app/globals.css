@@ -209,7 +209,7 @@ ul, ol {
 .badge--hot     { background: var(--mandarin-orange-base-4);color: var(--white); }
 .badge--ebt     { background: var(--durian-yellow-base-4);  color: var(--color-primary-1); }
 .badge--member  { background: var(--durian-yellow-base-1);  color: var(--durian-yellow-dark-2); }
-.badge--premium { background: var(--durian-yellow-base-1);  color: var(--durian-yellow-dark-2); gap: 4px; }
+.badge--premium { background: var(--durian-yellow-base-1);  color: var(--durian-yellow-dark-2); gap: 4px; margin-inline-start: 6px; vertical-align: middle; }
 .badge--limited { background: var(--eggplant-purple-base-4);color: var(--white); }
 .badge--local   { background: var(--chive-green-light-1);   color: var(--chive-green-dark-1); }
 .badge--instock { background: var(--chive-green-light-1);   color: var(--chive-green-dark-1); }
