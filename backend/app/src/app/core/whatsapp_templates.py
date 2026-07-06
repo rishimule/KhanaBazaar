@@ -97,6 +97,33 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
             f"Order #{v['order_no']} from {v['store']} has been cancelled."
         ),
     ),
+    "fee_activated": WhatsAppTemplate(
+        name="fee_activated",
+        category="UTILITY",
+        variables=("until",),
+        render=lambda v: (
+            f"Your {settings.COMPANY_NAME} store subscription is active until {v['until']}. "
+            "Thank you!"
+        ),
+    ),
+    "fee_expiring": WhatsAppTemplate(
+        name="fee_expiring",
+        category="UTILITY",
+        variables=("until",),
+        render=lambda v: (
+            f"Your {settings.COMPANY_NAME} store plan expires on {v['until']}. "
+            "Renew from your seller dashboard to keep your store active."
+        ),
+    ),
+    "fee_suspended": WhatsAppTemplate(
+        name="fee_suspended",
+        category="UTILITY",
+        variables=(),
+        render=lambda v: (
+            f"A service on your {settings.COMPANY_NAME} store has been suspended. "
+            "Renew or clear your balance from your seller dashboard to reactivate it."
+        ),
+    ),
 }
 
 
@@ -108,4 +135,12 @@ STATUS_TEMPLATES: dict[str, WhatsAppTemplate] = {
     "dispatched": TEMPLATES["order_dispatched"],
     "delivered": TEMPLATES["order_delivered"],
     "cancelled": TEMPLATES["order_cancelled"],
+}
+
+
+# Maps NotificationType.value (fee events) → UTILITY template.
+FEE_TEMPLATES: dict[str, WhatsAppTemplate] = {
+    "fee_activated": TEMPLATES["fee_activated"],
+    "fee_expiring": TEMPLATES["fee_expiring"],
+    "fee_suspended": TEMPLATES["fee_suspended"],
 }
