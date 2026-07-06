@@ -36,6 +36,37 @@ async def test_settings_requires_admin(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_upload_fee_qr_sets_url(client: AsyncClient, admin_auth_headers) -> None:
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (16, 16), (0, 0, 0)).save(buf, "PNG")
+    r = await client.post(
+        "/api/v1/admin/fees/settings/qr",
+        headers=admin_auth_headers,
+        files={"file": ("qr.png", buf.getvalue(), "image/png")},
+    )
+    assert r.status_code == 200, r.text
+    url = r.json()["qr_image_url"]
+    assert url and "fee-qr/" in url
+    # Persisted onto the singleton settings.
+    r2 = await client.get("/api/v1/admin/fees/settings", headers=admin_auth_headers)
+    assert r2.json()["qr_image_url"] == url
+
+
+@pytest.mark.asyncio
+async def test_upload_fee_qr_rejects_non_image(client: AsyncClient, admin_auth_headers) -> None:
+    r = await client.post(
+        "/api/v1/admin/fees/settings/qr",
+        headers=admin_auth_headers,
+        files={"file": ("x.txt", b"not an image", "text/plain")},
+    )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_service_config_defaults(client: AsyncClient, admin_auth_headers, seeded_service) -> None:
     r = await client.get(
         f"/api/v1/admin/fees/services/{seeded_service.id}", headers=admin_auth_headers

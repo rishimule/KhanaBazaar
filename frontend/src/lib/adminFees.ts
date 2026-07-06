@@ -7,6 +7,8 @@
  */
 import { get, patch, put, post, ApiError } from "./api";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
 export type PlatformFeeSettings = {
   grace_period_days: number;
   expiry_reminder_start_days: number;
@@ -93,6 +95,28 @@ export function patchFeeSettings(
   body: PlatformFeeSettingsPatch,
 ): Promise<PlatformFeeSettings> {
   return patch<PlatformFeeSettings>("/api/v1/admin/fees/settings", body, token);
+}
+
+// Multipart upload — the shared api.ts helpers force application/json, so use a
+// raw fetch (mirrors lib/avatars.ts). Returns the updated settings.
+export async function uploadFeeQr(
+  token: string | null,
+  file: File,
+): Promise<PlatformFeeSettings> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/api/v1/admin/fees/settings/qr`, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(body.detail ?? res.statusText, res.status);
+  }
+  return res.json() as Promise<PlatformFeeSettings>;
 }
 
 export function getServiceFeeConfig(

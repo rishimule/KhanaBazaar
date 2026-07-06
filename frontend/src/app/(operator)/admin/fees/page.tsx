@@ -13,6 +13,7 @@ import {
   getServiceFeeConfig,
   patchServiceFeeConfig,
   putServicePlans,
+  uploadFeeQr,
   type PlatformFeeSettings,
   type ServiceFeeConfig,
   type SubscriptionPlanItem,
@@ -33,6 +34,7 @@ export default function AdminFeesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
+  const [qrUploading, setQrUploading] = useState(false);
 
   const [serviceId, setServiceId] = useState<number | null>(null);
   const [config, setConfig] = useState<ServiceFeeConfig | null>(null);
@@ -83,6 +85,23 @@ export default function AdminFeesPage() {
   }
   function setC<K extends keyof ServiceFeeConfig>(key: K, value: ServiceFeeConfig[K]) {
     setConfig((prev) => (prev ? { ...prev, [key]: value } : prev));
+  }
+
+  async function handleQrUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !token) return;
+    setQrUploading(true);
+    setSettingsMsg(null);
+    try {
+      const updated = await uploadFeeQr(token, file);
+      setSettings((prev) => (prev ? { ...prev, qr_image_url: updated.qr_image_url } : updated));
+      setSettingsMsg("QR uploaded.");
+    } catch {
+      setSettingsMsg("QR upload failed. Use a PNG/JPG/WebP within the size limit.");
+    } finally {
+      setQrUploading(false);
+    }
   }
 
   async function saveSettings() {
@@ -173,6 +192,19 @@ export default function AdminFeesPage() {
             <input value={settings.qr_image_url ?? ""} placeholder="https://…"
               onChange={(e) => setS("qr_image_url", e.target.value || null)} />
           </label>
+        </div>
+        <div className={styles.qrUploadRow}>
+          <label className={styles.uploadBtn}>
+            {qrUploading ? "Uploading…" : "Upload QR image"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+              disabled={qrUploading}
+              onChange={handleQrUpload}
+            />
+          </label>
+          <span className={styles.uploadHint}>or paste a hosted URL above</span>
         </div>
         {settings.qr_image_url && (
           // eslint-disable-next-line @next/next/no-img-element

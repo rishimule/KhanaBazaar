@@ -64,6 +64,28 @@
   background: var(--white);
 }
 
+.qrUploadRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.uploadBtn {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-primary-1);
+  color: var(--color-primary-1);
+  border-radius: var(--radius-card);
+  padding: 8px 14px;
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-sm);
+  cursor: pointer;
+}
+.uploadHint {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
 .subgroup {
   padding: 14px 0;
   border-top: 1px solid var(--hairline);
