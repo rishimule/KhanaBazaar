@@ -406,11 +406,18 @@ def _suspend(session: AsyncSession, arr: FeeArrangement, reason: str) -> None:
 
 
 async def run_fee_sweep(
-    session: AsyncSession, today: date | None = None
+    session: AsyncSession,
+    today: date | None = None,
+    *,
+    notices: list[tuple[int, str, str | None]] | None = None,
 ) -> dict[str, int]:
     """Advance dated arrangements: expired Trial/Active → Grace (or Suspended if
     grace=0), Grace past its window → Suspended. A Freebie whose service has no
-    offerable paid model is HELD (never stranded). Caller commits."""
+    offerable paid model is HELD (never stranded). Caller commits.
+
+    When `notices` is provided, appends `(seller_profile_id, type_value,
+    until_iso)` for each fee notification recorded during the sweep, so the
+    caller can fan out to other channels (SMS/WhatsApp/email) post-commit."""
     today = today or date.today()
     settings_row = (
         await session.exec(
@@ -473,10 +480,14 @@ async def run_fee_sweep(
                 ):
                     arr.last_reminder_sent_on = today
                     session.add(arr)
-                    await notify_seller_fee_event(
+                    spid = await notify_seller_fee_event(
                         session, store_id=arr.store_id,
                         type=NotificationType.FeeExpiring, valid_until=arr.valid_until,
                     )
+                    if notices is not None and spid is not None:
+                        notices.append(
+                            (spid, NotificationType.FeeExpiring.value, arr.valid_until.isoformat())
+                        )
                     counts["reminded"] += 1
                 continue
             if is_held_exempt:
@@ -505,16 +516,20 @@ async def run_fee_sweep(
                 counts["to_grace"] += 1
             else:
                 _suspend(session, arr, "expired")
-                await notify_seller_fee_event(
+                spid = await notify_seller_fee_event(
                     session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
                 )
+                if notices is not None and spid is not None:
+                    notices.append((spid, NotificationType.FeeSuspended.value, None))
                 counts["to_suspended"] += 1
         elif arr.status == ArrangementStatus.Grace:
             if today > arr.valid_until + timedelta(days=grace_days):
                 _suspend(session, arr, "grace_elapsed")
-                await notify_seller_fee_event(
+                spid = await notify_seller_fee_event(
                     session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
                 )
+                if notices is not None and spid is not None:
+                    notices.append((spid, NotificationType.FeeSuspended.value, None))
                 counts["to_suspended"] += 1
     await session.flush()
     return counts

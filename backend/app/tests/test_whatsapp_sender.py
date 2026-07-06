@@ -24,6 +24,7 @@ def test_registry_has_all_templates():
         "otp_login", "otp_seller_phone", "otp_delivery",
         "order_placed", "order_packed", "order_dispatched",
         "order_delivered", "order_cancelled",
+        "fee_activated", "fee_expiring", "fee_suspended",
     }
     assert set(TEMPLATES) == expected
 
