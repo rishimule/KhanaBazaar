@@ -16,6 +16,7 @@ import { ScrollRail } from "@/components/ScrollRail";
 import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
+import CrownBadge from "@/components/CrownBadge";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -282,7 +283,7 @@ function StoresPageInner() {
                   </span>
                 </div>
                 <div className={styles.cardBody}>
-                  <h2 className={styles.cardName}>{store.name}</h2>
+                  <h2 className={styles.cardName}>{store.name}{store.is_premium && <CrownBadge />}</h2>
                   <p className={styles.cardAddress}>{formatAddress(store.address)}</p>
                   <div className={styles.cardMeta}>
                     {typeof store.distance_km === "number" && (

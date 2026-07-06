@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { ApiError } from "@/lib/api";
 import { getStoreProduct } from "@/lib/api/products";
 import ProductDetail from "@/components/ProductDetail/ProductDetail";
+import CrownBadge from "@/components/CrownBadge";
 import { COMPANY_NAME } from "@/lib/brand";
 import styles from "./ProductFullPage.module.css";
 
@@ -57,7 +58,7 @@ export default async function ProductFullPage({ params }: { params: Params }) {
   return (
     <main className={styles.page}>
       <nav className={styles.breadcrumb} aria-label="Breadcrumb">
-        <Link href={`/${locale}/stores/${storeId}`}>{data.store.name}</Link>
+        <Link href={`/${locale}/stores/${storeId}`}>{data.store.name}{data.store.is_premium && <CrownBadge />}</Link>
         <span aria-hidden> / </span>
         <span>{breadcrumb.service_name}</span>
         <span aria-hidden> / </span>

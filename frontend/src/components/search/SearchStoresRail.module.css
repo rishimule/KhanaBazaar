@@ -48,6 +48,12 @@
   min-width: 0;
 }
 
+.nameRow {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
 .name {
   font-size: var(--body-sm);
   font-weight: var(--weight-medium);
@@ -55,6 +61,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .dist {

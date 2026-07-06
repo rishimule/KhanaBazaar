@@ -140,6 +140,8 @@ export interface Store extends BaseSchema {
   paused_until?: string | null;
   /** Set when the store list was queried with the user's lat/lng. */
   distance_km?: number | null;
+  /** True when the store has a live paid (non-Freebie) fee arrangement. */
+  is_premium?: boolean;
 }
 
 /** A store-specific inventory entry linking a product to a store. */
@@ -160,6 +162,7 @@ export interface InventoryWithProduct extends StoreInventory {
 export interface StoreSummary {
   id: number;
   name: string;
+  is_premium?: boolean;
 }
 
 /** Lightweight service summary returned by the product detail endpoint. */
@@ -474,6 +477,7 @@ export interface ComparisonAlternative {
   imputed_subtotal: number;
   effective_total: number;
   items: ComparisonItem[];
+  is_premium?: boolean;
 }
 
 export interface CompareResponse {

@@ -1670,6 +1670,8 @@
     }
   },
   "Shared": {
+    "premiumBadge": "ਪ੍ਰੀਮੀਅਮ",
+    "premiumBadgeAria": "ਪ੍ਰੀਮੀਅਮ ਸਟੋਰ",
     "skipToContent": "ਮੁੱਖ ਸਮੱਗਰੀ 'ਤੇ ਜਾਓ",
     "edit": "ਸੰਪਾਦਿਤ ਕਰੋ",
     "delete": "ਮਿਟਾਓ",

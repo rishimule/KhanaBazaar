@@ -39,6 +39,7 @@ class ComparisonAlternative(BaseModel):
     effective_total: float
     items: List[ComparisonItem]
     is_freebie: bool = True
+    is_premium: bool = False
 
 
 class CompareResponse(BaseModel):

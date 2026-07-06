@@ -56,6 +56,7 @@ from app.schemas.search import (
 from app.schemas.store_product_detail import ProductImagePayload
 from app.search.client import get_meili_client
 from app.search.locality import get_serviceable_store_ids, grid_cell_key
+from app.services.fee_gating import premium_store_ids
 
 router = APIRouter()
 
@@ -282,6 +283,11 @@ async def suggest(
                 distance_km=dist,
             )
         )
+
+    if stores:
+        _prem = await premium_store_ids(session, [s.id for s in stores])
+        for s in stores:
+            s.is_premium = s.id in _prem
 
     terms = [
         SuggestTerm(text=h["term"], kind=h.get("kind", "product_name"))
@@ -913,6 +919,11 @@ async def compare_offers(
 
     offers.sort(key=lambda o: o.price)
 
+    if offers:
+        _prem = await premium_store_ids(session, [o.store.id for o in offers])
+        for o in offers:
+            o.store.is_premium = o.store.id in _prem
+
     image_rows = (
         await session.execute(
             select(MasterProductImage)
@@ -955,6 +966,7 @@ async def stores_search(
     lng: Optional[float] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=60),
+    session: AsyncSession = Depends(get_db_session),
 ) -> StoreSearchResponse:
     client = get_meili_client()
     res = await client.index("stores").search(
@@ -976,6 +988,10 @@ async def stores_search(
                 distance_km=dist,
             )
         )
+    if items:
+        _prem = await premium_store_ids(session, [s.id for s in items])
+        for s in items:
+            s.is_premium = s.id in _prem
     return StoreSearchResponse(
         total=int(res.estimated_total_hits or len(items)),
         page=page,

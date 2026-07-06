@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import type { CompareOffer, CompareResponse } from "@/lib/searchClient";
+import CrownBadge from "@/components/CrownBadge";
 import styles from "./ProductOfferList.module.css";
 
 type Props = {
@@ -60,6 +61,7 @@ export function ProductOfferList({ data }: Props) {
         <div className={styles.storeMeta}>
           <Link href={`/stores/${o.store.id}`} className={styles.storeName}>
             {o.store.name}
+            {o.store.is_premium && <CrownBadge />}
           </Link>
           <div className={styles.subtext}>
             {o.store.distance_km !== null && (

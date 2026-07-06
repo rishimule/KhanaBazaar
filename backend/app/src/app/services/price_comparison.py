@@ -14,6 +14,7 @@ from app.models.catalog import MasterProduct, MasterProductTranslation, Subcateg
 from app.models.platform_fee import ArrangementStatus, FeeArrangement, FeeModel
 from app.models.store import Store, StoreInventory
 from app.schemas.price_comparison import ComparisonAlternative, ComparisonItem
+from app.services.fee_gating import premium_store_ids
 
 MAX_ALTERNATIVES = 5
 CANDIDATE_POOL_LIMIT = 20
@@ -174,6 +175,7 @@ async def find_alternatives(
     store_by_id: dict[int, Store] = {
         s.id: s for s in store_result.all() if s.id is not None
     }
+    premium_ids = await premium_store_ids(session, list(store_by_id.keys()))
 
     # --- step 5: build candidate DTOs ------------------------------------
     candidates: list[ComparisonAlternative] = []
@@ -236,6 +238,7 @@ async def find_alternatives(
             effective_total=round(covered_subtotal + imputed_subtotal, 2),
             items=items,
             is_freebie=is_freebie,
+            is_premium=store_id in premium_ids,
         ))
 
     return rank_candidates(candidates)

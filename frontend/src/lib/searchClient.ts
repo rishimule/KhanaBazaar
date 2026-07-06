@@ -33,6 +33,7 @@ export type SuggestStoreRow = {
   name: string;
   service_ids: number[];
   distance_km: number | null;
+  is_premium?: boolean;
 };
 
 export type SuggestResponse = {
@@ -95,6 +96,7 @@ export type CompareOffer = {
     lng: number | null;
     distance_km: number | null;
     delivery_radius_km: number;
+    is_premium?: boolean;
   };
   inventory_id: number;
   price: number;
@@ -175,6 +177,7 @@ export type StoreHit = {
   name: string;
   service_ids: number[];
   distance_km: number | null;
+  is_premium?: boolean;
 };
 
 export type StoresResponse = {

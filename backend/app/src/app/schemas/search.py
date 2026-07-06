@@ -36,6 +36,7 @@ class SuggestStore(BaseModel):
     name: str
     service_ids: list[int]
     distance_km: Optional[float] = None
+    is_premium: bool = False
 
 
 class SuggestResponse(BaseModel):
@@ -100,6 +101,7 @@ class CompareStore(BaseModel):
     lng: Optional[float] = None
     distance_km: Optional[float] = None
     delivery_radius_km: float
+    is_premium: bool = False
 
 
 class CompareOffer(BaseModel):

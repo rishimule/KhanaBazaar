@@ -1670,6 +1670,8 @@
     }
   },
   "Shared": {
+    "premiumBadge": "પ્રીમિયમ",
+    "premiumBadgeAria": "પ્રીમિયમ સ્ટોર",
     "skipToContent": "મુખ્ય સામગ્રી પર જાઓ",
     "edit": "સંપાદિત કરો",
     "delete": "કાઢી નાખો",

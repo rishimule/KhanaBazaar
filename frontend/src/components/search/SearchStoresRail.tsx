@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { searchStores, type StoreHit } from "@/lib/searchClient";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
+import CrownBadge from "@/components/CrownBadge";
 import styles from "./SearchStoresRail.module.css";
 
 export function SearchStoresRail({ q }: { q: string }) {
@@ -55,7 +56,10 @@ export function SearchStoresRail({ q }: { q: string }) {
               🏪
             </span>
             <span className={styles.body}>
-              <span className={styles.name}>{s.name}</span>
+              <span className={styles.nameRow}>
+                <span className={styles.name}>{s.name}</span>
+                {s.is_premium && <CrownBadge />}
+              </span>
               {s.distance_km != null && (
                 <span className={styles.dist}>{s.distance_km} km away</span>
               )}

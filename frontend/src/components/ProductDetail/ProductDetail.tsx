@@ -10,6 +10,7 @@ import { pushRecentlyViewed } from "@/lib/recentlyViewed";
 import type { StoreProductDetail } from "@/types";
 import ProductGallery from "./ProductGallery";
 import ReviewsPanel from "./ReviewsPanel";
+import CrownBadge from "@/components/CrownBadge";
 import styles from "./ProductDetail.module.css";
 
 interface Props {
@@ -107,7 +108,7 @@ export default function ProductDetail({ data, variant }: Props) {
           )}
         </div>
         <p className={styles.context}>
-          {store.name} · {service.name}
+          {store.name}{store.is_premium && <CrownBadge />} · {service.name}
         </p>
         <div className={styles.price}>₹{Number(price).toFixed(2)}</div>
         <span className={`${styles.stockBadge} ${stockClass}`}>{stockLabel}</span>
