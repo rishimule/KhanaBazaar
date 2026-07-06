@@ -1,0 +1,147 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.page {
+  max-width: 860px;
+  display: grid;
+  gap: 20px;
+}
+
+.intro {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 20px;
+}
+
+.cardTitle {
+  font-size: var(--body-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-strong);
+  margin: 0 0 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--body-sm);
+}
+
+.field > span {
+  color: var(--shade-cool-base-7);
+  font-weight: var(--weight-medium);
+}
+
+.field input,
+.field select {
+  padding: 8px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md, 8px);
+  background: var(--white);
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.qr {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  margin-top: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.qrUploadRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.uploadBtn {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-primary-1);
+  color: var(--color-primary-1);
+  border-radius: var(--radius-card);
+  padding: 8px 14px;
+  font-weight: var(--weight-semibold);
+  font-size: var(--body-sm);
+  cursor: pointer;
+}
+.uploadHint {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
+.subgroup {
+  padding: 14px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: var(--weight-medium);
+  margin-bottom: 10px;
+}
+
+.plans {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--body-sm);
+}
+
+.plans th,
+.plans td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.plans input[type="number"] {
+  width: 120px;
+  padding: 6px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.msg {
+  font-size: var(--body-sm);
+  color: var(--leaf-green-dark-1);
+}
+
+.errorBanner {
+  background: var(--tomato-red-light-1);
+  color: var(--tomato-red-dark-1);
+  border: 1px solid var(--tomato-red-light-2);
+  border-radius: var(--radius-card);
+  padding: 12px 16px;
+  font-size: var(--body-sm);
+}
+
+.loader {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--shade-cool-base-7);
+}

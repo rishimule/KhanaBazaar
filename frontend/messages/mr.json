@@ -1248,7 +1248,8 @@
       "catalog": "कॅटलॉग",
       "settings": "सेटिंग्ज",
       "policies": "धोरणे",
-      "onboardingRequests": "ऑनबोर्डिंग"
+      "onboardingRequests": "ऑनबोर्डिंग",
+      "fees": "शुल्क"
     },
     "titles": {
       "dashboard": "अ‍ॅडमिन डॅशबोर्ड",
@@ -1261,7 +1262,8 @@
       "settings": "सेटिंग्ज",
       "changeRequests": "बदल विनंत्या",
       "policies": "धोरणे",
-      "onboardingRequests": "विक्रेता ऑनबोर्डिंग विनंत्या"
+      "onboardingRequests": "विक्रेता ऑनबोर्डिंग विनंत्या",
+      "fees": "प्लॅटफॉर्म शुल्क"
     },
     "settings": {
       "title": "सेटिंग्ज"

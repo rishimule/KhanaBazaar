@@ -4,10 +4,12 @@
 
 `admin_router` mounted at /api/v1/admin. Global settings + per-service fee config
 + subscription-plan pricing."""
-from fastapi import APIRouter, Depends, HTTPException
+import anyio
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.core.security import get_current_admin, get_current_seller
 from app.db.session import get_db_session
 from app.models.admin_audit import AdminActionTargetType
@@ -60,6 +62,8 @@ from app.services.fee_lifecycle import (
     request_cancellation,
 )
 from app.services.fee_notifications import notify_seller_fee_event
+from app.services.image_processing import ImageValidationError, process_image
+from app.services.image_storage import get_image_storage
 
 admin_router = APIRouter()
 
@@ -95,6 +99,30 @@ async def patch_fee_settings(
     row = await fees.get_or_create_settings(session)
     for key, value in body.model_dump(exclude_unset=True).items():
         setattr(row, key, value)
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return _settings_read(row)
+
+
+@admin_router.post("/fees/settings/qr", response_model=PlatformFeeSettingsRead)
+async def upload_fee_qr(
+    file: UploadFile = File(...),
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> PlatformFeeSettingsRead:
+    """Upload a payment-QR image (validated + WebP-encoded via the shared image
+    pipeline), store it, and set it as the global `qr_image_url`."""
+    raw = await file.read()
+    try:
+        data, digest = await anyio.to_thread.run_sync(
+            process_image, raw, settings.IMAGE_MAX_DIMENSION_PX
+        )
+    except ImageValidationError as exc:
+        raise HTTPException(status_code=422, detail={"error": str(exc)}) from exc
+    url = await get_image_storage().save(f"fee-qr/{digest}.webp", data, "image/webp")
+    row = await fees.get_or_create_settings(session)
+    row.qr_image_url = url
     session.add(row)
     await session.commit()
     await session.refresh(row)
