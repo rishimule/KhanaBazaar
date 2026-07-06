@@ -115,6 +115,7 @@ export default function SellerDashboardPage() {
         fullName={dbUser?.full_name}
         storeName={m.store_name}
         storePaused={m.store_paused}
+        isPremium={m.is_premium}
         onRefresh={() => load(true)}
         refreshing={refreshing}
         onTogglePause={handlePauseToggle}

@@ -6,6 +6,11 @@
   flex-wrap: wrap;
   margin-bottom: 1.25rem;
 }
+.premiumPill {
+  margin-inline-start: 4px;
+  vertical-align: middle;
+  gap: 4px;
+}
 .greeting {
   font-size: 1.6rem;
   font-weight: 700;
