@@ -20,6 +20,24 @@ export async function markAllNotificationsRead(token: string): Promise<void> {
   await post("/api/v1/notifications/read-all", undefined, token);
 }
 
+// ── Seller-scoped notifications (Plan 3c-i backend; same response shape) ──────
+export async function listSellerNotifications(
+  token: string
+): Promise<NotificationListResponse> {
+  return get<NotificationListResponse>("/api/v1/sellers/me/notifications", token);
+}
+
+export async function markSellerNotificationRead(
+  token: string,
+  id: number
+): Promise<void> {
+  await post(`/api/v1/sellers/me/notifications/${id}/read`, undefined, token);
+}
+
+export async function markAllSellerNotificationsRead(token: string): Promise<void> {
+  await post("/api/v1/sellers/me/notifications/read-all", undefined, token);
+}
+
 export interface PushSubscriptionPayload {
   endpoint: string;
   keys: { p256dh: string; auth: string };
