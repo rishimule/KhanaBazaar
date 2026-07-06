@@ -82,6 +82,22 @@ async def test_storefront_is_premium_false_for_freebie(
 
 
 @pytest.mark.asyncio
+async def test_storefront_is_premium_false_for_suspended(
+    client: AsyncClient, session: AsyncSession, approved_seller_with_store
+) -> None:
+    # A suspended (non-Freebie) arrangement is NOT commercially live → not premium.
+    b = approved_seller_with_store
+    session.add(FeeArrangement(
+        store_id=b.store.id, service_id=b.service_id, model=FeeModel.Subscription,
+        status=ArrangementStatus.Suspended, valid_until=date(2026, 12, 1),
+    ))
+    await session.commit()
+    r = await client.get(f"/api/v1/stores/{b.store.id}/storefront")
+    assert r.status_code == 200, r.text
+    assert r.json()["store"]["is_premium"] is False
+
+
+@pytest.mark.asyncio
 async def test_store_product_detail_is_premium(
     client: AsyncClient, session: AsyncSession, approved_seller_with_store
 ) -> None:
