@@ -39,6 +39,7 @@ export default function AdminLayout({
     { href: "/admin/catalog", label: t("nav.catalog"), icon: "🗂️" },
     { href: "/admin/policies", label: t("nav.policies"), icon: "📜" },
     { href: "/admin/fees", label: t("nav.fees"), icon: "💳" },
+    { href: "/admin/fees/queue", label: t("nav.feeQueue"), icon: "🧾" },
     { href: "/admin/settings", label: t("nav.settings"), icon: "⚙️" },
   ];
 
@@ -61,11 +62,13 @@ export default function AdminLayout({
                 ? t("titles.orders")
                 : pathname.startsWith("/admin/policies")
                   ? t("titles.policies")
-                  : pathname.startsWith("/admin/fees")
-                    ? t("titles.fees")
-                    : pathname.startsWith("/admin/settings")
-                      ? t("titles.settings")
-                      : t("titles.panel");
+                  : pathname.startsWith("/admin/fees/queue")
+                    ? t("titles.feeQueue")
+                    : pathname.startsWith("/admin/fees")
+                      ? t("titles.fees")
+                      : pathname.startsWith("/admin/settings")
+                        ? t("titles.settings")
+                        : t("titles.panel");
 
   return (
     <>

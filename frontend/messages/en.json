@@ -1246,7 +1246,8 @@
       "settings": "Settings",
       "policies": "Policies",
       "onboardingRequests": "Onboarding",
-      "fees": "Fees"
+      "fees": "Fees",
+      "feeQueue": "Fee queue"
     },
     "titles": {
       "dashboard": "Admin Dashboard",
@@ -1260,7 +1261,8 @@
       "changeRequests": "Change requests",
       "policies": "Policies",
       "onboardingRequests": "Seller Onboarding Requests",
-      "fees": "Platform Fees"
+      "fees": "Platform Fees",
+      "feeQueue": "Fee confirmation queue"
     },
     "settings": {
       "title": "Settings"

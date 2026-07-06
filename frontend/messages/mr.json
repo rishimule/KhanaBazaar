@@ -1247,7 +1247,8 @@
       "settings": "सेटिंग्ज",
       "policies": "धोरणे",
       "onboardingRequests": "ऑनबोर्डिंग",
-      "fees": "शुल्क"
+      "fees": "शुल्क",
+      "feeQueue": "शुल्क रांग"
     },
     "titles": {
       "dashboard": "अ‍ॅडमिन डॅशबोर्ड",
@@ -1261,7 +1262,8 @@
       "changeRequests": "बदल विनंत्या",
       "policies": "धोरणे",
       "onboardingRequests": "विक्रेता ऑनबोर्डिंग विनंत्या",
-      "fees": "प्लॅटफॉर्म शुल्क"
+      "fees": "प्लॅटफॉर्म शुल्क",
+      "feeQueue": "शुल्क पुष्टी रांग"
     },
     "settings": {
       "title": "सेटिंग्ज"

@@ -1247,7 +1247,8 @@
       "settings": "सेटिंग्स",
       "policies": "नीतियाँ",
       "onboardingRequests": "ऑनबोर्डिंग",
-      "fees": "शुल्क"
+      "fees": "शुल्क",
+      "feeQueue": "शुल्क कतार"
     },
     "titles": {
       "dashboard": "एडमिन डैशबोर्ड",
@@ -1261,7 +1262,8 @@
       "changeRequests": "बदलाव अनुरोध",
       "policies": "नीतियाँ",
       "onboardingRequests": "विक्रेता ऑनबोर्डिंग अनुरोध",
-      "fees": "प्लेटफ़ॉर्म शुल्क"
+      "fees": "प्लेटफ़ॉर्म शुल्क",
+      "feeQueue": "शुल्क पुष्टि कतार"
     },
     "settings": {
       "title": "सेटिंग्स"
