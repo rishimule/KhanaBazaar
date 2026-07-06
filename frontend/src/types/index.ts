@@ -787,6 +787,7 @@ export interface SellerMetrics {
   unavailable: number;
   store_active: boolean;
   store_paused: boolean;
+  is_premium: boolean;
   pin_confirmed: boolean;
   store_name: string;
   order_status_counts: OrderStatusCounts;

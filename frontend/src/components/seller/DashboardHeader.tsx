@@ -9,6 +9,7 @@ interface Props {
   fullName?: string;
   storeName: string;
   storePaused: boolean;
+  isPremium?: boolean;
   onRefresh: () => void;
   refreshing?: boolean;
   onTogglePause: () => void;
@@ -32,6 +33,7 @@ export default function DashboardHeader({
   fullName,
   storeName,
   storePaused,
+  isPremium,
   onRefresh,
   refreshing,
   onTogglePause,
@@ -65,6 +67,9 @@ export default function DashboardHeader({
             <span className={`${styles.chip} ${storePaused ? styles.chipWarn : styles.chipOk}`}>
               {storePaused ? "Closed" : "Open"}
             </span>
+            {isPremium && (
+              <span className={`badge badge--member ${styles.premiumPill}`}>👑 Premium</span>
+            )}
           </p>
         </div>
       </div>

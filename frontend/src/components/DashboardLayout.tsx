@@ -26,6 +26,8 @@ interface Props {
   navItems: NavItem[];
   footer?: React.ReactNode;
   avatarUrl?: string | null;
+  /** Optional right-aligned topbar node (e.g. an operator notification bell). */
+  headerAction?: React.ReactNode;
 }
 
 const ROLE_LABEL_KEYS: Record<DashboardRole, string> = {
@@ -54,6 +56,7 @@ export default function DashboardLayout({
   navItems,
   footer,
   avatarUrl,
+  headerAction,
 }: Props) {
   const t = useTranslations("Dashboard");
   const pathname = usePathname();
@@ -125,6 +128,7 @@ export default function DashboardLayout({
             </button>
             <h1 className={styles.topBarTitle}>{title}</h1>
           </div>
+          {headerAction}
         </div>
         <div className={styles.content}>{children}</div>
       </div>

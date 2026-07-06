@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import DashboardLayout from "@/components/DashboardLayout";
 import Navbar from "@/components/Navbar";
+import SellerNotificationBell from "@/components/seller/SellerNotificationBell";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { Store, VerificationStatus } from "@/types";
@@ -130,6 +131,7 @@ export default function SellerLayout({
         title={title}
         navItems={sellerNav}
         avatarUrl={dbUser.avatar_url}
+        headerAction={<SellerNotificationBell />}
       >
         {children}
       </DashboardLayout>
