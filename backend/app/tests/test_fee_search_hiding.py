@@ -4,11 +4,13 @@ from datetime import date
 from unittest.mock import patch
 
 import pytest
+from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.catalog import Category, MasterProduct, Subcategory
 from app.models.platform_fee import ArrangementStatus, FeeArrangement, FeeModel
 from app.models.store import StoreInventory
+from app.search.reindex import reindex_all
 from app.search.serialize import build_product_document, build_store_document
 
 
@@ -80,3 +82,24 @@ async def test_arrangement_change_triggers_reindex(
         await session.commit()
     rs.assert_any_call(bundle.store.id)
     rp.assert_any_call(bundle.store.id)
+
+
+@pytest.mark.asyncio
+async def test_search_results_exclude_suspended_offer(
+    client: AsyncClient, session: AsyncSession, meili_test_client, approved_seller_with_store
+) -> None:
+    """A suspended (store, service) offer must not appear in
+    GET /api/v1/search/products results, even though the product itself
+    (offered elsewhere or previously) is still indexed."""
+    bundle = approved_seller_with_store
+    pid, svc_id = await _stock_one_product(session, bundle)
+    await _suspend(session, bundle.store.id, svc_id)
+
+    await reindex_all(session, meili_test_client)
+
+    r = await client.get("/api/v1/search/products", params={"q": "p-search-hide"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    product = next((p for p in body["products"] if p["id"] == pid), None)
+    assert product is not None, body
+    assert all(o["store_id"] != bundle.store.id for o in product["per_store_offers"])
