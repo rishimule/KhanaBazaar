@@ -224,6 +224,42 @@ export default function AdminReferralsPage() {
           data={rows}
           keyField="id"
           emptyMessage={t("admin.empty")}
+          mobileCardRender={(r) => (
+            <>
+              <div className={styles.mobileTop}>
+                <span className={styles.mobileTitle}>{r.invitee_name}</span>
+                <span className={styles.statusBadge}>{t(`status.${r.status}`)}</span>
+              </div>
+              <div className={styles.muted}>{r.invitee_email || r.invitee_phone || "—"}</div>
+              <div className={styles.muted}>
+                {`${t(`role.${r.target_role}`)} · ${t(`role.${r.source_role}`)} #${r.source_user_id}`}
+              </div>
+              <div className={styles.muted}>{`${r.location_area}, ${r.location_state}`}</div>
+              {r.status === "pending_review" && (
+                <div className={styles.actions}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={updatingId === r.id}
+                    onClick={() => approve(r.id)}
+                  >
+                    {t("admin.approve")}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.rejectBtn}
+                    disabled={updatingId === r.id}
+                    onClick={() => {
+                      setRejectTarget(r);
+                      setRejectReason("");
+                    }}
+                  >
+                    {t("admin.reject")}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         />
       )}
 

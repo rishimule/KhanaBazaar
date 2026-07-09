@@ -80,6 +80,7 @@ export default function ReferralPanel() {
       });
       setList((prev) => [created, ...prev]);
       setSuccess(true);
+      window.setTimeout(() => setSuccess(false), 4000);
       setName("");
       setArea("");
       setEmail("");
