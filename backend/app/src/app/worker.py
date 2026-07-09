@@ -1602,6 +1602,26 @@ def dispatch_referral_invite(referral_id: int, token: str) -> None:
     _safe_delay(send_referral_invite, referral_id, token)
 
 
+@celery_app.task(name="referrals.run_invite_expiry_sweep")  # type: ignore[untyped-decorator]
+def run_referral_invite_expiry_sweep() -> int:
+    """Daily: transition approved referrals whose invite has lapsed to expired.
+    Runs the async sweep on a worker thread so it works under both the real
+    worker and eager-mode tests."""
+    import concurrent.futures
+
+    from app.db.session import async_session_factory
+    from app.services.referrals import run_referral_expiry_sweep
+
+    async def _run() -> int:
+        async with async_session_factory() as session:
+            n = await run_referral_expiry_sweep(session)
+            await session.commit()
+            return n
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        return ex.submit(lambda: asyncio.run(_run())).result()
+
+
 @celery_app.task(name="fees.run_daily_sweep")  # type: ignore[untyped-decorator]
 def run_daily_fee_sweep() -> dict[str, int]:
     """Daily: expire freebie trials (Trial→Grace→Suspended, holding when no paid

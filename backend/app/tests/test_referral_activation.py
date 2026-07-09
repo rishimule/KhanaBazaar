@@ -11,16 +11,16 @@ from app.services import referrals as svc
 
 
 def _approved_referral(**over) -> Referral:
-    base = dict(
-        source_user_id=1,
-        source_role=UserRole.Customer,
-        target_role=ReferralTargetRole.customer,
-        invitee_name="Asha",
-        invitee_email="asha@example.com",
-        location_state="Maharashtra",
-        location_area="Pune",
-        status=ReferralStatus.approved,
-    )
+    base = {
+        "source_user_id": 1,
+        "source_role": UserRole.Customer,
+        "target_role": ReferralTargetRole.customer,
+        "invitee_name": "Asha",
+        "invitee_email": "asha@example.com",
+        "location_state": "Maharashtra",
+        "location_area": "Pune",
+        "status": ReferralStatus.approved,
+    }
     base.update(over)
     return Referral(**base)
 

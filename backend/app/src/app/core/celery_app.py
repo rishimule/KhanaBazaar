@@ -63,4 +63,8 @@ celery_app.conf.beat_schedule = {
         "task": "fees.run_daily_sweep",
         "schedule": crontab(hour=2, minute=0),
     },
+    "referrals-invite-expiry-daily": {
+        "task": "referrals.run_invite_expiry_sweep",
+        "schedule": crontab(hour=2, minute=30),
+    },
 }

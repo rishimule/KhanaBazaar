@@ -26,7 +26,7 @@ class ReferralCreate(BaseModel):
         if self.location_state not in INDIAN_STATES:
             raise ValueError("location_state must be a valid Indian state/UT")
         if self.invitee_email:
-            self.invitee_email = self.invitee_email.lower()  # type: ignore[assignment]
+            self.invitee_email = self.invitee_email.lower()
         if self.invitee_phone:
             try:
                 self.invitee_phone = normalize_phone(self.invitee_phone)

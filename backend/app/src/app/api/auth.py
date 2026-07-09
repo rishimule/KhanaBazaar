@@ -376,7 +376,9 @@ async def seller_register(
             and claims.get("email") == email
         ):
             await bind_seller_referral(
-                session, referral_id=int(claims["referral_id"]), user_id=int(user.id)
+                session,
+                referral_id=int(str(claims["referral_id"])),
+                user_id=int(user.id),
             )
 
     await session.commit()

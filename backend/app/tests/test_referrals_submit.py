@@ -9,13 +9,13 @@ from app.services import referrals as svc
 
 
 def _payload(**over):
-    base = dict(
-        target_role=ReferralTargetRole.customer,
-        invitee_name="Asha",
-        invitee_email="asha@example.com",
-        location_state="Maharashtra",
-        location_area="Pune",
-    )
+    base = {
+        "target_role": ReferralTargetRole.customer,
+        "invitee_name": "Asha",
+        "invitee_email": "asha@example.com",
+        "location_state": "Maharashtra",
+        "location_area": "Pune",
+    }
     base.update(over)
     return ReferralCreate(**base)
 

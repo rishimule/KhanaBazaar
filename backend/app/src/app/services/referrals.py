@@ -40,14 +40,14 @@ class DuplicateContact(Exception):
 async def load_referral_settings(session: AsyncSession) -> ReferralSettings:
     """The single settings row, or a transient default (unsaved) if none yet."""
     row = (
-        await session.exec(select(ReferralSettings).order_by(ReferralSettings.id).limit(1))
+        await session.exec(select(ReferralSettings).order_by(ReferralSettings.id).limit(1))  # type: ignore[arg-type]
     ).first()
     return row or ReferralSettings()
 
 
 async def get_or_create_referral_settings(session: AsyncSession) -> ReferralSettings:
     row = (
-        await session.exec(select(ReferralSettings).order_by(ReferralSettings.id).limit(1))
+        await session.exec(select(ReferralSettings).order_by(ReferralSettings.id).limit(1))  # type: ignore[arg-type]
     ).first()
     if row is None:
         row = ReferralSettings()
