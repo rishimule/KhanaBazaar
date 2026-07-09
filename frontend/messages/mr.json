@@ -809,7 +809,9 @@
       "installAppSubtitle": "Quick access from your home screen",
       "reorderCta": "पुन्हा ऑर्डर",
       "viewAll": "सर्व पाहा"
-    }
+    },
+    "navReferrals": "रेफरल",
+    "layoutReferralsTitle": "रेफरल"
   },
   "Favorites": {
     "title": "तुमचे आवडते",
@@ -908,7 +910,8 @@
       "inventory": "इन्व्हेंटरी",
       "settings": "सेटिंग्ज",
       "profile": "प्रोफाइल",
-      "plan": "योजना"
+      "plan": "योजना",
+      "referrals": "रेफरल"
     },
     "titles": {
       "dashboard": "विक्रेता डॅशबोर्ड",
@@ -917,7 +920,8 @@
       "settings": "सेटिंग्ज",
       "profile": "प्रोफाइल",
       "portal": "विक्रेता पोर्टल",
-      "plan": "योजना व बिलिंग"
+      "plan": "योजना व बिलिंग",
+      "referrals": "रेफरल"
     },
     "common": {
       "save": "जतन करा",
@@ -1250,7 +1254,8 @@
       "policies": "धोरणे",
       "onboardingRequests": "ऑनबोर्डिंग",
       "fees": "शुल्क",
-      "feeQueue": "शुल्क रांग"
+      "feeQueue": "शुल्क रांग",
+      "referrals": "रेफरल"
     },
     "titles": {
       "dashboard": "अ‍ॅडमिन डॅशबोर्ड",
@@ -1265,7 +1270,8 @@
       "policies": "धोरणे",
       "onboardingRequests": "विक्रेता ऑनबोर्डिंग विनंत्या",
       "fees": "प्लॅटफॉर्म शुल्क",
-      "feeQueue": "शुल्क पुष्टी रांग"
+      "feeQueue": "शुल्क पुष्टी रांग",
+      "referrals": "रेफरल"
     },
     "settings": {
       "title": "सेटिंग्ज"
@@ -1835,5 +1841,95 @@
     "errorPhone": "वैध भारतीय मोबाइल नंबर प्रविष्ट करा, उदाहरणार्थ +919812345678.",
     "errorRateLimited": "तुम्ही अलीकडे अनेक वेळा सबमिट केले आहे. कृपया नंतर पुन्हा प्रयत्न करा.",
     "errorRequired": "कृपया सर्व आवश्यक फील्ड भरा."
+  },
+  "Referrals": {
+    "loading": "लोड होत आहे…",
+    "onboardTitle": "नवीन जोडा",
+    "onboardSubtitle": "नवीन ग्राहक किंवा विक्रेत्याला सामील होण्यासाठी आमंत्रित करा.",
+    "roleLabel": "मला जोडायचे आहे",
+    "roleCustomer": "ग्राहक",
+    "roleSeller": "विक्रेता",
+    "nameLabel": "पूर्ण नाव",
+    "namePlaceholder": "उदा. आशा राव",
+    "stateLabel": "राज्य",
+    "statePlaceholder": "राज्य निवडा",
+    "areaLabel": "परिसर / शहर",
+    "areaPlaceholder": "उदा. कोथरूड, पुणे",
+    "emailLabel": "ईमेल",
+    "emailPlaceholder": "name@example.com",
+    "phoneLabel": "फोन",
+    "phonePlaceholder": "+91XXXXXXXXXX",
+    "contactHelp": "किमान एक द्या — ईमेल किंवा फोन.",
+    "submit": "रेफरल पाठवा",
+    "submitting": "पाठवत आहे…",
+    "successMsg": "रेफरल पाठवले.",
+    "errorGeneric": "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा.",
+    "errAlreadyInvited": "या व्यक्तीचे रेफरल आधीच प्रलंबित आहे.",
+    "errAlreadyRegistered": "हा ईमेल किंवा फोन आधीच एका खात्याशी संलग्न आहे.",
+    "errContactRequired": "किमान एक द्या — ईमेल किंवा फोन.",
+    "listTitle": "माझे रेफरल",
+    "empty": "आपण अद्याप कोणालाही रेफर केलेले नाही.",
+    "colInvitee": "आमंत्रित",
+    "colContact": "संपर्क",
+    "colRole": "भूमिका",
+    "colStatus": "स्थिती",
+    "colDate": "तारीख",
+    "role": {
+      "customer": "ग्राहक",
+      "seller": "विक्रेता",
+      "admin": "अ‍ॅडमिन"
+    },
+    "status": {
+      "pending_review": "पुनरावलोकन प्रलंबित",
+      "approved": "मंजूर",
+      "active": "सक्रिय",
+      "rejected": "नाकारले",
+      "expired": "कालबाह्य"
+    },
+    "admin": {
+      "colInvitee": "आमंत्रित",
+      "colContact": "संपर्क",
+      "colRole": "लक्ष्य भूमिका",
+      "colSource": "स्रोत",
+      "colLocation": "स्थान",
+      "colStatus": "स्थिती",
+      "colCreated": "तयार केले",
+      "colActions": "क्रिया",
+      "approve": "मंजूर करा",
+      "reject": "नाकारा",
+      "rejectTitle": "रेफरल नाकारा",
+      "rejectReasonLabel": "नाकारण्याचे कारण",
+      "rejectConfirm": "रेफरल नाकारा",
+      "cancel": "रद्द करा",
+      "empty": "या फिल्टरशी कोणतेही रेफरल जुळत नाही.",
+      "requireApprovalLabel": "नवीन रेफरलसाठी अ‍ॅडमिन मंजुरी आवश्यक करा",
+      "requireApprovalHelp": "बंद असल्यास, रेफरल स्वयंचलितपणे मंजूर होऊन लगेच आमंत्रित केले जातात.",
+      "filterStatus": "स्थितीनुसार फिल्टर करा",
+      "filterRole": "भूमिकेनुसार फिल्टर करा",
+      "filterAll": "सर्व"
+    }
+  },
+  "Invite": {
+    "loading": "लोड होत आहे…",
+    "invalidTitle": "हे आमंत्रण आता वैध नाही",
+    "invalidBody": "आमंत्रण दुवा कालबाह्य झाला आहे किंवा आधीच वापरला गेला आहे. ज्याने तुम्हाला रेफर केले त्यांना नवीन दुवा पाठवण्यास सांगा.",
+    "greeting": "तुम्हाला {brand} मध्ये सामील होण्यासाठी आमंत्रित केले आहे",
+    "intro": "{name}, खरेदी सुरू करण्यासाठी तुमचे खाते सक्रिय करा.",
+    "emailLabel": "ईमेल",
+    "emailPlaceholder": "name@example.com",
+    "emailRequired": "पुढे जाण्यासाठी तुमचा ईमेल प्रविष्ट करा.",
+    "sendCode": "कोड पाठवा",
+    "sending": "पाठवत आहे…",
+    "codeSent": "आम्ही {email} वर 6-अंकी कोड पाठवला आहे.",
+    "codeLabel": "पडताळणी कोड",
+    "nameLabel": "तुमचे नाव",
+    "agree": "मी अटी आणि गोपनीयतेशी सहमत आहे",
+    "activate": "खाते सक्रिय करा",
+    "activating": "सक्रिय करत आहे…",
+    "invalidCode": "कोड चुकीचा आहे. कृपया पुन्हा प्रयत्न करा.",
+    "codeExpired": "कोड कालबाह्य झाला आहे. नवीन विनंती करा.",
+    "policyRequired": "पुढे जाण्यासाठी कृपया अटी आणि गोपनीयता स्वीकारा.",
+    "expiredError": "हे आमंत्रण कालबाह्य झाले आहे.",
+    "genericError": "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा."
   }
 }
