@@ -58,3 +58,79 @@ async def test_record_referrer_notification_customer(session):
     assert notif is not None
     assert notif.type == NotificationType.Referral
     assert notif.status_value == "approved"
+
+
+# ─── Customer activation (invite detail + accept) ────────────────────────
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+from app.core.security import create_referral_invite_token  # noqa: E402
+
+
+async def _noop_verify(*a, **kw):
+    return True
+
+
+@pytest.mark.asyncio
+async def test_invite_detail(client, session):
+    r = _approved_referral(invitee_email="detail@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="detail@example.com",
+        phone=None, expires_days=14,
+    )
+    res = await client.get(f"/api/v1/referrals/invite?token={tok}")
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["invitee_name"] == "Asha"
+    assert body["target_role"] == "customer"
+    assert body["expired"] is False
+
+
+@pytest.mark.asyncio
+async def test_accept_creates_customer(client, session, monkeypatch):
+    r = _approved_referral(invitee_email="join@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    rid = r.id
+    tok = create_referral_invite_token(
+        referral_id=rid, target_role="customer", email="join@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={"token": tok, "code": "123456", "full_name": "Asha Rao", "accept_policies": True},
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["access_token"]
+    fresh = await session.get(Referral, rid)
+    await session.refresh(fresh)
+    assert fresh.status == ReferralStatus.active
+    assert fresh.activated_user_id is not None
+
+
+@pytest.mark.asyncio
+async def test_accept_expired_invite_conflict(client, session, monkeypatch):
+    r = _approved_referral(invitee_email="stale@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) - timedelta(days=1)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="stale@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={"token": tok, "code": "123456", "accept_policies": True},
+    )
+    assert res.status_code == 409
+    assert res.json()["detail"]["error"] == "expired"

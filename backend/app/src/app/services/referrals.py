@@ -202,6 +202,91 @@ async def issue_invite_and_dispatch(session: AsyncSession, *, referral: Referral
     return token
 
 
+async def activate_customer_referral(
+    session: AsyncSession,
+    *,
+    referral_id: int,
+    invitee_email: str,
+    full_name: Optional[str],
+) -> tuple[User, Referral]:
+    """Create the customer account + bind the referral to `active`. The caller
+    verifies OTP + handles policy acceptance + commits. Raises LookupError
+    (not found) / ValueError('expired'|'not_approved'|'already_active'|
+    'already_registered')."""
+    from app.services.profiles import split_full_name
+
+    row = await session.get(Referral, referral_id)
+    if row is None:
+        raise LookupError("not_found")
+    if row.status == ReferralStatus.active:
+        raise ValueError("already_active")
+    if row.status != ReferralStatus.approved:
+        raise ValueError("not_approved")
+    if row.invite_expires_at and row.invite_expires_at < datetime.now(timezone.utc):
+        row.status = ReferralStatus.expired
+        session.add(row)
+        await session.flush()
+        raise ValueError("expired")
+    # Guard the window between approve and accept.
+    if (await session.exec(select(User).where(User.email == invitee_email))).first():
+        raise ValueError("already_registered")
+
+    first_name, last_name = split_full_name(full_name or row.invitee_name)
+    user = User(email=invitee_email, role=UserRole.Customer)
+    session.add(user)
+    await session.flush()
+    assert user.id is not None
+    profile = CustomerProfile(
+        user_id=user.id,
+        first_name=first_name,
+        last_name=last_name,
+        phone=row.invitee_phone,
+    )
+    session.add(profile)
+    row.status = ReferralStatus.active
+    row.activated_user_id = user.id
+    row.activated_at = datetime.now(timezone.utc)
+    session.add(row)
+    await session.flush()
+    await record_referral_notification(session, referral=row, event="activated")
+    return user, row
+
+
+async def bind_seller_referral(
+    session: AsyncSession, *, referral_id: int, user_id: int
+) -> None:
+    """Bind a seller-target referral to the seller account created via the
+    signup wizard. Best-effort — never blocks seller signup."""
+    row = await session.get(Referral, referral_id)
+    if row is None or row.status != ReferralStatus.approved:
+        return
+    row.status = ReferralStatus.active
+    row.activated_user_id = user_id
+    row.activated_at = datetime.now(timezone.utc)
+    session.add(row)
+    await session.flush()
+    await record_referral_notification(session, referral=row, event="activated")
+
+
+async def run_referral_expiry_sweep(session: AsyncSession) -> int:
+    """Transition approved referrals whose invite has lapsed to expired.
+    Caller commits."""
+    now = datetime.now(timezone.utc)
+    rows = (
+        await session.exec(
+            select(Referral)
+            .where(Referral.status == ReferralStatus.approved)
+            .where(Referral.invite_expires_at.is_not(None))  # type: ignore[union-attr]
+            .where(Referral.invite_expires_at < now)  # type: ignore[operator]
+        )
+    ).all()
+    for row in rows:
+        row.status = ReferralStatus.expired
+        session.add(row)
+    await session.flush()
+    return len(rows)
+
+
 async def list_referrals_admin(
     session: AsyncSession,
     *,
