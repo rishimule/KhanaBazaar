@@ -1,0 +1,77 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.wrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  background: var(--color-page);
+  min-height: 60vh;
+}
+.card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-100);
+  border-radius: var(--radius-lg, 12px);
+  padding: var(--space-6);
+  box-shadow: 0 8px 24px rgba(22, 23, 28, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.icon {
+  font-size: 2rem;
+}
+.title {
+  font-size: var(--font-2xl, 1.5rem);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary, var(--jade-green-dark-1));
+}
+.body {
+  color: var(--color-neutral-700);
+  font-size: var(--font-base);
+}
+.sentNote {
+  color: var(--color-neutral-600);
+  font-size: var(--font-sm);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.label {
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-neutral-700);
+}
+.input,
+.inputLocked {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-base);
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-md);
+  background: var(--color-page);
+  color: var(--color-neutral-900);
+  min-height: 44px;
+}
+.inputLocked {
+  background: var(--color-surface-tint);
+  color: var(--color-neutral-500);
+}
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--color-neutral-700);
+}
+.errorText {
+  color: var(--color-error);
+  font-size: var(--font-sm);
+}
+.muted {
+  color: var(--color-neutral-500);
+}

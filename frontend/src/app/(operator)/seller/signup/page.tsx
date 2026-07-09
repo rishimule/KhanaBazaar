@@ -75,6 +75,9 @@ function SellerSignupPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isResubmit = searchParams.get("resubmit") === "true";
+  // Referral invite: when the wizard is entered from a referral link, carry the
+  // token through to register so the created seller is attributed to the referrer.
+  const referralInviteToken = searchParams.get("invite") || undefined;
   const { token, dbUser, logout } = useAuth();
   const emailResend = useResendCountdown();
   const phoneResend = useResendCountdown();
@@ -391,6 +394,7 @@ function SellerSignupPageInner() {
             bank_account_number: bankAccountNumber,
             bank_ifsc: bankIfsc,
             accept_policies: agreed,
+            referral_invite_token: referralInviteToken,
           }
         );
         localStorage.setItem("kb_token", data.access_token);
