@@ -359,6 +359,26 @@ async def seller_register(
     await session.flush()
     await replace_profile_services(session, profile, valid_ids)
 
+    # Bind referral attribution when the wizard was entered via an invite link,
+    # in the SAME transaction as the seller creation. Best-effort: an invalid or
+    # mismatched token is ignored and never blocks seller signup.
+    if body.referral_invite_token and user.id is not None:
+        from app.core.security import decode_referral_invite_token
+        from app.services.referrals import bind_seller_referral
+
+        try:
+            claims = decode_referral_invite_token(body.referral_invite_token)
+        except HTTPException:
+            claims = None
+        if (
+            claims
+            and claims["target_role"] == "seller"
+            and claims.get("email") == email
+        ):
+            await bind_seller_referral(
+                session, referral_id=int(claims["referral_id"]), user_id=int(user.id)
+            )
+
     await session.commit()
     await session.refresh(user)
     await session.refresh(profile)

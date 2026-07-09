@@ -134,3 +134,50 @@ async def test_accept_expired_invite_conflict(client, session, monkeypatch):
     )
     assert res.status_code == 409
     assert res.json()["detail"]["error"] == "expired"
+
+
+# ─── Seller activation binding ───────────────────────────────────────────
+@pytest.mark.asyncio
+async def test_seller_register_binds_referral(client, session):
+    from app.core.security import create_seller_signup_token
+    from app.models.catalog import Service, ServiceTranslation
+    from app.models.referral import ReferralTargetRole
+    from tests._helpers import make_address
+
+    email = "newseller@example.com"
+    phone = "+919812345699"
+    r = _approved_referral(
+        source_role=UserRole.Seller,
+        target_role=ReferralTargetRole.seller,
+        invitee_name="New Seller",
+        invitee_email=email,
+    )
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    svc_row = Service(slug="grocery-ref", is_active=True, sort_order=0)
+    session.add(svc_row)
+    await session.flush()
+    session.add(ServiceTranslation(service_id=svc_row.id, language_code="en", name="Grocery"))
+    await session.commit()
+    await session.refresh(r)
+    rid = r.id
+    svc_id = svc_row.id
+
+    invite = create_referral_invite_token(
+        referral_id=rid, target_role="seller", email=email, phone=phone, expires_days=14
+    )
+    signup = create_seller_signup_token(email, phone)
+    body = {
+        "signup_token": signup,
+        "full_name": "New Seller",
+        "business_name": "New Store",
+        "service_ids": [svc_id],
+        "address": make_address(),
+        "referral_invite_token": invite,
+    }
+    res = await client.post("/api/v1/auth/seller/register", json=body)
+    assert res.status_code == 200, res.text
+    fresh = await session.get(Referral, rid)
+    await session.refresh(fresh)
+    assert fresh.status == ReferralStatus.active
+    assert fresh.activated_user_id is not None
