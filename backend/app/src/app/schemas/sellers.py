@@ -28,6 +28,9 @@ class SellerRegisterBody(BaseModel):
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
     accept_policies: bool = False
+    # Present when the wizard was entered from a referral invite link; binds
+    # referral attribution to the created seller. Optional + best-effort.
+    referral_invite_token: Optional[str] = None
 
 
 class SellerPhoneOtpRequestBody(BaseModel):

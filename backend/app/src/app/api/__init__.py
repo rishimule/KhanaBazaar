@@ -17,6 +17,7 @@ from app.api import (
     orders,
     platform_fees,
     policies,
+    referrals,
     search,
     seller_change_requests,
     seller_onboarding,
@@ -66,4 +67,8 @@ api_router.include_router(
 )
 api_router.include_router(
     notifications.seller_router, prefix="/sellers", tags=["sellers", "notifications"]
+)
+api_router.include_router(referrals.router, prefix="/referrals", tags=["referrals"])
+api_router.include_router(
+    referrals.admin_router, prefix="/admin", tags=["admin", "referrals"]
 )

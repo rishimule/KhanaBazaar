@@ -365,6 +365,17 @@ def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, Non
 
 
 @pytest.fixture(autouse=True)
+def _patch_referral_invite() -> Generator[None, None, None]:
+    """No-op the referral welcome-comms Celery task. In EAGER test mode its
+    .delay() runs inline → opens a DB engine on a worker thread, racing the
+    test loop (same hazard _patch_email_dispatch guards against)."""
+    from unittest.mock import patch
+
+    with patch("app.worker.send_referral_invite.delay", lambda *a, **kw: None):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def _patch_onboarding_email() -> Generator[None, None, None]:
     """No-op the seller-onboarding admin email. In EAGER test mode its
     .delay() runs inline → _resolve_email → dev-mailbox capture opens an engine

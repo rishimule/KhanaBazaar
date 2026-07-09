@@ -199,6 +199,60 @@ def decode_seller_signup_token(token: str) -> tuple[str, str]:
     return str(payload["sub"]), str(payload["phone"])
 
 
+def create_referral_invite_token(
+    *,
+    referral_id: int,
+    target_role: str,
+    email: str | None,
+    phone: str | None,
+    expires_days: int,
+) -> str:
+    """Mint an invite JWT binding a referral to the invitee's contact.
+
+    This is the passwordless equivalent of the spec's "temporary credentials":
+    it carries no secret the user must set, only a signed, expiring claim that
+    the bearer was invited to onboard as ``target_role``.
+    """
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(referral_id),
+        "target_role": target_role,
+        "email": email,
+        "phone": phone,
+        "type": "referral_invite",
+        "iat": now,
+        "exp": now + timedelta(days=expires_days),
+    }
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+
+
+def decode_referral_invite_token(token: str) -> dict[str, object]:
+    """Validate an invite token. Returns claims dict; raises 410/400 on failure."""
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail={"error": "invite_token_expired"},
+        ) from None
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "invalid_invite_token"},
+        ) from None
+    if payload.get("type") != "referral_invite":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "invalid_invite_token"},
+        )
+    return {
+        "referral_id": int(str(payload["sub"])),
+        "target_role": str(payload["target_role"]),
+        "email": payload.get("email"),
+        "phone": payload.get("phone"),
+    }
+
+
 def create_seller_phone_change_token(user_id: int, phone: str) -> str:
     """Mint a 10-minute JWT proving the seller verified control of `phone`."""
     now = datetime.now(timezone.utc)

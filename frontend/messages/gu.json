@@ -809,7 +809,9 @@
       "installAppSubtitle": "Quick access from your home screen",
       "reorderCta": "ફરી ઓર્ડર",
       "viewAll": "બધું જુઓ"
-    }
+    },
+    "navReferrals": "રેફરલ",
+    "layoutReferralsTitle": "રેફરલ"
   },
   "Favorites": {
     "title": "તમારા પ્રિય",
@@ -908,7 +910,8 @@
       "inventory": "ઇન્વેન્ટરી",
       "settings": "સેટિંગ્સ",
       "profile": "પ્રોફાઇલ",
-      "plan": "પ્લાન"
+      "plan": "પ્લાન",
+      "referrals": "રેફરલ"
     },
     "titles": {
       "dashboard": "વિક્રેતા ડેશબોર્ડ",
@@ -917,7 +920,8 @@
       "settings": "સેટિંગ્સ",
       "profile": "પ્રોફાઇલ",
       "portal": "વિક્રેતા પોર્ટલ",
-      "plan": "પ્લાન અને બિલિંગ"
+      "plan": "પ્લાન અને બિલિંગ",
+      "referrals": "રેફરલ"
     },
     "common": {
       "save": "સાચવો",
@@ -1250,7 +1254,8 @@
       "policies": "નીતિઓ",
       "onboardingRequests": "ઓનબોર્ડિંગ",
       "fees": "ફી",
-      "feeQueue": "ફી કતાર"
+      "feeQueue": "ફી કતાર",
+      "referrals": "રેફરલ"
     },
     "titles": {
       "dashboard": "એડમિન ડેશબોર્ડ",
@@ -1265,7 +1270,8 @@
       "policies": "નીતિઓ",
       "onboardingRequests": "વિક્રેતા ઓનબોર્ડિંગ વિનંતીઓ",
       "fees": "પ્લેટફોર્મ ફી",
-      "feeQueue": "ફી પુષ્ટિ કતાર"
+      "feeQueue": "ફી પુષ્ટિ કતાર",
+      "referrals": "રેફરલ"
     },
     "settings": {
       "title": "સેટિંગ્સ"
@@ -1835,5 +1841,95 @@
     "errorPhone": "માન્ય ભારતીય મોબાઇલ નંબર દાખલ કરો, ઉદાહરણ તરીકે +919812345678.",
     "errorRateLimited": "તમે તાજેતરમાં ઘણી વાર સબમિટ કર્યું છે. કૃપા કરીને પછી ફરી પ્રયાસ કરો.",
     "errorRequired": "કૃપા કરીને બધા જરૂરી ક્ષેત્રો ભરો."
+  },
+  "Referrals": {
+    "loading": "લોડ થઈ રહ્યું છે…",
+    "onboardTitle": "નવું ઉમેરો",
+    "onboardSubtitle": "નવા ગ્રાહક અથવા વિક્રેતાને જોડાવા આમંત્રિત કરો.",
+    "roleLabel": "હું ઉમેરવા માંગું છું",
+    "roleCustomer": "ગ્રાહક",
+    "roleSeller": "વિક્રેતા",
+    "nameLabel": "પૂરું નામ",
+    "namePlaceholder": "ઉદા. આશા રાવ",
+    "stateLabel": "રાજ્ય",
+    "statePlaceholder": "રાજ્ય પસંદ કરો",
+    "areaLabel": "વિસ્તાર / શહેર",
+    "areaPlaceholder": "ઉદા. કોથરૂડ, પુણે",
+    "emailLabel": "ઈમેલ",
+    "emailPlaceholder": "name@example.com",
+    "phoneLabel": "ફોન",
+    "phonePlaceholder": "+91XXXXXXXXXX",
+    "contactHelp": "ઓછામાં ઓછું એક આપો — ઈમેલ અથવા ફોન.",
+    "submit": "રેફરલ મોકલો",
+    "submitting": "મોકલી રહ્યું છે…",
+    "successMsg": "રેફરલ મોકલાયું.",
+    "errorGeneric": "કંઈક ખોટું થયું. કૃપા કરીને ફરી પ્રયાસ કરો.",
+    "errAlreadyInvited": "આ વ્યક્તિનું રેફરલ પહેલેથી બાકી છે.",
+    "errAlreadyRegistered": "આ ઈમેલ અથવા ફોન પહેલેથી કોઈ ખાતા સાથે જોડાયેલ છે.",
+    "errContactRequired": "ઓછામાં ઓછું એક આપો — ઈમેલ અથવા ફોન.",
+    "listTitle": "મારા રેફરલ",
+    "empty": "તમે હજી સુધી કોઈને રેફર કર્યું નથી.",
+    "colInvitee": "આમંત્રિત",
+    "colContact": "સંપર્ક",
+    "colRole": "ભૂમિકા",
+    "colStatus": "સ્થિતિ",
+    "colDate": "તારીખ",
+    "role": {
+      "customer": "ગ્રાહક",
+      "seller": "વિક્રેતા",
+      "admin": "એડમિન"
+    },
+    "status": {
+      "pending_review": "સમીક્ષા બાકી",
+      "approved": "મંજૂર",
+      "active": "સક્રિય",
+      "rejected": "નકારેલ",
+      "expired": "સમાપ્ત"
+    },
+    "admin": {
+      "colInvitee": "આમંત્રિત",
+      "colContact": "સંપર્ક",
+      "colRole": "લક્ષ્ય ભૂમિકા",
+      "colSource": "સ્રોત",
+      "colLocation": "સ્થાન",
+      "colStatus": "સ્થિતિ",
+      "colCreated": "બનાવ્યું",
+      "colActions": "ક્રિયાઓ",
+      "approve": "મંજૂર કરો",
+      "reject": "નકારો",
+      "rejectTitle": "રેફરલ નકારો",
+      "rejectReasonLabel": "નકારવાનું કારણ",
+      "rejectConfirm": "રેફરલ નકારો",
+      "cancel": "રદ કરો",
+      "empty": "આ ફિલ્ટર સાથે કોઈ રેફરલ મેળ ખાતું નથી.",
+      "requireApprovalLabel": "નવા રેફરલ માટે એડમિન મંજૂરી જરૂરી કરો",
+      "requireApprovalHelp": "બંધ હોય ત્યારે, રેફરલ આપોઆપ મંજૂર થઈ તરત આમંત્રિત થાય છે.",
+      "filterStatus": "સ્થિતિ પ્રમાણે ફિલ્ટર કરો",
+      "filterRole": "ભૂમિકા પ્રમાણે ફિલ્ટર કરો",
+      "filterAll": "બધા"
+    }
+  },
+  "Invite": {
+    "loading": "લોડ થઈ રહ્યું છે…",
+    "invalidTitle": "આ આમંત્રણ હવે માન્ય નથી",
+    "invalidBody": "આમંત્રણ લિંક સમાપ્ત થઈ ગઈ છે અથવા પહેલેથી વપરાઈ ગઈ છે. જેમણે તમને રેફર કર્યા તેમને નવી લિંક મોકલવા કહો.",
+    "greeting": "તમને {brand} સાથે જોડાવા આમંત્રિત કરવામાં આવ્યા છે",
+    "intro": "{name}, ખરીદી શરૂ કરવા તમારું ખાતું સક્રિય કરો.",
+    "emailLabel": "ઈમેલ",
+    "emailPlaceholder": "name@example.com",
+    "emailRequired": "ચાલુ રાખવા તમારો ઈમેલ દાખલ કરો.",
+    "sendCode": "કોડ મોકલો",
+    "sending": "મોકલી રહ્યું છે…",
+    "codeSent": "અમે {email} પર 6-અંકનો કોડ મોકલ્યો છે.",
+    "codeLabel": "ચકાસણી કોડ",
+    "nameLabel": "તમારું નામ",
+    "agree": "હું નિયમો અને ગોપનીયતા સાથે સંમત છું",
+    "activate": "ખાતું સક્રિય કરો",
+    "activating": "સક્રિય કરી રહ્યું છે…",
+    "invalidCode": "કોડ ખોટો છે. કૃપા કરીને ફરી પ્રયાસ કરો.",
+    "codeExpired": "કોડ સમાપ્ત થઈ ગયો છે. નવો વિનંતી કરો.",
+    "policyRequired": "ચાલુ રાખવા કૃપા કરીને નિયમો અને ગોપનીયતા સ્વીકારો.",
+    "expiredError": "આ આમંત્રણ સમાપ્ત થઈ ગયું છે.",
+    "genericError": "કંઈક ખોટું થયું. કૃપા કરીને ફરી પ્રયાસ કરો."
   }
 }

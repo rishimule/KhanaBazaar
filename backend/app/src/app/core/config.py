@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     JWT_EXPIRES_HOURS: int = 24
 
+    # Referrals
+    REFERRAL_INVITE_EXPIRY_DAYS: int = 14
+    REFERRAL_RATE_LIMIT_PER_HOUR: int = 20
+
     # OTP
     OTP_PEPPER: str
     OTP_TTL_SECONDS: int = 600
