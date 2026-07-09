@@ -37,6 +37,7 @@ class ReferralCreate(BaseModel):
 
 class ReferralRead(BaseModel):
     id: int
+    source_user_id: int
     source_role: UserRole
     target_role: ReferralTargetRole
     invitee_name: str

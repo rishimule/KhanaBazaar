@@ -12,6 +12,7 @@ export type ReferralTargetRole = "customer" | "seller";
 
 export interface Referral {
   id: number;
+  source_user_id: number;
   source_role: "customer" | "seller" | "admin";
   target_role: ReferralTargetRole;
   invitee_name: string;
