@@ -200,3 +200,69 @@ async def issue_invite_and_dispatch(session: AsyncSession, *, referral: Referral
 
     dispatch_referral_invite(referral.id, token)
     return token
+
+
+async def list_referrals_admin(
+    session: AsyncSession,
+    *,
+    status: Optional[ReferralStatus],
+    target_role: Optional[ReferralTargetRole],
+    page: int,
+    page_size: int,
+) -> tuple[list[Referral], int]:
+    from sqlalchemy import func
+
+    base = select(Referral)
+    if status is not None:
+        base = base.where(Referral.status == status)
+    if target_role is not None:
+        base = base.where(Referral.target_role == target_role)
+    total = (
+        await session.exec(select(func.count()).select_from(base.subquery()))
+    ).one()
+    rows = (
+        await session.exec(
+            base.order_by(Referral.created_at.desc())  # type: ignore[attr-defined]
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+    return list(rows), int(total)
+
+
+async def approve_referral(
+    session: AsyncSession, *, referral_id: int, admin_user_id: int
+) -> Referral:
+    """Approve a pending referral: issue the invite + notify the referrer.
+    Raises LookupError (not found) / ValueError('not_pending')."""
+    row = await session.get(Referral, referral_id)
+    if row is None:
+        raise LookupError("not_found")
+    if row.status != ReferralStatus.pending_review:
+        raise ValueError("not_pending")
+    row.status = ReferralStatus.approved
+    row.reviewed_by_admin_id = admin_user_id
+    row.reviewed_at = datetime.now(timezone.utc)
+    session.add(row)
+    await session.flush()
+    await issue_invite_and_dispatch(session, referral=row)
+    await record_referral_notification(session, referral=row, event="approved")
+    return row
+
+
+async def reject_referral(
+    session: AsyncSession, *, referral_id: int, admin_user_id: int, reason: str
+) -> Referral:
+    row = await session.get(Referral, referral_id)
+    if row is None:
+        raise LookupError("not_found")
+    if row.status != ReferralStatus.pending_review:
+        raise ValueError("not_pending")
+    row.status = ReferralStatus.rejected
+    row.rejection_reason = reason
+    row.reviewed_by_admin_id = admin_user_id
+    row.reviewed_at = datetime.now(timezone.utc)
+    session.add(row)
+    await session.flush()
+    await record_referral_notification(session, referral=row, event="rejected")
+    return row

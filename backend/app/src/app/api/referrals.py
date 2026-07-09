@@ -5,12 +5,18 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.security import get_current_user
+from app.core.security import get_current_admin, get_current_user
 from app.db.session import get_db_session
 from app.models.base import User
-from app.models.referral import Referral, ReferralStatus
+from app.models.referral import Referral, ReferralStatus, ReferralTargetRole
 from app.schemas.pagination import PagedResponse
-from app.schemas.referrals import ReferralCreate, ReferralRead
+from app.schemas.referrals import (
+    AdminReferralReject,
+    ReferralCreate,
+    ReferralRead,
+    ReferralSettingsPatch,
+    ReferralSettingsRead,
+)
 from app.services import referrals as svc
 
 router = APIRouter()
@@ -64,4 +70,105 @@ async def get_my_referral(
     row = await session.get(Referral, referral_id)
     if row is None or row.source_user_id != int(current_user.id):  # type: ignore[arg-type]
         raise HTTPException(status_code=404, detail={"error": "not_found"})
+    return ReferralRead.model_validate(row)
+
+
+# ─── Admin queue (mounted under /admin) ──────────────────────────────────
+# `/referrals/settings` is declared before `/referrals/{referral_id}` so
+# "settings" is never captured as a numeric id.
+@admin_router.get("/referrals", response_model=PagedResponse[ReferralRead])
+async def admin_list_referrals(
+    status_filter: Optional[ReferralStatus] = Query(default=None, alias="status"),
+    target_role: Optional[ReferralTargetRole] = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> PagedResponse[ReferralRead]:
+    rows, total = await svc.list_referrals_admin(
+        session, status=status_filter, target_role=target_role, page=page, page_size=page_size
+    )
+    return PagedResponse(
+        items=[ReferralRead.model_validate(r) for r in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@admin_router.get("/referrals/settings", response_model=ReferralSettingsRead)
+async def admin_get_referral_settings(
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReferralSettingsRead:
+    row = await svc.get_or_create_referral_settings(session)
+    await session.commit()
+    return ReferralSettingsRead.model_validate(row)
+
+
+@admin_router.patch("/referrals/settings", response_model=ReferralSettingsRead)
+async def admin_patch_referral_settings(
+    body: ReferralSettingsPatch,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReferralSettingsRead:
+    row = await svc.get_or_create_referral_settings(session)
+    row.require_admin_approval = body.require_admin_approval
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return ReferralSettingsRead.model_validate(row)
+
+
+@admin_router.get("/referrals/{referral_id}", response_model=ReferralRead)
+async def admin_get_referral(
+    referral_id: int,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReferralRead:
+    row = await session.get(Referral, referral_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    return ReferralRead.model_validate(row)
+
+
+@admin_router.post("/referrals/{referral_id}/approve", response_model=ReferralRead)
+async def admin_approve_referral(
+    referral_id: int,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReferralRead:
+    try:
+        row = await svc.approve_referral(
+            session, referral_id=referral_id, admin_user_id=int(admin.id)  # type: ignore[arg-type]
+        )
+    except LookupError:
+        raise HTTPException(status_code=404, detail={"error": "not_found"}) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail={"error": str(exc)}) from exc
+    await session.commit()
+    await session.refresh(row)
+    return ReferralRead.model_validate(row)
+
+
+@admin_router.post("/referrals/{referral_id}/reject", response_model=ReferralRead)
+async def admin_reject_referral(
+    referral_id: int,
+    body: AdminReferralReject,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReferralRead:
+    try:
+        row = await svc.reject_referral(
+            session,
+            referral_id=referral_id,
+            admin_user_id=int(admin.id),  # type: ignore[arg-type]
+            reason=body.reason,
+        )
+    except LookupError:
+        raise HTTPException(status_code=404, detail={"error": "not_found"}) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail={"error": str(exc)}) from exc
+    await session.commit()
+    await session.refresh(row)
     return ReferralRead.model_validate(row)
