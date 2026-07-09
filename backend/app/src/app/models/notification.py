@@ -16,6 +16,7 @@ class NotificationType(str, enum.Enum):
     FeeActivated = "fee_activated"
     FeeExpiring = "fee_expiring"
     FeeSuspended = "fee_suspended"
+    Referral = "referral"
 
 
 class Notification(BaseSchema, table=True):

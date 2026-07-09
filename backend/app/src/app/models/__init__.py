@@ -55,6 +55,12 @@ from .profile import (
     SellerProfileService,
     VerificationStatus,
 )
+from .referral import (
+    Referral,
+    ReferralSettings,
+    ReferralStatus,
+    ReferralTargetRole,
+)
 from .search_log import SearchQueryLog
 from .seller_onboarding_request import (
     OnboardingRequestStatus,
@@ -113,6 +119,10 @@ __all__ = [
     "PolicyDocument",
     "PolicyKind",
     "PushSubscription",
+    "Referral",
+    "ReferralSettings",
+    "ReferralStatus",
+    "ReferralTargetRole",
     "Review",
     "SearchQueryLog",
     "SellerOnboardingRequest",
