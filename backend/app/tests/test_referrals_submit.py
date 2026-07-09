@@ -107,6 +107,27 @@ async def test_submit_duplicate_returns_409(client, customer_auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_submit_rate_limited(client, customer_auth_headers, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "REFERRAL_RATE_LIMIT_PER_HOUR", 2, raising=False)
+    for i in range(2):
+        r = await client.post(
+            "/api/v1/referrals",
+            json={**VALID, "invitee_email": f"r{i}@example.com"},
+            headers=customer_auth_headers,
+        )
+        assert r.status_code == 201, r.text
+    blocked = await client.post(
+        "/api/v1/referrals",
+        json={**VALID, "invitee_email": "r3@example.com"},
+        headers=customer_auth_headers,
+    )
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"]["error"] == "rate_limited"
+
+
+@pytest.mark.asyncio
 async def test_get_other_users_referral_404(client, customer_auth_headers, session):
     from app.models.referral import Referral, ReferralTargetRole
 

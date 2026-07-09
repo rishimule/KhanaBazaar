@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     # Referrals
     REFERRAL_INVITE_EXPIRY_DAYS: int = 14
+    REFERRAL_RATE_LIMIT_PER_HOUR: int = 20
 
     # OTP
     OTP_PEPPER: str

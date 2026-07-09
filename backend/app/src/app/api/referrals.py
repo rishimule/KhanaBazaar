@@ -7,6 +7,7 @@ import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.core.otp import (
     CodeExpired,
     InvalidCode,
@@ -15,6 +16,7 @@ from app.core.otp import (
     normalize_email,
     verify_otp,
 )
+from app.core.rate_limit import incr_with_ttl
 from app.core.redis import get_redis
 from app.core.security import (
     create_access_token,
@@ -50,7 +52,12 @@ async def submit_referral(
     body: ReferralCreate,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
+    redis: aioredis.Redis = Depends(get_redis),
 ) -> ReferralRead:
+    # Per-referrer hourly rate limit to curb spam (spec §5.1).
+    count = await incr_with_ttl(redis, f"rl:referral:{current_user.id}", ttl=3600)
+    if count > settings.REFERRAL_RATE_LIMIT_PER_HOUR:
+        raise HTTPException(status_code=429, detail={"error": "rate_limited"})
     try:
         row = await svc.create_referral(
             session,
@@ -60,11 +67,17 @@ async def submit_referral(
         )
     except svc.DuplicateContact as exc:
         raise HTTPException(status_code=409, detail={"error": exc.reason}) from exc
-    # If approval is disabled the row is already `approved` — issue the invite now.
+    # If approval is disabled the row is already `approved`; mint the invite now
+    # but dispatch comms only AFTER commit (so the worker never reads early).
+    invite_token: Optional[str] = None
     if row.status == ReferralStatus.approved:
-        await svc.issue_invite_and_dispatch(session, referral=row)
+        invite_token = await svc.issue_invite(session, referral=row)
     await session.commit()
     await session.refresh(row)
+    if invite_token is not None:
+        from app.worker import dispatch_referral_invite
+
+        dispatch_referral_invite(int(row.id), invite_token)  # type: ignore[arg-type]
     return ReferralRead.model_validate(row)
 
 
@@ -137,7 +150,7 @@ async def accept_customer_referral(
         raise HTTPException(status_code=400, detail={"error": "policy_acceptance_required"})
 
     try:
-        user, _row = await svc.activate_customer_referral(
+        user, activated = await svc.activate_customer_referral(
             session,
             referral_id=int(claims["referral_id"]),  # type: ignore[call-overload]
             invitee_email=email,
@@ -153,12 +166,17 @@ async def accept_customer_referral(
     await consume_otp_key(email, redis)
     await session.commit()
     await session.refresh(user)
+    await session.refresh(activated)
+    # Build the response BEFORE the best-effort notify (notify commits its own
+    # write, expiring session objects like `user`).
     access = create_access_token(user)
-    return {
+    response = {
         "access_token": access,
         "token_type": "bearer",
         "user": {"id": user.id, "email": user.email, "role": user.role.value},
     }
+    await svc.notify_referral_event(session, referral=activated, event="activated")
+    return response
 
 
 @router.get("/{referral_id}", response_model=ReferralRead)
@@ -239,7 +257,7 @@ async def admin_approve_referral(
     session: AsyncSession = Depends(get_db_session),
 ) -> ReferralRead:
     try:
-        row = await svc.approve_referral(
+        row, invite_token = await svc.approve_referral(
             session, referral_id=referral_id, admin_user_id=int(admin.id)  # type: ignore[arg-type]
         )
     except LookupError:
@@ -248,7 +266,15 @@ async def admin_approve_referral(
         raise HTTPException(status_code=409, detail={"error": str(exc)}) from exc
     await session.commit()
     await session.refresh(row)
-    return ReferralRead.model_validate(row)
+    # Post-commit side effects (welcome comms + referrer notification), both
+    # best-effort. Build the response BEFORE notify — notify commits its own
+    # write, which expires session objects.
+    from app.worker import dispatch_referral_invite
+
+    dispatch_referral_invite(int(row.id), invite_token)  # type: ignore[arg-type]
+    result = ReferralRead.model_validate(row)
+    await svc.notify_referral_event(session, referral=row, event="approved")
+    return result
 
 
 @admin_router.post("/referrals/{referral_id}/reject", response_model=ReferralRead)
@@ -271,4 +297,6 @@ async def admin_reject_referral(
         raise HTTPException(status_code=409, detail={"error": str(exc)}) from exc
     await session.commit()
     await session.refresh(row)
-    return ReferralRead.model_validate(row)
+    result = ReferralRead.model_validate(row)
+    await svc.notify_referral_event(session, referral=row, event="rejected")
+    return result

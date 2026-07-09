@@ -30,7 +30,7 @@ async def test_issue_invite_sets_expiry_and_token(session):
     r = _approved_referral()
     session.add(r)
     await session.flush()
-    token = await svc.issue_invite_and_dispatch(session, referral=r)
+    token = await svc.issue_invite(session, referral=r)
     await session.commit()
     await session.refresh(r)
     assert r.invite_expires_at is not None

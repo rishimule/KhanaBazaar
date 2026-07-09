@@ -361,7 +361,9 @@ async def seller_register(
 
     # Bind referral attribution when the wizard was entered via an invite link,
     # in the SAME transaction as the seller creation. Best-effort: an invalid or
-    # mismatched token is ignored and never blocks seller signup.
+    # mismatched token is ignored and never blocks seller signup. Match on the
+    # token's email OR phone so phone-only seller invites are still credited.
+    bound_referral = None
     if body.referral_invite_token and user.id is not None:
         from app.core.security import decode_referral_invite_token
         from app.services.referrals import bind_seller_referral
@@ -373,9 +375,9 @@ async def seller_register(
         if (
             claims
             and claims["target_role"] == "seller"
-            and claims.get("email") == email
+            and (claims.get("email") == email or claims.get("phone") == phone)
         ):
-            await bind_seller_referral(
+            bound_referral = await bind_seller_referral(
                 session,
                 referral_id=int(str(claims["referral_id"])),
                 user_id=int(user.id),
@@ -394,11 +396,21 @@ async def seller_register(
 
     token = create_access_token(user)
     full_name = compose_full_name(first_name, last_name)
-    return {
+    response = {
         "access_token": token,
         "token_type": "bearer",
         "user": _user_payload(user, full_name),
     }
+
+    # Post-commit, best-effort referrer notification, LAST (it commits its own
+    # write, which expires session objects). Never blocks/undoes signup.
+    if bound_referral is not None:
+        from app.services.referrals import notify_referral_event
+
+        await session.refresh(bound_referral)
+        await notify_referral_event(session, referral=bound_referral, event="activated")
+
+    return response
 
 
 @router.post("/seller/phone/otp/request")

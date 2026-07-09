@@ -180,26 +180,38 @@ async def record_referral_notification(
     await session.flush()
 
 
-async def issue_invite_and_dispatch(session: AsyncSession, *, referral: Referral) -> str:
-    """Set the invite expiry, mint the invite token, and enqueue welcome comms.
-    Caller commits. Returns the token (useful for tests)."""
+async def issue_invite(session: AsyncSession, *, referral: Referral) -> str:
+    """Set the invite expiry and mint the invite token. Returns the token.
+
+    Does NOT enqueue comms — the caller commits first, then dispatches
+    post-commit (via ``worker.dispatch_referral_invite``) so the Celery worker
+    can never read the referral row before it is visible."""
     referral.invite_expires_at = datetime.now(timezone.utc) + timedelta(
         days=settings.REFERRAL_INVITE_EXPIRY_DAYS
     )
     session.add(referral)
     await session.flush()
     assert referral.id is not None
-    token = create_referral_invite_token(
+    return create_referral_invite_token(
         referral_id=referral.id,
         target_role=referral.target_role.value,
         email=referral.invitee_email,
         phone=referral.invitee_phone,
         expires_days=settings.REFERRAL_INVITE_EXPIRY_DAYS,
     )
-    from app.worker import dispatch_referral_invite
 
-    dispatch_referral_invite(referral.id, token)
-    return token
+
+async def notify_referral_event(
+    session: AsyncSession, *, referral: Referral, event: str
+) -> None:
+    """Post-commit, best-effort referrer notification in its OWN transaction.
+    Never raises: a notification failure must neither block nor roll back the
+    referral mutation (spec §8). Mirrors the order-notification pattern."""
+    try:
+        await record_referral_notification(session, referral=referral, event=event)
+        await session.commit()
+    except Exception:  # pragma: no cover - defensive; notification is best-effort
+        await session.rollback()
 
 
 async def activate_customer_referral(
@@ -248,24 +260,24 @@ async def activate_customer_referral(
     row.activated_at = datetime.now(timezone.utc)
     session.add(row)
     await session.flush()
-    await record_referral_notification(session, referral=row, event="activated")
     return user, row
 
 
 async def bind_seller_referral(
     session: AsyncSession, *, referral_id: int, user_id: int
-) -> None:
+) -> Optional[Referral]:
     """Bind a seller-target referral to the seller account created via the
-    signup wizard. Best-effort — never blocks seller signup."""
+    signup wizard. Best-effort — never blocks seller signup. Returns the bound
+    row (for a post-commit referrer notification) or None if not bindable."""
     row = await session.get(Referral, referral_id)
     if row is None or row.status != ReferralStatus.approved:
-        return
+        return None
     row.status = ReferralStatus.active
     row.activated_user_id = user_id
     row.activated_at = datetime.now(timezone.utc)
     session.add(row)
     await session.flush()
-    await record_referral_notification(session, referral=row, event="activated")
+    return row
 
 
 async def run_referral_expiry_sweep(session: AsyncSession) -> int:
@@ -317,9 +329,10 @@ async def list_referrals_admin(
 
 async def approve_referral(
     session: AsyncSession, *, referral_id: int, admin_user_id: int
-) -> Referral:
-    """Approve a pending referral: issue the invite + notify the referrer.
-    Raises LookupError (not found) / ValueError('not_pending')."""
+) -> tuple[Referral, str]:
+    """Approve a pending referral: set state + issue the invite token. Returns
+    (row, invite_token). The caller commits, then dispatches comms + notifies
+    the referrer POST-commit. Raises LookupError / ValueError('not_pending')."""
     row = await session.get(Referral, referral_id)
     if row is None:
         raise LookupError("not_found")
@@ -330,14 +343,15 @@ async def approve_referral(
     row.reviewed_at = datetime.now(timezone.utc)
     session.add(row)
     await session.flush()
-    await issue_invite_and_dispatch(session, referral=row)
-    await record_referral_notification(session, referral=row, event="approved")
-    return row
+    token = await issue_invite(session, referral=row)
+    return row, token
 
 
 async def reject_referral(
     session: AsyncSession, *, referral_id: int, admin_user_id: int, reason: str
 ) -> Referral:
+    """Set state to rejected. Caller commits, then notifies the referrer
+    POST-commit."""
     row = await session.get(Referral, referral_id)
     if row is None:
         raise LookupError("not_found")
@@ -349,5 +363,4 @@ async def reject_referral(
     row.reviewed_at = datetime.now(timezone.utc)
     session.add(row)
     await session.flush()
-    await record_referral_notification(session, referral=row, event="rejected")
     return row
