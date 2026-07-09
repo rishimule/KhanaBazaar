@@ -2546,6 +2546,152 @@ async def _seed_favorites(session: AsyncSession) -> None:
     await session.commit()
 
 
+async def seed_platform_fees(session: AsyncSession) -> None:
+    """Seed platform-fee config + arrangements so the fee UI has data to show in
+    local dev: enabled subscription plans, a premium (crowned) store, a
+    pending-payment arrangement (admin queue), a trial ending soon, and a
+    suspended service. Skipped on production and a no-op if fee arrangements
+    already exist, so a repeat seed never duplicates rows or accidentally
+    activates fees on real data."""
+    from datetime import date, datetime, timedelta, timezone
+
+    from app.core.config import settings as app_settings
+    from app.models.platform_fee import (
+        ArrangementStatus,
+        FeeArrangement,
+        FeeModel,
+        FeePayment,
+        FeePaymentKind,
+        FeePaymentStatus,
+        PlatformFeeSettings,
+        ServiceFeeConfig,
+        ServiceSubscriptionPlan,
+    )
+    from app.services.fee_lifecycle import sync_store_arrangements
+
+    if app_settings.ENVIRONMENT == "production":
+        return
+    already = int(
+        (await session.exec(select(func.count()).select_from(FeeArrangement))).one()
+    )
+    if already > 0:
+        return
+
+    today = date.today()
+    now = datetime.now(timezone.utc)
+    PLAN_PRICES = {3: 1499.0, 6: 2699.0, 12: 4999.0}
+
+    # 1) Global settings — the offline payment details sellers pay to.
+    settings_row = (await session.exec(select(PlatformFeeSettings))).first()
+    if settings_row is None:
+        settings_row = PlatformFeeSettings()
+        session.add(settings_row)
+    settings_row.bank_account_name = "Sarvaka Retail Pvt Ltd"
+    settings_row.bank_account_number = "50100123456789"
+    settings_row.bank_ifsc = "HDFC0001234"
+    settings_row.upi_id = "sarvaka@hdfcbank"
+    settings_row.qr_image_url = (
+        "https://api.qrserver.com/v1/create-qr-code/"
+        "?size=220x220&data=upi://pay?pa=sarvaka@hdfcbank"
+    )
+    settings_row.gstin = "27ABCDE1234F1Z5"
+
+    # 2) Enable subscription + plans on up to two services (primary = grocery).
+    services = (await session.exec(select(Service).order_by(Service.id))).all()
+    if not services:
+        await session.commit()
+        return
+    primary = next((s for s in services if "grocer" in s.slug.lower()), services[0])
+    target_ids: list[int] = []
+    if primary.id is not None:
+        target_ids.append(primary.id)
+    for s in services:
+        if len(target_ids) >= 2:
+            break
+        if s.id is not None and s.id not in target_ids:
+            target_ids.append(s.id)
+
+    for svc in services:
+        if svc.id is None:
+            continue
+        cfg = (
+            await session.exec(
+                select(ServiceFeeConfig).where(ServiceFeeConfig.service_id == svc.id)
+            )
+        ).first()
+        if cfg is None:
+            cfg = ServiceFeeConfig(service_id=svc.id)
+            session.add(cfg)
+        cfg.freebie_enabled = True
+        cfg.freebie_default_days = 30
+        cfg.subscription_enabled = svc.id in target_ids
+        if svc.id in target_ids:
+            for dur, price in PLAN_PRICES.items():
+                session.add(
+                    ServiceSubscriptionPlan(
+                        service_id=svc.id,
+                        duration_months=dur,
+                        price=price,
+                        is_active=True,
+                    )
+                )
+    await session.flush()
+
+    # 3) Enroll every approved store into Freebie trials (the prod-parity path).
+    profiles = (
+        await session.exec(
+            select(SellerProfile).where(
+                SellerProfile.verification_status == VerificationStatus.Approved
+            )
+        )
+    ).all()
+    for prof in profiles:
+        if prof.id is not None:
+            await sync_store_arrangements(session, prof.id, today=today)
+    await session.flush()
+
+    # 4) Override a handful of primary-service arrangements to exercise every UI.
+    arrs = (
+        await session.exec(
+            select(FeeArrangement)
+            .where(FeeArrangement.service_id == primary.id)
+            .order_by(FeeArrangement.id)
+        )
+    ).all()
+    if len(arrs) >= 1:  # premium: active subscription → crown + reports ungated
+        a = arrs[0]
+        a.model = FeeModel.Subscription
+        a.status = ArrangementStatus.Active
+        a.valid_until = today + timedelta(days=150)
+        a.subscription_duration_months = 6
+        a.price_snapshot = PLAN_PRICES[6]
+    if len(arrs) >= 2:  # pending payment → admin queue + seller "under review"
+        a = arrs[1]
+        a.pending_since = now
+        a.queued_model = FeeModel.Subscription
+        a.queued_duration_months = 3
+        session.add(
+            FeePayment(
+                arrangement_id=a.id,
+                kind=FeePaymentKind.SubscriptionFee,
+                amount=PLAN_PRICES[3],
+                status=FeePaymentStatus.Pending,
+                seller_note="Paid via UPI, ref 456789012",
+            )
+        )
+    if len(arrs) >= 3:  # trial ending soon → seller validity banner
+        arrs[2].valid_until = today + timedelta(days=6)
+    if len(arrs) >= 4:  # suspended → storefront/search hiding + seller banner
+        a = arrs[3]
+        a.model = FeeModel.Subscription
+        a.status = ArrangementStatus.Suspended
+        a.valid_until = today - timedelta(days=5)
+        a.suspended_at = now
+        a.suspended_reason = "Subscription payment overdue"
+
+    await session.commit()
+
+
 async def seed_demo_data(session: AsyncSession) -> None:
     await _ensure_languages(session)
 
@@ -2627,6 +2773,8 @@ async def seed_demo_data(session: AsyncSession) -> None:
     await _seed_favorites(session)
 
     await verify_expected_counts(session)
+
+    await seed_platform_fees(session)
 
 
 _COUNT_MODELS = {
