@@ -6,12 +6,16 @@ The referral row is its own audit record; there is no separate audit table
 (admin_action_log is seller-scoped and does not fit customer-target referrals).
 Callers own the transaction — service functions flush, never commit.
 """
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
+from app.core.security import create_referral_invite_token
 from app.models.base import User, UserRole
+from app.models.notification import Notification, NotificationType
 from app.models.profile import AdminProfile, CustomerProfile, SellerProfile
 from app.models.referral import (
     Referral,
@@ -119,3 +123,80 @@ async def list_referrals_for_user(
         stmt = stmt.where(Referral.status == status)
     stmt = stmt.order_by(Referral.created_at.desc())  # type: ignore[attr-defined]
     return list((await session.exec(stmt)).all())
+
+
+async def _resolve_referrer_profile_id(
+    session: AsyncSession, *, user_id: int, role: UserRole
+) -> tuple[Optional[int], Optional[int]]:
+    """Return (customer_profile_id, seller_profile_id) for the referrer — at
+    most one non-None. Admin referrers get no in-app notification."""
+    if role == UserRole.Customer:
+        pid = (
+            await session.exec(
+                select(CustomerProfile.id).where(CustomerProfile.user_id == user_id)
+            )
+        ).first()
+        return (pid, None)
+    if role == UserRole.Seller:
+        pid = (
+            await session.exec(
+                select(SellerProfile.id).where(SellerProfile.user_id == user_id)
+            )
+        ).first()
+        return (None, pid)
+    return (None, None)
+
+
+_NOTIF_COPY = {
+    "approved": ("Referral approved", "Your referral for {name} was approved and invited."),
+    "rejected": ("Referral rejected", "Your referral for {name} was not approved."),
+    "activated": ("Referral joined", "{name} joined via your referral."),
+}
+
+
+async def record_referral_notification(
+    session: AsyncSession, *, referral: Referral, event: str
+) -> None:
+    """Insert (flush, not commit) an in-app notification for the referrer.
+    Best-effort: no-op for admin referrers or referrers without a profile."""
+    copy = _NOTIF_COPY.get(event)
+    if copy is None:
+        return
+    cust_id, seller_id = await _resolve_referrer_profile_id(
+        session, user_id=referral.source_user_id, role=referral.source_role
+    )
+    if cust_id is None and seller_id is None:
+        return
+    title, body_tmpl = copy
+    notif = Notification(
+        customer_profile_id=cust_id,
+        seller_profile_id=seller_id,
+        type=NotificationType.Referral,
+        title=title,
+        body=body_tmpl.format(name=referral.invitee_name),
+        status_value=event,
+    )
+    session.add(notif)
+    await session.flush()
+
+
+async def issue_invite_and_dispatch(session: AsyncSession, *, referral: Referral) -> str:
+    """Set the invite expiry, mint the invite token, and enqueue welcome comms.
+    Caller commits. Returns the token (useful for tests)."""
+    referral.invite_expires_at = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFERRAL_INVITE_EXPIRY_DAYS
+    )
+    session.add(referral)
+    await session.flush()
+    assert referral.id is not None
+    token = create_referral_invite_token(
+        referral_id=referral.id,
+        target_role=referral.target_role.value,
+        email=referral.invitee_email,
+        phone=referral.invitee_phone,
+        expires_days=settings.REFERRAL_INVITE_EXPIRY_DAYS,
+    )
+    from app.worker import dispatch_referral_invite
+
+    dispatch_referral_invite(referral.id, token)
+    return token

@@ -1537,6 +1537,71 @@ def send_seller_fee_email_async(
         ex.submit(lambda: asyncio.run(_run())).result()
 
 
+def _referral_activation_url(token: str, target_role: str) -> str:
+    """Absolute activation link carried in the invite comms. Seller invites
+    open the seller-signup wizard (non-localized); customer invites open the
+    localized invite-accept landing (default `en`)."""
+    base = settings.EMAIL_FRONTEND_BASE_URL.rstrip("/")
+    if target_role == "seller":
+        return f"{base}/seller/signup?invite={token}"
+    return f"{base}/en/invite?token={token}"
+
+
+@celery_app.task(name="referrals.send_invite")  # type: ignore[untyped-decorator]
+def send_referral_invite(referral_id: int, token: str) -> None:
+    """Best-effort welcome comms for an approved referral. Email when an email
+    was captured; SMS when a phone was captured (≥1 is guaranteed). WhatsApp is
+    deferred to go-live (template + ContentSid), consistent with other channels."""
+    import asyncio
+    import concurrent.futures
+
+    from app.core.sms import get_sms_sender
+    from app.db.session import async_session_factory
+    from app.models.referral import Referral
+
+    async def _run() -> None:
+        async with async_session_factory() as session:
+            row = await session.get(Referral, referral_id)
+            if row is None:
+                return
+            name = row.invitee_name
+            email = row.invitee_email
+            phone = row.invitee_phone
+            target_role = row.target_role.value
+        url = _referral_activation_url(token, target_role)
+        brand = settings.COMPANY_NAME
+        subject = f"You're invited to join {brand}"
+        body = (
+            f"Hi {name},\n\nYou've been invited to join {brand}. "
+            f"Activate your account here:\n{url}\n\n"
+            f"This link expires in {settings.REFERRAL_INVITE_EXPIRY_DAYS} days."
+        )
+        if email:
+            try:
+                _resolve_email(email, subject, body, reply_to=settings.EMAIL_REPLY_TO)
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "referral invite email failed id=%s", referral_id
+                )
+        if phone:
+            try:
+                await get_sms_sender().send(phone, f"Join {brand}: {url}")
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "referral invite SMS failed id=%s", referral_id
+                )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        ex.submit(lambda: asyncio.run(_run())).result()
+
+
+def dispatch_referral_invite(referral_id: int, token: str) -> None:
+    """Broker-safe enqueue of the welcome comms; never blocks the approval path."""
+    from app.services.order_emails import _safe_delay
+
+    _safe_delay(send_referral_invite, referral_id, token)
+
+
 @celery_app.task(name="fees.run_daily_sweep")  # type: ignore[untyped-decorator]
 def run_daily_fee_sweep() -> dict[str, int]:
     """Daily: expire freebie trials (Trial→Grace→Suspended, holding when no paid
