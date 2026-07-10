@@ -76,8 +76,9 @@ async def _seed(session, *, credit_limit=2000.0, outstanding=0.0,
                                   credit_limit=credit_limit, outstanding_balance=outstanding,
                                   status=status, granted_by_user_id=su.id))
     await session.commit()
-    return {"user": cu, "address_id": caddr.id, "store_id": store.id, "service_id": service_id,
-            "seller_profile_id": sprof.id, "customer_profile_id": cprof.id}
+    return {"user": cu, "seller_user": su, "address_id": caddr.id, "store_id": store.id,
+            "service_id": service_id, "seller_profile_id": sprof.id,
+            "customer_profile_id": cprof.id}
 
 
 @pytest.mark.asyncio
