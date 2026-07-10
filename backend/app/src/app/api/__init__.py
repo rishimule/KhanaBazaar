@@ -76,3 +76,4 @@ api_router.include_router(
 api_router.include_router(
     credit.admin_router, prefix="/admin", tags=["admin", "credit"]
 )
+api_router.include_router(credit.router, prefix="/credit", tags=["credit"])
