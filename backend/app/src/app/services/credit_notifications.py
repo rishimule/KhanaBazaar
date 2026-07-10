@@ -10,7 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.commerce import Order
-from app.models.credit import CreditAccount
+from app.models.credit import CreditAccount, CreditAccountStatus
 from app.models.notification import Notification, NotificationType
 from app.models.store import Store
 
@@ -136,3 +136,39 @@ async def record_and_dispatch_credit_charge_notifications(
         await session.commit()
     except Exception:
         logger.exception("credit_charge_notify_failed order_id=%s", order.id)
+
+
+async def run_credit_statements(session: AsyncSession) -> int:
+    """Monthly statement: notify seller + customer of each active account's
+    outstanding balance. Skips zero-balance accounts. Returns accounts notified."""
+    accounts = (
+        await session.exec(
+            select(CreditAccount).where(
+                CreditAccount.status == CreditAccountStatus.active,
+                CreditAccount.outstanding_balance > 0,
+            )
+        )
+    ).all()
+    count = 0
+    for acct in accounts:
+        available = round(acct.credit_limit - acct.outstanding_balance, 2)
+        await _record(
+            session,
+            seller_profile_id=acct.seller_profile_id,
+            status_value="statement",
+            title="Monthly credit statement",
+            body=f"A credit customer's outstanding balance is ₹{acct.outstanding_balance:.2f}.",
+        )
+        await _record(
+            session,
+            customer_profile_id=acct.customer_profile_id,
+            status_value="statement",
+            title="Your monthly credit statement",
+            body=(
+                f"Outstanding ₹{acct.outstanding_balance:.2f}, "
+                f"available ₹{available:.2f}. Please settle with the store."
+            ),
+        )
+        count += 1
+    await session.commit()
+    return count

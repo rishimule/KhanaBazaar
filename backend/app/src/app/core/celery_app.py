@@ -67,4 +67,8 @@ celery_app.conf.beat_schedule = {
         "task": "referrals.run_invite_expiry_sweep",
         "schedule": crontab(hour=2, minute=30),
     },
+    "credit-monthly-statements": {
+        "task": "credit.run_monthly_statements",
+        "schedule": crontab(day_of_month=1, hour=6, minute=0),
+    },
 }
