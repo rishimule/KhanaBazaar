@@ -511,3 +511,22 @@ async def get_my_credit(
         )
         for acct, store_name in rows
     ]
+
+
+@router.get("/me/credit/eligibility")
+async def get_my_credit_eligibility(
+    store_id: int,
+    total: float = 0.0,
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+):  # type: ignore[no-untyped-def]
+    """Display-only credit standing at a store for the checkout UI (non-locking)."""
+    from app.schemas.credit import CreditEligibilityRead
+    from app.services import credit as credit_svc
+
+    assert current_user.id is not None
+    profile = await _customer_profile_for_user(session, current_user.id)
+    data = await credit_svc.credit_eligibility(
+        session, customer_profile_id=profile.id, store_id=store_id, cart_total=total
+    )
+    return CreditEligibilityRead(**data)

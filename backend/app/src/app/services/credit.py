@@ -388,3 +388,38 @@ async def reverse_credit_charge(
         session, acct, CreditEntryType.reversal, amount,
         acct.outstanding_balance, order_id=order_id,
     )
+
+
+async def credit_eligibility(
+    session: AsyncSession, *, customer_profile_id: int, store_id: int, cart_total: float
+) -> dict:  # type: ignore[type-arg]
+    """Non-locking, display-only credit standing for a checkout. Never raises;
+    returns eligible=False when there's no usable credit. The authoritative
+    check is the row-locked assert_credit_eligible at checkout time."""
+    zero = {
+        "eligible": False,
+        "available": 0.0,
+        "credit_limit": 0.0,
+        "outstanding_balance": 0.0,
+    }
+    seller_id = await resolve_seller_id_for_store(session, store_id)
+    if seller_id is None:
+        return zero
+    cfg = await load_seller_credit_config(session, seller_id)
+    acct = (
+        await session.exec(
+            select(CreditAccount).where(
+                CreditAccount.seller_profile_id == seller_id,
+                CreditAccount.customer_profile_id == customer_profile_id,
+            )
+        )
+    ).first()
+    if acct is None or acct.status != CreditAccountStatus.active or not cfg.credit_enabled:
+        return zero
+    available = round(acct.credit_limit - acct.outstanding_balance, 2)
+    return {
+        "eligible": cart_total <= available,
+        "available": available,
+        "credit_limit": acct.credit_limit,
+        "outstanding_balance": acct.outstanding_balance,
+    }
