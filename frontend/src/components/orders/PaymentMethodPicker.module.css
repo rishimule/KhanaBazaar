@@ -56,3 +56,18 @@
   font-size: var(--body-sm);
   color: var(--shade-cool-base-5);
 }
+
+.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.disabled:hover {
+  border-color: var(--hairline);
+}
+
+.note {
+  margin-top: 10px;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-5);
+}
