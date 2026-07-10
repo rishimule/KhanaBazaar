@@ -66,6 +66,20 @@ async def test_admin_list_requires_admin(client):
 
 
 @pytest.mark.asyncio
+async def test_settings_get_is_readonly(client, session, admin_auth_headers):
+    from sqlmodel import select
+
+    from app.models.referral import ReferralSettings
+
+    # GET returns the default without persisting a row.
+    r = await client.get("/api/v1/admin/referrals/settings", headers=admin_auth_headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["require_admin_approval"] is True
+    rows = (await session.exec(select(ReferralSettings))).all()
+    assert len(rows) == 0  # no row written by the read
+
+
+@pytest.mark.asyncio
 async def test_settings_toggle_autoapproves(client, customer_auth_headers, admin_auth_headers):
     patch = await client.patch(
         "/api/v1/admin/referrals/settings",
