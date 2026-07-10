@@ -239,9 +239,19 @@ async def activate_customer_referral(
         session.add(row)
         await session.flush()
         raise ValueError("expired")
-    # Guard the window between approve and accept.
+    # Guard the window between approve and accept — both email AND phone, since
+    # CustomerProfile.phone is unique. Without the phone check a phone claimed
+    # after approval surfaces as a 500 IntegrityError at flush instead of a 409.
     if (await session.exec(select(User).where(User.email == invitee_email))).first():
         raise ValueError("already_registered")
+    if row.invitee_phone:
+        for model in (CustomerProfile, SellerProfile, AdminProfile):
+            if (
+                await session.exec(
+                    select(model).where(model.phone == row.invitee_phone)
+                )
+            ).first():
+                raise ValueError("already_registered")
 
     first_name, last_name = split_full_name(full_name or row.invitee_name)
     user = User(email=invitee_email, role=UserRole.Customer)
