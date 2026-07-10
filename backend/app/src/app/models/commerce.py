@@ -21,6 +21,7 @@ class OrderStatus(str, enum.Enum):
 class PaymentMethod(str, enum.Enum):
     Upi = "upi"
     Cash = "cash"
+    Credit = "credit"
 
 
 class PaymentStatus(str, enum.Enum):

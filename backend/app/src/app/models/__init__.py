@@ -30,6 +30,13 @@ from .commerce import (
     Review,
 )
 from .consent import PolicyAcceptance, PolicyDocument, PolicyKind
+from .credit import (
+    CreditAccount,
+    CreditAccountStatus,
+    CreditEntryType,
+    CreditLedgerEntry,
+    SellerCreditConfig,
+)
 from .dev_email import DevEmail
 from .dev_sms import DevSms
 from .dev_whatsapp import DevWhatsApp
@@ -86,6 +93,10 @@ __all__ = [
     "CartItem",
     "Category",
     "CategoryTranslation",
+    "CreditAccount",
+    "CreditAccountStatus",
+    "CreditEntryType",
+    "CreditLedgerEntry",
     "CustomerAddress",
     "CustomerProfile",
     "Delivery",
@@ -133,6 +144,7 @@ __all__ = [
     "SellerProfileChangeRequestEvent",
     "SellerProfileChangeStatus",
     "SellerProfileService",
+    "SellerCreditConfig",
     "Service",
     "ServiceFeeConfig",
     "ServiceSubscriptionPlan",
