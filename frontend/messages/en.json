@@ -229,7 +229,8 @@
       "selectedBtn": "Selected",
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
-    }
+    },
+    "errCreditUnavailable": "You don't have enough credit at this store."
   },
   "Login": {
     "errSendCode": "Failed to send code.",
@@ -457,7 +458,11 @@
     "upiLabel": "UPI",
     "upiHint": "Pay via UPI app",
     "cashLabel": "Cash on delivery",
-    "cashHint": "Pay when you receive"
+    "cashHint": "Pay when you receive",
+    "creditLabel": "Pay on credit",
+    "creditAvailable": "₹{amount} available at this store",
+    "creditInsufficient": "Not enough credit — ₹{amount} available",
+    "creditSettleNote": "You'll settle this with the store directly."
   },
   "Order": {
     "delivery": {
@@ -811,7 +816,9 @@
       "installAppSubtitle": "Quick access from your home screen",
       "reorderCta": "Reorder",
       "viewAll": "View all"
-    }
+    },
+    "navCredit": "Credit",
+    "layoutCreditTitle": "My Credit"
   },
   "Favorites": {
     "title": "Your favourites",
@@ -910,7 +917,8 @@
       "settings": "Settings",
       "profile": "Profile",
       "plan": "Plan",
-      "referrals": "Referrals"
+      "referrals": "Referrals",
+      "credit": "Credit"
     },
     "titles": {
       "dashboard": "Seller Dashboard",
@@ -920,7 +928,8 @@
       "profile": "Profile",
       "portal": "Seller Portal",
       "plan": "Plan & Billing",
-      "referrals": "Referrals"
+      "referrals": "Referrals",
+      "credit": "Credit customers"
     },
     "common": {
       "save": "Save",
@@ -1559,7 +1568,8 @@
         "orders": "Orders",
         "requests": "Change requests",
         "activity": "Activity",
-        "fees": "Fees / Plans"
+        "fees": "Fees / Plans",
+        "credits": "Credits"
       },
       "loadSellerError": "Failed to load seller",
       "loadingSeller": "Loading seller…",
@@ -1930,5 +1940,58 @@
     "policyRequired": "Please accept the Terms & Privacy to continue.",
     "expiredError": "This invite has expired.",
     "genericError": "Something went wrong. Please try again."
+  },
+  "Credit": {
+    "loading": "Loading…",
+    "empty": "No credit customers yet.",
+    "capBanner": "Max credit per customer: ₹{amount}",
+    "notEnabled": "Credit is not enabled for your store yet. Contact admin.",
+    "grantTitle": "Onboard a credit customer",
+    "contactLabel": "Find customer",
+    "contactPlaceholder": "Phone or email",
+    "limitLabel": "Credit limit (₹)",
+    "limitPlaceholder": "Up to ₹{amount}",
+    "grant": "Grant credit",
+    "granting": "Granting…",
+    "grantOk": "Credit granted.",
+    "errInvalidGrant": "Enter a customer and a limit greater than 0.",
+    "errGeneric": "Something went wrong. Please try again.",
+    "err_credit_not_enabled": "Credit is not enabled for your store.",
+    "err_limit_exceeds_cap": "That limit is above your allowed maximum.",
+    "err_account_exists": "This customer already has a credit account with you.",
+    "err_customer_not_found": "No customer found with that phone or email.",
+    "err_invalid_phone": "Enter a valid Indian mobile number.",
+    "err_exactly_one_contact": "Enter either a phone or an email, not both.",
+    "err_below_outstanding": "Limit cannot be below the current outstanding balance.",
+    "err_over_repayment": "Repayment cannot exceed the outstanding balance.",
+    "err_invalid_limit": "Enter a limit greater than 0.",
+    "err_invalid_amount": "Enter an amount greater than 0.",
+    "accountsTitle": "Credit accounts",
+    "colCustomer": "Customer",
+    "colLimit": "Limit",
+    "colOutstanding": "Outstanding",
+    "colAvailable": "Available",
+    "colStatus": "Status",
+    "colActions": "Actions",
+    "status_active": "Active",
+    "status_suspended": "Suspended",
+    "recordRepayment": "Record repayment",
+    "suspend": "Suspend",
+    "resume": "Resume",
+    "repayTitle": "Record repayment",
+    "repayOutstanding": "Outstanding: {amount}",
+    "amountLabel": "Amount (₹)",
+    "cancel": "Cancel",
+    "myIntro": "Stores where you can pay on credit.",
+    "myEmpty": "You do not have credit at any store yet.",
+    "adminSettingsTitle": "Credit settings",
+    "adminEnableLabel": "Enable credit for this seller",
+    "adminEnableHelp": "Lets this seller extend pay-on-credit to their customers.",
+    "adminCapLabel": "Max credit per customer (₹)",
+    "adminCapHelp": "The most this seller may grant any single customer.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved.",
+    "errInvalidCap": "Enter a valid amount."
   }
 }

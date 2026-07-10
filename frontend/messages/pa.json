@@ -229,7 +229,8 @@
       "selectedBtn": "Selected",
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
-    }
+    },
+    "errCreditUnavailable": "ਇਸ ਸਟੋਰ ਉੱਤੇ ਤੁਹਾਡੇ ਕੋਲ ਲੋੜੀਂਦਾ ਕ੍ਰੈਡਿਟ ਨਹੀਂ ਹੈ।"
   },
   "Login": {
     "errSendCode": "ਕੋਡ ਭੇਜਣ ਵਿੱਚ ਅਸਫਲ.",
@@ -457,7 +458,11 @@
     "upiLabel": "UPI",
     "upiHint": "UPI ਐਪ ਰਾਹੀਂ ਭੁਗਤਾਨ ਕਰੋ",
     "cashLabel": "ਡਿਲਿਵਰੀ 'ਤੇ ਨਕਦ",
-    "cashHint": "ਮਿਲਣ 'ਤੇ ਭੁਗਤਾਨ ਕਰੋ"
+    "cashHint": "ਮਿਲਣ 'ਤੇ ਭੁਗਤਾਨ ਕਰੋ",
+    "creditLabel": "ਕ੍ਰੈਡਿਟ ’ਤੇ ਭੁਗਤਾਨ ਕਰੋ",
+    "creditAvailable": "ਇਸ ਸਟੋਰ ਉੱਤੇ ₹{amount} ਉਪਲਬਧ",
+    "creditInsufficient": "ਲੋੜੀਂਦਾ ਕ੍ਰੈਡਿਟ ਨਹੀਂ — ₹{amount} ਉਪਲਬਧ",
+    "creditSettleNote": "ਇਹ ਰਕਮ ਤੁਸੀਂ ਸਿੱਧਾ ਸਟੋਰ ਨਾਲ ਚੁਕਾਓਗੇ।"
   },
   "Order": {
     "delivery": {
@@ -811,7 +816,9 @@
       "viewAll": "ਸਭ ਦੇਖੋ"
     },
     "navReferrals": "ਰੈਫ਼ਰਲ",
-    "layoutReferralsTitle": "ਰੈਫ਼ਰਲ"
+    "layoutReferralsTitle": "ਰੈਫ਼ਰਲ",
+    "navCredit": "ਕ੍ਰੈਡਿਟ",
+    "layoutCreditTitle": "ਮੇਰਾ ਕ੍ਰੈਡਿਟ"
   },
   "Favorites": {
     "title": "ਤੁਹਾਡੇ ਪਸੰਦੀਦਾ",
@@ -911,7 +918,8 @@
       "settings": "ਸੈਟਿੰਗਾਂ",
       "profile": "ਪ੍ਰੋਫਾਈਲ",
       "plan": "ਪਲਾਨ",
-      "referrals": "ਰੈਫ਼ਰਲ"
+      "referrals": "ਰੈਫ਼ਰਲ",
+      "credit": "ਕ੍ਰੈਡਿਟ"
     },
     "titles": {
       "dashboard": "ਵਿਕਰੇਤਾ ਡੈਸ਼ਬੋਰਡ",
@@ -921,7 +929,8 @@
       "profile": "ਪ੍ਰੋਫਾਈਲ",
       "portal": "ਵਿਕਰੇਤਾ ਪੋਰਟਲ",
       "plan": "ਪਲਾਨ ਅਤੇ ਬਿਲਿੰਗ",
-      "referrals": "ਰੈਫ਼ਰਲ"
+      "referrals": "ਰੈਫ਼ਰਲ",
+      "credit": "ਕ੍ਰੈਡਿਟ ਗਾਹਕ"
     },
     "common": {
       "save": "ਸੰਭਾਲੋ",
@@ -1560,7 +1569,8 @@
         "orders": "ਆਰਡਰ",
         "requests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
         "activity": "ਗਤੀਵਿਧੀ",
-        "fees": "ਫ਼ੀਸ / ਪਲਾਨ"
+        "fees": "ਫ਼ੀਸ / ਪਲਾਨ",
+        "credits": "ਕ੍ਰੈਡਿਟ"
       },
       "loadSellerError": "ਵਿਕਰੇਤਾ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫਲ",
       "loadingSeller": "ਵਿਕਰੇਤਾ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
@@ -1931,5 +1941,58 @@
     "policyRequired": "ਜਾਰੀ ਰੱਖਣ ਲਈ ਕਿਰਪਾ ਕਰਕੇ ਨਿਯਮ ਅਤੇ ਗੋਪਨੀਯਤਾ ਸਵੀਕਾਰ ਕਰੋ।",
     "expiredError": "ਇਸ ਸੱਦੇ ਦੀ ਮਿਆਦ ਪੁੱਗ ਗਈ ਹੈ।",
     "genericError": "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+  },
+  "Credit": {
+    "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+    "empty": "ਹਾਲੇ ਤੱਕ ਕੋਈ ਕ੍ਰੈਡਿਟ ਗਾਹਕ ਨਹੀਂ।",
+    "capBanner": "ਪ੍ਰਤੀ ਗਾਹਕ ਵੱਧ ਤੋਂ ਵੱਧ ਕ੍ਰੈਡਿਟ: ₹{amount}",
+    "notEnabled": "ਤੁਹਾਡੇ ਸਟੋਰ ਲਈ ਕ੍ਰੈਡਿਟ ਹਾਲੇ ਸਮਰੱਥ ਨਹੀਂ ਹੈ। ਐਡਮਿਨ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
+    "grantTitle": "ਕ੍ਰੈਡਿਟ ਗਾਹਕ ਸ਼ਾਮਲ ਕਰੋ",
+    "contactLabel": "ਗਾਹਕ ਲੱਭੋ",
+    "contactPlaceholder": "ਫ਼ੋਨ ਜਾਂ ਈਮੇਲ",
+    "limitLabel": "ਕ੍ਰੈਡਿਟ ਸੀਮਾ (₹)",
+    "limitPlaceholder": "ਵੱਧ ਤੋਂ ਵੱਧ ₹{amount}",
+    "grant": "ਕ੍ਰੈਡਿਟ ਦਿਓ",
+    "granting": "ਦਿੱਤਾ ਜਾ ਰਿਹਾ ਹੈ…",
+    "grantOk": "ਕ੍ਰੈਡਿਟ ਦਿੱਤਾ ਗਿਆ।",
+    "errInvalidGrant": "ਗਾਹਕ ਅਤੇ 0 ਤੋਂ ਵੱਧ ਸੀਮਾ ਦਰਜ ਕਰੋ।",
+    "errGeneric": "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "err_credit_not_enabled": "ਤੁਹਾਡੇ ਸਟੋਰ ਲਈ ਕ੍ਰੈਡਿਟ ਸਮਰੱਥ ਨਹੀਂ ਹੈ।",
+    "err_limit_exceeds_cap": "ਇਹ ਸੀਮਾ ਤੁਹਾਡੀ ਮਨਜ਼ੂਰ ਵੱਧ ਤੋਂ ਵੱਧ ਸੀਮਾ ਤੋਂ ਵੱਧ ਹੈ।",
+    "err_account_exists": "ਇਸ ਗਾਹਕ ਦਾ ਤੁਹਾਡੇ ਨਾਲ ਪਹਿਲਾਂ ਹੀ ਕ੍ਰੈਡਿਟ ਖਾਤਾ ਹੈ।",
+    "err_customer_not_found": "ਉਸ ਫ਼ੋਨ ਜਾਂ ਈਮੇਲ ਨਾਲ ਕੋਈ ਗਾਹਕ ਨਹੀਂ ਮਿਲਿਆ।",
+    "err_invalid_phone": "ਇੱਕ ਵੈਧ ਭਾਰਤੀ ਮੋਬਾਈਲ ਨੰਬਰ ਦਰਜ ਕਰੋ।",
+    "err_exactly_one_contact": "ਫ਼ੋਨ ਜਾਂ ਈਮੇਲ ਵਿੱਚੋਂ ਸਿਰਫ਼ ਇੱਕ ਦਰਜ ਕਰੋ।",
+    "err_below_outstanding": "ਸੀਮਾ ਮੌਜੂਦਾ ਬਕਾਇਆ ਰਕਮ ਤੋਂ ਘੱਟ ਨਹੀਂ ਹੋ ਸਕਦੀ।",
+    "err_over_repayment": "ਵਾਪਸੀ ਬਕਾਇਆ ਰਕਮ ਤੋਂ ਵੱਧ ਨਹੀਂ ਹੋ ਸਕਦੀ।",
+    "err_invalid_limit": "0 ਤੋਂ ਵੱਧ ਸੀਮਾ ਦਰਜ ਕਰੋ।",
+    "err_invalid_amount": "0 ਤੋਂ ਵੱਧ ਰਕਮ ਦਰਜ ਕਰੋ।",
+    "accountsTitle": "ਕ੍ਰੈਡਿਟ ਖਾਤੇ",
+    "colCustomer": "ਗਾਹਕ",
+    "colLimit": "ਸੀਮਾ",
+    "colOutstanding": "ਬਕਾਇਆ",
+    "colAvailable": "ਉਪਲਬਧ",
+    "colStatus": "ਸਥਿਤੀ",
+    "colActions": "ਕਾਰਵਾਈਆਂ",
+    "status_active": "ਸਰਗਰਮ",
+    "status_suspended": "ਮੁਅੱਤਲ",
+    "recordRepayment": "ਵਾਪਸੀ ਦਰਜ ਕਰੋ",
+    "suspend": "ਮੁਅੱਤਲ ਕਰੋ",
+    "resume": "ਮੁੜ ਸ਼ੁਰੂ ਕਰੋ",
+    "repayTitle": "ਵਾਪਸੀ ਦਰਜ ਕਰੋ",
+    "repayOutstanding": "ਬਕਾਇਆ: {amount}",
+    "amountLabel": "ਰਕਮ (₹)",
+    "cancel": "ਰੱਦ ਕਰੋ",
+    "myIntro": "ਉਹ ਸਟੋਰ ਜਿੱਥੇ ਤੁਸੀਂ ਕ੍ਰੈਡਿਟ ਉੱਤੇ ਭੁਗਤਾਨ ਕਰ ਸਕਦੇ ਹੋ।",
+    "myEmpty": "ਹਾਲੇ ਤੱਕ ਕਿਸੇ ਸਟੋਰ ਉੱਤੇ ਤੁਹਾਡਾ ਕ੍ਰੈਡਿਟ ਨਹੀਂ ਹੈ।",
+    "adminSettingsTitle": "ਕ੍ਰੈਡਿਟ ਸੈਟਿੰਗਾਂ",
+    "adminEnableLabel": "ਇਸ ਵਿਕਰੇਤਾ ਲਈ ਕ੍ਰੈਡਿਟ ਸਮਰੱਥ ਕਰੋ",
+    "adminEnableHelp": "ਇਸ ਨਾਲ ਇਹ ਵਿਕਰੇਤਾ ਆਪਣੇ ਗਾਹਕਾਂ ਨੂੰ ਕ੍ਰੈਡਿਟ ਉੱਤੇ ਭੁਗਤਾਨ ਦੀ ਸਹੂਲਤ ਦੇ ਸਕਦਾ ਹੈ।",
+    "adminCapLabel": "ਪ੍ਰਤੀ ਗਾਹਕ ਵੱਧ ਤੋਂ ਵੱਧ ਕ੍ਰੈਡਿਟ (₹)",
+    "adminCapHelp": "ਇਹ ਵਿਕਰੇਤਾ ਕਿਸੇ ਇੱਕ ਗਾਹਕ ਨੂੰ ਵੱਧ ਤੋਂ ਵੱਧ ਇੰਨਾ ਦੇ ਸਕਦਾ ਹੈ।",
+    "save": "ਸੰਭਾਲੋ",
+    "saving": "ਸੰਭਾਲਿਆ ਜਾ ਰਿਹਾ ਹੈ…",
+    "saved": "ਸੰਭਾਲਿਆ ਗਿਆ।",
+    "errInvalidCap": "ਇੱਕ ਵੈਧ ਰਕਮ ਦਰਜ ਕਰੋ।"
   }
 }
