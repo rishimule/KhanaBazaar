@@ -102,3 +102,58 @@ async def test_repayment_math_and_over_repayment(session, approved_seller):
     assert entry.balance_after == 600.0
     await session.refresh(acct)
     assert acct.outstanding_balance == 600.0
+
+
+@pytest.mark.asyncio
+async def test_repayment_reads_fresh_locked_state(session, approved_seller):
+    """record_repayment must refresh under lock so a stale in-memory
+    outstanding_balance can't erase a concurrently-committed charge."""
+    seller_id, cust = await _seller_and_customer(session, approved_seller)
+    acct = await svc.grant_credit(session, seller_profile_id=seller_id,
+                                  granted_by_user_id=cust["user"].id,
+                                  customer_profile_id=cust["profile"].id, credit_limit=2000)
+    acct.outstanding_balance = 1000.0
+    session.add(acct)
+    await session.commit()
+    await session.refresh(acct)
+    # Make the in-memory copy stale (DB still says 1000).
+    acct.outstanding_balance = 0.0
+    entry = await svc.record_repayment(session, account=acct, amount=400, note=None,
+                                       recorded_by_user_id=cust["user"].id)
+    # With the FOR-UPDATE refresh, the true 1000 is used → 600, not a bogus value.
+    assert entry.balance_after == 600.0
+
+
+@pytest.mark.asyncio
+async def test_grandfather_on_tighten(session, approved_seller):
+    seller_id = approved_seller["profile"].id
+    cfg = await enable_credit(session, seller_id, max_limit_per_customer=5000)
+    cust = await make_customer(session, phone="+919812345678")
+    acct = await svc.grant_credit(session, seller_profile_id=seller_id,
+                                  granted_by_user_id=cust["user"].id,
+                                  customer_profile_id=cust["profile"].id, credit_limit=5000)
+    acct.outstanding_balance = 800.0
+    session.add(acct)
+    await session.commit()
+
+    # Admin lowers the cap.
+    cfg.max_limit_per_customer = 1000
+    session.add(cfg)
+    await session.commit()
+
+    # Existing account limit is grandfathered (unchanged).
+    await session.refresh(acct)
+    assert acct.credit_limit == 5000
+
+    # A NEW grant is capped at the lowered value.
+    cust2 = await make_customer(session)
+    with pytest.raises(HTTPException) as exc:
+        await svc.grant_credit(session, seller_profile_id=seller_id,
+                               granted_by_user_id=cust2["user"].id,
+                               customer_profile_id=cust2["profile"].id, credit_limit=2000)
+    assert exc.value.detail["error"] == "limit_exceeds_cap"
+
+    # Repayment on the grandfathered account still works.
+    entry = await svc.record_repayment(session, account=acct, amount=300, note=None,
+                                       recorded_by_user_id=cust["user"].id)
+    assert entry.balance_after == 500.0

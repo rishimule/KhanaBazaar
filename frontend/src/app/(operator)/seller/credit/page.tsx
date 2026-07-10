@@ -21,6 +21,20 @@ import styles from "./page.module.css";
 
 const money = (n: number) => `₹${n.toFixed(2)}`;
 
+// Backend error codes that have a dedicated `err_<code>` message key.
+const KNOWN_ERRORS = new Set([
+  "credit_not_enabled",
+  "limit_exceeds_cap",
+  "account_exists",
+  "customer_not_found",
+  "invalid_phone",
+  "exactly_one_contact",
+  "below_outstanding",
+  "over_repayment",
+  "invalid_limit",
+  "invalid_amount",
+]);
+
 export default function SellerCreditPage() {
   const t = useTranslations("Credit");
   const { token } = useAuth();
@@ -39,7 +53,18 @@ export default function SellerCreditPage() {
   // repayment modal
   const [repayTarget, setRepayTarget] = useState<CreditAccount | null>(null);
   const [repayAmount, setRepayAmount] = useState("");
+  const [repayError, setRepayError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+
+  // Map a backend ApiError to a localized message, falling back to a generic
+  // message for any code without a dedicated key (avoids showing raw keys).
+  const errMsg = (err: unknown): string => {
+    const code =
+      err instanceof ApiError
+        ? (err.detail as unknown as { error?: string })?.error
+        : null;
+    return code && KNOWN_ERRORS.has(code) ? t(`err_${code}`) : t("errGeneric");
+  };
 
   const refetch = useCallback(() => {
     if (!token) return;
@@ -80,11 +105,7 @@ export default function SellerCreditPage() {
       setLimit("");
       refetch();
     } catch (err) {
-      const code =
-        err instanceof ApiError
-          ? (err.detail as unknown as { error?: string })?.error
-          : null;
-      setGrantError(code ? t(`err_${code}`) : t("errGeneric"));
+      setGrantError(errMsg(err));
     } finally {
       setGranting(false);
     }
@@ -103,23 +124,27 @@ export default function SellerCreditPage() {
     }
   };
 
+  const openRepay = (r: CreditAccount) => {
+    setRepayTarget(r);
+    setRepayAmount("");
+    setRepayError(null);
+  };
+
   const submitRepay = async () => {
     if (!token || !repayTarget) return;
     const value = Number(repayAmount);
     if (!Number.isFinite(value) || value <= 0) return;
     setBusyId(repayTarget.id);
+    setRepayError(null);
     try {
       await recordRepayment(token, repayTarget.id, { amount: value });
       setRepayTarget(null);
       setRepayAmount("");
       refetch();
     } catch (err) {
-      const code =
-        err instanceof ApiError
-          ? (err.detail as unknown as { error?: string })?.error
-          : null;
-      setGrantError(code ? t(`err_${code}`) : t("errGeneric"));
-      setRepayTarget(null);
+      // Keep the modal open so the seller can correct the amount; show the
+      // error where they acted, not in the distant grant form.
+      setRepayError(errMsg(err));
     } finally {
       setBusyId(null);
     }
@@ -148,10 +173,7 @@ export default function SellerCreditPage() {
             type="button"
             className="btn btn-secondary"
             disabled={busyId === r.id || r.outstanding_balance <= 0}
-            onClick={() => {
-              setRepayTarget(r);
-              setRepayAmount("");
-            }}
+            onClick={() => openRepay(r)}
           >
             {t("recordRepayment")}
           </button>
@@ -219,7 +241,43 @@ export default function SellerCreditPage() {
         {loading ? (
           <p className={styles.muted}>{t("loading")}</p>
         ) : (
-          <DataTable columns={columns} data={accounts} keyField="id" emptyMessage={t("empty")} />
+          <DataTable
+            columns={columns}
+            data={accounts}
+            keyField="id"
+            emptyMessage={t("empty")}
+            mobileCardRender={(r) => (
+              <>
+                <div className={styles.mobileTop}>
+                  <span className={styles.mobileTitle}>{`#${r.customer_profile_id}`}</span>
+                  <span className={r.status === "active" ? styles.chipActive : styles.chipSuspended}>
+                    {t(`status_${r.status}`)}
+                  </span>
+                </div>
+                <div className={styles.muted}>
+                  {`${t("colLimit")} ${money(r.credit_limit)} · ${t("colOutstanding")} ${money(r.outstanding_balance)} · ${t("colAvailable")} ${money(r.available)}`}
+                </div>
+                <div className={styles.actions}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={busyId === r.id || r.outstanding_balance <= 0}
+                    onClick={() => openRepay(r)}
+                  >
+                    {t("recordRepayment")}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.linkBtn}
+                    disabled={busyId === r.id}
+                    onClick={() => toggleStatus(r)}
+                  >
+                    {r.status === "active" ? t("suspend") : t("resume")}
+                  </button>
+                </div>
+              </>
+            )}
+          />
         )}
       </section>
 
@@ -254,6 +312,9 @@ export default function SellerCreditPage() {
             onChange={(e) => setRepayAmount(e.target.value)}
             inputMode="numeric"
           />
+          {repayError && (
+            <div className={styles.errorText} role="alert">{repayError}</div>
+          )}
         </Modal>
       )}
     </div>

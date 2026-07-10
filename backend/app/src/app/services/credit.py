@@ -209,6 +209,11 @@ async def adjust_credit_account(
     credit_limit: Optional[float] = None,
     status: Optional[CreditAccountStatus] = None,
 ) -> CreditAccount:
+    # Lock the row AND repopulate the instance's attributes (a plain
+    # with_for_update SELECT would return the identity-mapped, still-stale
+    # object) so a concurrent checkout charge can't be clobbered by an absolute
+    # write from a stale in-memory copy.
+    await session.refresh(account, with_for_update=True)
     if credit_limit is not None:
         if credit_limit <= 0:
             raise HTTPException(status_code=422, detail={"error": "invalid_limit"})
@@ -239,6 +244,10 @@ async def record_repayment(
     note: Optional[str],
     recorded_by_user_id: int,
 ) -> CreditLedgerEntry:
+    # Lock the row AND repopulate the instance (a plain with_for_update SELECT
+    # returns the identity-mapped, still-stale object) so a concurrent checkout
+    # charge isn't clobbered by an absolute write from a stale in-memory copy.
+    await session.refresh(account, with_for_update=True)
     if amount <= 0:
         raise HTTPException(status_code=422, detail={"error": "invalid_amount"})
     if amount > account.outstanding_balance:

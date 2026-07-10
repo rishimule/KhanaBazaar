@@ -22,7 +22,10 @@ async def test_admin_patch_and_get_credit_config(
     client, session, approved_seller, admin_auth_headers
 ):
     await _persist_test_admin(session)
-    seller_id = approved_seller["profile"].id
+    # The /admin/sellers/{seller_id} route uses the seller's User.id (platform
+    # convention); the endpoint must resolve it to the SellerProfile.id.
+    seller_id = approved_seller["user"].id
+    profile_id = approved_seller["profile"].id
 
     # Default (no row yet) reads as disabled + 0 cap.
     r = await client.get(
@@ -51,7 +54,7 @@ async def test_admin_patch_and_get_credit_config(
         )
     ).all()
     assert len(audit) == 1
-    assert audit[0].target_seller_id == seller_id
+    assert audit[0].target_seller_id == profile_id
 
 
 @pytest.mark.asyncio

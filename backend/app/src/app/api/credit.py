@@ -147,6 +147,19 @@ async def seller_get_ledger(
     )
 
 
+async def _profile_id_from_seller_user(session: AsyncSession, seller_user_id: int) -> int:
+    """`/admin/sellers/{seller_id}` uses the seller's User.id (platform-wide
+    convention); resolve it to the SellerProfile.id the credit tables key on."""
+    pid = (
+        await session.exec(
+            select(SellerProfile.id).where(SellerProfile.user_id == seller_user_id)
+        )
+    ).first()
+    if pid is None:
+        raise HTTPException(status_code=404, detail={"error": "seller_not_found"})
+    return pid
+
+
 @admin_router.get(
     "/sellers/{seller_id}/credit-config", response_model=CreditConfigRead
 )
@@ -155,7 +168,8 @@ async def admin_get_credit_config(
     _admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> CreditConfigRead:
-    row = await svc.load_seller_credit_config(session, seller_id)
+    profile_id = await _profile_id_from_seller_user(session, seller_id)
+    row = await svc.load_seller_credit_config(session, profile_id)
     return CreditConfigRead.model_validate(row)
 
 
@@ -169,9 +183,10 @@ async def admin_patch_credit_config(
     session: AsyncSession = Depends(get_db_session),
 ) -> CreditConfigRead:
     assert admin.id is not None
+    profile_id = await _profile_id_from_seller_user(session, seller_id)
     row = await svc.admin_set_credit_config(
         session,
-        seller_profile_id=seller_id,
+        seller_profile_id=profile_id,
         admin_user_id=admin.id,
         credit_enabled=body.credit_enabled,
         max_limit_per_customer=body.max_limit_per_customer,
