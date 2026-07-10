@@ -6,6 +6,7 @@ from app.api import (
     admin_actions,
     auth,
     carts,
+    credit,
     catalog,
     catalog_admin,
     customers,
@@ -71,4 +72,7 @@ api_router.include_router(
 api_router.include_router(referrals.router, prefix="/referrals", tags=["referrals"])
 api_router.include_router(
     referrals.admin_router, prefix="/admin", tags=["admin", "referrals"]
+)
+api_router.include_router(
+    credit.admin_router, prefix="/admin", tags=["admin", "credit"]
 )
