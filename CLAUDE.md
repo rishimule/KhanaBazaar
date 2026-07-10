@@ -193,7 +193,7 @@ No frontend tests configured.
 | `backend/app/src/app/core/config.py` | Pydantic Settings, `API_V1_STR="/api/v1"` |
 | `backend/app/src/app/core/security.py` | JWT encode/decode, role guards |
 | `backend/app/src/app/db/session.py` | Async session factory |
-| `schema.sql` | Full Postgres schema snapshot — source of truth is the SQLModel models + Alembic; pinned to head `0f6d3ef363f0`. Regenerate when the head changes. |
+| `schema.sql` | Full Postgres schema snapshot — source of truth is the SQLModel models + Alembic; pinned to head `f6495e1b1c31`. Regenerate when the head changes. |
 | `frontend/src/app/layout.tsx` | Root layout, mounts AuthProvider + CartProvider, registers PWA manifest |
 | `frontend/src/lib/api.ts` | Typed fetch wrapper, `ApiError` class |
 | `frontend/src/lib/AuthContext.tsx` | Auth state (token in `localStorage` key `kb_token`, OTP flow) |
