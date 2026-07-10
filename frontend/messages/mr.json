@@ -229,7 +229,8 @@
       "selectedBtn": "Selected",
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
-    }
+    },
+    "errCreditUnavailable": "या स्टोअरवर तुमच्याकडे पुरेसे क्रेडिट नाही."
   },
   "Login": {
     "errSendCode": "कोड पाठवण्यात अयशस्वी.",
@@ -457,7 +458,11 @@
     "upiLabel": "UPI",
     "upiHint": "UPI अॅपद्वारे पैसे भरा",
     "cashLabel": "डिलिव्हरीवर रोख",
-    "cashHint": "मिळाल्यावर पैसे भरा"
+    "cashHint": "मिळाल्यावर पैसे भरा",
+    "creditLabel": "क्रेडिटवर पैसे द्या",
+    "creditAvailable": "या स्टोअरवर ₹{amount} उपलब्ध",
+    "creditInsufficient": "पुरेसे क्रेडिट नाही — ₹{amount} उपलब्ध",
+    "creditSettleNote": "ही रक्कम तुम्ही थेट स्टोअरशी सेटल कराल."
   },
   "Order": {
     "delivery": {
@@ -811,7 +816,9 @@
       "viewAll": "सर्व पाहा"
     },
     "navReferrals": "रेफरल",
-    "layoutReferralsTitle": "रेफरल"
+    "layoutReferralsTitle": "रेफरल",
+    "navCredit": "क्रेडिट",
+    "layoutCreditTitle": "माझे क्रेडिट"
   },
   "Favorites": {
     "title": "तुमचे आवडते",
@@ -911,7 +918,8 @@
       "settings": "सेटिंग्ज",
       "profile": "प्रोफाइल",
       "plan": "योजना",
-      "referrals": "रेफरल"
+      "referrals": "रेफरल",
+      "credit": "क्रेडिट"
     },
     "titles": {
       "dashboard": "विक्रेता डॅशबोर्ड",
@@ -921,7 +929,8 @@
       "profile": "प्रोफाइल",
       "portal": "विक्रेता पोर्टल",
       "plan": "योजना व बिलिंग",
-      "referrals": "रेफरल"
+      "referrals": "रेफरल",
+      "credit": "क्रेडिट ग्राहक"
     },
     "common": {
       "save": "जतन करा",
@@ -1560,7 +1569,8 @@
         "orders": "ऑर्डर",
         "requests": "बदल विनंत्या",
         "activity": "क्रियाकलाप",
-        "fees": "शुल्क / योजना"
+        "fees": "शुल्क / योजना",
+        "credits": "क्रेडिट"
       },
       "loadSellerError": "विक्रेता लोड करण्यात अयशस्वी",
       "loadingSeller": "विक्रेता लोड होत आहे…",
@@ -1931,5 +1941,58 @@
     "policyRequired": "पुढे जाण्यासाठी कृपया अटी आणि गोपनीयता स्वीकारा.",
     "expiredError": "हे आमंत्रण कालबाह्य झाले आहे.",
     "genericError": "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा."
+  },
+  "Credit": {
+    "loading": "लोड होत आहे…",
+    "empty": "अद्याप कोणतेही क्रेडिट ग्राहक नाहीत.",
+    "capBanner": "प्रति ग्राहक कमाल क्रेडिट: ₹{amount}",
+    "notEnabled": "तुमच्या स्टोअरसाठी क्रेडिट अद्याप सक्षम नाही. अ‍ॅडमिनशी संपर्क साधा.",
+    "grantTitle": "क्रेडिट ग्राहक जोडा",
+    "contactLabel": "ग्राहक शोधा",
+    "contactPlaceholder": "फोन किंवा ईमेल",
+    "limitLabel": "क्रेडिट मर्यादा (₹)",
+    "limitPlaceholder": "कमाल ₹{amount}",
+    "grant": "क्रेडिट द्या",
+    "granting": "देत आहे…",
+    "grantOk": "क्रेडिट दिले.",
+    "errInvalidGrant": "ग्राहक आणि 0 पेक्षा जास्त मर्यादा प्रविष्ट करा.",
+    "errGeneric": "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा.",
+    "err_credit_not_enabled": "तुमच्या स्टोअरसाठी क्रेडिट सक्षम नाही.",
+    "err_limit_exceeds_cap": "ही मर्यादा तुमच्या परवानगी दिलेल्या कमालपेक्षा जास्त आहे.",
+    "err_account_exists": "या ग्राहकाचे तुमच्याकडे आधीच क्रेडिट खाते आहे.",
+    "err_customer_not_found": "त्या फोन किंवा ईमेलने कोणताही ग्राहक सापडला नाही.",
+    "err_invalid_phone": "वैध भारतीय मोबाईल नंबर प्रविष्ट करा.",
+    "err_exactly_one_contact": "फोन किंवा ईमेलपैकी फक्त एक प्रविष्ट करा.",
+    "err_below_outstanding": "मर्यादा सध्याच्या थकबाकीपेक्षा कमी असू शकत नाही.",
+    "err_over_repayment": "परतफेड थकबाकीपेक्षा जास्त असू शकत नाही.",
+    "err_invalid_limit": "0 पेक्षा जास्त मर्यादा प्रविष्ट करा.",
+    "err_invalid_amount": "0 पेक्षा जास्त रक्कम प्रविष्ट करा.",
+    "accountsTitle": "क्रेडिट खाती",
+    "colCustomer": "ग्राहक",
+    "colLimit": "मर्यादा",
+    "colOutstanding": "थकबाकी",
+    "colAvailable": "उपलब्ध",
+    "colStatus": "स्थिती",
+    "colActions": "क्रिया",
+    "status_active": "सक्रिय",
+    "status_suspended": "निलंबित",
+    "recordRepayment": "परतफेड नोंदवा",
+    "suspend": "निलंबित करा",
+    "resume": "पुन्हा सुरू करा",
+    "repayTitle": "परतफेड नोंदवा",
+    "repayOutstanding": "थकबाकी: {amount}",
+    "amountLabel": "रक्कम (₹)",
+    "cancel": "रद्द करा",
+    "myIntro": "जिथे तुम्ही क्रेडिटवर पैसे देऊ शकता ती स्टोअर्स.",
+    "myEmpty": "अद्याप कोणत्याही स्टोअरवर तुमचे क्रेडिट नाही.",
+    "adminSettingsTitle": "क्रेडिट सेटिंग्ज",
+    "adminEnableLabel": "या विक्रेत्यासाठी क्रेडिट सक्षम करा",
+    "adminEnableHelp": "यामुळे हा विक्रेता त्याच्या ग्राहकांना क्रेडिटवर पैसे देण्याची सुविधा देऊ शकतो.",
+    "adminCapLabel": "प्रति ग्राहक कमाल क्रेडिट (₹)",
+    "adminCapHelp": "हा विक्रेता कोणत्याही एका ग्राहकाला जास्तीत जास्त इतके देऊ शकतो.",
+    "save": "जतन करा",
+    "saving": "जतन होत आहे…",
+    "saved": "जतन केले.",
+    "errInvalidCap": "वैध रक्कम प्रविष्ट करा."
   }
 }

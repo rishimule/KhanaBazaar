@@ -53,6 +53,7 @@ export default function AccountLayout({
     { href: "/account/profile", label: t("navProfile"), icon: "👤" },
     { href: "/account/preferences", label: t("navPreferences"), icon: "⚙️" },
     { href: "/account/referrals", label: t("navReferrals"), icon: "🎁" },
+    { href: "/account/credit", label: t("navCredit"), icon: "🧾" },
     { href: "/account/support", label: t("navSupport"), icon: "💬" },
   ];
 
@@ -64,6 +65,7 @@ export default function AccountLayout({
     "/account/profile": "layoutProfileTitle",
     "/account/preferences": "layoutPreferencesTitle",
     "/account/referrals": "layoutReferralsTitle",
+    "/account/credit": "layoutCreditTitle",
     "/account/support": "layoutSupportTitle",
   };
 

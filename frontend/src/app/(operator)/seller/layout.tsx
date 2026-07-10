@@ -102,6 +102,7 @@ export default function SellerLayout({
     { href: "/seller/inventory", label: t("nav.inventory"), icon: "🏷️" },
     { href: "/seller/settings", label: t("nav.settings"), icon: "⚙️" },
     { href: "/seller/plan", label: t("nav.plan"), icon: "💳" },
+    { href: "/seller/credit", label: t("nav.credit"), icon: "🧾" },
     { href: "/seller/referrals", label: t("nav.referrals"), icon: "🎁" },
   ];
 
@@ -123,7 +124,9 @@ export default function SellerLayout({
                   ? t("titles.plan")
                   : pathname.startsWith("/seller/referrals")
                     ? t("titles.referrals")
-                    : t("titles.portal");
+                    : pathname.startsWith("/seller/credit")
+                      ? t("titles.credit")
+                      : t("titles.portal");
 
   return (
     <>

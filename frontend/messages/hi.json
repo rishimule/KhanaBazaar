@@ -229,7 +229,8 @@
       "selectedBtn": "Selected",
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
-    }
+    },
+    "errCreditUnavailable": "इस स्टोर पर आपके पास पर्याप्त क्रेडिट नहीं है।"
   },
   "Login": {
     "errSendCode": "कोड भेजने में विफल।",
@@ -457,7 +458,11 @@
     "upiLabel": "UPI",
     "upiHint": "UPI ऐप से भुगतान करें",
     "cashLabel": "डिलीवरी पर नक़द",
-    "cashHint": "मिलने पर भुगतान करें"
+    "cashHint": "मिलने पर भुगतान करें",
+    "creditLabel": "क्रेडिट पर भुगतान करें",
+    "creditAvailable": "इस स्टोर पर ₹{amount} उपलब्ध",
+    "creditInsufficient": "पर्याप्त क्रेडिट नहीं — ₹{amount} उपलब्ध",
+    "creditSettleNote": "यह राशि आप सीधे स्टोर के साथ चुकाएँगे।"
   },
   "Order": {
     "delivery": {
@@ -811,7 +816,9 @@
       "viewAll": "सभी देखें"
     },
     "navReferrals": "रेफ़रल",
-    "layoutReferralsTitle": "रेफ़रल"
+    "layoutReferralsTitle": "रेफ़रल",
+    "navCredit": "क्रेडिट",
+    "layoutCreditTitle": "मेरा क्रेडिट"
   },
   "Favorites": {
     "title": "आपके पसंदीदा",
@@ -911,7 +918,8 @@
       "settings": "सेटिंग्स",
       "profile": "प्रोफाइल",
       "plan": "योजना",
-      "referrals": "रेफ़रल"
+      "referrals": "रेफ़रल",
+      "credit": "क्रेडिट"
     },
     "titles": {
       "dashboard": "विक्रेता डैशबोर्ड",
@@ -921,7 +929,8 @@
       "profile": "प्रोफाइल",
       "portal": "विक्रेता पोर्टल",
       "plan": "योजना और बिलिंग",
-      "referrals": "रेफ़रल"
+      "referrals": "रेफ़रल",
+      "credit": "क्रेडिट ग्राहक"
     },
     "common": {
       "save": "सहेजें",
@@ -1560,7 +1569,8 @@
         "orders": "ऑर्डर",
         "requests": "परिवर्तन अनुरोध",
         "activity": "गतिविधि",
-        "fees": "शुल्क / योजनाएँ"
+        "fees": "शुल्क / योजनाएँ",
+        "credits": "क्रेडिट"
       },
       "loadSellerError": "विक्रेता लोड करने में विफल",
       "loadingSeller": "विक्रेता लोड हो रहा है…",
@@ -1931,5 +1941,58 @@
     "policyRequired": "जारी रखने के लिए कृपया नियम और गोपनीयता स्वीकार करें।",
     "expiredError": "यह आमंत्रण समाप्त हो गया है।",
     "genericError": "कुछ गड़बड़ हो गई। कृपया पुनः प्रयास करें।"
+  },
+  "Credit": {
+    "loading": "लोड हो रहा है…",
+    "empty": "अभी तक कोई क्रेडिट ग्राहक नहीं।",
+    "capBanner": "प्रति ग्राहक अधिकतम क्रेडिट: ₹{amount}",
+    "notEnabled": "आपके स्टोर के लिए क्रेडिट अभी सक्षम नहीं है। एडमिन से संपर्क करें।",
+    "grantTitle": "क्रेडिट ग्राहक जोड़ें",
+    "contactLabel": "ग्राहक खोजें",
+    "contactPlaceholder": "फ़ोन या ईमेल",
+    "limitLabel": "क्रेडिट सीमा (₹)",
+    "limitPlaceholder": "अधिकतम ₹{amount}",
+    "grant": "क्रेडिट दें",
+    "granting": "दिया जा रहा है…",
+    "grantOk": "क्रेडिट दिया गया।",
+    "errInvalidGrant": "ग्राहक और 0 से अधिक सीमा दर्ज करें।",
+    "errGeneric": "कुछ गड़बड़ हो गई। कृपया पुनः प्रयास करें।",
+    "err_credit_not_enabled": "आपके स्टोर के लिए क्रेडिट सक्षम नहीं है।",
+    "err_limit_exceeds_cap": "यह सीमा आपकी अनुमत अधिकतम सीमा से अधिक है।",
+    "err_account_exists": "इस ग्राहक का आपके साथ पहले से क्रेडिट खाता है।",
+    "err_customer_not_found": "उस फ़ोन या ईमेल से कोई ग्राहक नहीं मिला।",
+    "err_invalid_phone": "एक मान्य भारतीय मोबाइल नंबर दर्ज करें।",
+    "err_exactly_one_contact": "फ़ोन या ईमेल में से केवल एक दर्ज करें।",
+    "err_below_outstanding": "सीमा वर्तमान बकाया राशि से कम नहीं हो सकती।",
+    "err_over_repayment": "चुकौती बकाया राशि से अधिक नहीं हो सकती।",
+    "err_invalid_limit": "0 से अधिक सीमा दर्ज करें।",
+    "err_invalid_amount": "0 से अधिक राशि दर्ज करें।",
+    "accountsTitle": "क्रेडिट खाते",
+    "colCustomer": "ग्राहक",
+    "colLimit": "सीमा",
+    "colOutstanding": "बकाया",
+    "colAvailable": "उपलब्ध",
+    "colStatus": "स्थिति",
+    "colActions": "कार्रवाई",
+    "status_active": "सक्रिय",
+    "status_suspended": "निलंबित",
+    "recordRepayment": "चुकौती दर्ज करें",
+    "suspend": "निलंबित करें",
+    "resume": "पुनः सक्रिय करें",
+    "repayTitle": "चुकौती दर्ज करें",
+    "repayOutstanding": "बकाया: {amount}",
+    "amountLabel": "राशि (₹)",
+    "cancel": "रद्द करें",
+    "myIntro": "वे स्टोर जहाँ आप क्रेडिट पर भुगतान कर सकते हैं।",
+    "myEmpty": "अभी तक किसी स्टोर पर आपका क्रेडिट नहीं है।",
+    "adminSettingsTitle": "क्रेडिट सेटिंग्स",
+    "adminEnableLabel": "इस विक्रेता के लिए क्रेडिट सक्षम करें",
+    "adminEnableHelp": "इससे यह विक्रेता अपने ग्राहकों को क्रेडिट पर भुगतान की सुविधा दे सकता है।",
+    "adminCapLabel": "प्रति ग्राहक अधिकतम क्रेडिट (₹)",
+    "adminCapHelp": "यह विक्रेता किसी एक ग्राहक को अधिकतम इतना दे सकता है।",
+    "save": "सहेजें",
+    "saving": "सहेजा जा रहा है…",
+    "saved": "सहेजा गया।",
+    "errInvalidCap": "एक मान्य राशि दर्ज करें।"
   }
 }

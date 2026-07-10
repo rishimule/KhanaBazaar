@@ -6,9 +6,17 @@ import { useTranslations } from "next-intl";
 import type { PaymentMethod } from "@/types";
 import styles from "./PaymentMethodPicker.module.css";
 
+/** Credit standing at this store, when the customer has a credit account.
+ * Omit/null when they don't — the credit option is then hidden entirely. */
+export interface CreditOption {
+  available: number;
+  eligible: boolean;
+}
+
 interface Props {
   value: PaymentMethod;
   onChange: (method: PaymentMethod) => void;
+  credit?: CreditOption | null;
 }
 
 const OPTION_KEYS: { value: PaymentMethod; labelKey: string; hintKey: string }[] = [
@@ -16,7 +24,7 @@ const OPTION_KEYS: { value: PaymentMethod; labelKey: string; hintKey: string }[]
   { value: "cash", labelKey: "cashLabel", hintKey: "cashHint" },
 ];
 
-export default function PaymentMethodPicker({ value, onChange }: Props) {
+export default function PaymentMethodPicker({ value, onChange, credit }: Props) {
   const t = useTranslations("Payment");
   return (
     <fieldset className={styles.fieldset}>
@@ -39,7 +47,33 @@ export default function PaymentMethodPicker({ value, onChange }: Props) {
             <span className={styles.hint}>{t(opt.hintKey)}</span>
           </label>
         ))}
+        {credit != null && (
+          <label
+            className={`${styles.option} ${value === "credit" ? styles.selected : ""} ${
+              credit.eligible ? "" : styles.disabled
+            }`}
+          >
+            <input
+              type="radio"
+              name="payment_method"
+              value="credit"
+              checked={value === "credit"}
+              disabled={!credit.eligible}
+              onChange={() => onChange("credit")}
+              className={styles.radio}
+            />
+            <span className={styles.label}>{t("creditLabel")}</span>
+            <span className={styles.hint}>
+              {credit.eligible
+                ? t("creditAvailable", { amount: credit.available.toFixed(0) })
+                : t("creditInsufficient", { amount: credit.available.toFixed(0) })}
+            </span>
+          </label>
+        )}
       </div>
+      {credit != null && value === "credit" && (
+        <p className={styles.note}>{t("creditSettleNote")}</p>
+      )}
     </fieldset>
   );
 }

@@ -310,7 +310,7 @@ export interface ApplicationCounts {
 export type OrderStatus = "pending" | "packed" | "dispatched" | "delivered" | "cancelled";
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 export type DeliveryStatus = "pending" | "packed" | "dispatched" | "delivered" | "cancelled";
-export type PaymentMethod = "cash" | "upi";
+export type PaymentMethod = "cash" | "upi" | "credit";
 
 export interface OrderItem {
   id: number;

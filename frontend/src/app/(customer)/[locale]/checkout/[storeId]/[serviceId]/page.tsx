@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
 import { apiErrorKey } from "@/lib/errors";
 import { get } from "@/lib/api";
+import { getCreditEligibility, type CreditEligibility } from "@/lib/credit";
 import { placeOrder } from "@/lib/orders";
 import { formatDeliveryEta } from "@/lib/deliveryEta";
 import { WINDOW_META, formatDateLabel } from "@/lib/deliveryWindows";
@@ -50,6 +51,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
+  const [creditStanding, setCreditStanding] = useState<CreditEligibility | null>(null);
 
   useEffect(() => {
     if (!storeId || Number.isNaN(storeId)) return;
@@ -57,6 +59,15 @@ export default function CheckoutPage() {
       .then(setStoreDetails)
       .catch(() => setStoreDetails(null));
   }, [storeId]);
+
+  // Fetch the customer's credit standing at this store once (total=0 just reads
+  // the account); eligibility vs the live cart total is computed client-side.
+  useEffect(() => {
+    if (!token || !storeId || Number.isNaN(storeId)) return;
+    getCreditEligibility(token, storeId, 0)
+      .then(setCreditStanding)
+      .catch(() => setCreditStanding(null));
+  }, [token, storeId]);
 
   useEffect(() => {
     setSwitching(false);
@@ -130,6 +141,9 @@ export default function CheckoutPage() {
   const feeApplies = deliveryFee > 0;
   const tax = 0;
   const total = subtotal + deliveryFee + tax;
+  const hasCredit = creditStanding != null && creditStanding.credit_limit > 0;
+  const creditEligible = hasCredit && total <= creditStanding!.available;
+  const creditSelectedButBlocked = paymentMethod === "credit" && !creditEligible;
   const etaLabel =
     cart.delivery_eta_min_minutes != null && cart.delivery_eta_max_minutes != null
       ? formatDeliveryEta(cart.delivery_eta_min_minutes, cart.delivery_eta_max_minutes)
@@ -137,6 +151,10 @@ export default function CheckoutPage() {
 
   const onPlaceOrder = async () => {
     if (!token || addressId === null) return;
+    if (paymentMethod === "credit" && !creditEligible) {
+      setError(t("errCreditUnavailable"));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -172,6 +190,14 @@ export default function CheckoutPage() {
       ) {
         setError(tErr("store_paused"));
         router.push("/cart");
+        return;
+      }
+      const errCode =
+        rawDetail && typeof rawDetail === "object" && "error" in rawDetail
+          ? (rawDetail as { error?: string }).error
+          : null;
+      if (errCode === "insufficient_credit" || errCode === "credit_not_available") {
+        setError(t("errCreditUnavailable"));
         return;
       }
       const key = apiErrorKey(e);
@@ -258,6 +284,11 @@ export default function CheckoutPage() {
           <PaymentMethodPicker
             value={paymentMethod}
             onChange={setPaymentMethod}
+            credit={
+              hasCredit
+                ? { available: creditStanding!.available, eligible: creditEligible }
+                : null
+            }
           />
         </section>
 
@@ -335,7 +366,8 @@ export default function CheckoutPage() {
             submitting ||
             pickerState.selectedId === null ||
             pickerState.loading ||
-            !pickerState.serviceable
+            !pickerState.serviceable ||
+            creditSelectedButBlocked
           }
         >
           {submitting

@@ -1651,3 +1651,21 @@ def run_daily_fee_sweep() -> dict[str, int]:
             spid, type_value, date.fromisoformat(until) if until else None
         )
     return counts
+
+
+@celery_app.task(name="credit.run_monthly_statements")  # type: ignore[untyped-decorator]
+def run_monthly_credit_statements() -> int:
+    """Monthly credit statement notifications. Runs the async job on a worker
+    thread so it works under both the real worker and eager-mode tests."""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
+    from app.db.session import async_session_factory
+    from app.services.credit_notifications import run_credit_statements
+
+    async def _run() -> int:
+        async with async_session_factory() as session:
+            return await run_credit_statements(session)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_run())).result()

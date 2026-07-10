@@ -21,6 +21,7 @@ from app.models.commerce import (
     OrderItem,
     OrderStatus,
     Payment,
+    PaymentMethod,
     PaymentStatus,
 )
 from app.models.profile import CustomerProfile, SellerProfile, VerificationStatus
@@ -181,7 +182,9 @@ async def transition_order_status(
         if actor.role != UserRole.Admin:
             delivery.delivery_otp_verified_at = now
         delivery.delivery_otp = None  # consume the code (also clears it for admin force)
-        if payment is not None:
+        # Credit orders are NOT paid on delivery — the customer still owes on
+        # credit; the credit ledger, not Payment.status, tracks what's owed.
+        if payment is not None and payment.method != PaymentMethod.Credit:
             payment.status = PaymentStatus.Paid
             payment.paid_at = now
 
@@ -501,6 +504,20 @@ async def cancel_order(
         inv = inv_by_id.get(item.inventory_id)
         if inv is not None:
             restock(inv, item.quantity)
+
+    # Reverse the credit charge for a cancelled credit order: decrement the
+    # customer's outstanding balance + append a reversal ledger entry.
+    if payment is not None and payment.method == PaymentMethod.Credit:
+        from app.services import credit as credit_svc
+
+        assert order.id is not None
+        await credit_svc.reverse_credit_charge(
+            session,
+            store_id=order.store_id,
+            customer_profile_id=order.customer_profile_id,
+            order_id=order.id,
+            amount=order.total,
+        )
 
     if acting_admin_id is not None:
         target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)

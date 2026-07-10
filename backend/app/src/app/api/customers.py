@@ -477,3 +477,56 @@ async def set_default_customer_address(
     await session.commit()
     await session.refresh(profile)
     return await _profile_response(session, current_user, profile)
+
+
+@router.get("/me/credit")
+async def get_my_credit(
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+):  # type: ignore[no-untyped-def]
+    """Credit accounts this customer holds across stores (limit / outstanding /
+    available + status), for the account 'My Credit' view."""
+    from app.models.credit import CreditAccount
+    from app.models.store import Store
+    from app.schemas.credit import CustomerCreditAccountRead
+
+    assert current_user.id is not None
+    profile = await _customer_profile_for_user(session, current_user.id)
+    rows = (
+        await session.exec(
+            select(CreditAccount, Store.name)
+            .join(Store, Store.seller_profile_id == CreditAccount.seller_profile_id)
+            .where(CreditAccount.customer_profile_id == profile.id)
+            .order_by(CreditAccount.created_at.desc())
+        )
+    ).all()
+    return [
+        CustomerCreditAccountRead(
+            seller_profile_id=acct.seller_profile_id,
+            store_name=store_name,
+            credit_limit=acct.credit_limit,
+            outstanding_balance=acct.outstanding_balance,
+            available=round(acct.credit_limit - acct.outstanding_balance, 2),
+            status=acct.status.value,
+        )
+        for acct, store_name in rows
+    ]
+
+
+@router.get("/me/credit/eligibility")
+async def get_my_credit_eligibility(
+    store_id: int,
+    total: float = 0.0,
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+):  # type: ignore[no-untyped-def]
+    """Display-only credit standing at a store for the checkout UI (non-locking)."""
+    from app.schemas.credit import CreditEligibilityRead
+    from app.services import credit as credit_svc
+
+    assert current_user.id is not None
+    profile = await _customer_profile_for_user(session, current_user.id)
+    data = await credit_svc.credit_eligibility(
+        session, customer_profile_id=profile.id, store_id=store_id, cart_total=total
+    )
+    return CreditEligibilityRead(**data)
