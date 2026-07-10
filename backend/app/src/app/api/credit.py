@@ -81,7 +81,9 @@ async def seller_grant_credit(
         customer_profile_id=customer.id,
         credit_limit=body.credit_limit,
     )
-    # Task 10 wires notify_credit_granted(session, acct) here (best-effort).
+    from app.services.credit_notifications import notify_credit_granted
+
+    await notify_credit_granted(session, acct)
     return to_account_read(acct)
 
 

@@ -34,6 +34,7 @@ from app.models.commerce import (
     OrderItem,
     OrderStatus,
     Payment,
+    PaymentMethod,
     Review,
 )
 from app.models.profile import CustomerProfile, SellerProfile, SellerProfileService
@@ -520,6 +521,12 @@ async def place_order(
     if order.id is not None:
         dispatch_order_placed([order.id])
         await record_and_dispatch_notification(session, order, "pending")
+        if payload.payment_method == PaymentMethod.Credit:
+            from app.services.credit_notifications import (
+                record_and_dispatch_credit_charge_notifications,
+            )
+
+            await record_and_dispatch_credit_charge_notifications(session, order)
     return await _serialize_order(session, order, include_customer_name=False)
 
 
