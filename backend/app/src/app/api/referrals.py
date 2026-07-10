@@ -227,8 +227,9 @@ async def admin_get_referral_settings(
     _admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> ReferralSettingsRead:
-    row = await svc.get_or_create_referral_settings(session)
-    await session.commit()
+    # Read-only: return the transient default when no row exists yet rather than
+    # writing/committing a row on a GET. The row is created on the first PATCH.
+    row = await svc.load_referral_settings(session)
     return ReferralSettingsRead.model_validate(row)
 
 
