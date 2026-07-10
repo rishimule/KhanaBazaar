@@ -25,7 +25,7 @@ def as_seller(user):
 async def test_seller_grant_list_repay_ledger(client, session, approved_seller):
     spid = approved_seller["profile"].id
     await enable_credit(session, spid, max_limit_per_customer=5000)
-    cust = await make_customer(session, phone="+919812345678")
+    await make_customer(session, phone="+919812345678")
 
     with as_seller(approved_seller["user"]):
         r = await client.post("/api/v1/credit/accounts",
@@ -57,15 +57,15 @@ async def test_seller_cannot_touch_others_account(client, session, approved_sell
     # seller A owns an account
     spid_a = approved_seller["profile"].id
     await enable_credit(session, spid_a)
-    cust = await make_customer(session, phone="+919812345678")
+    await make_customer(session, phone="+919812345678")
     with as_seller(approved_seller["user"]):
         r = await client.post("/api/v1/credit/accounts",
                               json={"customer_phone": "+919812345678", "credit_limit": 1000})
         acct_id = r.json()["id"]
 
     # seller B tries to read/patch it
-    from tests.conftest import _make_seller
     from app.models.profile import VerificationStatus
+    from tests.conftest import _make_seller
     seller_b = await _make_seller(session, status=VerificationStatus.Approved)
     with as_seller(seller_b["user"]):
         r = await client.get(f"/api/v1/credit/accounts/{acct_id}/ledger")

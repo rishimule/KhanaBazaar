@@ -81,10 +81,13 @@ async def seller_grant_credit(
         customer_profile_id=customer.id,
         credit_limit=body.credit_limit,
     )
+    # Build the response BEFORE the notify-commit, which expires `acct` (reading
+    # its attributes afterwards would trigger a lazy load → MissingGreenlet).
+    result = to_account_read(acct)
     from app.services.credit_notifications import notify_credit_granted
 
     await notify_credit_granted(session, acct)
-    return to_account_read(acct)
+    return result
 
 
 @router.patch("/accounts/{account_id}", response_model=CreditAccountRead)

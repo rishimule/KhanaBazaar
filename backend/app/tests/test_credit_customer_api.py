@@ -54,8 +54,9 @@ async def test_customer_with_no_credit_sees_empty(client, session):
 
 @pytest.mark.asyncio
 async def test_credit_view_rejects_non_customer(client):
-    from app.core.security import get_current_customer as gcc
     from fastapi import HTTPException
+
+    from app.core.security import get_current_customer as gcc
 
     async def _deny() -> None:
         raise HTTPException(status_code=403, detail="Customer role required")
