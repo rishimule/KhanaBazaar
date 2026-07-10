@@ -5,6 +5,7 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
@@ -156,15 +157,22 @@ async def accept_customer_referral(
             invitee_email=email,
             full_name=body.full_name,
         )
+        assert user.id is not None
+        await record_acceptance(session, user.id)
+        await session.commit()
     except LookupError:
         raise HTTPException(status_code=404, detail={"error": "not_found"}) from None
     except ValueError as exc:
         raise HTTPException(status_code=409, detail={"error": str(exc)}) from exc
+    except IntegrityError:
+        # TOCTOU backstop: the email/phone was claimed between the pre-check and
+        # the insert (unique constraint tripped) → clean 409, not a 500.
+        await session.rollback()
+        raise HTTPException(
+            status_code=409, detail={"error": "already_registered"}
+        ) from None
 
-    assert user.id is not None
-    await record_acceptance(session, user.id)
     await consume_otp_key(email, redis)
-    await session.commit()
     await session.refresh(user)
     await session.refresh(activated)
     # Build the response BEFORE the best-effort notify (notify commits its own

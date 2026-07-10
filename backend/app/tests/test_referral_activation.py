@@ -136,6 +136,38 @@ async def test_accept_expired_invite_conflict(client, session, monkeypatch):
     assert res.json()["detail"]["error"] == "expired"
 
 
+@pytest.mark.asyncio
+async def test_accept_phone_collision_conflict(client, session, monkeypatch):
+    """A phone claimed between approve and accept must yield a clean 409
+    (already_registered), not a 500 from the CustomerProfile.phone unique
+    constraint tripping at flush."""
+    owner = User(email="owner@example.com", role=UserRole.Customer)
+    session.add(owner)
+    await session.flush()
+    session.add(
+        CustomerProfile(user_id=owner.id, first_name="Owner", phone="+919812345678")
+    )
+    r = _approved_referral(
+        invitee_email="joiner@example.com", invitee_phone="+919812345678"
+    )
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="joiner@example.com",
+        phone="+919812345678", expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={"token": tok, "code": "123456", "accept_policies": True},
+    )
+    assert res.status_code == 409, res.text
+    assert res.json()["detail"]["error"] == "already_registered"
+
+
 # ─── Seller activation binding ───────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_seller_register_binds_referral(client, session):
