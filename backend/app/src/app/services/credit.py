@@ -9,8 +9,17 @@ from fastapi import HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.otp import InvalidPhoneNumber, normalize_email, normalize_phone
 from app.models.admin_audit import AdminActionTargetType
-from app.models.credit import SellerCreditConfig
+from app.models.base import User, UserRole
+from app.models.credit import (
+    CreditAccount,
+    CreditAccountStatus,
+    CreditEntryType,
+    CreditLedgerEntry,
+    SellerCreditConfig,
+)
+from app.models.profile import CustomerProfile
 from app.services import admin_audit
 
 # ─── Admin per-seller config ─────────────────────────────────────────────
@@ -84,3 +93,214 @@ async def admin_set_credit_config(
     await session.commit()
     await session.refresh(row)
     return row
+
+
+# ─── Customer lookup ─────────────────────────────────────────────────────
+
+
+async def resolve_customer(
+    session: AsyncSession,
+    *,
+    phone: Optional[str] = None,
+    email: Optional[str] = None,
+) -> CustomerProfile:
+    """Find an existing Customer by exactly one of phone/email. Email lives on
+    User (CustomerProfile has none), so email lookups join through User."""
+    if bool(phone) == bool(email):
+        raise HTTPException(status_code=422, detail={"error": "exactly_one_contact"})
+    if email:
+        norm = normalize_email(email)
+        prof = (
+            await session.exec(
+                select(CustomerProfile)
+                .join(User, User.id == CustomerProfile.user_id)  # type: ignore[arg-type]
+                .where(User.email == norm, User.role == UserRole.Customer)
+            )
+        ).first()
+    else:
+        try:
+            norm = normalize_phone(phone or "")
+        except InvalidPhoneNumber:
+            raise HTTPException(
+                status_code=422, detail={"error": "invalid_phone"}
+            ) from None
+        prof = (
+            await session.exec(
+                select(CustomerProfile).where(CustomerProfile.phone == norm)
+            )
+        ).first()
+    if prof is None:
+        raise HTTPException(status_code=404, detail={"error": "customer_not_found"})
+    return prof
+
+
+# ─── Ledger + grant / adjust / repayment ─────────────────────────────────
+
+
+async def _append_entry(
+    session: AsyncSession,
+    account: CreditAccount,
+    entry_type: CreditEntryType,
+    amount: float,
+    balance_after: float,
+    *,
+    order_id: Optional[int] = None,
+    note: Optional[str] = None,
+    recorded_by: Optional[int] = None,
+) -> CreditLedgerEntry:
+    entry = CreditLedgerEntry(
+        credit_account_id=account.id,
+        entry_type=entry_type,
+        amount=amount,
+        balance_after=balance_after,
+        order_id=order_id,
+        note=note,
+        recorded_by_user_id=recorded_by,
+    )
+    session.add(entry)
+    await session.flush()
+    return entry
+
+
+async def grant_credit(
+    session: AsyncSession,
+    *,
+    seller_profile_id: int,
+    granted_by_user_id: int,
+    customer_profile_id: int,
+    credit_limit: float,
+) -> CreditAccount:
+    if credit_limit <= 0:
+        raise HTTPException(status_code=422, detail={"error": "invalid_limit"})
+    cfg = await load_seller_credit_config(session, seller_profile_id)
+    if not cfg.credit_enabled:
+        raise HTTPException(status_code=409, detail={"error": "credit_not_enabled"})
+    if credit_limit > cfg.max_limit_per_customer:
+        raise HTTPException(status_code=422, detail={"error": "limit_exceeds_cap"})
+    existing = (
+        await session.exec(
+            select(CreditAccount).where(
+                CreditAccount.seller_profile_id == seller_profile_id,
+                CreditAccount.customer_profile_id == customer_profile_id,
+            )
+        )
+    ).first()
+    if existing is not None:
+        raise HTTPException(status_code=409, detail={"error": "account_exists"})
+    acct = CreditAccount(
+        seller_profile_id=seller_profile_id,
+        customer_profile_id=customer_profile_id,
+        credit_limit=credit_limit,
+        outstanding_balance=0.0,
+        status=CreditAccountStatus.active,
+        granted_by_user_id=granted_by_user_id,
+    )
+    session.add(acct)
+    await session.commit()
+    await session.refresh(acct)
+    return acct
+
+
+async def adjust_credit_account(
+    session: AsyncSession,
+    *,
+    account: CreditAccount,
+    credit_limit: Optional[float] = None,
+    status: Optional[CreditAccountStatus] = None,
+) -> CreditAccount:
+    if credit_limit is not None:
+        if credit_limit <= 0:
+            raise HTTPException(status_code=422, detail={"error": "invalid_limit"})
+        if credit_limit < account.outstanding_balance:
+            raise HTTPException(status_code=422, detail={"error": "below_outstanding"})
+        # Grandfather: an existing limit may stay above a lowered cap, but a
+        # *raise* must fit within the seller's current cap.
+        if credit_limit > account.credit_limit:
+            cfg = await load_seller_credit_config(session, account.seller_profile_id)
+            if credit_limit > cfg.max_limit_per_customer:
+                raise HTTPException(
+                    status_code=422, detail={"error": "limit_exceeds_cap"}
+                )
+        account.credit_limit = credit_limit
+    if status is not None:
+        account.status = status
+    session.add(account)
+    await session.commit()
+    await session.refresh(account)
+    return account
+
+
+async def record_repayment(
+    session: AsyncSession,
+    *,
+    account: CreditAccount,
+    amount: float,
+    note: Optional[str],
+    recorded_by_user_id: int,
+) -> CreditLedgerEntry:
+    if amount <= 0:
+        raise HTTPException(status_code=422, detail={"error": "invalid_amount"})
+    if amount > account.outstanding_balance:
+        raise HTTPException(status_code=422, detail={"error": "over_repayment"})
+    account.outstanding_balance = round(account.outstanding_balance - amount, 2)
+    session.add(account)
+    entry = await _append_entry(
+        session,
+        account,
+        CreditEntryType.repayment,
+        amount,
+        account.outstanding_balance,
+        note=note,
+        recorded_by=recorded_by_user_id,
+    )
+    await session.commit()
+    await session.refresh(entry)
+    return entry
+
+
+async def get_account(
+    session: AsyncSession, account_id: int
+) -> Optional[CreditAccount]:
+    return (
+        await session.exec(select(CreditAccount).where(CreditAccount.id == account_id))
+    ).first()
+
+
+async def list_seller_accounts(
+    session: AsyncSession, seller_profile_id: int
+) -> list[CreditAccount]:
+    return list(
+        (
+            await session.exec(
+                select(CreditAccount)
+                .where(CreditAccount.seller_profile_id == seller_profile_id)
+                .order_by(CreditAccount.created_at.desc())  # type: ignore[attr-defined]
+            )
+        ).all()
+    )
+
+
+async def list_ledger(
+    session: AsyncSession, credit_account_id: int, page: int, page_size: int
+) -> tuple[list[CreditLedgerEntry], int]:
+    total = len(
+        (
+            await session.exec(
+                select(CreditLedgerEntry.id).where(
+                    CreditLedgerEntry.credit_account_id == credit_account_id
+                )
+            )
+        ).all()
+    )
+    items = list(
+        (
+            await session.exec(
+                select(CreditLedgerEntry)
+                .where(CreditLedgerEntry.credit_account_id == credit_account_id)
+                .order_by(CreditLedgerEntry.created_at.desc())  # type: ignore[attr-defined]
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
+        ).all()
+    )
+    return items, total
