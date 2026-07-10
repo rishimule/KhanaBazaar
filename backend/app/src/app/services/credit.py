@@ -20,6 +20,7 @@ from app.models.credit import (
     SellerCreditConfig,
 )
 from app.models.profile import CustomerProfile
+from app.models.store import Store
 from app.services import admin_audit
 
 # ─── Admin per-seller config ─────────────────────────────────────────────
@@ -304,3 +305,86 @@ async def list_ledger(
         ).all()
     )
     return items, total
+
+
+# ─── Checkout: eligibility + charge / reversal ───────────────────────────
+
+
+async def resolve_seller_id_for_store(
+    session: AsyncSession, store_id: int
+) -> Optional[int]:
+    return (
+        await session.exec(select(Store.seller_profile_id).where(Store.id == store_id))
+    ).first()
+
+
+async def lock_credit_account(
+    session: AsyncSession, seller_profile_id: int, customer_profile_id: int
+) -> Optional[CreditAccount]:
+    """Row-lock the (seller, customer) credit account to serialize concurrent
+    charges and prevent overspend races."""
+    return (
+        await session.exec(
+            select(CreditAccount)
+            .where(
+                CreditAccount.seller_profile_id == seller_profile_id,
+                CreditAccount.customer_profile_id == customer_profile_id,
+            )
+            .with_for_update()
+        )
+    ).first()
+
+
+async def assert_credit_eligible(
+    session: AsyncSession, *, store_id: int, customer_profile_id: int, total: float
+) -> CreditAccount:
+    """Lock + validate credit availability for a checkout. Raises 409 on any
+    ineligibility; returns the locked account for the caller to charge."""
+    seller_id = await resolve_seller_id_for_store(session, store_id)
+    if seller_id is None:
+        raise HTTPException(status_code=409, detail={"error": "credit_not_available"})
+    cfg = await load_seller_credit_config(session, seller_id)
+    acct = await lock_credit_account(session, seller_id, customer_profile_id)
+    if (
+        acct is None
+        or acct.status != CreditAccountStatus.active
+        or not cfg.credit_enabled
+    ):
+        raise HTTPException(status_code=409, detail={"error": "credit_not_available"})
+    if total > round(acct.credit_limit - acct.outstanding_balance, 2):
+        raise HTTPException(status_code=409, detail={"error": "insufficient_credit"})
+    return acct
+
+
+async def charge_credit_account(
+    session: AsyncSession, *, account: CreditAccount, order_id: int, amount: float
+) -> None:
+    """Increment outstanding + append a charge ledger row. Caller already holds
+    the row lock (via assert_credit_eligible) and owns the transaction."""
+    account.outstanding_balance = round(account.outstanding_balance + amount, 2)
+    session.add(account)
+    await _append_entry(
+        session, account, CreditEntryType.charge, amount,
+        account.outstanding_balance, order_id=order_id,
+    )
+
+
+async def reverse_credit_charge(
+    session: AsyncSession, *, store_id: int, customer_profile_id: int,
+    order_id: int, amount: float,
+) -> None:
+    """Reverse a credit charge on order cancel/refund: decrement outstanding
+    (floored at 0) + append a reversal ledger row. Best-effort no-op if no
+    account. Caller owns the transaction."""
+    seller_id = await resolve_seller_id_for_store(session, store_id)
+    if seller_id is None:
+        return
+    acct = await lock_credit_account(session, seller_id, customer_profile_id)
+    if acct is None:
+        return
+    acct.outstanding_balance = max(0.0, round(acct.outstanding_balance - amount, 2))
+    session.add(acct)
+    await _append_entry(
+        session, acct, CreditEntryType.reversal, amount,
+        acct.outstanding_balance, order_id=order_id,
+    )

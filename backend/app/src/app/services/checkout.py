@@ -479,6 +479,18 @@ async def place_order_for_sub_basket(
     subtotal = sum(inv_by_id[i.inventory_id].price * i.quantity for i in cart_items)
     delivery_fee = await _compute_delivery_fee(session, store_id, service_id, subtotal)
 
+    # Pay-on-credit: lock the account + assert available credit BEFORE creating
+    # anything (fail fast + serialize concurrent credit checkouts). Charged after
+    # the order flush, within this same atomic transaction.
+    credit_account = None
+    if payment_method == PaymentMethod.Credit:
+        from app.services import credit as credit_svc
+
+        total_due = subtotal + delivery_fee + MVP_TAX
+        credit_account = await credit_svc.assert_credit_eligible(
+            session, store_id=store_id, customer_profile_id=profile.id, total=total_due
+        )
+
     name_by_inv = await _snapshot_product_names(session, inv_ids)
     service_name_snapshot = await _snapshot_service_name(session, service_id)
     eta_min, eta_max = await _snapshot_delivery_eta(session, store_id, service_id)
@@ -497,6 +509,12 @@ async def place_order_for_sub_basket(
     session.add(order)
     await session.flush()
     assert order.id is not None
+    if credit_account is not None:
+        from app.services import credit as credit_svc
+
+        await credit_svc.charge_credit_account(
+            session, account=credit_account, order_id=order.id, amount=order.total
+        )
     for oi in order_items:
         oi.order_id = order.id
         session.add(oi)
