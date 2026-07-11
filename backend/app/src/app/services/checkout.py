@@ -14,6 +14,7 @@ from app.models.commerce import (
     Cart,
     CartItem,
     Delivery,
+    DeliveryMode,
     DeliveryStatus,
     Order,
     OrderItem,
@@ -31,6 +32,73 @@ from app.utils.address import format_address
 # MVP pricing constant. Delivery fee is now per-(store, service) — computed by
 # `_compute_delivery_fee`. Tax stays 0 until GST plugs in.
 MVP_TAX = 0.0
+
+# Which payment methods are valid for each delivery mode (Spec 3B). COD (cash)
+# is door-only; pay-at-store is pickup-only; UPI/Net Banking/Credit both.
+_ALLOWED_METHODS: dict[DeliveryMode, set[PaymentMethod]] = {
+    DeliveryMode.DoorDelivery: {
+        PaymentMethod.Upi,
+        PaymentMethod.NetBanking,
+        PaymentMethod.Cash,
+        PaymentMethod.Credit,
+    },
+    DeliveryMode.Pickup: {
+        PaymentMethod.Upi,
+        PaymentMethod.NetBanking,
+        PaymentMethod.PayAtStore,
+        PaymentMethod.Credit,
+    },
+}
+
+
+async def _resolve_store_pickup_address(
+    session: AsyncSession, store_id: int
+) -> tuple[int, str]:
+    """Return (store.address_id, formatted snapshot) — the pickup location for
+    a pick-up-at-store order (reused in the delivery_address slot)."""
+    row = (
+        await session.exec(
+            select(Store.address_id, Address)
+            .join(Address, Address.id == Store.address_id)  # type: ignore[arg-type]
+            .where(Store.id == store_id)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="store_not_found")
+    address_id, address = row
+    return address_id, format_address(address_to_payload(address))
+
+
+async def _assert_pickup_enabled(
+    session: AsyncSession, store_id: int, service_id: int
+) -> None:
+    """Raise 409 pickup_unavailable unless the (store, service) has opted into
+    pickup via SellerProfileService.pickup_enabled."""
+    from app.models.profile import SellerProfile, SellerProfileService
+
+    enabled = (
+        await session.exec(
+            select(SellerProfileService.pickup_enabled)
+            .join(
+                SellerProfile,
+                SellerProfile.id == SellerProfileService.seller_profile_id,  # type: ignore[arg-type]
+            )
+            .join(Store, Store.seller_profile_id == SellerProfile.id)  # type: ignore[arg-type]
+            .where(
+                Store.id == store_id,
+                SellerProfileService.service_id == service_id,
+            )
+        )
+    ).first()
+    if enabled is not True:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "detail": "pickup_unavailable",
+                "store_id": store_id,
+                "service_id": service_id,
+            },
+        )
 
 
 async def _customer_profile(session: AsyncSession, user: User) -> CustomerProfile:
@@ -298,6 +366,7 @@ def _build_order_for_cart(
     service_id: int, service_name_snapshot: str,
     delivery_eta_min_minutes: int, delivery_eta_max_minutes: int,
     delivery_fee: float,
+    delivery_mode: DeliveryMode = DeliveryMode.DoorDelivery,
     preferred_delivery_date: date | None = None,
     preferred_delivery_window: str | None = None,
 ) -> tuple[Order, list[OrderItem], Payment, Delivery]:
@@ -316,6 +385,7 @@ def _build_order_for_cart(
         preferred_delivery_window=preferred_delivery_window,
         delivery_address_id=address_id,
         delivery_address_snapshot=address_snapshot,
+        delivery_mode=delivery_mode,
         status=OrderStatus.Pending,
         subtotal=subtotal,
         delivery_fee=delivery_fee,
@@ -444,27 +514,44 @@ async def _snapshot_service_name(
 async def place_order_for_sub_basket(
     session: AsyncSession,
     user: User,
-    customer_address_id: int,
+    *,
     store_id: int,
     service_id: int,
     payment_method: PaymentMethod,
+    delivery_mode: DeliveryMode = DeliveryMode.DoorDelivery,
+    customer_address_id: int | None = None,
     preferred_delivery_date: date | None = None,
     preferred_delivery_window: str | None = None,
 ) -> Order:
     profile = await _customer_profile(session, user)
     assert profile.id is not None
 
-    address_id, address_snapshot = await _resolve_address(
-        session, customer_address_id, profile.id
-    )
+    if payment_method not in _ALLOWED_METHODS[delivery_mode]:
+        raise HTTPException(status_code=422, detail="payment_method_not_allowed")
 
     await _validate_service_active_for_store(session, store_id, service_id)
+
+    # Resolve the delivery/pickup location. Pickup reuses the delivery_address
+    # slot with the STORE address (the collect-here location) and skips the
+    # customer-address + serviceability requirements.
+    if delivery_mode == DeliveryMode.Pickup:
+        await _assert_pickup_enabled(session, store_id, service_id)
+        address_id, address_snapshot = await _resolve_store_pickup_address(
+            session, store_id
+        )
+    else:
+        if customer_address_id is None:
+            raise HTTPException(status_code=422, detail="address_required")
+        address_id, address_snapshot = await _resolve_address(
+            session, customer_address_id, profile.id
+        )
 
     cart, cart_items = await _load_cart_for_sub_basket(
         session, profile.id, store_id, service_id
     )
 
-    await _assert_serviceable(session, store_id=store_id, address_id=address_id)
+    if delivery_mode == DeliveryMode.DoorDelivery:
+        await _assert_serviceable(session, store_id=store_id, address_id=address_id)
 
     inv_ids = [item.inventory_id for item in cart_items]
     locked_inv = await lock_inventory_rows(session, inv_ids)
@@ -477,7 +564,11 @@ async def place_order_for_sub_basket(
     await _assert_locked_inventory_matches_service(session, inv_ids, service_id)
 
     subtotal = sum(inv_by_id[i.inventory_id].price * i.quantity for i in cart_items)
-    delivery_fee = await _compute_delivery_fee(session, store_id, service_id, subtotal)
+    delivery_fee = (
+        0.0
+        if delivery_mode == DeliveryMode.Pickup
+        else await _compute_delivery_fee(session, store_id, service_id, subtotal)
+    )
 
     # Pay-on-credit: lock the account + assert available credit BEFORE creating
     # anything (fail fast + serialize concurrent credit checkouts). Charged after
@@ -503,6 +594,7 @@ async def place_order_for_sub_basket(
         service_id=service_id, service_name_snapshot=service_name_snapshot,
         delivery_eta_min_minutes=eta_min, delivery_eta_max_minutes=eta_max,
         delivery_fee=delivery_fee,
+        delivery_mode=delivery_mode,
         preferred_delivery_date=preferred_delivery_date,
         preferred_delivery_window=preferred_delivery_window,
     )

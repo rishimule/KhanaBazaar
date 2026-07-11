@@ -229,6 +229,7 @@ async def _serialize_order(
         preferred_delivery_window=order.preferred_delivery_window,
         customer_name=customer_name,
         status=order.status,
+        delivery_mode=order.delivery_mode,
         subtotal=order.subtotal,
         delivery_fee=order.delivery_fee,
         tax=order.tax,
@@ -511,10 +512,11 @@ async def place_order(
     order = await place_order_for_sub_basket(
         session,
         user,
-        payload.customer_address_id,
-        payload.store_id,
-        payload.service_id,
-        payload.payment_method,
+        store_id=payload.store_id,
+        service_id=payload.service_id,
+        payment_method=payload.payment_method,
+        delivery_mode=payload.delivery_mode,
+        customer_address_id=payload.customer_address_id,
         preferred_delivery_date=payload.preferred_delivery_date,
         preferred_delivery_window=payload.preferred_delivery_window,
     )
