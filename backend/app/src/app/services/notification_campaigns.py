@@ -166,6 +166,7 @@ async def send_campaign(session: AsyncSession, campaign_id: int) -> None:
         raise HTTPException(status_code=404, detail="campaign_not_found")
     if campaign.status != CampaignStatus.Draft:
         raise HTTPException(status_code=409, detail="campaign_not_draft")
+    assert campaign.id is not None
 
     campaign.status = CampaignStatus.Sending
     await session.commit()
@@ -189,20 +190,21 @@ async def send_campaign(session: AsyncSession, campaign_id: int) -> None:
 
         # Customers: in-app (+push), external gated on opt-in unless essential.
         for batch in _chunks(cust_ids, _BATCH):
-            rows = (
+            cust_rows = (
                 await session.exec(
                     select(CustomerProfile, User.email)
                     .join(User, User.id == CustomerProfile.user_id)  # type: ignore[arg-type]
                     .where(col(CustomerProfile.id).in_(batch))
                 )
             ).all()
-            for prof, email in rows:
+            push_ids: list[int] = []
+            for prof, email in cust_rows:
                 notif = await record_campaign_notification(
                     session, **_content(), customer_profile_id=prof.id
                 )
                 inapp += 1
                 if notif.id is not None:
-                    dispatch_notification_push(notif.id)
+                    push_ids.append(notif.id)
                 external_ok = prof.marketing_opt_in or campaign.is_essential
                 if external_ok and want_email and email:
                     _enqueue_email(campaign.id, email)
@@ -211,17 +213,21 @@ async def send_campaign(session: AsyncSession, campaign_id: int) -> None:
                     _enqueue_sms(campaign.id, prof.phone)
                     sms_n += 1
             await session.commit()
+            # Push AFTER commit so the separate-engine push task can read the row
+            # (record_campaign_notification only flushes). Mirrors the order path.
+            for nid in push_ids:
+                dispatch_notification_push(nid)
 
         # Sellers: in-app + external always (operational comms). No push.
         for batch in _chunks(sell_ids, _BATCH):
-            rows = (
+            sell_rows = (
                 await session.exec(
                     select(SellerProfile, User.email)
                     .join(User, User.id == SellerProfile.user_id)  # type: ignore[arg-type]
                     .where(col(SellerProfile.id).in_(batch))
                 )
             ).all()
-            for prof, email in rows:
+            for prof, email in sell_rows:
                 await record_campaign_notification(
                     session, **_content(), seller_profile_id=prof.id
                 )

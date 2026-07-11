@@ -113,6 +113,11 @@ export default function AdminNotificationsPage() {
     setCtaUrl("");
     setCtaLabel("");
     setImageFile(null);
+    // Reset the high-reach toggles so they can't be silently reused on the
+    // next campaign; audience/location are left as-is for repeat sends.
+    setIsEssential(false);
+    setEmail(false);
+    setSms(false);
     setPreparedId(null);
     setPreview(null);
   }

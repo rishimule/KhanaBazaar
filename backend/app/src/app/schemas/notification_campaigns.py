@@ -19,6 +19,13 @@ def _validate_channels(channels: list[str]) -> list[str]:
     return channels
 
 
+def _validate_cta_url(cta_url: str | None) -> None:
+    """CTA links render as an <a href> in the notification bell, so only allow
+    http(s) schemes (reject javascript:/data: etc.)."""
+    if cta_url and not cta_url.startswith(("http://", "https://")):
+        raise ValueError("cta_url_must_be_http")
+
+
 class CampaignCreate(BaseModel):
     audience: NotificationAudience
     filters: dict[str, Any] = Field(default_factory=dict)
@@ -32,6 +39,7 @@ class CampaignCreate(BaseModel):
     @model_validator(mode="after")
     def _check(self) -> "CampaignCreate":
         _validate_channels(self.channels)
+        _validate_cta_url(self.cta_url)
         return self
 
 
@@ -49,6 +57,7 @@ class CampaignUpdate(BaseModel):
     def _check(self) -> "CampaignUpdate":
         if self.channels is not None:
             _validate_channels(self.channels)
+        _validate_cta_url(self.cta_url)
         return self
 
 

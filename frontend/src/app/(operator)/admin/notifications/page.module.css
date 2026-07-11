@@ -118,7 +118,7 @@
 }
 
 .error {
-  color: var(--color-danger, #b3261e);
+  color: var(--color-error);
   margin: 0.5rem 0;
 }
 
@@ -154,10 +154,10 @@
 
 .sent {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--white);
 }
 
 .failed {
   background: rgba(179, 38, 30, 0.12);
-  color: #b3261e;
+  color: var(--color-error);
 }

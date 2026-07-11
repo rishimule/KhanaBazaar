@@ -103,6 +103,15 @@ async def test_invalid_channels_rejected(client_factory) -> None:
     assert resp.status_code == 422
 
 
+async def test_non_http_cta_url_rejected(client_factory) -> None:
+    async with client_factory(mock_admin) as ac:
+        resp = await ac.post(
+            "/api/v1/admin/notifications/campaigns",
+            json={**_DRAFT, "cta_url": "javascript:alert(1)"},
+        )
+    assert resp.status_code == 422
+
+
 async def test_non_admin_forbidden(client_factory) -> None:
     async with client_factory(mock_customer) as ac:
         resp = await ac.get("/api/v1/admin/notifications/campaigns")
