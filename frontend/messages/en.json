@@ -918,7 +918,8 @@
       "profile": "Profile",
       "plan": "Plan",
       "referrals": "Referrals",
-      "credit": "Credit"
+      "credit": "Credit",
+      "storeQr": "Store QR"
     },
     "titles": {
       "dashboard": "Seller Dashboard",
@@ -929,7 +930,8 @@
       "portal": "Seller Portal",
       "plan": "Plan & Billing",
       "referrals": "Referrals",
-      "credit": "Credit customers"
+      "credit": "Credit customers",
+      "storeQr": "Store QR Code"
     },
     "common": {
       "save": "Save",
@@ -1993,5 +1995,14 @@
     "saving": "Saving…",
     "saved": "Saved.",
     "errInvalidCap": "Enter a valid amount."
+  },
+  "StoreQR": {
+    "posterCta": "Scan to shop with us on {brand}",
+    "posterHint": "Point your phone camera here",
+    "downloadPng": "Download PNG",
+    "downloadSvg": "Download SVG",
+    "print": "Print",
+    "noStoreTitle": "No store yet",
+    "noStoreBody": "Your store QR code appears here once your store is set up and approved."
   }
 }
