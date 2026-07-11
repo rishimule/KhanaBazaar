@@ -115,6 +115,7 @@ class SetServiceDeliverySettingsBody(BaseModel):
     # untouched, or send both to set it. Sending exactly one is rejected.
     delivery_eta_min_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
     delivery_eta_max_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
+    pickup_enabled: Optional[bool] = None
 
     @model_validator(mode="after")
     def _check_window(self) -> "SetServiceDeliverySettingsBody":
