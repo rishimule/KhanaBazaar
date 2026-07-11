@@ -54,6 +54,9 @@ async def get_notifications(
                 status_value=n.status_value,
                 read=n.read,
                 created_at=n.created_at,
+                image_url=n.image_url,
+                cta_url=n.cta_url,
+                cta_label=n.cta_label,
             )
             for n in items
         ],
@@ -148,6 +151,9 @@ async def get_seller_notifications(
                 status_value=n.status_value,
                 read=n.read,
                 created_at=n.created_at,
+                image_url=n.image_url,
+                cta_url=n.cta_url,
+                cta_label=n.cta_label,
             )
             for n in items
         ],

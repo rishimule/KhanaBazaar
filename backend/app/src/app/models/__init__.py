@@ -41,6 +41,11 @@ from .dev_email import DevEmail
 from .dev_sms import DevSms
 from .dev_whatsapp import DevWhatsApp
 from .notification import Notification, NotificationType, PushSubscription
+from .notification_campaign import (
+    CampaignStatus,
+    NotificationAudience,
+    NotificationCampaign,
+)
 from .platform_fee import (
     ArrangementStatus,
     FeeArrangement,
@@ -114,9 +119,12 @@ __all__ = [
     "FeePaymentStatus",
     "Language",
     "LanguageCode",
+    "CampaignStatus",
     "MasterProduct",
     "MasterProductTranslation",
     "Notification",
+    "NotificationAudience",
+    "NotificationCampaign",
     "NotificationType",
     "OnboardingRequestStatus",
     "Order",

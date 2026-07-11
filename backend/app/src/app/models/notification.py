@@ -18,6 +18,7 @@ class NotificationType(str, enum.Enum):
     FeeSuspended = "fee_suspended"
     Referral = "referral"
     Credit = "credit"
+    Announcement = "announcement"
 
 
 class Notification(BaseSchema, table=True):
@@ -36,11 +37,17 @@ class Notification(BaseSchema, table=True):
         default=None, foreign_key="sellerprofile.id", nullable=True, index=True
     )
     order_id: Optional[int] = Field(default=None, foreign_key="order.id")
+    campaign_id: Optional[int] = Field(
+        default=None, foreign_key="notification_campaign.id", nullable=True
+    )
     type: NotificationType = Field(default=NotificationType.OrderStatus, nullable=False)
     title: str = Field(nullable=False)
     body: str = Field(nullable=False)
     status_value: str = Field(nullable=False)
     read: bool = Field(default=False, nullable=False)
+    image_url: Optional[str] = Field(default=None, max_length=500)
+    cta_url: Optional[str] = Field(default=None, max_length=500)
+    cta_label: Optional[str] = Field(default=None, max_length=80)
 
 
 class PushSubscription(BaseSchema, table=True):
