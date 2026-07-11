@@ -99,6 +99,24 @@
   font-size: 13px;
   color: var(--color-text-muted);
 }
+.thumb {
+  width: 100%;
+  max-height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+.cta {
+  display: inline-block;
+  margin: 0 16px 10px;
+  padding: 6px 12px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
 .enableBanner {
   padding: 12px 16px;
   border-bottom: 1px solid var(--color-border);
