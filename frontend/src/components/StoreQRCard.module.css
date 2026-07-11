@@ -1,0 +1,71 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+   This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.poster {
+  width: 100%;
+  background: var(--color-surface);
+  border: 3px solid var(--color-primary);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.storeName {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cta {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.qrBox {
+  padding: 0.75rem;
+  background: var(--color-surface);
+  border-radius: 8px;
+  line-height: 0;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--color-neutral-500);
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.empty {
+  padding: 2rem;
+  background: var(--color-neutral-50);
+  border-radius: 8px;
+  text-align: center;
+  color: var(--color-neutral-600);
+  display: grid;
+  gap: 0.35rem;
+  max-width: 420px;
+  margin: 0 auto;
+}
