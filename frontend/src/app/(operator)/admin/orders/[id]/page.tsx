@@ -20,6 +20,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const t = useTranslations("Admin.orderDetail");
   const tc = useTranslations("Admin.common");
   const tp = useTranslations("Shared.paymentStatus");
+  const tpm = useTranslations("Order.payment.method");
   const { id } = use(params);
   const { token } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
@@ -39,7 +40,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>{t("title", { id: order.id })}</h1>
-        <OrderStatusBadge status={order.status} />
+        <OrderStatusBadge status={order.status} deliveryMode={order.delivery_mode} />
       </div>
       <p className={styles.subtitle}>
         {order.store_name} <span className={styles.serviceChip}>· {order.service_name}</span>
@@ -48,7 +49,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
       <RequestedDeliveryLine order={order} className={styles.subtitle} />
 
       <section className={styles.section}>
-        <OrderTimeline status={order.status} />
+        <OrderTimeline status={order.status} deliveryMode={order.delivery_mode} />
       </section>
 
       <DeliveryOtpPanel
@@ -70,7 +71,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("payment")}</h2>
-        <p>{order.payment.method.toUpperCase()} · {tp(order.payment.status)}</p>
+        <p>{tpm(order.payment.method)} · {tp(order.payment.status)}</p>
       </section>
 
       <section className={styles.section}>

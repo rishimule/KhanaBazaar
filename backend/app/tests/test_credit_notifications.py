@@ -46,7 +46,7 @@ async def test_threshold_fires_once_and_balance_each_time(session):
     # limit 125, order total 100 -> 80% usage
     s = await _seed(session, credit_limit=125.0)
     order = await place_order_for_sub_basket(
-        session, s["user"], s["address_id"], s["store_id"], s["service_id"], PaymentMethod.Credit
+        session, s["user"], customer_address_id=s["address_id"], store_id=s["store_id"], service_id=s["service_id"], payment_method=PaymentMethod.Credit
     )
     await record_and_dispatch_credit_charge_notifications(session, order)
 

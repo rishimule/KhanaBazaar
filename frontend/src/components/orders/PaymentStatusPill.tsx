@@ -19,7 +19,7 @@ export default function PaymentStatusPill({ payment }: Props) {
   const t = useTranslations("Order.payment");
   return (
     <span className={`${styles.pill} ${STATUS_CLASS[payment.status] ?? ""}`}>
-      <span className={styles.method}>{payment.method.toUpperCase()}</span>
+      <span className={styles.method}>{t(`method.${payment.method}`)}</span>
       <span className={styles.dot}>·</span>
       <span className={styles.status}>{t(`status.${payment.status}`)}</span>
     </span>

@@ -130,7 +130,7 @@ export default function CustomerOrdersPage() {
     {
       key: "status",
       label: t("colStatus"),
-      render: (o) => <OrderStatusBadge status={o.status} />,
+      render: (o) => <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />,
     },
   ];
 
@@ -235,7 +235,7 @@ export default function CustomerOrdersPage() {
                 <a href={`/account/orders/${o.id}`} className={styles.mobileLink}>
                   <div className={styles.mobileTop}>
                     <span className={styles.mono}>#{o.id}</span>
-                    <OrderStatusBadge status={o.status} />
+                    <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
                   </div>
                   <div>
                     {o.store_name} · {o.service_name}

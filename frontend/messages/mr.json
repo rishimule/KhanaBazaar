@@ -230,7 +230,11 @@
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
     },
-    "errCreditUnavailable": "या स्टोअरवर तुमच्याकडे पुरेसे क्रेडिट नाही."
+    "errCreditUnavailable": "या स्टोअरवर तुमच्याकडे पुरेसे क्रेडिट नाही.",
+    "deliveryModeTitle": "डिलिव्हरी पद्धत",
+    "modeDoor": "घरपोच डिलिव्हरी",
+    "modePickup": "दुकानातून पिकअप",
+    "collectAt": "येथून घ्या"
   },
   "Login": {
     "errSendCode": "कोड पाठवण्यात अयशस्वी.",
@@ -462,7 +466,11 @@
     "creditLabel": "क्रेडिटवर पैसे द्या",
     "creditAvailable": "या स्टोअरवर ₹{amount} उपलब्ध",
     "creditInsufficient": "पुरेसे क्रेडिट नाही — ₹{amount} उपलब्ध",
-    "creditSettleNote": "ही रक्कम तुम्ही थेट स्टोअरशी सेटल कराल."
+    "creditSettleNote": "ही रक्कम तुम्ही थेट स्टोअरशी सेटल कराल.",
+    "netBankingLabel": "नेट बँकिंग",
+    "netBankingHint": "तुमच्या बँक पोर्टलद्वारे पैसे भरा",
+    "payAtStoreLabel": "दुकानात पैसे द्या",
+    "payAtStoreHint": "वस्तू घेताना काउंटरवर पैसे भरा"
   },
   "Order": {
     "delivery": {
@@ -482,14 +490,18 @@
       "packed": "पॅक केले",
       "dispatched": "पाठवले",
       "delivered": "पोहोचवले",
-      "cancelled": "रद्द"
+      "cancelled": "रद्द",
+      "pickup_dispatched": "पिकअपसाठी तयार",
+      "pickup_delivered": "घेतले"
     },
     "timeline": {
       "placed": "ऑर्डर दिली",
       "packed": "पॅक केले",
       "dispatched": "पाठवले",
       "delivered": "पोहोचवले",
-      "cancelled": "ऑर्डर रद्द केली"
+      "cancelled": "ऑर्डर रद्द केली",
+      "pickup_dispatched": "पिकअपसाठी तयार",
+      "pickup_delivered": "घेतले"
     },
     "card": {
       "forCustomer": "{name} साठी",
@@ -518,7 +530,9 @@
       "reasonTitle": "कोडशिवाय सक्तीने डिलिव्हर करा",
       "reasonLabel": "कारण (किमान 10 अक्षरे)",
       "reasonSubmit": "डिलिव्हर म्हणून चिन्हांकित करा",
-      "reasonTooShort": "कृपया किमान 10 अक्षरांचे कारण टाका."
+      "reasonTooShort": "कृपया किमान 10 अक्षरांचे कारण टाका.",
+      "markReadyForPickup": "पिकअपसाठी तयार करा",
+      "confirmCollection": "पिकअपची पुष्टी करा"
     },
     "active": {
       "title": "सक्रिय ऑर्डर",
@@ -532,6 +546,13 @@
         "paid": "भरले",
         "failed": "अयशस्वी",
         "refunded": "परत"
+      },
+      "method": {
+        "upi": "UPI",
+        "cash": "डिलिव्हरीवर रोख",
+        "credit": "क्रेडिटवर भुगतान",
+        "net_banking": "नेट बँकिंग",
+        "pay_at_store": "दुकानात पैसे"
       }
     },
     "review": {
@@ -618,7 +639,10 @@
       "resendCode": "कोड पुन्हा पाठवा",
       "resendCooldown": "पुन्हा पाठवण्यापूर्वी {seconds} सेकंद थांबा.",
       "resendDone": "कोड पुन्हा पाठवला.",
-      "resendError": "कोड पुन्हा पाठवता आला नाही."
+      "resendError": "कोड पुन्हा पाठवता आला नाही.",
+      "pickupLocation": "पिकअप ठिकाण",
+      "deliveryCodeTitlePickup": "कलेक्शन कोड",
+      "deliveryCodeHintPickup": "तुमची ऑर्डर घेण्यासाठी हा कोड दुकानाच्या काउंटरवर दाखवा."
     },
     "profile": {
       "loading": "प्रोफाइल लोड होत आहे…",
@@ -1116,7 +1140,8 @@
       "no": "नाही",
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
-      "deliveryFeeInputLabel": "Delivery fee for {service}"
+      "deliveryFeeInputLabel": "Delivery fee for {service}",
+      "allowPickup": "दुकानातून पिकअपला परवानगी द्या"
     },
     "profile": {
       "heading": "प्रोफाइल",
@@ -1399,7 +1424,9 @@
       "resendCode": "कोड पुन्हा पाठवा",
       "resendCooldown": "पुन्हा पाठवण्यापूर्वी {seconds} सेकंद थांबा.",
       "resendDone": "कोड पुन्हा पाठवला.",
-      "resendError": "कोड पुन्हा पाठवता आला नाही."
+      "resendError": "कोड पुन्हा पाठवता आला नाही.",
+      "deliveryCodeTitlePickup": "कलेक्शन कोड",
+      "deliveryCodeHintPickup": "या पिकअप ऑर्डरसाठी ग्राहकाचा कलेक्शन कोड."
     },
     "catalog": {
       "services": "सेवा",
@@ -1601,7 +1628,8 @@
           "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
           "reopenTitle": "Reopen this store?",
           "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
-        }
+        },
+        "allowPickup": "पिकअपला परवानगी"
       },
       "orders": {
         "loadError": "ऑर्डर लोड करण्यात अयशस्वी",

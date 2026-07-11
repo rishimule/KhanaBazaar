@@ -230,7 +230,11 @@
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
     },
-    "errCreditUnavailable": "આ સ્ટોર પર તમારી પાસે પૂરતું ક્રેડિટ નથી."
+    "errCreditUnavailable": "આ સ્ટોર પર તમારી પાસે પૂરતું ક્રેડિટ નથી.",
+    "deliveryModeTitle": "ડિલિવરી પદ્ધતિ",
+    "modeDoor": "ઘરે ડિલિવરી",
+    "modePickup": "સ્ટોરથી પિકઅપ",
+    "collectAt": "અહીંથી લો"
   },
   "Login": {
     "errSendCode": "કોડ મોકલવામાં નિષ્ફળ.",
@@ -462,7 +466,11 @@
     "creditLabel": "ક્રેડિટ પર ચૂકવો",
     "creditAvailable": "આ સ્ટોર પર ₹{amount} ઉપલબ્ધ",
     "creditInsufficient": "પૂરતું ક્રેડિટ નથી — ₹{amount} ઉપલબ્ધ",
-    "creditSettleNote": "આ રકમ તમે સીધા સ્ટોર સાથે પતાવશો."
+    "creditSettleNote": "આ રકમ તમે સીધા સ્ટોર સાથે પતાવશો.",
+    "netBankingLabel": "નેટ બેંકિંગ",
+    "netBankingHint": "તમારા બેંક પોર્ટલ દ્વારા ચૂકવણી કરો",
+    "payAtStoreLabel": "સ્ટોર પર ચૂકવણી",
+    "payAtStoreHint": "લેતી વખતે કાઉન્ટર પર ચૂકવણી કરો"
   },
   "Order": {
     "delivery": {
@@ -482,14 +490,18 @@
       "packed": "પેક કરેલ",
       "dispatched": "મોકલેલ",
       "delivered": "પહોંચાડેલ",
-      "cancelled": "રદ"
+      "cancelled": "રદ",
+      "pickup_dispatched": "પિકઅપ માટે તૈયાર",
+      "pickup_delivered": "લઈ લીધું"
     },
     "timeline": {
       "placed": "ઓર્ડર આપેલ",
       "packed": "પેક કરેલ",
       "dispatched": "મોકલેલ",
       "delivered": "પહોંચાડેલ",
-      "cancelled": "ઓર્ડર રદ કરેલ"
+      "cancelled": "ઓર્ડર રદ કરેલ",
+      "pickup_dispatched": "પિકઅપ માટે તૈયાર",
+      "pickup_delivered": "લઈ લીધું"
     },
     "card": {
       "forCustomer": "{name} માટે",
@@ -518,7 +530,9 @@
       "reasonTitle": "કોડ વિના ફરજિયાત ડિલિવર કરો",
       "reasonLabel": "કારણ (ઓછામાં ઓછા 10 અક્ષર)",
       "reasonSubmit": "ડિલિવર તરીકે ચિહ્નિત કરો",
-      "reasonTooShort": "કૃપા કરીને ઓછામાં ઓછા 10 અક્ષરનું કારણ દાખલ કરો."
+      "reasonTooShort": "કૃપા કરીને ઓછામાં ઓછા 10 અક્ષરનું કારણ દાખલ કરો.",
+      "markReadyForPickup": "પિકઅપ માટે તૈયાર કરો",
+      "confirmCollection": "પિકઅપની પુષ્ટિ કરો"
     },
     "active": {
       "title": "સક્રિય ઓર્ડર",
@@ -532,6 +546,13 @@
         "paid": "ચૂકવાયું",
         "failed": "નિષ્ફળ",
         "refunded": "પાછું"
+      },
+      "method": {
+        "upi": "UPI",
+        "cash": "ડિલિવરી પર રોકડ",
+        "credit": "ક્રેડિટ પર ચૂકવણી",
+        "net_banking": "નેટ બેંકિંગ",
+        "pay_at_store": "સ્ટોર પર ચૂકવણી"
       }
     },
     "review": {
@@ -618,7 +639,10 @@
       "resendCode": "કોડ ફરી મોકલો",
       "resendCooldown": "ફરી મોકલતા પહેલાં {seconds} સેકન્ડ રાહ જુઓ.",
       "resendDone": "કોડ ફરી મોકલ્યો.",
-      "resendError": "કોડ ફરી મોકલી શકાયો નહીં."
+      "resendError": "કોડ ફરી મોકલી શકાયો નહીં.",
+      "pickupLocation": "પિકઅપ સ્થાન",
+      "deliveryCodeTitlePickup": "કલેક્શન કોડ",
+      "deliveryCodeHintPickup": "તમારો ઓર્ડર લેવા માટે આ કોડ સ્ટોર કાઉન્ટર પર બતાવો."
     },
     "profile": {
       "loading": "પ્રોફાઇલ લોડ થઈ રહી છે…",
@@ -1116,7 +1140,8 @@
       "no": "ના",
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
-      "deliveryFeeInputLabel": "Delivery fee for {service}"
+      "deliveryFeeInputLabel": "Delivery fee for {service}",
+      "allowPickup": "સ્ટોરથી પિકઅપની મંજૂરી આપો"
     },
     "profile": {
       "heading": "પ્રોફાઇલ",
@@ -1399,7 +1424,9 @@
       "resendCode": "કોડ ફરી મોકલો",
       "resendCooldown": "ફરી મોકલતા પહેલાં {seconds} સેકન્ડ રાહ જુઓ.",
       "resendDone": "કોડ ફરી મોકલ્યો.",
-      "resendError": "કોડ ફરી મોકલી શકાયો નહીં."
+      "resendError": "કોડ ફરી મોકલી શકાયો નહીં.",
+      "deliveryCodeTitlePickup": "કલેક્શન કોડ",
+      "deliveryCodeHintPickup": "આ પિકઅપ ઓર્ડર માટે ગ્રાહકનો કલેક્શન કોડ."
     },
     "catalog": {
       "services": "સેવાઓ",
@@ -1601,7 +1628,8 @@
           "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
           "reopenTitle": "Reopen this store?",
           "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
-        }
+        },
+        "allowPickup": "પિકઅપની મંજૂરી"
       },
       "orders": {
         "loadError": "ઓર્ડર લોડ કરવામાં નિષ્ફળ",

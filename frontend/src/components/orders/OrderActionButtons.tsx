@@ -55,6 +55,15 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
 
   const nextStep = NEXT_TRANSITION[order.status];
   const isDeliverStep = nextStep === "delivered";
+  const isPickup = order.delivery_mode === "pickup";
+  // Pickup relabels the seller's next-step button: "Ready for pickup" / "Confirm collection".
+  const nextLabelKey = !nextStep
+    ? ""
+    : isPickup && nextStep === "dispatched"
+      ? "markReadyForPickup"
+      : isPickup && nextStep === "delivered"
+        ? "confirmCollection"
+        : NEXT_LABEL_KEYS[nextStep];
   const canTransition =
     (role === "seller" && nextStep !== undefined) ||
     (role === "admin" && isDeliverStep);
@@ -161,7 +170,7 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
         <button onClick={handleTransition} disabled={busy} className={styles.primary}>
           {role === "admin" && isDeliverStep
             ? t("forceDeliver")
-            : t(NEXT_LABEL_KEYS[nextStep!])}
+            : t(nextLabelKey)}
         </button>
       )}
       {(canCancelCustomer || canCancelStaff) && (

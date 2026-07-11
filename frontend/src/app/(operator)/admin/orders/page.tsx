@@ -114,7 +114,7 @@ export default function AdminOrdersPage() {
       render: (o) => <span className={styles.right}>₹{o.total.toFixed(2)}</span>,
     },
     { key: "payment", label: t("colPayment"), render: (o) => <PaymentStatusPill payment={o.payment} /> },
-    { key: "status", label: t("colStatus"), render: (o) => <OrderStatusBadge status={o.status} /> },
+    { key: "status", label: t("colStatus"), render: (o) => <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} /> },
   ];
 
   return (
@@ -226,7 +226,7 @@ export default function AdminOrdersPage() {
                 <a href={`/admin/orders/${o.id}`} className={styles.mobileLink}>
                   <div className={styles.mobileTop}>
                     <span className={styles.mono}>#{o.id}</span>
-                    <OrderStatusBadge status={o.status} />
+                    <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
                   </div>
                   <div>
                     {o.store_name} · {o.service_name}

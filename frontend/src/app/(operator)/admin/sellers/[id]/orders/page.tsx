@@ -154,7 +154,7 @@ export default function AdminOrdersTab({
                 <td style={cell}>
                   <Link href={`/admin/orders/${o.id}`}>#{o.id}</Link>
                 </td>
-                <td style={cell}><OrderStatusBadge status={o.status} /></td>
+                <td style={cell}><OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} /></td>
                 <td style={cell}>
                   <PaymentStatusBadge status={o.payment.status} />
                 </td>

@@ -3,10 +3,21 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useTranslations } from "next-intl";
-import type { OrderStatus } from "@/types";
+import type { DeliveryMode, OrderStatus } from "@/types";
 import styles from "./OrderStatusBadge.module.css";
 
-export default function OrderStatusBadge({ status }: { status: OrderStatus }) {
+export default function OrderStatusBadge({
+  status,
+  deliveryMode,
+}: {
+  status: OrderStatus;
+  deliveryMode?: DeliveryMode;
+}) {
   const t = useTranslations("Order.status");
-  return <span className={`${styles.badge} ${styles[status]}`}>{t(status)}</span>;
+  // Pickup reuses the same statuses; only the customer-facing wording differs.
+  const key =
+    deliveryMode === "pickup" && (status === "dispatched" || status === "delivered")
+      ? `pickup_${status}`
+      : status;
+  return <span className={`${styles.badge} ${styles[status]}`}>{t(key)}</span>;
 }

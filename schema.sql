@@ -2,13 +2,14 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `f6495e1b1c31`. Regenerate this file when the head changes.
+-- migration head `36dcf8e48719`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
 --   verificationstatus           : 'Pending', 'Approved', 'Rejected'
 --   orderstatus                  : 'Pending', 'Paid', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'
---   paymentmethod                : 'Upi', 'Cash', 'Credit'
+--   paymentmethod                : 'Upi', 'Cash', 'Credit', 'NetBanking', 'PayAtStore'  (Python values: 'upi', 'cash', 'credit', 'net_banking', 'pay_at_store')
+--   deliverymode                 : 'DoorDelivery', 'Pickup'  (Python values: 'door_delivery', 'pickup')
 --   paymentstatus                : 'Pending', 'Paid', 'Failed', 'Refunded'
 --   deliverystatus               : 'Pending', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'
 --   locationsource               : 'manual', 'autocomplete', 'pin', 'geocoded'
@@ -170,6 +171,7 @@ CREATE TABLE "sellerprofile_service" (
   "delivery_fee" DOUBLE PRECISION NOT NULL,
   "delivery_eta_min_minutes" INTEGER NOT NULL,
   "delivery_eta_max_minutes" INTEGER NOT NULL,
+  "pickup_enabled" BOOLEAN NOT NULL DEFAULT false,
   -- Per-service pause (holiday mode); app-level model default governs new rows.
   "is_paused" BOOLEAN NOT NULL,
   "pause_reason" VARCHAR(200),
@@ -306,6 +308,7 @@ CREATE TABLE "order" (
   "service_id" INTEGER NOT NULL,
   "service_name_snapshot" VARCHAR NOT NULL,
   "delivery_address_id" INTEGER NOT NULL,
+  "delivery_mode" deliverymode NOT NULL DEFAULT 'DoorDelivery',
   "status" orderstatus NOT NULL,
   "subtotal" DOUBLE PRECISION NOT NULL,
   "delivery_fee" DOUBLE PRECISION NOT NULL,

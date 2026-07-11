@@ -230,7 +230,11 @@
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
     },
-    "errCreditUnavailable": "ਇਸ ਸਟੋਰ ਉੱਤੇ ਤੁਹਾਡੇ ਕੋਲ ਲੋੜੀਂਦਾ ਕ੍ਰੈਡਿਟ ਨਹੀਂ ਹੈ।"
+    "errCreditUnavailable": "ਇਸ ਸਟੋਰ ਉੱਤੇ ਤੁਹਾਡੇ ਕੋਲ ਲੋੜੀਂਦਾ ਕ੍ਰੈਡਿਟ ਨਹੀਂ ਹੈ।",
+    "deliveryModeTitle": "ਡਿਲੀਵਰੀ ਤਰੀਕਾ",
+    "modeDoor": "ਘਰ ਡਿਲੀਵਰੀ",
+    "modePickup": "ਸਟੋਰ ਤੋਂ ਪਿਕਅੱਪ",
+    "collectAt": "ਇੱਥੋਂ ਲਓ"
   },
   "Login": {
     "errSendCode": "ਕੋਡ ਭੇਜਣ ਵਿੱਚ ਅਸਫਲ.",
@@ -462,7 +466,11 @@
     "creditLabel": "ਕ੍ਰੈਡਿਟ ’ਤੇ ਭੁਗਤਾਨ ਕਰੋ",
     "creditAvailable": "ਇਸ ਸਟੋਰ ਉੱਤੇ ₹{amount} ਉਪਲਬਧ",
     "creditInsufficient": "ਲੋੜੀਂਦਾ ਕ੍ਰੈਡਿਟ ਨਹੀਂ — ₹{amount} ਉਪਲਬਧ",
-    "creditSettleNote": "ਇਹ ਰਕਮ ਤੁਸੀਂ ਸਿੱਧਾ ਸਟੋਰ ਨਾਲ ਚੁਕਾਓਗੇ।"
+    "creditSettleNote": "ਇਹ ਰਕਮ ਤੁਸੀਂ ਸਿੱਧਾ ਸਟੋਰ ਨਾਲ ਚੁਕਾਓਗੇ।",
+    "netBankingLabel": "ਨੈੱਟ ਬੈਂਕਿੰਗ",
+    "netBankingHint": "ਆਪਣੇ ਬੈਂਕ ਪੋਰਟਲ ਰਾਹੀਂ ਭੁਗਤਾਨ ਕਰੋ",
+    "payAtStoreLabel": "ਸਟੋਰ ਉੱਤੇ ਭੁਗਤਾਨ",
+    "payAtStoreHint": "ਲੈਣ ਵੇਲੇ ਕਾਊਂਟਰ ਉੱਤੇ ਭੁਗਤਾਨ ਕਰੋ"
   },
   "Order": {
     "delivery": {
@@ -482,14 +490,18 @@
       "packed": "ਪੈਕ ਕੀਤਾ",
       "dispatched": "ਭੇਜਿਆ",
       "delivered": "ਪਹੁੰਚਾਇਆ",
-      "cancelled": "ਰੱਦ"
+      "cancelled": "ਰੱਦ",
+      "pickup_dispatched": "ਪਿਕਅੱਪ ਲਈ ਤਿਆਰ",
+      "pickup_delivered": "ਲੈ ਲਿਆ"
     },
     "timeline": {
       "placed": "ਆਰਡਰ ਦਿੱਤਾ",
       "packed": "ਪੈਕ ਕੀਤਾ",
       "dispatched": "ਭੇਜਿਆ",
       "delivered": "ਪਹੁੰਚਾਇਆ",
-      "cancelled": "ਆਰਡਰ ਰੱਦ"
+      "cancelled": "ਆਰਡਰ ਰੱਦ",
+      "pickup_dispatched": "ਪਿਕਅੱਪ ਲਈ ਤਿਆਰ",
+      "pickup_delivered": "ਲੈ ਲਿਆ"
     },
     "card": {
       "forCustomer": "{name} ਲਈ",
@@ -518,7 +530,9 @@
       "reasonTitle": "ਕੋਡ ਤੋਂ ਬਿਨਾਂ ਜ਼ਬਰਦਸਤੀ ਡਿਲੀਵਰ ਕਰੋ",
       "reasonLabel": "ਕਾਰਨ (ਘੱਟੋ-ਘੱਟ 10 ਅੱਖਰ)",
       "reasonSubmit": "ਡਿਲੀਵਰ ਵਜੋਂ ਨਿਸ਼ਾਨ ਲਗਾਓ",
-      "reasonTooShort": "ਕਿਰਪਾ ਕਰਕੇ ਘੱਟੋ-ਘੱਟ 10 ਅੱਖਰਾਂ ਦਾ ਕਾਰਨ ਦਰਜ ਕਰੋ।"
+      "reasonTooShort": "ਕਿਰਪਾ ਕਰਕੇ ਘੱਟੋ-ਘੱਟ 10 ਅੱਖਰਾਂ ਦਾ ਕਾਰਨ ਦਰਜ ਕਰੋ।",
+      "markReadyForPickup": "ਪਿਕਅੱਪ ਲਈ ਤਿਆਰ ਕਰੋ",
+      "confirmCollection": "ਪਿਕਅੱਪ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ"
     },
     "active": {
       "title": "ਸਰਗਰਮ ਆਰਡਰ",
@@ -532,6 +546,13 @@
         "paid": "ਅਦਾ ਕੀਤਾ",
         "failed": "ਅਸਫਲ",
         "refunded": "ਵਾਪਸੀ"
+      },
+      "method": {
+        "upi": "UPI",
+        "cash": "ਡਿਲੀਵਰੀ ਉੱਤੇ ਨਕਦ",
+        "credit": "ਕ੍ਰੈਡਿਟ ਉੱਤੇ ਭੁਗਤਾਨ",
+        "net_banking": "ਨੈੱਟ ਬੈਂਕਿੰਗ",
+        "pay_at_store": "ਸਟੋਰ ਉੱਤੇ ਭੁਗਤਾਨ"
       }
     },
     "review": {
@@ -618,7 +639,10 @@
       "resendCode": "ਕੋਡ ਦੁਬਾਰਾ ਭੇਜੋ",
       "resendCooldown": "ਦੁਬਾਰਾ ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ {seconds} ਸਕਿੰਟ ਉਡੀਕ ਕਰੋ।",
       "resendDone": "ਕੋਡ ਦੁਬਾਰਾ ਭੇਜਿਆ ਗਿਆ।",
-      "resendError": "ਕੋਡ ਦੁਬਾਰਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ।"
+      "resendError": "ਕੋਡ ਦੁਬਾਰਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ।",
+      "pickupLocation": "ਪਿਕਅੱਪ ਟਿਕਾਣਾ",
+      "deliveryCodeTitlePickup": "ਕਲੈਕਸ਼ਨ ਕੋਡ",
+      "deliveryCodeHintPickup": "ਆਪਣਾ ਆਰਡਰ ਲੈਣ ਲਈ ਇਹ ਕੋਡ ਸਟੋਰ ਕਾਊਂਟਰ ਉੱਤੇ ਦਿਖਾਓ।"
     },
     "profile": {
       "loading": "ਪ੍ਰੋਫਾਈਲ ਲੋਡ ਹੋ ਰਹੀ ਹੈ…",
@@ -1116,7 +1140,8 @@
       "no": "ਨਹੀਂ",
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
-      "deliveryFeeInputLabel": "Delivery fee for {service}"
+      "deliveryFeeInputLabel": "Delivery fee for {service}",
+      "allowPickup": "ਸਟੋਰ ਤੋਂ ਪਿਕਅੱਪ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ"
     },
     "profile": {
       "heading": "ਪ੍ਰੋਫਾਈਲ",
@@ -1399,7 +1424,9 @@
       "resendCode": "ਕੋਡ ਦੁਬਾਰਾ ਭੇਜੋ",
       "resendCooldown": "ਦੁਬਾਰਾ ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ {seconds} ਸਕਿੰਟ ਉਡੀਕ ਕਰੋ।",
       "resendDone": "ਕੋਡ ਦੁਬਾਰਾ ਭੇਜਿਆ ਗਿਆ।",
-      "resendError": "ਕੋਡ ਦੁਬਾਰਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ।"
+      "resendError": "ਕੋਡ ਦੁਬਾਰਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ।",
+      "deliveryCodeTitlePickup": "ਕਲੈਕਸ਼ਨ ਕੋਡ",
+      "deliveryCodeHintPickup": "ਇਸ ਪਿਕਅੱਪ ਆਰਡਰ ਲਈ ਗਾਹਕ ਦਾ ਕਲੈਕਸ਼ਨ ਕੋਡ।"
     },
     "catalog": {
       "services": "ਸੇਵਾਵਾਂ",
@@ -1601,7 +1628,8 @@
           "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
           "reopenTitle": "Reopen this store?",
           "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
-        }
+        },
+        "allowPickup": "ਪਿਕਅੱਪ ਦੀ ਇਜਾਜ਼ਤ"
       },
       "orders": {
         "loadError": "ਆਰਡਰ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫਲ",

@@ -16,6 +16,7 @@ from app.models.admin_audit import AdminActionTargetType
 from app.models.base import User, UserRole
 from app.models.commerce import (
     Delivery,
+    DeliveryMode,
     DeliveryStatus,
     Order,
     OrderItem,
@@ -380,6 +381,10 @@ async def override_delivery_address(
        formatted snapshot in ``before_json`` (the immutable record of the
        pre-override address). See spec §10 note 3.
     """
+    if order.delivery_mode == DeliveryMode.Pickup:
+        raise HTTPException(
+            status_code=409, detail={"detail": "not_applicable_for_pickup"}
+        )
     if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
         raise HTTPException(
             status_code=409, detail={"code": "order_not_mutable"}

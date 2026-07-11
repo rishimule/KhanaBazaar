@@ -63,11 +63,16 @@ export default function DeliveryOtpPanel({
     }
   };
 
+  const isPickup = order.delivery_mode === "pickup";
   return (
     <section className={styles.panel}>
-      <h2 className={styles.title}>{t("deliveryCodeTitle")}</h2>
+      <h2 className={styles.title}>
+        {t(isPickup ? "deliveryCodeTitlePickup" : "deliveryCodeTitle")}
+      </h2>
       <p className={styles.code}>{code}</p>
-      <p className={styles.hint}>{t("deliveryCodeHint")}</p>
+      <p className={styles.hint}>
+        {t(isPickup ? "deliveryCodeHintPickup" : "deliveryCodeHint")}
+      </p>
       <button
         type="button"
         onClick={handleResend}

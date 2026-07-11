@@ -136,6 +136,7 @@ async def _baseline_for_group(
                     "delivery_fee": row.delivery_fee,
                     "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
                     "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
+                    "pickup_enabled": row.pickup_enabled,
                 }
                 for row in rows
             ],
@@ -611,6 +612,9 @@ async def _apply_services(
             if eta_min is not None and eta_max is not None:
                 by_id[sid].delivery_eta_min_minutes = int(eta_min)
                 by_id[sid].delivery_eta_max_minutes = int(eta_max)
+            by_id[sid].pickup_enabled = bool(
+                r.get("pickup_enabled", by_id[sid].pickup_enabled)
+            )
             session.add(by_id[sid])
     assert profile.id is not None
     await sync_store_arrangements(session, profile.id)

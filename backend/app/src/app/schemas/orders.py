@@ -6,6 +6,7 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field, model_validator
 
 from app.models.commerce import (
+    DeliveryMode,
     DeliveryStatus,
     OrderStatus,
     PaymentMethod,
@@ -57,6 +58,7 @@ class OrderRead(BaseModel):
     preferred_delivery_window: Optional[str] = None
     customer_name: Optional[str] = None
     status: OrderStatus
+    delivery_mode: DeliveryMode = DeliveryMode.DoorDelivery
     subtotal: float
     delivery_fee: float
     tax: float
@@ -81,10 +83,11 @@ class OrderListResponse(BaseModel):
 
 
 class PlaceOrderRequest(BaseModel):
-    customer_address_id: int = Field(gt=0)
+    customer_address_id: Optional[int] = Field(default=None, gt=0)
     store_id: int = Field(gt=0)
     service_id: int = Field(gt=0)
     payment_method: PaymentMethod
+    delivery_mode: DeliveryMode = DeliveryMode.DoorDelivery
     preferred_delivery_date: Optional[date] = None
     preferred_delivery_window: Optional[str] = None
 

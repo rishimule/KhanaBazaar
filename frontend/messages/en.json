@@ -230,7 +230,11 @@
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
     },
-    "errCreditUnavailable": "You don't have enough credit at this store."
+    "errCreditUnavailable": "You don't have enough credit at this store.",
+    "deliveryModeTitle": "Delivery method",
+    "modeDoor": "Door delivery",
+    "modePickup": "Pick up at store",
+    "collectAt": "Collect at"
   },
   "Login": {
     "errSendCode": "Failed to send code.",
@@ -462,7 +466,11 @@
     "creditLabel": "Pay on credit",
     "creditAvailable": "₹{amount} available at this store",
     "creditInsufficient": "Not enough credit — ₹{amount} available",
-    "creditSettleNote": "You'll settle this with the store directly."
+    "creditSettleNote": "You'll settle this with the store directly.",
+    "netBankingLabel": "Net Banking",
+    "netBankingHint": "Pay via your bank portal",
+    "payAtStoreLabel": "Pay at store",
+    "payAtStoreHint": "Pay at the counter when you collect"
   },
   "Order": {
     "delivery": {
@@ -482,14 +490,18 @@
       "packed": "Packed",
       "dispatched": "Dispatched",
       "delivered": "Delivered",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "pickup_dispatched": "Ready for pickup",
+      "pickup_delivered": "Collected"
     },
     "timeline": {
       "placed": "Order placed",
       "packed": "Packed",
       "dispatched": "Dispatched",
       "delivered": "Delivered",
-      "cancelled": "Order cancelled"
+      "cancelled": "Order cancelled",
+      "pickup_dispatched": "Ready for pickup",
+      "pickup_delivered": "Collected"
     },
     "card": {
       "forCustomer": "For {name}",
@@ -518,7 +530,9 @@
       "reasonTitle": "Force deliver without code",
       "reasonLabel": "Reason (at least 10 characters)",
       "reasonSubmit": "Mark delivered",
-      "reasonTooShort": "Please enter a reason of at least 10 characters."
+      "reasonTooShort": "Please enter a reason of at least 10 characters.",
+      "markReadyForPickup": "Mark ready for pickup",
+      "confirmCollection": "Confirm collection"
     },
     "active": {
       "title": "Active orders",
@@ -532,6 +546,13 @@
         "paid": "Paid",
         "failed": "Failed",
         "refunded": "Refunded"
+      },
+      "method": {
+        "upi": "UPI",
+        "cash": "Cash on delivery",
+        "credit": "Pay on credit",
+        "net_banking": "Net Banking",
+        "pay_at_store": "Pay at store"
       }
     },
     "review": {
@@ -620,7 +641,10 @@
       "resendCode": "Resend code",
       "resendCooldown": "Please wait {seconds}s before resending.",
       "resendDone": "Code re-sent.",
-      "resendError": "Could not resend the code."
+      "resendError": "Could not resend the code.",
+      "pickupLocation": "Pickup location",
+      "deliveryCodeTitlePickup": "Collection code",
+      "deliveryCodeHintPickup": "Show this code at the store counter to collect your order."
     },
     "profile": {
       "loading": "Loading profile…",
@@ -1115,7 +1139,8 @@
       "no": "No",
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
-      "deliveryFeeInputLabel": "Delivery fee for {service}"
+      "deliveryFeeInputLabel": "Delivery fee for {service}",
+      "allowPickup": "Allow pickup at store"
     },
     "profile": {
       "heading": "Profile",
@@ -1398,7 +1423,9 @@
       "resendCode": "Resend code",
       "resendCooldown": "Please wait {seconds}s before resending.",
       "resendDone": "Code re-sent.",
-      "resendError": "Could not resend the code."
+      "resendError": "Could not resend the code.",
+      "deliveryCodeTitlePickup": "Collection code",
+      "deliveryCodeHintPickup": "Customer collection code for this pickup order."
     },
     "catalog": {
       "services": "Services",
@@ -1600,7 +1627,8 @@
           "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
           "reopenTitle": "Reopen this store?",
           "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
-        }
+        },
+        "allowPickup": "Allow pickup"
       },
       "orders": {
         "loadError": "Failed to load orders",

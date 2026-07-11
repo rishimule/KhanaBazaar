@@ -20,6 +20,7 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
   const t = useTranslations("Seller.orderDetail");
   const tc = useTranslations("Seller.common");
   const tp = useTranslations("Shared.paymentStatus");
+  const tpm = useTranslations("Order.payment.method");
   const { token } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>{t("title", { id: order.id })}</h1>
-        <OrderStatusBadge status={order.status} />
+        <OrderStatusBadge status={order.status} deliveryMode={order.delivery_mode} />
       </div>
       {order.customer_name && (
         <p className={styles.subtitle}>
@@ -49,7 +50,7 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
       <RequestedDeliveryLine order={order} className={styles.subtitle} />
 
       <section className={styles.section}>
-        <OrderTimeline status={order.status} />
+        <OrderTimeline status={order.status} deliveryMode={order.delivery_mode} />
       </section>
 
       <section className={styles.section}>
@@ -65,7 +66,7 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("payment")}</h2>
-        <p>{order.payment.method.toUpperCase()} · {tp(order.payment.status)}</p>
+        <p>{tpm(order.payment.method)} · {tp(order.payment.status)}</p>
       </section>
 
       <section className={styles.section}>

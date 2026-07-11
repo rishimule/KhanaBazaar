@@ -567,6 +567,8 @@ async def set_my_service_delivery_settings(
     if body.delivery_eta_min_minutes is not None and body.delivery_eta_max_minutes is not None:
         row.delivery_eta_min_minutes = body.delivery_eta_min_minutes
         row.delivery_eta_max_minutes = body.delivery_eta_max_minutes
+    if body.pickup_enabled is not None:
+        row.pickup_enabled = body.pickup_enabled
     session.add(row)
     await session.commit()
     services = await list_profile_services(session, profile_id)
@@ -959,12 +961,15 @@ async def admin_set_service_delivery_settings(
         "delivery_fee": row.delivery_fee,
         "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
         "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
+        "pickup_enabled": row.pickup_enabled,
     }
     row.free_delivery_threshold = body.free_delivery_threshold
     row.delivery_fee = body.delivery_fee
     if body.delivery_eta_min_minutes is not None and body.delivery_eta_max_minutes is not None:
         row.delivery_eta_min_minutes = body.delivery_eta_min_minutes
         row.delivery_eta_max_minutes = body.delivery_eta_max_minutes
+    if body.pickup_enabled is not None:
+        row.pickup_enabled = body.pickup_enabled
     session.add(row)
     await admin_audit.log(
         session=session,
@@ -980,6 +985,7 @@ async def admin_set_service_delivery_settings(
             "delivery_fee": body.delivery_fee,
             "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
             "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
+            "pickup_enabled": row.pickup_enabled,
         },
     )
     await session.commit()
