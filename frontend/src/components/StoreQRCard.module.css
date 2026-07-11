@@ -12,7 +12,7 @@
 
 .poster {
   width: 100%;
-  background: #fff;
+  background: var(--color-surface);
   border: 3px solid var(--color-primary);
   border-radius: 16px;
   padding: 1.5rem;
@@ -28,6 +28,7 @@
   font-weight: 700;
   color: var(--color-neutral-900);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .cta {
@@ -39,7 +40,7 @@
 
 .qrBox {
   padding: 0.75rem;
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 8px;
   line-height: 0;
 }

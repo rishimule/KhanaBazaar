@@ -5,6 +5,7 @@
 import { use, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import StoreQRCard from "@/components/StoreQRCard";
+import cardStyles from "@/components/StoreQRCard.module.css";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { fetchSellerHub } from "@/lib/adminActions";
@@ -18,14 +19,14 @@ export default function AdminQRTab({
   const { id } = use(params);
   const t = useTranslations("Admin.sellerHub");
   const tc = useTranslations("Admin.common");
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
   const [hub, setHub] = useState<SellerHubSummary | null>(null);
   const [store, setStore] = useState<Store | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!token) return;
+    if (loading || !token) return;
     fetchSellerHub(Number(id), token)
       .then(async (h) => {
         setHub(h);
@@ -37,25 +38,13 @@ export default function AdminQRTab({
       })
       .catch(() => setError(t("qr.loadError")))
       .finally(() => setLoaded(true));
-  }, [id, token, t]);
+  }, [id, token, loading, t]);
 
   if (error) return <div>{error}</div>;
   if (!loaded) return <div>{tc("loading")}</div>;
 
   if (!hub?.store_id || !store) {
-    return (
-      <div
-        style={{
-          padding: "2rem",
-          background: "var(--color-neutral-50)",
-          borderRadius: 8,
-          textAlign: "center",
-          color: "var(--color-neutral-600)",
-        }}
-      >
-        {t("qr.noStore")}
-      </div>
-    );
+    return <div className={cardStyles.empty}>{t("qr.noStore")}</div>;
   }
 
   return <StoreQRCard storeId={store.id} storeName={store.name} />;

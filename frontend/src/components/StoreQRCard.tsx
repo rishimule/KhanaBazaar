@@ -55,20 +55,36 @@ export default function StoreQRCard({ storeId, storeName }: StoreQRCardProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const png = canvas.toDataURL("image/png");
-    const win = window.open("", "_blank", "width=600,height=800");
-    if (!win) return;
-    // Build the print document via DOM APIs (no document.write / innerHTML);
-    // textContent keeps the seller-controlled store name safe from injection.
-    const doc = win.document;
-    doc.title = storeName;
 
+    // Print via a hidden same-document iframe rather than window.open: no popup
+    // blocker to trip over, and the QR paints inside the isolated document
+    // before we call print() (a cross-window open + immediate print() prints a
+    // blank page on WebKit/Safari). Build the DOM with createElement +
+    // textContent (no document.write / innerHTML) so a seller-controlled store
+    // name can never inject markup.
+    document.getElementById("kb-print-frame")?.remove();
+    const iframe = document.createElement("iframe");
+    iframe.id = "kb-print-frame";
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.cssText =
+      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    document.body.appendChild(iframe);
+
+    const frame = iframe.contentWindow;
+    const doc = frame?.document;
+    if (!frame || !doc) {
+      iframe.remove();
+      return;
+    }
+
+    doc.title = storeName;
     const style = doc.createElement("style");
     style.textContent =
       "body{font-family:system-ui,-apple-system,sans-serif;display:flex;" +
       "flex-direction:column;align-items:center;justify-content:center;" +
       "gap:16px;padding:32px;text-align:center}" +
-      "h1{font-size:26px;margin:0;color:#07101A}" +
-      "p{font-size:18px;color:#0F6B06;font-weight:600;margin:0}" +
+      "h1{font-size:26px;margin:0;color:#07101A;overflow-wrap:anywhere}" +
+      "p{font-size:18px;color:#0F6B06;font-weight:600;margin:0;overflow-wrap:anywhere}" +
       "img{width:320px;height:320px}";
     doc.head.appendChild(style);
 
@@ -77,12 +93,18 @@ export default function StoreQRCard({ storeId, storeName }: StoreQRCardProps) {
     const cta = doc.createElement("p");
     cta.textContent = t("posterCta");
     const img = doc.createElement("img");
-    img.src = png;
-    img.alt = "QR";
+    img.alt = "";
     img.onload = () => {
-      win.print();
-      win.close();
+      frame.focus();
+      // Let layout/paint flush before printing, then tear the frame down only
+      // after the print dialog closes (never on a timer — that would cancel a
+      // still-open dialog on non-blocking browsers).
+      setTimeout(() => {
+        frame.onafterprint = () => iframe.remove();
+        frame.print();
+      }, 100);
     };
+    img.src = png;
     doc.body.append(h1, cta, img);
   }
 
