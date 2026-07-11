@@ -22,6 +22,13 @@ class PaymentMethod(str, enum.Enum):
     Upi = "upi"
     Cash = "cash"
     Credit = "credit"
+    NetBanking = "net_banking"
+    PayAtStore = "pay_at_store"
+
+
+class DeliveryMode(str, enum.Enum):
+    DoorDelivery = "door_delivery"
+    Pickup = "pickup"
 
 
 class PaymentStatus(str, enum.Enum):
@@ -72,6 +79,9 @@ class Order(BaseSchema, table=True):
         default=None, max_length=16, nullable=True
     )
     delivery_address_id: int = Field(foreign_key="address.id", nullable=False)
+    delivery_mode: DeliveryMode = Field(
+        default=DeliveryMode.DoorDelivery, nullable=False
+    )
     status: OrderStatus = Field(default=OrderStatus.Pending, nullable=False, index=True)
     subtotal: float = Field(nullable=False)
     delivery_fee: float = Field(nullable=False)

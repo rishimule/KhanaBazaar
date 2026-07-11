@@ -112,6 +112,7 @@ class SellerProfileService(BaseSchema, table=True):
     delivery_fee: float = Field(default=0.0, nullable=False)
     delivery_eta_min_minutes: int = Field(default=30, nullable=False)
     delivery_eta_max_minutes: int = Field(default=60, nullable=False)
+    pickup_enabled: bool = Field(default=False, nullable=False)
     is_paused: bool = Field(default=False, nullable=False)
     pause_reason: Optional[str] = Field(default=None, max_length=200)
     paused_until: Optional[date] = Field(default=None)
