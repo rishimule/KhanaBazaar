@@ -462,7 +462,11 @@
     "creditLabel": "Pay on credit",
     "creditAvailable": "₹{amount} available at this store",
     "creditInsufficient": "Not enough credit — ₹{amount} available",
-    "creditSettleNote": "You'll settle this with the store directly."
+    "creditSettleNote": "You'll settle this with the store directly.",
+    "netBankingLabel": "Net Banking",
+    "netBankingHint": "Pay via your bank portal",
+    "payAtStoreLabel": "Pay at store",
+    "payAtStoreHint": "Pay at the counter when you collect"
   },
   "Order": {
     "delivery": {

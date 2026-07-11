@@ -41,6 +41,7 @@ export interface Service extends BaseSchema {
   delivery_fee?: number;
   delivery_eta_min_minutes?: number;
   delivery_eta_max_minutes?: number;
+  pickup_enabled?: boolean;
   is_paused?: boolean;
   pause_reason?: string | null;
   paused_until?: string | null;
@@ -310,7 +311,8 @@ export interface ApplicationCounts {
 export type OrderStatus = "pending" | "packed" | "dispatched" | "delivered" | "cancelled";
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 export type DeliveryStatus = "pending" | "packed" | "dispatched" | "delivered" | "cancelled";
-export type PaymentMethod = "cash" | "upi" | "credit";
+export type PaymentMethod = "cash" | "upi" | "credit" | "net_banking" | "pay_at_store";
+export type DeliveryMode = "door_delivery" | "pickup";
 
 export interface OrderItem {
   id: number;
@@ -357,6 +359,7 @@ export interface Order {
   preferred_delivery_window?: string | null;
   customer_name?: string | null;
   status: OrderStatus;
+  delivery_mode: DeliveryMode;
   subtotal: number;
   delivery_fee: number;
   tax: number;

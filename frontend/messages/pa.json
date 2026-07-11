@@ -462,7 +462,11 @@
     "creditLabel": "ਕ੍ਰੈਡਿਟ ’ਤੇ ਭੁਗਤਾਨ ਕਰੋ",
     "creditAvailable": "ਇਸ ਸਟੋਰ ਉੱਤੇ ₹{amount} ਉਪਲਬਧ",
     "creditInsufficient": "ਲੋੜੀਂਦਾ ਕ੍ਰੈਡਿਟ ਨਹੀਂ — ₹{amount} ਉਪਲਬਧ",
-    "creditSettleNote": "ਇਹ ਰਕਮ ਤੁਸੀਂ ਸਿੱਧਾ ਸਟੋਰ ਨਾਲ ਚੁਕਾਓਗੇ।"
+    "creditSettleNote": "ਇਹ ਰਕਮ ਤੁਸੀਂ ਸਿੱਧਾ ਸਟੋਰ ਨਾਲ ਚੁਕਾਓਗੇ।",
+    "netBankingLabel": "ਨੈੱਟ ਬੈਂਕਿੰਗ",
+    "netBankingHint": "ਆਪਣੇ ਬੈਂਕ ਪੋਰਟਲ ਰਾਹੀਂ ਭੁਗਤਾਨ ਕਰੋ",
+    "payAtStoreLabel": "ਸਟੋਰ ਉੱਤੇ ਭੁਗਤਾਨ",
+    "payAtStoreHint": "ਲੈਣ ਵੇਲੇ ਕਾਊਂਟਰ ਉੱਤੇ ਭੁਗਤਾਨ ਕਰੋ"
   },
   "Order": {
     "delivery": {

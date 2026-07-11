@@ -3,6 +3,7 @@
 import { get, post } from "@/lib/api";
 import type {
   CustomerStats,
+  DeliveryMode,
   Order,
   OrderListResponse,
   PaymentMethod,
@@ -60,10 +61,11 @@ export async function reorder(
 }
 
 export interface PlaceOrderArgs {
-  customerAddressId: number;
+  customerAddressId: number | null;
   storeId: number;
   serviceId: number;
   paymentMethod: PaymentMethod;
+  deliveryMode?: DeliveryMode;
   preferredDeliveryDate?: string | null;
   preferredDeliveryWindow?: string | null;
 }
@@ -79,6 +81,7 @@ export async function placeOrder(
       store_id: args.storeId,
       service_id: args.serviceId,
       payment_method: args.paymentMethod,
+      delivery_mode: args.deliveryMode ?? "door_delivery",
       preferred_delivery_date: args.preferredDeliveryDate ?? null,
       preferred_delivery_window: args.preferredDeliveryWindow ?? null,
     },

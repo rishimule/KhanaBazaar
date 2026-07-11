@@ -3,7 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useTranslations } from "next-intl";
-import type { PaymentMethod } from "@/types";
+import type { DeliveryMode, PaymentMethod } from "@/types";
 import styles from "./PaymentMethodPicker.module.css";
 
 /** Credit standing at this store, when the customer has a credit account.
@@ -16,21 +16,35 @@ export interface CreditOption {
 interface Props {
   value: PaymentMethod;
   onChange: (method: PaymentMethod) => void;
+  deliveryMode?: DeliveryMode;
   credit?: CreditOption | null;
 }
 
-const OPTION_KEYS: { value: PaymentMethod; labelKey: string; hintKey: string }[] = [
-  { value: "upi", labelKey: "upiLabel", hintKey: "upiHint" },
-  { value: "cash", labelKey: "cashLabel", hintKey: "cashHint" },
+const BASE_OPTIONS: {
+  value: PaymentMethod;
+  labelKey: string;
+  hintKey: string;
+  modes: DeliveryMode[];
+}[] = [
+  { value: "upi", labelKey: "upiLabel", hintKey: "upiHint", modes: ["door_delivery", "pickup"] },
+  { value: "net_banking", labelKey: "netBankingLabel", hintKey: "netBankingHint", modes: ["door_delivery", "pickup"] },
+  { value: "cash", labelKey: "cashLabel", hintKey: "cashHint", modes: ["door_delivery"] },
+  { value: "pay_at_store", labelKey: "payAtStoreLabel", hintKey: "payAtStoreHint", modes: ["pickup"] },
 ];
 
-export default function PaymentMethodPicker({ value, onChange, credit }: Props) {
+export default function PaymentMethodPicker({
+  value,
+  onChange,
+  deliveryMode = "door_delivery",
+  credit,
+}: Props) {
   const t = useTranslations("Payment");
+  const options = BASE_OPTIONS.filter((opt) => opt.modes.includes(deliveryMode));
   return (
     <fieldset className={styles.fieldset}>
       <legend className={styles.legend}>{t("legend")}</legend>
       <div className={styles.options}>
-        {OPTION_KEYS.map((opt) => (
+        {options.map((opt) => (
           <label
             key={opt.value}
             className={`${styles.option} ${value === opt.value ? styles.selected : ""}`}
