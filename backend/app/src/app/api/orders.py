@@ -30,6 +30,7 @@ from app.models.catalog import (
 )
 from app.models.commerce import (
     Delivery,
+    DeliveryMode,
     Order,
     OrderItem,
     OrderStatus,
@@ -83,6 +84,16 @@ _STATUS_COPY: dict[str, tuple[str, str]] = {
     "cancelled": ("Order #{oid} cancelled", "Your order has been cancelled."),
 }
 
+# Pickup orders reuse the same status values but read differently to the
+# customer: "dispatched" means ready to collect, "delivered" means collected.
+_PICKUP_STATUS_COPY: dict[str, tuple[str, str]] = {
+    "dispatched": (
+        "Order #{oid} ready for pickup",
+        "Your order is ready. Show your collection code at the store counter.",
+    ),
+    "delivered": ("Order #{oid} collected", "Your order has been collected. Thank you!"),
+}
+
 
 async def record_and_dispatch_notification(
     session: AsyncSession, order: Order, status_value: str
@@ -93,7 +104,10 @@ async def record_and_dispatch_notification(
     the same session and never raises into the request path.
     """
     try:
-        title_tpl, body = _STATUS_COPY.get(
+        copy = _STATUS_COPY
+        if order.delivery_mode == DeliveryMode.Pickup:
+            copy = {**_STATUS_COPY, **_PICKUP_STATUS_COPY}
+        title_tpl, body = copy.get(
             status_value, ("Order #{oid} updated", "Your order status changed.")
         )
         if (
