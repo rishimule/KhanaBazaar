@@ -639,7 +639,10 @@
       "resendCode": "કોડ ફરી મોકલો",
       "resendCooldown": "ફરી મોકલતા પહેલાં {seconds} સેકન્ડ રાહ જુઓ.",
       "resendDone": "કોડ ફરી મોકલ્યો.",
-      "resendError": "કોડ ફરી મોકલી શકાયો નહીં."
+      "resendError": "કોડ ફરી મોકલી શકાયો નહીં.",
+      "pickupLocation": "પિકઅપ સ્થાન",
+      "deliveryCodeTitlePickup": "કલેક્શન કોડ",
+      "deliveryCodeHintPickup": "તમારો ઓર્ડર લેવા માટે આ કોડ સ્ટોર કાઉન્ટર પર બતાવો."
     },
     "profile": {
       "loading": "પ્રોફાઇલ લોડ થઈ રહી છે…",
@@ -1421,7 +1424,9 @@
       "resendCode": "કોડ ફરી મોકલો",
       "resendCooldown": "ફરી મોકલતા પહેલાં {seconds} સેકન્ડ રાહ જુઓ.",
       "resendDone": "કોડ ફરી મોકલ્યો.",
-      "resendError": "કોડ ફરી મોકલી શકાયો નહીં."
+      "resendError": "કોડ ફરી મોકલી શકાયો નહીં.",
+      "deliveryCodeTitlePickup": "કલેક્શન કોડ",
+      "deliveryCodeHintPickup": "આ પિકઅપ ઓર્ડર માટે ગ્રાહકનો કલેક્શન કોડ."
     },
     "catalog": {
       "services": "સેવાઓ",

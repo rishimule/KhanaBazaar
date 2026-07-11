@@ -641,7 +641,10 @@
       "resendCode": "Resend code",
       "resendCooldown": "Please wait {seconds}s before resending.",
       "resendDone": "Code re-sent.",
-      "resendError": "Could not resend the code."
+      "resendError": "Could not resend the code.",
+      "pickupLocation": "Pickup location",
+      "deliveryCodeTitlePickup": "Collection code",
+      "deliveryCodeHintPickup": "Show this code at the store counter to collect your order."
     },
     "profile": {
       "loading": "Loading profile…",
@@ -1420,7 +1423,9 @@
       "resendCode": "Resend code",
       "resendCooldown": "Please wait {seconds}s before resending.",
       "resendDone": "Code re-sent.",
-      "resendError": "Could not resend the code."
+      "resendError": "Could not resend the code.",
+      "deliveryCodeTitlePickup": "Collection code",
+      "deliveryCodeHintPickup": "Customer collection code for this pickup order."
     },
     "catalog": {
       "services": "Services",

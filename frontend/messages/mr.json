@@ -639,7 +639,10 @@
       "resendCode": "कोड पुन्हा पाठवा",
       "resendCooldown": "पुन्हा पाठवण्यापूर्वी {seconds} सेकंद थांबा.",
       "resendDone": "कोड पुन्हा पाठवला.",
-      "resendError": "कोड पुन्हा पाठवता आला नाही."
+      "resendError": "कोड पुन्हा पाठवता आला नाही.",
+      "pickupLocation": "पिकअप ठिकाण",
+      "deliveryCodeTitlePickup": "कलेक्शन कोड",
+      "deliveryCodeHintPickup": "तुमची ऑर्डर घेण्यासाठी हा कोड दुकानाच्या काउंटरवर दाखवा."
     },
     "profile": {
       "loading": "प्रोफाइल लोड होत आहे…",
@@ -1421,7 +1424,9 @@
       "resendCode": "कोड पुन्हा पाठवा",
       "resendCooldown": "पुन्हा पाठवण्यापूर्वी {seconds} सेकंद थांबा.",
       "resendDone": "कोड पुन्हा पाठवला.",
-      "resendError": "कोड पुन्हा पाठवता आला नाही."
+      "resendError": "कोड पुन्हा पाठवता आला नाही.",
+      "deliveryCodeTitlePickup": "कलेक्शन कोड",
+      "deliveryCodeHintPickup": "या पिकअप ऑर्डरसाठी ग्राहकाचा कलेक्शन कोड."
     },
     "catalog": {
       "services": "सेवा",

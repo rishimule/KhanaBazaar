@@ -96,7 +96,9 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>{t("deliveryTo")}</h2>
+        <h2 className={styles.sectionTitle}>
+          {order.delivery_mode === "pickup" ? t("pickupLocation") : t("deliveryTo")}
+        </h2>
         <p>{order.delivery_address_snapshot}</p>
         {order.store_latitude != null &&
           order.store_longitude != null &&

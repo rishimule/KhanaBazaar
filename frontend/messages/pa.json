@@ -639,7 +639,10 @@
       "resendCode": "ਕੋਡ ਦੁਬਾਰਾ ਭੇਜੋ",
       "resendCooldown": "ਦੁਬਾਰਾ ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ {seconds} ਸਕਿੰਟ ਉਡੀਕ ਕਰੋ।",
       "resendDone": "ਕੋਡ ਦੁਬਾਰਾ ਭੇਜਿਆ ਗਿਆ।",
-      "resendError": "ਕੋਡ ਦੁਬਾਰਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ।"
+      "resendError": "ਕੋਡ ਦੁਬਾਰਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ।",
+      "pickupLocation": "ਪਿਕਅੱਪ ਟਿਕਾਣਾ",
+      "deliveryCodeTitlePickup": "ਕਲੈਕਸ਼ਨ ਕੋਡ",
+      "deliveryCodeHintPickup": "ਆਪਣਾ ਆਰਡਰ ਲੈਣ ਲਈ ਇਹ ਕੋਡ ਸਟੋਰ ਕਾਊਂਟਰ ਉੱਤੇ ਦਿਖਾਓ।"
     },
     "profile": {
       "loading": "ਪ੍ਰੋਫਾਈਲ ਲੋਡ ਹੋ ਰਹੀ ਹੈ…",
@@ -1421,7 +1424,9 @@
       "resendCode": "ਕੋਡ ਦੁਬਾਰਾ ਭੇਜੋ",
       "resendCooldown": "ਦੁਬਾਰਾ ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ {seconds} ਸਕਿੰਟ ਉਡੀਕ ਕਰੋ।",
       "resendDone": "ਕੋਡ ਦੁਬਾਰਾ ਭੇਜਿਆ ਗਿਆ।",
-      "resendError": "ਕੋਡ ਦੁਬਾਰਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ।"
+      "resendError": "ਕੋਡ ਦੁਬਾਰਾ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ।",
+      "deliveryCodeTitlePickup": "ਕਲੈਕਸ਼ਨ ਕੋਡ",
+      "deliveryCodeHintPickup": "ਇਸ ਪਿਕਅੱਪ ਆਰਡਰ ਲਈ ਗਾਹਕ ਦਾ ਕਲੈਕਸ਼ਨ ਕੋਡ।"
     },
     "catalog": {
       "services": "ਸੇਵਾਵਾਂ",

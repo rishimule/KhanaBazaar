@@ -85,7 +85,7 @@ async def _seed(session, *, credit_limit=2000.0, outstanding=0.0,
 async def test_credit_checkout_charges_account(session):
     s = await _seed(session, credit_limit=2000.0)
     order = await place_order_for_sub_basket(
-        session, s["user"], s["address_id"], s["store_id"], s["service_id"], PaymentMethod.Credit
+        session, s["user"], customer_address_id=s["address_id"], store_id=s["store_id"], service_id=s["service_id"], payment_method=PaymentMethod.Credit
     )
     assert order.total == 100.0
     payment = (await session.exec(select(Payment).where(Payment.order_id == order.id))).one()
@@ -105,7 +105,7 @@ async def test_credit_checkout_insufficient_blocks(session):
     s = await _seed(session, credit_limit=50.0)  # total 100 > 50
     with pytest.raises(HTTPException) as exc:
         await place_order_for_sub_basket(
-            session, s["user"], s["address_id"], s["store_id"], s["service_id"], PaymentMethod.Credit
+            session, s["user"], customer_address_id=s["address_id"], store_id=s["store_id"], service_id=s["service_id"], payment_method=PaymentMethod.Credit
         )
     assert exc.value.status_code == 409
     assert exc.value.detail["error"] == "insufficient_credit"
@@ -118,7 +118,7 @@ async def test_credit_checkout_suspended_blocked(session):
     s = await _seed(session, credit_limit=2000.0, status=CreditAccountStatus.suspended)
     with pytest.raises(HTTPException) as exc:
         await place_order_for_sub_basket(
-            session, s["user"], s["address_id"], s["store_id"], s["service_id"], PaymentMethod.Credit
+            session, s["user"], customer_address_id=s["address_id"], store_id=s["store_id"], service_id=s["service_id"], payment_method=PaymentMethod.Credit
         )
     assert exc.value.detail["error"] == "credit_not_available"
 
@@ -128,7 +128,7 @@ async def test_credit_checkout_no_account_blocked(session):
     s = await _seed(session, make_account=False)
     with pytest.raises(HTTPException) as exc:
         await place_order_for_sub_basket(
-            session, s["user"], s["address_id"], s["store_id"], s["service_id"], PaymentMethod.Credit
+            session, s["user"], customer_address_id=s["address_id"], store_id=s["store_id"], service_id=s["service_id"], payment_method=PaymentMethod.Credit
         )
     assert exc.value.detail["error"] == "credit_not_available"
 
@@ -138,6 +138,6 @@ async def test_credit_checkout_disabled_blocked(session):
     s = await _seed(session, credit_limit=2000.0, enabled=False)
     with pytest.raises(HTTPException) as exc:
         await place_order_for_sub_basket(
-            session, s["user"], s["address_id"], s["store_id"], s["service_id"], PaymentMethod.Credit
+            session, s["user"], customer_address_id=s["address_id"], store_id=s["store_id"], service_id=s["service_id"], payment_method=PaymentMethod.Credit
         )
     assert exc.value.detail["error"] == "credit_not_available"

@@ -22,7 +22,7 @@ async def _deliver_as_seller(session, order, seller_user):
 async def test_delivered_credit_order_stays_unpaid(session):
     s = await _seed(session, credit_limit=2000.0)
     order = await place_order_for_sub_basket(
-        session, s["user"], s["address_id"], s["store_id"], s["service_id"], PaymentMethod.Credit
+        session, s["user"], customer_address_id=s["address_id"], store_id=s["store_id"], service_id=s["service_id"], payment_method=PaymentMethod.Credit
     )
     await _deliver_as_seller(session, order, s["seller_user"])
     payment = (await session.exec(select(Payment).where(Payment.order_id == order.id))).one()
@@ -34,7 +34,7 @@ async def test_delivered_credit_order_stays_unpaid(session):
 async def test_delivered_upi_order_is_paid(session):
     s = await _seed(session, make_account=False)  # no credit; pay upi
     order = await place_order_for_sub_basket(
-        session, s["user"], s["address_id"], s["store_id"], s["service_id"], PaymentMethod.Upi
+        session, s["user"], customer_address_id=s["address_id"], store_id=s["store_id"], service_id=s["service_id"], payment_method=PaymentMethod.Upi
     )
     await _deliver_as_seller(session, order, s["seller_user"])
     payment = (await session.exec(select(Payment).where(Payment.order_id == order.id))).one()
@@ -45,7 +45,7 @@ async def test_delivered_upi_order_is_paid(session):
 async def test_cancel_credit_order_reverses_charge(session):
     s = await _seed(session, credit_limit=2000.0)
     order = await place_order_for_sub_basket(
-        session, s["user"], s["address_id"], s["store_id"], s["service_id"], PaymentMethod.Credit
+        session, s["user"], customer_address_id=s["address_id"], store_id=s["store_id"], service_id=s["service_id"], payment_method=PaymentMethod.Credit
     )
     acct = (await session.exec(select(CreditAccount).where(
         CreditAccount.seller_profile_id == s["seller_profile_id"]))).one()
