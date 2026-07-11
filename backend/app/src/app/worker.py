@@ -1669,3 +1669,79 @@ def run_monthly_credit_statements() -> int:
 
     with ThreadPoolExecutor(max_workers=1) as executor:
         return executor.submit(lambda: asyncio.run(_run())).result()
+
+
+@celery_app.task(name="send_campaign_async")  # type: ignore[untyped-decorator]
+def send_campaign_async(campaign_id: int) -> None:
+    """Orchestrate a bulk-notification campaign fan-out."""
+    import asyncio
+    import concurrent.futures
+
+    from app.db.session import async_session_factory
+    from app.services.notification_campaigns import send_campaign
+
+    async def _run() -> None:
+        async with async_session_factory() as session:
+            await send_campaign(session, campaign_id)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        ex.submit(lambda: asyncio.run(_run())).result()
+
+
+@celery_app.task(name="send_campaign_email_async")  # type: ignore[untyped-decorator]
+def send_campaign_email_async(campaign_id: int, to_email: str) -> None:
+    """Best-effort campaign email to one recipient."""
+    import asyncio
+    import concurrent.futures
+
+    from app.db.session import async_session_factory
+    from app.models.notification_campaign import NotificationCampaign
+
+    async def _run() -> None:
+        async with async_session_factory() as session:
+            campaign = await session.get(NotificationCampaign, campaign_id)
+        if campaign is None:
+            return
+        body = campaign.body
+        if campaign.cta_url:
+            body = f"{body}\n\n{campaign.cta_label or 'Open'}: {campaign.cta_url}"
+        try:
+            _resolve_email(
+                to_email, campaign.title, body, reply_to=settings.EMAIL_REPLY_TO
+            )
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "campaign email failed for campaign_id=%s", campaign_id
+            )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        ex.submit(lambda: asyncio.run(_run())).result()
+
+
+@celery_app.task(name="send_campaign_sms_async")  # type: ignore[untyped-decorator]
+def send_campaign_sms_async(campaign_id: int, to_phone: str) -> None:
+    """Best-effort campaign SMS to one recipient."""
+    import asyncio
+    import concurrent.futures
+
+    from app.core.sms import get_sms_sender
+    from app.db.session import async_session_factory
+    from app.models.notification_campaign import NotificationCampaign
+
+    async def _run() -> None:
+        async with async_session_factory() as session:
+            campaign = await session.get(NotificationCampaign, campaign_id)
+        if campaign is None:
+            return
+        text = f"{campaign.title}: {campaign.body}"
+        if campaign.cta_url:
+            text = f"{text} {campaign.cta_url}"
+        try:
+            await get_sms_sender().send(to_phone, text)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "campaign sms failed for campaign_id=%s", campaign_id
+            )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        ex.submit(lambda: asyncio.run(_run())).result()

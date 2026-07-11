@@ -131,9 +131,28 @@ export default function SellerNotificationBell() {
                     className={`${styles.item} ${n.read ? "" : styles.unread}`}
                     onClick={() => onItem(n.id, n.order_id, !n.read)}
                   >
+                    {n.image_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        className={styles.thumb}
+                        src={n.image_url}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
                     <span className={styles.itemTitle}>{n.title}</span>
                     <span className={styles.itemBody}>{n.body}</span>
                   </button>
+                  {n.cta_url && (
+                    <a
+                      className={styles.cta}
+                      href={n.cta_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {n.cta_label || n.cta_url}
+                    </a>
+                  )}
                 </li>
               ))
             )}

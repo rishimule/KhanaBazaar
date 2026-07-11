@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.api import (
     admin_actions,
+    admin_notifications,
     auth,
     carts,
     catalog,
@@ -54,6 +55,7 @@ api_router.include_router(policies.router, prefix="/policies", tags=["policies"]
 api_router.include_router(geo.router, prefix="/geo", tags=["geo"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(admin_actions.router, prefix="/admin", tags=["admin"])
+api_router.include_router(admin_notifications.admin_router, prefix="/admin", tags=["admin", "notifications"])
 api_router.include_router(policies.admin_router, prefix="/admin", tags=["admin", "policies"])
 api_router.include_router(platform_fees.admin_router, prefix="/admin", tags=["admin", "fees"])
 api_router.include_router(platform_fees.seller_router, prefix="/sellers", tags=["sellers", "fees"])

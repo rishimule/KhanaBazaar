@@ -15,6 +15,9 @@ class NotificationRead(BaseModel):
     status_value: str
     read: bool
     created_at: datetime
+    image_url: Optional[str] = None
+    cta_url: Optional[str] = None
+    cta_label: Optional[str] = None
 
 
 class NotificationListResponse(BaseModel):

@@ -94,6 +94,40 @@ async def record_seller_notification(
     return notif
 
 
+async def record_campaign_notification(
+    session: AsyncSession,
+    *,
+    campaign_id: int,
+    title: str,
+    body: str,
+    image_url: str | None,
+    cta_url: str | None,
+    cta_label: str | None,
+    customer_profile_id: int | None = None,
+    seller_profile_id: int | None = None,
+) -> Notification:
+    """Insert (flush, not commit) one in-app announcement row for ONE recipient.
+
+    Exactly one of customer_profile_id / seller_profile_id must be provided
+    (enforced by the model's XOR check constraint).
+    """
+    notif = Notification(
+        customer_profile_id=customer_profile_id,
+        seller_profile_id=seller_profile_id,
+        type=NotificationType.Announcement,
+        title=title,
+        body=body,
+        status_value="announcement",
+        campaign_id=campaign_id,
+        image_url=image_url,
+        cta_url=cta_url,
+        cta_label=cta_label,
+    )
+    session.add(notif)
+    await session.flush()
+    return notif
+
+
 async def list_notifications(
     session: AsyncSession,
     *,
