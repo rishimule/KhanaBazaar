@@ -230,7 +230,11 @@
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
     },
-    "errCreditUnavailable": "You don't have enough credit at this store."
+    "errCreditUnavailable": "You don't have enough credit at this store.",
+    "deliveryModeTitle": "Delivery method",
+    "modeDoor": "Door delivery",
+    "modePickup": "Pick up at store",
+    "collectAt": "Collect at"
   },
   "Login": {
     "errSendCode": "Failed to send code.",

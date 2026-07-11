@@ -16,13 +16,15 @@ import { formatDeliveryEta } from "@/lib/deliveryEta";
 import { WINDOW_META, formatDateLabel } from "@/lib/deliveryWindows";
 import AddressPicker, { type PickerState } from "@/components/orders/AddressPicker";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
+import DeliveryModeSelector from "@/components/orders/DeliveryModeSelector";
 import PaymentMethodPicker from "@/components/orders/PaymentMethodPicker";
 import PriceComparison from "@/components/orders/PriceComparison";
+import { formatAddress } from "@/lib/format-address";
 import ReplaceAdjustmentsBanner from "@/components/orders/ReplaceAdjustmentsBanner";
 import DeliveryTimePicker, {
   type PreferredWindowValue,
 } from "@/components/orders/DeliveryTimePicker";
-import type { PaymentMethod, Store } from "@/types";
+import type { DeliveryMode, PaymentMethod, Store } from "@/types";
 import styles from "./page.module.css";
 
 export default function CheckoutPage() {
@@ -47,6 +49,7 @@ export default function CheckoutPage() {
   });
   const [storeDetails, setStoreDetails] = useState<Store | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("door_delivery");
   const [preferredWindow, setPreferredWindow] = useState<PreferredWindowValue | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +77,15 @@ export default function CheckoutPage() {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, serviceId]);
+
+  // Keep the selected payment method valid for the chosen delivery mode:
+  // cash (COD) is door-only, pay-at-store is pickup-only.
+  useEffect(() => {
+    if (deliveryMode === "pickup" && paymentMethod === "cash") setPaymentMethod("upi");
+    if (deliveryMode === "door_delivery" && paymentMethod === "pay_at_store") {
+      setPaymentMethod("upi");
+    }
+  }, [deliveryMode, paymentMethod]);
 
   const cart = useMemo(
     () =>
@@ -133,11 +145,14 @@ export default function CheckoutPage() {
     return null;
   }
 
+  const isPickup = deliveryMode === "pickup";
+  const pickupAvailable = !!storeDetails?.services.find((s) => s.id === serviceId)
+    ?.pickup_enabled;
   const subtotal = getTotal(cart);
   const freeDeliveryThreshold = cart.free_delivery_threshold ?? 0;
   const baseFee = cart.delivery_fee ?? 0;
   const shortfall = Math.max(0, freeDeliveryThreshold - subtotal);
-  const deliveryFee = shortfall > 0 ? baseFee : 0;
+  const deliveryFee = isPickup ? 0 : shortfall > 0 ? baseFee : 0;
   const feeApplies = deliveryFee > 0;
   const tax = 0;
   const total = subtotal + deliveryFee + tax;
@@ -150,7 +165,8 @@ export default function CheckoutPage() {
       : null;
 
   const onPlaceOrder = async () => {
-    if (!token || addressId === null) return;
+    if (!token) return;
+    if (!isPickup && addressId === null) return;
     if (paymentMethod === "credit" && !creditEligible) {
       setError(t("errCreditUnavailable"));
       return;
@@ -159,10 +175,11 @@ export default function CheckoutPage() {
     setError(null);
     try {
       const placedOrder = await placeOrder(token, {
-        customerAddressId: addressId,
+        customerAddressId: isPickup ? null : addressId,
         storeId,
         serviceId,
         paymentMethod,
+        deliveryMode,
         preferredDeliveryDate: preferredWindow?.date ?? null,
         preferredDeliveryWindow: preferredWindow?.window ?? null,
       });
@@ -251,39 +268,60 @@ export default function CheckoutPage() {
         </section>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>{t("deliveryAddress")}</h2>
-          <AddressPicker
-            value={addressId}
-            onChange={setAddressId}
-            storeId={storeId}
-            onStateChange={setPickerState}
+          <DeliveryModeSelector
+            value={deliveryMode}
+            onChange={setDeliveryMode}
+            pickupAvailable={pickupAvailable}
           />
-          {pickerState.serviceable &&
-            pickerState.latitude != null &&
-            pickerState.longitude != null &&
-            storeDetails?.address.latitude != null &&
-            storeDetails?.address.longitude != null && (
-              <div className={styles.routeMap}>
-                <DeliveryRouteMap
-                  store={{
-                    lat: storeDetails.address.latitude,
-                    lng: storeDetails.address.longitude,
-                    label: storeDetails.name,
-                  }}
-                  customer={{
-                    lat: pickerState.latitude,
-                    lng: pickerState.longitude,
-                    label: "Your address",
-                  }}
-                />
-              </div>
-            )}
         </section>
+
+        {!isPickup && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{t("deliveryAddress")}</h2>
+            <AddressPicker
+              value={addressId}
+              onChange={setAddressId}
+              storeId={storeId}
+              onStateChange={setPickerState}
+            />
+            {pickerState.serviceable &&
+              pickerState.latitude != null &&
+              pickerState.longitude != null &&
+              storeDetails?.address.latitude != null &&
+              storeDetails?.address.longitude != null && (
+                <div className={styles.routeMap}>
+                  <DeliveryRouteMap
+                    store={{
+                      lat: storeDetails.address.latitude,
+                      lng: storeDetails.address.longitude,
+                      label: storeDetails.name,
+                    }}
+                    customer={{
+                      lat: pickerState.latitude,
+                      lng: pickerState.longitude,
+                      label: "Your address",
+                    }}
+                  />
+                </div>
+              )}
+          </section>
+        )}
+
+        {isPickup && storeDetails && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{t("collectAt")}</h2>
+            <div className={styles.pickupCard}>
+              <strong>{storeDetails.name}</strong>
+              <span>{formatAddress(storeDetails.address)}</span>
+            </div>
+          </section>
+        )}
 
         <section className={styles.section}>
           <PaymentMethodPicker
             value={paymentMethod}
             onChange={setPaymentMethod}
+            deliveryMode={deliveryMode}
             credit={
               hasCredit
                 ? { available: creditStanding!.available, eligible: creditEligible }
@@ -339,17 +377,19 @@ export default function CheckoutPage() {
           </div>
         </section>
 
-        <PriceComparison
-          sourceStoreId={storeId}
-          sourceStoreName={cart.store_name}
-          serviceId={serviceId}
-          serviceName={cart.service_name}
-          customerAddressId={pickerState.selectedId}
-          serviceable={pickerState.serviceable}
-          pickerLoading={pickerState.loading}
-          cart={cart}
-          onSwitchStart={() => setSwitching(true)}
-        />
+        {!isPickup && (
+          <PriceComparison
+            sourceStoreId={storeId}
+            sourceStoreName={cart.store_name}
+            serviceId={serviceId}
+            serviceName={cart.service_name}
+            customerAddressId={pickerState.selectedId}
+            serviceable={pickerState.serviceable}
+            pickerLoading={pickerState.loading}
+            cart={cart}
+            onSwitchStart={() => setSwitching(true)}
+          />
+        )}
 
         {error && <div className={styles.error} role="alert">{error}</div>}
 
@@ -364,15 +404,16 @@ export default function CheckoutPage() {
           onClick={onPlaceOrder}
           disabled={
             submitting ||
-            pickerState.selectedId === null ||
-            pickerState.loading ||
-            !pickerState.serviceable ||
-            creditSelectedButBlocked
+            creditSelectedButBlocked ||
+            (!isPickup &&
+              (pickerState.selectedId === null ||
+                pickerState.loading ||
+                !pickerState.serviceable))
           }
         >
           {submitting
             ? t("placing")
-            : pickerState.loading
+            : !isPickup && pickerState.loading
               ? t("checkingDeliveryArea")
               : t("placeOrder", { total })}
         </button>

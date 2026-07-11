@@ -230,7 +230,11 @@
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
     },
-    "errCreditUnavailable": "આ સ્ટોર પર તમારી પાસે પૂરતું ક્રેડિટ નથી."
+    "errCreditUnavailable": "આ સ્ટોર પર તમારી પાસે પૂરતું ક્રેડિટ નથી.",
+    "deliveryModeTitle": "ડિલિવરી પદ્ધતિ",
+    "modeDoor": "ઘરે ડિલિવરી",
+    "modePickup": "સ્ટોરથી પિકઅપ",
+    "collectAt": "અહીંથી લો"
   },
   "Login": {
     "errSendCode": "કોડ મોકલવામાં નિષ્ફળ.",

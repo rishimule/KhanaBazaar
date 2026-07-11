@@ -230,7 +230,11 @@
       "itemCostsMore": "Costs more than your store",
       "itemCostsLess": "Costs less than your store"
     },
-    "errCreditUnavailable": "ਇਸ ਸਟੋਰ ਉੱਤੇ ਤੁਹਾਡੇ ਕੋਲ ਲੋੜੀਂਦਾ ਕ੍ਰੈਡਿਟ ਨਹੀਂ ਹੈ।"
+    "errCreditUnavailable": "ਇਸ ਸਟੋਰ ਉੱਤੇ ਤੁਹਾਡੇ ਕੋਲ ਲੋੜੀਂਦਾ ਕ੍ਰੈਡਿਟ ਨਹੀਂ ਹੈ।",
+    "deliveryModeTitle": "ਡਿਲੀਵਰੀ ਤਰੀਕਾ",
+    "modeDoor": "ਘਰ ਡਿਲੀਵਰੀ",
+    "modePickup": "ਸਟੋਰ ਤੋਂ ਪਿਕਅੱਪ",
+    "collectAt": "ਇੱਥੋਂ ਲਓ"
   },
   "Login": {
     "errSendCode": "ਕੋਡ ਭੇਜਣ ਵਿੱਚ ਅਸਫਲ.",
