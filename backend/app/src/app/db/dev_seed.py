@@ -127,6 +127,7 @@ CUSTOMER: dict[str, Any] = {
     "email": "customer@khanabazaar.dev",
     "full_name": "Priya Verma",
     "phone": "+919811110200",
+    "marketing_opt_in": True,
     # Five real Mumbai-area addresses baked at authoring time via
     # `scripts/bake_mumbai_seed.py` against the live /geo/reverse endpoint.
     # Coverage by store delivery radius (see STORES list below) is mixed
@@ -1916,17 +1917,20 @@ async def _upsert_customer_profile(
     )
     profile = existing.first()
     first_name, last_name = split_full_name(data["full_name"])
+    opt_in = bool(data.get("marketing_opt_in", False))
     if profile is None:
         profile = CustomerProfile(
             user_id=user.id,
             first_name=first_name,
             last_name=last_name,
             phone=data.get("phone"),
+            marketing_opt_in=opt_in,
         )
     else:
         profile.first_name = first_name
         profile.last_name = last_name
         profile.phone = data.get("phone")
+        profile.marketing_opt_in = opt_in
     session.add(profile)
     await session.flush()
     return profile

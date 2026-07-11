@@ -1341,6 +1341,9 @@ def _generate_extra_customers() -> list[dict[str, Any]]:
             "full_name": f"{first} {last}",
             "phone": f"+919812110{(i + 2):03d}",
             "addresses": addresses,
+            # Roughly half opt into marketing so bulk-campaign Email/SMS consent
+            # gating is observable (even-indexed opt in; odd stay opted out).
+            "marketing_opt_in": i % 2 == 0,
         })
     return out
 
