@@ -490,14 +490,18 @@
       "packed": "પેક કરેલ",
       "dispatched": "મોકલેલ",
       "delivered": "પહોંચાડેલ",
-      "cancelled": "રદ"
+      "cancelled": "રદ",
+      "pickup_dispatched": "પિકઅપ માટે તૈયાર",
+      "pickup_delivered": "લઈ લીધું"
     },
     "timeline": {
       "placed": "ઓર્ડર આપેલ",
       "packed": "પેક કરેલ",
       "dispatched": "મોકલેલ",
       "delivered": "પહોંચાડેલ",
-      "cancelled": "ઓર્ડર રદ કરેલ"
+      "cancelled": "ઓર્ડર રદ કરેલ",
+      "pickup_dispatched": "પિકઅપ માટે તૈયાર",
+      "pickup_delivered": "લઈ લીધું"
     },
     "card": {
       "forCustomer": "{name} માટે",
@@ -526,7 +530,9 @@
       "reasonTitle": "કોડ વિના ફરજિયાત ડિલિવર કરો",
       "reasonLabel": "કારણ (ઓછામાં ઓછા 10 અક્ષર)",
       "reasonSubmit": "ડિલિવર તરીકે ચિહ્નિત કરો",
-      "reasonTooShort": "કૃપા કરીને ઓછામાં ઓછા 10 અક્ષરનું કારણ દાખલ કરો."
+      "reasonTooShort": "કૃપા કરીને ઓછામાં ઓછા 10 અક્ષરનું કારણ દાખલ કરો.",
+      "markReadyForPickup": "પિકઅપ માટે તૈયાર કરો",
+      "confirmCollection": "પિકઅપની પુષ્ટિ કરો"
     },
     "active": {
       "title": "સક્રિય ઓર્ડર",
@@ -540,6 +546,13 @@
         "paid": "ચૂકવાયું",
         "failed": "નિષ્ફળ",
         "refunded": "પાછું"
+      },
+      "method": {
+        "upi": "UPI",
+        "cash": "ડિલિવરી પર રોકડ",
+        "credit": "ક્રેડિટ પર ચૂકવણી",
+        "net_banking": "નેટ બેંકિંગ",
+        "pay_at_store": "સ્ટોર પર ચૂકવણી"
       }
     },
     "review": {

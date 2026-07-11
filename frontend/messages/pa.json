@@ -490,14 +490,18 @@
       "packed": "ਪੈਕ ਕੀਤਾ",
       "dispatched": "ਭੇਜਿਆ",
       "delivered": "ਪਹੁੰਚਾਇਆ",
-      "cancelled": "ਰੱਦ"
+      "cancelled": "ਰੱਦ",
+      "pickup_dispatched": "ਪਿਕਅੱਪ ਲਈ ਤਿਆਰ",
+      "pickup_delivered": "ਲੈ ਲਿਆ"
     },
     "timeline": {
       "placed": "ਆਰਡਰ ਦਿੱਤਾ",
       "packed": "ਪੈਕ ਕੀਤਾ",
       "dispatched": "ਭੇਜਿਆ",
       "delivered": "ਪਹੁੰਚਾਇਆ",
-      "cancelled": "ਆਰਡਰ ਰੱਦ"
+      "cancelled": "ਆਰਡਰ ਰੱਦ",
+      "pickup_dispatched": "ਪਿਕਅੱਪ ਲਈ ਤਿਆਰ",
+      "pickup_delivered": "ਲੈ ਲਿਆ"
     },
     "card": {
       "forCustomer": "{name} ਲਈ",
@@ -526,7 +530,9 @@
       "reasonTitle": "ਕੋਡ ਤੋਂ ਬਿਨਾਂ ਜ਼ਬਰਦਸਤੀ ਡਿਲੀਵਰ ਕਰੋ",
       "reasonLabel": "ਕਾਰਨ (ਘੱਟੋ-ਘੱਟ 10 ਅੱਖਰ)",
       "reasonSubmit": "ਡਿਲੀਵਰ ਵਜੋਂ ਨਿਸ਼ਾਨ ਲਗਾਓ",
-      "reasonTooShort": "ਕਿਰਪਾ ਕਰਕੇ ਘੱਟੋ-ਘੱਟ 10 ਅੱਖਰਾਂ ਦਾ ਕਾਰਨ ਦਰਜ ਕਰੋ।"
+      "reasonTooShort": "ਕਿਰਪਾ ਕਰਕੇ ਘੱਟੋ-ਘੱਟ 10 ਅੱਖਰਾਂ ਦਾ ਕਾਰਨ ਦਰਜ ਕਰੋ।",
+      "markReadyForPickup": "ਪਿਕਅੱਪ ਲਈ ਤਿਆਰ ਕਰੋ",
+      "confirmCollection": "ਪਿਕਅੱਪ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ"
     },
     "active": {
       "title": "ਸਰਗਰਮ ਆਰਡਰ",
@@ -540,6 +546,13 @@
         "paid": "ਅਦਾ ਕੀਤਾ",
         "failed": "ਅਸਫਲ",
         "refunded": "ਵਾਪਸੀ"
+      },
+      "method": {
+        "upi": "UPI",
+        "cash": "ਡਿਲੀਵਰੀ ਉੱਤੇ ਨਕਦ",
+        "credit": "ਕ੍ਰੈਡਿਟ ਉੱਤੇ ਭੁਗਤਾਨ",
+        "net_banking": "ਨੈੱਟ ਬੈਂਕਿੰਗ",
+        "pay_at_store": "ਸਟੋਰ ਉੱਤੇ ਭੁਗਤਾਨ"
       }
     },
     "review": {

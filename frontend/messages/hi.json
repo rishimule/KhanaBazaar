@@ -490,14 +490,18 @@
       "packed": "पैक किया गया",
       "dispatched": "भेजा गया",
       "delivered": "पहुँचाया गया",
-      "cancelled": "रद्द"
+      "cancelled": "रद्द",
+      "pickup_dispatched": "पिकअप के लिए तैयार",
+      "pickup_delivered": "लिया गया"
     },
     "timeline": {
       "placed": "ऑर्डर दिया गया",
       "packed": "पैक किया गया",
       "dispatched": "भेजा गया",
       "delivered": "पहुँचाया गया",
-      "cancelled": "ऑर्डर रद्द किया गया"
+      "cancelled": "ऑर्डर रद्द किया गया",
+      "pickup_dispatched": "पिकअप के लिए तैयार",
+      "pickup_delivered": "लिया गया"
     },
     "card": {
       "forCustomer": "{name} के लिए",
@@ -526,7 +530,9 @@
       "reasonTitle": "बिना कोड के जबरन डिलीवर करें",
       "reasonLabel": "कारण (कम से कम 10 अक्षर)",
       "reasonSubmit": "डिलीवर चिह्नित करें",
-      "reasonTooShort": "कृपया कम से कम 10 अक्षरों का कारण दर्ज करें।"
+      "reasonTooShort": "कृपया कम से कम 10 अक्षरों का कारण दर्ज करें।",
+      "markReadyForPickup": "पिकअप के लिए तैयार करें",
+      "confirmCollection": "पिकअप की पुष्टि करें"
     },
     "active": {
       "title": "सक्रिय ऑर्डर",
@@ -540,6 +546,13 @@
         "paid": "भुगतान किया",
         "failed": "विफल",
         "refunded": "वापस"
+      },
+      "method": {
+        "upi": "UPI",
+        "cash": "कैश ऑन डिलीवरी",
+        "credit": "क्रेडिट पर भुगतान",
+        "net_banking": "नेट बैंकिंग",
+        "pay_at_store": "स्टोर पर भुगतान"
       }
     },
     "review": {

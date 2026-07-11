@@ -121,7 +121,7 @@ export default function SellerOrdersPage() {
     {
       key: "status",
       label: t("col.status"),
-      render: (o) => <OrderStatusBadge status={o.status} />,
+      render: (o) => <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />,
     },
   ];
 
@@ -228,7 +228,7 @@ export default function SellerOrdersPage() {
                 <a href={`/seller/orders/${o.id}`} className={styles.mobileLink}>
                   <div className={styles.mobileTop}>
                     <span className={styles.mono}>#{o.id}</span>
-                    <OrderStatusBadge status={o.status} />
+                    <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
                   </div>
                   <div>
                     {o.customer_name ?? "—"} · {o.service_name}

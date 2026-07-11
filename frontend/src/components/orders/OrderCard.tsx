@@ -42,7 +42,7 @@ export default function OrderCard({ order, role }: Props) {
     <Link href={href} className={styles.card}>
       <div className={styles.header}>
         <span className={styles.id}>#{order.id}</span>
-        <OrderStatusBadge status={order.status} />
+        <OrderStatusBadge status={order.status} deliveryMode={order.delivery_mode} />
         {order.payment.status === "refunded" && (
           <PaymentStatusBadge status={order.payment.status} />
         )}

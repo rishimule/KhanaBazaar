@@ -490,14 +490,18 @@
       "packed": "पॅक केले",
       "dispatched": "पाठवले",
       "delivered": "पोहोचवले",
-      "cancelled": "रद्द"
+      "cancelled": "रद्द",
+      "pickup_dispatched": "पिकअपसाठी तयार",
+      "pickup_delivered": "घेतले"
     },
     "timeline": {
       "placed": "ऑर्डर दिली",
       "packed": "पॅक केले",
       "dispatched": "पाठवले",
       "delivered": "पोहोचवले",
-      "cancelled": "ऑर्डर रद्द केली"
+      "cancelled": "ऑर्डर रद्द केली",
+      "pickup_dispatched": "पिकअपसाठी तयार",
+      "pickup_delivered": "घेतले"
     },
     "card": {
       "forCustomer": "{name} साठी",
@@ -526,7 +530,9 @@
       "reasonTitle": "कोडशिवाय सक्तीने डिलिव्हर करा",
       "reasonLabel": "कारण (किमान 10 अक्षरे)",
       "reasonSubmit": "डिलिव्हर म्हणून चिन्हांकित करा",
-      "reasonTooShort": "कृपया किमान 10 अक्षरांचे कारण टाका."
+      "reasonTooShort": "कृपया किमान 10 अक्षरांचे कारण टाका.",
+      "markReadyForPickup": "पिकअपसाठी तयार करा",
+      "confirmCollection": "पिकअपची पुष्टी करा"
     },
     "active": {
       "title": "सक्रिय ऑर्डर",
@@ -540,6 +546,13 @@
         "paid": "भरले",
         "failed": "अयशस्वी",
         "refunded": "परत"
+      },
+      "method": {
+        "upi": "UPI",
+        "cash": "डिलिव्हरीवर रोख",
+        "credit": "क्रेडिटवर भुगतान",
+        "net_banking": "नेट बँकिंग",
+        "pay_at_store": "दुकानात पैसे"
       }
     },
     "review": {

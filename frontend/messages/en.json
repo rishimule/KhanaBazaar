@@ -490,14 +490,18 @@
       "packed": "Packed",
       "dispatched": "Dispatched",
       "delivered": "Delivered",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "pickup_dispatched": "Ready for pickup",
+      "pickup_delivered": "Collected"
     },
     "timeline": {
       "placed": "Order placed",
       "packed": "Packed",
       "dispatched": "Dispatched",
       "delivered": "Delivered",
-      "cancelled": "Order cancelled"
+      "cancelled": "Order cancelled",
+      "pickup_dispatched": "Ready for pickup",
+      "pickup_delivered": "Collected"
     },
     "card": {
       "forCustomer": "For {name}",
@@ -526,7 +530,9 @@
       "reasonTitle": "Force deliver without code",
       "reasonLabel": "Reason (at least 10 characters)",
       "reasonSubmit": "Mark delivered",
-      "reasonTooShort": "Please enter a reason of at least 10 characters."
+      "reasonTooShort": "Please enter a reason of at least 10 characters.",
+      "markReadyForPickup": "Mark ready for pickup",
+      "confirmCollection": "Confirm collection"
     },
     "active": {
       "title": "Active orders",
@@ -540,6 +546,13 @@
         "paid": "Paid",
         "failed": "Failed",
         "refunded": "Refunded"
+      },
+      "method": {
+        "upi": "UPI",
+        "cash": "Cash on delivery",
+        "credit": "Pay on credit",
+        "net_banking": "Net Banking",
+        "pay_at_store": "Pay at store"
       }
     },
     "review": {

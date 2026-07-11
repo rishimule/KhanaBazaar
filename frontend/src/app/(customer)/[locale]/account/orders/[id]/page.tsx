@@ -26,6 +26,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
   const { token } = useAuth();
   const t = useTranslations("Account.orderDetail");
   const tErr = useTranslations("Errors");
+  const tpm = useTranslations("Order.payment.method");
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,7 +60,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>{t("title", { id: order.id })}</h1>
-        <OrderStatusBadge status={order.status} />
+        <OrderStatusBadge status={order.status} deliveryMode={order.delivery_mode} />
       </div>
       <p className={styles.subtitle}>
         {order.store_name} <span className={styles.serviceChip}>· {order.service_name}</span>
@@ -73,7 +74,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       <RequestedDeliveryLine order={order} className={styles.subtitle} />
 
       <section className={styles.section}>
-        <OrderTimeline status={order.status} />
+        <OrderTimeline status={order.status} deliveryMode={order.delivery_mode} />
       </section>
 
       <DeliveryOtpPanel order={order} onChange={setOrder} />
@@ -91,7 +92,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("payment")}</h2>
-        <p>{order.payment.method.toUpperCase()} · <PaymentStatusBadge status={order.payment.status} /></p>
+        <p>{tpm(order.payment.method)} · <PaymentStatusBadge status={order.payment.status} /></p>
       </section>
 
       <section className={styles.section}>

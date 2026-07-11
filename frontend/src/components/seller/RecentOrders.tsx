@@ -167,7 +167,7 @@ export default function RecentOrders() {
                   <PaymentStatusPill payment={o.payment} />
                 </td>
                 <td>
-                  <OrderStatusBadge status={o.status} />
+                  <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
                 </td>
               </tr>
             ))}
