@@ -1,0 +1,163 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+   This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  margin: 0;
+}
+
+.h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-neutral-900);
+  margin: 0 0 0.75rem;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.group {
+  border: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.group legend {
+  font-weight: 600;
+  color: var(--color-neutral-700);
+  margin-bottom: 0.5rem;
+  padding: 0;
+}
+
+.radios {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.radios label,
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  color: var(--color-neutral-800);
+}
+
+.check {
+  display: flex;
+  margin-top: 0.4rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1 1 220px;
+  font-size: 0.9rem;
+  color: var(--color-neutral-700);
+}
+
+.field input,
+.field textarea {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.4rem 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.chipOn {
+  border-color: var(--color-primary);
+  background: var(--color-primary-50);
+  color: var(--color-primary);
+}
+
+.previewChip {
+  background: var(--color-primary-50);
+  color: var(--color-primary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-weight: 600;
+  margin: 0.5rem 0;
+}
+
+.error {
+  color: var(--color-danger, #b3261e);
+  margin: 0.5rem 0;
+}
+
+.note {
+  color: var(--color-primary);
+  margin: 0.5rem 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.draft {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-700);
+}
+
+.sending {
+  background: var(--color-primary-50);
+  color: var(--color-primary);
+}
+
+.sent {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.failed {
+  background: rgba(179, 38, 30, 0.12);
+  color: #b3261e;
+}

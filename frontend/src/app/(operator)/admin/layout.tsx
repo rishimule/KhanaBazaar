@@ -35,6 +35,7 @@ export default function AdminLayout({
     { href: "/admin/sellers", label: t("nav.sellers"), icon: "🏪" },
     { href: "/admin/sellers/applications", label: t("nav.applications"), icon: "✅" },
     { href: "/admin/change-requests", label: t("nav.changeRequests"), icon: "🔔" },
+  { href: "/admin/notifications", label: t("nav.notifications"), icon: "📣" },
     { href: "/admin/onboarding-requests", label: t("nav.onboardingRequests"), icon: "📨" },
     { href: "/admin/referrals", label: t("nav.referrals"), icon: "🎁" },
     { href: "/admin/catalog", label: t("nav.catalog"), icon: "🗂️" },
