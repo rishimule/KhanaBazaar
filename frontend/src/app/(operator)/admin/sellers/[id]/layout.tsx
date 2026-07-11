@@ -20,6 +20,7 @@ const TABS: { slug: string; labelKey: string }[] = [
   { slug: "fees", labelKey: "tab.fees" },
   { slug: "credits", labelKey: "tab.credits" },
   { slug: "activity", labelKey: "tab.activity" },
+  { slug: "qr", labelKey: "tab.qr" },
 ];
 
 export default function SellerHubLayout({

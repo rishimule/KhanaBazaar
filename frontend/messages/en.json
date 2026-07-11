@@ -1571,7 +1571,8 @@
         "requests": "Change requests",
         "activity": "Activity",
         "fees": "Fees / Plans",
-        "credits": "Credits"
+        "credits": "Credits",
+        "qr": "QR"
       },
       "loadSellerError": "Failed to load seller",
       "loadingSeller": "Loading seller…",
@@ -1651,6 +1652,10 @@
       },
       "activity": {
         "heading": "Activity log"
+      },
+      "qr": {
+        "loadError": "Could not load the store QR.",
+        "noStore": "This seller has no store yet, so there is no QR to show."
       }
     },
     "impersonation": {
