@@ -83,6 +83,7 @@ function buildCurrentValues(
           delivery_fee: s.delivery_fee ?? 0,
           delivery_eta_min_minutes: s.delivery_eta_min_minutes ?? 30,
           delivery_eta_max_minutes: s.delivery_eta_max_minutes ?? 60,
+          pickup_enabled: s.pickup_enabled ?? false,
         })),
       };
     default:
@@ -257,6 +258,7 @@ export default function SellerProfilePage() {
       delivery_fee: number;
       delivery_eta_min_minutes: number;
       delivery_eta_max_minutes: number;
+      pickup_enabled: boolean;
     },
   ) => {
     if (!token) return;
@@ -308,6 +310,7 @@ export default function SellerProfilePage() {
           delivery_fee: svc.delivery_fee ?? 0,
           delivery_eta_min_minutes: etaMin,
           delivery_eta_max_minutes: etaMax,
+          pickup_enabled: svc.pickup_enabled ?? false,
         });
       }
     }, 400);
@@ -336,6 +339,20 @@ export default function SellerProfilePage() {
             ...prev,
             services: prev.services.map((s) =>
               s.id === serviceId ? { ...s, delivery_fee: value } : s,
+            ),
+          }
+        : prev,
+    );
+    schedulePersist(serviceId);
+  };
+
+  const updatePickup = (serviceId: number, value: boolean) => {
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            services: prev.services.map((s) =>
+              s.id === serviceId ? { ...s, pickup_enabled: value } : s,
             ),
           }
         : prev,
@@ -689,6 +706,15 @@ export default function SellerProfilePage() {
                       disabled={isApproved}
                     />
                     <span className={styles.unit}>min</span>
+                    <label className={styles.pickupToggle}>
+                      <input
+                        type="checkbox"
+                        checked={svc.pickup_enabled ?? false}
+                        onChange={(e) => updatePickup(svc.id, e.target.checked)}
+                        disabled={isApproved}
+                      />
+                      {tSettings("allowPickup")}
+                    </label>
                   </div>
                 ))}
               </>

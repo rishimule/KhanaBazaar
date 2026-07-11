@@ -83,6 +83,7 @@ interface ServiceEntry {
   min_order_value?: number; // legacy in-flight CRs (pre-rename)
   delivery_eta_min_minutes?: number;
   delivery_eta_max_minutes?: number;
+  pickup_enabled?: boolean;
 }
 
 function isServiceList(v: unknown): v is ServiceEntry[] {
@@ -114,6 +115,7 @@ function renderServiceChips(
               {r.delivery_eta_min_minutes != null &&
                 r.delivery_eta_max_minutes != null &&
                 ` · ETA ${formatDeliveryEta(r.delivery_eta_min_minutes, r.delivery_eta_max_minutes)}`}
+              {r.pickup_enabled != null && ` · pickup ${r.pickup_enabled ? "on" : "off"}`}
             </span>
           </li>
         );

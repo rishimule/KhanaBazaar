@@ -1136,7 +1136,8 @@
       "no": "No",
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
-      "deliveryFeeInputLabel": "Delivery fee for {service}"
+      "deliveryFeeInputLabel": "Delivery fee for {service}",
+      "allowPickup": "Allow pickup at store"
     },
     "profile": {
       "heading": "Profile",
@@ -1621,7 +1622,8 @@
           "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
           "reopenTitle": "Reopen this store?",
           "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
-        }
+        },
+        "allowPickup": "Allow pickup"
       },
       "orders": {
         "loadError": "Failed to load orders",

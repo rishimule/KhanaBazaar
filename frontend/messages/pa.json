@@ -1137,7 +1137,8 @@
       "no": "ਨਹੀਂ",
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
-      "deliveryFeeInputLabel": "Delivery fee for {service}"
+      "deliveryFeeInputLabel": "Delivery fee for {service}",
+      "allowPickup": "ਸਟੋਰ ਤੋਂ ਪਿਕਅੱਪ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ"
     },
     "profile": {
       "heading": "ਪ੍ਰੋਫਾਈਲ",
@@ -1622,7 +1623,8 @@
           "closeDesc": "The store stays visible to customers but can't take new orders until reopened. Add a reason for the audit log.",
           "reopenTitle": "Reopen this store?",
           "reopenDesc": "The store will start accepting new orders again. Add a reason for the audit log."
-        }
+        },
+        "allowPickup": "ਪਿਕਅੱਪ ਦੀ ਇਜਾਜ਼ਤ"
       },
       "orders": {
         "loadError": "ਆਰਡਰ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫਲ",

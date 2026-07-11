@@ -196,6 +196,16 @@
   color: var(--shade-cool-base-7);
 }
 
+.pickupToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 100%;
+  font-size: var(--body-base);
+  color: var(--shade-cool-base-7);
+  cursor: pointer;
+}
+
 .savingChip {
   font-size: var(--font-xs);
   background: var(--shade-cool-light-2);

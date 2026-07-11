@@ -28,6 +28,7 @@ export function adminSetServiceDeliverySettings(
   deliveryFee: number,
   token: string,
   deliveryEta?: { min: number; max: number },
+  pickupEnabled?: boolean,
 ) {
   return patch<Service>(
     `/api/v1/sellers/admin/${sellerId}/services/${serviceId}`,
@@ -40,6 +41,7 @@ export function adminSetServiceDeliverySettings(
             delivery_eta_max_minutes: deliveryEta.max,
           }
         : {}),
+      ...(pickupEnabled !== undefined ? { pickup_enabled: pickupEnabled } : {}),
     },
     token,
   );
