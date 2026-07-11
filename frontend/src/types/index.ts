@@ -392,11 +392,63 @@ export interface OrderNotification {
   status_value: string;
   read: boolean;
   created_at: string;
+  image_url?: string | null;
+  cta_url?: string | null;
+  cta_label?: string | null;
 }
 
 export interface NotificationListResponse {
   notifications: OrderNotification[];
   unread_count: number;
+}
+
+// --- Admin bulk-notification campaigns (Spec 3C) ---
+export type NotificationAudience = "customers" | "sellers" | "both";
+export type CampaignStatus = "draft" | "sending" | "sent" | "failed";
+export type CampaignChannel = "in_app" | "email" | "sms";
+
+export interface CampaignFilters {
+  state?: string;
+  cities?: string[];
+  new_onboarded?: boolean;
+  seller_fee_models?: string[];
+  seller_expiring_soon?: boolean;
+}
+
+export interface Campaign {
+  id: number;
+  audience: NotificationAudience;
+  filters: CampaignFilters;
+  channels: CampaignChannel[];
+  title: string;
+  body: string;
+  image_url?: string | null;
+  cta_url?: string | null;
+  cta_label?: string | null;
+  is_essential: boolean;
+  status: CampaignStatus;
+  recipients_targeted: number;
+  inapp_created: number;
+  email_enqueued: number;
+  sms_enqueued: number;
+  created_at: string;
+  sent_at?: string | null;
+}
+
+export interface CampaignCreateInput {
+  audience: NotificationAudience;
+  filters: CampaignFilters;
+  channels: CampaignChannel[];
+  title: string;
+  body: string;
+  cta_url?: string | null;
+  cta_label?: string | null;
+  is_essential: boolean;
+}
+
+export interface CampaignAudienceCount {
+  customers: number;
+  sellers: number;
 }
 
 export interface CustomerOrderSummary {
