@@ -6,7 +6,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { useAuth } from "@/lib/AuthContext";
-import { persistUserLanguage, setLocaleCookie } from "@/lib/operatorLocale";
+import { persistUserLanguage, setOperatorLocaleCookie } from "@/lib/operatorLocale";
 import styles from "./LanguagePreferenceCard.module.css";
 
 const LABELS: Record<string, string> = {
@@ -21,11 +21,14 @@ export default function LanguagePreferenceCard() {
   const t = useTranslations("Shared.languagePreference");
   const locale = useLocale();
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, setPreferredLanguage } = useAuth();
   const [pending, startTransition] = useTransition();
 
   const onChange = (next: string) => {
-    setLocaleCookie(next);
+    // This card only renders on operator (seller/admin) settings pages, so the
+    // language lives in the dedicated operator cookie, never NEXT_LOCALE.
+    setOperatorLocaleCookie(next);
+    setPreferredLanguage(next);
     void persistUserLanguage(next, token);
     startTransition(() => router.refresh());
   };

@@ -86,7 +86,11 @@ async def _profile_response(
         last_name=profile.last_name,
         phone=profile.phone,
         date_of_birth=profile.date_of_birth,
-        preferred_language=profile.preferred_language,
+        # User.preferred_language is the single source of truth (also updated by
+        # /auth/me/language from the navbar switcher, which does not touch the
+        # profile column). Read it here so the account page always shows the
+        # language the app actually renders.
+        preferred_language=user.preferred_language,
         marketing_opt_in=profile.marketing_opt_in,
         notify_order_email=profile.notify_order_email,
         notify_order_sms=profile.notify_order_sms,
@@ -241,9 +245,22 @@ async def update_customer_preferences(
     assert current_user.id is not None
     profile = await _customer_profile_for_user(session, current_user.id)
     if "preferred_language" in body.model_fields_set:
-        profile.preferred_language = (
-            body.preferred_language.value if body.preferred_language else None
-        )
+        lang = body.preferred_language.value if body.preferred_language else None
+        profile.preferred_language = lang
+        # Mirror onto User.preferred_language, the single source of truth read by
+        # /auth/me (locale seeding), the worker (order/notification copy), and the
+        # profile response below. The User column is NOT NULL, so a cleared
+        # preference falls back to "en".
+        resolved = lang or "en"
+        # Persist to the session-attached row (identity-map hit in prod).
+        db_user = await session.get(User, current_user.id)
+        if db_user is not None:
+            db_user.preferred_language = resolved
+            session.add(db_user)
+        # Keep the response (built from current_user) in sync: in prod this is the
+        # same identity-mapped instance as db_user; under the detached test
+        # override it mirrors the persisted value so the response is consistent.
+        current_user.preferred_language = resolved
     if "marketing_opt_in" in body.model_fields_set and body.marketing_opt_in is not None:
         profile.marketing_opt_in = body.marketing_opt_in
     if (

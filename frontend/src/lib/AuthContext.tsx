@@ -10,16 +10,27 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import { User, UserRole } from "@/types";
-import { setLocaleCookie } from "@/lib/operatorLocale";
+import { clearLocaleCookies, setOperatorLocaleCookie } from "@/lib/operatorLocale";
+import { OPERATOR_PATH_RE } from "@/lib/localeCookies";
+import { routing } from "@/i18n/routing";
 
-/** For seller/admin sessions, seed the NEXT_LOCALE cookie from the persisted
- * preference so a fresh device opens the dashboard in the saved language.
- * Scoped to operator roles — customers keep their URL-driven storefront locale. */
-function seedOperatorLocale(user: User): void {
-  if (typeof document === "undefined") return;
-  if (user.role !== "seller" && user.role !== "admin") return;
-  if (user.preferred_language) setLocaleCookie(user.preferred_language);
+/** For seller/admin sessions, seed the operator locale cookie (KB_OP_LOCALE)
+ * from the persisted preference so a fresh device opens the dashboard in the
+ * saved language. Returns whether the cookie value changed, so a stale server
+ * render can be refreshed. Scoped to operator roles — customers keep their
+ * URL-driven storefront locale, enforced by <CustomerLocaleEnforcer>. */
+function reconcileOperatorLocale(user: User): boolean {
+  if (typeof document === "undefined") return false;
+  if (user.role !== "seller" && user.role !== "admin") return false;
+  const lang = user.preferred_language;
+  // Guard against a value the app can't render (defensive symmetry with
+  // CustomerLocaleEnforcer); the read sites also fall back to the default.
+  if (!lang || !routing.locales.includes(lang as (typeof routing.locales)[number])) {
+    return false;
+  }
+  return setOperatorLocaleCookie(lang);
 }
 
 interface AuthContextValue {
@@ -40,6 +51,9 @@ interface AuthContextValue {
   /** Patch the cached user's avatar so the navbar + sidebars update instantly
    *  after a customer changes their picture (no /auth/me round-trip). */
   setAvatarUrl: (url: string | null) => void;
+  /** Patch the cached user's language after a switch so the enforcer and
+   *  seeding logic see the new preference without an /auth/me round-trip. */
+  setPreferredLanguage: (locale: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -47,6 +61,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const TOKEN_KEY = "kb_token";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [dbUser, setDbUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   // Always start loading=true so server and client first render agree.
@@ -77,12 +92,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (user) {
           setToken(stored);
           setDbUser(user);
-          seedOperatorLocale(user);
+          // If the operator cookie was stale (e.g. clobbered before the
+          // isolation fix, or unset on a fresh device), refresh so the
+          // already-rendered dashboard picks up the correct language.
+          const changed = reconcileOperatorLocale(user);
+          if (changed && OPERATOR_PATH_RE.test(window.location.pathname)) {
+            router.refresh();
+          }
         }
       })
       .catch(() => localStorage.removeItem(TOKEN_KEY))
       .finally(() => setLoading(false));
-  }, []);
+  }, [router]);
 
   const requestOtp = useCallback(async (email: string): Promise<void> => {
     const res = await fetch(`${API_BASE}/api/v1/auth/otp/request`, {
@@ -136,7 +157,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(TOKEN_KEY, data.access_token);
       setToken(data.access_token);
       setDbUser(data.user as User);
-      seedOperatorLocale(data.user as User);
+      // Seed the operator cookie now; the post-login navigation into the
+      // dashboard then server-renders in the saved language (no refresh here —
+      // the login page itself is a customer route).
+      reconcileOperatorLocale(data.user as User);
       return { user: data.user as User, needsName: false };
     },
     []
@@ -153,6 +177,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("kb_delivery_location");
     // Wipe recent search history for the same reason.
     localStorage.removeItem("kb_recent_searches");
+    // Clear the locale cookies so the next (guest) user on a shared device
+    // isn't left on the previous user's language. Logged-in users re-seed from
+    // their saved preference on the next auth resolution.
+    clearLocaleCookies();
     // Tear down web-push on this device so the next user on a shared device
     // never inherits the prior customer's order alerts. Fire-and-forget so the
     // logout signature stays synchronous. Dynamic-imported to avoid pulling the
@@ -178,6 +206,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setDbUser((u) => (u ? { ...u, avatar_url: url } : u));
   }, []);
 
+  const setPreferredLanguage = useCallback((locale: string) => {
+    setDbUser((u) => (u ? { ...u, preferred_language: locale } : u));
+  }, []);
+
   const acceptPolicies = useCallback(async () => {
     const stored =
       typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY);
@@ -191,8 +223,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ dbUser, token, loading, requestOtp, verifyOtp, logout, acceptPolicies, setAvatarUrl }),
-    [dbUser, token, loading, requestOtp, verifyOtp, logout, acceptPolicies, setAvatarUrl]
+    () => ({
+      dbUser,
+      token,
+      loading,
+      requestOtp,
+      verifyOtp,
+      logout,
+      acceptPolicies,
+      setAvatarUrl,
+      setPreferredLanguage,
+    }),
+    [
+      dbUser,
+      token,
+      loading,
+      requestOtp,
+      verifyOtp,
+      logout,
+      acceptPolicies,
+      setAvatarUrl,
+      setPreferredLanguage,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

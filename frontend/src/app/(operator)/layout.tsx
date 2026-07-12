@@ -15,10 +15,13 @@ import { CartProvider } from "@/lib/CartContext";
 import { DeliveryLocationProvider } from "@/lib/DeliveryLocationContext";
 import { routing } from "@/i18n/routing";
 import { applyBrandToMessages } from "@/i18n/brand-messages";
+import { OPERATOR_LOCALE_COOKIE } from "@/lib/localeCookies";
 import { COMPANY_NAME } from "@/lib/brand";
 
 async function resolveOperatorLocale(): Promise<string> {
-  const cookieLocale = (await cookies()).get("NEXT_LOCALE")?.value;
+  // Operator routes use their own cookie (KB_OP_LOCALE), never next-intl's
+  // NEXT_LOCALE, so storefront browsing can't clobber the dashboard language.
+  const cookieLocale = (await cookies()).get(OPERATOR_LOCALE_COOKIE)?.value;
   return routing.locales.includes(
     cookieLocale as (typeof routing.locales)[number],
   )

@@ -8,7 +8,11 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { localeMode } from "@/i18n/unsupported-routes";
 import { useAuth } from "@/lib/AuthContext";
-import { persistUserLanguage, setLocaleCookie } from "@/lib/operatorLocale";
+import {
+  persistUserLanguage,
+  setLocaleCookie,
+  setOperatorLocaleCookie,
+} from "@/lib/operatorLocale";
 import styles from "./LocaleSwitcher.module.css";
 
 const LABELS: Record<string, string> = {
@@ -24,18 +28,27 @@ export default function LocaleSwitcher() {
   const t = useTranslations("Shared");
   const router = useRouter();
   const pathname = usePathname();
-  const { token } = useAuth();
+  const { token, setPreferredLanguage } = useAuth();
   const [pending, startTransition] = useTransition();
 
   const mode = localeMode(pathname);
   if (mode === "none") return null;
 
   const onChange = (next: string) => {
+    // Persist the choice everywhere: the in-memory user (so the enforcer/seed
+    // see it immediately) and the server preference (best-effort).
+    setPreferredLanguage(next);
+    void persistUserLanguage(next, token);
     if (mode === "cookie") {
-      setLocaleCookie(next);
-      void persistUserLanguage(next, token);
+      // Operator routes: dashboard locale lives in its own cookie.
+      setOperatorLocaleCookie(next);
       startTransition(() => router.refresh());
     } else {
+      // Storefront routes: write NEXT_LOCALE *before* navigating so the pick
+      // outranks Accept-Language (otherwise choosing the unprefixed default
+      // locale would get redirected straight back by browser-language
+      // detection), then move the URL to the chosen locale.
+      setLocaleCookie(next);
       startTransition(() => router.replace(pathname, { locale: next }));
     }
   };

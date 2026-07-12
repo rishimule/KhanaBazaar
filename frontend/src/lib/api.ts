@@ -8,8 +8,8 @@
  * Supports optional auth token for protected endpoints.
  *
  * Attaches Accept-Language on every request from the active locale (next-intl
- * on the server, NEXT_LOCALE cookie in the browser). Backend uses this to
- * localize catalog/store responses.
+ * on the server; the URL prefix / locale cookies in the browser — see
+ * resolveLocale). Backend uses this to localize catalog/store responses.
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -22,9 +22,22 @@ const INTERNAL_API_BASE =
   (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.startsWith("http")
     ? process.env.NEXT_PUBLIC_API_URL
     : "http://localhost:8000");
-const SUPPORTED_LOCALES = new Set(["en", "hi", "mr", "gu", "pa"]);
-const DEFAULT_LOCALE = "en";
-const COOKIE_NAME = "NEXT_LOCALE";
+import {
+  CUSTOMER_LOCALE_COOKIE,
+  CUSTOMER_LOCALE_PREFIX_RE,
+  DEFAULT_LOCALE,
+  OPERATOR_LOCALE_COOKIE,
+  OPERATOR_PATH_RE,
+  SUPPORTED_LOCALES,
+} from "@/lib/localeCookies";
+
+function readBrowserCookie(name: string): string | null {
+  const m = document.cookie.match(
+    new RegExp(`(?:^|;\\s*)${name}=([^;]+)`),
+  );
+  const value = m?.[1];
+  return value && SUPPORTED_LOCALES.has(value) ? value : null;
+}
 
 /** Standard error thrown when a FastAPI backend response is not ok. */
 export class ApiError extends Error {
@@ -50,11 +63,20 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** Resolve the current locale for outbound API requests.
+/** Resolve the current locale for outbound API requests so the backend
+ * localizes catalog/store responses to match what's on screen.
  *
- * - Server (RSC, route handlers): try next-intl's getLocale(); fall back to
- *   NEXT_LOCALE cookie; finally DEFAULT_LOCALE.
- * - Browser: read NEXT_LOCALE cookie; fall back to DEFAULT_LOCALE.
+ * - Server (RSC, route handlers): next-intl's getLocale() (URL-derived on
+ *   customer routes); fall back to the NEXT_LOCALE cookie; finally
+ *   DEFAULT_LOCALE. Operator server components are not covered here — every
+ *   operator page fetches client-side, and the browser branch below handles
+ *   the KB_OP_LOCALE cookie. A future server-rendered operator page doing a
+ *   localized fetch would need the operator cookie threaded in here.
+ * - Browser: the active locale is authoritative from the URL prefix on customer
+ *   routes (matches next-intl's `useLocale()`), from KB_OP_LOCALE on operator
+ *   routes; the NEXT_LOCALE cookie and DEFAULT_LOCALE are fallbacks. Reading the
+ *   URL prefix (not just the cookie) keeps catalog language aligned with the
+ *   page even for a guest deep-linking to `/hi/...` before any cookie is set.
  */
 async function resolveLocale(): Promise<string> {
   if (typeof window === "undefined") {
@@ -67,16 +89,27 @@ async function resolveLocale(): Promise<string> {
     }
     try {
       const { cookies } = await import("next/headers");
-      const c = (await cookies()).get(COOKIE_NAME)?.value;
+      const c = (await cookies()).get(CUSTOMER_LOCALE_COOKIE)?.value;
       if (c && SUPPORTED_LOCALES.has(c)) return c;
     } catch {
       /* not in a request context */
     }
     return DEFAULT_LOCALE;
   }
-  const m = document.cookie.match(/(?:^|;\s*)NEXT_LOCALE=([^;]+)/);
-  const c = m?.[1];
-  return c && SUPPORTED_LOCALES.has(c) ? c : DEFAULT_LOCALE;
+  const path = window.location.pathname;
+  // Operator routes: the dashboard's own cookie (fall back to the storefront
+  // cookie), so catalog/product names match the dashboard language.
+  if (OPERATOR_PATH_RE.test(path)) {
+    return (
+      readBrowserCookie(OPERATOR_LOCALE_COOKIE) ??
+      readBrowserCookie(CUSTOMER_LOCALE_COOKIE) ??
+      DEFAULT_LOCALE
+    );
+  }
+  // Customer routes: the URL locale prefix is authoritative (en is unprefixed).
+  const prefix = path.match(CUSTOMER_LOCALE_PREFIX_RE);
+  if (prefix) return prefix[1];
+  return readBrowserCookie(CUSTOMER_LOCALE_COOKIE) ?? DEFAULT_LOCALE;
 }
 
 /** Build a full URL and merge default headers. Optionally attach auth token. */
