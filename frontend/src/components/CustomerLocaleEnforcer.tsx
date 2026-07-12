@@ -7,18 +7,13 @@ import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { useAuth } from "@/lib/AuthContext";
-import { setLocaleCookie } from "@/lib/operatorLocale";
 
 /**
  * Makes a logged-in customer's saved language preference authoritative for the
- * storefront. Customer locale is URL-driven, and `localePrefix: "as-needed"`
- * lets browser Accept-Language redirect an unprefixed visit to a non-default
- * locale — so a customer who prefers English on a Hindi-language device would
- * otherwise keep landing in Hindi. This reconciles the URL to the persisted
- * `User.preferred_language` after auth resolves.
- *
- * The cookie is pinned *before* navigating so next-intl's middleware doesn't
- * bounce the redirect straight back via Accept-Language. Renders nothing.
+ * storefront by reconciling the URL locale to `User.preferred_language` after
+ * auth resolves. Customer locale is URL-driven (locale detection is off, so the
+ * URL is the source of truth), which is why moving the URL is sufficient and
+ * works on the prod domain (no cookie needed at the origin). Renders nothing.
  */
 export default function CustomerLocaleEnforcer() {
   const { dbUser, loading } = useAuth();
@@ -40,7 +35,6 @@ export default function CustomerLocaleEnforcer() {
     }
     if (lastTargetRef.current === pref) return;
     lastTargetRef.current = pref;
-    setLocaleCookie(pref);
     router.replace(pathname, { locale: pref });
   }, [loading, pref, locale, pathname, router]);
 

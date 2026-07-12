@@ -4,7 +4,6 @@ import { useEffect, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { get, patch } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
-import { setLocaleCookie } from "@/lib/operatorLocale";
 import { usePushOptIn } from "@/components/pwa/usePushOptIn";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import type { CustomerProfile } from "@/types";
@@ -113,11 +112,9 @@ export default function PreferencesPage() {
     await save({ preferred_language: next });
     if (next) {
       // Update the in-memory user so <CustomerLocaleEnforcer> doesn't bounce the
-      // URL back to the old preference, and pin NEXT_LOCALE *before* navigating
-      // so choosing English (the unprefixed default) isn't undone by
-      // Accept-Language detection.
+      // URL back to the old preference, then move the URL to the chosen locale
+      // (locale is URL-driven; detection is off).
       setPreferredLanguage(next);
-      setLocaleCookie(next);
       if (next !== locale) {
         startTransition(() => {
           router.replace(pathname, { locale: next });
