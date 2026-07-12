@@ -70,13 +70,13 @@ async function handleResponse<T>(res: Response): Promise<T> {
  *   customer routes); fall back to the NEXT_LOCALE cookie; finally
  *   DEFAULT_LOCALE. Operator server components are not covered here — every
  *   operator page fetches client-side, and the browser branch below handles
- *   the KB_OP_LOCALE cookie. A future server-rendered operator page doing a
- *   localized fetch would need the operator cookie threaded in here.
+ *   the operator (`__session`) cookie. A future server-rendered operator page
+ *   doing a localized fetch would need the operator cookie threaded in here.
  * - Browser: the active locale is authoritative from the URL prefix on customer
- *   routes (matches next-intl's `useLocale()`), from KB_OP_LOCALE on operator
- *   routes; the NEXT_LOCALE cookie and DEFAULT_LOCALE are fallbacks. Reading the
- *   URL prefix (not just the cookie) keeps catalog language aligned with the
- *   page even for a guest deep-linking to `/hi/...` before any cookie is set.
+ *   routes (matches next-intl's `useLocale()`), from the operator (`__session`)
+ *   cookie on operator routes; the NEXT_LOCALE cookie and DEFAULT_LOCALE are
+ *   fallbacks. Reading the URL prefix (not just the cookie) keeps catalog
+ *   language aligned with the page even for a guest deep-linking to `/hi/...`.
  */
 async function resolveLocale(): Promise<string> {
   if (typeof window === "undefined") {
