@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 
 import "@/app/globals.css";
 import CartSyncBanner from "@/components/CartSyncBanner";
+import CustomerLocaleEnforcer from "@/components/CustomerLocaleEnforcer";
 import FooterGate from "@/components/FooterGate";
 import Navbar from "@/components/Navbar";
 import PolicyConsentGate from "@/components/PolicyConsentGate";
@@ -98,6 +99,7 @@ export default async function CustomerLayout({
         <RouteProgressProvider>
           <NextIntlClientProvider messages={messages}>
             <AuthProvider>
+              <CustomerLocaleEnforcer />
               <PolicyConsentGate />
               <DeliveryLocationProvider>
                 <CustomerAddressesProvider>

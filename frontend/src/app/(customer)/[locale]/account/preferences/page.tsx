@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { get, patch } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { setLocaleCookie } from "@/lib/operatorLocale";
 import { usePushOptIn } from "@/components/pwa/usePushOptIn";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import type { CustomerProfile } from "@/types";
@@ -71,7 +72,7 @@ type PreferencesPatch = Partial<
 
 export default function PreferencesPage() {
   const t = useTranslations("Account.preferences");
-  const { token } = useAuth();
+  const { token, setPreferredLanguage } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const locale = useLocale();
@@ -107,11 +108,21 @@ export default function PreferencesPage() {
 
   const onLanguageChange = async (value: string) => {
     const next = (value || null) as Lang | null;
+    // Persisting also mirrors onto User.preferred_language (the source of truth
+    // the enforcer/seed read).
     await save({ preferred_language: next });
-    if (next && next !== locale) {
-      startTransition(() => {
-        router.replace(pathname, { locale: next });
-      });
+    if (next) {
+      // Update the in-memory user so <CustomerLocaleEnforcer> doesn't bounce the
+      // URL back to the old preference, and pin NEXT_LOCALE *before* navigating
+      // so choosing English (the unprefixed default) isn't undone by
+      // Accept-Language detection.
+      setPreferredLanguage(next);
+      setLocaleCookie(next);
+      if (next !== locale) {
+        startTransition(() => {
+          router.replace(pathname, { locale: next });
+        });
+      }
     }
   };
 
