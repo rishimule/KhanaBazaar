@@ -5,10 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 import { GROUP_LABEL } from "@/lib/changeRequests";
-import type {
-  AdminActionLog,
-  SellerProfileChangeGroup,
-} from "@/types";
+import type { AdminActionLog } from "@/types";
 import styles from "./ActivityTable.module.css";
 
 type Translator = ReturnType<typeof useTranslations>;
@@ -52,11 +49,11 @@ function getString(
   return typeof value === "string" ? value : null;
 }
 
-function groupLabelFromRow(row: AdminActionLog): string {
+function groupLabelFromRow(t: Translator, row: AdminActionLog): string {
   const raw =
     getString(row.before_json, "group") ?? getString(row.after_json, "group");
   if (raw && raw in GROUP_LABEL) {
-    return GROUP_LABEL[raw as SellerProfileChangeGroup];
+    return t(`changeRequest.group_${raw}`);
   }
   return raw ?? "—";
 }
@@ -74,9 +71,9 @@ function describeTarget(t: Translator, row: AdminActionLog): React.ReactNode {
   const after = row.after_json ?? {};
   const before = row.before_json ?? {};
   if (PROFILE_CR_ACTIONS.has(row.action)) {
-    const group = groupLabelFromRow(row);
+    const group = groupLabelFromRow(t, row);
     const crId = crIdFromRow(row);
-    const label = `${group} change request`;
+    const label = t("activityTable.crTarget", { group });
     if (crId) {
       return (
         <Link

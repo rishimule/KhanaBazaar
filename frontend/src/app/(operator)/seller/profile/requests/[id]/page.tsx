@@ -9,7 +9,6 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import {
-  GROUP_LABEL,
   STATUS_TONE,
   getMyChangeRequest,
   isOpen,
@@ -41,6 +40,7 @@ export default function SellerRequestDetailPage() {
   const { token } = useAuth();
   const tCR = useTranslations("Seller.changeRequests");
   const tStatus = useTranslations("Shared.changeRequest");
+  const tc = useTranslations("Seller.common");
   const [cr, setCr] = useState<SellerProfileChangeRequest | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -73,9 +73,9 @@ export default function SellerRequestDetailPage() {
       setCr(fresh);
       setLoadError(null);
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Failed to load request");
+      setLoadError(e instanceof Error ? e.message : tCR("loadOneError"));
     }
-  }, [token, id]);
+  }, [token, id, tCR]);
 
   useEffect(() => {
     if (!token || !id) return;
@@ -88,18 +88,18 @@ export default function SellerRequestDetailPage() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setLoadError(e instanceof Error ? e.message : "Failed to load request");
+        setLoadError(e instanceof Error ? e.message : tCR("loadOneError"));
       });
     return () => {
       cancelled = true;
     };
-  }, [token, id]);
+  }, [token, id, tCR]);
 
   async function handleWithdraw() {
     if (!token || !cr) return;
     if (
       typeof window !== "undefined" &&
-      !window.confirm("Withdraw this change request?")
+      !window.confirm(tCR("withdrawConfirm"))
     ) {
       return;
     }
@@ -109,7 +109,7 @@ export default function SellerRequestDetailPage() {
       await withdrawMyChangeRequest(token, cr.id);
       router.push("/seller/profile/requests");
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : "Withdraw failed");
+      setActionError(e instanceof Error ? e.message : tCR("withdrawFailed"));
       setBusy(false);
     }
   }
@@ -119,7 +119,7 @@ export default function SellerRequestDetailPage() {
       <div className={styles.page}>
         <header className={styles.header}>
           <Link href="/seller/profile/requests" className={styles.backLink}>
-            ← Back to requests
+            ← {tCR("backToRequests")}
           </Link>
         </header>
         <div className={styles.errorBanner}>{loadError}</div>
@@ -130,7 +130,7 @@ export default function SellerRequestDetailPage() {
   if (!cr) {
     return (
       <div className={styles.page}>
-        <p className={styles.muted}>Loading…</p>
+        <p className={styles.muted}>{tc("loading")}</p>
       </div>
     );
   }
@@ -142,24 +142,23 @@ export default function SellerRequestDetailPage() {
     <div className={styles.page}>
       <header className={styles.header}>
         <Link href="/seller/profile/requests" className={styles.backLink}>
-          ← Back to requests
+          ← {tCR("backToRequests")}
         </Link>
       </header>
 
       <div className={styles.titleRow}>
-        <h1 className={styles.title}>{GROUP_LABEL[cr.group]}</h1>
+        <h1 className={styles.title}>{tStatus(`group_${cr.group}`)}</h1>
         <span className={`${styles.pill} ${styles[`tone_${tone}`]}`}>
           {tStatus(`status_${cr.status}`)}
         </span>
       </div>
 
       <p className={styles.meta}>
-        Submitted{" "}
+        {tStatus("status_submitted")}{" "}
         <time dateTime={cr.created_at}>
           {new Date(cr.created_at).toLocaleString()}
         </time>{" "}
-        · {cr.submission_count} submission
-        {cr.submission_count === 1 ? "" : "s"}
+        · {tCR("submittedMeta", { count: cr.submission_count })}
       </p>
 
       {cr.status === "changes_requested" && cr.admin_note && (
@@ -178,37 +177,37 @@ export default function SellerRequestDetailPage() {
 
       {cr.status === "submitted" && (
         <div className={styles.infoBanner}>
-          Awaiting admin review. You can withdraw this request at any time.
+          {tCR("awaitingReview")}
         </div>
       )}
 
       {cr.status === "approved" && (
         <div className={styles.successBanner}>
-          <strong>Approved.</strong>
-          <p>Your profile has been updated with the values shown below.</p>
+          <strong>{tCR("approvedTitle")}</strong>
+          <p>{tCR("approvedBody")}</p>
         </div>
       )}
 
       {cr.status === "rejected" && (
         <div className={styles.errorBanner}>
-          <strong>Rejected.</strong>
-          {cr.admin_note && <p>Reason: {cr.admin_note}</p>}
+          <strong>{tCR("rejectedTitle")}</strong>
+          {cr.admin_note && <p>{tCR("rejectedReason", { note: cr.admin_note })}</p>}
         </div>
       )}
 
       {cr.status === "withdrawn" && (
-        <div className={styles.mutedBanner}>This request was withdrawn.</div>
+        <div className={styles.mutedBanner}>{tCR("withdrawnBody")}</div>
       )}
 
       {actionError && <div className={styles.errorBanner}>{actionError}</div>}
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>What you proposed</h2>
+        <h2 className={styles.sectionTitle}>{tCR("whatProposed")}</h2>
         <ChangeRequestDiffTable
           before={cr.baseline_json}
           after={cr.proposed_json}
-          beforeLabel="Current"
-          afterLabel="Proposed"
+          beforeLabel={tCR("diffCurrent")}
+          afterLabel={tCR("diffProposed")}
           group={cr.group}
           serviceNames={serviceNames}
         />
@@ -216,12 +215,12 @@ export default function SellerRequestDetailPage() {
 
       {cr.status === "approved" && cr.applied_json && (
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Applied by admin</h2>
+          <h2 className={styles.sectionTitle}>{tCR("appliedByAdmin")}</h2>
           <ChangeRequestDiffTable
             before={cr.proposed_json}
             after={cr.applied_json}
-            beforeLabel="You proposed"
-            afterLabel="Applied"
+            beforeLabel={tCR("diffYouProposed")}
+            afterLabel={tCR("diffApplied")}
             group={cr.group}
             serviceNames={serviceNames}
           />
@@ -229,7 +228,7 @@ export default function SellerRequestDetailPage() {
       )}
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Timeline</h2>
+        <h2 className={styles.sectionTitle}>{tCR("timeline")}</h2>
         <ChangeRequestTimeline events={cr.events} />
       </section>
 

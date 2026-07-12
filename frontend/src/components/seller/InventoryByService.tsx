@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { InventoryServiceStat, TopSubcategory } from "@/types";
 import styles from "./InventoryByService.module.css";
 
@@ -12,17 +13,18 @@ interface Props {
 }
 
 export default function InventoryByService({ services, outOfStock, topSubcategory }: Props) {
+  const t = useTranslations("Seller.dashboard");
   return (
     <section className={styles.card}>
       <div className={styles.head}>
-        <h2 className={styles.title}>Inventory by service</h2>
+        <h2 className={styles.title}>{t("inventoryByService")}</h2>
         <Link href="/seller/inventory" className={styles.manage}>
-          Manage →
+          {t("manage")} →
         </Link>
       </div>
 
       {services.length === 0 ? (
-        <p className={styles.empty}>No products yet.</p>
+        <p className={styles.empty}>{t("noProductsYet")}</p>
       ) : (
         <ul className={styles.list}>
           {services.map((s) => {
@@ -46,11 +48,13 @@ export default function InventoryByService({ services, outOfStock, topSubcategor
 
       <div className={styles.footer}>
         <span className={outOfStock > 0 ? styles.warn : styles.ok}>
-          {outOfStock > 0 ? `⚠ ${outOfStock} out of stock` : "✓ All stock healthy"}
+          {outOfStock > 0
+            ? `⚠ ${t("outOfStockN", { count: outOfStock })}`
+            : `✓ ${t("stockHealthy")}`}
         </span>
         {topSubcategory && (
           <span className={styles.top}>
-            Top: {topSubcategory.name} ({topSubcategory.count})
+            {t("topSubcategory", { name: topSubcategory.name, count: topSubcategory.count })}
           </span>
         )}
       </div>

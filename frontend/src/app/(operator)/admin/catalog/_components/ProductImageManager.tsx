@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { ApiError } from "@/lib/api";
 import {
@@ -32,6 +33,7 @@ interface Props {
 
 export function ProductImageManager({ productId, initial }: Props) {
   const { token } = useAuth();
+  const t = useTranslations("Admin.catalog.images");
   const [images, setImages] = useState<ProductImage[]>(initial);
   const [urlInput, setUrlInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,7 +68,7 @@ export function ProductImageManager({ productId, initial }: Props) {
   const full = images.length >= MAX_IMAGES;
 
   function reportError(e: unknown) {
-    setError(e instanceof ApiError ? e.detail : "Request failed");
+    setError(e instanceof ApiError ? e.detail : t("requestFailed"));
   }
 
   async function doUpload(blob: Blob) {
@@ -87,11 +89,11 @@ export function ProductImageManager({ productId, initial }: Props) {
     e.target.value = ""; // allow re-picking same file
     if (!file) return;
     if (!ALLOWED.includes(file.type)) {
-      setError("Only JPEG, PNG, or WebP images are allowed.");
+      setError(t("invalidType"));
       return;
     }
     if (file.size > MAX_MB * 1024 * 1024) {
-      setError(`Image must be under ${MAX_MB} MB.`);
+      setError(t("tooLarge", { mb: MAX_MB }));
       return;
     }
     setEditSrc(URL.createObjectURL(file));
@@ -157,13 +159,13 @@ export function ProductImageManager({ productId, initial }: Props) {
           <div key={img.id ?? `${idx}-${img.url}`} className={styles.cell}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={img.url} alt="" className={styles.thumb} referrerPolicy="no-referrer" />
-            {idx === 0 && <span className={styles.coverBadge}>Cover</span>}
+            {idx === 0 && <span className={styles.coverBadge}>{t("cover")}</span>}
             <div className={styles.cellActions}>
               <button
                 type="button"
                 onClick={() => move(idx, -1)}
                 disabled={busy || idx === 0}
-                aria-label="Move left"
+                aria-label={t("moveLeft")}
               >
                 ←
               </button>
@@ -171,7 +173,7 @@ export function ProductImageManager({ productId, initial }: Props) {
                 type="button"
                 onClick={() => move(idx, 1)}
                 disabled={busy || idx === images.length - 1}
-                aria-label="Move right"
+                aria-label={t("moveRight")}
               >
                 →
               </button>
@@ -179,7 +181,7 @@ export function ProductImageManager({ productId, initial }: Props) {
                 type="button"
                 onClick={() => onDelete(img.id)}
                 disabled={busy}
-                aria-label="Remove"
+                aria-label={t("remove")}
               >
                 ✕
               </button>
@@ -195,7 +197,7 @@ export function ProductImageManager({ productId, initial }: Props) {
           onClick={() => fileRef.current?.click()}
           disabled={busy || full}
         >
-          {busy ? "Working…" : "Upload image"}
+          {busy ? t("working") : t("uploadImage")}
         </button>
         <input
           ref={fileRef}
@@ -209,7 +211,7 @@ export function ProductImageManager({ productId, initial }: Props) {
       <div className={styles.urlRow}>
         <input
           type="url"
-          placeholder="https://… (paste an image URL)"
+          placeholder={t("urlPlaceholder")}
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}
           disabled={busy || full}
@@ -220,11 +222,11 @@ export function ProductImageManager({ productId, initial }: Props) {
           onClick={onAddUrl}
           disabled={busy || full || !urlInput.trim()}
         >
-          Add URL
+          {t("addUrl")}
         </button>
       </div>
 
-      {full && <p className={styles.note}>Maximum of {MAX_IMAGES} images reached.</p>}
+      {full && <p className={styles.note}>{t("maxReached", { max: MAX_IMAGES })}</p>}
       {error && (
         <p role="alert" className={styles.error}>
           {error}

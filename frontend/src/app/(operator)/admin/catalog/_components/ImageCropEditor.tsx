@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import Cropper, { type Area } from "react-easy-crop";
 import Modal from "@/components/Modal";
 import { getCroppedBlob } from "./cropImage";
@@ -21,6 +22,8 @@ const ASPECTS: { label: string; value: number | undefined }[] = [
 ];
 
 export function ImageCropEditor({ src, onCancel, onDone }: Props) {
+  const t = useTranslations("Admin.catalog.crop");
+  const tc = useTranslations("Admin.common");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -43,12 +46,12 @@ export function ImageCropEditor({ src, onCancel, onDone }: Props) {
 
   return (
     <Modal
-      title="Edit image"
+      title={t("title")}
       onClose={onCancel}
       footer={
         <>
           <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={busy}>
-            Cancel
+            {tc("cancel")}
           </button>
           <button
             type="button"
@@ -56,7 +59,7 @@ export function ImageCropEditor({ src, onCancel, onDone }: Props) {
             onClick={handleDone}
             disabled={busy || !areaPx}
           >
-            {busy ? "Applying…" : "Apply"}
+            {busy ? t("applying") : t("apply")}
           </button>
         </>
       }
@@ -83,12 +86,12 @@ export function ImageCropEditor({ src, onCancel, onDone }: Props) {
               className={aspect === a.value ? styles.aspectActive : styles.aspect}
               onClick={() => setAspect(a.value)}
             >
-              {a.label}
+              {a.value === undefined ? t("free") : a.label}
             </button>
           ))}
         </div>
         <label className={styles.slider}>
-          Zoom
+          {t("zoom")}
           <input
             type="range"
             min={1}
@@ -99,7 +102,7 @@ export function ImageCropEditor({ src, onCancel, onDone }: Props) {
           />
         </label>
         <label className={styles.slider}>
-          Rotate
+          {t("rotate")}
           <input
             type="range"
             min={0}

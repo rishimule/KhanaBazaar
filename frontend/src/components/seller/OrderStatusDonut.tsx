@@ -1,6 +1,7 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
+import { useTranslations } from "next-intl";
 import type { OrderStatusCounts } from "@/types";
 import styles from "./OrderStatusDonut.module.css";
 
@@ -9,11 +10,11 @@ interface Props {
 }
 
 const SEGMENTS: { key: keyof OrderStatusCounts; label: string; color: string }[] = [
-  { key: "delivered", label: "Delivered", color: "var(--color-success)" },
-  { key: "packed", label: "Packed", color: "var(--color-info)" },
-  { key: "dispatched", label: "Dispatched", color: "var(--color-accent-500)" },
-  { key: "pending", label: "Pending", color: "var(--color-warning)" },
-  { key: "cancelled", label: "Cancelled", color: "var(--color-neutral-400)" },
+  { key: "delivered", label: "donutDelivered", color: "var(--color-success)" },
+  { key: "packed", label: "donutPacked", color: "var(--color-info)" },
+  { key: "dispatched", label: "donutDispatched", color: "var(--color-accent-500)" },
+  { key: "pending", label: "donutPending", color: "var(--color-warning)" },
+  { key: "cancelled", label: "donutCancelled", color: "var(--color-neutral-400)" },
 ];
 
 const R = 54;
@@ -21,12 +22,13 @@ const STROKE = 16;
 const C = 2 * Math.PI * R;
 
 export default function OrderStatusDonut({ counts }: Props) {
+  const t = useTranslations("Seller.dashboard");
   const total = SEGMENTS.reduce((s, seg) => s + counts[seg.key], 0);
   let offset = 0;
 
   return (
     <section className={styles.card}>
-      <h2 className={styles.title}>Order status</h2>
+      <h2 className={styles.title}>{t("orderStatus")}</h2>
       <div className={styles.body}>
         <svg className={styles.svg} viewBox="0 0 140 140">
           <circle cx="70" cy="70" r={R} fill="none" stroke="var(--color-neutral-100)" strokeWidth={STROKE} />
@@ -57,14 +59,14 @@ export default function OrderStatusDonut({ counts }: Props) {
             {total}
           </text>
           <text x="70" y="84" textAnchor="middle" className={styles.centerLabel}>
-            ORDERS
+            {t("donutOrders")}
           </text>
         </svg>
         <ul className={styles.legend}>
           {SEGMENTS.map((seg) => (
             <li key={seg.key} className={styles.legendItem}>
               <span className={styles.dot} style={{ background: seg.color }} />
-              <span className={styles.legendLabel}>{seg.label}</span>
+              <span className={styles.legendLabel}>{t(seg.label)}</span>
               <span className={styles.legendVal}>{counts[seg.key]}</span>
             </li>
           ))}

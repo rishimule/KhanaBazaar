@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import type { RevenueSeries } from "@/types";
@@ -36,6 +37,8 @@ function smoothPath(pts: [number, number][]): string {
 }
 
 export default function RevenueChart() {
+  const t = useTranslations("Seller.dashboard");
+  const tc = useTranslations("Seller.common");
   const { token } = useAuth();
   const [range, setRange] = useState<Range>("14d");
   const [data, setData] = useState<RevenueSeries | null>(null);
@@ -83,8 +86,8 @@ export default function RevenueChart() {
     <section className={styles.card}>
       <div className={styles.head}>
         <div>
-          <h2 className={styles.title}>Revenue overview</h2>
-          <p className={styles.sub}>Gross order value over time</p>
+          <h2 className={styles.title}>{t("revenueOverview")}</h2>
+          <p className={styles.sub}>{t("revenueSub")}</p>
         </div>
         <div className={styles.toggle} role="tablist">
           {RANGES.map((r) => (
@@ -103,20 +106,20 @@ export default function RevenueChart() {
       {data && (
         <div className={styles.stats}>
           <span>
-            Avg / day <strong>₹{data.avg_per_day.toFixed(0)}</strong>
+            {t("avgPerDay")} <strong>₹{data.avg_per_day.toFixed(0)}</strong>
           </span>
           <span>
-            Peak <strong>₹{data.peak.toFixed(0)}</strong>
+            {t("peak")} <strong>₹{data.peak.toFixed(0)}</strong>
           </span>
         </div>
       )}
 
       {error ? (
-        <div className={styles.empty}>Couldn&apos;t load chart.</div>
+        <div className={styles.empty}>{t("chartError")}</div>
       ) : loading ? (
-        <div className={styles.empty}>Loading…</div>
+        <div className={styles.empty}>{tc("loading")}</div>
       ) : govs.every((g) => g === 0) ? (
-        <div className={styles.empty}>No revenue in this window yet.</div>
+        <div className={styles.empty}>{t("chartEmpty")}</div>
       ) : (
         <svg className={styles.svg} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
           <defs>
