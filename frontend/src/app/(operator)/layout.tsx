@@ -19,8 +19,10 @@ import { OPERATOR_LOCALE_COOKIE } from "@/lib/localeCookies";
 import { COMPANY_NAME } from "@/lib/brand";
 
 async function resolveOperatorLocale(): Promise<string> {
-  // Operator routes use their own cookie (KB_OP_LOCALE), never next-intl's
-  // NEXT_LOCALE, so storefront browsing can't clobber the dashboard language.
+  // Operator routes read their locale from OPERATOR_LOCALE_COOKIE (the
+  // `__session` cookie — the only one Firebase Hosting forwards to Cloud Run on
+  // prod), never next-intl's NEXT_LOCALE, so storefront browsing can't clobber
+  // the dashboard language.
   const cookieLocale = (await cookies()).get(OPERATOR_LOCALE_COOKIE)?.value;
   return routing.locales.includes(
     cookieLocale as (typeof routing.locales)[number],

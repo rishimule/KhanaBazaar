@@ -16,11 +16,12 @@ import { clearLocaleCookies, setOperatorLocaleCookie } from "@/lib/operatorLocal
 import { OPERATOR_PATH_RE } from "@/lib/localeCookies";
 import { routing } from "@/i18n/routing";
 
-/** For seller/admin sessions, seed the operator locale cookie (KB_OP_LOCALE)
- * from the persisted preference so a fresh device opens the dashboard in the
- * saved language. Returns whether the cookie value changed, so a stale server
- * render can be refreshed. Scoped to operator roles — customers keep their
- * URL-driven storefront locale, enforced by <CustomerLocaleEnforcer>. */
+/** For seller/admin sessions, seed the operator locale cookie (the `__session`
+ * cookie, the only one Firebase forwards to the origin on prod) from the
+ * persisted preference so a fresh device opens the dashboard in the saved
+ * language. Returns whether the cookie value changed, so a stale server render
+ * can be refreshed. Scoped to operator roles — customers keep their URL-driven
+ * storefront locale, enforced by <CustomerLocaleEnforcer>. */
 function reconcileOperatorLocale(user: User): boolean {
   if (typeof document === "undefined") return false;
   if (user.role !== "seller" && user.role !== "admin") return false;
