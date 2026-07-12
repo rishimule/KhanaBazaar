@@ -8,11 +8,7 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { localeMode } from "@/i18n/unsupported-routes";
 import { useAuth } from "@/lib/AuthContext";
-import {
-  persistUserLanguage,
-  setLocaleCookie,
-  setOperatorLocaleCookie,
-} from "@/lib/operatorLocale";
+import { persistUserLanguage, setOperatorLocaleCookie } from "@/lib/operatorLocale";
 import styles from "./LocaleSwitcher.module.css";
 
 const LABELS: Record<string, string> = {
@@ -44,11 +40,8 @@ export default function LocaleSwitcher() {
       setOperatorLocaleCookie(next);
       startTransition(() => router.refresh());
     } else {
-      // Storefront routes: write NEXT_LOCALE *before* navigating so the pick
-      // outranks Accept-Language (otherwise choosing the unprefixed default
-      // locale would get redirected straight back by browser-language
-      // detection), then move the URL to the chosen locale.
-      setLocaleCookie(next);
+      // Storefront routes: locale is URL-driven (detection is off), so moving
+      // the URL to the chosen locale is all that's needed.
       startTransition(() => router.replace(pathname, { locale: next }));
     }
   };

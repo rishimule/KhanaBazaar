@@ -106,10 +106,11 @@ async function resolveLocale(): Promise<string> {
       DEFAULT_LOCALE
     );
   }
-  // Customer routes: the URL locale prefix is authoritative (en is unprefixed).
+  // Customer routes: the URL locale prefix is authoritative (en is unprefixed,
+  // and locale detection is off, so an unprefixed path is definitively the
+  // default locale — never fall back to a possibly-stale cookie here).
   const prefix = path.match(CUSTOMER_LOCALE_PREFIX_RE);
-  if (prefix) return prefix[1];
-  return readBrowserCookie(CUSTOMER_LOCALE_COOKIE) ?? DEFAULT_LOCALE;
+  return prefix ? prefix[1] : DEFAULT_LOCALE;
 }
 
 /** Build a full URL and merge default headers. Optionally attach auth token. */

@@ -21,11 +21,6 @@ function writeCookie(name: string, locale: string): void {
   document.cookie = `${name}=${locale}; path=/; max-age=${ONE_YEAR}; samesite=lax`;
 }
 
-/** Write the customer storefront locale cookie (read by next-intl + api.ts). */
-export function setLocaleCookie(locale: string): void {
-  writeCookie(CUSTOMER_LOCALE_COOKIE, locale);
-}
-
 /** Write the operator locale cookie (read by the operator layout + api.ts on
  * operator routes). Returns whether the stored value actually changed, so the
  * caller can decide to refresh the current server-rendered view. */
