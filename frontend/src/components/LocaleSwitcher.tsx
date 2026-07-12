@@ -31,17 +31,20 @@ export default function LocaleSwitcher() {
   if (mode === "none") return null;
 
   const onChange = (next: string) => {
-    // Persist the choice everywhere: the in-memory user (so the enforcer/seed
-    // see it immediately) and the server preference (best-effort).
-    setPreferredLanguage(next);
-    void persistUserLanguage(next, token);
     if (mode === "cookie") {
-      // Operator routes: dashboard locale lives in its own cookie.
+      // Operator routes: the dashboard locale lives in its own cookie and is
+      // baked into the SSR layout. Set the cookie, then hard-reload so the
+      // server re-renders in the new locale — router.refresh() does NOT swap a
+      // cookie-driven SSR locale. Persist first (await) so the post-reload seed
+      // from /auth/me doesn't overwrite the cookie with the stale preference.
       setOperatorLocaleCookie(next);
-      startTransition(() => router.refresh());
+      void persistUserLanguage(next, token).finally(() => window.location.reload());
     } else {
-      // Storefront routes: locale is URL-driven (detection is off), so moving
-      // the URL to the chosen locale is all that's needed.
+      // Storefront routes: locale is URL-driven (detection is off). Update the
+      // in-memory user so <CustomerLocaleEnforcer> doesn't fight the choice,
+      // persist (best-effort), and move the URL to the chosen locale.
+      setPreferredLanguage(next);
+      void persistUserLanguage(next, token);
       startTransition(() => router.replace(pathname, { locale: next }));
     }
   };

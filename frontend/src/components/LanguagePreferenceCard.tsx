@@ -2,8 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import { useLocale, useTranslations } from "next-intl";
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { routing } from "@/i18n/routing";
 import { useAuth } from "@/lib/AuthContext";
 import { persistUserLanguage, setOperatorLocaleCookie } from "@/lib/operatorLocale";
@@ -20,17 +19,19 @@ const LABELS: Record<string, string> = {
 export default function LanguagePreferenceCard() {
   const t = useTranslations("Shared.languagePreference");
   const locale = useLocale();
-  const router = useRouter();
-  const { token, setPreferredLanguage } = useAuth();
-  const [pending, startTransition] = useTransition();
+  const { token } = useAuth();
+  const [pending, setPending] = useState(false);
 
   const onChange = (next: string) => {
-    // This card only renders on operator (seller/admin) settings pages, so the
-    // language lives in the dedicated operator cookie, never NEXT_LOCALE.
+    // This card only renders on operator (seller/admin) settings pages, where
+    // the locale lives in the operator cookie and is baked into the SSR layout.
+    // Set the cookie, then hard-reload so the server re-renders in the new
+    // locale — router.refresh() does NOT swap a cookie-driven SSR locale.
+    // Persist first (await) so the post-reload seed from /auth/me doesn't
+    // overwrite the cookie with the stale preference.
+    setPending(true);
     setOperatorLocaleCookie(next);
-    setPreferredLanguage(next);
-    void persistUserLanguage(next, token);
-    startTransition(() => router.refresh());
+    void persistUserLanguage(next, token).finally(() => window.location.reload());
   };
 
   return (
