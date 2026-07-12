@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import Avatar from "@/components/Avatar";
 import styles from "./DashboardHeader.module.css";
 
@@ -17,16 +18,11 @@ interface Props {
   avatarUrl?: string | null;
 }
 
-function greeting(): string {
+function greetingKey(): "greetingMorning" | "greetingAfternoon" | "greetingEvening" {
   const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
-function firstName(full?: string): string {
-  const n = full?.trim().split(/\s+/)[0];
-  return n && n.length > 0 ? n : "there";
+  if (h < 12) return "greetingMorning";
+  if (h < 17) return "greetingAfternoon";
+  return "greetingEvening";
 }
 
 export default function DashboardHeader({
@@ -40,35 +36,37 @@ export default function DashboardHeader({
   pauseBusy,
   avatarUrl,
 }: Props) {
+  const t = useTranslations("Seller.dashboard");
   const today = new Date().toLocaleDateString("en-GB", {
     weekday: "short",
     day: "numeric",
     month: "short",
     year: "numeric",
   });
+  const name = fullName?.trim().split(/\s+/)[0] || t("greetingFallback");
 
   return (
     <header className={styles.header}>
       <div className={styles.left}>
         <Avatar
           avatarUrl={avatarUrl}
-          name={fullName ?? "Seller"}
+          name={fullName ?? t("sellerFallback")}
           seed={fullName ?? "seller"}
           size={48}
         />
         <div>
           <h1 className={styles.greeting}>
-            {greeting()}, {firstName(fullName)}
+            {t(greetingKey())}, {name}
           </h1>
           <p className={styles.subtitle}>
             {storeName && <span className={styles.storeName}>{storeName}</span>}
             <span className={styles.sep}>·</span>
             <span>{today}</span>
             <span className={`${styles.chip} ${storePaused ? styles.chipWarn : styles.chipOk}`}>
-              {storePaused ? "Closed" : "Open"}
+              {storePaused ? t("statusClosed") : t("statusOpen")}
             </span>
             {isPremium && (
-              <span className={`badge badge--member ${styles.premiumPill}`}>👑 Premium</span>
+              <span className={`badge badge--member ${styles.premiumPill}`}>👑 {t("premiumPill")}</span>
             )}
           </p>
         </div>
@@ -80,7 +78,7 @@ export default function DashboardHeader({
           onClick={onTogglePause}
           disabled={pauseBusy}
         >
-          {storePaused ? "Reopen store" : "Close store"}
+          {storePaused ? t("reopenStore") : t("closeStore")}
         </button>
         <button
           type="button"
@@ -88,10 +86,10 @@ export default function DashboardHeader({
           onClick={onRefresh}
           disabled={refreshing}
         >
-          ↻ Refresh
+          ↻ {t("refresh")}
         </button>
         <Link href="/seller/inventory/bulk" className={styles.addBtn}>
-          + Add product
+          + {t("addProduct")}
         </Link>
       </div>
     </header>

@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 
 interface Props {
@@ -19,6 +20,8 @@ function todayISO(): string {
 }
 
 export default function CloseStoreModal({ busy, onConfirm, onClose }: Props) {
+  const t = useTranslations("Seller.dashboard");
+  const tc = useTranslations("Seller.common");
   const [reason, setReason] = useState("");
   const [reopenDate, setReopenDate] = useState("");
 
@@ -31,26 +34,25 @@ export default function CloseStoreModal({ busy, onConfirm, onClose }: Props) {
 
   return (
     <Modal
-      title="Close store"
+      title={t("closeStore")}
       onClose={onClose}
       footer={
         <>
           <button className="btn btn-outline" onClick={onClose} disabled={busy}>
-            Cancel
+            {tc("cancel")}
           </button>
           <button className="btn btn-primary" onClick={submit} disabled={busy}>
-            {busy ? "…" : "Close store"}
+            {busy ? "…" : t("closeStore")}
           </button>
         </>
       }
     >
       <p style={{ color: "var(--color-neutral-600)", marginBottom: "1rem" }}>
-        Your store stays visible to customers but won&apos;t take new orders until you
-        reopen it. Orders already placed are unaffected.
+        {t("closeStoreBody")}
       </p>
       <label style={{ display: "block", marginBottom: "1rem" }}>
         <span style={{ display: "block", marginBottom: "0.35rem", fontWeight: 500 }}>
-          Reopening on <span style={{ color: "var(--color-neutral-500)" }}>(optional)</span>
+          {t("reopenOn")} <span style={{ color: "var(--color-neutral-500)" }}>{t("optional")}</span>
         </span>
         <input
           type="date"
@@ -72,19 +74,18 @@ export default function CloseStoreModal({ busy, onConfirm, onClose }: Props) {
             color: "var(--color-neutral-500)",
           }}
         >
-          Shown to customers as &ldquo;Closed — back &lt;date&gt;&rdquo;. You still reopen
-          the store manually; this date never reopens it automatically.
+          {t("reopenHint")}
         </span>
       </label>
       <label style={{ display: "block" }}>
         <span style={{ display: "block", marginBottom: "0.35rem", fontWeight: 500 }}>
-          Reason <span style={{ color: "var(--color-neutral-500)" }}>(optional)</span>
+          {t("reason")} <span style={{ color: "var(--color-neutral-500)" }}>{t("optional")}</span>
         </span>
         <input
           type="text"
           value={reason}
           maxLength={200}
-          placeholder="e.g. Diwali holidays"
+          placeholder={t("reasonPlaceholder")}
           onChange={(e) => setReason(e.target.value)}
           style={{
             width: "100%",

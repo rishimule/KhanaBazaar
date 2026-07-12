@@ -192,10 +192,10 @@ export default function SellerProfilePage() {
     setSaveError(null);
     try {
       await uploadSellerAvatar(blob, token);
-      setAvatarNotice("Submitted for admin approval.");
+      setAvatarNotice(t("avatarSubmitted"));
       await refreshOpenCRs();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Avatar upload failed.");
+      setSaveError(e instanceof Error ? e.message : t("avatarUploadFailed"));
     } finally {
       setAvatarBusy(false);
     }
@@ -208,10 +208,10 @@ export default function SellerProfilePage() {
     setSaveError(null);
     try {
       await createMyChangeRequest(token, { group: "avatar", proposed: { avatar_url: "" } });
-      setAvatarNotice("Removal submitted for admin approval.");
+      setAvatarNotice(t("avatarRemovalSubmitted"));
       await refreshOpenCRs();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Avatar removal failed.");
+      setSaveError(e instanceof Error ? e.message : t("avatarRemovalFailed"));
     } finally {
       setAvatarBusy(false);
     }
@@ -302,7 +302,7 @@ export default function SellerProfilePage() {
         const etaMin = svc.delivery_eta_min_minutes ?? 30;
         const etaMax = svc.delivery_eta_max_minutes ?? 60;
         if (etaMin > etaMax) {
-          setSaveError("Maximum delivery time must be at least the minimum.");
+          setSaveError(t("etaOrderError"));
           return;
         }
         persistService(serviceId, {
@@ -491,13 +491,11 @@ export default function SellerProfilePage() {
               onClick={onRemoveSellerAvatar}
               disabled={avatarBusy}
             >
-              Remove picture
+              {t("removePicture")}
             </button>
           )}
           {avatarNotice && <p className={styles.avatarNotice}>{avatarNotice}</p>}
-          <p className={styles.avatarHint}>
-            Profile picture changes require admin approval.
-          </p>
+          <p className={styles.avatarHint}>{t("avatarHint")}</p>
         </div>
       </div>
 
@@ -658,7 +656,7 @@ export default function SellerProfilePage() {
                       readOnly={isApproved}
                       disabled={isApproved}
                     />
-                    <span className={styles.unit}>Fee ₹</span>
+                    <span className={styles.unit}>{t("feeUnit")}</span>
                     <input
                       type="number"
                       className={styles.radiusInput}
@@ -675,7 +673,7 @@ export default function SellerProfilePage() {
                       readOnly={isApproved}
                       disabled={isApproved}
                     />
-                    <span className={styles.unit}>ETA</span>
+                    <span className={styles.unit}>{t("etaUnit")}</span>
                     <input
                       type="number"
                       className={styles.radiusInput}
@@ -686,7 +684,7 @@ export default function SellerProfilePage() {
                       onChange={(e) =>
                         updateEta(svc.id, "min", parseFloat(e.target.value))
                       }
-                      aria-label={`Minimum delivery minutes for ${svc.name}`}
+                      aria-label={t("etaMinAria", { name: svc.name })}
                       readOnly={isApproved}
                       disabled={isApproved}
                     />
@@ -701,11 +699,11 @@ export default function SellerProfilePage() {
                       onChange={(e) =>
                         updateEta(svc.id, "max", parseFloat(e.target.value))
                       }
-                      aria-label={`Maximum delivery minutes for ${svc.name}`}
+                      aria-label={t("etaMaxAria", { name: svc.name })}
                       readOnly={isApproved}
                       disabled={isApproved}
                     />
-                    <span className={styles.unit}>min</span>
+                    <span className={styles.unit}>{t("minUnit")}</span>
                     <label className={styles.pickupToggle}>
                       <input
                         type="checkbox"

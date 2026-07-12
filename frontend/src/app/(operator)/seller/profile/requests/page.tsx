@@ -6,11 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
-import {
-  GROUP_LABEL,
-  STATUS_TONE,
-  listMyChangeRequests,
-} from "@/lib/changeRequests";
+import { STATUS_TONE, listMyChangeRequests } from "@/lib/changeRequests";
 import type { SellerProfileChangeRequest } from "@/types";
 import styles from "./page.module.css";
 
@@ -25,6 +21,7 @@ export default function SellerRequestsPage() {
   const { token } = useAuth();
   const tCR = useTranslations("Seller.changeRequests");
   const tStatus = useTranslations("Shared.changeRequest");
+  const tc = useTranslations("Seller.common");
   const [tab, setTab] = useState<Tab>("open");
   const [rowsByTab, setRowsByTab] = useState<
     Partial<Record<Tab, SellerProfileChangeRequest[]>>
@@ -46,13 +43,13 @@ export default function SellerRequestsPage() {
         if (cancelled) return;
         setErrorByTab((m) => ({
           ...m,
-          [tab]: e instanceof Error ? e.message : "Failed to load requests",
+          [tab]: e instanceof Error ? e.message : tCR("loadError"),
         }));
       });
     return () => {
       cancelled = true;
     };
-  }, [token, tab]);
+  }, [token, tab, tCR]);
 
   const rows = rowsByTab[tab];
   const error = errorByTab[tab] ?? null;
@@ -63,11 +60,11 @@ export default function SellerRequestsPage() {
       <header className={styles.header}>
         <h1 className={styles.title}>{tCR("indexTitle")}</h1>
         <Link href="/seller/profile" className={styles.backLink}>
-          ← Back to profile
+          ← {tCR("backToProfile")}
         </Link>
       </header>
 
-      <div className={styles.tabs} role="tablist" aria-label="Request status">
+      <div className={styles.tabs} role="tablist" aria-label={tCR("tablistAria")}>
         <button
           type="button"
           role="tab"
@@ -90,7 +87,7 @@ export default function SellerRequestsPage() {
         </button>
       </div>
 
-      {loading && <p className={styles.muted}>Loading…</p>}
+      {loading && <p className={styles.muted}>{tc("loading")}</p>}
       {error && <p className={styles.error}>{error}</p>}
       {!loading && !error && rows !== undefined && rows.length === 0 && (
         <p className={styles.empty}>{tCR("noOpen")}</p>
@@ -100,7 +97,7 @@ export default function SellerRequestsPage() {
         <ul className={styles.list}>
           {rows.map((r) => (
             <li key={r.id} className={styles.row}>
-              <span className={styles.group}>{GROUP_LABEL[r.group]}</span>
+              <span className={styles.group}>{tStatus(`group_${r.group}`)}</span>
               <span
                 className={`${styles.pill} ${styles[`tone_${STATUS_TONE[r.status]}`]}`}
               >
@@ -113,7 +110,7 @@ export default function SellerRequestsPage() {
                 href={`/seller/profile/requests/${r.id}`}
                 className={styles.viewLink}
               >
-                View →
+                {tCR("viewShort")} →
               </Link>
             </li>
           ))}

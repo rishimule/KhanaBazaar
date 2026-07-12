@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import type { OrderListResponse } from "@/types";
@@ -13,12 +14,7 @@ import Skeleton from "@/components/Skeleton";
 import styles from "./RecentOrders.module.css";
 
 type Tab = "all" | "active" | "delivered" | "cancelled";
-const TABS: { key: Tab; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "active", label: "Active" },
-  { key: "delivered", label: "Delivered" },
-  { key: "cancelled", label: "Cancelled" },
-];
+const TABS: Tab[] = ["all", "active", "delivered", "cancelled"];
 
 const PAGE_SIZE = 5;
 
@@ -49,6 +45,8 @@ function shortTime(iso: string): string {
 }
 
 export default function RecentOrders() {
+  const td = useTranslations("Seller.dashboard");
+  const to = useTranslations("Seller.orders");
   const { token } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("all");
@@ -97,29 +95,29 @@ export default function RecentOrders() {
     <section className={styles.card}>
       <div className={styles.head}>
         <div>
-          <h2 className={styles.title}>Recent orders</h2>
-          <p className={styles.sub}>Last 7 days across all services</p>
+          <h2 className={styles.title}>{td("recentOrders")}</h2>
+          <p className={styles.sub}>{td("recentOrdersSub")}</p>
         </div>
         <Link href="/seller/orders" className={styles.viewAll}>
-          View all orders →
+          {td("viewAllOrders")} →
         </Link>
       </div>
 
       <div className={styles.tabs} role="tablist">
-        {TABS.map((t) => (
+        {TABS.map((key) => (
           <button
-            key={t.key}
+            key={key}
             type="button"
-            className={t.key === tab ? styles.tabOn : styles.tab}
-            onClick={() => switchTab(t.key)}
+            className={key === tab ? styles.tabOn : styles.tab}
+            onClick={() => switchTab(key)}
           >
-            {t.label}
+            {to(`filter.${key}`)}
           </button>
         ))}
       </div>
 
       {error ? (
-        <div className={styles.empty}>Couldn&apos;t load orders.</div>
+        <div className={styles.empty}>{td("recentOrdersError")}</div>
       ) : loading ? (
         <div aria-busy="true" style={{ display: "grid", gap: "8px" }}>
           <Skeleton height={40} radius="var(--radius-md)" />
@@ -127,18 +125,18 @@ export default function RecentOrders() {
           <Skeleton height={40} radius="var(--radius-md)" />
         </div>
       ) : orders.length === 0 ? (
-        <div className={styles.empty}>No orders in the last 7 days.</div>
+        <div className={styles.empty}>{td("recentOrdersEmpty")}</div>
       ) : (
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Order</th>
-              <th>Customer</th>
-              <th>Service</th>
-              <th>Items</th>
-              <th>Total</th>
-              <th>Payment</th>
-              <th>Status</th>
+              <th>{to("col.order")}</th>
+              <th>{to("col.customer")}</th>
+              <th>{to("col.service")}</th>
+              <th>{to("col.items")}</th>
+              <th>{to("col.total")}</th>
+              <th>{to("col.payment")}</th>
+              <th>{to("col.status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -183,10 +181,10 @@ export default function RecentOrders() {
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             className={styles.pagerBtn}
           >
-            ← Prev
+            {to("prev")}
           </button>
           <span className={styles.pageInfo}>
-            Page {page} of {totalPages}
+            {td("pageOf", { page, total: totalPages })}
           </span>
           <button
             type="button"
@@ -194,7 +192,7 @@ export default function RecentOrders() {
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             className={styles.pagerBtn}
           >
-            Next →
+            {to("next")}
           </button>
         </div>
       )}

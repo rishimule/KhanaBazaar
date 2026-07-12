@@ -4,11 +4,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import Pager from "@/components/Pager";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import {
-  GROUP_LABEL,
   adminListAllChangeRequests,
   type AdminQueueRow,
 } from "@/lib/changeRequests";
@@ -23,6 +23,10 @@ const PAGE_SIZE = 20;
  * unchanged.
  */
 export default function AdminCRQueuePage() {
+  const t = useTranslations("Admin.changeRequests");
+  const tTitle = useTranslations("Admin.titles");
+  const tc = useTranslations("Admin.common");
+  const tStatus = useTranslations("Shared.changeRequest");
   const { token } = useAuth();
   const [tab, setTab] = useState<"open" | "terminal">("open");
   const [rows, setRows] = useState<AdminQueueRow[]>([]);
@@ -52,7 +56,7 @@ export default function AdminCRQueuePage() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load");
+        setError(e instanceof Error ? e.message : t("loadError"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -60,14 +64,12 @@ export default function AdminCRQueuePage() {
     return () => {
       cancelled = true;
     };
-  }, [token, tab, debouncedQuery, page]);
+  }, [token, tab, debouncedQuery, page, t]);
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Change requests</h1>
-      <p className={styles.subtitle}>
-        Cross-seller triage queue. Click a row to review and decide.
-      </p>
+      <h1 className={styles.title}>{tTitle("changeRequests")}</h1>
+      <p className={styles.subtitle}>{t("subtitle")}</p>
 
       <div className={styles.tabs}>
         <button
@@ -78,7 +80,7 @@ export default function AdminCRQueuePage() {
             setPage(1);
           }}
         >
-          Open
+          {t("tabOpen")}
         </button>
         <button
           type="button"
@@ -88,14 +90,14 @@ export default function AdminCRQueuePage() {
             setPage(1);
           }}
         >
-          History
+          {t("tabHistory")}
         </button>
       </div>
 
       <input
         type="search"
         className={styles.search}
-        placeholder="Search by seller business name…"
+        placeholder={t("searchPlaceholder")}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
@@ -103,21 +105,21 @@ export default function AdminCRQueuePage() {
         }}
       />
 
-      {loading && <p className={styles.muted}>Loading…</p>}
+      {loading && <p className={styles.muted}>{tc("loading")}</p>}
       {error && <p className={styles.error}>{error}</p>}
       {!loading && !error && rows.length === 0 && (
-        <p className={styles.muted}>No requests in this tab.</p>
+        <p className={styles.muted}>{t("empty")}</p>
       )}
 
       {rows.length > 0 && (
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Seller</th>
-              <th>Group</th>
-              <th>Status</th>
-              <th>Submissions</th>
-              <th>Last activity</th>
+              <th>{t("colSeller")}</th>
+              <th>{t("colGroup")}</th>
+              <th>{t("colStatus")}</th>
+              <th>{t("colSubmissions")}</th>
+              <th>{t("colLastActivity")}</th>
               <th></th>
             </tr>
           </thead>
@@ -127,12 +129,12 @@ export default function AdminCRQueuePage() {
                 <td className={styles.sellerCell}>
                   {r.seller_business_name}
                 </td>
-                <td>{GROUP_LABEL[r.group]}</td>
+                <td>{tStatus(`group_${r.group}`)}</td>
                 <td>
                   <span
                     className={`${styles.pill} ${styles[`tone_${r.status}`]}`}
                   >
-                    {r.status.replace("_", " ")}
+                    {tStatus(`status_${r.status}`)}
                   </span>
                 </td>
                 <td>{r.submission_count}</td>
@@ -142,7 +144,7 @@ export default function AdminCRQueuePage() {
                     href={`/admin/sellers/${r.seller_user_id}/requests/${r.id}`}
                     className={styles.reviewBtn}
                   >
-                    Review →
+                    {t("review")} →
                   </Link>
                 </td>
               </tr>

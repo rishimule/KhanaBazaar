@@ -8,7 +8,6 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import {
-  GROUP_LABEL,
   STATUS_TONE,
   adminApproveCR,
   adminGetSellerCR,
@@ -51,6 +50,8 @@ export default function AdminCRDetailPage() {
   const crId = params.crId;
   const { token } = useAuth();
   const tStatus = useTranslations("Shared.changeRequest");
+  const t = useTranslations("Admin.crDetail");
+  const tc = useTranslations("Admin.common");
   const [cr, setCr] = useState<SellerProfileChangeRequest | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [applied, setApplied] = useState<Record<string, string>>({});
@@ -126,9 +127,9 @@ export default function AdminCRDetailPage() {
       setNote("");
       setLoadError(null);
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Failed to load request");
+      setLoadError(e instanceof Error ? e.message : t("loadError"));
     }
-  }, [token, sellerId, crId, buildAppliedDefaults]);
+  }, [token, sellerId, crId, buildAppliedDefaults, t]);
 
   useEffect(() => {
     void refresh();
@@ -141,7 +142,7 @@ export default function AdminCRDetailPage() {
           href={`/admin/sellers/${sellerId}/requests`}
           className={styles.backLink}
         >
-          ← Back to requests
+          ← {t("backToRequests")}
         </Link>
         <div className={styles.errorBanner}>{loadError}</div>
       </div>
@@ -151,7 +152,7 @@ export default function AdminCRDetailPage() {
   if (!cr) {
     return (
       <div className={styles.page}>
-        <p className={styles.muted}>Loading…</p>
+        <p className={styles.muted}>{tc("loading")}</p>
       </div>
     );
   }
@@ -221,7 +222,7 @@ export default function AdminCRDetailPage() {
       });
       await refresh();
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : "Approve failed");
+      setActionError(e instanceof Error ? e.message : t("approveFailed"));
     } finally {
       setBusy(false);
     }
@@ -233,54 +234,53 @@ export default function AdminCRDetailPage() {
         href={`/admin/sellers/${sellerId}/requests`}
         className={styles.backLink}
       >
-        ← Back to requests
+        ← {t("backToRequests")}
       </Link>
 
       <div className={styles.titleRow}>
-        <h1 className={styles.title}>{GROUP_LABEL[cr.group]}</h1>
+        <h1 className={styles.title}>{tStatus(`group_${cr.group}`)}</h1>
         <span className={`${styles.pill} ${styles[`tone_${tone}`]}`}>
           {tStatus(`status_${cr.status}`)}
         </span>
       </div>
 
       <p className={styles.meta}>
-        Submitted{" "}
+        {tStatus("status_submitted")}{" "}
         <time dateTime={cr.created_at}>
           {new Date(cr.created_at).toLocaleString()}
         </time>{" "}
-        · {cr.submission_count} submission
-        {cr.submission_count === 1 ? "" : "s"}
+        · {t("submissionCount", { count: cr.submission_count })}
       </p>
 
       {cr.status === "changes_requested" && (
         <div className={styles.warnBanner}>
-          <strong>Changes requested — awaiting resubmission</strong>
+          <strong>{t("changesRequested")}</strong>
           {cr.admin_note && <p>{cr.admin_note}</p>}
         </div>
       )}
       {cr.status === "approved" && (
         <div className={styles.successBanner}>
-          <strong>Approved.</strong>
+          <strong>{t("approvedBanner")}</strong>
           {cr.admin_note && <p>{cr.admin_note}</p>}
         </div>
       )}
       {cr.status === "rejected" && (
         <div className={styles.errorBanner}>
-          <strong>Rejected.</strong>
-          {cr.admin_note && <p>Reason: {cr.admin_note}</p>}
+          <strong>{t("rejectedBanner")}</strong>
+          {cr.admin_note && <p>{t("reasonPrefix")}{cr.admin_note}</p>}
         </div>
       )}
       {cr.status === "withdrawn" && (
-        <div className={styles.mutedBanner}>This request was withdrawn.</div>
+        <div className={styles.mutedBanner}>{t("withdrawnBanner")}</div>
       )}
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Seller proposed</h2>
+        <h2 className={styles.sectionTitle}>{t("sellerProposed")}</h2>
         <ChangeRequestDiffTable
           before={cr.baseline_json}
           after={cr.proposed_json}
-          beforeLabel="Current"
-          afterLabel="Proposed"
+          beforeLabel={t("current")}
+          afterLabel={t("proposed")}
           group={cr.group}
           serviceNames={serviceNames}
         />
@@ -288,12 +288,12 @@ export default function AdminCRDetailPage() {
 
       {cr.status === "approved" && cr.applied_json && (
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Applied</h2>
+          <h2 className={styles.sectionTitle}>{t("applied")}</h2>
           <ChangeRequestDiffTable
             before={cr.proposed_json}
             after={cr.applied_json}
-            beforeLabel="Seller proposed"
-            afterLabel="Applied"
+            beforeLabel={t("sellerProposed")}
+            afterLabel={t("applied")}
             group={cr.group}
           />
         </section>
@@ -301,45 +301,41 @@ export default function AdminCRDetailPage() {
 
       {canDecide && (
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Apply</h2>
-          <p className={styles.helper}>
-            Edit any field below before approving — the backend records this as
-            &ldquo;approved with edits&rdquo; if the canonical payload differs
-            from what the seller proposed.
-          </p>
+          <h2 className={styles.sectionTitle}>{t("applyTitle")}</h2>
+          <p className={styles.helper}>{t("applyHelper")}</p>
           <div className={styles.applyForm}>
             {cr.group === "address" ? (
               <AddressFields value={addr} onChange={setAddr} requirePin />
             ) : cr.group === "avatar" ? (
               <div className={styles.field}>
-                <span className={styles.fieldLabel}>Profile picture</span>
+                <span className={styles.fieldLabel}>{t("profilePicture")}</span>
                 <div className={styles.avatarCompare}>
                   <figure className={styles.avatarFigure}>
-                    <figcaption>Current</figcaption>
+                    <figcaption>{t("current")}</figcaption>
                     {String((cr.baseline_json as Record<string, unknown>).avatar_url ?? "") ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={String((cr.baseline_json as Record<string, unknown>).avatar_url)}
                         referrerPolicy="no-referrer"
                         className={styles.avatarPreview}
-                        alt="current"
+                        alt={t("currentAlt")}
                       />
                     ) : (
-                      <span className={styles.avatarNone}>none</span>
+                      <span className={styles.avatarNone}>{t("avatarNone")}</span>
                     )}
                   </figure>
                   <figure className={styles.avatarFigure}>
-                    <figcaption>Proposed</figcaption>
+                    <figcaption>{t("proposed")}</figcaption>
                     {String((cr.proposed_json as Record<string, unknown>).avatar_url ?? "") ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={String((cr.proposed_json as Record<string, unknown>).avatar_url)}
                         referrerPolicy="no-referrer"
                         className={styles.avatarPreview}
-                        alt="proposed"
+                        alt={t("proposedAlt")}
                       />
                     ) : (
-                      <span className={styles.avatarNone}>removal</span>
+                      <span className={styles.avatarNone}>{t("avatarRemoval")}</span>
                     )}
                   </figure>
                 </div>
@@ -364,9 +360,7 @@ export default function AdminCRDetailPage() {
                 ))
             )}
             <label className={styles.field}>
-              <span className={styles.fieldLabel}>
-                Note (optional — visible to seller)
-              </span>
+              <span className={styles.fieldLabel}>{t("noteLabel")}</span>
               <textarea
                 rows={3}
                 className={styles.textarea}
@@ -388,7 +382,7 @@ export default function AdminCRDetailPage() {
               disabled={busy}
               onClick={handleApprove}
             >
-              {busy ? "Working…" : "Approve"}
+              {busy ? t("working") : t("approve")}
             </button>
             <button
               type="button"
@@ -399,7 +393,7 @@ export default function AdminCRDetailPage() {
                 setModal("request-changes");
               }}
             >
-              Request changes
+              {t("requestChanges")}
             </button>
             <button
               type="button"
@@ -410,7 +404,7 @@ export default function AdminCRDetailPage() {
                 setModal("reject");
               }}
             >
-              Reject
+              {t("reject")}
             </button>
           </div>
         </section>
@@ -423,9 +417,9 @@ export default function AdminCRDetailPage() {
 
       {modal === "request-changes" && (
         <AdminReasonModal
-          title="Request changes"
-          description="Explain what the seller needs to fix. The seller can edit and resubmit."
-          confirmLabel="Send back to seller"
+          title={t("requestChanges")}
+          description={t("requestChangesDesc")}
+          confirmLabel={t("sendBack")}
           destructive={false}
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
@@ -436,7 +430,7 @@ export default function AdminCRDetailPage() {
               await refresh();
             } catch (e) {
               setActionError(
-                e instanceof Error ? e.message : "Request changes failed",
+                e instanceof Error ? e.message : t("requestChangesFailed"),
               );
             }
           }}
@@ -445,9 +439,9 @@ export default function AdminCRDetailPage() {
 
       {modal === "reject" && (
         <AdminReasonModal
-          title="Reject change request"
-          description="The seller will see this reason. Rejection is final — they would need to open a new request."
-          confirmLabel="Reject"
+          title={t("rejectTitle")}
+          description={t("rejectDesc")}
+          confirmLabel={t("reject")}
           destructive
           onClose={() => setModal(null)}
           onConfirm={async (reason) => {
@@ -458,7 +452,7 @@ export default function AdminCRDetailPage() {
               await refresh();
             } catch (e) {
               setActionError(
-                e instanceof Error ? e.message : "Reject failed",
+                e instanceof Error ? e.message : t("rejectFailed"),
               );
             }
           }}

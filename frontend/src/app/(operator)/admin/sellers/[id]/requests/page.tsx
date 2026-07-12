@@ -6,11 +6,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
-import {
-  GROUP_LABEL,
-  STATUS_TONE,
-  adminListSellerCRs,
-} from "@/lib/changeRequests";
+import { STATUS_TONE, adminListSellerCRs } from "@/lib/changeRequests";
 import type { SellerProfileChangeRequest } from "@/types";
 import styles from "./page.module.css";
 
@@ -33,7 +29,9 @@ export default function AdminSellerRequestsPage({
   const sellerId = Number(id);
   const { token } = useAuth();
   const tCR = useTranslations("Seller.changeRequests");
+  const tSR = useTranslations("Admin.sellerRequests");
   const tStatus = useTranslations("Shared.changeRequest");
+  const tc = useTranslations("Admin.common");
   const [tab, setTab] = useState<Tab>("open");
   const [rowsByTab, setRowsByTab] = useState<
     Partial<Record<Tab, SellerProfileChangeRequest[]>>
@@ -55,13 +53,13 @@ export default function AdminSellerRequestsPage({
         if (cancelled) return;
         setErrorByTab((m) => ({
           ...m,
-          [tab]: e instanceof Error ? e.message : "Failed to load requests",
+          [tab]: e instanceof Error ? e.message : tSR("loadError"),
         }));
       });
     return () => {
       cancelled = true;
     };
-  }, [token, sellerId, tab]);
+  }, [token, sellerId, tab, tSR]);
 
   const rows = rowsByTab[tab];
   const error = errorByTab[tab] ?? null;
@@ -73,7 +71,7 @@ export default function AdminSellerRequestsPage({
         <h1 className={styles.title}>{tCR("indexTitle")}</h1>
       </header>
 
-      <div className={styles.tabs} role="tablist" aria-label="Request status">
+      <div className={styles.tabs} role="tablist" aria-label={tSR("tablistAria")}>
         <button
           type="button"
           role="tab"
@@ -96,7 +94,7 @@ export default function AdminSellerRequestsPage({
         </button>
       </div>
 
-      {loading && <p className={styles.muted}>Loading…</p>}
+      {loading && <p className={styles.muted}>{tc("loading")}</p>}
       {error && <p className={styles.error}>{error}</p>}
       {!loading && !error && rows !== undefined && rows.length === 0 && (
         <p className={styles.empty}>{tCR("noOpen")}</p>
@@ -108,18 +106,18 @@ export default function AdminSellerRequestsPage({
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Group</th>
-                  <th>Submitted</th>
-                  <th>Submissions</th>
-                  <th>Last seller note</th>
-                  <th aria-label="Review" />
+                  <th>{tSR("colGroup")}</th>
+                  <th>{tSR("colSubmitted")}</th>
+                  <th>{tSR("colSubmissions")}</th>
+                  <th>{tSR("colLastNote")}</th>
+                  <th aria-label={tSR("colReviewAria")} />
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
                     <td>
-                      <span className={styles.group}>{GROUP_LABEL[r.group]}</span>
+                      <span className={styles.group}>{tStatus(`group_${r.group}`)}</span>
                       <span
                         className={`${styles.pill} ${styles[`tone_${STATUS_TONE[r.status]}`]}`}
                       >
@@ -138,7 +136,7 @@ export default function AdminSellerRequestsPage({
                         href={`/admin/sellers/${sellerId}/requests/${r.id}`}
                         className={styles.actionLink}
                       >
-                        Review →
+                        {tSR("review")} →
                       </Link>
                     </td>
                   </tr>
@@ -149,18 +147,18 @@ export default function AdminSellerRequestsPage({
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Group</th>
-                  <th>Outcome</th>
-                  <th>Decided at</th>
-                  <th>Decided by</th>
-                  <th aria-label="View" />
+                  <th>{tSR("colGroup")}</th>
+                  <th>{tSR("colOutcome")}</th>
+                  <th>{tSR("colDecidedAt")}</th>
+                  <th>{tSR("colDecidedBy")}</th>
+                  <th aria-label={tSR("colViewAria")} />
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
                     <td>
-                      <span className={styles.group}>{GROUP_LABEL[r.group]}</span>
+                      <span className={styles.group}>{tStatus(`group_${r.group}`)}</span>
                     </td>
                     <td>
                       <span
@@ -176,7 +174,7 @@ export default function AdminSellerRequestsPage({
                     </td>
                     <td>
                       {r.decided_by_user_id != null
-                        ? `User #${r.decided_by_user_id}`
+                        ? tSR("userRef", { id: r.decided_by_user_id })
                         : "—"}
                     </td>
                     <td>
@@ -184,7 +182,7 @@ export default function AdminSellerRequestsPage({
                         href={`/admin/sellers/${sellerId}/requests/${r.id}`}
                         className={styles.actionLink}
                       >
-                        View →
+                        {tSR("view")} →
                       </Link>
                     </td>
                   </tr>

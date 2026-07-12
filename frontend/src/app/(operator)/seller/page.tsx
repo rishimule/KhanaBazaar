@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
 import type { SellerMetrics } from "@/types";
@@ -40,6 +41,8 @@ const EMPTY: SellerMetrics = {
 };
 
 export default function SellerDashboardPage() {
+  const t = useTranslations("Seller.dashboard");
+  const tc = useTranslations("Seller.common");
   const router = useRouter();
   const { dbUser, token, loading } = useAuth();
   const [metrics, setMetrics] = useState<SellerMetrics | null>(null);
@@ -102,7 +105,7 @@ export default function SellerDashboardPage() {
   if (loading || fetching) {
     return (
       <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
-        Loading…
+        {tc("loading")}
       </div>
     );
   }
@@ -140,26 +143,29 @@ export default function SellerDashboardPage() {
       <div className={styles.statsGrid}>
         <StatsCard
           icon="💰"
-          label="Revenue · this month"
+          label={t("revenueThisMonth")}
           value={`₹${m.revenue_this_month.toFixed(0)}`}
           variant="accent"
           trend={
             m.revenue_trend_pct !== 0
-              ? `${Math.abs(m.revenue_trend_pct)}% vs ₹${m.revenue_last_month.toFixed(0)} last month`
+              ? t("revenueTrend", {
+                  pct: Math.abs(m.revenue_trend_pct),
+                  last: m.revenue_last_month.toFixed(0),
+                })
               : undefined
           }
           trendDirection={m.revenue_trend_pct >= 0 ? "up" : "down"}
         />
         <StatsCard
           icon="🛒"
-          label="Active orders"
+          label={t("statsActiveOrders")}
           value={m.active_orders}
           variant={m.active_orders > 0 ? "primary" : "info"}
-          trend={m.active_orders > 0 ? "Needs attention" : undefined}
+          trend={m.active_orders > 0 ? t("needsAttention") : undefined}
           trendDirection="up"
         />
-        <StatsCard icon="🗓️" label="Orders today" value={m.orders_today} variant="info" />
-        <StatsCard icon="📦" label="Total products" value={m.total_products} variant="primary" />
+        <StatsCard icon="🗓️" label={t("statsOrdersToday")} value={m.orders_today} variant="info" />
+        <StatsCard icon="📦" label={t("statsTotalProducts")} value={m.total_products} variant="primary" />
       </div>
 
       <div className={styles.grid}>

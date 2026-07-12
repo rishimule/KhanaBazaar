@@ -8,10 +8,7 @@ import AdminReasonModal from "@/components/admin/AdminReasonModal";
 import { useAuth } from "@/lib/AuthContext";
 import { patch } from "@/lib/api";
 import { adminSetServiceDeliverySettings, fetchSellerHub } from "@/lib/adminActions";
-import {
-  GROUP_LABEL,
-  adminListSellerCRs,
-} from "@/lib/changeRequests";
+import { adminListSellerCRs } from "@/lib/changeRequests";
 import type {
   SellerHubSummary,
   SellerProfileChangeGroup,
@@ -27,6 +24,7 @@ export default function SellerProfileTab({
   const t = useTranslations("Admin.sellerHub");
   const tc = useTranslations("Admin.common");
   const ts = useTranslations("Admin.applications.status");
+  const tStatus = useTranslations("Shared.changeRequest");
   const { token } = useAuth();
   const [hub, setHub] = useState<SellerHubSummary | null>(null);
   const [openCRs, setOpenCRs] = useState<SellerProfileChangeRequest[]>([]);
@@ -93,7 +91,7 @@ export default function SellerProfileTab({
         }}
       >
         <span aria-hidden>🔔</span>
-        <span>Open change request</span>
+        <span>{t("profile.openChangeRequest")}</span>
       </Link>
     );
   }
@@ -125,7 +123,7 @@ export default function SellerProfileTab({
       const etaMin = svc.delivery_eta_min_minutes ?? 30;
       const etaMax = svc.delivery_eta_max_minutes ?? 60;
       if (etaMin > etaMax) {
-        setMinError("Maximum delivery time must be at least the minimum.");
+        setMinError(t("profile.etaOrderError"));
         return;
       }
       adminSetServiceDeliverySettings(
@@ -248,7 +246,7 @@ export default function SellerProfileTab({
           fontWeight: 500,
         }}
       >
-        Open change requests:
+        {t("profile.openChangeRequests")}
       </span>
       {openCRs.map((cr) => (
         <Link
@@ -269,7 +267,7 @@ export default function SellerProfileTab({
           }}
         >
           <span aria-hidden>🔔</span>
-          <span>{GROUP_LABEL[cr.group]}</span>
+          <span>{tStatus(`group_${cr.group}`)}</span>
         </Link>
       ))}
     </section>
@@ -399,7 +397,7 @@ export default function SellerProfileTab({
                 aria-label={t("profile.freeDeliveryThresholdAriaLabel", { name: svc.name })}
                 style={{ width: 110, padding: "6px 8px", textAlign: "right" }}
               />
-              <span>Fee ₹</span>
+              <span>{t("profile.feeLabel")}</span>
               <input
                 type="number"
                 min={0}
@@ -411,7 +409,7 @@ export default function SellerProfileTab({
                 aria-label={t("profile.deliveryFeeAriaLabel", { name: svc.name })}
                 style={{ width: 110, padding: "6px 8px", textAlign: "right" }}
               />
-              <span>ETA</span>
+              <span>{t("profile.etaLabel")}</span>
               <input
                 type="number"
                 min={1}
@@ -420,7 +418,7 @@ export default function SellerProfileTab({
                 disabled={!isApproved}
                 value={svc.delivery_eta_min_minutes ?? 30}
                 onChange={(e) => updateEta(svc.id, "min", parseFloat(e.target.value))}
-                aria-label={`Minimum delivery minutes for ${svc.name}`}
+                aria-label={t("profile.etaMinAriaLabel", { name: svc.name })}
                 style={{ width: 80, padding: "6px 8px", textAlign: "right" }}
               />
               <span>–</span>
@@ -432,10 +430,10 @@ export default function SellerProfileTab({
                 disabled={!isApproved}
                 value={svc.delivery_eta_max_minutes ?? 60}
                 onChange={(e) => updateEta(svc.id, "max", parseFloat(e.target.value))}
-                aria-label={`Maximum delivery minutes for ${svc.name}`}
+                aria-label={t("profile.etaMaxAriaLabel", { name: svc.name })}
                 style={{ width: 80, padding: "6px 8px", textAlign: "right" }}
               />
-              <span>min</span>
+              <span>{t("profile.minutesSuffix")}</span>
               <label style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
                 <input
                   type="checkbox"

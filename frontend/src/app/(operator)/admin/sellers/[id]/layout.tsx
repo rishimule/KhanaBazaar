@@ -111,7 +111,7 @@ export default function SellerHubLayout({
             >
               {t(tab.labelKey)}
               {showBadge && (
-                <span className={styles.badge} aria-label={`${openCRCount} open`}>
+                <span className={styles.badge} aria-label={t("openBadgeAria", { count: openCRCount })}>
                   {openCRCount}
                 </span>
               )}
