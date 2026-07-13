@@ -137,8 +137,11 @@ export default function NavbarTopBar() {
         {/* Language switcher is for logged-out visitors only. Signed-in users
             change language from their account/dashboard settings (persisted to
             User.preferred_language); CustomerLocaleEnforcer already redirects
-            them to their saved locale, so the switcher would be redundant. */}
-        {!token && <LocaleSwitcher />}
+            them to their saved locale, so the switcher would be redundant.
+            Gate on `loading` too: `token` is only set after /auth/me resolves,
+            so `!token` alone would briefly flash the switcher for a signed-in
+            user on first paint. */}
+        {!loading && !token && <LocaleSwitcher />}
 
         {!loading && (
           dbUser ? (

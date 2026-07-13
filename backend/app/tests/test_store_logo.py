@@ -24,6 +24,7 @@ from app.models.admin_audit import AdminActionLog
 from app.models.profile import VerificationStatus
 from app.models.seller_profile_change_request import (
     SellerProfileChangeGroup,
+    SellerProfileChangeRequest,
     SellerProfileChangeStatus,
 )
 from app.models.store import Store
@@ -153,6 +154,41 @@ async def test_store_logo_removal_clears_store(
     await session.refresh(bundle.store)
     assert bundle.store.logo_url is None
     assert bundle.store.logo_storage_key is None
+
+
+@pytest.mark.asyncio
+async def test_store_logo_second_upload_supersedes_first(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Any,
+) -> None:
+    _local_storage(monkeypatch, tmp_path)
+    bundle = approved_seller_with_store
+    first = await create_store_logo_change_request(
+        session=session, seller_profile=bundle.profile, raw=_png(),
+        actor_user_id=bundle.user.id,
+    )
+    await session.commit()
+    second = await create_store_logo_change_request(
+        session=session, seller_profile=bundle.profile, raw=_png(),
+        actor_user_id=bundle.user.id,
+    )
+    await session.commit()
+    await session.refresh(first.cr)
+    assert first.cr.status is SellerProfileChangeStatus.Withdrawn
+    assert second.cr.status is SellerProfileChangeStatus.Submitted
+    open_crs = (
+        await session.exec(
+            select(SellerProfileChangeRequest).where(
+                SellerProfileChangeRequest.group
+                == SellerProfileChangeGroup.StoreLogo,
+                SellerProfileChangeRequest.status
+                == SellerProfileChangeStatus.Submitted,
+            )
+        )
+    ).all()
+    assert len(open_crs) == 1
 
 
 @pytest.mark.asyncio

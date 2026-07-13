@@ -550,7 +550,7 @@ export default function SellerProfilePage() {
               />
               <div>
                 <AvatarUploader busy={logoBusy} onUpload={onUploadStoreLogo} />
-                {store?.logo_url && (
+                {store?.logo_url && !openCRsByGroup["store_logo"] && (
                   <button
                     type="button"
                     className={styles.removeAvatar}
