@@ -19,7 +19,8 @@ import type {
 import ProfileSectionCard from "@/components/ProfileSectionCard";
 import Avatar from "@/components/Avatar";
 import AvatarUploader from "@/components/AvatarUploader";
-import { uploadSellerAvatar } from "@/lib/avatars";
+import StoreAvatar from "@/components/StoreAvatar";
+import { uploadSellerAvatar, uploadStoreLogo } from "@/lib/avatars";
 import ProfileChangeRequestModal from "@/components/ProfileChangeRequestModal";
 import VerificationBadge, {
   type VerificationBadgeStatus,
@@ -127,6 +128,8 @@ export default function SellerProfilePage() {
   const [savingRadius, setSavingRadius] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarNotice, setAvatarNotice] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoNotice, setLogoNotice] = useState<string | null>(null);
   const [editingGroup, setEditingGroup] =
     useState<SellerProfileChangeGroup | null>(null);
   const debounceRef = useRef<number | null>(null);
@@ -214,6 +217,38 @@ export default function SellerProfilePage() {
       setSaveError(e instanceof Error ? e.message : t("avatarRemovalFailed"));
     } finally {
       setAvatarBusy(false);
+    }
+  };
+
+  const onUploadStoreLogo = async (blob: Blob) => {
+    if (!token) return;
+    setLogoBusy(true);
+    setLogoNotice(null);
+    setSaveError(null);
+    try {
+      await uploadStoreLogo(blob, token);
+      setLogoNotice(t("storeLogoSubmitted"));
+      await refreshOpenCRs();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : t("storeLogoUploadFailed"));
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
+  const onRemoveStoreLogo = async () => {
+    if (!token) return;
+    setLogoBusy(true);
+    setLogoNotice(null);
+    setSaveError(null);
+    try {
+      await createMyChangeRequest(token, { group: "store_logo", proposed: { logo_url: "" } });
+      setLogoNotice(t("storeLogoRemovalSubmitted"));
+      await refreshOpenCRs();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : t("storeLogoRemovalFailed"));
+    } finally {
+      setLogoBusy(false);
     }
   };
 
@@ -500,6 +535,40 @@ export default function SellerProfilePage() {
       </div>
 
       {(() => {
+        const chrome = cardCRChrome("store_logo");
+        return (
+          <ProfileSectionCard
+            title={t("sectionStoreLogo")}
+            action={chrome.action ?? undefined}
+          >
+            {chrome.banner}
+            <div className={styles.avatarSection}>
+              <StoreAvatar
+                name={storeName}
+                logoUrl={store?.logo_url}
+                className={styles.avatar}
+              />
+              <div>
+                <AvatarUploader busy={logoBusy} onUpload={onUploadStoreLogo} />
+                {store?.logo_url && (
+                  <button
+                    type="button"
+                    className={styles.removeAvatar}
+                    onClick={onRemoveStoreLogo}
+                    disabled={logoBusy}
+                  >
+                    {t("removeStoreLogo")}
+                  </button>
+                )}
+                {logoNotice && <p className={styles.avatarNotice}>{logoNotice}</p>}
+                <p className={styles.avatarHint}>{t("storeLogoHint")}</p>
+              </div>
+            </div>
+          </ProfileSectionCard>
+        );
+      })()}
+
+      {(() => {
         const chrome = cardCRChrome("identity");
         return (
           <ProfileSectionCard
@@ -510,9 +579,11 @@ export default function SellerProfilePage() {
           >
             {chrome.banner}
             <div className={styles.identityRow}>
-              <div className={styles.avatar} aria-hidden>
-                {storeName.charAt(0).toUpperCase() || "?"}
-              </div>
+              <StoreAvatar
+                name={storeName}
+                logoUrl={store?.logo_url}
+                className={styles.avatar}
+              />
               <div className={styles.identityText}>
                 <div className={styles.storeName}>{storeName}</div>
                 <div className={styles.kvRow}>

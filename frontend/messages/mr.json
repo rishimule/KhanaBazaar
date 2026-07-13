@@ -1222,6 +1222,13 @@
       "etaOrderError": "कमाल वितरण वेळ किमान इतका तरी असावा.",
       "removePicture": "चित्र काढा",
       "avatarHint": "प्रोफाइल चित्र बदलण्यासाठी अ‍ॅडमिन मंजुरी आवश्यक आहे.",
+      "sectionStoreLogo": "स्टोअर लोगो",
+      "storeLogoSubmitted": "स्टोअर लोगो अ‍ॅडमिन मंजुरीसाठी पाठवला.",
+      "storeLogoUploadFailed": "स्टोअर लोगो अपलोड अयशस्वी.",
+      "storeLogoRemovalSubmitted": "स्टोअर लोगो काढण्याची विनंती अ‍ॅडमिन मंजुरीसाठी पाठवली.",
+      "storeLogoRemovalFailed": "स्टोअर लोगो काढणे अयशस्वी.",
+      "removeStoreLogo": "लोगो काढा",
+      "storeLogoHint": "चौरस लोगो अपलोड करा. बदलांसाठी अ‍ॅडमिन मंजुरी आवश्यक आहे.",
       "feeUnit": "शुल्क ₹",
       "etaUnit": "अंदाजित वेळ",
       "minUnit": "मिनिटे",
@@ -1727,6 +1734,10 @@
         "sellerNotActiveEdit": "विक्रेता सक्रिय नाही — संपादित करता येत नाही.",
         "minSaveError": "किमान ऑर्डर रक्कम जतन करता आली नाही.",
         "storeStatus": "Store status",
+        "storeLogo": "स्टोअर लोगो",
+        "storeLogoHint": "लगेच लागू होते — अ‍ॅडमिन अधिकार, मंजुरीची गरज नाही.",
+        "storeLogoUpdated": "स्टोअर लोगो अपडेट झाला.",
+        "storeLogoError": "स्टोअर लोगो अपडेट करता आला नाही.",
         "pause": {
           "openBadge": "Open",
           "closedBadge": "Closed",
@@ -2028,7 +2039,8 @@
       "group_banking": "बँकिंग",
       "group_services": "सेवा",
       "group_store_basics": "वितरण सेटिंग्ज",
-      "group_avatar": "प्रोफाइल चित्र"
+      "group_avatar": "प्रोफाइल चित्र",
+      "group_store_logo": "स्टोअर लोगो"
     },
     "paymentStatus": {
       "pending": "पेमेंट प्रलंबित",

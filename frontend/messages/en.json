@@ -1221,6 +1221,13 @@
       "etaOrderError": "Maximum delivery time must be at least the minimum.",
       "removePicture": "Remove picture",
       "avatarHint": "Profile picture changes require admin approval.",
+      "sectionStoreLogo": "Store logo",
+      "storeLogoSubmitted": "Store logo submitted for admin approval.",
+      "storeLogoUploadFailed": "Store logo upload failed.",
+      "storeLogoRemovalSubmitted": "Store logo removal submitted for admin approval.",
+      "storeLogoRemovalFailed": "Store logo removal failed.",
+      "removeStoreLogo": "Remove logo",
+      "storeLogoHint": "Upload a square logo. Changes need admin approval.",
       "feeUnit": "Fee ₹",
       "etaUnit": "ETA",
       "minUnit": "min",
@@ -1726,6 +1733,10 @@
         "sellerNotActiveEdit": "Seller is not active — cannot edit.",
         "minSaveError": "Could not save minimum order value.",
         "storeStatus": "Store status",
+        "storeLogo": "Store logo",
+        "storeLogoHint": "Applies immediately — admin authority, no approval needed.",
+        "storeLogoUpdated": "Store logo updated.",
+        "storeLogoError": "Could not update the store logo.",
         "pause": {
           "openBadge": "Open",
           "closedBadge": "Closed",
@@ -2027,7 +2038,8 @@
       "group_banking": "Banking",
       "group_services": "Services",
       "group_store_basics": "Delivery settings",
-      "group_avatar": "Profile picture"
+      "group_avatar": "Profile picture",
+      "group_store_logo": "Store logo"
     },
     "paymentStatus": {
       "pending": "Payment pending",

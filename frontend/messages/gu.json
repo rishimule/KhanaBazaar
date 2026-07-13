@@ -1222,6 +1222,13 @@
       "etaOrderError": "મહત્તમ ડિલિવરી સમય ઓછામાં ઓછો લઘુત્તમ જેટલો હોવો જોઈએ.",
       "removePicture": "ચિત્ર દૂર કરો",
       "avatarHint": "પ્રોફાઇલ ચિત્ર બદલવા માટે એડમિન મંજૂરી જરૂરી છે.",
+      "sectionStoreLogo": "સ્ટોર લોગો",
+      "storeLogoSubmitted": "સ્ટોર લોગો એડમિન મંજૂરી માટે મોકલ્યો.",
+      "storeLogoUploadFailed": "સ્ટોર લોગો અપલોડ નિષ્ફળ.",
+      "storeLogoRemovalSubmitted": "સ્ટોર લોગો દૂર કરવાની વિનંતી એડમિન મંજૂરી માટે મોકલી.",
+      "storeLogoRemovalFailed": "સ્ટોર લોગો દૂર કરવું નિષ્ફળ.",
+      "removeStoreLogo": "લોગો દૂર કરો",
+      "storeLogoHint": "ચોરસ લોગો અપલોડ કરો. ફેરફાર માટે એડમિન મંજૂરી જરૂરી છે.",
       "feeUnit": "ફી ₹",
       "etaUnit": "અંદાજિત સમય",
       "minUnit": "મિનિટ",
@@ -1727,6 +1734,10 @@
         "sellerNotActiveEdit": "વિક્રેતા સક્રિય નથી — સંપાદિત કરી શકાતું નથી.",
         "minSaveError": "ન્યૂનતમ ઓર્ડર રકમ સાચવી શકાઈ નથી.",
         "storeStatus": "Store status",
+        "storeLogo": "સ્ટોર લોગો",
+        "storeLogoHint": "તરત જ લાગુ થાય છે — એડમિન અધિકાર, મંજૂરીની જરૂર નથી.",
+        "storeLogoUpdated": "સ્ટોર લોગો અપડેટ થયો.",
+        "storeLogoError": "સ્ટોર લોગો અપડેટ કરી શકાયો નહીં.",
         "pause": {
           "openBadge": "Open",
           "closedBadge": "Closed",
@@ -2028,7 +2039,8 @@
       "group_banking": "બેંકિંગ",
       "group_services": "સેવાઓ",
       "group_store_basics": "ડિલિવરી સેટિંગ્સ",
-      "group_avatar": "પ્રોફાઇલ ચિત્ર"
+      "group_avatar": "પ્રોફાઇલ ચિત્ર",
+      "group_store_logo": "સ્ટોર લોગો"
     },
     "paymentStatus": {
       "pending": "ચુકવણી બાકી",

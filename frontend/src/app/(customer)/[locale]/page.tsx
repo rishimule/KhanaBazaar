@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -14,6 +15,7 @@ import { useDeliverability } from "@/lib/useDeliverability";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
 import { HomeStorePreview, PreviewCandidate } from "@/components/HomeStorePreview";
+import StoreAvatar from "@/components/StoreAvatar";
 import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
@@ -113,19 +115,32 @@ export default function Home() {
       <div className={styles.shell}>
         <section className={styles.hero}>
           <span className={styles.heroGlyph} aria-hidden>🥢</span>
-          <div className={styles.eyebrow}>{t("badge")}</div>
-          <h1 className={styles.heroTitle}>{t("heroTitle")}</h1>
-          <p className={styles.heroSub}>{t("heroDescription")}</p>
-          <div className={styles.heroCta}>
-            <Link href="/products" className={styles.heroBtnPrimary}>
-              {t("ctaExploreProducts")}
-            </Link>
-            <Link href="/stores" className={styles.heroBtnGhost}>
-              {t("ctaStartShopping")}
-            </Link>
-            <Link href="/sell" className={styles.heroBtnGhost}>
-              {t("ctaSellOnKB")}
-            </Link>
+          <div className={styles.heroText}>
+            <div className={styles.eyebrow}>{t("badge")}</div>
+            <h1 className={styles.heroTitle}>{t("heroTitle")}</h1>
+            <p className={styles.heroSub}>{t("heroDescription")}</p>
+            <div className={styles.heroCta}>
+              <Link href="/products" className={styles.heroBtnPrimary}>
+                {t("ctaExploreProducts")}
+              </Link>
+              <Link href="/stores" className={styles.heroBtnGhost}>
+                {t("ctaStartShopping")}
+              </Link>
+              <Link href="/sell" className={styles.heroBtnGhost}>
+                {t("ctaSellOnKB")}
+              </Link>
+            </div>
+          </div>
+          <div className={styles.heroMedia} aria-hidden>
+            {/* Temporary placeholder illustration — swap for a real photo. */}
+            <Image
+              src="/hero-groceries.webp"
+              alt=""
+              width={800}
+              height={600}
+              priority
+              className={styles.heroImage}
+            />
           </div>
         </section>
 
@@ -206,9 +221,11 @@ export default function Home() {
                       className={styles.storeCard}
                     >
                       <div className={styles.storeCardTop}>
-                        <span className={styles.storeAvatar}>
-                          {store.name.charAt(0).toUpperCase()}
-                        </span>
+                        <StoreAvatar
+                          name={store.name}
+                          logoUrl={store.logo_url}
+                          className={styles.storeAvatar}
+                        />
                         <span className={styles.storeCardStatus}>{t("storeOpenNow")}</span>
                       </div>
                       <div className={styles.storeCardBody}>

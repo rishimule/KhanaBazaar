@@ -55,7 +55,7 @@ export default function NavbarTopBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { cartCount } = useCart();
-  const { dbUser, loading } = useAuth();
+  const { dbUser, loading, token } = useAuth();
   const { location } = useDeliveryLocation();
   const [pickerOpen, setPickerOpen] = useState(false);
   const { open: logoutOpen, openDialog: openLogout, closeDialog: closeLogout } =
@@ -134,7 +134,11 @@ export default function NavbarTopBar() {
 
         {role === "customer" && <NotificationBell />}
 
-        <LocaleSwitcher />
+        {/* Language switcher is for logged-out visitors only. Signed-in users
+            change language from their account/dashboard settings (persisted to
+            User.preferred_language); CustomerLocaleEnforcer already redirects
+            them to their saved locale, so the switcher would be redundant. */}
+        {!token && <LocaleSwitcher />}
 
         {!loading && (
           dbUser ? (

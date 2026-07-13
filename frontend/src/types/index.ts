@@ -139,6 +139,8 @@ export interface Store extends BaseSchema {
   is_paused: boolean;
   pause_reason?: string | null;
   paused_until?: string | null;
+  /** Store logo image (seller-uploaded via CR, or admin direct-apply). */
+  logo_url?: string | null;
   /** Set when the store list was queried with the user's lat/lng. */
   distance_km?: number | null;
   /** True when the store has a live paid (non-Freebie) fee arrangement. */
@@ -764,7 +766,8 @@ export type SellerProfileChangeGroup =
   | "banking"
   | "services"
   | "store_basics"
-  | "avatar";
+  | "avatar"
+  | "store_logo";
 
 export type SellerProfileChangeStatus =
   | "submitted"

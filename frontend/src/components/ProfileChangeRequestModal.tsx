@@ -76,6 +76,9 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
   // Avatar changes are driven by <AvatarUploader> on the seller profile page,
   // not by this generic field-based modal — no fields here.
   avatar: [],
+  // Store logo is uploaded via <AvatarUploader> on the seller profile page
+  // (POST /me/store/logo), not this generic field-based modal — no fields here.
+  store_logo: [],
 };
 
 interface Props {
