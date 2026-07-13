@@ -157,6 +157,18 @@ async def _baseline_for_group(
             "avatar_url": profile.avatar_url or "",
             "storage_key": profile.avatar_storage_key,
         }
+    if group is SellerProfileChangeGroup.StoreLogo:
+        store = (
+            await session.exec(
+                select(Store).where(Store.seller_profile_id == profile.id)
+            )
+        ).first()
+        if store is None:
+            raise HTTPException(status_code=404, detail="store_not_found")
+        return {
+            "logo_url": store.logo_url or "",
+            "storage_key": store.logo_storage_key,
+        }
     raise ValueError(f"unknown group {group}")
 
 
@@ -347,6 +359,59 @@ async def create_avatar_change_request(
     )
 
 
+async def create_store_logo_change_request(
+    *,
+    session: AsyncSession,
+    seller_profile: SellerProfile,
+    raw: bytes,
+    actor_user_id: int,
+    note: Optional[str] = None,
+) -> CRMutationResult:
+    """Upload a pending store-logo blob and queue a `store_logo` CR for admin
+    approval.
+
+    Mirrors `create_avatar_change_request`: auto-supersedes any open store_logo
+    CR (re-picking must not 409), then stores the new blob and creates the CR
+    carrying (logo_url, storage_key). The logo lives on the seller's Store row,
+    written on approve by `_apply_store_logo`.
+    """
+    if seller_profile.verification_status is not VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="seller_not_active")
+    assert seller_profile.id is not None
+
+    store = (
+        await session.exec(
+            select(Store).where(Store.seller_profile_id == seller_profile.id)
+        )
+    ).first()
+    if store is None:
+        raise HTTPException(status_code=404, detail="store_not_found")
+    assert store.id is not None
+
+    existing = await _open_cr_for_group(
+        session, seller_profile.id, SellerProfileChangeGroup.StoreLogo
+    )
+    if existing is not None:
+        await withdraw(session=session, cr=existing, actor_user_id=actor_user_id)
+        await session.flush()
+
+    from app.services.store_logos import process_and_store
+
+    try:
+        url, key = await process_and_store(raw, store.id)
+    except ImageValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return await create_change_request(
+        session=session,
+        seller_profile=seller_profile,
+        group=SellerProfileChangeGroup.StoreLogo,
+        proposed={"logo_url": url, "storage_key": key},
+        note=note,
+        actor_user_id=actor_user_id,
+    )
+
+
 async def _cleanup_pending_avatar_blob(
     session: AsyncSession, cr: SellerProfileChangeRequest
 ) -> None:
@@ -368,6 +433,31 @@ async def _cleanup_pending_avatar_blob(
         await delete_blob(pending_key)
 
 
+async def _cleanup_pending_store_logo_blob(
+    session: AsyncSession, cr: SellerProfileChangeRequest
+) -> None:
+    """Delete a store_logo CR's pending blob when the CR is rejected/withdrawn.
+
+    No-op for non-store_logo groups. Skips deletion when the pending key equals
+    the store's current LIVE key (identical re-upload), so the live logo is kept.
+    """
+    if cr.group is not SellerProfileChangeGroup.StoreLogo:
+        return
+    pending_key = (cr.proposed_json or {}).get("storage_key")
+    if not pending_key:
+        return
+    store = (
+        await session.exec(
+            select(Store).where(Store.seller_profile_id == cr.seller_profile_id)
+        )
+    ).first()
+    live_key = store.logo_storage_key if store else None
+    if pending_key != live_key:
+        from app.services.store_logos import delete_blob
+
+        await delete_blob(pending_key)
+
+
 async def withdraw(
     *,
     session: AsyncSession,
@@ -382,6 +472,7 @@ async def withdraw(
     cr.updated_at = _now()
     session.add(cr)
     await _cleanup_pending_avatar_blob(session, cr)
+    await _cleanup_pending_store_logo_blob(session, cr)
     _emit_event(
         session=session, cr=cr,
         kind=SellerProfileChangeEventKind.Withdrawn,
@@ -495,6 +586,7 @@ async def reject(
     cr.updated_at = _now()
     session.add(cr)
     await _cleanup_pending_avatar_blob(session, cr)
+    await _cleanup_pending_store_logo_blob(session, cr)
     _emit_event(
         session=session, cr=cr,
         kind=SellerProfileChangeEventKind.Rejected,
@@ -657,6 +749,33 @@ async def _apply_avatar(
         await delete_blob(old_key)
 
 
+async def _apply_store_logo(
+    session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
+) -> None:
+    store = (
+        await session.exec(
+            select(Store).where(Store.seller_profile_id == profile.id)
+        )
+    ).first()
+    if store is None:
+        raise HTTPException(status_code=404, detail="store_not_found")
+    new_url = str(payload.get("logo_url") or "")
+    new_key = payload.get("storage_key") or None
+    old_key = store.logo_storage_key
+    if new_url:
+        store.logo_url = new_url
+        store.logo_storage_key = new_key
+    else:
+        store.logo_url = None
+        store.logo_storage_key = None
+    session.add(store)
+    # Best-effort: drop the superseded live blob (skip when unchanged).
+    if old_key and old_key != new_key:
+        from app.services.store_logos import delete_blob
+
+        await delete_blob(old_key)
+
+
 GROUP_APPLIERS = {
     SellerProfileChangeGroup.Identity: _apply_identity,
     SellerProfileChangeGroup.Address: _apply_address,
@@ -665,6 +784,7 @@ GROUP_APPLIERS = {
     SellerProfileChangeGroup.Services: _apply_services,
     SellerProfileChangeGroup.StoreBasics: _apply_store_basics,
     SellerProfileChangeGroup.Avatar: _apply_avatar,
+    SellerProfileChangeGroup.StoreLogo: _apply_store_logo,
 }
 
 

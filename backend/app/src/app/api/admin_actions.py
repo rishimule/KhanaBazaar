@@ -21,7 +21,7 @@ from datetime import datetime, time, timedelta, timezone
 from typing import Literal, Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
@@ -29,7 +29,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_current_admin
 from app.db.session import get_db_session
-from app.models.admin_audit import AdminActionLog
+from app.models.admin_audit import AdminActionLog, AdminActionTargetType
 from app.models.base import User
 from app.models.catalog import (
     Category,
@@ -74,6 +74,8 @@ from app.schemas.seller_profile_change_request import (
     ChangeRequestRejectBody,
 )
 from app.schemas.sellers import RevenueSeriesPoint, RevenueSeriesRead
+from app.schemas.stores import StoreRead
+from app.services import admin_audit
 from app.services.order_emails import dispatch_admin_order_action
 from app.services.orders import (
     override_delivery_address,
@@ -676,6 +678,72 @@ async def _admin_attach_events(
 def _ensure_seller_active(profile: SellerProfile) -> None:
     if profile.verification_status is not VerificationStatus.Approved:
         raise HTTPException(status_code=409, detail="seller_not_active")
+
+
+@router.post("/sellers/{seller_id}/store/logo", response_model=StoreRead)
+async def admin_upload_store_logo(
+    seller_id: int,
+    file: UploadFile = File(...),
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> StoreRead:
+    """Admin-supervisor direct-apply of a store logo.
+
+    Writes the live ``Store`` logo columns immediately (bypassing the seller CR
+    approval flow by admin authority) and logs an audit row in the same
+    transaction. Rejects non-Approved sellers with ``409 seller_not_active``.
+    """
+    assert admin.id is not None
+    profile = await _admin_seller_profile_or_404(session, seller_id)
+    _ensure_seller_active(profile)
+    assert profile.id is not None
+    store = (
+        await session.exec(
+            select(Store).where(Store.seller_profile_id == profile.id)
+        )
+    ).first()
+    if store is None:
+        raise HTTPException(status_code=404, detail="store_not_found")
+    assert store.id is not None
+
+    from app.services import store_logos
+    from app.services.image_processing import ImageValidationError
+
+    raw = await file.read()
+    try:
+        url, key = await store_logos.process_and_store(raw, store.id)
+    except ImageValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    store_id = store.id  # capture before commit expires the instance
+    old_key = store.logo_storage_key
+    before = {"logo_url": store.logo_url, "logo_storage_key": old_key}
+    store.logo_url = url
+    store.logo_storage_key = key
+    session.add(store)
+    await admin_audit.log(
+        session=session,
+        admin_user_id=admin.id,
+        target_seller_id=profile.id,
+        target_type=AdminActionTargetType.Store,
+        target_id=store_id,
+        action="store.set_logo",
+        before_json=before,
+        after_json={"logo_url": url, "logo_storage_key": key},
+    )
+    await session.commit()
+    if old_key and old_key != key:
+        await store_logos.delete_blob(old_key)
+
+    from app.api.stores import _store_read, _store_with_relations_stmt
+
+    full = (
+        await session.exec(
+            _store_with_relations_stmt().where(Store.id == store_id)
+        )
+    ).first()
+    assert full is not None
+    return await _store_read(session, full)
 
 
 @router.get(

@@ -76,6 +76,13 @@ class AvatarPayload(BaseModel):
     storage_key: Optional[str] = Field(default=None, max_length=512)
 
 
+class StoreLogoPayload(BaseModel):
+    # Empty logo_url == removal. URL + storage_key are produced server-side by
+    # the upload endpoint, so no strict format validation is needed here.
+    logo_url: str = Field(default="", max_length=2048)
+    storage_key: Optional[str] = Field(default=None, max_length=512)
+
+
 class BankingPayload(BaseModel):
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
@@ -225,6 +232,7 @@ GROUP_PAYLOAD_SCHEMA: dict[SellerProfileChangeGroup, type[BaseModel]] = {
     SellerProfileChangeGroup.Services: ServicesPayload,
     SellerProfileChangeGroup.StoreBasics: StoreBasicsPayload,
     SellerProfileChangeGroup.Avatar: AvatarPayload,
+    SellerProfileChangeGroup.StoreLogo: StoreLogoPayload,
 }
 
 

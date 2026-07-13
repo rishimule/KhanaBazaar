@@ -21,6 +21,8 @@ class Store(BaseSchema, table=True):
     is_paused: bool = Field(default=False, nullable=False)
     pause_reason: str | None = Field(default=None, max_length=200)
     paused_until: date | None = Field(default=None)
+    logo_url: str | None = Field(default=None, max_length=2048)
+    logo_storage_key: str | None = Field(default=None, max_length=512)
 
     seller_profile: SellerProfile = Relationship()
     address: Address = Relationship()

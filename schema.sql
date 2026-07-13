@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `932c4bd8aa24`. Regenerate this file when the head changes.
+-- migration head `f3c35baeec0a`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
@@ -17,7 +17,7 @@
 --   notificationtype             : 'OrderStatus', 'DeliveryOtp', 'FeeActivated', 'FeeExpiring', 'FeeSuspended', 'Referral', 'Credit', 'Announcement'  (PG value is the enum member NAME; Python values are 'order_status', 'delivery_otp', 'fee_activated', 'fee_expiring', 'fee_suspended', 'referral', 'credit', 'announcement')
 --   notificationaudience         : 'customers', 'sellers', 'both'  (snake_case values)
 --   campaignstatus               : 'draft', 'sending', 'sent', 'failed'  (snake_case values)
---   sellerprofilechangegroup     : 'identity', 'address', 'legal', 'banking', 'services', 'store_basics', 'avatar'
+--   sellerprofilechangegroup     : 'identity', 'address', 'legal', 'banking', 'services', 'store_basics', 'avatar', 'store_logo'
 --   sellerprofilechangestatus    : 'submitted', 'changes_requested', 'approved', 'rejected', 'withdrawn'
 --   sellerprofilechangeeventkind : 'submitted', 'resubmitted', 'changes_requested', 'approved', 'approved_with_edits', 'rejected', 'withdrawn'
 --   policykind                   : 'terms', 'privacy'
@@ -269,7 +269,10 @@ CREATE TABLE "store" (
   -- Store-wide pause (holiday mode); app-level model default governs new rows.
   "is_paused" BOOLEAN NOT NULL,
   "pause_reason" VARCHAR(200),
-  "paused_until" DATE
+  "paused_until" DATE,
+  -- Store logo (seller-uploaded via CR approval, or admin direct-apply); NULL = fall back to initial.
+  "logo_url" VARCHAR(2048),
+  "logo_storage_key" VARCHAR(512)
 );
 
 CREATE TABLE "storeinventory" (
