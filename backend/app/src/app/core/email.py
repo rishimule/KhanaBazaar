@@ -4,10 +4,12 @@ import json
 import logging
 import re
 import time
+from email.message import EmailMessage
 from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
 
+import aiosmtplib
 import httpx
 
 from app.core.config import settings
@@ -115,6 +117,48 @@ class ResendEmailSender:
                 },
             )
             response.raise_for_status()
+
+
+class SmtpEmailSender:
+    def __init__(self) -> None:
+        if not (
+            settings.SMTP_HOST and settings.SMTP_USERNAME and settings.SMTP_PASSWORD
+        ):
+            logger.warning(
+                "[EMAIL] SMTP provider selected but SMTP_HOST/SMTP_USERNAME/"
+                "SMTP_PASSWORD are not all configured; sends will fail."
+            )
+
+    async def send(
+        self,
+        to: str,
+        subject: str,
+        *,
+        text: str,
+        html: str | None = None,
+        reply_to: str | None = None,
+    ) -> None:
+        msg = EmailMessage()
+        msg["From"] = f"{settings.EMAIL_BRAND_NAME} <{settings.SMTP_FROM_EMAIL}>"
+        msg["To"] = to
+        msg["Subject"] = subject
+        if reply_to is not None:
+            msg["Reply-To"] = reply_to
+        msg.set_content(text)
+        if html is not None:
+            msg.add_alternative(html, subtype="html")
+        # start_tls (STARTTLS, port 587) and use_tls (implicit SSL, port 465)
+        # are mutually exclusive — deriving both from one bool guarantees that.
+        await aiosmtplib.send(
+            msg,
+            hostname=settings.SMTP_HOST,
+            port=settings.SMTP_PORT,
+            username=settings.SMTP_USERNAME,
+            password=settings.SMTP_PASSWORD,
+            start_tls=not settings.SMTP_USE_TLS,
+            use_tls=settings.SMTP_USE_TLS,
+            timeout=settings.SMTP_TIMEOUT,
+        )
 
 
 class ResendWithConsoleSender:

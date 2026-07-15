@@ -2,10 +2,12 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import asyncio
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import respx
 
+from app.core.config import settings
 from app.core.email import (
     ConsoleEmailSender,
     ResendEmailSender,
@@ -68,3 +70,62 @@ def test_resend_sender_posts_html_text_and_reply_to():
     assert b'"html": "<p>hi</p>"' in payload
     assert b'"text": "hi"' in payload
     assert b'"reply_to": "rep@example.com"' in payload
+
+
+def _set_smtp(monkeypatch, *, port=587, use_tls=False):
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.gmail.com")
+    monkeypatch.setattr(settings, "SMTP_PORT", port)
+    monkeypatch.setattr(settings, "SMTP_USERNAME", "me@gmail.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "app-pw-1234")
+    monkeypatch.setattr(settings, "SMTP_FROM_EMAIL", "me@gmail.com")
+    monkeypatch.setattr(settings, "SMTP_USE_TLS", use_tls)
+    monkeypatch.setattr(settings, "SMTP_TIMEOUT", 10.0)
+    monkeypatch.setattr(settings, "EMAIL_BRAND_NAME", "Sarvaka")
+
+
+def test_smtp_sender_builds_multipart_and_starttls(monkeypatch):
+    from app.core.email import SmtpEmailSender
+
+    _set_smtp(monkeypatch, port=587, use_tls=False)
+    with patch("app.core.email.aiosmtplib.send", new_callable=AsyncMock) as mock_send:
+        asyncio.run(
+            SmtpEmailSender().send(
+                to="x@example.com",
+                subject="hello",
+                text="hi",
+                html="<p>hi</p>",
+                reply_to="rep@example.com",
+            )
+        )
+    assert mock_send.await_count == 1
+    msg = mock_send.await_args.args[0]
+    assert msg["From"] == "Sarvaka <me@gmail.com>"
+    assert msg["To"] == "x@example.com"
+    assert msg["Subject"] == "hello"
+    assert msg["Reply-To"] == "rep@example.com"
+    assert msg.get_content_type() == "multipart/alternative"
+    kwargs = mock_send.await_args.kwargs
+    assert kwargs["hostname"] == "smtp.gmail.com"
+    assert kwargs["port"] == 587
+    assert kwargs["username"] == "me@gmail.com"
+    assert kwargs["password"] == "app-pw-1234"
+    assert kwargs["start_tls"] is True
+    assert kwargs["use_tls"] is False
+    assert kwargs["timeout"] == 10.0
+
+
+def test_smtp_sender_text_only_and_implicit_ssl(monkeypatch):
+    from app.core.email import SmtpEmailSender
+
+    _set_smtp(monkeypatch, port=465, use_tls=True)
+    with patch("app.core.email.aiosmtplib.send", new_callable=AsyncMock) as mock_send:
+        asyncio.run(
+            SmtpEmailSender().send(to="x@example.com", subject="s", text="body only")
+        )
+    msg = mock_send.await_args.args[0]
+    assert msg.get_content_type() == "text/plain"
+    assert "Reply-To" not in msg
+    kwargs = mock_send.await_args.kwargs
+    assert kwargs["port"] == 465
+    assert kwargs["start_tls"] is False
+    assert kwargs["use_tls"] is True
