@@ -4,6 +4,7 @@ import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import aiosmtplib
 import httpx
 import respx
 
@@ -129,3 +130,66 @@ def test_smtp_sender_text_only_and_implicit_ssl(monkeypatch):
     assert kwargs["port"] == 465
     assert kwargs["start_tls"] is False
     assert kwargs["use_tls"] is True
+
+
+def test_smtp_console_records_provider_smtp_even_when_send_raises(monkeypatch):
+    from app.core import dev_mailbox
+    from app.core.email import SmtpWithConsoleSender
+
+    recorded: list[dict] = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(dev_mailbox, "record_outbound_email", fake_record)
+
+    with patch(
+        "app.core.email.aiosmtplib.send",
+        side_effect=aiosmtplib.SMTPException("gmail said no"),
+    ):
+        asyncio.run(
+            SmtpWithConsoleSender().send(to="x@example.com", subject="s", text="t")
+        )
+
+    assert len(recorded) == 1
+    assert recorded[0]["provider"] == "smtp"
+
+
+def test_resend_console_records_provider_resend(monkeypatch):
+    from app.core import dev_mailbox
+    from app.core.email import ResendWithConsoleSender
+
+    recorded: list[dict] = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(dev_mailbox, "record_outbound_email", fake_record)
+
+    exc = httpx.HTTPStatusError(
+        "bad",
+        request=httpx.Request("POST", "https://api.resend.com/emails"),
+        response=httpx.Response(422),
+    )
+    monkeypatch.setattr(
+        "app.core.email.ResendEmailSender.send", AsyncMock(side_effect=exc)
+    )
+    asyncio.run(
+        ResendWithConsoleSender().send(to="x@example.com", subject="s", text="t")
+    )
+    assert recorded[0]["provider"] == "resend"
+
+
+def test_get_email_sender_returns_smtp_variants(monkeypatch):
+    from app.core import email as email_mod
+
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "smtp")
+    email_mod.get_email_sender.cache_clear()
+    assert isinstance(email_mod.get_email_sender(), email_mod.SmtpEmailSender)
+
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "smtp+console")
+    email_mod.get_email_sender.cache_clear()
+    assert isinstance(email_mod.get_email_sender(), email_mod.SmtpWithConsoleSender)
+
+    # Leave the cache clean for later tests (monkeypatch restores EMAIL_PROVIDER).
+    email_mod.get_email_sender.cache_clear()

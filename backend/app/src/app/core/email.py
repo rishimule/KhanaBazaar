@@ -42,6 +42,9 @@ class EmailSender(Protocol):
 
 
 class ConsoleEmailSender:
+    def __init__(self, record_provider: str = "console") -> None:
+        self._record_provider = record_provider
+
     async def send(
         self,
         to: str,
@@ -83,7 +86,12 @@ class ConsoleEmailSender:
         from app.core.dev_mailbox import record_outbound_email
 
         await record_outbound_email(
-            to=to, subject=subject, text=text, html=html, reply_to=reply_to
+            to=to,
+            subject=subject,
+            text=text,
+            html=html,
+            reply_to=reply_to,
+            provider=self._record_provider,
         )
 
 
@@ -161,9 +169,41 @@ class SmtpEmailSender:
         )
 
 
+class SmtpWithConsoleSender:
+    def __init__(self) -> None:
+        self._console = ConsoleEmailSender(record_provider="smtp")
+        self._smtp = SmtpEmailSender()
+
+    async def send(
+        self,
+        to: str,
+        subject: str,
+        *,
+        text: str,
+        html: str | None = None,
+        reply_to: str | None = None,
+    ) -> None:
+        # Console first: the dev-mailbox row is written regardless of whether the
+        # real Gmail send succeeds, so /dev-emails never loses a record.
+        await self._console.send(
+            to, subject, text=text, html=html, reply_to=reply_to
+        )
+        try:
+            await self._smtp.send(
+                to, subject, text=text, html=html, reply_to=reply_to
+            )
+        except (aiosmtplib.SMTPException, TimeoutError) as exc:
+            logger.warning(
+                "[EMAIL] SMTP send failed to=%s error=%s "
+                "(console capture already recorded)",
+                to,
+                exc,
+            )
+
+
 class ResendWithConsoleSender:
     def __init__(self) -> None:
-        self._console = ConsoleEmailSender()
+        self._console = ConsoleEmailSender(record_provider="resend")
         self._resend = ResendEmailSender()
 
     async def send(
@@ -197,4 +237,8 @@ def get_email_sender() -> EmailSender:
         return ResendEmailSender()
     if settings.EMAIL_PROVIDER == "resend+console":
         return ResendWithConsoleSender()
+    if settings.EMAIL_PROVIDER == "smtp":
+        return SmtpEmailSender()
+    if settings.EMAIL_PROVIDER == "smtp+console":
+        return SmtpWithConsoleSender()
     return ConsoleEmailSender()
