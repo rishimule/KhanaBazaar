@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 import { ApiError, del } from "@/lib/api";
-import type { CustomerProfile, SellerProfileChangeRequest } from "@/types";
+import type { CustomerProfile, SellerProfileChangeRequest, Store } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -42,6 +42,31 @@ export function uploadSellerAvatar(
 ): Promise<SellerProfileChangeRequest> {
   return uploadMultipart<SellerProfileChangeRequest>(
     "/api/v1/sellers/me/avatar",
+    file,
+    token,
+  );
+}
+
+export function uploadStoreLogo(
+  file: Blob,
+  token: string | null,
+): Promise<SellerProfileChangeRequest> {
+  return uploadMultipart<SellerProfileChangeRequest>(
+    "/api/v1/sellers/me/store/logo",
+    file,
+    token,
+  );
+}
+
+/** Admin supervisor direct-apply: uploads a store logo for `sellerId` (the
+ *  seller's User id) and returns the updated Store. Applies immediately. */
+export function adminUploadStoreLogo(
+  sellerId: number,
+  file: Blob,
+  token: string | null,
+): Promise<Store> {
+  return uploadMultipart<Store>(
+    `/api/v1/admin/sellers/${sellerId}/store/logo`,
     file,
     token,
   );

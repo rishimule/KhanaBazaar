@@ -101,6 +101,7 @@ async def _store_read(
         is_paused=store.is_paused,
         pause_reason=store.pause_reason,
         paused_until=store.paused_until.isoformat() if store.paused_until else None,
+        logo_url=store.logo_url,
         distance_km=distance_km,
         created_at=store.created_at.isoformat(),
         updated_at=store.updated_at.isoformat(),

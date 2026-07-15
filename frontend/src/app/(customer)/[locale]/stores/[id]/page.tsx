@@ -25,6 +25,7 @@ import CategorySidebar from "@/components/CategorySidebar";
 import CartRail from "@/components/CartRail";
 import FavoritesHere from "@/components/FavoritesHere";
 import CrownBadge from "@/components/CrownBadge";
+import StoreAvatar from "@/components/StoreAvatar";
 import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
 import { ScrollRail } from "@/components/ScrollRail";
 import { serviceGlyph } from "@/lib/serviceGlyph";
@@ -292,9 +293,11 @@ export default function StoreDetailPage({ params }: Props) {
           <div className={styles.content}>
             <header className={styles.storeHeader}>
               <div className={styles.storeHeaderLeft}>
-                <div className={styles.storeIcon} aria-hidden="true">
-                  {store.name.charAt(0).toUpperCase()}
-                </div>
+                <StoreAvatar
+                  name={store.name}
+                  logoUrl={store.logo_url}
+                  className={styles.storeIcon}
+                />
                 <div className={styles.storeInfo}>
                   <h1 className={styles.storeName}>{store.name}{store.is_premium && <CrownBadge variant="pill" />}</h1>
                   <p className={styles.storeAddress}>
@@ -329,9 +332,11 @@ export default function StoreDetailPage({ params }: Props) {
         <div className={styles.content}>
           <header className={styles.storeHeader}>
             <div className={styles.storeHeaderLeft}>
-              <div className={styles.storeIcon} aria-hidden="true">
-                {store.name.charAt(0).toUpperCase()}
-              </div>
+              <StoreAvatar
+                name={store.name}
+                logoUrl={store.logo_url}
+                className={styles.storeIcon}
+              />
               <div className={styles.storeInfo}>
                 <h1 className={styles.storeName}>{store.name}{store.is_premium && <CrownBadge variant="pill" />}</h1>
                 <p className={styles.storeAddress}>{formatAddress(store.address)}</p>

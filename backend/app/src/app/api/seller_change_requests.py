@@ -35,6 +35,7 @@ from app.services.seller_profile_change_requests import (
     OPEN_STATUSES,
     create_avatar_change_request,
     create_change_request,
+    create_store_logo_change_request,
     resubmit,
     withdraw,
 )
@@ -77,16 +78,19 @@ async def _cr_owned_by(
     return cr
 
 
-def _reject_forged_avatar(group: SellerProfileChangeGroup, proposed: dict) -> None:
-    """Guard the generic JSON CR path: avatar uploads must go through
-    `POST /me/avatar` (which produces a trusted, owner-scoped storage_key).
+def _reject_forged_image(group: SellerProfileChangeGroup, proposed: dict) -> None:
+    """Guard the generic JSON CR path: avatar / store-logo *uploads* must go
+    through their dedicated multipart routes (`POST /me/avatar`,
+    `POST /me/store/logo`), which produce a trusted, owner-scoped storage_key.
 
-    The generic endpoint only permits avatar *removal* (empty avatar_url). This
-    blocks a seller from forging an avatar CR with an arbitrary avatar_url or a
-    storage_key pointing at another seller's blob.
+    The generic endpoint only permits *removal* (empty url). This blocks a
+    seller from forging an image CR with an arbitrary url or a storage_key
+    pointing at another owner's blob.
     """
     if group is SellerProfileChangeGroup.Avatar and (proposed.get("avatar_url") or ""):
         raise HTTPException(status_code=422, detail="avatar_upload_required")
+    if group is SellerProfileChangeGroup.StoreLogo and (proposed.get("logo_url") or ""):
+        raise HTTPException(status_code=422, detail="store_logo_upload_required")
 
 
 async def _attach_events(
@@ -150,7 +154,7 @@ async def create_my_change_request(
     seller: User = Depends(get_current_seller),
     session: AsyncSession = Depends(get_db_session),
 ) -> ChangeRequestRead:
-    _reject_forged_avatar(body.group, body.proposed)
+    _reject_forged_image(body.group, body.proposed)
     profile = await _seller_profile_or_404(session, seller)
     res = await create_change_request(
         session=session,
@@ -180,7 +184,7 @@ async def resubmit_my_change_request(
 ) -> ChangeRequestRead:
     profile = await _seller_profile_or_404(session, seller)
     cr = await _cr_owned_by(session, cr_id, profile)
-    _reject_forged_avatar(cr.group, body.proposed)
+    _reject_forged_image(cr.group, body.proposed)
     res = await resubmit(
         session=session,
         cr=cr,
@@ -225,6 +229,28 @@ async def upload_my_avatar(
     profile = await _seller_profile_or_404(session, seller)
     raw = await file.read()
     res = await create_avatar_change_request(
+        session=session,
+        seller_profile=profile,
+        raw=raw,
+        actor_user_id=seller.id,
+    )
+    await session.commit()
+    await session.refresh(res.cr)
+    for cb in res.emails:
+        cb()
+    return await _attach_events(session, res.cr)
+
+
+@router.post("/me/store/logo", response_model=ChangeRequestRead, status_code=201)
+async def upload_my_store_logo(
+    file: UploadFile = File(...),
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> ChangeRequestRead:
+    assert seller.id is not None
+    profile = await _seller_profile_or_404(session, seller)
+    raw = await file.read()
+    res = await create_store_logo_change_request(
         session=session,
         seller_profile=profile,
         raw=raw,

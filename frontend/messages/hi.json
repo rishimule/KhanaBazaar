@@ -1222,6 +1222,13 @@
       "etaOrderError": "अधिकतम डिलीवरी समय कम से कम न्यूनतम के बराबर होना चाहिए।",
       "removePicture": "चित्र हटाएँ",
       "avatarHint": "प्रोफ़ाइल चित्र बदलने के लिए एडमिन अनुमोदन आवश्यक है।",
+      "sectionStoreLogo": "स्टोर लोगो",
+      "storeLogoSubmitted": "स्टोर लोगो एडमिन अनुमोदन के लिए भेजा गया।",
+      "storeLogoUploadFailed": "स्टोर लोगो अपलोड विफल रहा।",
+      "storeLogoRemovalSubmitted": "स्टोर लोगो हटाने का अनुरोध एडमिन अनुमोदन के लिए भेजा गया।",
+      "storeLogoRemovalFailed": "स्टोर लोगो हटाना विफल रहा।",
+      "removeStoreLogo": "लोगो हटाएँ",
+      "storeLogoHint": "चौकोर लोगो अपलोड करें। बदलाव के लिए एडमिन अनुमोदन आवश्यक है।",
       "feeUnit": "शुल्क ₹",
       "etaUnit": "अनुमानित समय",
       "minUnit": "मिनट",
@@ -1727,6 +1734,10 @@
         "sellerNotActiveEdit": "विक्रेता सक्रिय नहीं है — संपादित नहीं किया जा सकता।",
         "minSaveError": "न्यूनतम ऑर्डर राशि सहेजी नहीं जा सकी।",
         "storeStatus": "Store status",
+        "storeLogo": "स्टोर लोगो",
+        "storeLogoHint": "तुरंत लागू होता है — एडमिन अधिकार, अनुमोदन की आवश्यकता नहीं।",
+        "storeLogoUpdated": "स्टोर लोगो अपडेट किया गया।",
+        "storeLogoError": "स्टोर लोगो अपडेट नहीं हो सका।",
         "pause": {
           "openBadge": "Open",
           "closedBadge": "Closed",
@@ -2028,7 +2039,8 @@
       "group_banking": "बैंकिंग",
       "group_services": "सेवाएँ",
       "group_store_basics": "डिलीवरी सेटिंग्स",
-      "group_avatar": "प्रोफ़ाइल चित्र"
+      "group_avatar": "प्रोफ़ाइल चित्र",
+      "group_store_logo": "स्टोर लोगो"
     },
     "paymentStatus": {
       "pending": "भुगतान लंबित",

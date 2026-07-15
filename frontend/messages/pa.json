@@ -1222,6 +1222,13 @@
       "etaOrderError": "ਵੱਧ ਤੋਂ ਵੱਧ ਡਿਲਿਵਰੀ ਸਮਾਂ ਘੱਟੋ-ਘੱਟ ਜਿੰਨਾ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ।",
       "removePicture": "ਤਸਵੀਰ ਹਟਾਓ",
       "avatarHint": "ਪ੍ਰੋਫਾਈਲ ਤਸਵੀਰ ਬਦਲਣ ਲਈ ਐਡਮਿਨ ਮਨਜ਼ੂਰੀ ਲੋੜੀਂਦੀ ਹੈ।",
+      "sectionStoreLogo": "ਸਟੋਰ ਲੋਗੋ",
+      "storeLogoSubmitted": "ਸਟੋਰ ਲੋਗੋ ਐਡਮਿਨ ਮਨਜ਼ੂਰੀ ਲਈ ਭੇਜਿਆ ਗਿਆ।",
+      "storeLogoUploadFailed": "ਸਟੋਰ ਲੋਗੋ ਅੱਪਲੋਡ ਅਸਫਲ।",
+      "storeLogoRemovalSubmitted": "ਸਟੋਰ ਲੋਗੋ ਹਟਾਉਣ ਦੀ ਬੇਨਤੀ ਐਡਮਿਨ ਮਨਜ਼ੂਰੀ ਲਈ ਭੇਜੀ ਗਈ।",
+      "storeLogoRemovalFailed": "ਸਟੋਰ ਲੋਗੋ ਹਟਾਉਣਾ ਅਸਫਲ।",
+      "removeStoreLogo": "ਲੋਗੋ ਹਟਾਓ",
+      "storeLogoHint": "ਵਰਗ ਲੋਗੋ ਅੱਪਲੋਡ ਕਰੋ। ਬਦਲਾਵਾਂ ਲਈ ਐਡਮਿਨ ਮਨਜ਼ੂਰੀ ਲੋੜੀਂਦੀ ਹੈ।",
       "feeUnit": "ਫੀਸ ₹",
       "etaUnit": "ਅਨੁਮਾਨਿਤ ਸਮਾਂ",
       "minUnit": "ਮਿੰਟ",
@@ -1727,6 +1734,10 @@
         "sellerNotActiveEdit": "ਵਿਕਰੇਤਾ ਸਰਗਰਮ ਨਹੀਂ ਹੈ — ਸੰਪਾਦਿਤ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ।",
         "minSaveError": "ਘੱਟੋ-ਘੱਟ ਆਰਡਰ ਰਕਮ ਸੰਭਾਲੀ ਨਹੀਂ ਜਾ ਸਕੀ।",
         "storeStatus": "Store status",
+        "storeLogo": "ਸਟੋਰ ਲੋਗੋ",
+        "storeLogoHint": "ਤੁਰੰਤ ਲਾਗੂ ਹੁੰਦਾ ਹੈ — ਐਡਮਿਨ ਅਧਿਕਾਰ, ਮਨਜ਼ੂਰੀ ਦੀ ਲੋੜ ਨਹੀਂ।",
+        "storeLogoUpdated": "ਸਟੋਰ ਲੋਗੋ ਅੱਪਡੇਟ ਕੀਤਾ ਗਿਆ।",
+        "storeLogoError": "ਸਟੋਰ ਲੋਗੋ ਅੱਪਡੇਟ ਨਹੀਂ ਹੋ ਸਕਿਆ।",
         "pause": {
           "openBadge": "Open",
           "closedBadge": "Closed",
@@ -2028,7 +2039,8 @@
       "group_banking": "ਬੈਂਕਿੰਗ",
       "group_services": "ਸੇਵਾਵਾਂ",
       "group_store_basics": "ਡਿਲਿਵਰੀ ਸੈਟਿੰਗਾਂ",
-      "group_avatar": "ਪ੍ਰੋਫਾਈਲ ਤਸਵੀਰ"
+      "group_avatar": "ਪ੍ਰੋਫਾਈਲ ਤਸਵੀਰ",
+      "group_store_logo": "ਸਟੋਰ ਲੋਗੋ"
     },
     "paymentStatus": {
       "pending": "ਭੁਗਤਾਨ ਬਾਕੀ",

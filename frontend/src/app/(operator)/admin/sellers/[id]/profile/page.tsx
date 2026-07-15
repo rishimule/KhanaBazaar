@@ -5,14 +5,18 @@ import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
+import AvatarUploader from "@/components/AvatarUploader";
+import StoreAvatar from "@/components/StoreAvatar";
 import { useAuth } from "@/lib/AuthContext";
-import { patch } from "@/lib/api";
+import { get, patch } from "@/lib/api";
 import { adminSetServiceDeliverySettings, fetchSellerHub } from "@/lib/adminActions";
+import { adminUploadStoreLogo } from "@/lib/avatars";
 import { adminListSellerCRs } from "@/lib/changeRequests";
 import type {
   SellerHubSummary,
   SellerProfileChangeGroup,
   SellerProfileChangeRequest,
+  Store,
 } from "@/types";
 
 export default function SellerProfileTab({
@@ -30,6 +34,10 @@ export default function SellerProfileTab({
   const [openCRs, setOpenCRs] = useState<SellerProfileChangeRequest[]>([]);
   const [minError, setMinError] = useState<string | null>(null);
   const [pausePrompt, setPausePrompt] = useState(false);
+  const [storeLogoUrl, setStoreLogoUrl] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoNotice, setLogoNotice] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const minDebounceRef = useRef<Record<number, number>>({});
   const hubRef = useRef<SellerHubSummary | null>(null);
   useEffect(() => {
@@ -40,6 +48,32 @@ export default function SellerProfileTab({
     if (!token) return;
     fetchSellerHub(Number(id), token).then(setHub).catch(() => {});
   }, [id, token]);
+
+  // Current store logo (SellerHubSummary doesn't carry it) — read from the
+  // public storefront read so the admin control shows what's live.
+  useEffect(() => {
+    const storeId = hub?.store_id;
+    if (!token || !storeId) return;
+    get<Store>(`/api/v1/stores/${storeId}`)
+      .then((s) => setStoreLogoUrl(s.logo_url ?? null))
+      .catch(() => {});
+  }, [token, hub?.store_id]);
+
+  const onAdminUploadLogo = async (blob: Blob) => {
+    if (!token || !hub) return;
+    setLogoBusy(true);
+    setLogoNotice(null);
+    setLogoError(null);
+    try {
+      const store = await adminUploadStoreLogo(hub.seller_id, blob, token);
+      setStoreLogoUrl(store.logo_url ?? null);
+      setLogoNotice(t("profile.storeLogoUpdated"));
+    } catch (e) {
+      setLogoError(e instanceof Error ? e.message : t("profile.storeLogoError"));
+    } finally {
+      setLogoBusy(false);
+    }
+  };
 
   // Open change requests by group — chips link straight to the admin detail
   // page. Errors are swallowed: the chips are nice-to-have, not required to
@@ -326,6 +360,40 @@ export default function SellerProfileTab({
               ? t("profile.pause.reopenStore")
               : t("profile.pause.closeStore")}
           </button>
+        </section>
+      )}
+      {hub.store_id && (
+        <section
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.9rem",
+            flexWrap: "wrap",
+            padding: "0.75rem 0.9rem",
+            marginBottom: "0.25rem",
+            background: "var(--color-neutral-50)",
+            border: "1px solid var(--color-neutral-100)",
+            borderRadius: "0.5rem",
+          }}
+        >
+          <StoreAvatar name={hub.business_name} logoUrl={storeLogoUrl} size={64} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+            <span style={{ fontWeight: 500 }}>{t("profile.storeLogo")}</span>
+            <AvatarUploader busy={logoBusy} onUpload={onAdminUploadLogo} />
+            <span style={{ fontSize: "0.75rem", color: "var(--color-neutral-600)" }}>
+              {t("profile.storeLogoHint")}
+            </span>
+            {logoNotice && (
+              <span style={{ fontSize: "0.8rem", color: "var(--chive-green-base-4, #166534)" }}>
+                {logoNotice}
+              </span>
+            )}
+            {logoError && (
+              <span style={{ fontSize: "0.8rem", color: "var(--color-danger, #b91c1c)" }}>
+                {logoError}
+              </span>
+            )}
+          </div>
         </section>
       )}
       {openCRStrip}

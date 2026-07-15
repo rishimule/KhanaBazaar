@@ -37,6 +37,7 @@ class StoreRead(BaseModel):
     is_paused: bool = False
     pause_reason: Optional[str] = None
     paused_until: Optional[str] = None
+    logo_url: Optional[str] = None
     distance_km: Optional[float] = None
     created_at: str
     updated_at: str

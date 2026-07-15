@@ -40,6 +40,7 @@ const ALLOWED_KEYS: Partial<Record<SellerProfileChangeGroup, Set<string>>> = {
   banking: new Set(["bank_account_number", "bank_ifsc"]),
   services: new Set(["services"]),
   store_basics: new Set(["delivery_radius_km"]),
+  store_logo: new Set(["logo_url"]),
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -68,6 +69,8 @@ const FIELD_LABELS: Record<string, string> = {
   // store_basics
   store_name: "Store name",
   delivery_radius_km: "Delivery radius",
+  // store_logo
+  logo_url: "Store logo",
 };
 
 function maskAccount(n: string): string {
@@ -135,6 +138,16 @@ function formatValue(
   }
   if (group === "services" && key === "services" && isServiceList(value)) {
     return renderServiceChips(value, serviceNames);
+  }
+  if (group === "store_logo" && key === "logo_url" && typeof value === "string") {
+    return (
+      <img
+        src={value}
+        alt=""
+        referrerPolicy="no-referrer"
+        style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8 }}
+      />
+    );
   }
   if (group === "banking" && key === "bank_account_number" && typeof value === "string") {
     return <span className={styles.mono}>{maskAccount(value)}</span>;

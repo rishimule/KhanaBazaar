@@ -17,6 +17,7 @@ import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import CrownBadge from "@/components/CrownBadge";
+import StoreAvatar from "@/components/StoreAvatar";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -267,9 +268,11 @@ function StoresPageInner() {
                 onTouchStart={() => prefetchStorefront(store.id, locale)}
               >
                 <div className={styles.cardTop}>
-                  <span className={styles.cardIcon}>
-                    {store.name.charAt(0).toUpperCase()}
-                  </span>
+                  <StoreAvatar
+                    name={store.name}
+                    logoUrl={store.logo_url}
+                    className={styles.cardIcon}
+                  />
                   <span
                     className={`${styles.cardStatus} ${
                       store.is_paused ? styles.cardStatusClosed : ""

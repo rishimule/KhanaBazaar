@@ -135,6 +135,8 @@ class Settings(BaseSettings):
     GCS_USER_MEDIA_PUBLIC_BASE_URL: str = ""
     # Avatars are downscaled smaller than catalog product images.
     AVATAR_MAX_DIMENSION_PX: int = 512
+    # Store logos are square-ish, downscaled like avatars.
+    STORE_LOGO_MAX_DIMENSION_PX: int = 512
 
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
 
