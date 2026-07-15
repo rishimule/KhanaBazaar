@@ -41,6 +41,17 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = ""
 
+    # SMTP (generic; configured for Gmail in local dev). EMAIL_PROVIDER="smtp"
+    # or "smtp+console" activates it. See .env.example / docs/development_guide.md.
+    # Temporary local-dev alternative to Resend.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_USE_TLS: bool = False
+    SMTP_TIMEOUT: float = 10.0
+
     # Support inbox: where /customers/me/support messages get forwarded.
     SUPPORT_EMAIL: str = "support@khanabazaar.example"
     # Reply-to header on customer-facing emails. Falls back to SUPPORT_EMAIL.

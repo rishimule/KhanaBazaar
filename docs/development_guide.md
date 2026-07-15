@@ -30,9 +30,16 @@ Lives at `backend/app/.env`. Template is `backend/app/.env.example`. Loader is t
 | Var | Default | Purpose |
 |---|---|---|
 | `ENVIRONMENT` | `development` | Free-form tag, used for log/diagnostic context. |
-| `EMAIL_PROVIDER` | `console` | `console` prints OTPs to stdout. `resend` sends real email via raw httpx call. |
+| `EMAIL_PROVIDER` | `console` | `console` prints OTPs to stdout. `resend` sends real email via raw httpx call. `smtp` / `smtp+console` send via SMTP (Gmail, local-dev only — see below). |
 | `RESEND_API_KEY` | `""` | Required when `EMAIL_PROVIDER=resend`. |
 | `RESEND_FROM_EMAIL` | `""` | Required when `EMAIL_PROVIDER=resend`. |
+| `SMTP_HOST` | `""` | SMTP server host, e.g. `smtp.gmail.com`. Required when `EMAIL_PROVIDER=smtp`/`smtp+console`. |
+| `SMTP_PORT` | `587` | `587` = STARTTLS, `465` = implicit SSL. |
+| `SMTP_USERNAME` | `""` | SMTP login (the Gmail address). |
+| `SMTP_PASSWORD` | `""` | 16-char Gmail App Password (NOT the account password). Secret — `.env` only. |
+| `SMTP_FROM_EMAIL` | `""` | From address — must equal `SMTP_USERNAME` or a verified "Send mail as" alias, else Gmail rewrites `From`. |
+| `SMTP_USE_TLS` | `false` | `true` → implicit SSL (port 465); `false` → STARTTLS (port 587). |
+| `SMTP_TIMEOUT` | `10.0` | Seconds bounding the connect→STARTTLS→auth→send→quit handshake. |
 | `SUPPORT_EMAIL` | `support@khanabazaar.example` | Destination inbox for `/customers/me/support` messages. Override per environment. |
 | `SMS_PROVIDER` | `console` | `console` logs codes to stdout. `twilio` does direct httpx POST (no SDK). Drives seller phone-OTP step. |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | `""` | Required when `SMS_PROVIDER=twilio`. `TWILIO_FROM_NUMBER` is E.164 (e.g. `+15005550006`). |
@@ -187,6 +194,30 @@ const me = await get<User>("/api/v1/auth/me", token);
 - Rate limits apply in dev too. If you hit them while debugging, `redis-cli FLUSHDB` clears OTP state.
 - The seller signup flow uses a separate short-lived `seller_otp` JWT (`core/security.py:create_email_verification_token`). Treat it as an email-verification token, not an access token.
 - **WhatsApp (template-first):** set `WHATSAPP_PROVIDER=console` to mock sends. With WhatsApp enabled, the phone-OTP sites (seller signup, seller phone-change, delivery OTP) prefer WhatsApp and fall back to SMS only on failure — so in dev the SMS captures for those go quiet and the codes show up under `/dev-whatsapp` instead. Customer login OTP still emails, but also mirrors to WhatsApp when the customer has a verified phone. Captured messages render the template text (copy in `core/whatsapp_templates.py`); going live with Twilio only needs the `TwilioWhatsAppSender` ContentSids — no call-site changes. See the spec in `docs/superpowers/specs/2026-06-11-whatsapp-messaging-channel-design.md`.
+
+### Gmail SMTP (temporary local-dev email delivery)
+
+A generic SMTP provider, configured for Gmail, lets you send real notification / OTP / order emails from local dev without Resend. The `/dev-emails` mailbox still captures every message when you use the `smtp+console` variant.
+
+**One-time Gmail setup:**
+
+1. Enable 2-Step Verification on the Google account.
+2. Create an App Password at <https://myaccount.google.com/apppasswords> (16 chars).
+3. In `backend/app/.env`:
+
+   ```bash
+   EMAIL_PROVIDER="smtp+console"    # send via Gmail AND capture to /dev-emails
+   SMTP_HOST="smtp.gmail.com"
+   SMTP_PORT="587"
+   SMTP_USERNAME="you@gmail.com"
+   SMTP_PASSWORD="<16-char app password>"
+   SMTP_FROM_EMAIL="you@gmail.com"  # must equal SMTP_USERNAME or a verified alias
+   SMTP_USE_TLS="false"             # false = STARTTLS (587), true = implicit SSL (465)
+   ```
+
+`EMAIL_PROVIDER` values: `console` (default), `resend`, `resend+console`, `smtp` (send only), `smtp+console` (send + dev-mailbox capture). Restart the backend after changing `.env` — settings are read at startup and `get_email_sender()` is cached.
+
+**Constraints:** the From header must match the authenticated address (Gmail rewrites it otherwise); consumer Gmail caps at ~500 recipients/day (Workspace ~2000); this is a temporary local-dev path — production still uses Resend. Dev-mailbox capture is gated to `ENVIRONMENT=development`, so `smtp+console` only records to `/dev-emails` in dev. Composite dev-mailbox rows are tagged with the real transport (`smtp` / `resend`) in the `provider` column.
 
 ---
 
