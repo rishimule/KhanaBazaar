@@ -101,6 +101,42 @@ async def test_otp_request_falls_back_to_celery_on_sender_failure(
         app.dependency_overrides.pop(get_email_sender, None)
 
 
+async def test_otp_request_falls_back_to_celery_on_smtp_failure(
+    fake_redis: fakeredis.aioredis.FakeRedis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A send-only `smtp` provider raising aiosmtplib.SMTPException degrades to
+    the Celery fallback (returns 200 + enqueues) rather than 500ing — the OTP
+    endpoint's catch is broadened beyond httpx.HTTPError."""
+    import aiosmtplib
+
+    class _SmtpFailingSender:
+        async def send(self, *args: Any, **kwargs: Any) -> None:
+            raise aiosmtplib.SMTPException("auth failed")
+
+    app.dependency_overrides[get_redis] = lambda: fake_redis
+    app.dependency_overrides[get_email_sender] = lambda: _SmtpFailingSender()
+
+    captured: list[tuple] = []
+    from app.worker import send_otp_email_async
+
+    monkeypatch.setattr(
+        send_otp_email_async, "delay", lambda *args: captured.append(args)
+    )
+
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/api/v1/auth/otp/request", json={"email": "smtpfail@example.com"}
+            )
+        assert resp.status_code == 200
+        assert len(captured) == 1
+        assert captured[0][0] == "smtpfail@example.com"
+    finally:
+        app.dependency_overrides.pop(get_redis, None)
+        app.dependency_overrides.pop(get_email_sender, None)
+
+
 async def test_otp_request_returns_ok(auth_client: dict[str, Any]) -> None:
     resp = await auth_client["client"].post(
         "/api/v1/auth/otp/request", json={"email": "user@example.com"}

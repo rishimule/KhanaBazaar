@@ -192,7 +192,11 @@ class SmtpWithConsoleSender:
             await self._smtp.send(
                 to, subject, text=text, html=html, reply_to=reply_to
             )
-        except (aiosmtplib.SMTPException, TimeoutError) as exc:
+        except (aiosmtplib.SMTPException, OSError) as exc:
+            # OSError covers ssl.SSLError (STARTTLS handshake failures on 587,
+            # which aiosmtplib does NOT wrap into SMTPException), socket.gaierror,
+            # ConnectionError, and TimeoutError. The dev-mailbox row is already
+            # written, so a Gmail-side failure never breaks the calling flow.
             logger.warning(
                 "[EMAIL] SMTP send failed to=%s error=%s "
                 "(console capture already recorded)",

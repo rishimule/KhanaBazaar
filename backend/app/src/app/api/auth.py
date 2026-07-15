@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import aiosmtplib
 import httpx
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException
@@ -151,9 +152,12 @@ async def otp_request(
             html=payload.html,
             reply_to=settings.EMAIL_REPLY_TO,
         )
-    except httpx.HTTPError:
+    except (httpx.HTTPError, aiosmtplib.SMTPException, OSError):
         # Fall back to the Celery task so the request still returns 200 to the
-        # user; the worker will retry transient Resend errors with backoff.
+        # user; the worker will retry transient errors with backoff. Covers
+        # Resend (httpx) and SMTP failures — aiosmtplib.SMTPException plus OSError
+        # (ssl.SSLError / socket.gaierror / ConnectionError / TimeoutError) — so
+        # a send-only `smtp` provider degrades gracefully instead of 500ing.
         from app.worker import send_otp_email_async
 
         send_otp_email_async.delay(email, code)

@@ -1,11 +1,13 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import asyncio
+import logging
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import aiosmtplib
 import httpx
+import pytest
 import respx
 
 from app.core.config import settings
@@ -155,6 +157,94 @@ def test_smtp_console_records_provider_smtp_even_when_send_raises(monkeypatch):
     assert recorded[0]["provider"] == "smtp"
 
 
+def test_smtp_console_records_and_sends_on_success(monkeypatch):
+    from app.core import dev_mailbox
+    from app.core.email import SmtpWithConsoleSender
+
+    _set_smtp(monkeypatch)
+    recorded: list[dict] = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(dev_mailbox, "record_outbound_email", fake_record)
+    with patch("app.core.email.aiosmtplib.send", new_callable=AsyncMock) as mock_send:
+        asyncio.run(
+            SmtpWithConsoleSender().send(to="x@example.com", subject="s", text="t")
+        )
+    # Happy path: the dev-mailbox row is recorded AND the real send is invoked.
+    assert mock_send.await_count == 1
+    assert len(recorded) == 1
+    assert recorded[0]["provider"] == "smtp"
+
+
+def test_smtp_console_propagates_unexpected_error_after_recording(monkeypatch):
+    from app.core import dev_mailbox
+    from app.core.email import SmtpWithConsoleSender
+
+    _set_smtp(monkeypatch)
+    recorded: list[dict] = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(dev_mailbox, "record_outbound_email", fake_record)
+    # An error type outside the caught set must propagate — the composite only
+    # swallows (aiosmtplib.SMTPException, OSError). The console row is written
+    # first, so it survives even when the send raises.
+    with patch("app.core.email.aiosmtplib.send", side_effect=ValueError("boom")):
+        with pytest.raises(ValueError):
+            asyncio.run(
+                SmtpWithConsoleSender().send(to="x@example.com", subject="s", text="t")
+            )
+    assert len(recorded) == 1
+    assert recorded[0]["provider"] == "smtp"
+
+
+def test_smtp_console_swallows_oserror_ssl_failure(monkeypatch):
+    from app.core import dev_mailbox
+    from app.core.email import SmtpWithConsoleSender
+
+    _set_smtp(monkeypatch)
+    recorded: list[dict] = []
+
+    async def fake_record(**kwargs):
+        recorded.append(kwargs)
+
+    monkeypatch.setattr(dev_mailbox, "record_outbound_email", fake_record)
+    # ssl.SSLError is an OSError but NOT an aiosmtplib.SMTPException; the STARTTLS
+    # path can raise it raw. The composite must swallow it (broadened catch).
+    import ssl
+
+    with patch("app.core.email.aiosmtplib.send", side_effect=ssl.SSLError("bad cert")):
+        asyncio.run(
+            SmtpWithConsoleSender().send(to="x@example.com", subject="s", text="t")
+        )
+    assert recorded[0]["provider"] == "smtp"
+
+
+def test_smtp_sender_warns_when_unconfigured(monkeypatch, caplog):
+    from app.core.email import SmtpEmailSender
+
+    monkeypatch.setattr(settings, "SMTP_HOST", "")
+    monkeypatch.setattr(settings, "SMTP_USERNAME", "")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "")
+    with caplog.at_level(logging.WARNING, logger="app.core.email"):
+        SmtpEmailSender()
+    assert any("SMTP provider selected but" in r.message for r in caplog.records)
+
+
+def test_smtp_sender_no_warning_when_configured(monkeypatch, caplog):
+    from app.core.email import SmtpEmailSender
+
+    _set_smtp(monkeypatch)
+    with caplog.at_level(logging.WARNING, logger="app.core.email"):
+        SmtpEmailSender()
+    assert not any(
+        "SMTP provider selected but" in r.message for r in caplog.records
+    )
+
+
 def test_resend_console_records_provider_resend(monkeypatch):
     from app.core import dev_mailbox
     from app.core.email import ResendWithConsoleSender
@@ -178,6 +268,28 @@ def test_resend_console_records_provider_resend(monkeypatch):
         ResendWithConsoleSender().send(to="x@example.com", subject="s", text="t")
     )
     assert recorded[0]["provider"] == "resend"
+
+
+def test_resolve_email_sends_via_smtp_in_worker(monkeypatch):
+    from app import worker
+
+    _set_smtp(monkeypatch)
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "smtp")
+    # Skip the dev-mailbox capture block so the test needs no DB; we only assert
+    # that the worker path actually invokes the SMTP transport.
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    with patch("app.core.email.aiosmtplib.send", new_callable=AsyncMock) as mock_send:
+        worker._resolve_email(
+            "x@example.com",
+            "Order placed",
+            "Your order is confirmed",
+            html="<p>ok</p>",
+        )
+    assert mock_send.await_count == 1
+    msg = mock_send.await_args.args[0]
+    assert msg["To"] == "x@example.com"
+    assert msg["Subject"] == "Order placed"
+    assert msg.get_content_type() == "multipart/alternative"
 
 
 def test_get_email_sender_returns_smtp_variants(monkeypatch):

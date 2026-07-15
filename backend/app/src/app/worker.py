@@ -277,6 +277,23 @@ def _resolve_email(
             timeout=10,
         )
         resp.raise_for_status()
+    elif settings.EMAIL_PROVIDER in ("smtp", "smtp+console"):
+        import asyncio
+        import concurrent.futures
+
+        from app.core.email import SmtpEmailSender
+
+        # _resolve_email runs in a sync Celery context; bridge to the async
+        # SmtpEmailSender on a worker thread with its own event loop (same idiom
+        # as the dev-mailbox capture below and the order-context loaders). A
+        # fresh connection per send is loop-safe under Celery's prefork worker.
+        sender = SmtpEmailSender()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(
+                lambda: asyncio.run(
+                    sender.send(to, subject, text=body, html=html, reply_to=reply_to)
+                )
+            ).result()
     else:
         # Same PII-safety gating as ConsoleEmailSender.send: only log the body
         # in development; non-dev environments see subject + recipient only.
@@ -297,6 +314,15 @@ def _resolve_email(
 
         from app.core.dev_mailbox import record_outbound_email
 
+        # Tag the dev-mailbox row with the real transport, matching the API-path
+        # composites (SmtpWithConsoleSender/ResendWithConsoleSender).
+        if settings.EMAIL_PROVIDER == "resend":
+            provider_label = "resend"
+        elif settings.EMAIL_PROVIDER in ("smtp", "smtp+console"):
+            provider_label = "smtp"
+        else:
+            provider_label = "console"
+
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 executor.submit(
@@ -307,6 +333,7 @@ def _resolve_email(
                             text=body,
                             html=html,
                             reply_to=reply_to,
+                            provider=provider_label,
                         )
                     )
                 ).result()
