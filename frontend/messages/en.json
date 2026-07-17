@@ -258,7 +258,8 @@
     "namePlaceholder": "Your Name",
     "creatingAccount": "Creating account…",
     "continue": "Continue",
-    "consent": "I agree to the <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>"
+    "consent": "I agree to the <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>",
+    "keepSignedIn": "Keep me signed in on this device"
   },
   "Sell": {
     "metaTitle": "Become a Seller",

@@ -258,7 +258,8 @@
     "namePlaceholder": "તમારું નામ",
     "creatingAccount": "ખાતું બનાવી રહ્યા છીએ…",
     "continue": "ચાલુ રાખો",
-    "consent": "હું <terms>સેવાની શરતો</terms> અને <privacy>ગોપનીયતા નીતિ</privacy> સાથે સંમત છું"
+    "consent": "હું <terms>સેવાની શરતો</terms> અને <privacy>ગોપનીયતા નીતિ</privacy> સાથે સંમત છું",
+    "keepSignedIn": "આ ડિવાઇસ પર સાઇન ઇન રહો"
   },
   "Sell": {
     "metaTitle": "વિક્રેતા બનો",

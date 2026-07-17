@@ -258,7 +258,8 @@
     "namePlaceholder": "ਤੁਹਾਡਾ ਨਾਮ",
     "creatingAccount": "ਖਾਤਾ ਬਣਾਇਆ ਜਾ ਰਿਹਾ ਹੈ…",
     "continue": "ਜਾਰੀ ਰੱਖੋ",
-    "consent": "ਮੈਂ <terms>ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</terms> ਅਤੇ <privacy>ਪਰਾਈਵੇਸੀ ਨੀਤੀ</privacy> ਨਾਲ ਸਹਿਮਤ ਹਾਂ"
+    "consent": "ਮੈਂ <terms>ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</terms> ਅਤੇ <privacy>ਪਰਾਈਵੇਸੀ ਨੀਤੀ</privacy> ਨਾਲ ਸਹਿਮਤ ਹਾਂ",
+    "keepSignedIn": "ਇਸ ਡਿਵਾਈਸ ‘ਤੇ ਸਾਈਨ ਇਨ ਰਹੋ"
   },
   "Sell": {
     "metaTitle": "ਵਿਕਰੇਤਾ ਬਣੋ",

@@ -258,7 +258,8 @@
     "namePlaceholder": "तुमचे नाव",
     "creatingAccount": "खाते तयार करत आहे…",
     "continue": "सुरू ठेवा",
-    "consent": "मी <terms>सेवा अटी</terms> आणि <privacy>गोपनीयता धोरण</privacy> यांना सहमती देतो"
+    "consent": "मी <terms>सेवा अटी</terms> आणि <privacy>गोपनीयता धोरण</privacy> यांना सहमती देतो",
+    "keepSignedIn": "या डिव्हाइसवर साइन इन राहा"
   },
   "Sell": {
     "metaTitle": "विक्रेता बना",

@@ -258,7 +258,8 @@
     "namePlaceholder": "आपका नाम",
     "creatingAccount": "खाता बनाया जा रहा है…",
     "continue": "जारी रखें",
-    "consent": "मैं <terms>सेवा की शर्तों</terms> और <privacy>गोपनीयता नीति</privacy> से सहमत हूँ"
+    "consent": "मैं <terms>सेवा की शर्तों</terms> और <privacy>गोपनीयता नीति</privacy> से सहमत हूँ",
+    "keepSignedIn": "इस डिवाइस पर साइन इन रहें"
   },
   "Sell": {
     "metaTitle": "विक्रेता बनें",
