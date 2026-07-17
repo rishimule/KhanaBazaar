@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -122,6 +122,7 @@ async def get_invite_detail(
 @router.post("/accept")
 async def accept_customer_referral(
     body: ReferralAcceptBody,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
 ) -> dict:  # type: ignore[type-arg]
@@ -175,14 +176,26 @@ async def accept_customer_referral(
     await consume_otp_key(email, redis)
     await session.refresh(user)
     await session.refresh(activated)
-    # Build the response BEFORE the best-effort notify (notify commits its own
-    # write, expiring session objects like `user`).
-    access = create_access_token(user)
+    # Referral-accept logs the user in, so it must also open a refresh session
+    # (untrusted — no "remember me" prompt in this flow). Build the response
+    # BEFORE any commit (commit expires ORM attributes like `user`).
+    from app.services.sessions import client_meta, create_session
+
+    ua, ip = client_meta(request)
+    auth_session, refresh_token = await create_session(
+        session, user=user, trusted=False, user_agent=ua, ip=ip
+    )
+    assert auth_session.id is not None
+    access = create_access_token(user, sid=auth_session.id)
     response = {
         "access_token": access,
         "token_type": "bearer",
+        "refresh_token": refresh_token,
+        "expires_in": settings.ACCESS_TOKEN_TTL_MINUTES * 60,
         "user": {"id": user.id, "email": user.email, "role": user.role.value},
     }
+    await session.commit()
+    # Best-effort referrer notification (commits its own write).
     await svc.notify_referral_event(session, referral=activated, event="activated")
     return response
 

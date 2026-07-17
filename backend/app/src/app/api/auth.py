@@ -68,6 +68,8 @@ class OTPVerifyBody(BaseModel):
     # `core.email_render.render_email`.
     full_name: str | None = Field(default=None, max_length=120)
     accept_policies: bool = False
+    # "Keep me signed in on this device" — trusted long-term session when true.
+    remember: bool = False
 
 
 class UpdateLanguageBody(BaseModel):
@@ -80,17 +82,6 @@ class RefreshBody(BaseModel):
 
 class LogoutBody(BaseModel):
     refresh_token: str
-
-
-def _client_meta(request: Request) -> tuple[str, str | None]:
-    ua = request.headers.get("user-agent", "")
-    # Cloud Run / Firebase place the real client IP first in X-Forwarded-For.
-    xff = request.headers.get("x-forwarded-for", "")
-    if xff:
-        ip: str | None = xff.split(",")[0].strip()
-    else:
-        ip = request.client.host if request.client else None
-    return ua, ip
 
 
 class SellerOtpVerifyBody(BaseModel):
@@ -209,6 +200,7 @@ async def otp_request(
 @router.post("/otp/verify")
 async def otp_verify(
     body: OTPVerifyBody,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
 ) -> dict:  # type: ignore[type-arg]
@@ -255,13 +247,28 @@ async def otp_verify(
         full_name, avatar_url = await _profile_display(session, user)
 
     await consume_otp_key(email, redis)
-    token = create_access_token(user)
     assert user.id is not None
+    from app.services.sessions import client_meta, create_session
+
+    ua, ip = client_meta(request)
+    auth_session, refresh_token = await create_session(
+        session, user=user, trusted=body.remember, user_agent=ua, ip=ip
+    )
+    assert auth_session.id is not None
+    # Build the token + payload BEFORE commit: commit expires ORM attributes and
+    # a later access would trigger a sync lazy-load inside the async request.
+    token = create_access_token(user, sid=auth_session.id)
     needs = not await has_accepted_current_policy(session, user.id)
+    user_payload = _user_payload(
+        user, full_name, avatar_url, needs_policy_acceptance=needs
+    )
+    await session.commit()
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": _user_payload(user, full_name, avatar_url, needs_policy_acceptance=needs),
+        "refresh_token": refresh_token,
+        "expires_in": settings.ACCESS_TOKEN_TTL_MINUTES * 60,
+        "user": user_payload,
         "needs_name": False,
     }
 
@@ -286,10 +293,11 @@ async def refresh(
     from app.services.sessions import (
         SessionError,
         SessionReuseDetected,
+        client_meta,
         rotate_session,
     )
 
-    ua, ip = _client_meta(request)
+    ua, ip = client_meta(request)
     try:
         user, row, new_raw = await rotate_session(
             session, raw_refresh_token=body.refresh_token, user_agent=ua, ip=ip
@@ -375,6 +383,7 @@ async def seller_otp_verify(
 @router.post("/seller/register")
 async def seller_register(
     body: SellerRegisterBody,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:  # type: ignore[type-arg]
     from app.services.seller_services import (
@@ -470,12 +479,24 @@ async def seller_register(
 
         dispatch_seller_application_submitted(profile.id)
 
-    token = create_access_token(user)
+    from app.services.sessions import client_meta, create_session
+
+    ua, ip = client_meta(request)
+    auth_session, refresh_token = await create_session(
+        session, user=user, trusted=body.remember, user_agent=ua, ip=ip
+    )
+    assert auth_session.id is not None
+    token = create_access_token(user, sid=auth_session.id)
     full_name = compose_full_name(first_name, last_name)
+    # Build the payload BEFORE the session commit (commit expires ORM attrs).
+    user_payload = _user_payload(user, full_name)
+    await session.commit()
     response = {
         "access_token": token,
         "token_type": "bearer",
-        "user": _user_payload(user, full_name),
+        "refresh_token": refresh_token,
+        "expires_in": settings.ACCESS_TOKEN_TTL_MINUTES * 60,
+        "user": user_payload,
     }
 
     # Post-commit, best-effort referrer notification, LAST (it commits its own

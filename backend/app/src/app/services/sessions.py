@@ -4,6 +4,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
+from fastapi import Request
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -23,6 +24,18 @@ class SessionInvalid(SessionError):
 class SessionReuseDetected(SessionError):
     """A rotated-out token was replayed after the grace window; the session has
     been revoked as a compromise response."""
+
+
+def client_meta(request: Request) -> tuple[str, str | None]:
+    """Extract (user_agent, client_ip) from a request for session bookkeeping.
+    Cloud Run / Firebase place the real client IP first in X-Forwarded-For."""
+    ua = request.headers.get("user-agent", "")
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        ip: str | None = xff.split(",")[0].strip()
+    else:
+        ip = request.client.host if request.client else None
+    return ua, ip
 
 
 def hash_token(raw: str) -> str:
