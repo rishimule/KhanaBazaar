@@ -68,6 +68,9 @@ JWT_SECRET=$JWT_SECRET
 OTP_PEPPER=$OTP_PEPPER
 ENVIRONMENT=development
 EMAIL_PROVIDER=console
+# public origin for clickable links in worker-sent comms (order/referral emails
+# + referral SMS); keep in sync with the api EMAIL_FRONTEND_BASE_URL, no trailing slash:
+EMAIL_FRONTEND_BASE_URL=https://khanabazaar.rishimule.dev
 SMS_PROVIDER=console
 VAPID_PRIVATE_KEY=$VAPID_PRIVATE_KEY
 VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
@@ -116,6 +119,19 @@ gh secret set NEXT_PUBLIC_VAPID_PUBLIC_KEY --body "<vapid public>"
 
 Merge to `main` → `.github/workflows/deploy.yml` runs automatically (build api+web,
 migrate-seed job, deploy api/web, restart worker on the VM).
+
+The automated deploy only *restarts* the worker container — it never rewrites the live
+`/opt/kb/.env`. So any new worker env var (e.g. `EMAIL_FRONTEND_BASE_URL`, which sets the
+public origin for clickable links in worker-sent order/referral emails + referral SMS) must
+be added to the live file once by hand, then the worker restarted to pick it up:
+
+```bash
+echo 'EMAIL_FRONTEND_BASE_URL=https://khanabazaar.rishimule.dev' \
+  | gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap \
+      --command='sudo tee -a /opt/kb/.env'
+gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap \
+  --command='cd /opt/kb && sudo docker compose up -d worker'
+```
 
 ## Deploy hardening
 
