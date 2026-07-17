@@ -15,20 +15,24 @@ from app.models.base import User, UserRole
 security = HTTPBearer(auto_error=False)
 
 
-def create_access_token(user: User) -> str:
+def create_access_token(user: User, *, sid: int | None = None) -> str:
     now = datetime.now(timezone.utc)
-    payload = {
+    payload: dict[str, object] = {
         "sub": str(user.id),
         "role": user.role.value,
         "iat": now,
-        "exp": now + timedelta(hours=settings.JWT_EXPIRES_HOURS),
+        "exp": now + timedelta(minutes=settings.ACCESS_TOKEN_TTL_MINUTES),
     }
+    if sid is not None:
+        payload["sid"] = sid
     return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
 
 
 def decode_access_token(token: str) -> dict[str, object]:
     try:
-        return jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+        return jwt.decode(
+            token, settings.JWT_SECRET, algorithms=["HS256"], leeway=30
+        )
     except jwt.ExpiredSignatureError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
