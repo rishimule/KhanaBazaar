@@ -30,6 +30,7 @@ import {
   OPERATOR_PATH_RE,
   SUPPORTED_LOCALES,
 } from "@/lib/localeCookies";
+import { refreshTokens } from "@/lib/authTokens";
 
 function readBrowserCookie(name: string): string | null {
   const m = document.cookie.match(
@@ -133,6 +134,28 @@ async function buildRequest(
   return [url, { ...options, headers }];
 }
 
+/** Send a request; on a 401 for an authed call, refresh once and retry with the
+ * new access token. Prevents the 15-min access token from surfacing as a hard
+ * failure to callers. */
+async function sendWithAuthRetry<T>(
+  url: string,
+  init: RequestInit,
+  hadToken: boolean,
+): Promise<T> {
+  let res = await fetch(url, init);
+  if (res.status === 401 && hadToken) {
+    const newAccess = await refreshTokens();
+    if (newAccess) {
+      const headers = {
+        ...(init.headers as Record<string, string>),
+        Authorization: `Bearer ${newAccess}`,
+      };
+      res = await fetch(url, { ...init, headers });
+    }
+  }
+  return handleResponse<T>(res);
+}
+
 /** GET request */
 export async function get<T>(
   path: string,
@@ -140,8 +163,7 @@ export async function get<T>(
   options?: RequestInit
 ): Promise<T> {
   const [url, init] = await buildRequest(path, { ...options, method: "GET" }, token);
-  const res = await fetch(url, init);
-  return handleResponse<T>(res);
+  return sendWithAuthRetry<T>(url, init, Boolean(token));
 }
 
 /** POST request */
@@ -160,8 +182,7 @@ export async function post<T>(
     },
     token
   );
-  const res = await fetch(url, init);
-  return handleResponse<T>(res);
+  return sendWithAuthRetry<T>(url, init, Boolean(token));
 }
 
 /** PUT request */
@@ -180,8 +201,7 @@ export async function put<T>(
     },
     token
   );
-  const res = await fetch(url, init);
-  return handleResponse<T>(res);
+  return sendWithAuthRetry<T>(url, init, Boolean(token));
 }
 
 /** PATCH request */
@@ -200,8 +220,7 @@ export async function patch<T>(
     },
     token
   );
-  const res = await fetch(url, init);
-  return handleResponse<T>(res);
+  return sendWithAuthRetry<T>(url, init, Boolean(token));
 }
 
 /** DELETE request */
@@ -215,6 +234,5 @@ export async function del<T>(
     { ...options, method: "DELETE" },
     token
   );
-  const res = await fetch(url, init);
-  return handleResponse<T>(res);
+  return sendWithAuthRetry<T>(url, init, Boolean(token));
 }
