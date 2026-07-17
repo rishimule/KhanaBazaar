@@ -52,7 +52,8 @@ interface AuthContextValue {
     email: string,
     code: string,
     fullName?: string,
-    acceptPolicies?: boolean
+    acceptPolicies?: boolean,
+    remember?: boolean
   ) => Promise<{ user: User; needsName: boolean }>;
   logout: () => void;
   /** Record acceptance of the current policy version for the logged-in user,
@@ -200,7 +201,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: string,
       code: string,
       fullName?: string,
-      acceptPolicies?: boolean
+      acceptPolicies?: boolean,
+      remember?: boolean
     ): Promise<{ user: User; needsName: boolean }> => {
       const res = await fetch(`${API_BASE}/api/v1/auth/otp/verify`, {
         method: "POST",
@@ -210,6 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           code,
           full_name: fullName ?? null,
           accept_policies: acceptPolicies ?? false,
+          remember: remember ?? false,
         }),
       });
       const data = await res.json();
