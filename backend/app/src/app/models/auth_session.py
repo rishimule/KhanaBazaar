@@ -19,6 +19,12 @@ class AuthSession(BaseSchema, table=True):
     timeout; ``absolute_expires_at`` is the hard ceiling.
     """
 
+    # Explicit table name: SQLModel would otherwise default to the lowercased
+    # class name ("authsession"), but the migration + schema.sql create
+    # "auth_session". Every underscore-named table in this repo pins
+    # __tablename__ the same way (admin_action_log, notification_campaign, …).
+    __tablename__ = "auth_session"
+
     user_id: int = Field(foreign_key="user.id", index=True, nullable=False)
     refresh_token_hash: str = Field(index=True, nullable=False)
     prev_token_hash: Optional[str] = Field(default=None, index=True)
