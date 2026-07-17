@@ -6,10 +6,9 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { ApiError, post } from "@/lib/api";
+import { setTokens } from "@/lib/authTokens";
 import { acceptCustomerReferral, getInvite, type ReferralInviteDetail } from "@/lib/referrals";
 import styles from "./page.module.css";
-
-const TOKEN_KEY = "kb_token";
 
 export default function InviteAcceptPage() {
   return (
@@ -88,7 +87,7 @@ function InviteAcceptInner() {
         full_name: fullName.trim() || undefined,
         accept_policies: agree,
       });
-      localStorage.setItem(TOKEN_KEY, res.access_token);
+      setTokens(res.access_token, res.refresh_token, res.expires_in);
       window.location.assign(`/${locale}/account`);
     } catch (err) {
       if (err instanceof ApiError) {
