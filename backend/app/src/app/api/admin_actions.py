@@ -403,6 +403,42 @@ async def admin_seller_activity(
     return ActivityLogPage(items=items, next_cursor=next_cursor)
 
 
+@router.post("/sellers/{seller_id}/revoke-sessions")
+async def admin_revoke_seller_sessions(
+    seller_id: int,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    """Force-logout every live session for a seller's ``User`` account.
+
+    ``{seller_id}`` is the seller's ``User.id`` (matches the convention shared
+    with every other ``/admin/sellers/{seller_id}/*`` route in this file).
+    """
+    from app.services.sessions import revoke_all_sessions
+
+    profile = (
+        await session.exec(
+            select(SellerProfile).where(SellerProfile.user_id == seller_id)
+        )
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="seller_not_found")
+
+    revoked = await revoke_all_sessions(session, user_id=seller_id)
+    assert profile.id is not None and admin.id is not None
+    await admin_audit.log(
+        session=session,
+        admin_user_id=admin.id,
+        target_seller_id=profile.id,
+        target_type=AdminActionTargetType.SellerProfile,
+        target_id=profile.id,
+        action="user.revoke_sessions",
+        reason=None,
+    )
+    await session.commit()
+    return {"revoked": revoked}
+
+
 @router.get("/sellers/{seller_id}", response_model=SellerHubSummary)
 async def admin_seller_hub_summary(
     seller_id: int,
