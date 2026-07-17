@@ -21,6 +21,19 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     JWT_EXPIRES_HOURS: int = 24
 
+    # Access token (short-lived) + refresh sessions. JWT_EXPIRES_HOURS above is
+    # retired for the access token; the 24h value now lives in
+    # SESSION_UNTRUSTED_TTL_HOURS (untrusted refresh cap).
+    ACCESS_TOKEN_TTL_MINUTES: int = 15
+    SESSION_UNTRUSTED_TTL_HOURS: int = 24
+    SESSION_CUSTOMER_IDLE_DAYS: int = 30
+    SESSION_CUSTOMER_MAX_DAYS: int = 180
+    SESSION_SELLER_IDLE_DAYS: int = 14
+    SESSION_SELLER_MAX_DAYS: int = 90
+    SESSION_ADMIN_IDLE_DAYS: int = 7
+    SESSION_ADMIN_MAX_DAYS: int = 30
+    REFRESH_TOKEN_REUSE_GRACE_SECONDS: int = 30
+
     # Referrals
     REFERRAL_INVITE_EXPIRY_DAYS: int = 14
     REFERRAL_RATE_LIMIT_PER_HOUR: int = 20
