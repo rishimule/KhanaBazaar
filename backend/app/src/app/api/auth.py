@@ -3,7 +3,7 @@
 import aiosmtplib
 import httpx
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -72,6 +72,25 @@ class OTPVerifyBody(BaseModel):
 
 class UpdateLanguageBody(BaseModel):
     language: LanguageCode
+
+
+class RefreshBody(BaseModel):
+    refresh_token: str
+
+
+class LogoutBody(BaseModel):
+    refresh_token: str
+
+
+def _client_meta(request: Request) -> tuple[str, str | None]:
+    ua = request.headers.get("user-agent", "")
+    # Cloud Run / Firebase place the real client IP first in X-Forwarded-For.
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        ip: str | None = xff.split(",")[0].strip()
+    else:
+        ip = request.client.host if request.client else None
+    return ua, ip
 
 
 class SellerOtpVerifyBody(BaseModel):
@@ -256,6 +275,59 @@ async def me(
     assert user.id is not None
     needs = not await has_accepted_current_policy(session, user.id)
     return _user_payload(user, full_name, avatar_url, needs_policy_acceptance=needs)
+
+
+@router.post("/refresh")
+async def refresh(
+    body: RefreshBody,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    from app.services.sessions import (
+        SessionError,
+        SessionReuseDetected,
+        rotate_session,
+    )
+
+    ua, ip = _client_meta(request)
+    try:
+        user, row, new_raw = await rotate_session(
+            session, raw_refresh_token=body.refresh_token, user_agent=ua, ip=ip
+        )
+    except SessionReuseDetected:
+        await session.commit()  # persist the compromise revocation
+        raise HTTPException(
+            status_code=401, detail={"error": "session_revoked"}
+        ) from None
+    except SessionError:
+        raise HTTPException(
+            status_code=401, detail={"error": "invalid_session"}
+        ) from None
+
+    # Mint the access token BEFORE commit: commit expires the ORM attributes,
+    # and accessing user/row afterwards would trigger a sync lazy-load that
+    # fails inside the async request.
+    assert row.id is not None
+    access = create_access_token(user, sid=row.id)
+    await session.commit()
+    return {
+        "access_token": access,
+        "token_type": "bearer",
+        "refresh_token": new_raw,
+        "expires_in": settings.ACCESS_TOKEN_TTL_MINUTES * 60,
+    }
+
+
+@router.post("/logout")
+async def logout(
+    body: LogoutBody,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    from app.services.sessions import revoke_session_by_token
+
+    await revoke_session_by_token(session, raw_refresh_token=body.refresh_token)
+    await session.commit()
+    return {"ok": True}
 
 
 @router.post("/policy/accept")
