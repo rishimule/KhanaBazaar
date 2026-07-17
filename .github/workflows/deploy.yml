@@ -69,7 +69,7 @@ jobs:
       - name: Deploy api
         run: |
           gcloud run services update khanabazaar-api --region=$REGION --image=$API_IMAGE \
-            --update-env-vars=COMPANY_NAME="Sarvaka"
+            --update-env-vars=COMPANY_NAME="Sarvaka",EMAIL_FRONTEND_BASE_URL="https://khanabazaar.rishimule.dev"
 
       - name: Deploy web (runtime INTERNAL_API_URL too)
         run: |
