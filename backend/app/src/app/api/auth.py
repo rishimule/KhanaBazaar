@@ -1,5 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+from datetime import datetime, timezone
+
 import aiosmtplib
 import httpx
 import redis.asyncio as aioredis
@@ -31,6 +33,7 @@ from app.core.security import (
     create_seller_signup_token,
     decode_seller_email_token,
     decode_seller_signup_token,
+    get_current_sid,
     get_current_user,
 )
 from app.core.sms import SMSSender, get_sms_sender
@@ -87,6 +90,16 @@ class LogoutBody(BaseModel):
 class SellerOtpVerifyBody(BaseModel):
     email: EmailStr
     code: str
+
+
+class SessionListItem(BaseModel):
+    id: int
+    device_label: str
+    ip: str | None
+    trusted: bool
+    created_at: datetime
+    last_used_at: datetime
+    current: bool
 
 
 async def _profile_display(
@@ -336,6 +349,71 @@ async def logout(
     await revoke_session_by_token(session, raw_refresh_token=body.refresh_token)
     await session.commit()
     return {"ok": True}
+
+
+@router.get("/sessions")
+async def list_sessions(
+    user: User = Depends(get_current_user),
+    sid: int | None = Depends(get_current_sid),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[SessionListItem]:
+    from app.models.auth_session import AuthSession
+
+    now = datetime.now(timezone.utc)
+    rows = (
+        await session.exec(
+            select(AuthSession)
+            .where(
+                AuthSession.user_id == user.id,
+                AuthSession.revoked_at.is_(None),  # type: ignore[union-attr]
+                AuthSession.absolute_expires_at > now,
+            )
+            .order_by(AuthSession.last_used_at.desc())  # type: ignore[attr-defined]
+        )
+    ).all()
+    return [
+        SessionListItem(
+            id=r.id,  # type: ignore[arg-type]
+            device_label=r.device_label or "Unknown device",
+            ip=r.ip,
+            trusted=r.trusted,
+            created_at=r.created_at,
+            last_used_at=r.last_used_at,
+            current=(sid is not None and r.id == sid),
+        )
+        for r in rows
+    ]
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+async def revoke_one_session(
+    session_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    from app.services.sessions import revoke_session
+
+    assert user.id is not None
+    ok = await revoke_session(session, auth_session_id=session_id, user_id=user.id)
+    await session.commit()
+    if not ok:
+        raise HTTPException(status_code=404, detail={"error": "session_not_found"})
+
+
+@router.post("/sessions/revoke-all")
+async def revoke_all_sessions_route(
+    user: User = Depends(get_current_user),
+    sid: int | None = Depends(get_current_sid),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    from app.services.sessions import revoke_all_sessions
+
+    assert user.id is not None
+    n = await revoke_all_sessions(
+        session, user_id=user.id, except_auth_session_id=sid
+    )
+    await session.commit()
+    return {"revoked": n}
 
 
 @router.post("/policy/accept")

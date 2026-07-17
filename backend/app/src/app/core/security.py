@@ -80,6 +80,20 @@ async def get_current_user(
     return user
 
 
+async def get_current_sid(
+    payload: dict[str, object] = Depends(verify_access_token),
+) -> int | None:
+    """The `sid` (session id) claim from the access token, or None for a legacy
+    sidless token. Used to flag / spare the caller's current session."""
+    sid = payload.get("sid")
+    if sid is None:
+        return None
+    try:
+        return int(str(sid))
+    except (TypeError, ValueError):
+        return None
+
+
 async def get_optional_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     session: AsyncSession = Depends(get_db_session),
