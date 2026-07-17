@@ -45,7 +45,14 @@ Lives at `backend/app/.env`. Template is `backend/app/.env.example`. Loader is t
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | `""` | Required when `SMS_PROVIDER=twilio`. `TWILIO_FROM_NUMBER` is E.164 (e.g. `+15005550006`). |
 | `WHATSAPP_PROVIDER` | `none` | `none` disables WhatsApp (`get_whatsapp_sender()` → `None`). `console` mocks → captures to `dev_whatsapp` → `/dev-whatsapp`. `twilio` uses the Content API. Set `console` in dev to see captures. |
 | `TWILIO_WHATSAPP_FROM` | `""` | The `whatsapp:+...` sender (sandbox or approved number). Required when `WHATSAPP_PROVIDER=twilio`; reuses `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`. |
-| `JWT_EXPIRES_HOURS` | `24` | Access-token TTL. |
+| `JWT_EXPIRES_HOURS` | `24` | Retired for the access token — no longer read for that TTL. Its 24h value now lives in `SESSION_UNTRUSTED_TTL_HOURS` (see below). |
+| `ACCESS_TOKEN_TTL_MINUTES` | `15` | Access-token TTL. The access token is short-lived by design; long-term sign-in is handled by the rotating refresh-session system (see `docs/superpowers/specs/2026-07-17-trusted-device-long-term-signin-design.md`). |
+| `SESSION_UNTRUSTED_TTL_HOURS` | `24` | Absolute cap for an untrusted (no "remember me") refresh session. |
+| `SESSION_CUSTOMER_IDLE_DAYS` / `SESSION_CUSTOMER_MAX_DAYS` | `30` / `180` | Trusted-session sliding idle timeout / absolute cap for Customers. |
+| `SESSION_SELLER_IDLE_DAYS` / `SESSION_SELLER_MAX_DAYS` | `14` / `90` | Trusted-session sliding idle timeout / absolute cap for Sellers. |
+| `SESSION_ADMIN_IDLE_DAYS` / `SESSION_ADMIN_MAX_DAYS` | `7` / `30` | Trusted-session sliding idle timeout / absolute cap for Admins. |
+| `REFRESH_TOKEN_REUSE_GRACE_SECONDS` | `30` | Window in which replaying the immediately-previous refresh token is tolerated (concurrent requests), rather than treated as theft. |
+| `SESSION_REUSE_HISTORY_SIZE` | `5` | Bounded count of older rotated-out token hashes kept per session so reuse of a stale-but-genuine token (beyond just the immediate previous one) is still detected as a compromise signal. |
 | `OTP_TTL_SECONDS` | `600` | OTP code lifetime in Redis. |
 | `OTP_MAX_ATTEMPTS` | `5` | Verify failures before key is purged. |
 | `OTP_RESEND_COOLDOWN` | `60` | Seconds between OTP requests for one email. |
@@ -157,8 +164,10 @@ Code references:
 Issued in `core/security.py:create_access_token`:
 
 ```python
-{ "sub": str(user.id), "role": user.role.value, "iat": ..., "exp": iat + JWT_EXPIRES_HOURS }
+{ "sub": str(user.id), "role": user.role.value, "iat": ..., "exp": iat + ACCESS_TOKEN_TTL_MINUTES, "sid": auth_session.id }
 ```
+
+`exp` is 15 minutes out (`ACCESS_TOKEN_TTL_MINUTES`), not the old 24h `JWT_EXPIRES_HOURS`. `sid` is the backing `AuthSession.id` — present whenever the access token was minted alongside a refresh session (login, seller register, referral accept); see `docs/superpowers/specs/2026-07-17-trusted-device-long-term-signin-design.md` for the full rotating-refresh-session design.
 
 ### Role-guard dependencies
 
