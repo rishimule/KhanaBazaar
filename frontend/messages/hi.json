@@ -960,7 +960,8 @@
       "plan": "योजना",
       "referrals": "रेफ़रल",
       "credit": "क्रेडिट",
-      "storeQr": "स्टोर QR"
+      "storeQr": "स्टोर QR",
+      "devices": "डिवाइस"
     },
     "titles": {
       "dashboard": "विक्रेता डैशबोर्ड",
@@ -972,7 +973,8 @@
       "plan": "योजना और बिलिंग",
       "referrals": "रेफ़रल",
       "credit": "क्रेडिट ग्राहक",
-      "storeQr": "स्टोर QR कोड"
+      "storeQr": "स्टोर QR कोड",
+      "devices": "डिवाइस और सेशन"
     },
     "common": {
       "save": "सहेजें",
@@ -1396,6 +1398,7 @@
       "changeRequests": "बदलाव अनुरोध",
       "catalog": "कैटलॉग",
       "settings": "सेटिंग्स",
+      "devices": "डिवाइस",
       "policies": "नीतियाँ",
       "onboardingRequests": "ऑनबोर्डिंग",
       "fees": "शुल्क",
@@ -1412,6 +1415,7 @@
       "orders": "सभी ऑर्डर",
       "panel": "एडमिन पैनल",
       "settings": "सेटिंग्स",
+      "devices": "डिवाइस और सेशन",
       "changeRequests": "बदलाव अनुरोध",
       "policies": "नीतियाँ",
       "onboardingRequests": "विक्रेता ऑनबोर्डिंग अनुरोध",

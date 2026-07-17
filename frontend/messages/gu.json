@@ -960,7 +960,8 @@
       "plan": "પ્લાન",
       "referrals": "રેફરલ",
       "credit": "ક્રેડિટ",
-      "storeQr": "સ્ટોર QR"
+      "storeQr": "સ્ટોર QR",
+      "devices": "ડિવાઇસ"
     },
     "titles": {
       "dashboard": "વિક્રેતા ડેશબોર્ડ",
@@ -972,7 +973,8 @@
       "plan": "પ્લાન અને બિલિંગ",
       "referrals": "રેફરલ",
       "credit": "ક્રેડિટ ગ્રાહકો",
-      "storeQr": "સ્ટોર QR કોડ"
+      "storeQr": "સ્ટોર QR કોડ",
+      "devices": "ડિવાઇસ અને સેશન"
     },
     "common": {
       "save": "સાચવો",
@@ -1396,6 +1398,7 @@
       "changeRequests": "બદલાવ વિનંતી",
       "catalog": "કેટલોગ",
       "settings": "સેટિંગ્સ",
+      "devices": "ડિવાઇસ",
       "policies": "નીતિઓ",
       "onboardingRequests": "ઓનબોર્ડિંગ",
       "fees": "ફી",
@@ -1412,6 +1415,7 @@
       "orders": "બધા ઓર્ડર",
       "panel": "એડમિન પેનલ",
       "settings": "સેટિંગ્સ",
+      "devices": "ડિવાઇસ અને સેશન",
       "changeRequests": "બદલાવ વિનંતી",
       "policies": "નીતિઓ",
       "onboardingRequests": "વિક્રેતા ઓનબોર્ડિંગ વિનંતીઓ",

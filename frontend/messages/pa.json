@@ -960,7 +960,8 @@
       "plan": "ਪਲਾਨ",
       "referrals": "ਰੈਫ਼ਰਲ",
       "credit": "ਕ੍ਰੈਡਿਟ",
-      "storeQr": "ਸਟੋਰ QR"
+      "storeQr": "ਸਟੋਰ QR",
+      "devices": "ਡਿਵਾਈਸ"
     },
     "titles": {
       "dashboard": "ਵਿਕਰੇਤਾ ਡੈਸ਼ਬੋਰਡ",
@@ -972,7 +973,8 @@
       "plan": "ਪਲਾਨ ਅਤੇ ਬਿਲਿੰਗ",
       "referrals": "ਰੈਫ਼ਰਲ",
       "credit": "ਕ੍ਰੈਡਿਟ ਗਾਹਕ",
-      "storeQr": "ਸਟੋਰ QR ਕੋਡ"
+      "storeQr": "ਸਟੋਰ QR ਕੋਡ",
+      "devices": "ਡਿਵਾਈਸ ਅਤੇ ਸੈਸ਼ਨ"
     },
     "common": {
       "save": "ਸੰਭਾਲੋ",
@@ -1396,6 +1398,7 @@
       "changeRequests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
       "catalog": "ਕੈਟਾਲਾਗ",
       "settings": "ਸੈਟਿੰਗਾਂ",
+      "devices": "ਡਿਵਾਈਸ",
       "policies": "ਨੀਤੀਆਂ",
       "onboardingRequests": "ਆਨਬੋਰਡਿੰਗ",
       "fees": "ਫ਼ੀਸ",
@@ -1412,6 +1415,7 @@
       "orders": "ਸਾਰੇ ਆਰਡਰ",
       "panel": "ਐਡਮਿਨ ਪੈਨਲ",
       "settings": "ਸੈਟਿੰਗਾਂ",
+      "devices": "ਡਿਵਾਈਸ ਅਤੇ ਸੈਸ਼ਨ",
       "changeRequests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
       "policies": "ਨੀਤੀਆਂ",
       "onboardingRequests": "ਵਿਕਰੇਤਾ ਆਨਬੋਰਡਿੰਗ ਬੇਨਤੀਆਂ",

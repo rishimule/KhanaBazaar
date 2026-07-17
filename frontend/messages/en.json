@@ -959,7 +959,8 @@
       "plan": "Plan",
       "referrals": "Referrals",
       "credit": "Credit",
-      "storeQr": "Store QR"
+      "storeQr": "Store QR",
+      "devices": "Devices"
     },
     "titles": {
       "dashboard": "Seller Dashboard",
@@ -971,7 +972,8 @@
       "plan": "Plan & Billing",
       "referrals": "Referrals",
       "credit": "Credit customers",
-      "storeQr": "Store QR Code"
+      "storeQr": "Store QR Code",
+      "devices": "Devices & sessions"
     },
     "common": {
       "save": "Save",
@@ -1395,6 +1397,7 @@
       "changeRequests": "Change requests",
       "catalog": "Catalog",
       "settings": "Settings",
+      "devices": "Devices",
       "policies": "Policies",
       "onboardingRequests": "Onboarding",
       "referrals": "Referrals",
@@ -1412,6 +1415,7 @@
       "orders": "All Orders",
       "panel": "Admin Panel",
       "settings": "Settings",
+      "devices": "Devices & sessions",
       "changeRequests": "Change requests",
       "policies": "Policies",
       "onboardingRequests": "Seller Onboarding Requests",
