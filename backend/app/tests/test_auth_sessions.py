@@ -42,8 +42,7 @@ async def test_delete_session_revokes_and_404s_for_others(
     client: AsyncClient, session: Any
 ) -> None:
     user, row, raw, token = await _user_with_session(session)
-    from app.services.sessions import create_session, rotate_session, SessionInvalid
-    import pytest
+    from app.services.sessions import create_session
 
     victim, _v = await create_session(session, user=user, trusted=True)
     await session.commit()
@@ -69,7 +68,7 @@ async def test_delete_session_revokes_and_404s_for_others(
 
 async def test_revoke_all_spares_current(client: AsyncClient, session: Any) -> None:
     user, row, raw, token = await _user_with_session(session)
-    from app.services.sessions import create_session, rotate_session
+    from app.services.sessions import create_session
 
     await create_session(session, user=user, trusted=True)
     await create_session(session, user=user, trusted=True)

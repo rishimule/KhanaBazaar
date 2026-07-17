@@ -373,7 +373,7 @@ async def list_sessions(
     ).all()
     return [
         SessionListItem(
-            id=r.id,  # type: ignore[arg-type]
+            id=r.id,
             device_label=r.device_label or "Unknown device",
             ip=r.ip,
             trusted=r.trusted,
