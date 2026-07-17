@@ -116,6 +116,43 @@ async def test_accept_creates_customer(client, session, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_accept_issues_auth_session(client, session, monkeypatch):
+    """Referral-accept logs the user in, so it must also open an untrusted
+    refresh session and return refresh_token/expires_in alongside the access
+    token (see accept_customer_referral in api/referrals.py)."""
+    from app.models.auth_session import AuthSession
+
+    r = _approved_referral(invitee_email="sessionjoin@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="sessionjoin@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={"token": tok, "code": "123456", "full_name": "Session Joiner", "accept_policies": True},
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["refresh_token"]
+    assert body["expires_in"] == 15 * 60
+
+    new_user_id = body["user"]["id"]
+    row = (
+        await session.exec(
+            select(AuthSession).where(AuthSession.user_id == new_user_id)
+        )
+    ).first()
+    assert row is not None
+    assert row.trusted is False
+
+
+@pytest.mark.asyncio
 async def test_accept_expired_invite_conflict(client, session, monkeypatch):
     r = _approved_referral(invitee_email="stale@example.com")
     r.invite_expires_at = datetime.now(timezone.utc) - timedelta(days=1)
