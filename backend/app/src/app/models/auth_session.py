@@ -3,6 +3,8 @@
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import Column, String, text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import DateTime, Field
 
 from app.models.base import BaseSchema
@@ -38,3 +40,7 @@ class AuthSession(BaseSchema, table=True):
     device_label: str = Field(default="", nullable=False)
     user_agent: str = Field(default="", nullable=False)
     ip: Optional[str] = Field(default=None)
+    rotated_hashes: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(ARRAY(String), nullable=False, server_default=text("'{}'")),
+    )

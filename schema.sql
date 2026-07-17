@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `f2b3f31f10a0`. Regenerate this file when the head changes.
+-- migration head `9383edc91f22`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
@@ -1237,7 +1237,8 @@ CREATE TABLE "auth_session" (
   "revoked_at" TIMESTAMPTZ,
   "device_label" VARCHAR NOT NULL DEFAULT '',
   "user_agent" VARCHAR NOT NULL DEFAULT '',
-  "ip" VARCHAR
+  "ip" VARCHAR,
+  "rotated_hashes" VARCHAR[] NOT NULL DEFAULT '{}'
 );
 CREATE INDEX "ix_auth_session_user_id" ON "auth_session" ("user_id");
 CREATE INDEX "ix_auth_session_refresh_token_hash" ON "auth_session" ("refresh_token_hash");

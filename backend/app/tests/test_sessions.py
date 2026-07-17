@@ -169,6 +169,101 @@ async def test_rotate_idle_expiry_rejected(session: Any) -> None:
         await rotate_session(session, raw_refresh_token=raw)
 
 
+async def test_rotate_two_generation_stale_token_revokes(session: Any) -> None:
+    from sqlmodel import select
+
+    from app.models.auth_session import AuthSession
+    from app.services.sessions import (
+        SessionReuseDetected,
+        create_session,
+        rotate_session,
+    )
+
+    user = await _make_user(session)
+    row, raw = await create_session(session, user=user, trusted=True)
+    await session.commit()
+    row_id = row.id
+
+    _u1, _r1, r1 = await rotate_session(session, raw_refresh_token=raw)
+    await session.commit()
+    _u2, _r2, _r2new = await rotate_session(session, raw_refresh_token=r1)
+    await session.commit()
+
+    # `raw` is now two generations stale (older than prev) — replaying it must
+    # be detected as reuse and revoke the session.
+    with pytest.raises(SessionReuseDetected):
+        await rotate_session(session, raw_refresh_token=raw)
+    await session.commit()
+
+    reloaded = (
+        await session.exec(select(AuthSession).where(AuthSession.id == row_id))
+    ).one()
+    assert reloaded.revoked_at is not None
+
+
+async def test_rotate_garbage_token_never_revokes(session: Any) -> None:
+    from sqlmodel import select
+
+    from app.models.auth_session import AuthSession
+    from app.services.sessions import (
+        SessionInvalid,
+        create_session,
+        generate_refresh_token,
+        rotate_session,
+    )
+
+    user = await _make_user(session)
+    row, raw = await create_session(session, user=user, trusted=True)
+    await session.commit()
+    row_id = row.id
+
+    await rotate_session(session, raw_refresh_token=raw)
+    await session.commit()
+
+    garbage = "garbage-" + generate_refresh_token()
+    with pytest.raises(SessionInvalid):
+        await rotate_session(session, raw_refresh_token=garbage)
+    await session.commit()
+
+    reloaded = (
+        await session.exec(select(AuthSession).where(AuthSession.id == row_id))
+    ).one()
+    assert reloaded.revoked_at is None
+
+
+async def test_rotate_history_capped(session: Any) -> None:
+    from sqlmodel import select
+
+    from app.core.config import settings
+    from app.models.auth_session import AuthSession
+    from app.services.sessions import (
+        SessionInvalid,
+        create_session,
+        rotate_session,
+    )
+
+    user = await _make_user(session)
+    row, raw = await create_session(session, user=user, trusted=True)
+    await session.commit()
+    row_id = row.id
+
+    current = raw
+    for _ in range(settings.SESSION_REUSE_HISTORY_SIZE + 2):
+        _u, _r, current = await rotate_session(session, raw_refresh_token=current)
+        await session.commit()
+
+    # The original token has now been evicted past the bounded-history cap —
+    # it should look unrecognized, not trigger reuse detection.
+    with pytest.raises(SessionInvalid):
+        await rotate_session(session, raw_refresh_token=raw)
+    await session.commit()
+
+    reloaded = (
+        await session.exec(select(AuthSession).where(AuthSession.id == row_id))
+    ).one()
+    assert reloaded.revoked_at is None
+
+
 async def test_revoke_session_and_by_token(session: Any) -> None:
     from app.services.sessions import (
         SessionInvalid,

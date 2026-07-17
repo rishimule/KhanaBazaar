@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     SESSION_ADMIN_IDLE_DAYS: int = 7
     SESSION_ADMIN_MAX_DAYS: int = 30
     REFRESH_TOKEN_REUSE_GRACE_SECONDS: int = 30
+    SESSION_REUSE_HISTORY_SIZE: int = 5
 
     # Referrals
     REFERRAL_INVITE_EXPIRY_DAYS: int = 14

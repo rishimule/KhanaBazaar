@@ -164,6 +164,25 @@ async def rotate_session(
             )
         ).first()
         if prev is None:
+            # Not the current hash, not the immediate previous hash. Check the
+            # bounded history of older rotated-out hashes: these are ALWAYS
+            # older than `prev`, so a match here is always "after grace" —
+            # genuine reuse of a stale-but-once-issued token. A hash that
+            # matches nothing stored anywhere is a forged/garbage token and
+            # MUST NOT revoke anything (no session-revocation DoS).
+            hist_row = (
+                await session.exec(
+                    select(AuthSession)
+                    .where(AuthSession.rotated_hashes.contains([h]))  # type: ignore[attr-defined]
+                    .with_for_update()
+                )
+            ).first()
+            if hist_row is not None:
+                if hist_row.revoked_at is None:
+                    hist_row.revoked_at = now
+                    session.add(hist_row)
+                    await session.flush()
+                raise SessionReuseDetected()
             raise SessionInvalid()
         grace = timedelta(seconds=settings.REFRESH_TOKEN_REUSE_GRACE_SECONDS)
         if (
@@ -191,6 +210,10 @@ async def rotate_session(
         raise SessionInvalid()
 
     new_raw = generate_refresh_token()
+    if row.prev_token_hash is not None:
+        history = list(row.rotated_hashes or [])
+        history.insert(0, row.prev_token_hash)  # displaced prev becomes gen-2
+        row.rotated_hashes = history[: settings.SESSION_REUSE_HISTORY_SIZE]
     row.prev_token_hash = row.refresh_token_hash
     row.prev_rotated_at = now
     row.refresh_token_hash = hash_token(new_raw)
