@@ -249,6 +249,36 @@ async def revoke_session(
     return True
 
 
+async def revoke_all_sessions(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    except_auth_session_id: int | None = None,
+) -> int:
+    """Revoke every live (non-revoked) session owned by user_id, optionally
+    sparing one (e.g. the caller's current session on 'log out everywhere').
+    Returns the number of sessions revoked. Flushes; the caller commits."""
+    now = datetime.now(timezone.utc)
+    rows = (
+        await session.exec(
+            select(AuthSession).where(
+                AuthSession.user_id == user_id,
+                AuthSession.revoked_at.is_(None),  # type: ignore[union-attr]
+            )
+        )
+    ).all()
+    count = 0
+    for row in rows:
+        if except_auth_session_id is not None and row.id == except_auth_session_id:
+            continue
+        row.revoked_at = now
+        session.add(row)
+        count += 1
+    if count:
+        await session.flush()
+    return count
+
+
 async def revoke_session_by_token(
     session: AsyncSession, *, raw_refresh_token: str
 ) -> bool:

@@ -289,3 +289,48 @@ async def test_revoke_session_and_by_token(session: Any) -> None:
     await session.commit()
     with pytest.raises(SessionInvalid):
         await rotate_session(session, raw_refresh_token=raw2)
+
+
+async def test_revoke_all_sessions_spares_current(session: Any) -> None:
+    from sqlmodel import select
+
+    from app.models.auth_session import AuthSession
+    from app.services.sessions import create_session, revoke_all_sessions
+
+    user = await _make_user(session)
+    keep, _k = await create_session(session, user=user, trusted=True)
+    a, _a = await create_session(session, user=user, trusted=True)
+    b, _b = await create_session(session, user=user, trusted=True)
+    await session.commit()
+
+    n = await revoke_all_sessions(
+        session, user_id=user.id, except_auth_session_id=keep.id
+    )
+    await session.commit()
+    assert n == 2
+
+    rows = {
+        r.id: r
+        for r in (
+            await session.exec(select(AuthSession).where(AuthSession.user_id == user.id))
+        ).all()
+    }
+    assert rows[keep.id].revoked_at is None
+    assert rows[a.id].revoked_at is not None
+    assert rows[b.id].revoked_at is not None
+
+
+async def test_revoke_all_sessions_no_except_revokes_all(session: Any) -> None:
+    from app.services.sessions import create_session, revoke_all_sessions
+
+    user = await _make_user(session)
+    await create_session(session, user=user, trusted=True)
+    await create_session(session, user=user, trusted=True)
+    await session.commit()
+    n = await revoke_all_sessions(session, user_id=user.id)
+    await session.commit()
+    assert n == 2
+    # Idempotent: a second sweep revokes nothing (all already revoked).
+    n2 = await revoke_all_sessions(session, user_id=user.id)
+    await session.commit()
+    assert n2 == 0
