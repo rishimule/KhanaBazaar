@@ -934,6 +934,19 @@
     "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
     "appliesToDevice": "Applies to this device."
   },
+  "Devices": {
+    "title": "Devices & sessions",
+    "subtitle": "These are the devices currently signed in to your account.",
+    "thisDevice": "This device",
+    "lastActive": "Last active {when}",
+    "trusted": "Stays signed in",
+    "logOut": "Log out",
+    "logOutOthers": "Log out of all other devices",
+    "empty": "No active sessions.",
+    "loading": "Loading sessions…",
+    "error": "Could not load your sessions. Please try again.",
+    "othersLoggedOut": "Logged out of {count} other device(s)."
+  },
   "Seller": {
     "nav": {
       "dashboard": "Dashboard",

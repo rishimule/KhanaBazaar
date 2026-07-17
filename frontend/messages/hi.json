@@ -935,6 +935,19 @@
     "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
     "appliesToDevice": "Applies to this device."
   },
+  "Devices": {
+    "title": "डिवाइस और सेशन",
+    "subtitle": "ये वे डिवाइस हैं जो फ़िलहाल आपके खाते में साइन इन हैं।",
+    "thisDevice": "यह डिवाइस",
+    "lastActive": "अंतिम बार सक्रिय {when}",
+    "trusted": "साइन इन रहेगा",
+    "logOut": "लॉग आउट करें",
+    "logOutOthers": "अन्य सभी डिवाइस से लॉग आउट करें",
+    "empty": "कोई सक्रिय सेशन नहीं है।",
+    "loading": "सेशन लोड हो रहे हैं…",
+    "error": "आपके सेशन लोड नहीं हो सके। कृपया फिर से प्रयास करें।",
+    "othersLoggedOut": "{count} अन्य डिवाइस से लॉग आउट किया गया।"
+  },
   "Seller": {
     "nav": {
       "dashboard": "डैशबोर्ड",

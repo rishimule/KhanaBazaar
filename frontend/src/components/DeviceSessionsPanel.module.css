@@ -1,0 +1,89 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--container-lg);
+}
+.subtitle {
+  font-size: var(--font-sm);
+  color: var(--color-neutral-500);
+}
+.muted {
+  color: var(--color-neutral-500);
+  font-size: var(--font-sm);
+}
+.error {
+  color: var(--color-error);
+  font-size: var(--font-sm);
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  background: var(--color-surface);
+}
+.icon {
+  font-size: var(--font-2xl);
+  flex-shrink: 0;
+}
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.deviceLabel {
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-900);
+}
+.currentPill {
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-semibold);
+  border-radius: var(--radius-pill);
+  padding: var(--space-0-5) var(--space-2);
+}
+.meta {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+}
+.logoutBtn {
+  background: none;
+  border: none;
+  color: var(--color-error);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  flex-shrink: 0;
+}
+.logoutBtn:hover {
+  text-decoration: underline;
+}
+.logoutBtn:disabled {
+  color: var(--color-neutral-400);
+  cursor: not-allowed;
+  text-decoration: none;
+}
