@@ -1318,7 +1318,8 @@
         "invalidIfsc": "मान्य 11-अक्षरों का IFSC कोड दर्ज करें (जैसे, HDFC0001234)"
       },
       "resendIn": "{seconds}s में कोड फिर भेजें",
-      "consent": "मैं <terms>सेवा की शर्तों</terms> और <privacy>गोपनीयता नीति</privacy> से सहमत हूँ"
+      "consent": "मैं <terms>सेवा की शर्तों</terms> और <privacy>गोपनीयता नीति</privacy> से सहमत हूँ",
+      "keepSignedIn": "इस डिवाइस पर साइन इन रहें"
     },
     "pending": {
       "rejectedTitle": "आवेदन स्वीकृत नहीं हुआ",

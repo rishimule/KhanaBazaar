@@ -1317,7 +1317,8 @@
         "invalidIfsc": "Enter a valid 11-character IFSC code (e.g., HDFC0001234)"
       },
       "resendIn": "Resend code in {seconds}s",
-      "consent": "I agree to the <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>"
+      "consent": "I agree to the <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>",
+      "keepSignedIn": "Keep me signed in on this device"
     },
     "pending": {
       "rejectedTitle": "Application not approved",

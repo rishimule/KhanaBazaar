@@ -106,6 +106,7 @@ function SellerSignupPageInner() {
   const [submitting, setSubmitting] = useState(false);
   const [consentRequired, setConsentRequired] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     type: "error" | "success";
@@ -400,6 +401,7 @@ function SellerSignupPageInner() {
             bank_account_number: bankAccountNumber,
             bank_ifsc: bankIfsc,
             accept_policies: agreed,
+            remember,
             referral_invite_token: referralInviteToken,
           }
         );
@@ -1221,6 +1223,16 @@ function SellerSignupPageInner() {
                     ),
                   })}
                 </span>
+              </label>
+            )}
+            {!isResubmit && (
+              <label className={styles.consentRow}>
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                <span>{t("keepSignedIn")}</span>
               </label>
             )}
             <div className={styles.btnRow}>
