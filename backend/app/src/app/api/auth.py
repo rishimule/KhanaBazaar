@@ -55,6 +55,7 @@ from app.services.consent import (
     record_acceptance,
 )
 from app.services.profiles import compose_full_name, split_full_name
+from app.services.seller_emails import dispatch_new_device_login
 
 router = APIRouter()
 
@@ -275,7 +276,12 @@ async def otp_verify(
     user_payload = _user_payload(
         user, full_name, avatar_url, needs_policy_acceptance=needs
     )
+    user_id = user.id
+    session_device_label = auth_session.device_label
+    session_ip = auth_session.ip
     await session.commit()
+    if body.remember and user_id is not None:
+        dispatch_new_device_login(user_id, session_device_label, session_ip)
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -568,7 +574,12 @@ async def seller_register(
     full_name = compose_full_name(first_name, last_name)
     # Build the payload BEFORE the session commit (commit expires ORM attrs).
     user_payload = _user_payload(user, full_name)
+    user_id = user.id
+    session_device_label = auth_session.device_label
+    session_ip = auth_session.ip
     await session.commit()
+    if body.remember and user_id is not None:
+        dispatch_new_device_login(user_id, session_device_label, session_ip)
     response = {
         "access_token": token,
         "token_type": "bearer",
