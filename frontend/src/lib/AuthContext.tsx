@@ -15,6 +15,15 @@ import { User, UserRole } from "@/types";
 import { clearLocaleCookies, setOperatorLocaleCookie } from "@/lib/operatorLocale";
 import { OPERATOR_PATH_RE } from "@/lib/localeCookies";
 import { routing } from "@/i18n/routing";
+import {
+  accessTokenExpiringSoon,
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  refreshTokens,
+  setTokens,
+  subscribe,
+} from "@/lib/authTokens";
 
 /** For seller/admin sessions, seed the operator locale cookie (the `__session`
  * cookie, the only one Firebase forwards to the origin on prod) from the
@@ -59,7 +68,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-const TOKEN_KEY = "kb_token";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -72,38 +80,101 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // localStorage, client saw the missing token and rendered with loading=false.
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Local-only teardown shared by explicit logout and silent-refresh failure.
+  const localLogoutCleanup = useCallback((prevAccessToken: string | null) => {
+    localStorage.removeItem("kb_delivery_location");
+    localStorage.removeItem("kb_recent_searches");
+    clearLocaleCookies();
+    void (async () => {
+      try {
+        const { unsubscribeFromPush } = await import("@/lib/push");
+        const { unsubscribePush } = await import("@/lib/notifications");
+        const endpoint = await unsubscribeFromPush();
+        if (endpoint && prevAccessToken) {
+          await unsubscribePush(prevAccessToken, endpoint);
+        }
+      } catch {
+        /* best-effort */
+      }
+    })();
+    setDbUser(null);
+  }, []);
+
+  // Mirror the coordinator's access token into React state. When a silent
+  // refresh fails (token cleared), run the shared logout cleanup so a dead
+  // session on a shared device doesn't leave stale user state behind.
   useEffect(() => {
-    const stored =
-      typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY);
-    if (!stored) {
-      setLoading(false);
-      return;
-    }
-    fetch(`${API_BASE}/api/v1/auth/me`, {
-      headers: { Authorization: `Bearer ${stored}` },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          localStorage.removeItem(TOKEN_KEY);
+    const unsubscribe = subscribe((accessToken) => {
+      setToken(accessToken);
+      if (accessToken === null) {
+        setDbUser((prev) => {
+          if (prev !== null) localLogoutCleanup(getAccessToken());
           return null;
+        });
+      }
+    });
+    // Refresh proactively when returning to a backgrounded tab whose timer may
+    // have been throttled while suspended (laptop sleep etc.).
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && getRefreshToken() && accessTokenExpiringSoon()) {
+        void refreshTokens();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      unsubscribe();
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [localLogoutCleanup]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let stored = getAccessToken();
+      // A returning user (tab closed > 15 min) has an expired access token but a
+      // live refresh token — refresh BEFORE deciding they are logged out.
+      if (!stored && getRefreshToken()) {
+        stored = await refreshTokens();
+      }
+      if (!stored) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+      let res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+        headers: { Authorization: `Bearer ${stored}` },
+      });
+      if (res.status === 401 && getRefreshToken()) {
+        const refreshed = await refreshTokens();
+        if (refreshed) {
+          res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+            headers: { Authorization: `Bearer ${refreshed}` },
+          });
+          stored = refreshed;
         }
-        return res.json() as Promise<User>;
-      })
-      .then((user) => {
-        if (user) {
-          setToken(stored);
-          setDbUser(user);
-          // If the operator cookie was stale (e.g. clobbered before the
-          // isolation fix, or unset on a fresh device), refresh so the
-          // already-rendered dashboard picks up the correct language.
-          const changed = reconcileOperatorLocale(user);
-          if (changed && OPERATOR_PATH_RE.test(window.location.pathname)) {
-            router.refresh();
-          }
-        }
-      })
-      .catch(() => localStorage.removeItem(TOKEN_KEY))
-      .finally(() => setLoading(false));
+      }
+      if (cancelled) return;
+      if (!res.ok) {
+        clearTokens();
+        setLoading(false);
+        return;
+      }
+      const user = (await res.json()) as User;
+      setToken(stored);
+      setDbUser(user);
+      const changed = reconcileOperatorLocale(user);
+      if (changed && OPERATOR_PATH_RE.test(window.location.pathname)) {
+        router.refresh();
+      }
+      setLoading(false);
+    })().catch(() => {
+      if (!cancelled) {
+        clearTokens();
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   const requestOtp = useCallback(async (email: string): Promise<void> => {
@@ -155,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.needs_name) {
         return { user: null as unknown as User, needsName: true };
       }
-      localStorage.setItem(TOKEN_KEY, data.access_token);
+      setTokens(data.access_token, data.refresh_token, data.expires_in);
       setToken(data.access_token);
       setDbUser(data.user as User);
       // Seed the operator cookie now; the post-login navigation into the
@@ -168,40 +239,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    // Wipe the per-session "deliver to" pick so the next user on a shared
-    // device doesn't inherit the previous user's location. Inlined rather
-    // than calling DeliveryLocationContext.clearStoredDeliveryLocation()
-    // because DeliveryLocationContext now imports useAuth, and importing
-    // back here would create a circular module dependency that breaks
-    // Next.js HMR.
-    localStorage.removeItem("kb_delivery_location");
-    // Wipe recent search history for the same reason.
-    localStorage.removeItem("kb_recent_searches");
-    // Clear the locale cookies so the next (guest) user on a shared device
-    // isn't left on the previous user's language. Logged-in users re-seed from
-    // their saved preference on the next auth resolution.
-    clearLocaleCookies();
-    // Tear down web-push on this device so the next user on a shared device
-    // never inherits the prior customer's order alerts. Fire-and-forget so the
-    // logout signature stays synchronous. Dynamic-imported to avoid pulling the
-    // push/notifications modules into the auth bundle.
-    const tokenForTeardown = token;
-    void (async () => {
-      try {
-        const { unsubscribeFromPush } = await import("@/lib/push");
-        const { unsubscribePush } = await import("@/lib/notifications");
-        const endpoint = await unsubscribeFromPush();
-        if (endpoint && tokenForTeardown) {
-          await unsubscribePush(tokenForTeardown, endpoint);
-        }
-      } catch {
+    const refresh = getRefreshToken();
+    const prevAccess = getAccessToken();
+    // Best-effort server-side revoke; never block the local logout on it.
+    if (refresh) {
+      void fetch(`${API_BASE}/api/v1/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refresh }),
+      }).catch(() => {
         /* best-effort */
-      }
-    })();
-    setToken(null);
-    setDbUser(null);
-  }, [token]);
+      });
+    }
+    clearTokens();
+    localLogoutCleanup(prevAccess);
+  }, [localLogoutCleanup]);
 
   const setAvatarUrl = useCallback((url: string | null) => {
     setDbUser((u) => (u ? { ...u, avatar_url: url } : u));
@@ -212,8 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const acceptPolicies = useCallback(async () => {
-    const stored =
-      typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY);
+    const stored = getAccessToken();
     if (!stored) return;
     const res = await fetch(`${API_BASE}/api/v1/auth/policy/accept`, {
       method: "POST",
