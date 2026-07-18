@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi,</p>
+  <p>A new device just signed in to your <strong>{{ brand_name }}</strong> account and chose to stay signed in:</p>
+  <ul style="padding-left:20px;line-height:1.7;">
+    <li><strong>Device:</strong> {{ device_label }}</li>
+    <li><strong>IP:</strong> {{ ip or "unknown" }}</li>
+    <li><strong>When:</strong> {{ when }}</li>
+  </ul>
+  <p>If this was you, no action is needed.</p>
+  <p>If this wasn't you, review your devices and log out everywhere:</p>
+  {% set cta_url = devices_url %}
+  {% set cta_label = "Review your devices" %}
+  {% include "_partials/button.html" %}
+  <p style="color:#6b7280;font-size:14px;">If you need help, reply to this email anytime.</p>
+{% endblock %}

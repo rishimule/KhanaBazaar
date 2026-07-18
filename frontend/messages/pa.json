@@ -258,7 +258,8 @@
     "namePlaceholder": "ਤੁਹਾਡਾ ਨਾਮ",
     "creatingAccount": "ਖਾਤਾ ਬਣਾਇਆ ਜਾ ਰਿਹਾ ਹੈ…",
     "continue": "ਜਾਰੀ ਰੱਖੋ",
-    "consent": "ਮੈਂ <terms>ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</terms> ਅਤੇ <privacy>ਪਰਾਈਵੇਸੀ ਨੀਤੀ</privacy> ਨਾਲ ਸਹਿਮਤ ਹਾਂ"
+    "consent": "ਮੈਂ <terms>ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</terms> ਅਤੇ <privacy>ਪਰਾਈਵੇਸੀ ਨੀਤੀ</privacy> ਨਾਲ ਸਹਿਮਤ ਹਾਂ",
+    "keepSignedIn": "ਇਸ ਡਿਵਾਈਸ ‘ਤੇ ਸਾਈਨ ਇਨ ਰਹੋ"
   },
   "Sell": {
     "metaTitle": "ਵਿਕਰੇਤਾ ਬਣੋ",
@@ -574,6 +575,7 @@
     "layoutAddressesTitle": "ਪਤਾ",
     "layoutProfileTitle": "ਪ੍ਰੋਫਾਈਲ",
     "layoutPreferencesTitle": "ਤਰਜੀਹਾਂ",
+    "layoutDevicesTitle": "ਡਿਵਾਈਸ ਅਤੇ ਸੈਸ਼ਨ",
     "layoutSupportTitle": "ਮਦਦ",
     "layoutSettingsTitle": "ਖਾਤਾ ਸੈਟਿੰਗਾਂ",
     "layoutFavoritesTitle": "ਤੁਹਾਡੇ ਪਸੰਦੀਦਾ",
@@ -583,6 +585,7 @@
     "navAddresses": "ਪਤਾ",
     "navProfile": "ਪ੍ਰੋਫਾਈਲ",
     "navPreferences": "ਤਰਜੀਹਾਂ",
+    "navDevices": "ਡਿਵਾਈਸ",
     "navSupport": "ਮਦਦ",
     "navSettings": "ਸੈਟਿੰਗਾਂ",
     "navLogout": "ਲੌਗ ਆਊਟ",
@@ -934,6 +937,19 @@
     "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
     "appliesToDevice": "Applies to this device."
   },
+  "Devices": {
+    "title": "ਡਿਵਾਈਸ ਅਤੇ ਸੈਸ਼ਨ",
+    "subtitle": "ਇਹ ਉਹ ਡਿਵਾਈਸ ਹਨ ਜੋ ਇਸ ਵੇਲੇ ਤੁਹਾਡੇ ਖਾਤੇ ਵਿੱਚ ਸਾਈਨ ਇਨ ਹਨ।",
+    "thisDevice": "ਇਹ ਡਿਵਾਈਸ",
+    "lastActive": "ਆਖਰੀ ਵਾਰ ਸਰਗਰਮ {when}",
+    "trusted": "ਸਾਈਨ ਇਨ ਰਹੇਗਾ",
+    "logOut": "ਲਾਗ ਆਊਟ ਕਰੋ",
+    "logOutOthers": "ਹੋਰ ਸਾਰੀਆਂ ਡਿਵਾਈਸਾਂ ਤੋਂ ਲਾਗ ਆਊਟ ਕਰੋ",
+    "empty": "ਕੋਈ ਸਰਗਰਮ ਸੈਸ਼ਨ ਨਹੀਂ ਹੈ।",
+    "loading": "ਸੈਸ਼ਨ ਲੋਡ ਹੋ ਰਹੇ ਹਨ…",
+    "error": "ਤੁਹਾਡੇ ਸੈਸ਼ਨ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੇ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "othersLoggedOut": "{count} ਹੋਰ ਡਿਵਾਈਸਾਂ ਤੋਂ ਲਾਗ ਆਊਟ ਕੀਤਾ ਗਿਆ।"
+  },
   "Seller": {
     "nav": {
       "dashboard": "ਡੈਸ਼ਬੋਰਡ",
@@ -944,7 +960,8 @@
       "plan": "ਪਲਾਨ",
       "referrals": "ਰੈਫ਼ਰਲ",
       "credit": "ਕ੍ਰੈਡਿਟ",
-      "storeQr": "ਸਟੋਰ QR"
+      "storeQr": "ਸਟੋਰ QR",
+      "devices": "ਡਿਵਾਈਸ"
     },
     "titles": {
       "dashboard": "ਵਿਕਰੇਤਾ ਡੈਸ਼ਬੋਰਡ",
@@ -956,7 +973,8 @@
       "plan": "ਪਲਾਨ ਅਤੇ ਬਿਲਿੰਗ",
       "referrals": "ਰੈਫ਼ਰਲ",
       "credit": "ਕ੍ਰੈਡਿਟ ਗਾਹਕ",
-      "storeQr": "ਸਟੋਰ QR ਕੋਡ"
+      "storeQr": "ਸਟੋਰ QR ਕੋਡ",
+      "devices": "ਡਿਵਾਈਸ ਅਤੇ ਸੈਸ਼ਨ"
     },
     "common": {
       "save": "ਸੰਭਾਲੋ",
@@ -1317,7 +1335,8 @@
         "invalidIfsc": "ਵੈਧ 11-ਅੱਖਰ ਦਾ IFSC ਕੋਡ ਦਰਜ ਕਰੋ (ਜਿਵੇਂ, HDFC0001234)"
       },
       "resendIn": "{seconds}s ਵਿੱਚ ਕੋਡ ਮੁੜ ਭੇਜੋ",
-      "consent": "ਮੈਂ <terms>ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</terms> ਅਤੇ <privacy>ਪਰਾਈਵੇਸੀ ਨੀਤੀ</privacy> ਨਾਲ ਸਹਿਮਤ ਹਾਂ"
+      "consent": "ਮੈਂ <terms>ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</terms> ਅਤੇ <privacy>ਪਰਾਈਵੇਸੀ ਨੀਤੀ</privacy> ਨਾਲ ਸਹਿਮਤ ਹਾਂ",
+      "keepSignedIn": "ਇਸ ਡਿਵਾਈਸ ‘ਤੇ ਸਾਈਨ ਇਨ ਰਹੋ"
     },
     "pending": {
       "rejectedTitle": "ਅਰਜ਼ੀ ਮਨਜ਼ੂਰ ਨਹੀਂ ਹੋਈ",
@@ -1379,6 +1398,7 @@
       "changeRequests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
       "catalog": "ਕੈਟਾਲਾਗ",
       "settings": "ਸੈਟਿੰਗਾਂ",
+      "devices": "ਡਿਵਾਈਸ",
       "policies": "ਨੀਤੀਆਂ",
       "onboardingRequests": "ਆਨਬੋਰਡਿੰਗ",
       "fees": "ਫ਼ੀਸ",
@@ -1395,6 +1415,7 @@
       "orders": "ਸਾਰੇ ਆਰਡਰ",
       "panel": "ਐਡਮਿਨ ਪੈਨਲ",
       "settings": "ਸੈਟਿੰਗਾਂ",
+      "devices": "ਡਿਵਾਈਸ ਅਤੇ ਸੈਸ਼ਨ",
       "changeRequests": "ਬਦਲਾਅ ਬੇਨਤੀਆਂ",
       "policies": "ਨੀਤੀਆਂ",
       "onboardingRequests": "ਵਿਕਰੇਤਾ ਆਨਬੋਰਡਿੰਗ ਬੇਨਤੀਆਂ",

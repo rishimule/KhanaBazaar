@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useResendCountdown } from "@/lib/useResendCountdown";
 import { ApiError, get, patch, post } from "@/lib/api";
+import { setTokens } from "@/lib/authTokens";
 import { formatAddress } from "@/lib/format-address";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import ServicePicker from "@/components/ServicePicker";
@@ -105,6 +106,7 @@ function SellerSignupPageInner() {
   const [submitting, setSubmitting] = useState(false);
   const [consentRequired, setConsentRequired] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     type: "error" | "success";
@@ -381,7 +383,12 @@ function SellerSignupPageInner() {
           bank_ifsc: bankIfsc,
         }, token);
       } else {
-        const data = await post<{ access_token: string; user: User }>(
+        const data = await post<{
+          access_token: string;
+          refresh_token: string;
+          expires_in: number;
+          user: User;
+        }>(
           "/api/v1/auth/seller/register",
           {
             signup_token: signupToken,
@@ -394,10 +401,11 @@ function SellerSignupPageInner() {
             bank_account_number: bankAccountNumber,
             bank_ifsc: bankIfsc,
             accept_policies: agreed,
+            remember,
             referral_invite_token: referralInviteToken,
           }
         );
-        localStorage.setItem("kb_token", data.access_token);
+        setTokens(data.access_token, data.refresh_token, data.expires_in);
       }
       router.push("/seller/signup/pending");
     } catch (err: unknown) {
@@ -1215,6 +1223,16 @@ function SellerSignupPageInner() {
                     ),
                   })}
                 </span>
+              </label>
+            )}
+            {!isResubmit && (
+              <label className={styles.consentRow}>
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                <span>{t("keepSignedIn")}</span>
               </label>
             )}
             <div className={styles.btnRow}>

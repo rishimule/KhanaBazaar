@@ -15,20 +15,24 @@ from app.models.base import User, UserRole
 security = HTTPBearer(auto_error=False)
 
 
-def create_access_token(user: User) -> str:
+def create_access_token(user: User, *, sid: int | None = None) -> str:
     now = datetime.now(timezone.utc)
-    payload = {
+    payload: dict[str, object] = {
         "sub": str(user.id),
         "role": user.role.value,
         "iat": now,
-        "exp": now + timedelta(hours=settings.JWT_EXPIRES_HOURS),
+        "exp": now + timedelta(minutes=settings.ACCESS_TOKEN_TTL_MINUTES),
     }
+    if sid is not None:
+        payload["sid"] = sid
     return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
 
 
 def decode_access_token(token: str) -> dict[str, object]:
     try:
-        return jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+        return jwt.decode(
+            token, settings.JWT_SECRET, algorithms=["HS256"], leeway=30
+        )
     except jwt.ExpiredSignatureError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -74,6 +78,20 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
 
     return user
+
+
+async def get_current_sid(
+    payload: dict[str, object] = Depends(verify_access_token),
+) -> int | None:
+    """The `sid` (session id) claim from the access token, or None for a legacy
+    sidless token. Used to flag / spare the caller's current session."""
+    sid = payload.get("sid")
+    if sid is None:
+        return None
+    try:
+        return int(str(sid))
+    except (TypeError, ValueError):
+        return None
 
 
 async def get_optional_current_user(

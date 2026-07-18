@@ -258,7 +258,8 @@
     "namePlaceholder": "तुमचे नाव",
     "creatingAccount": "खाते तयार करत आहे…",
     "continue": "सुरू ठेवा",
-    "consent": "मी <terms>सेवा अटी</terms> आणि <privacy>गोपनीयता धोरण</privacy> यांना सहमती देतो"
+    "consent": "मी <terms>सेवा अटी</terms> आणि <privacy>गोपनीयता धोरण</privacy> यांना सहमती देतो",
+    "keepSignedIn": "या डिव्हाइसवर साइन इन राहा"
   },
   "Sell": {
     "metaTitle": "विक्रेता बना",
@@ -574,6 +575,7 @@
     "layoutAddressesTitle": "पत्ता",
     "layoutProfileTitle": "प्रोफाइल",
     "layoutPreferencesTitle": "प्राधान्ये",
+    "layoutDevicesTitle": "डिव्हाइस आणि सेशन",
     "layoutSupportTitle": "मदत",
     "layoutSettingsTitle": "खाते सेटिंग्ज",
     "layoutFavoritesTitle": "तुमचे आवडते",
@@ -583,6 +585,7 @@
     "navAddresses": "पत्ता",
     "navProfile": "प्रोफाइल",
     "navPreferences": "प्राधान्ये",
+    "navDevices": "डिव्हाइस",
     "navSupport": "मदत",
     "navSettings": "सेटिंग्ज",
     "navLogout": "लॉग आउट",
@@ -934,6 +937,19 @@
     "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
     "appliesToDevice": "Applies to this device."
   },
+  "Devices": {
+    "title": "डिव्हाइस आणि सेशन",
+    "subtitle": "ही अशी डिव्हाइसेस आहेत जी सध्या तुमच्या खात्यात साइन इन आहेत.",
+    "thisDevice": "हे डिव्हाइस",
+    "lastActive": "शेवटचे सक्रिय {when}",
+    "trusted": "साइन इन राहील",
+    "logOut": "लॉग आउट करा",
+    "logOutOthers": "इतर सर्व डिव्हाइसमधून लॉग आउट करा",
+    "empty": "कोणतेही सक्रिय सेशन नाही.",
+    "loading": "सेशन लोड होत आहेत…",
+    "error": "तुमचे सेशन लोड करता आले नाहीत. कृपया पुन्हा प्रयत्न करा.",
+    "othersLoggedOut": "{count} इतर डिव्हाइसमधून लॉग आउट केले."
+  },
   "Seller": {
     "nav": {
       "dashboard": "डॅशबोर्ड",
@@ -944,7 +960,8 @@
       "plan": "योजना",
       "referrals": "रेफरल",
       "credit": "क्रेडिट",
-      "storeQr": "स्टोअर QR"
+      "storeQr": "स्टोअर QR",
+      "devices": "डिव्हाइस"
     },
     "titles": {
       "dashboard": "विक्रेता डॅशबोर्ड",
@@ -956,7 +973,8 @@
       "plan": "योजना व बिलिंग",
       "referrals": "रेफरल",
       "credit": "क्रेडिट ग्राहक",
-      "storeQr": "स्टोअर QR कोड"
+      "storeQr": "स्टोअर QR कोड",
+      "devices": "डिव्हाइस आणि सेशन"
     },
     "common": {
       "save": "जतन करा",
@@ -1317,7 +1335,8 @@
         "invalidIfsc": "वैध 11-अक्षरी IFSC कोड टाका (उदा., HDFC0001234)"
       },
       "resendIn": "{seconds}s मध्ये कोड पुन्हा पाठवा",
-      "consent": "मी <terms>सेवा अटी</terms> आणि <privacy>गोपनीयता धोरण</privacy> यांना सहमती देतो"
+      "consent": "मी <terms>सेवा अटी</terms> आणि <privacy>गोपनीयता धोरण</privacy> यांना सहमती देतो",
+      "keepSignedIn": "या डिव्हाइसवर साइन इन राहा"
     },
     "pending": {
       "rejectedTitle": "अर्ज मंजूर झाला नाही",
@@ -1379,6 +1398,7 @@
       "changeRequests": "बदल विनंत्या",
       "catalog": "कॅटलॉग",
       "settings": "सेटिंग्ज",
+      "devices": "डिव्हाइस",
       "policies": "धोरणे",
       "onboardingRequests": "ऑनबोर्डिंग",
       "fees": "शुल्क",
@@ -1395,6 +1415,7 @@
       "orders": "सर्व ऑर्डर",
       "panel": "अ‍ॅडमिन पॅनेल",
       "settings": "सेटिंग्ज",
+      "devices": "डिव्हाइस आणि सेशन",
       "changeRequests": "बदल विनंत्या",
       "policies": "धोरणे",
       "onboardingRequests": "विक्रेता ऑनबोर्डिंग विनंत्या",

@@ -863,6 +863,88 @@ def send_customer_welcome_async(user_id: int) -> None:
     )
 
 
+def _load_new_device_login_context(user_id: int) -> dict[str, Any]:
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.models.base import User, UserRole
+
+    async def _load() -> dict[str, Any]:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                user = (
+                    await session.exec(select(User).where(User.id == user_id))
+                ).first()
+                if user is None or not user.email:
+                    return {}
+                devices_path = (
+                    "/account/devices"
+                    if user.role != UserRole.Seller
+                    else "/seller/devices"
+                )
+                return {
+                    "email": user.email,
+                    "lang": user.preferred_language or "en",
+                    "devices_url": f"{settings.EMAIL_FRONTEND_BASE_URL}{devices_path}",
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_new_device_login_email_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_new_device_login_email_async(
+    user_id: int, device_label: str, ip: str | None
+) -> None:
+    """Best-effort "new sign-in" alert fired when a user opts into a trusted
+    (long-lived) session. Never allowed to break the login path — errors are
+    logged and swallowed rather than raised back to the caller."""
+    from datetime import datetime, timezone
+
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    try:
+        ctx = _load_new_device_login_context(user_id)
+        if not ctx:
+            return
+        when = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        payload = render_email(
+            "new_device_login",
+            {
+                "device_label": device_label,
+                "ip": ip,
+                "when": when,
+                "devices_url": ctx["devices_url"],
+            },
+            lang=ctx["lang"],
+        )
+        _resolve_email(
+            ctx["email"],
+            payload.subject,
+            payload.text,
+            html=payload.html,
+            reply_to=settings.EMAIL_REPLY_TO,
+        )
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "Failed to send new-device login email user_id=%s", user_id
+        )
+
+
 def _load_seller_application_context(seller_profile_id: int) -> dict[str, Any]:
     import asyncio
     import concurrent.futures

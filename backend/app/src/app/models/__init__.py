@@ -2,6 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from .address import Address
 from .admin_audit import AdminActionLog, AdminActionTargetType
+from .auth_session import AuthSession
 from .base import BaseSchema, User, UserRole
 from .catalog import (
     Category,
@@ -93,6 +94,7 @@ __all__ = [
     "AdminActionTargetType",
     "AdminProfile",
     "ArrangementStatus",
+    "AuthSession",
     "BaseSchema",
     "Cart",
     "CartItem",

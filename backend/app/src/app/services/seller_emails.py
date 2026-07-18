@@ -14,6 +14,7 @@ from kombu.exceptions import OperationalError as KombuOperationalError
 
 from app.worker import (
     send_customer_welcome_async,
+    send_new_device_login_email_async,
     send_seller_application_submitted_async,
     send_seller_approved_async,
     send_seller_change_request_approved_async,
@@ -68,6 +69,13 @@ def dispatch_seller_application_submitted(seller_profile_id: int) -> None:
 def dispatch_customer_welcome(user_id: int) -> None:
     """Greet a newly-registered customer."""
     _safe_delay(send_customer_welcome_async, user_id)
+
+
+def dispatch_new_device_login(
+    user_id: int, device_label: str, ip: str | None
+) -> None:
+    """Best-effort "new sign-in" alert when a user opts into a trusted session."""
+    _safe_delay(send_new_device_login_email_async, user_id, device_label, ip)
 
 
 def dispatch_seller_change_request_submitted(cr_id: Any) -> None:

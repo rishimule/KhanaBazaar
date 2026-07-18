@@ -1,0 +1,14 @@
+Hi,
+
+A new device just signed in to your {{ brand_name }} account and chose to stay signed in:
+
+  Device: {{ device_label }}
+  IP: {{ ip or "unknown" }}
+  When: {{ when }}
+
+If this was you, no action is needed.
+
+If this wasn't you, review your devices and log out everywhere here:
+{{ devices_url }}
+
+— The {{ brand_name }} team

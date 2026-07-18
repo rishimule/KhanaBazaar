@@ -258,7 +258,8 @@
     "namePlaceholder": "તમારું નામ",
     "creatingAccount": "ખાતું બનાવી રહ્યા છીએ…",
     "continue": "ચાલુ રાખો",
-    "consent": "હું <terms>સેવાની શરતો</terms> અને <privacy>ગોપનીયતા નીતિ</privacy> સાથે સંમત છું"
+    "consent": "હું <terms>સેવાની શરતો</terms> અને <privacy>ગોપનીયતા નીતિ</privacy> સાથે સંમત છું",
+    "keepSignedIn": "આ ડિવાઇસ પર સાઇન ઇન રહો"
   },
   "Sell": {
     "metaTitle": "વિક્રેતા બનો",
@@ -574,6 +575,7 @@
     "layoutAddressesTitle": "સરનામું",
     "layoutProfileTitle": "પ્રોફાઇલ",
     "layoutPreferencesTitle": "પસંદગીઓ",
+    "layoutDevicesTitle": "ડિવાઇસ અને સેશન",
     "layoutSupportTitle": "મદદ",
     "layoutSettingsTitle": "ખાતા સેટિંગ્સ",
     "layoutFavoritesTitle": "તમારા પ્રિય",
@@ -583,6 +585,7 @@
     "navAddresses": "સરનામું",
     "navProfile": "પ્રોફાઇલ",
     "navPreferences": "પસંદગીઓ",
+    "navDevices": "ડિવાઇસ",
     "navSupport": "મદદ",
     "navSettings": "સેટિંગ્સ",
     "navLogout": "લોગ આઉટ",
@@ -934,6 +937,19 @@
     "blocked": "Notifications are blocked. Re-enable them in your browser's site settings.",
     "appliesToDevice": "Applies to this device."
   },
+  "Devices": {
+    "title": "ડિવાઇસ અને સેશન",
+    "subtitle": "આ એ ડિવાઇસ છે જે હાલમાં તમારા ખાતામાં સાઇન ઇન છે.",
+    "thisDevice": "આ ડિવાઇસ",
+    "lastActive": "છેલ્લે સક્રિય {when}",
+    "trusted": "સાઇન ઇન રહેશે",
+    "logOut": "લૉગ આઉટ કરો",
+    "logOutOthers": "અન્ય તમામ ડિવાઇસમાંથી લૉગ આઉટ કરો",
+    "empty": "કોઈ સક્રિય સેશન નથી.",
+    "loading": "સેશન લોડ થઈ રહ્યાં છે…",
+    "error": "તમારા સેશન લોડ થઈ શક્યા નથી. કૃપા કરી ફરી પ્રયાસ કરો.",
+    "othersLoggedOut": "{count} અન્ય ડિવાઇસમાંથી લૉગ આઉટ કરાયું."
+  },
   "Seller": {
     "nav": {
       "dashboard": "ડેશબોર્ડ",
@@ -944,7 +960,8 @@
       "plan": "પ્લાન",
       "referrals": "રેફરલ",
       "credit": "ક્રેડિટ",
-      "storeQr": "સ્ટોર QR"
+      "storeQr": "સ્ટોર QR",
+      "devices": "ડિવાઇસ"
     },
     "titles": {
       "dashboard": "વિક્રેતા ડેશબોર્ડ",
@@ -956,7 +973,8 @@
       "plan": "પ્લાન અને બિલિંગ",
       "referrals": "રેફરલ",
       "credit": "ક્રેડિટ ગ્રાહકો",
-      "storeQr": "સ્ટોર QR કોડ"
+      "storeQr": "સ્ટોર QR કોડ",
+      "devices": "ડિવાઇસ અને સેશન"
     },
     "common": {
       "save": "સાચવો",
@@ -1317,7 +1335,8 @@
         "invalidIfsc": "માન્ય 11-અક્ષરનો IFSC કોડ દાખલ કરો (દા.ત., HDFC0001234)"
       },
       "resendIn": "{seconds}s માં કોડ ફરી મોકલો",
-      "consent": "હું <terms>સેવાની શરતો</terms> અને <privacy>ગોપનીયતા નીતિ</privacy> સાથે સંમત છું"
+      "consent": "હું <terms>સેવાની શરતો</terms> અને <privacy>ગોપનીયતા નીતિ</privacy> સાથે સંમત છું",
+      "keepSignedIn": "આ ડિવાઇસ પર સાઇન ઇન રહો"
     },
     "pending": {
       "rejectedTitle": "અરજી મંજૂર થઈ નથી",
@@ -1379,6 +1398,7 @@
       "changeRequests": "બદલાવ વિનંતી",
       "catalog": "કેટલોગ",
       "settings": "સેટિંગ્સ",
+      "devices": "ડિવાઇસ",
       "policies": "નીતિઓ",
       "onboardingRequests": "ઓનબોર્ડિંગ",
       "fees": "ફી",
@@ -1395,6 +1415,7 @@
       "orders": "બધા ઓર્ડર",
       "panel": "એડમિન પેનલ",
       "settings": "સેટિંગ્સ",
+      "devices": "ડિવાઇસ અને સેશન",
       "changeRequests": "બદલાવ વિનંતી",
       "policies": "નીતિઓ",
       "onboardingRequests": "વિક્રેતા ઓનબોર્ડિંગ વિનંતીઓ",

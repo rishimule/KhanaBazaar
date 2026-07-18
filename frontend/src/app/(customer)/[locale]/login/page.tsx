@@ -52,6 +52,7 @@ function LoginPageInner() {
   const [resending, setResending] = useState(false);
   const [consentRequired, setConsentRequired] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [remember, setRemember] = useState(false);
   const { secondsLeft: resendIn, start: startResend } = useResendCountdown(RESEND_COOLDOWN_SECONDS);
 
   useEffect(() => {
@@ -114,7 +115,7 @@ function LoginPageInner() {
     setError(null);
     setSubmitting(true);
     try {
-      const result = await verifyOtp(email, code);
+      const result = await verifyOtp(email, code, undefined, undefined, remember);
       if (result.needsName) {
         setStep("name");
       } else {
@@ -137,7 +138,7 @@ function LoginPageInner() {
     setError(null);
     setSubmitting(true);
     try {
-      const result = await verifyOtp(email, code, fullName, agreed);
+      const result = await verifyOtp(email, code, fullName, agreed, remember);
       router.push(resolveTarget(result.user, nextParam));
     } catch (err) {
       const key = apiErrorKey(err);
@@ -220,6 +221,14 @@ function LoginPageInner() {
                 autoFocus
               />
             </div>
+            <label className={styles.consentRow}>
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              <span>{t("keepSignedIn")}</span>
+            </label>
             <button
               type="submit"
               className={styles.submitBtn}

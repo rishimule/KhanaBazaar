@@ -1,9 +1,11 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+from datetime import datetime, timezone
+
 import aiosmtplib
 import httpx
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -31,6 +33,7 @@ from app.core.security import (
     create_seller_signup_token,
     decode_seller_email_token,
     decode_seller_signup_token,
+    get_current_sid,
     get_current_user,
 )
 from app.core.sms import SMSSender, get_sms_sender
@@ -52,6 +55,7 @@ from app.services.consent import (
     record_acceptance,
 )
 from app.services.profiles import compose_full_name, split_full_name
+from app.services.seller_emails import dispatch_new_device_login
 
 router = APIRouter()
 
@@ -68,15 +72,35 @@ class OTPVerifyBody(BaseModel):
     # `core.email_render.render_email`.
     full_name: str | None = Field(default=None, max_length=120)
     accept_policies: bool = False
+    # "Keep me signed in on this device" — trusted long-term session when true.
+    remember: bool = False
 
 
 class UpdateLanguageBody(BaseModel):
     language: LanguageCode
 
 
+class RefreshBody(BaseModel):
+    refresh_token: str
+
+
+class LogoutBody(BaseModel):
+    refresh_token: str
+
+
 class SellerOtpVerifyBody(BaseModel):
     email: EmailStr
     code: str
+
+
+class SessionListItem(BaseModel):
+    id: int
+    device_label: str
+    ip: str | None
+    trusted: bool
+    created_at: datetime
+    last_used_at: datetime
+    current: bool
 
 
 async def _profile_display(
@@ -190,6 +214,7 @@ async def otp_request(
 @router.post("/otp/verify")
 async def otp_verify(
     body: OTPVerifyBody,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
 ) -> dict:  # type: ignore[type-arg]
@@ -236,13 +261,33 @@ async def otp_verify(
         full_name, avatar_url = await _profile_display(session, user)
 
     await consume_otp_key(email, redis)
-    token = create_access_token(user)
     assert user.id is not None
+    from app.services.sessions import client_meta, create_session
+
+    ua, ip = client_meta(request)
+    auth_session, refresh_token = await create_session(
+        session, user=user, trusted=body.remember, user_agent=ua, ip=ip
+    )
+    assert auth_session.id is not None
+    # Build the token + payload BEFORE commit: commit expires ORM attributes and
+    # a later access would trigger a sync lazy-load inside the async request.
+    token = create_access_token(user, sid=auth_session.id)
     needs = not await has_accepted_current_policy(session, user.id)
+    user_payload = _user_payload(
+        user, full_name, avatar_url, needs_policy_acceptance=needs
+    )
+    user_id = user.id
+    session_device_label = auth_session.device_label
+    session_ip = auth_session.ip
+    await session.commit()
+    if body.remember and user_id is not None:
+        dispatch_new_device_login(user_id, session_device_label, session_ip)
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": _user_payload(user, full_name, avatar_url, needs_policy_acceptance=needs),
+        "refresh_token": refresh_token,
+        "expires_in": settings.ACCESS_TOKEN_TTL_MINUTES * 60,
+        "user": user_payload,
         "needs_name": False,
     }
 
@@ -256,6 +301,125 @@ async def me(
     assert user.id is not None
     needs = not await has_accepted_current_policy(session, user.id)
     return _user_payload(user, full_name, avatar_url, needs_policy_acceptance=needs)
+
+
+@router.post("/refresh")
+async def refresh(
+    body: RefreshBody,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    from app.services.sessions import (
+        SessionError,
+        SessionReuseDetected,
+        client_meta,
+        rotate_session,
+    )
+
+    ua, ip = client_meta(request)
+    try:
+        user, row, new_raw = await rotate_session(
+            session, raw_refresh_token=body.refresh_token, user_agent=ua, ip=ip
+        )
+    except SessionReuseDetected:
+        await session.commit()  # persist the compromise revocation
+        raise HTTPException(
+            status_code=401, detail={"error": "session_revoked"}
+        ) from None
+    except SessionError:
+        raise HTTPException(
+            status_code=401, detail={"error": "invalid_session"}
+        ) from None
+
+    # Mint the access token BEFORE commit: commit expires the ORM attributes,
+    # and accessing user/row afterwards would trigger a sync lazy-load that
+    # fails inside the async request.
+    assert row.id is not None
+    access = create_access_token(user, sid=row.id)
+    await session.commit()
+    return {
+        "access_token": access,
+        "token_type": "bearer",
+        "refresh_token": new_raw,
+        "expires_in": settings.ACCESS_TOKEN_TTL_MINUTES * 60,
+    }
+
+
+@router.post("/logout")
+async def logout(
+    body: LogoutBody,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    from app.services.sessions import revoke_session_by_token
+
+    await revoke_session_by_token(session, raw_refresh_token=body.refresh_token)
+    await session.commit()
+    return {"ok": True}
+
+
+@router.get("/sessions")
+async def list_sessions(
+    user: User = Depends(get_current_user),
+    sid: int | None = Depends(get_current_sid),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[SessionListItem]:
+    from app.models.auth_session import AuthSession
+
+    now = datetime.now(timezone.utc)
+    rows = (
+        await session.exec(
+            select(AuthSession)
+            .where(
+                AuthSession.user_id == user.id,
+                AuthSession.revoked_at.is_(None),  # type: ignore[union-attr]
+                AuthSession.absolute_expires_at > now,
+            )
+            .order_by(AuthSession.last_used_at.desc())  # type: ignore[attr-defined]
+        )
+    ).all()
+    return [
+        SessionListItem(
+            id=r.id,
+            device_label=r.device_label or "Unknown device",
+            ip=r.ip,
+            trusted=r.trusted,
+            created_at=r.created_at,
+            last_used_at=r.last_used_at,
+            current=(sid is not None and r.id == sid),
+        )
+        for r in rows
+    ]
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+async def revoke_one_session(
+    session_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> None:
+    from app.services.sessions import revoke_session
+
+    assert user.id is not None
+    ok = await revoke_session(session, auth_session_id=session_id, user_id=user.id)
+    await session.commit()
+    if not ok:
+        raise HTTPException(status_code=404, detail={"error": "session_not_found"})
+
+
+@router.post("/sessions/revoke-all")
+async def revoke_all_sessions_route(
+    user: User = Depends(get_current_user),
+    sid: int | None = Depends(get_current_sid),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    from app.services.sessions import revoke_all_sessions
+
+    assert user.id is not None
+    n = await revoke_all_sessions(
+        session, user_id=user.id, except_auth_session_id=sid
+    )
+    await session.commit()
+    return {"revoked": n}
 
 
 @router.post("/policy/accept")
@@ -303,6 +467,7 @@ async def seller_otp_verify(
 @router.post("/seller/register")
 async def seller_register(
     body: SellerRegisterBody,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:  # type: ignore[type-arg]
     from app.services.seller_services import (
@@ -398,12 +563,29 @@ async def seller_register(
 
         dispatch_seller_application_submitted(profile.id)
 
-    token = create_access_token(user)
+    from app.services.sessions import client_meta, create_session
+
+    ua, ip = client_meta(request)
+    auth_session, refresh_token = await create_session(
+        session, user=user, trusted=body.remember, user_agent=ua, ip=ip
+    )
+    assert auth_session.id is not None
+    token = create_access_token(user, sid=auth_session.id)
     full_name = compose_full_name(first_name, last_name)
+    # Build the payload BEFORE the session commit (commit expires ORM attrs).
+    user_payload = _user_payload(user, full_name)
+    user_id = user.id
+    session_device_label = auth_session.device_label
+    session_ip = auth_session.ip
+    await session.commit()
+    if body.remember and user_id is not None:
+        dispatch_new_device_login(user_id, session_device_label, session_ip)
     response = {
         "access_token": token,
         "token_type": "bearer",
-        "user": _user_payload(user, full_name),
+        "refresh_token": refresh_token,
+        "expires_in": settings.ACCESS_TOKEN_TTL_MINUTES * 60,
+        "user": user_payload,
     }
 
     # Post-commit, best-effort referrer notification, LAST (it commits its own
