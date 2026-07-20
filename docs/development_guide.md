@@ -228,6 +228,20 @@ A generic SMTP provider, configured for Gmail, lets you send real notification /
 
 **Constraints:** the From header must match the authenticated address (Gmail rewrites it otherwise); consumer Gmail caps at ~500 recipients/day (Workspace ~2000); this is a temporary local-dev path — production still uses Resend. Dev-mailbox capture is gated to `ENVIRONMENT=development`, so `smtp+console` only records to `/dev-emails` in dev. Composite dev-mailbox rows are tagged with the real transport (`smtp` / `resend`) in the `provider` column.
 
+### Account lifecycle (deactivate / suspend / delete)
+
+Soft-delete only — no row is ever hard-deleted and no PII is scrubbed. `User.account_status` (`active`/`deactivated`/`suspended`/`deleted`) is the source of truth; `is_active` mirrors it. All transitions go through `services/account_lifecycle.transition()`; history is recorded in `customer_account_event`.
+
+**Customer self-service** (`/api/v1/customers`):
+- `POST /me/deactivate` — reversible; a later OTP login auto-reactivates. Blocked while open obligations exist (non-terminal order or outstanding store credit).
+- `POST /me/delete/otp/request` then `POST /me/delete` (`{code, reason?}`) — terminal, confirmed by a fresh OTP in the **`account_delete`** namespace. Only an admin can restore afterwards.
+
+**Admin supervisor** (`/api/v1/admin/customers`, admin-only, keyed by `customer_profile_id`, reason ≥10 chars):
+- `GET /` (list/search `?q=&status_filter=`), `GET /{id}` (hub), `GET /{id}/activity`, and read-only `GET /{id}/{orders,addresses,notifications}`.
+- `POST /{id}/{suspend,unsuspend,delete,restore}` — admins bypass the open-obligation guard (abuse response).
+
+**Auth gates:** a `deactivated` account reactivates on OTP login; `suspended`/`deleted` are blocked at login, at `get_current_user` (kills a live access token mid-session), and at `/auth/refresh`. Account-status emails are English-only (`send_account_status_email_async`).
+
 ---
 
 ## 4. Celery / background tasks
