@@ -28,6 +28,9 @@ _LEGAL_TRANSITIONS: set[tuple[AccountStatus, AccountStatus]] = {
     (AccountStatus.active, AccountStatus.deactivated),
     (AccountStatus.deactivated, AccountStatus.active),
     (AccountStatus.active, AccountStatus.suspended),
+    # An admin can escalate a self-deactivated account to suspended so the user
+    # can no longer self-reactivate by logging in (spec §10.3).
+    (AccountStatus.deactivated, AccountStatus.suspended),
     (AccountStatus.suspended, AccountStatus.active),
     (AccountStatus.active, AccountStatus.deleted),
     (AccountStatus.deactivated, AccountStatus.deleted),

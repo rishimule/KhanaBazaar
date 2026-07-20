@@ -148,6 +148,58 @@ async def test_admin_list_hub_and_activity(
 
 
 @pytest.mark.asyncio
+async def test_admin_can_suspend_deactivated_customer(
+    session: AsyncSession, as_admin: User
+) -> None:
+    await _persist_admin()
+    # Seed a self-deactivated customer directly.
+    user = User(
+        email="cust-deac-susp@kb.com", role=UserRole.Customer,
+        account_status=AccountStatus.deactivated, is_active=False,
+    )
+    session.add(user)
+    await session.flush()
+    assert user.id is not None
+    profile = CustomerProfile(user_id=user.id, first_name="Deac")
+    session.add(profile)
+    await session.commit()
+    await session.refresh(profile)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            f"/api/v1/admin/customers/{profile.id}/suspend",
+            json={"reason": "escalate deactivated account"},
+        )
+    assert resp.status_code == 200, resp.text
+    assert await _status_of(profile.user_id) == AccountStatus.suspended
+
+
+@pytest.mark.asyncio
+async def test_unsuspend_active_customer_rejected(
+    session: AsyncSession, as_admin: User
+) -> None:
+    await _persist_admin()
+    profile = await _seed_customer(session, "cust-unsusp-active@kb.com")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            f"/api/v1/admin/customers/{profile.id}/unsuspend",
+            json={"reason": "should be rejected"},
+        )
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["error"] == "invalid_transition"
+
+
+@pytest.mark.asyncio
+async def test_invalid_status_filter_rejected(
+    session: AsyncSession, as_admin: User
+) -> None:
+    await _persist_admin()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/admin/customers?status=bogus")
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["error"] == "invalid_status"
+
+
+@pytest.mark.asyncio
 async def test_admin_customer_read_viewers(
     session: AsyncSession, as_admin: User
 ) -> None:

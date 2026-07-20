@@ -462,6 +462,11 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     "customer_lang": (
                         customer_user.preferred_language if customer_user else "en"
                     ),
+                    "customer_account_status": (
+                        customer_user.account_status.value
+                        if customer_user
+                        else "active"
+                    ),
                     "seller_lang": (
                         seller_user.preferred_language if seller_user else "en"
                     ),
@@ -600,6 +605,12 @@ def send_order_status_changed_async(
         to = ctx.get("seller_email")
         lang = ctx.get("seller_lang") or "en"
     else:
+        # Suppress order-status emails to non-active (suspended/deleted)
+        # customers — matches the in-app/push/WhatsApp comms-skip (spec §5.4).
+        # Default to "active" (fail-open) when the key is absent; the real
+        # context loader always sets it.
+        if ctx.get("customer_account_status", "active") != "active":
+            return
         to = ctx.get("customer_email")
         lang = ctx.get("customer_lang") or "en"
     if not to:

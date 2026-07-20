@@ -18,7 +18,7 @@ import base64
 import json
 import uuid
 from datetime import datetime, time, timedelta, timezone
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -1109,9 +1109,15 @@ async def _customer_transition(
     admin_id: int,
     reason: str,
     event_key: str,
+    expected_from: set[AccountStatus],
 ) -> dict[str, str]:
     _, user = await _resolve_customer(session, customer_profile_id)
     assert user.id is not None
+    # Each admin action targets a specific source state (e.g. unsuspend only a
+    # suspended account, restore only a deleted one) — otherwise the routes
+    # would be interchangeable aliases via the generic _LEGAL_TRANSITIONS set.
+    if user.account_status not in expected_from:
+        raise HTTPException(status_code=409, detail={"error": "invalid_transition"})
     uid = user.id  # capture before commit; commit expires ORM attributes
     try:
         await transition(
@@ -1140,6 +1146,7 @@ async def admin_suspend_customer(
         session, customer_profile_id=customer_profile_id,
         to_status=AccountStatus.suspended, admin_id=admin.id, reason=body.reason,
         event_key="account_suspended",
+        expected_from={AccountStatus.active, AccountStatus.deactivated},
     )
 
 
@@ -1155,6 +1162,7 @@ async def admin_unsuspend_customer(
         session, customer_profile_id=customer_profile_id,
         to_status=AccountStatus.active, admin_id=admin.id, reason=body.reason,
         event_key="account_reactivated",
+        expected_from={AccountStatus.suspended},
     )
 
 
@@ -1170,6 +1178,11 @@ async def admin_delete_customer(
         session, customer_profile_id=customer_profile_id,
         to_status=AccountStatus.deleted, admin_id=admin.id, reason=body.reason,
         event_key="account_removed",
+        expected_from={
+            AccountStatus.active,
+            AccountStatus.deactivated,
+            AccountStatus.suspended,
+        },
     )
 
 
@@ -1185,26 +1198,23 @@ async def admin_restore_customer(
         session, customer_profile_id=customer_profile_id,
         to_status=AccountStatus.active, admin_id=admin.id, reason=body.reason,
         event_key="account_reactivated",
+        expected_from={AccountStatus.deleted},
     )
 
 
 @router.get("/customers", response_model=AdminCustomerList)
 async def admin_list_customers(
     q: Optional[str] = None,
-    status_filter: Optional[str] = None,
-    limit: int = 50,
-    offset: int = 0,
+    status: Optional[str] = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_db_session),
     admin: User = Depends(get_current_admin),
 ) -> AdminCustomerList:
-    stmt = (
-        select(CustomerProfile, User)
-        .join(User, User.id == CustomerProfile.user_id)  # type: ignore[arg-type]
-        .where(User.role == UserRole.Customer)
-    )
+    filters: list[Any] = [User.role == UserRole.Customer]
     if q:
         like = f"%{q}%"
-        stmt = stmt.where(
+        filters.append(
             or_(
                 User.email.ilike(like),  # type: ignore[attr-defined]
                 CustomerProfile.first_name.ilike(like),  # type: ignore[attr-defined]
@@ -1212,12 +1222,32 @@ async def admin_list_customers(
                 CustomerProfile.phone.ilike(like),  # type: ignore[union-attr]
             )
         )
-    if status_filter:
-        stmt = stmt.where(User.account_status == AccountStatus(status_filter))
-    total = len((await session.exec(stmt)).all())
+    if status:
+        try:
+            parsed_status = AccountStatus(status)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422, detail={"error": "invalid_status"}
+            ) from exc
+        filters.append(User.account_status == parsed_status)
+
+    join_on = User.id == CustomerProfile.user_id
+    total = (
+        await session.exec(
+            select(func.count())
+            .select_from(CustomerProfile)
+            .join(User, join_on)  # type: ignore[arg-type]
+            .where(*filters)
+        )
+    ).one()
     rows = (
         await session.exec(
-            stmt.order_by(CustomerProfile.id).offset(offset).limit(limit)  # type: ignore[arg-type]
+            select(CustomerProfile, User)
+            .join(User, join_on)  # type: ignore[arg-type]
+            .where(*filters)
+            .order_by(CustomerProfile.id)  # type: ignore[arg-type]
+            .offset(offset)
+            .limit(limit)
         )
     ).all()
     items = [
