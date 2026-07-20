@@ -423,9 +423,10 @@ async def deactivate_account(
 ) -> dict[str, str]:
     """Reversible self-deactivation. Blocked while open obligations exist."""
     assert current_user.id is not None
+    uid = current_user.id  # capture before commit; commit expires ORM attributes
     try:
         await transition(
-            session, user_id=current_user.id, to_status=AccountStatus.deactivated,
+            session, user_id=uid, to_status=AccountStatus.deactivated,
             actor_user_id=None, actor_role="customer", reason=body.reason,
             enforce_obligations=True,
         )
@@ -443,7 +444,7 @@ async def deactivate_account(
             status_code=409, detail={"error": "invalid_transition"}
         ) from exc
     await session.commit()
-    dispatch_account_status_email(current_user.id, "account_deactivated")
+    dispatch_account_status_email(uid, "account_deactivated")
     return {"status": "deactivated"}
 
 
@@ -482,16 +483,16 @@ async def delete_account(
     """Terminal soft-delete after OTP confirmation. Blocked while open
     obligations exist; only an admin can restore afterwards."""
     assert current_user.id is not None
+    uid = current_user.id  # capture before commit; commit expires ORM attributes
+    email = current_user.email
     redis = await get_redis()
     try:
-        await verify_otp(
-            current_user.email, body.code, redis, namespace="account_delete"
-        )
+        await verify_otp(email, body.code, redis, namespace="account_delete")
     except (CodeExpired, InvalidCode, TooManyAttempts) as exc:
         raise HTTPException(status_code=422, detail={"error": "otp_invalid"}) from exc
     try:
         await transition(
-            session, user_id=current_user.id, to_status=AccountStatus.deleted,
+            session, user_id=uid, to_status=AccountStatus.deleted,
             actor_user_id=None, actor_role="customer", reason=body.reason,
             enforce_obligations=True,
         )
@@ -509,8 +510,8 @@ async def delete_account(
             status_code=409, detail={"error": "invalid_transition"}
         ) from exc
     await session.commit()
-    await consume_otp_key(current_user.email, redis, namespace="account_delete")
-    dispatch_account_status_email(current_user.id, "account_deleted")
+    await consume_otp_key(email, redis, namespace="account_delete")
+    dispatch_account_status_email(uid, "account_deleted")
     return {"status": "deleted"}
 
 
