@@ -28,6 +28,7 @@ class CustomerProfileRead(BaseModel):
     notify_order_sms: bool = False
     phone_verified_at: datetime | None = None
     avatar_url: str | None = None
+    account_status: str = "active"
     addresses: list[CustomerAddressRead]
 
 
@@ -69,3 +70,12 @@ class CustomerAddressWrite(BaseModel):
     label: str | None = Field(default=None, max_length=60)
     is_default: bool = False
     address: AddressPayload
+
+
+class AccountDeactivateBody(BaseModel):
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class AccountDeleteBody(BaseModel):
+    code: str
+    reason: str | None = Field(default=None, max_length=500)

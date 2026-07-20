@@ -10,6 +10,9 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
+from app.core.email import EmailSender, get_email_sender
+from app.core.email_render import render_email
 from app.core.otp import (
     CodeExpired,
     InvalidCode,
@@ -27,16 +30,24 @@ from app.core.security import get_current_customer
 from app.core.sms import SMSSender, get_sms_sender
 from app.db.session import get_db_session
 from app.models.address import Address
-from app.models.base import User
+from app.models.base import AccountStatus, User
 from app.models.profile import CustomerAddress, CustomerProfile
 from app.schemas.address import address_from_payload, address_to_payload
 from app.schemas.customer_stats import CustomerStatsResponse
 from app.schemas.customers import (
+    AccountDeactivateBody,
+    AccountDeleteBody,
     CustomerAddressRead,
     CustomerAddressWrite,
     CustomerPreferencesUpdate,
     CustomerProfileRead,
     CustomerProfileUpdate,
+)
+from app.services.account_emails import dispatch_account_status_email
+from app.services.account_lifecycle import (
+    InvalidTransition,
+    OpenObligations,
+    transition,
 )
 from app.services.customer_stats import compute_stats
 from app.services.image_processing import ImageValidationError
@@ -96,6 +107,7 @@ async def _profile_response(
         notify_order_sms=profile.notify_order_sms,
         phone_verified_at=profile.phone_verified_at,
         avatar_url=profile.avatar_url,
+        account_status=user.account_status.value,
         addresses=[
             CustomerAddressRead(
                 id=customer_address.id,
@@ -401,6 +413,105 @@ async def verify_customer_phone_otp(
     await session.refresh(profile)
     await consume_otp_key(phone, redis, namespace="customer_phone")
     return await _profile_response(session, current_user, profile)
+
+
+@router.post("/me/deactivate")
+async def deactivate_account(
+    body: AccountDeactivateBody,
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, str]:
+    """Reversible self-deactivation. Blocked while open obligations exist."""
+    assert current_user.id is not None
+    try:
+        await transition(
+            session, user_id=current_user.id, to_status=AccountStatus.deactivated,
+            actor_user_id=None, actor_role="customer", reason=body.reason,
+            enforce_obligations=True,
+        )
+    except OpenObligations as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "open_obligations",
+                "open_orders": exc.open_orders,
+                "credit_accounts": exc.credit_accounts,
+            },
+        ) from exc
+    except InvalidTransition as exc:
+        raise HTTPException(
+            status_code=409, detail={"error": "invalid_transition"}
+        ) from exc
+    await session.commit()
+    dispatch_account_status_email(current_user.id, "account_deactivated")
+    return {"status": "deactivated"}
+
+
+@router.post("/me/delete/otp/request")
+async def request_account_delete_otp(
+    current_user: User = Depends(get_current_customer),
+    sender: EmailSender = Depends(get_email_sender),
+) -> dict[str, bool]:
+    """Send a fresh OTP to the account email to confirm a terminal delete."""
+    redis = await get_redis()
+    try:
+        code = await request_otp(
+            current_user.email, redis, namespace="account_delete"
+        )
+    except RateLimited as exc:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "rate_limited", "retry_after": exc.retry_after},
+        ) from exc
+    ttl_minutes = settings.OTP_TTL_SECONDS // 60
+    payload = render_email(
+        "otp_login", {"code": code, "ttl_minutes": ttl_minutes}, lang="en"
+    )
+    await sender.send(
+        to=current_user.email, subject=payload.subject, text=payload.text
+    )
+    return {"sent": True}
+
+
+@router.post("/me/delete")
+async def delete_account(
+    body: AccountDeleteBody,
+    current_user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, str]:
+    """Terminal soft-delete after OTP confirmation. Blocked while open
+    obligations exist; only an admin can restore afterwards."""
+    assert current_user.id is not None
+    redis = await get_redis()
+    try:
+        await verify_otp(
+            current_user.email, body.code, redis, namespace="account_delete"
+        )
+    except (CodeExpired, InvalidCode, TooManyAttempts) as exc:
+        raise HTTPException(status_code=422, detail={"error": "otp_invalid"}) from exc
+    try:
+        await transition(
+            session, user_id=current_user.id, to_status=AccountStatus.deleted,
+            actor_user_id=None, actor_role="customer", reason=body.reason,
+            enforce_obligations=True,
+        )
+    except OpenObligations as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "open_obligations",
+                "open_orders": exc.open_orders,
+                "credit_accounts": exc.credit_accounts,
+            },
+        ) from exc
+    except InvalidTransition as exc:
+        raise HTTPException(
+            status_code=409, detail={"error": "invalid_transition"}
+        ) from exc
+    await session.commit()
+    await consume_otp_key(current_user.email, redis, namespace="account_delete")
+    dispatch_account_status_email(current_user.id, "account_deleted")
+    return {"status": "deleted"}
 
 
 @router.post("/me/addresses", response_model=CustomerProfileRead)
