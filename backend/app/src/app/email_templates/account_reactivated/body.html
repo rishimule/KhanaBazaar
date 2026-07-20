@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi {{ first_name }},</p>
+  <p>Good news — your <strong>{{ brand_name }}</strong> account is active again. You can sign in and shop as usual.</p>
+  {% set cta_url = frontend_base_url ~ "/login" %}
+  {% set cta_label = "Log in" %}
+  {% include "_partials/button.html" %}
+{% endblock %}

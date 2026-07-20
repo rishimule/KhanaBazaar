@@ -1,0 +1,7 @@
+Hi {{ first_name }},
+
+Your {{ brand_name }} account has been deactivated at your request. You won't be able to sign in until you reactivate it.
+
+Changed your mind? Just log in again at {{ frontend_base_url }}/login and your account will be reactivated automatically — all your data is still here.
+
+If you didn't do this, contact us at {{ support_email }} right away.

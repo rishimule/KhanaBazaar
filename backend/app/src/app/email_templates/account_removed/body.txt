@@ -1,0 +1,5 @@
+Hi {{ first_name }},
+
+Your {{ brand_name }} account has been removed and you can no longer sign in.
+
+If you have questions, contact us at {{ support_email }}.

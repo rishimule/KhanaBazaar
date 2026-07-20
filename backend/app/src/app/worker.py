@@ -1854,3 +1854,73 @@ def send_campaign_sms_async(campaign_id: int, to_phone: str) -> None:
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
         ex.submit(lambda: asyncio.run(_run())).result()
+
+
+def _load_account_email_context(user_id: int) -> dict[str, Any]:
+    """Load {email, first_name} for account-status emails. Empty dict if gone.
+
+    Mirrors _load_order_email_context: runs the async loader in a worker thread
+    with its own event loop + engine, disposed in finally.
+    """
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.models.base import User
+    from app.models.profile import CustomerProfile
+
+    async def _load() -> dict[str, Any]:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                user = (
+                    await session.exec(select(User).where(User.id == user_id))
+                ).first()
+                if user is None:
+                    return {}
+                profile = (
+                    await session.exec(
+                        select(CustomerProfile).where(
+                            CustomerProfile.user_id == user_id
+                        )
+                    )
+                ).first()
+                return {
+                    "email": user.email,
+                    "first_name": profile.first_name if profile else "there",
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_account_status_email_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_account_status_email_async(user_id: int, event_key: str) -> None:
+    """Notify a customer of an account state change (English-only)."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+
+    ctx = _load_account_email_context(user_id)
+    if not ctx or not ctx.get("email"):
+        return
+    payload = render_email(
+        event_key, {"first_name": ctx.get("first_name") or "there"}, lang="en"
+    )
+    _resolve_email(
+        ctx["email"],
+        payload.subject,
+        payload.text,
+        html=payload.html,
+        reply_to=settings.EMAIL_REPLY_TO,
+    )

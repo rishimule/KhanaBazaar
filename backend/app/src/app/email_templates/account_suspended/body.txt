@@ -1,0 +1,5 @@
+Hi {{ first_name }},
+
+Your {{ brand_name }} account has been paused and you can't sign in right now.
+
+If you think this is a mistake, please contact us at {{ support_email }} and we'll look into it.

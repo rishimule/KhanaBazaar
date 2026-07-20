@@ -1,0 +1,5 @@
+Hi {{ first_name }},
+
+Good news — your {{ brand_name }} account is active again. You can sign in and shop as usual.
+
+Log in: {{ frontend_base_url }}/login
