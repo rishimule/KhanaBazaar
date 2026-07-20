@@ -74,8 +74,15 @@ async def get_current_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    from app.models.base import AccountStatus
+
+    if user.account_status != AccountStatus.active:
+        # Kills a still-valid short-lived access token immediately after a
+        # mid-session suspend/delete (session revocation only kills refresh).
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": f"account_{user.account_status.value}"},
+        )
 
     return user
 
