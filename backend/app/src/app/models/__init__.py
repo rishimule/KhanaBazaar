@@ -3,7 +3,7 @@
 from .address import Address
 from .admin_audit import AdminActionLog, AdminActionTargetType
 from .auth_session import AuthSession
-from .base import BaseSchema, User, UserRole
+from .base import AccountStatus, BaseSchema, User, UserRole
 from .catalog import (
     Category,
     CategoryTranslation,
@@ -38,6 +38,7 @@ from .credit import (
     CreditLedgerEntry,
     SellerCreditConfig,
 )
+from .customer_account_event import CustomerAccountEvent
 from .dev_email import DevEmail
 from .dev_sms import DevSms
 from .dev_whatsapp import DevWhatsApp
@@ -89,6 +90,7 @@ from .seller_profile_change_request import (
 from .store import Store, StoreInventory
 
 __all__ = [
+    "AccountStatus",
     "Address",
     "AdminActionLog",
     "AdminActionTargetType",
@@ -104,6 +106,7 @@ __all__ = [
     "CreditAccountStatus",
     "CreditEntryType",
     "CreditLedgerEntry",
+    "CustomerAccountEvent",
     "CustomerAddress",
     "CustomerProfile",
     "Delivery",
