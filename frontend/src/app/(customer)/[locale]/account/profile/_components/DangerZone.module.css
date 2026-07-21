@@ -1,0 +1,221 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ *
+ * Danger zone — destructive account actions (deactivate / delete). Red-stroked
+ * card mirroring the Figma design; buttons use the tomato-red token family.
+ */
+
+.card {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.heading {
+  font-size: var(--font-xl);
+  font-weight: var(--weight-semibold);
+  color: var(--color-error);
+  margin: 0 0 var(--space-4);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+}
+
+.rowText {
+  min-width: 0;
+}
+
+.rowTitle {
+  font-size: var(--font-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-neutral-900);
+  margin: 0 0 var(--space-1);
+}
+
+.rowSubtitle {
+  font-size: var(--font-sm);
+  color: var(--color-neutral-500);
+  margin: 0;
+}
+
+.divider {
+  height: 1px;
+  background: var(--hairline);
+  margin: var(--space-1) 0;
+}
+
+/* --------------------------------------------------------
+   Buttons — destructive outline + solid, and a neutral ghost
+   for modal "Cancel". All rounded rects to match Figma.
+   -------------------------------------------------------- */
+.solidDanger,
+.outlineDanger,
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 12px 20px;
+  font-family: var(--font-family-sans);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default);
+}
+
+.solidDanger {
+  background: var(--tomato-red-base-4);
+  color: var(--white);
+  border: 1px solid var(--tomato-red-base-4);
+}
+.solidDanger:hover {
+  background: var(--tomato-red-dark-1);
+  border-color: var(--tomato-red-dark-1);
+}
+
+.outlineDanger {
+  background: transparent;
+  color: var(--tomato-red-base-4);
+  border: 1px solid var(--tomato-red-base-4);
+}
+.outlineDanger:hover {
+  background: var(--tomato-red-light-1);
+}
+
+.ghostBtn {
+  background: var(--white);
+  color: var(--color-neutral-800);
+  border: 1px solid var(--shade-cool-light-6);
+}
+.ghostBtn:hover {
+  border-color: var(--color-neutral-400);
+}
+
+.solidDanger:active,
+.outlineDanger:active,
+.ghostBtn:active {
+  transform: scale(0.97);
+}
+
+.solidDanger:disabled,
+.outlineDanger:disabled,
+.ghostBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* --------------------------------------------------------
+   Modal content
+   -------------------------------------------------------- */
+.modalBody {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-3);
+  line-height: 1.5;
+  margin: 0 0 var(--space-4);
+}
+
+.modalHint {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-3);
+  margin: var(--space-3) 0 0;
+}
+
+.warningCallout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--tomato-red-light-1);
+  border-radius: var(--radius-md);
+  color: var(--tomato-red-dark-1);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  padding: var(--space-3) var(--space-4);
+}
+
+.codeInput {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: var(--font-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.5em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--shade-cool-dark-7);
+  background: var(--white);
+  border: 1px solid var(--shade-cool-light-6);
+  border-radius: var(--radius-card);
+  font-family: var(--font-family-sans);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.codeInput:focus {
+  outline: none;
+  border-color: var(--color-primary-1);
+  box-shadow: 0 0 0 2px rgba(15, 107, 6, 0.12);
+}
+
+.resendRow {
+  margin-top: var(--space-3);
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-primary-1);
+  cursor: pointer;
+}
+.linkBtn:hover {
+  text-decoration: underline;
+}
+.linkBtn:disabled {
+  color: var(--color-neutral-400);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.muted {
+  font-size: var(--body-sm);
+  color: var(--color-neutral-500);
+}
+
+.errorText {
+  margin: var(--space-3) 0 0;
+  color: var(--color-error);
+  font-size: var(--body-sm);
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: var(--space-4);
+  }
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+  .solidDanger,
+  .outlineDanger {
+    width: 100%;
+    min-height: 44px;
+  }
+}

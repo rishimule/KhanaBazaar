@@ -125,6 +125,8 @@ export interface CustomerProfile {
   phone_verified_at: string | null;
   avatar_url: string | null;
   addresses: CustomerAddress[];
+  /** Lifecycle state from GET /customers/me. Absent on older payloads. */
+  account_status?: "active" | "deactivated" | "suspended" | "deleted";
 }
 
 /** A seller's store on the platform. */
