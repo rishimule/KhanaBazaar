@@ -7,6 +7,7 @@ pairs into a Freebie Trial arrangement, and the daily sweep that expires trials
 Pure/service-layer logic; callers own the commit. Seller notifications +
 expiry reminders are added in Plan 3."""
 from datetime import date, datetime, timedelta, timezone
+from typing import Literal, Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -24,9 +25,11 @@ from app.models.platform_fee import (
     PlatformFeeSettings,
     ServiceFeeConfig,
     ServiceSubscriptionPlan,
+    StoreCreditReason,
 )
 from app.models.profile import SellerProfileService
 from app.models.store import Store
+from app.services import store_credit
 from app.services.fee_notifications import notify_seller_fee_event
 
 DEFAULT_FREEBIE_DAYS = 30
@@ -533,3 +536,373 @@ async def run_fee_sweep(
                 counts["to_suspended"] += 1
     await session.flush()
     return counts
+
+
+# ─── Pay-Per-Transaction (prepaid) ──────────────────────────────────────────
+
+
+async def _ppt_config(
+    session: AsyncSession, service_id: int
+) -> tuple[float, float, float]:
+    """Return (fee, min_deposit, low_balance_threshold) for a service that has
+    PPT enabled. Raises FeeError if PPT is not offerable."""
+    cfg = (
+        await session.exec(
+            select(
+                ServiceFeeConfig.pay_per_txn_enabled,
+                ServiceFeeConfig.pay_per_txn_fee,
+                ServiceFeeConfig.pay_per_txn_min_deposit,
+                ServiceFeeConfig.pay_per_txn_low_balance_threshold,
+            ).where(ServiceFeeConfig.service_id == service_id)
+        )
+    ).first()
+    if cfg is None or not cfg[0]:
+        raise FeeError("pay_per_txn_not_offerable")
+    return float(cfg[1]), float(cfg[2]), float(cfg[3])
+
+
+async def _evaluate_ppt_status(
+    session: AsyncSession, arr: FeeArrangement, *, today: date | None = None
+) -> None:
+    """Drive PPT balance→status transitions after any balance change. Reads the
+    LIVE fee. Records events + an in-app seller notification. Sets/clears the
+    grace deadline in `valid_until`. Caller commits.
+
+    - Active, balance < fee   → Grace (valid_until = today).
+    - Active, balance < thr   → throttled low-balance reminder.
+    - Grace/Suspended, balance ≥ fee → Active (reactivate).
+
+    The Grace→Suspend transition is time-driven and fires only from the sweep."""
+    today = today or date.today()
+    fee, _min_dep, low_thr = await _ppt_config(session, arr.service_id)
+
+    if arr.status in (ArrangementStatus.Grace, ArrangementStatus.Suspended):
+        if arr.balance >= fee:
+            arr.status = ArrangementStatus.Active
+            arr.valid_until = None
+            arr.suspended_at = None
+            arr.suspended_reason = None
+            session.add(arr)
+            session.add(
+                FeeEvent(
+                    arrangement_id=arr.id, event_type=FeeEventType.Reactivated,
+                    actor="system", note="balance restored",
+                )
+            )
+            await notify_seller_fee_event(
+                session, store_id=arr.store_id, type=NotificationType.FeeReactivated,
+            )
+        await session.flush()
+        return
+
+    if arr.status == ArrangementStatus.Active:
+        if arr.balance < fee:
+            arr.status = ArrangementStatus.Grace
+            arr.valid_until = today
+            session.add(arr)
+            session.add(
+                FeeEvent(
+                    arrangement_id=arr.id, event_type=FeeEventType.GraceStarted,
+                    actor="system", note="balance below fee",
+                )
+            )
+            await notify_seller_fee_event(
+                session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
+            )
+        elif arr.balance < low_thr and arr.last_reminder_sent_on != today:
+            arr.last_reminder_sent_on = today
+            session.add(arr)
+            await notify_seller_fee_event(
+                session, store_id=arr.store_id, type=NotificationType.FeeLowBalance,
+            )
+    await session.flush()
+
+
+async def opt_into_pay_per_transaction(
+    session: AsyncSession, arrangement: FeeArrangement, deposit_amount: float,
+    *, use_credit: bool = False, now: datetime | None = None,
+) -> FeePayment | None:
+    """Seller opts into PPT with an initial prepaid deposit. When `use_credit`
+    and the store's wallet credit fully covers `deposit_amount`, apply credit +
+    activate immediately (returns None). Otherwise create a pending cash
+    FeePayment for the full deposit (partial credit is NOT blended here — sellers
+    mix credit post-activation via apply-credit). Caller commits."""
+    now = now or datetime.now(timezone.utc)
+    _fee, min_deposit, _low = await _ppt_config(session, arrangement.service_id)
+    if deposit_amount < min_deposit:
+        raise FeeError("below_min_deposit")
+    existing_pending = (
+        await session.exec(
+            select(FeePayment).where(
+                FeePayment.arrangement_id == arrangement.id,
+                FeePayment.status == FeePaymentStatus.Pending,
+            )
+        )
+    ).first()
+    if existing_pending is not None:
+        raise FeeError("payment_already_pending")
+
+    if use_credit:
+        store = await store_credit.load_store(session, arrangement.store_id)
+        if store.fee_credit_balance >= deposit_amount:
+            applied = await store_credit.apply(
+                session, store, deposit_amount, actor="seller",
+                note="ppt opt-in (credit)", related_arrangement_id=arrangement.id,
+            )
+            arrangement.model = FeeModel.PayPerTransaction
+            arrangement.status = ArrangementStatus.Active
+            arrangement.balance = applied
+            arrangement.valid_until = None
+            arrangement.pending_since = None
+            session.add(arrangement)
+            session.add(
+                FeeEvent(
+                    arrangement_id=arrangement.id, event_type=FeeEventType.Activated,
+                    amount_delta=applied, actor="seller",
+                    note="ppt activated via credit",
+                )
+            )
+            await session.flush()
+            return None
+
+    arrangement.model = FeeModel.PayPerTransaction
+    arrangement.status = ArrangementStatus.PendingActivation
+    arrangement.pending_since = now
+    session.add(arrangement)
+    payment = FeePayment(
+        arrangement_id=arrangement.id, kind=FeePaymentKind.PayPerTxnTopUp,
+        amount=deposit_amount, status=FeePaymentStatus.Pending,
+    )
+    session.add(payment)
+    await session.flush()
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id, event_type=FeeEventType.PaymentRecorded,
+            amount_delta=deposit_amount, actor="seller", note="ppt opt-in deposit",
+        )
+    )
+    return payment
+
+
+async def confirm_pay_per_txn_topup(
+    session: AsyncSession, payment: FeePayment, admin_user_id: int,
+    *, today: date | None = None,
+) -> FeeArrangement:
+    """Admin confirms an offline PPT deposit/top-up. Credits balance, activates
+    a pending arrangement, and auto-reactivates a Grace/Suspended one. Caller
+    commits."""
+    arrangement = (
+        await session.exec(
+            select(FeeArrangement).where(FeeArrangement.id == payment.arrangement_id)
+        )
+    ).one()
+    was_activation = arrangement.status == ArrangementStatus.PendingActivation
+
+    arrangement.balance = round(arrangement.balance + payment.amount, 2)
+    arrangement.model = FeeModel.PayPerTransaction
+    arrangement.pending_since = None
+    session.add(arrangement)
+
+    payment.status = FeePaymentStatus.Confirmed
+    payment.confirmed_by_admin_id = admin_user_id
+    payment.confirmed_at = datetime.now(timezone.utc)
+    session.add(payment)
+
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=(
+                FeeEventType.Activated if was_activation else FeeEventType.BalanceTopup
+            ),
+            amount_delta=payment.amount, actor=f"admin:{admin_user_id}",
+            note="ppt deposit" if was_activation else "ppt top-up",
+        )
+    )
+
+    if was_activation:
+        arrangement.status = ArrangementStatus.Active
+        arrangement.valid_until = None
+        session.add(arrangement)
+    await session.flush()
+    # Reactivate Grace/Suspended if the top-up cleared the fee threshold.
+    await _evaluate_ppt_status(session, arrangement, today=today)
+    return arrangement
+
+
+async def create_top_up(
+    session: AsyncSession, arrangement: FeeArrangement, amount: float,
+    *, now: datetime | None = None,
+) -> FeePayment:
+    """Seller records an offline cash top-up → a Pending PayPerTxnTopUp payment
+    (admin confirms via confirm_pay_per_txn_topup). Caller commits."""
+    if arrangement.model != FeeModel.PayPerTransaction:
+        raise FeeError("not_pay_per_transaction")
+    if amount <= 0:
+        raise FeeError("bad_amount")
+    existing = (
+        await session.exec(
+            select(FeePayment).where(
+                FeePayment.arrangement_id == arrangement.id,
+                FeePayment.status == FeePaymentStatus.Pending,
+            )
+        )
+    ).first()
+    if existing is not None:
+        raise FeeError("payment_already_pending")
+    payment = FeePayment(
+        arrangement_id=arrangement.id, kind=FeePaymentKind.PayPerTxnTopUp,
+        amount=amount, status=FeePaymentStatus.Pending,
+    )
+    session.add(payment)
+    await session.flush()
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id, event_type=FeeEventType.PaymentRecorded,
+            amount_delta=amount, actor="seller", note="ppt top-up",
+        )
+    )
+    return payment
+
+
+async def apply_credit_to_arrangement(
+    session: AsyncSession, arrangement: FeeArrangement, amount: float,
+    *, today: date | None = None,
+) -> float:
+    """Instantly move store wallet credit into a PPT arrangement's balance (no
+    admin step — platform-held money). Reactivates Grace/Suspended if it clears
+    the fee threshold. Returns applied amount. Caller commits."""
+    if arrangement.model != FeeModel.PayPerTransaction:
+        raise FeeError("not_pay_per_transaction")
+    store = await store_credit.load_store(session, arrangement.store_id)
+    applied = await store_credit.apply(
+        session, store, amount, actor="seller", note="ppt balance top-up",
+        related_arrangement_id=arrangement.id,
+    )
+    if applied <= 0:
+        raise FeeError("no_credit_available")
+    arrangement.balance = round(arrangement.balance + applied, 2)
+    session.add(arrangement)
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id, event_type=FeeEventType.BalanceTopup,
+            amount_delta=applied, actor="seller", note="credit applied",
+        )
+    )
+    await session.flush()
+    await _evaluate_ppt_status(session, arrangement, today=today)
+    return applied
+
+
+async def _dispose_ppt_balance(
+    session: AsyncSession, arr: FeeArrangement, *,
+    disposition: Literal["credit", "cash_out", "waive"], actor: str, note: str,
+) -> None:
+    """Dispose of a PPT arrangement's leftover balance on exit. Positive →
+    wallet credit (or cash-out); negative → recorded owed (waive zeroes it).
+    Zeroes arr.balance. Caller commits."""
+    store = await store_credit.load_store(session, arr.store_id)
+    bal = arr.balance
+    if bal > 0:
+        session.add(
+            FeeEvent(
+                arrangement_id=arr.id, event_type=FeeEventType.BalanceRefunded,
+                amount_delta=-bal, actor=actor, note=note,
+            )
+        )
+        await store_credit.grant(
+            session, store, bal, actor=actor, note=f"ppt exit: {note}",
+            reason=StoreCreditReason.GrantedOnExit, related_arrangement_id=arr.id,
+        )
+        if disposition == "cash_out":
+            await store_credit.cash_out(
+                session, store, bal, actor=actor, note=f"ppt exit refund: {note}"
+            )
+    elif bal < 0:
+        owed = -bal
+        session.add(
+            FeeEvent(
+                arrangement_id=arr.id, event_type=FeeEventType.BalanceRefunded,
+                amount_delta=owed, actor=actor, note=f"debt {owed}: {note}",
+            )
+        )
+        if disposition == "waive":
+            await store_credit.waive_debt(session, store, owed, actor=actor, note=note)
+        # credit/cash_out on a debt: nothing to refund; owed stays recorded.
+    arr.balance = 0.0
+    session.add(arr)
+    await session.flush()
+
+
+async def seller_switch_from_ppt(
+    session: AsyncSession, arr: FeeArrangement
+) -> None:
+    """Seller leaves PPT voluntarily. Blocked on a negative balance (must settle
+    first). Positive balance → wallet credit; arrangement terminated. Caller
+    commits."""
+    if arr.model != FeeModel.PayPerTransaction:
+        raise FeeError("not_pay_per_transaction")
+    if arr.balance < 0:
+        raise FeeError("balance_negative")
+    await _dispose_ppt_balance(
+        session, arr, disposition="credit", actor="seller", note="seller switch"
+    )
+    arr.status = ArrangementStatus.Suspended
+    arr.suspended_at = datetime.now(timezone.utc)
+    arr.suspended_reason = "switched_from_ppt"
+    session.add(arr)
+    session.add(
+        FeeEvent(
+            arrangement_id=arr.id, event_type=FeeEventType.Terminated,
+            actor="seller", note="switched from ppt",
+        )
+    )
+    await session.flush()
+
+
+async def admin_switch_model(
+    session: AsyncSession, arr: FeeArrangement, *,
+    target_model: FeeModel, target_duration_months: Optional[int] = None,
+    disposition: Literal["credit", "cash_out", "waive"] = "credit",
+    admin_user_id: int, today: date | None = None,
+) -> None:
+    """Admin force-switches an arrangement to `target_model` at ANY balance
+    (disposes leftover PPT balance per `disposition`). Bypasses seller guards +
+    gating. Caller commits + audits."""
+    today = today or date.today()
+    if arr.model == FeeModel.PayPerTransaction:
+        await _dispose_ppt_balance(
+            session, arr, disposition=disposition, actor=f"admin:{admin_user_id}",
+            note="admin switch",
+        )
+    if target_model == FeeModel.Subscription:
+        if not target_duration_months:
+            raise FeeError("duration_required")
+        admin_comp_subscription(
+            session, arr, target_duration_months, admin_user_id, today=today
+        )
+    elif target_model == FeeModel.Freebie:
+        days_row = (
+            await session.exec(
+                select(ServiceFeeConfig.freebie_default_days).where(
+                    ServiceFeeConfig.service_id == arr.service_id
+                )
+            )
+        ).first()
+        days = int(days_row) if days_row is not None else DEFAULT_FREEBIE_DAYS
+        arr.model = FeeModel.Freebie
+        arr.status = ArrangementStatus.Trial
+        arr.valid_until = today + timedelta(days=days)
+        arr.balance = 0.0
+        arr.pending_since = None
+        arr.suspended_at = None
+        arr.suspended_reason = None
+        session.add(arr)
+        session.add(
+            FeeEvent(
+                arrangement_id=arr.id, event_type=FeeEventType.ModelChanged,
+                actor=f"admin:{admin_user_id}", note=f"switched to freebie {days}d",
+            )
+        )
+    else:
+        raise FeeError("unsupported_target_model")
+    await session.flush()
