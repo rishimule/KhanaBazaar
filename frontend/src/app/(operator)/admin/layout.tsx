@@ -33,6 +33,7 @@ export default function AdminLayout({
     { href: "/admin", label: t("nav.dashboard"), icon: "📊" },
     { href: "/admin/orders", label: t("nav.orders"), icon: "📦" },
     { href: "/admin/sellers", label: t("nav.sellers"), icon: "🏪" },
+    { href: "/admin/customers", label: t("nav.customers"), icon: "👤" },
     { href: "/admin/sellers/applications", label: t("nav.applications"), icon: "✅" },
     { href: "/admin/change-requests", label: t("nav.changeRequests"), icon: "🔔" },
   { href: "/admin/notifications", label: t("nav.notifications"), icon: "📣" },
@@ -61,6 +62,10 @@ export default function AdminLayout({
             ? t("titles.referrals")
             : pathname.startsWith("/admin/sellers/")
             ? t("titles.sellerStore")
+            : pathname.startsWith("/admin/customers/")
+            ? t("titles.customerDetail")
+            : pathname === "/admin/customers"
+            ? t("titles.customers")
             : pathname.startsWith("/admin/catalog")
               ? t("titles.catalog")
               : pathname.startsWith("/admin/orders")

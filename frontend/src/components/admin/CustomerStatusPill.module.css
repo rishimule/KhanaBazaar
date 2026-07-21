@@ -1,0 +1,38 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* active = green tint */
+.active {
+  background: var(--jade-green-light-1);
+  color: var(--jade-green-dark-1);
+}
+
+/* deactivated = neutral */
+.deactivated {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-700);
+}
+
+/* suspended = amber */
+.suspended {
+  background: var(--mandarin-orange-light-1);
+  color: var(--mandarin-orange-base-4);
+}
+
+/* deleted = red tint */
+.deleted {
+  background: var(--tomato-red-light-1);
+  color: var(--tomato-red-dark-1);
+}

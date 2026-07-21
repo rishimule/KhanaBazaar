@@ -1436,7 +1436,8 @@
       "fees": "ਫ਼ੀਸ",
       "feeQueue": "ਫ਼ੀਸ ਕਤਾਰ",
       "referrals": "ਰੈਫ਼ਰਲ",
-      "notifications": "ਸੂਚਨਾਵਾਂ"
+      "notifications": "ਸੂਚਨਾਵਾਂ",
+      "customers": "ਗਾਹਕ"
     },
     "titles": {
       "dashboard": "ਐਡਮਿਨ ਡੈਸ਼ਬੋਰਡ",
@@ -1453,7 +1454,9 @@
       "onboardingRequests": "ਵਿਕਰੇਤਾ ਆਨਬੋਰਡਿੰਗ ਬੇਨਤੀਆਂ",
       "fees": "ਪਲੇਟਫਾਰਮ ਫ਼ੀਸ",
       "feeQueue": "ਫ਼ੀਸ ਪੁਸ਼ਟੀ ਕਤਾਰ",
-      "referrals": "ਰੈਫ਼ਰਲ"
+      "referrals": "ਰੈਫ਼ਰਲ",
+      "customers": "ਗਾਹਕ",
+      "customerDetail": "ਗਾਹਕ ਖਾਤਾ"
     },
     "settings": {
       "title": "ਸੈਟਿੰਗਾਂ"
@@ -2015,6 +2018,110 @@
       "rejectTitle": "ਤਬਦੀਲੀ ਬੇਨਤੀ ਰੱਦ ਕਰੋ",
       "rejectDesc": "ਵਿਕਰੇਤਾ ਨੂੰ ਇਹ ਕਾਰਨ ਦਿਖੇਗਾ। ਰੱਦ ਕਰਨਾ ਅੰਤਿਮ ਹੈ — ਉਹਨਾਂ ਨੂੰ ਨਵੀਂ ਬੇਨਤੀ ਖੋਲ੍ਹਣੀ ਪਵੇਗੀ।",
       "rejectFailed": "ਰੱਦ ਕਰਨਾ ਅਸਫਲ"
+    },
+    "customers": {
+      "col": {
+        "customer": "ਗਾਹਕ",
+        "phone": "ਫ਼ੋਨ",
+        "status": "ਸਥਿਤੀ",
+        "joined": "ਸ਼ਾਮਲ ਹੋਏ",
+        "actions": "ਪ੍ਰਬੰਧ ਕਰੋ"
+      },
+      "filter": {
+        "all": "ਸਾਰੇ",
+        "active": "ਕਿਰਿਆਸ਼ੀਲ",
+        "deactivated": "ਅਕਿਰਿਆਸ਼ੀਲ",
+        "suspended": "ਮੁਅੱਤਲ",
+        "deleted": "ਹਟਾਇਆ ਗਿਆ"
+      },
+      "status": {
+        "active": "ਕਿਰਿਆਸ਼ੀਲ",
+        "deactivated": "ਅਕਿਰਿਆਸ਼ੀਲ",
+        "suspended": "ਮੁਅੱਤਲ",
+        "deleted": "ਹਟਾਇਆ ਗਿਆ"
+      },
+      "searchPlaceholder": "ਨਾਮ, ਈਮੇਲ ਜਾਂ ਫ਼ੋਨ ਖੋਜੋ…",
+      "empty": "ਕੋਈ ਗਾਹਕ ਨਹੀਂ ਮਿਲਿਆ।",
+      "noName": "ਬਿਨਾਂ ਨਾਮ ਵਾਲਾ ਗਾਹਕ",
+      "manage": "ਪ੍ਰਬੰਧ ਕਰੋ",
+      "cardMeta": "{ago} ਸ਼ਾਮਲ ਹੋਏ",
+      "prev": "‹ ਪਿਛਲਾ",
+      "next": "ਅਗਲਾ ›",
+      "showing": "{total} ਵਿੱਚੋਂ {from}–{to} ਦਿਖਾ ਰਹੇ ਹਾਂ",
+      "loadError": "ਇਸ ਗਾਹਕ ਨੂੰ ਲੋਡ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ।",
+      "breadcrumbRoot": "ਗਾਹਕ",
+      "viewingBanner": "ਗਾਹਕ ਖਾਤਾ ਵੇਖ ਰਹੇ ਹੋ",
+      "stat": {
+        "openOrders": "ਖੁੱਲ੍ਹੇ ਆਰਡਰ",
+        "openCredit": "ਖੁੱਲ੍ਹੇ ਕ੍ਰੈਡਿਟ ਖਾਤੇ"
+      },
+      "actions": {
+        "suspend": "ਮੁਅੱਤਲ ਕਰੋ",
+        "unsuspend": "ਮੁਅੱਤਲੀ ਹਟਾਓ",
+        "delete": "ਹਟਾਓ",
+        "restore": "ਬਹਾਲ ਕਰੋ",
+        "invalidTransition": "ਇਹ ਕਾਰਵਾਈ ਖਾਤੇ ਦੀ ਮੌਜੂਦਾ ਸਥਿਤੀ ਉੱਤੇ ਲਾਗੂ ਨਹੀਂ ਹੁੰਦੀ।",
+        "failed": "ਕਾਰਵਾਈ ਪੂਰੀ ਨਹੀਂ ਹੋ ਸਕੀ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+        "modalTitle": {
+          "suspend": "{name} ਨੂੰ ਮੁਅੱਤਲ ਕਰੋ",
+          "unsuspend": "{name} ਦੀ ਮੁਅੱਤਲੀ ਹਟਾਓ",
+          "delete": "{name} ਨੂੰ ਹਟਾਓ",
+          "restore": "{name} ਨੂੰ ਬਹਾਲ ਕਰੋ"
+        },
+        "modalDesc": {
+          "suspend": "ਮੁਅੱਤਲੀ ਹਟਾਏ ਜਾਣ ਤੱਕ ਗਾਹਕ ਆਰਡਰ ਨਹੀਂ ਦੇ ਸਕੇਗਾ।",
+          "unsuspend": "ਗਾਹਕ ਨੂੰ ਆਪਣੇ ਖਾਤੇ ਦੀ ਪੂਰੀ ਪਹੁੰਚ ਮੁੜ ਮਿਲ ਜਾਵੇਗੀ।",
+          "delete": "ਖਾਤਾ ਹਟਾਇਆ ਗਿਆ ਵਜੋਂ ਨਿਸ਼ਾਨਬੱਧ ਹੋਵੇਗਾ ਅਤੇ ਪਹੁੰਚ ਰੱਦ ਹੋ ਜਾਵੇਗੀ। ਇਸਨੂੰ ਬਾਅਦ ਵਿੱਚ ਬਹਾਲ ਕੀਤਾ ਜਾ ਸਕਦਾ ਹੈ।",
+          "restore": "ਖਾਤਾ ਮੁੜ ਕਿਰਿਆਸ਼ੀਲ ਹੋਵੇਗਾ ਅਤੇ ਪਹੁੰਚ ਬਹਾਲ ਹੋ ਜਾਵੇਗੀ।"
+        }
+      },
+      "overview": {
+        "heading": "ਖਾਤਾ ਸੰਖੇਪ",
+        "status": "ਖਾਤਾ ਸਥਿਤੀ",
+        "statusChanged": "ਸਥਿਤੀ ਬਦਲੀ",
+        "reason": "ਤਾਜ਼ਾ ਕਾਰਨ",
+        "email": "ਈਮੇਲ",
+        "phone": "ਫ਼ੋਨ",
+        "userId": "ਵਰਤੋਂਕਾਰ ID"
+      },
+      "activity": {
+        "heading": "ਖਾਤਾ ਗਤੀਵਿਧੀ",
+        "empty": "ਹਾਲੇ ਤੱਕ ਕੋਈ ਜੀਵਨ-ਚੱਕਰ ਗਤੀਵਿਧੀ ਨਹੀਂ।",
+        "loadError": "ਗਤੀਵਿਧੀ ਲੋਡ ਨਹੀਂ ਕੀਤੀ ਜਾ ਸਕੀ।",
+        "transition": "{from} → {to}",
+        "byActor": "{role} ਵੱਲੋਂ"
+      },
+      "orders": {
+        "heading": "ਆਰਡਰ ({n})",
+        "empty": "ਇਸ ਗਾਹਕ ਦੇ ਕੋਈ ਆਰਡਰ ਨਹੀਂ ਹਨ।",
+        "loadError": "ਆਰਡਰ ਲੋਡ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ।",
+        "col": {
+          "order": "ਆਰਡਰ",
+          "service": "ਸੇਵਾ",
+          "status": "ਸਥਿਤੀ",
+          "total": "ਕੁੱਲ",
+          "placed": "ਦਿੱਤਾ"
+        }
+      },
+      "addresses": {
+        "heading": "ਪਤੇ ({n})",
+        "empty": "ਕੋਈ ਸੰਭਾਲਿਆ ਪਤਾ ਨਹੀਂ।",
+        "loadError": "ਪਤੇ ਲੋਡ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ।",
+        "unlabeled": "ਪਤਾ",
+        "default": "ਡਿਫੌਲਟ"
+      },
+      "notifications": {
+        "heading": "ਸੂਚਨਾਵਾਂ",
+        "empty": "ਕੋਈ ਸੂਚਨਾ ਨਹੀਂ।",
+        "loadError": "ਸੂਚਨਾਵਾਂ ਲੋਡ ਨਹੀਂ ਕੀਤੀਆਂ ਜਾ ਸਕੀਆਂ।"
+      },
+      "tab": {
+        "overview": "ਸੰਖੇਪ",
+        "activity": "ਗਤੀਵਿਧੀ",
+        "orders": "ਆਰਡਰ",
+        "addresses": "ਪਤੇ",
+        "notifications": "ਸੂਚਨਾਵਾਂ"
+      }
     }
   },
   "Shared": {

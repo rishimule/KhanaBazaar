@@ -716,6 +716,84 @@ export interface AdminInventoryRow {
 }
 
 // ---------------------------------------------------------------------------
+// Admin customer supervisor (customer-account lifecycle)
+// ---------------------------------------------------------------------------
+
+export type CustomerAccountStatus =
+  | "active"
+  | "deactivated"
+  | "suspended"
+  | "deleted";
+
+/** Lifecycle actions the admin can take on a customer account. */
+export type CustomerLifecycleAction =
+  | "suspend"
+  | "unsuspend"
+  | "delete"
+  | "restore";
+
+/** Row in the admin customer list (GET /admin/customers). */
+export interface AdminCustomerListItem {
+  customer_profile_id: number;
+  user_id: number;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  account_status: CustomerAccountStatus;
+  created_at: string;
+}
+
+export interface AdminCustomerListResponse {
+  items: AdminCustomerListItem[];
+  total: number;
+}
+
+/** Per-customer hub summary (GET /admin/customers/{id}). */
+export interface AdminCustomerHub {
+  customer_profile_id: number;
+  user_id: number;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  account_status: CustomerAccountStatus;
+  status_reason: string | null;
+  status_changed_at: string | null;
+  open_orders: number;
+  open_credit_accounts: number;
+}
+
+/** One lifecycle-transition event (GET /admin/customers/{id}/activity). */
+export interface AdminCustomerActivity {
+  id: number;
+  actor_user_id: number | null;
+  actor_role: string;
+  from_status: string | null;
+  to_status: string;
+  reason: string | null;
+  created_at: string;
+}
+
+/** A customer's order as seen by the supervisor (GET /admin/customers/{id}/orders). */
+export interface AdminCustomerOrder {
+  id: number;
+  store_id: number;
+  service_name_snapshot: string | null;
+  status: OrderStatus;
+  total: number;
+  placed_at: string;
+}
+
+/** A customer notification row (GET /admin/customers/{id}/notifications). */
+export interface AdminCustomerNotification {
+  id: number;
+  type: string;
+  title: string;
+  body: string;
+  read: boolean;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
 // Favourites
 // ---------------------------------------------------------------------------
 

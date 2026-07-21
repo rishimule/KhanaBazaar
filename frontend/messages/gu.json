@@ -1436,7 +1436,8 @@
       "fees": "ફી",
       "feeQueue": "ફી કતાર",
       "referrals": "રેફરલ",
-      "notifications": "સૂચનાઓ"
+      "notifications": "સૂચનાઓ",
+      "customers": "ગ્રાહકો"
     },
     "titles": {
       "dashboard": "એડમિન ડેશબોર્ડ",
@@ -1453,7 +1454,9 @@
       "onboardingRequests": "વિક્રેતા ઓનબોર્ડિંગ વિનંતીઓ",
       "fees": "પ્લેટફોર્મ ફી",
       "feeQueue": "ફી પુષ્ટિ કતાર",
-      "referrals": "રેફરલ"
+      "referrals": "રેફરલ",
+      "customers": "ગ્રાહકો",
+      "customerDetail": "ગ્રાહક ખાતું"
     },
     "settings": {
       "title": "સેટિંગ્સ"
@@ -2015,6 +2018,110 @@
       "rejectTitle": "ફેરફાર વિનંતી નકારો",
       "rejectDesc": "વિક્રેતાને આ કારણ દેખાશે. નકાર અંતિમ છે — તેમને નવી વિનંતી ખોલવી પડશે.",
       "rejectFailed": "નકાર નિષ્ફળ"
+    },
+    "customers": {
+      "col": {
+        "customer": "ગ્રાહક",
+        "phone": "ફોન",
+        "status": "સ્થિતિ",
+        "joined": "જોડાયા",
+        "actions": "સંચાલિત કરો"
+      },
+      "filter": {
+        "all": "બધા",
+        "active": "સક્રિય",
+        "deactivated": "નિષ્ક્રિય",
+        "suspended": "સ્થગિત",
+        "deleted": "કાઢી નાખેલ"
+      },
+      "status": {
+        "active": "સક્રિય",
+        "deactivated": "નિષ્ક્રિય",
+        "suspended": "સ્થગિત",
+        "deleted": "કાઢી નાખેલ"
+      },
+      "searchPlaceholder": "નામ, ઇમેઇલ અથવા ફોન શોધો…",
+      "empty": "કોઈ ગ્રાહક મળ્યો નથી.",
+      "noName": "નામ વગરનો ગ્રાહક",
+      "manage": "સંચાલિત કરો",
+      "cardMeta": "{ago} જોડાયા",
+      "prev": "‹ પાછળ",
+      "next": "આગળ ›",
+      "showing": "{total} માંથી {from}–{to} બતાવી રહ્યા છીએ",
+      "loadError": "આ ગ્રાહકને લોડ કરી શકાયો નથી.",
+      "breadcrumbRoot": "ગ્રાહકો",
+      "viewingBanner": "ગ્રાહક ખાતું જોઈ રહ્યા છીએ",
+      "stat": {
+        "openOrders": "ખુલ્લા ઓર્ડર",
+        "openCredit": "ખુલ્લા ક્રેડિટ ખાતાં"
+      },
+      "actions": {
+        "suspend": "સ્થગિત કરો",
+        "unsuspend": "સ્થગિતતા દૂર કરો",
+        "delete": "કાઢી નાખો",
+        "restore": "પુનઃસ્થાપિત કરો",
+        "invalidTransition": "આ ક્રિયા ખાતાની વર્તમાન સ્થિતિ પર લાગુ પડતી નથી.",
+        "failed": "ક્રિયા પૂર્ણ કરી શકાઈ નથી. કૃપા કરીને ફરી પ્રયાસ કરો.",
+        "modalTitle": {
+          "suspend": "{name} ને સ્થગિત કરો",
+          "unsuspend": "{name} ની સ્થગિતતા દૂર કરો",
+          "delete": "{name} ને કાઢી નાખો",
+          "restore": "{name} ને પુનઃસ્થાપિત કરો"
+        },
+        "modalDesc": {
+          "suspend": "સ્થગિતતા દૂર થાય ત્યાં સુધી ગ્રાહક ઓર્ડર આપી શકશે નહીં.",
+          "unsuspend": "ગ્રાહકને તેમના ખાતાની સંપૂર્ણ ઍક્સેસ ફરીથી મળશે.",
+          "delete": "ખાતું કાઢી નાખેલ તરીકે ચિહ્નિત થશે અને ઍક્સેસ રદ થશે. તેને પછીથી પુનઃસ્થાપિત કરી શકાય છે.",
+          "restore": "ખાતું ફરીથી સક્રિય થશે અને ઍક્સેસ પુનઃસ્થાપિત થશે."
+        }
+      },
+      "overview": {
+        "heading": "ખાતાની ઝાંખી",
+        "status": "ખાતાની સ્થિતિ",
+        "statusChanged": "સ્થિતિ બદલાઈ",
+        "reason": "તાજેતરનું કારણ",
+        "email": "ઇમેઇલ",
+        "phone": "ફોન",
+        "userId": "વપરાશકર્તા ID"
+      },
+      "activity": {
+        "heading": "ખાતાની પ્રવૃત્તિ",
+        "empty": "હજી સુધી કોઈ જીવનચક્ર પ્રવૃત્તિ નથી.",
+        "loadError": "પ્રવૃત્તિ લોડ કરી શકાઈ નથી.",
+        "transition": "{from} → {to}",
+        "byActor": "{role} દ્વારા"
+      },
+      "orders": {
+        "heading": "ઓર્ડર ({n})",
+        "empty": "આ ગ્રાહકના કોઈ ઓર્ડર નથી.",
+        "loadError": "ઓર્ડર લોડ કરી શકાયા નથી.",
+        "col": {
+          "order": "ઓર્ડર",
+          "service": "સેવા",
+          "status": "સ્થિતિ",
+          "total": "કુલ",
+          "placed": "આપ્યો"
+        }
+      },
+      "addresses": {
+        "heading": "સરનામાં ({n})",
+        "empty": "કોઈ સાચવેલ સરનામું નથી.",
+        "loadError": "સરનામાં લોડ કરી શકાયા નથી.",
+        "unlabeled": "સરનામું",
+        "default": "ડિફૉલ્ટ"
+      },
+      "notifications": {
+        "heading": "સૂચનાઓ",
+        "empty": "કોઈ સૂચના નથી.",
+        "loadError": "સૂચનાઓ લોડ કરી શકાઈ નથી."
+      },
+      "tab": {
+        "overview": "ઝાંખી",
+        "activity": "પ્રવૃત્તિ",
+        "orders": "ઓર્ડર",
+        "addresses": "સરનામાં",
+        "notifications": "સૂચનાઓ"
+      }
     }
   },
   "Shared": {
