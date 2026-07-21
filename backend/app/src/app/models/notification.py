@@ -16,6 +16,8 @@ class NotificationType(str, enum.Enum):
     FeeActivated = "fee_activated"
     FeeExpiring = "fee_expiring"
     FeeSuspended = "fee_suspended"
+    FeeLowBalance = "fee_low_balance"
+    FeeReactivated = "fee_reactivated"
     Referral = "referral"
     Credit = "credit"
     Announcement = "announcement"

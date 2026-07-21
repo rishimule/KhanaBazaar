@@ -23,6 +23,7 @@ class Store(BaseSchema, table=True):
     paused_until: date | None = Field(default=None)
     logo_url: str | None = Field(default=None, max_length=2048)
     logo_storage_key: str | None = Field(default=None, max_length=512)
+    fee_credit_balance: float = Field(default=0.0, nullable=False)
 
     seller_profile: SellerProfile = Relationship()
     address: Address = Relationship()
