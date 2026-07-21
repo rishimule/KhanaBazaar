@@ -33,7 +33,7 @@ from app.db._dev_seed_i18n import (
     SUBCATEGORY_I18N,
 )
 from app.models.address import Address, LocationSource
-from app.models.base import User, UserRole
+from app.models.base import AccountStatus, User, UserRole
 from app.models.catalog import (
     Category,
     CategoryTranslation,
@@ -57,6 +57,7 @@ from app.models.commerce import (
     PaymentMethod,
     PaymentStatus,
 )
+from app.models.customer_account_event import CustomerAccountEvent
 from app.models.profile import (
     AdminProfile,
     CustomerAddress,
@@ -2696,6 +2697,72 @@ async def seed_platform_fees(session: AsyncSession) -> None:
     await session.commit()
 
 
+async def _seed_customer_account_states(
+    session: AsyncSession, users_by_email: dict[str, User]
+) -> None:
+    """Put a few seeded customers into non-active account states so the admin
+    customer supervisor (`/admin/customers`) + its status filters have realistic
+    data out of the box. Idempotent: skips a user that already has a lifecycle
+    event. The anchor customer (`customer@khanabazaar.dev`) stays active."""
+    admin = users_by_email.get(ADMIN["email"])
+    admin_id = admin.id if admin is not None else None
+    now = datetime.now(timezone.utc)
+    # (email, target status, actor_role, actor_user_id, reason)
+    plan = [
+        (
+            "customer7@khanabazaar.dev",
+            AccountStatus.deactivated,
+            "customer",
+            None,
+            "Taking a short break from shopping",
+        ),
+        (
+            "customer8@khanabazaar.dev",
+            AccountStatus.suspended,
+            "admin",
+            admin_id,
+            "Flagged for payment-dispute review",
+        ),
+        (
+            "customer9@khanabazaar.dev",
+            AccountStatus.deleted,
+            "admin",
+            admin_id,
+            "Removed for repeated policy violations",
+        ),
+    ]
+    for email, status, actor_role, actor_id, reason in plan:
+        user = users_by_email.get(email)
+        if user is None or user.id is None:
+            continue
+        existing = (
+            await session.exec(
+                select(CustomerAccountEvent).where(
+                    CustomerAccountEvent.user_id == user.id
+                )
+            )
+        ).first()
+        if existing is not None:
+            continue  # already seeded — keep idempotent across re-runs
+        user.account_status = status
+        user.is_active = status == AccountStatus.active
+        user.status_changed_at = now
+        user.status_reason = reason
+        user.status_changed_by_user_id = actor_id
+        session.add(user)
+        session.add(
+            CustomerAccountEvent(
+                user_id=user.id,
+                actor_user_id=actor_id,
+                actor_role=actor_role,
+                from_status=AccountStatus.active,
+                to_status=status,
+                reason=reason,
+            )
+        )
+    await session.commit()
+
+
 async def seed_demo_data(session: AsyncSession) -> None:
     await _ensure_languages(session)
 
@@ -2775,6 +2842,7 @@ async def seed_demo_data(session: AsyncSession) -> None:
 
     await _seed_demo_orders(session)
     await _seed_favorites(session)
+    await _seed_customer_account_states(session, users_by_email)
 
     await verify_expected_counts(session)
 
