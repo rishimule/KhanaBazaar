@@ -43,6 +43,8 @@ export default function AdminLayout({
     { href: "/admin/policies", label: t("nav.policies"), icon: "📜" },
     { href: "/admin/fees", label: t("nav.fees"), icon: "💳" },
     { href: "/admin/fees/queue", label: t("nav.feeQueue"), icon: "🧾" },
+    // Operator-only tool; English label (fee content pages are English-only).
+    { href: "/admin/fees/credit", label: "Wallet credit", icon: "👛" },
     { href: "/admin/settings", label: t("nav.settings"), icon: "⚙️" },
     { href: "/admin/devices", label: t("nav.devices"), icon: "🔐" },
   ];

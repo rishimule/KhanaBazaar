@@ -26,6 +26,13 @@ export type SellerPlanServiceView = {
   payment_pending: boolean;
   amount_due: number | null;
   cancel_requested: boolean;
+  // Pay-Per-Transaction (prepaid) fields.
+  pay_per_txn_enabled: boolean;
+  pay_per_txn_fee: number;
+  pay_per_txn_min_deposit: number;
+  /** Prepaid balance — present only when the arrangement is Pay-Per-Transaction. */
+  balance: number | null;
+  low_balance_threshold: number | null;
 };
 
 export type SellerPaymentDetails = {
@@ -40,6 +47,8 @@ export type SellerPaymentDetails = {
 export type SellerPlanView = {
   services: SellerPlanServiceView[];
   payment_details: SellerPaymentDetails;
+  /** Store-level wallet credit (auto-applied to future fee obligations). */
+  fee_credit_balance: number;
 };
 
 /**
@@ -91,4 +100,50 @@ export function cancelPlan(
   token: string | null,
 ): Promise<{ service_id: number; cancel_requested: boolean }> {
   return post(`/api/v1/sellers/me/plan/${serviceId}/cancel`, undefined, token);
+}
+
+// ── Pay-Per-Transaction (prepaid) ────────────────────────────────────────
+
+export function optInPpt(
+  serviceId: number,
+  depositAmount: number,
+  useCredit: boolean,
+  token: string | null,
+): Promise<{ payment_id: number | null; amount?: number; status?: string }> {
+  return post(
+    `/api/v1/sellers/me/plan/${serviceId}/pay-per-transaction/opt-in`,
+    { deposit_amount: depositAmount, use_credit: useCredit },
+    token,
+  );
+}
+
+export function topUpPpt(
+  serviceId: number,
+  amount: number,
+  token: string | null,
+): Promise<{ payment_id: number; amount: number }> {
+  return post(
+    `/api/v1/sellers/me/plan/${serviceId}/top-up`,
+    { amount },
+    token,
+  );
+}
+
+export function applyCreditPpt(
+  serviceId: number,
+  amount: number,
+  token: string | null,
+): Promise<{ applied: number; balance: number; status: string }> {
+  return post(
+    `/api/v1/sellers/me/plan/${serviceId}/apply-credit`,
+    { amount },
+    token,
+  );
+}
+
+export function switchFromPpt(
+  serviceId: number,
+  token: string | null,
+): Promise<{ service_id: number; status: string }> {
+  return post(`/api/v1/sellers/me/plan/${serviceId}/switch`, undefined, token);
 }
