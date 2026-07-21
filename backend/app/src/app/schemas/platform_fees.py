@@ -93,15 +93,60 @@ class SellerPlanServiceView(BaseModel):
     payment_pending: bool = False
     amount_due: Optional[float] = None
     cancel_requested: bool = False
+    # Pay-Per-Transaction (prepaid) fields.
+    pay_per_txn_enabled: bool = False
+    pay_per_txn_fee: float = 0.0
+    pay_per_txn_min_deposit: float = 0.0
+    balance: Optional[float] = None
+    low_balance_threshold: Optional[float] = None
 
 
 class SellerPlanView(BaseModel):
     services: list[SellerPlanServiceView]
     payment_details: SellerPaymentDetails
+    fee_credit_balance: float = 0.0
 
 
 class OptInBody(BaseModel):
     duration_months: int  # 3, 6, or 12 (validated against active plans)
+
+
+class PayPerTxnOptInBody(BaseModel):
+    deposit_amount: float = Field(gt=0)
+    use_credit: bool = False
+
+
+class TopUpBody(BaseModel):
+    amount: float = Field(gt=0)
+
+
+class ApplyCreditBody(BaseModel):
+    amount: float = Field(gt=0)
+
+
+class AdminSwitchBody(BaseModel):
+    target_model: str  # "subscription" | "freebie"
+    duration_months: Optional[int] = None
+    disposition: str = "credit"  # "credit" | "cash_out" | "waive"
+    reason: str = Field(min_length=10, max_length=500)
+
+
+class CreditAmountBody(BaseModel):
+    """Shared body for admin credit grant/cash-out/waive (positive amount)."""
+    amount: float = Field(gt=0)
+    reason: str = Field(min_length=10, max_length=500)
+
+
+class CreditAdjustBody(BaseModel):
+    """Signed adjustment (may be negative)."""
+    amount: float
+    reason: str = Field(min_length=10, max_length=500)
+
+
+class StoreCreditView(BaseModel):
+    store_id: int
+    store_name: str
+    fee_credit_balance: float
 
 
 class MarkPaidBody(BaseModel):
