@@ -4,6 +4,7 @@
 real Order rows). End-to-end checkout wiring is covered by the existing order
 suite regression once the hooks are added."""
 import uuid
+from datetime import date
 
 import pytest
 import pytest_asyncio
@@ -165,3 +166,49 @@ async def test_no_arrangement_is_noop(session, ppt_env):
     await session.commit()
     events = (await session.exec(select(FeeEvent).where(FeeEvent.order_id == order.id))).all()
     assert events == []
+
+
+@pytest.mark.asyncio
+async def test_refund_does_not_unsuspend(session, ppt_env):
+    # A cancel-refund credits the balance but must NOT reactivate a Suspended
+    # store (spec §8 / edge-case 6 — only a deliberate top-up un-suspends).
+    await _cfg(session, ppt_env.service_id, fee=2.0)
+    arr = FeeArrangement(
+        store_id=ppt_env.store.id, service_id=ppt_env.service_id,
+        model=FeeModel.PayPerTransaction, status=ArrangementStatus.Suspended,
+        balance=1.0, valid_until=date(2026, 7, 1),
+    )
+    session.add(arr)
+    await session.flush()
+    order = await _order(session, ppt_env)
+    session.add(
+        FeeEvent(
+            arrangement_id=arr.id, event_type=FeeEventType.BalanceDeducted,
+            amount_delta=-2.0, order_id=order.id, actor="system",
+        )
+    )
+    await session.commit()
+    await refund_platform_txn_fee(session, order)
+    await session.commit()
+    await session.refresh(arr)
+    assert arr.balance == 3.0  # 1.0 + 2.0 refunded
+    assert arr.status == ArrangementStatus.Suspended  # stays suspended
+
+
+@pytest.mark.asyncio
+async def test_refund_after_switch_away_is_noop(session, ppt_env):
+    # After the arrangement is switched off PPT, a late cancel of a pre-switch
+    # order must NOT credit the (now non-PPT) balance.
+    await _cfg(session, ppt_env.service_id, fee=2.0)
+    arr = await _arr(session, ppt_env, balance=100.0)
+    order = await _order(session, ppt_env)
+    await charge_platform_txn_fee(session, order)  # balance 98, BalanceDeducted
+    await session.commit()
+    arr.model = FeeModel.Freebie  # simulate switch-away
+    arr.balance = 0.0
+    session.add(arr)
+    await session.commit()
+    await refund_platform_txn_fee(session, order)
+    await session.commit()
+    await session.refresh(arr)
+    assert arr.balance == 0.0  # not re-credited into a non-PPT balance

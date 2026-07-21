@@ -319,29 +319,32 @@ async def confirm_payment(
 ) -> dict:  # type: ignore[type-arg]
     payment = await _pending_payment(session, payment_id)
     assert admin.id is not None
+    notif: NotificationType | None
     if payment.kind == FeePaymentKind.PayPerTxnTopUp:
-        arr = await confirm_pay_per_txn_topup(session, payment, admin.id)
-        notif = (
-            NotificationType.FeeReactivated
-            if arr.status == ArrangementStatus.Active
-            else NotificationType.FeeActivated
-        )
-    else:
+        # confirm_pay_per_txn_topup records the single correct in-app notification
+        # itself (FeeActivated / FeeReactivated / None) — do NOT re-notify here.
+        arr, notif = await confirm_pay_per_txn_topup(session, payment, admin.id)
+    elif payment.kind == FeePaymentKind.SubscriptionFee:
         arr = await confirm_subscription_payment(session, payment, admin.id)
         notif = NotificationType.FeeActivated
+        await notify_seller_fee_event(
+            session, store_id=arr.store_id, type=notif, valid_until=arr.valid_until,
+        )
+    else:
+        raise HTTPException(
+            status_code=400, detail={"error": "unsupported_payment_kind"}
+        )
     result = {
         "arrangement_id": arr.id,
         "status": arr.status.value,
         "valid_until": arr.valid_until.isoformat() if arr.valid_until else None,
     }
-    await notify_seller_fee_event(
-        session, store_id=arr.store_id, type=notif, valid_until=arr.valid_until,
-    )
     store_id, valid_until = arr.store_id, arr.valid_until
     await session.commit()
-    spid = await _store_seller_id(session, store_id)
-    if spid is not None:
-        dispatch_seller_fee_channels(spid, notif.value, valid_until)
+    if notif is not None:
+        spid = await _store_seller_id(session, store_id)
+        if spid is not None:
+            dispatch_seller_fee_channels(spid, notif.value, valid_until)
     return result
 
 
@@ -525,7 +528,7 @@ async def admin_switch_arrangement(
             target_duration_months=body.duration_months,
             disposition=body.disposition, admin_user_id=admin.id,
         )
-    except FeeError as exc:
+    except (FeeError, store_credit.StoreCreditError) as exc:
         raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
     after = _arr_before(arr)
     await admin_audit.log(
@@ -534,8 +537,24 @@ async def admin_switch_arrangement(
         action="fee.switch", before_json=before, after_json=after,
         reason=body.reason.strip(),
     )
+    # Notify the seller of the model change (only when it lands them on a live
+    # paid plan; a switch to Freebie-trial needs no "active" notice).
+    notif = (
+        NotificationType.FeeActivated
+        if arr.status == ArrangementStatus.Active
+        else None
+    )
+    if notif is not None:
+        await notify_seller_fee_event(
+            session, store_id=arr.store_id, type=notif, valid_until=arr.valid_until,
+        )
     # Capture before commit — the request session expires attributes on commit.
+    store_id, valid_until = arr.store_id, arr.valid_until
     await session.commit()
+    if notif is not None:
+        spid = await _store_seller_id(session, store_id)
+        if spid is not None:
+            dispatch_seller_fee_channels(spid, notif.value, valid_until)
     return {"arrangement_id": arrangement_id, "status": after["status"], "model": after["model"]}
 
 
@@ -618,17 +637,30 @@ async def admin_credit_cash_out(
     return await _credit_action(session, store_id, admin, body.reason, "fee.credit_cash_out", _m)
 
 
-@admin_router.post("/fees/stores/{store_id}/credit/waive")
-async def admin_credit_waive(
-    store_id: int, body: CreditAmountBody,
+@admin_router.post("/fees/arrangements/{arrangement_id}/apply-credit")
+async def admin_apply_credit(
+    arrangement_id: int, body: CreditAmountBody,
     admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:  # type: ignore[type-arg]
-    async def _m(store: Store) -> None:
-        await store_credit.waive_debt(
-            session, store, body.amount, actor=f"admin:{admin.id}", note=body.reason
-        )
-    return await _credit_action(session, store_id, admin, body.reason, "fee.credit_waive", _m)
+    """Admin applies the store's wallet credit to a PPT arrangement's balance on
+    the seller's behalf (same effect as the seller's apply-credit)."""
+    arr, profile = await _arrangement_with_seller(session, arrangement_id)
+    assert admin.id is not None and profile.id is not None
+    before = {"balance": arr.balance, "status": arr.status.value}
+    try:
+        applied = await apply_credit_to_arrangement(session, arr, body.amount)
+    except FeeError as exc:
+        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    after = {"balance": arr.balance, "status": arr.status.value}
+    await admin_audit.log(
+        session=session, admin_user_id=admin.id, target_seller_id=profile.id,
+        target_type=AdminActionTargetType.SellerProfile, target_id=profile.id,
+        action="fee.credit_apply", before_json=before, after_json=after,
+        reason=body.reason.strip(),
+    )
+    await session.commit()
+    return {"arrangement_id": arrangement_id, "applied": applied, **after}
 
 
 @admin_router.get("/fees/stores/credit", response_model=list[StoreCreditView])
@@ -873,7 +905,7 @@ async def switch_model(
     arr = await _arrangement(session, store.id, service_id)
     try:
         await seller_switch_from_ppt(session, arr)
-    except FeeError as exc:
+    except (FeeError, store_credit.StoreCreditError) as exc:
         raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
     await session.commit()
     return {"service_id": service_id, "status": "switched"}

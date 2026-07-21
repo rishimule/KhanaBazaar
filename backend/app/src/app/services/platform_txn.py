@@ -55,8 +55,11 @@ async def charge_platform_txn_fee(session: AsyncSession, order: Order) -> None:
 
 async def refund_platform_txn_fee(session: AsyncSession, order: Order) -> None:
     """Credit back a previously-charged PPT fee when an order is cancelled.
-    Idempotent (guarded by the absence of a prior BalanceRefunded for this
-    order). Part of the caller's transaction."""
+    Idempotent + safe under concurrent cancels. Part of the caller's transaction.
+
+    No-op if the order was never PPT-charged, or if the arrangement has since
+    been switched away from PPT (the fee is not re-credited into a non-PPT
+    balance). Never un-suspends a store (allow_unsuspend=False)."""
     deducted = (
         await session.exec(
             select(FeeEvent).where(
@@ -66,6 +69,18 @@ async def refund_platform_txn_fee(session: AsyncSession, order: Order) -> None:
         )
     ).first()
     if deducted is None:
+        return
+    # Lock the arrangement FIRST, then re-check for an existing refund UNDER the
+    # lock — two concurrent cancels would otherwise both read "no refund yet"
+    # and double-credit.
+    arr = (
+        await session.exec(
+            select(FeeArrangement)
+            .where(FeeArrangement.id == deducted.arrangement_id)
+            .with_for_update()
+        )
+    ).first()
+    if arr is None or arr.model != FeeModel.PayPerTransaction:
         return
     already = (
         await session.exec(
@@ -78,15 +93,6 @@ async def refund_platform_txn_fee(session: AsyncSession, order: Order) -> None:
     if already is not None:
         return
     amount = abs(deducted.amount_delta or 0.0)
-    arr = (
-        await session.exec(
-            select(FeeArrangement)
-            .where(FeeArrangement.id == deducted.arrangement_id)
-            .with_for_update()
-        )
-    ).first()
-    if arr is None:
-        return
     arr.balance = round(arr.balance + amount, 2)
     session.add(arr)
     session.add(
@@ -97,4 +103,9 @@ async def refund_platform_txn_fee(session: AsyncSession, order: Order) -> None:
         )
     )
     await session.flush()
-    await _evaluate_ppt_status(session, arr)
+    try:
+        await _evaluate_ppt_status(session, arr, allow_unsuspend=False)
+    except FeeError:
+        # PPT disabled on the service after the charge — money already refunded;
+        # skip the (now-unconfigurable) status re-evaluation.
+        pass

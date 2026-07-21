@@ -30,6 +30,11 @@ async def _record(
     *, actor: str, note: Optional[str], related_arrangement_id: Optional[int],
     related_payment_id: Optional[int],
 ) -> None:
+    # Row-lock the store to serialise concurrent wallet mutations (opt-in with
+    # credit, apply-credit, admin ops) so the cached balance can't lost-update.
+    await session.exec(
+        select(Store).where(Store.id == store.id).with_for_update()
+    )
     store.fee_credit_balance = round(store.fee_credit_balance + delta, 2)
     session.add(store)
     session.add(
@@ -46,13 +51,14 @@ async def grant(
     session: AsyncSession, store: Store, amount: float, *, actor: str,
     note: Optional[str] = None, reason: StoreCreditReason = StoreCreditReason.AdminAdjust,
     related_arrangement_id: Optional[int] = None,
-    related_payment_id: Optional[int] = None, allow_negative: bool = False,
+    related_payment_id: Optional[int] = None,
 ) -> None:
     """Add `amount` (signed) to the store's credit. Rejects a result below zero
-    unless `allow_negative`. Used for admin grant/adjust + exit-grant."""
+    (store wallet credit is always ≥ 0 — arrangement debt lives on
+    FeeArrangement.balance, not here). Used for admin grant/adjust + exit-grant."""
     if amount == 0:
         raise StoreCreditError("zero_amount")
-    if not allow_negative and store.fee_credit_balance + amount < 0:
+    if store.fee_credit_balance + amount < 0:
         raise StoreCreditError("negative_balance")
     await _record(
         session, store, amount, reason, actor=actor, note=note,
@@ -81,27 +87,6 @@ async def apply(
     return applied
 
 
-async def reverse_by_payment(session: AsyncSession, payment_id: int) -> None:
-    """Refund a credit application tied to a rejected payment (opt-in credit
-    that never activated). No-op if none exists."""
-    ev = (
-        await session.exec(
-            select(StoreCreditEvent).where(
-                StoreCreditEvent.related_payment_id == payment_id,
-                StoreCreditEvent.reason == StoreCreditReason.AppliedToFee,
-            )
-        )
-    ).first()
-    if ev is None:
-        return
-    store = await load_store(session, ev.store_id)
-    await _record(
-        session, store, abs(ev.amount_delta), StoreCreditReason.AdminAdjust,
-        actor="system", note="reversed rejected opt-in credit",
-        related_arrangement_id=ev.related_arrangement_id, related_payment_id=payment_id,
-    )
-
-
 async def cash_out(
     session: AsyncSession, store: Store, amount: float, *, actor: str, note: str
 ) -> None:
@@ -111,18 +96,4 @@ async def cash_out(
     await _record(
         session, store, -amount, StoreCreditReason.AdminCashOut, actor=actor,
         note=note, related_arrangement_id=None, related_payment_id=None,
-    )
-
-
-async def waive_debt(
-    session: AsyncSession, store: Store, amount: float, *, actor: str, note: str
-) -> None:
-    """Admin writes off `amount` of owed balance to zero (a positive credit
-    delta that cancels a negative arrangement balance; the caller zeroes the
-    arrangement balance separately)."""
-    if amount <= 0:
-        raise StoreCreditError("bad_amount")
-    await _record(
-        session, store, amount, StoreCreditReason.AdminAdjust, actor=actor,
-        note=f"debt waived: {note}", related_arrangement_id=None, related_payment_id=None,
     )

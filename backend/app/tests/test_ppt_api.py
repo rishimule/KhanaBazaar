@@ -122,6 +122,22 @@ async def test_plan_view_exposes_balance(client: AsyncClient, session, ppt_selle
     assert "fee_credit_balance" in body
 
 
+@pytest.mark.asyncio
+async def test_seller_apply_credit_over_request_400(client: AsyncClient, session, ppt_seller):
+    ppt_seller.store.fee_credit_balance = 10.0
+    session.add(ppt_seller.store)
+    await _arr(
+        session, ppt_seller.store, ppt_seller.service_id,
+        model=FeeModel.PayPerTransaction, status=ArrangementStatus.Active, balance=50.0,
+    )
+    r = await client.post(
+        f"/api/v1/sellers/me/plan/{ppt_seller.service_id}/apply-credit",
+        json={"amount": 50.0},
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"]["error"] == "amount_exceeds_credit"
+
+
 # ── Admin endpoints ────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -180,6 +196,27 @@ async def test_admin_force_switch_negative_waive(client: AsyncClient, session, a
     )
     assert r.status_code == 200, r.text
     assert r.json()["model"] == "freebie"
+
+
+@pytest.mark.asyncio
+async def test_admin_apply_credit_on_behalf(client: AsyncClient, session, admin_ctx, approved_seller_with_store):
+    bundle = approved_seller_with_store
+    await _ppt_cfg(session, bundle.service_id, fee=2.0)
+    bundle.store.fee_credit_balance = 30.0
+    session.add(bundle.store)
+    arr = await _arr(
+        session, bundle.store, bundle.service_id,
+        model=FeeModel.PayPerTransaction, status=ArrangementStatus.Grace,
+        balance=0.5, valid_until=None,
+    )
+    r = await client.post(
+        f"/api/v1/admin/fees/arrangements/{arr.id}/apply-credit",
+        json={"amount": 20.0, "reason": "applying seller credit on their behalf"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["applied"] == 20.0
+    assert body["status"] == "active"  # 0.5 + 20 ≥ fee → reactivated
 
 
 @pytest.mark.asyncio

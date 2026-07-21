@@ -563,11 +563,12 @@ async def run_fee_sweep(
                         actor="system", note="sweep: balance below fee",
                     )
                 )
+                # Grace-start: store still live → "top up" nudge, not "suspended".
                 spid = await notify_seller_fee_event(
-                    session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
+                    session, store_id=arr.store_id, type=NotificationType.FeeLowBalance,
                 )
                 if notices is not None and spid is not None:
-                    notices.append((spid, NotificationType.FeeSuspended.value, None))
+                    notices.append((spid, NotificationType.FeeLowBalance.value, None))
                 counts["to_grace"] += 1
             elif arr.balance < low_thr and arr.last_reminder_sent_on != today:
                 arr.last_reminder_sent_on = today
@@ -629,22 +630,27 @@ async def _ppt_config(
 
 
 async def _evaluate_ppt_status(
-    session: AsyncSession, arr: FeeArrangement, *, today: date | None = None
+    session: AsyncSession, arr: FeeArrangement, *, today: date | None = None,
+    notify: bool = True, allow_unsuspend: bool = True,
 ) -> None:
     """Drive PPT balance→status transitions after any balance change. Reads the
-    LIVE fee. Records events + an in-app seller notification. Sets/clears the
-    grace deadline in `valid_until`. Caller commits.
+    LIVE fee. Records events + (when `notify`) an in-app seller notification.
+    Sets/clears the grace deadline in `valid_until`. Caller commits.
 
     - Active, balance < fee   → Grace (valid_until = today).
     - Active, balance < thr   → throttled low-balance reminder.
-    - Grace/Suspended, balance ≥ fee → Active (reactivate).
+    - Grace, balance ≥ fee    → Active (reactivate).
+    - Suspended, balance ≥ fee → Active ONLY when `allow_unsuspend` (deliberate
+      top-up/credit-apply). A passive cancel-refund passes allow_unsuspend=False
+      so it never un-suspends a store (spec §8 / edge-case 6).
 
     The Grace→Suspend transition is time-driven and fires only from the sweep."""
     today = today or date.today()
     fee, _min_dep, low_thr = await _ppt_config(session, arr.service_id)
 
     if arr.status in (ArrangementStatus.Grace, ArrangementStatus.Suspended):
-        if arr.balance >= fee:
+        can_reactivate = arr.status == ArrangementStatus.Grace or allow_unsuspend
+        if arr.balance >= fee and can_reactivate:
             arr.status = ArrangementStatus.Active
             arr.valid_until = None
             arr.suspended_at = None
@@ -656,9 +662,11 @@ async def _evaluate_ppt_status(
                     actor="system", note="balance restored",
                 )
             )
-            await notify_seller_fee_event(
-                session, store_id=arr.store_id, type=NotificationType.FeeReactivated,
-            )
+            if notify:
+                await notify_seller_fee_event(
+                    session, store_id=arr.store_id,
+                    type=NotificationType.FeeReactivated,
+                )
         await session.flush()
         return
 
@@ -673,15 +681,21 @@ async def _evaluate_ppt_status(
                     actor="system", note="balance below fee",
                 )
             )
-            await notify_seller_fee_event(
-                session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
-            )
+            # Grace-start: the store is still LIVE (in grace) — a "top up" nudge,
+            # not a "suspended" message. Actual suspension notifies from the sweep.
+            if notify:
+                await notify_seller_fee_event(
+                    session, store_id=arr.store_id,
+                    type=NotificationType.FeeLowBalance,
+                )
         elif arr.balance < low_thr and arr.last_reminder_sent_on != today:
             arr.last_reminder_sent_on = today
             session.add(arr)
-            await notify_seller_fee_event(
-                session, store_id=arr.store_id, type=NotificationType.FeeLowBalance,
-            )
+            if notify:
+                await notify_seller_fee_event(
+                    session, store_id=arr.store_id,
+                    type=NotificationType.FeeLowBalance,
+                )
     await session.flush()
 
 
@@ -754,21 +768,23 @@ async def opt_into_pay_per_transaction(
 async def confirm_pay_per_txn_topup(
     session: AsyncSession, payment: FeePayment, admin_user_id: int,
     *, today: date | None = None,
-) -> FeeArrangement:
+) -> tuple[FeeArrangement, NotificationType | None]:
     """Admin confirms an offline PPT deposit/top-up. Credits balance, activates
-    a pending arrangement, and auto-reactivates a Grace/Suspended one. Caller
-    commits."""
+    a pending arrangement, and auto-reactivates a Grace/Suspended one. Returns
+    (arrangement, notification_type) — the single in-app notification is recorded
+    here (FeeActivated for a first activation, FeeReactivated for a reactivating
+    top-up, else None); the caller does channel fan-out only. Caller commits."""
     arrangement = (
         await session.exec(
             select(FeeArrangement).where(FeeArrangement.id == payment.arrangement_id)
         )
     ).one()
     was_activation = arrangement.status == ArrangementStatus.PendingActivation
+    prev_status = arrangement.status
 
     arrangement.balance = round(arrangement.balance + payment.amount, 2)
     arrangement.model = FeeModel.PayPerTransaction
     arrangement.pending_since = None
-    session.add(arrangement)
 
     payment.status = FeePaymentStatus.Confirmed
     payment.confirmed_by_admin_id = admin_user_id
@@ -789,11 +805,27 @@ async def confirm_pay_per_txn_topup(
     if was_activation:
         arrangement.status = ArrangementStatus.Active
         arrangement.valid_until = None
-        session.add(arrangement)
+    session.add(arrangement)
     await session.flush()
-    # Reactivate Grace/Suspended if the top-up cleared the fee threshold.
-    await _evaluate_ppt_status(session, arrangement, today=today)
-    return arrangement
+    # Correct an underfunded activation (deposit < fee) → Grace, and reactivate a
+    # Grace/Suspended top-up. notify=False: this function owns the single in-app
+    # notification below.
+    await _evaluate_ppt_status(session, arrangement, today=today, notify=False)
+
+    notif: NotificationType | None = None
+    if was_activation:
+        notif = NotificationType.FeeActivated
+    elif (
+        prev_status in (ArrangementStatus.Grace, ArrangementStatus.Suspended)
+        and arrangement.status == ArrangementStatus.Active
+    ):
+        notif = NotificationType.FeeReactivated
+    if notif is not None:
+        await notify_seller_fee_event(
+            session, store_id=arrangement.store_id, type=notif
+        )
+    await session.flush()
+    return arrangement, notif
 
 
 async def create_top_up(
@@ -840,7 +872,12 @@ async def apply_credit_to_arrangement(
     the fee threshold. Returns applied amount. Caller commits."""
     if arrangement.model != FeeModel.PayPerTransaction:
         raise FeeError("not_pay_per_transaction")
+    if amount <= 0:
+        raise FeeError("bad_amount")
     store = await store_credit.load_store(session, arrangement.store_id)
+    if amount > store.fee_credit_balance:
+        # Reject over-requests rather than silently clamping (spec §16.10).
+        raise FeeError("amount_exceeds_credit")
     applied = await store_credit.apply(
         session, store, amount, actor="seller", note="ppt balance top-up",
         related_arrangement_id=arrangement.id,
@@ -885,16 +922,22 @@ async def _dispose_ppt_balance(
                 session, store, bal, actor=actor, note=f"ppt exit refund: {note}"
             )
     elif bal < 0:
+        # Debt lives on arr.balance (negative). Disposing zeroes it and records
+        # the event — money-neutral to the store wallet (waiving must NOT mint
+        # spendable credit). `waive` forgives; `credit`/`cash_out` record the
+        # amount as best-effort owed (no automated collection).
         owed = -bal
+        note_txt = (
+            f"debt {owed} waived: {note}"
+            if disposition == "waive"
+            else f"debt {owed} owed (best-effort): {note}"
+        )
         session.add(
             FeeEvent(
                 arrangement_id=arr.id, event_type=FeeEventType.BalanceRefunded,
-                amount_delta=owed, actor=actor, note=f"debt {owed}: {note}",
+                amount_delta=owed, actor=actor, note=note_txt,
             )
         )
-        if disposition == "waive":
-            await store_credit.waive_debt(session, store, owed, actor=actor, note=note)
-        # credit/cash_out on a debt: nothing to refund; owed stays recorded.
     arr.balance = 0.0
     session.add(arr)
     await session.flush()
