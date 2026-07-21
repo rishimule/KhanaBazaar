@@ -438,6 +438,7 @@ async def run_fee_sweep(
     rows = (
         await session.exec(
             select(FeeArrangement).where(
+                FeeArrangement.model != FeeModel.PayPerTransaction,  # PPT: dedicated pass below
                 FeeArrangement.status.in_(  # type: ignore[attr-defined]
                     [
                         ArrangementStatus.Trial,
@@ -534,6 +535,72 @@ async def run_fee_sweep(
                 if notices is not None and spid is not None:
                     notices.append((spid, NotificationType.FeeSuspended.value, None))
                 counts["to_suspended"] += 1
+
+    # ── Pay-Per-Transaction pass (balance-driven, no time expiry) ──
+    ppt_rows = (
+        await session.exec(
+            select(FeeArrangement).where(
+                FeeArrangement.model == FeeModel.PayPerTransaction,
+                FeeArrangement.status.in_(  # type: ignore[attr-defined]
+                    [ArrangementStatus.Active, ArrangementStatus.Grace]
+                ),
+            )
+        )
+    ).all()
+    for arr in ppt_rows:
+        try:
+            fee, _min_dep, low_thr = await _ppt_config(session, arr.service_id)
+        except FeeError:
+            continue  # config removed/disabled → leave the arrangement alone
+        if arr.status == ArrangementStatus.Active:
+            if arr.balance < fee:
+                arr.status = ArrangementStatus.Grace
+                arr.valid_until = today
+                session.add(arr)
+                session.add(
+                    FeeEvent(
+                        arrangement_id=arr.id, event_type=FeeEventType.GraceStarted,
+                        actor="system", note="sweep: balance below fee",
+                    )
+                )
+                spid = await notify_seller_fee_event(
+                    session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
+                )
+                if notices is not None and spid is not None:
+                    notices.append((spid, NotificationType.FeeSuspended.value, None))
+                counts["to_grace"] += 1
+            elif arr.balance < low_thr and arr.last_reminder_sent_on != today:
+                arr.last_reminder_sent_on = today
+                session.add(arr)
+                spid = await notify_seller_fee_event(
+                    session, store_id=arr.store_id, type=NotificationType.FeeLowBalance,
+                )
+                if notices is not None and spid is not None:
+                    notices.append((spid, NotificationType.FeeLowBalance.value, None))
+                counts["reminded"] += 1
+        elif arr.status == ArrangementStatus.Grace:
+            if arr.balance >= fee:
+                arr.status = ArrangementStatus.Active
+                arr.valid_until = None
+                session.add(arr)
+                session.add(
+                    FeeEvent(
+                        arrangement_id=arr.id, event_type=FeeEventType.Reactivated,
+                        actor="system", note="sweep: balance restored",
+                    )
+                )
+            elif (
+                arr.valid_until is not None
+                and today > arr.valid_until + timedelta(days=grace_days)
+            ):
+                _suspend(session, arr, "pay_per_txn_exhausted")
+                spid = await notify_seller_fee_event(
+                    session, store_id=arr.store_id, type=NotificationType.FeeSuspended,
+                )
+                if notices is not None and spid is not None:
+                    notices.append((spid, NotificationType.FeeSuspended.value, None))
+                counts["to_suspended"] += 1
+
     await session.flush()
     return counts
 
