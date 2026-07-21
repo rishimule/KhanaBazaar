@@ -524,6 +524,12 @@ async def cancel_order(
             amount=order.total,
         )
 
+    # Pay-Per-Transaction: refund the platform fee charged at placement (idempotent;
+    # no-op for non-PPT orders).
+    from app.services.platform_txn import refund_platform_txn_fee
+
+    await refund_platform_txn_fee(session, order)
+
     if acting_admin_id is not None:
         target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)
         await audit_log(
