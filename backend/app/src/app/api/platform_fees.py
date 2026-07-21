@@ -4,6 +4,8 @@
 
 `admin_router` mounted at /api/v1/admin. Global settings + per-service fee config
 + subscription-plan pricing."""
+from collections.abc import Awaitable, Callable
+
 import anyio
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import select
@@ -39,8 +41,8 @@ from app.schemas.platform_fees import (
     ExtendBody,
     MarkPaidBody,
     OptInBody,
-    PayPerTxnOptInBody,
     PaymentQueueItem,
+    PayPerTxnOptInBody,
     PlatformFeeSettingsPatch,
     PlatformFeeSettingsRead,
     RejectBody,
@@ -56,9 +58,8 @@ from app.schemas.platform_fees import (
     TerminateBody,
     TopUpBody,
 )
-from app.services import admin_audit, seller_services
+from app.services import admin_audit, seller_services, store_credit
 from app.services import platform_fees as fees
-from app.services import store_credit
 from app.services.fee_channels import dispatch_seller_fee_channels
 from app.services.fee_lifecycle import (
     FeeError,
@@ -517,8 +518,6 @@ async def admin_switch_arrangement(
         target = FeeModel(body.target_model)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail={"error": "bad_target_model"}) from exc
-    if body.disposition not in ("credit", "cash_out", "waive"):
-        raise HTTPException(status_code=422, detail={"error": "bad_disposition"})
     before = _arr_before(arr)
     try:
         await admin_switch_model(
@@ -552,7 +551,10 @@ async def _admin_store(
     return store, profile
 
 
-async def _credit_action(session, store_id, admin, reason, action, mutate):  # type: ignore[no-untyped-def]
+async def _credit_action(
+    session: AsyncSession, store_id: int, admin: User, reason: str, action: str,
+    mutate: Callable[[Store], Awaitable[None]],
+) -> dict[str, object]:
     """Run a wallet-credit mutation on a store with audit + commit. `mutate` is
     an async callable taking the loaded Store."""
     store, profile = await _admin_store(session, store_id)
@@ -705,6 +707,7 @@ async def get_my_plan(
             )
             amount_due = match.price if match else None
         is_ppt = arr is not None and arr.model == FeeModel.PayPerTransaction
+        ppt_balance = arr.balance if (arr is not None and is_ppt) else None
         views.append(
             SellerPlanServiceView(
                 service_id=svc.id,
@@ -723,7 +726,7 @@ async def get_my_plan(
                 pay_per_txn_enabled=cfg.pay_per_txn_enabled,
                 pay_per_txn_fee=cfg.pay_per_txn_fee,
                 pay_per_txn_min_deposit=cfg.pay_per_txn_min_deposit,
-                balance=(arr.balance if is_ppt else None),
+                balance=ppt_balance,
                 low_balance_threshold=(
                     cfg.pay_per_txn_low_balance_threshold if is_ppt else None
                 ),

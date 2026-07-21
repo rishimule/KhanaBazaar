@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -127,7 +127,7 @@ class ApplyCreditBody(BaseModel):
 class AdminSwitchBody(BaseModel):
     target_model: str  # "subscription" | "freebie"
     duration_months: Optional[int] = None
-    disposition: str = "credit"  # "credit" | "cash_out" | "waive"
+    disposition: Literal["credit", "cash_out", "waive"] = "credit"
     reason: str = Field(min_length=10, max_length=500)
 
 
