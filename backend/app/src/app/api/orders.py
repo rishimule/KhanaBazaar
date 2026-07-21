@@ -20,7 +20,7 @@ from app.core.security import (  # noqa: F401
 from app.core.whatsapp import get_whatsapp_sender
 from app.db.session import get_db_session
 from app.models.address import Address
-from app.models.base import User, UserRole
+from app.models.base import AccountStatus, User, UserRole
 from app.models.catalog import (
     Category,
     MasterProduct,
@@ -103,6 +103,18 @@ async def record_and_dispatch_notification(
     Order state is already committed by the caller; this opens a fresh write on
     the same session and never raises into the request path.
     """
+    # Skip all comms for non-active accounts (e.g. an admin-deleted customer
+    # with a still-open order the seller is finishing) — no in-app row, no push,
+    # no WhatsApp.
+    owner = (
+        await session.exec(
+            select(User)
+            .join(CustomerProfile, CustomerProfile.user_id == User.id)  # type: ignore[arg-type]
+            .where(CustomerProfile.id == order.customer_profile_id)
+        )
+    ).first()
+    if owner is not None and owner.account_status != AccountStatus.active:
+        return
     try:
         copy = _STATUS_COPY
         if order.delivery_mode == DeliveryMode.Pickup:

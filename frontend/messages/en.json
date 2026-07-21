@@ -845,7 +845,39 @@
       "viewAll": "View all"
     },
     "navCredit": "Credit",
-    "layoutCreditTitle": "My Credit"
+    "layoutCreditTitle": "My Credit",
+    "danger": {
+      "title": "Danger zone",
+      "deactivateTitle": "Deactivate account",
+      "deactivateSubtitle": "Temporarily disable your account. Log back in anytime to reactivate — nothing is deleted.",
+      "deactivateButton": "Deactivate",
+      "deleteTitle": "Delete account",
+      "deleteSubtitle": "Permanently delete your account. This can't be undone and only support can restore it.",
+      "deleteButton": "Delete account",
+      "deactivateModalTitle": "Deactivate your account?",
+      "deactivateModalBody": "Your account will be paused and you'll be signed out. Log in again anytime to reactivate — nothing is deleted.",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "Add a note (optional)",
+      "deactivateConfirm": "Deactivate",
+      "deleteModalTitle": "Delete your account?",
+      "deleteModalBody": "This permanently deletes your account. You won't be able to sign in, and only support can restore it.",
+      "cannotUndo": "This can't be undone.",
+      "emailCodeHint": "We'll email a 6-digit code to confirm it's you.",
+      "sendCode": "Send confirmation code",
+      "otpModalTitle": "Enter confirmation code",
+      "otpModalBody": "We sent a 6-digit code to your email. Enter it to permanently delete your account.",
+      "otpInputLabel": "6-digit confirmation code",
+      "resend": "Resend code",
+      "resendIn": "Resend code in {seconds}s",
+      "deleteConfirm": "Delete account",
+      "cancel": "Cancel",
+      "working": "Please wait…",
+      "obligationsBody": "You still have {orders} open order(s) and {credits} store-credit account(s) to resolve before you can leave. Please complete or cancel them, then try again.",
+      "rateLimited": "Please wait {seconds} seconds before requesting another code.",
+      "otpInvalid": "That code is incorrect or expired. Please request a new one.",
+      "networkError": "Network error. Please check your connection and try again.",
+      "genericError": "Something went wrong. Please try again."
+    }
   },
   "Favorites": {
     "title": "Your favourites",
@@ -1403,7 +1435,8 @@
       "referrals": "Referrals",
       "fees": "Fees",
       "feeQueue": "Fee queue",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "customers": "Customers"
     },
     "titles": {
       "dashboard": "Admin Dashboard",
@@ -1420,7 +1453,9 @@
       "policies": "Policies",
       "onboardingRequests": "Seller Onboarding Requests",
       "fees": "Platform Fees",
-      "feeQueue": "Fee confirmation queue"
+      "feeQueue": "Fee confirmation queue",
+      "customers": "Customers",
+      "customerDetail": "Customer account"
     },
     "settings": {
       "title": "Settings"
@@ -1982,6 +2017,110 @@
       "rejectTitle": "Reject change request",
       "rejectDesc": "The seller will see this reason. Rejection is final — they would need to open a new request.",
       "rejectFailed": "Reject failed"
+    },
+    "customers": {
+      "col": {
+        "customer": "Customer",
+        "phone": "Phone",
+        "status": "Status",
+        "joined": "Joined",
+        "actions": "Manage"
+      },
+      "filter": {
+        "all": "All",
+        "active": "Active",
+        "deactivated": "Deactivated",
+        "suspended": "Suspended",
+        "deleted": "Deleted"
+      },
+      "status": {
+        "active": "Active",
+        "deactivated": "Deactivated",
+        "suspended": "Suspended",
+        "deleted": "Deleted"
+      },
+      "searchPlaceholder": "Search name, email, or phone…",
+      "empty": "No customers found.",
+      "noName": "Unnamed customer",
+      "manage": "Manage",
+      "cardMeta": "Joined {ago}",
+      "prev": "‹ Prev",
+      "next": "Next ›",
+      "showing": "Showing {from}–{to} of {total}",
+      "loadError": "Could not load this customer.",
+      "breadcrumbRoot": "Customers",
+      "viewingBanner": "Viewing customer account",
+      "stat": {
+        "openOrders": "Open orders",
+        "openCredit": "Open credit accounts"
+      },
+      "actions": {
+        "suspend": "Suspend",
+        "unsuspend": "Unsuspend",
+        "delete": "Delete",
+        "restore": "Restore",
+        "invalidTransition": "That action does not apply to the current account state.",
+        "failed": "The action could not be completed. Please try again.",
+        "modalTitle": {
+          "suspend": "Suspend {name}",
+          "unsuspend": "Unsuspend {name}",
+          "delete": "Delete {name}",
+          "restore": "Restore {name}"
+        },
+        "modalDesc": {
+          "suspend": "The customer will be blocked from placing orders until unsuspended.",
+          "unsuspend": "The customer will regain full access to their account.",
+          "delete": "The account will be marked deleted and access revoked. It can be restored later.",
+          "restore": "The account will be reactivated and access restored."
+        }
+      },
+      "overview": {
+        "heading": "Account overview",
+        "status": "Account status",
+        "statusChanged": "Status changed",
+        "reason": "Latest reason",
+        "email": "Email",
+        "phone": "Phone",
+        "userId": "User ID"
+      },
+      "activity": {
+        "heading": "Account activity",
+        "empty": "No lifecycle activity yet.",
+        "loadError": "Could not load activity.",
+        "transition": "{from} → {to}",
+        "byActor": "by {role}"
+      },
+      "orders": {
+        "heading": "Orders ({n})",
+        "empty": "This customer has no orders.",
+        "loadError": "Could not load orders.",
+        "col": {
+          "order": "Order",
+          "service": "Service",
+          "status": "Status",
+          "total": "Total",
+          "placed": "Placed"
+        }
+      },
+      "addresses": {
+        "heading": "Addresses ({n})",
+        "empty": "No saved addresses.",
+        "loadError": "Could not load addresses.",
+        "unlabeled": "Address",
+        "default": "Default"
+      },
+      "notifications": {
+        "heading": "Notifications",
+        "empty": "No notifications.",
+        "loadError": "Could not load notifications."
+      },
+      "tab": {
+        "overview": "Overview",
+        "activity": "Activity",
+        "orders": "Orders",
+        "addresses": "Addresses",
+        "notifications": "Notifications"
+      }
     }
   },
   "Shared": {

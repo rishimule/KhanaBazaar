@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi {{ first_name }},</p>
+  <p>Your <strong>{{ brand_name }}</strong> account has been deactivated at your request. You won't be able to sign in until you reactivate it.</p>
+  <p>Changed your mind? Just log in again with your email and your account will be reactivated automatically — all your data is still here.</p>
+  {% set cta_url = frontend_base_url ~ "/login" %}
+  {% set cta_label = "Log in to reactivate" %}
+  {% include "_partials/button.html" %}
+  <p style="color:#6b7280;font-size:14px;">If you didn't do this, contact us at {{ support_email }} right away.</p>
+{% endblock %}

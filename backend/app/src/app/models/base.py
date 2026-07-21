@@ -13,6 +13,15 @@ class UserRole(str, enum.Enum):
     Admin = "admin"
 
 
+class AccountStatus(str, enum.Enum):
+    # Lowercase member NAMES so the native PG enum stores lowercase values
+    # (matches CreditAccountStatus; no values_callable needed).
+    active = "active"
+    deactivated = "deactivated"
+    suspended = "suspended"
+    deleted = "deleted"
+
+
 class BaseSchema(SQLModel):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(  # type: ignore[call-overload]
@@ -34,4 +43,13 @@ class UserBase(SQLModel):
 
 
 class User(BaseSchema, UserBase, table=True):
-    pass
+    account_status: AccountStatus = Field(
+        default=AccountStatus.active, nullable=False, index=True
+    )
+    status_changed_at: Optional[datetime] = Field(  # type: ignore[call-overload]
+        default=None, sa_type=DateTime(timezone=True)
+    )
+    status_reason: Optional[str] = Field(default=None, max_length=500)
+    status_changed_by_user_id: Optional[int] = Field(
+        default=None, foreign_key="user.id"
+    )

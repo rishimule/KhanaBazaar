@@ -18,19 +18,20 @@ import base64
 import json
 import uuid
 from datetime import datetime, time, timedelta, timezone
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_current_admin
 from app.db.session import get_db_session
 from app.models.admin_audit import AdminActionLog, AdminActionTargetType
-from app.models.base import User
+from app.models.base import AccountStatus, User, UserRole
 from app.models.catalog import (
     Category,
     MasterProduct,
@@ -39,7 +40,14 @@ from app.models.catalog import (
     ServiceTranslation,
 )
 from app.models.commerce import Delivery, Order, OrderStatus
-from app.models.profile import SellerProfile, VerificationStatus
+from app.models.customer_account_event import CustomerAccountEvent
+from app.models.notification import Notification
+from app.models.profile import (
+    CustomerAddress,
+    CustomerProfile,
+    SellerProfile,
+    VerificationStatus,
+)
 from app.models.seller_onboarding_request import (
     OnboardingRequestStatus,
     SellerOnboardingRequest,
@@ -49,6 +57,7 @@ from app.models.seller_profile_change_request import (
     SellerProfileChangeRequestEvent,
 )
 from app.models.store import Store, StoreInventory
+from app.schemas.address import address_to_payload
 from app.schemas.admin_actions import (
     ActivityLogPage,
     AdminActionLogOut,
@@ -60,6 +69,16 @@ from app.schemas.admin_actions import (
     RewindOrderRequest,
     SellerHubSummary,
 )
+from app.schemas.admin_customers import (
+    AdminCustomerActionBody,
+    AdminCustomerEvent,
+    AdminCustomerHub,
+    AdminCustomerList,
+    AdminCustomerListItem,
+    AdminCustomerNotification,
+    AdminCustomerOrder,
+)
+from app.schemas.customers import CustomerAddressRead
 from app.schemas.pagination import PagedResponse
 from app.schemas.seller_onboarding import (
     SellerOnboardingRequestRead,
@@ -76,12 +95,19 @@ from app.schemas.seller_profile_change_request import (
 from app.schemas.sellers import RevenueSeriesPoint, RevenueSeriesRead
 from app.schemas.stores import StoreRead
 from app.services import admin_audit
+from app.services.account_emails import dispatch_account_status_email
+from app.services.account_lifecycle import (
+    InvalidTransition,
+    has_open_obligations,
+    transition,
+)
 from app.services.order_emails import dispatch_admin_order_action
 from app.services.orders import (
     override_delivery_address,
     refund_order,
     rewind_order,
 )
+from app.services.profiles import compose_full_name
 from app.services.seller_profile_change_requests import (
     OPEN_STATUSES,
 )
@@ -1048,3 +1074,344 @@ async def admin_update_onboarding_request(
     await session.commit()
     await session.refresh(row)
     return row
+
+
+# ─── Customer account supervisor ──────────────────────────────────────────
+# Soft-delete lifecycle for customer accounts. Keyed by customer_profile_id;
+# every action guards target.role == Customer. Audit trail lives in
+# customer_account_event (not admin_action_log — its target_seller_id is a
+# NOT NULL FK to sellerprofile).
+
+
+async def _resolve_customer(
+    session: AsyncSession, customer_profile_id: int
+) -> tuple[CustomerProfile, User]:
+    profile = (
+        await session.exec(
+            select(CustomerProfile).where(CustomerProfile.id == customer_profile_id)
+        )
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail={"error": "customer_not_found"})
+    user = (
+        await session.exec(select(User).where(User.id == profile.user_id))
+    ).first()
+    if user is None or user.role != UserRole.Customer:
+        raise HTTPException(status_code=409, detail={"error": "not_a_customer"})
+    return profile, user
+
+
+async def _customer_transition(
+    session: AsyncSession,
+    *,
+    customer_profile_id: int,
+    to_status: AccountStatus,
+    admin_id: int,
+    reason: str,
+    event_key: str,
+    expected_from: set[AccountStatus],
+) -> dict[str, str]:
+    _, user = await _resolve_customer(session, customer_profile_id)
+    assert user.id is not None
+    # Each admin action targets a specific source state (e.g. unsuspend only a
+    # suspended account, restore only a deleted one) — otherwise the routes
+    # would be interchangeable aliases via the generic _LEGAL_TRANSITIONS set.
+    if user.account_status not in expected_from:
+        raise HTTPException(status_code=409, detail={"error": "invalid_transition"})
+    uid = user.id  # capture before commit; commit expires ORM attributes
+    try:
+        await transition(
+            session, user_id=uid, to_status=to_status,
+            actor_user_id=admin_id, actor_role="admin", reason=reason,
+            enforce_obligations=False,
+        )
+    except InvalidTransition as exc:
+        raise HTTPException(
+            status_code=409, detail={"error": "invalid_transition"}
+        ) from exc
+    await session.commit()
+    dispatch_account_status_email(uid, event_key)
+    return {"status": to_status.value}
+
+
+@router.post("/customers/{customer_profile_id}/suspend")
+async def admin_suspend_customer(
+    customer_profile_id: int,
+    body: AdminCustomerActionBody,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> dict[str, str]:
+    assert admin.id is not None
+    return await _customer_transition(
+        session, customer_profile_id=customer_profile_id,
+        to_status=AccountStatus.suspended, admin_id=admin.id, reason=body.reason,
+        event_key="account_suspended",
+        expected_from={AccountStatus.active, AccountStatus.deactivated},
+    )
+
+
+@router.post("/customers/{customer_profile_id}/unsuspend")
+async def admin_unsuspend_customer(
+    customer_profile_id: int,
+    body: AdminCustomerActionBody,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> dict[str, str]:
+    assert admin.id is not None
+    return await _customer_transition(
+        session, customer_profile_id=customer_profile_id,
+        to_status=AccountStatus.active, admin_id=admin.id, reason=body.reason,
+        event_key="account_reactivated",
+        expected_from={AccountStatus.suspended},
+    )
+
+
+@router.post("/customers/{customer_profile_id}/delete")
+async def admin_delete_customer(
+    customer_profile_id: int,
+    body: AdminCustomerActionBody,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> dict[str, str]:
+    assert admin.id is not None
+    return await _customer_transition(
+        session, customer_profile_id=customer_profile_id,
+        to_status=AccountStatus.deleted, admin_id=admin.id, reason=body.reason,
+        event_key="account_removed",
+        expected_from={
+            AccountStatus.active,
+            AccountStatus.deactivated,
+            AccountStatus.suspended,
+        },
+    )
+
+
+@router.post("/customers/{customer_profile_id}/restore")
+async def admin_restore_customer(
+    customer_profile_id: int,
+    body: AdminCustomerActionBody,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> dict[str, str]:
+    assert admin.id is not None
+    return await _customer_transition(
+        session, customer_profile_id=customer_profile_id,
+        to_status=AccountStatus.active, admin_id=admin.id, reason=body.reason,
+        event_key="account_reactivated",
+        expected_from={AccountStatus.deleted},
+    )
+
+
+@router.get("/customers", response_model=AdminCustomerList)
+async def admin_list_customers(
+    q: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> AdminCustomerList:
+    filters: list[Any] = [User.role == UserRole.Customer]
+    if q:
+        like = f"%{q}%"
+        filters.append(
+            or_(
+                User.email.ilike(like),  # type: ignore[attr-defined]
+                CustomerProfile.first_name.ilike(like),  # type: ignore[attr-defined]
+                CustomerProfile.last_name.ilike(like),  # type: ignore[union-attr]
+                CustomerProfile.phone.ilike(like),  # type: ignore[union-attr]
+            )
+        )
+    if status:
+        try:
+            parsed_status = AccountStatus(status)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422, detail={"error": "invalid_status"}
+            ) from exc
+        filters.append(User.account_status == parsed_status)
+
+    join_on = User.id == CustomerProfile.user_id
+    total = (
+        await session.exec(
+            select(func.count())
+            .select_from(CustomerProfile)
+            .join(User, join_on)  # type: ignore[arg-type]
+            .where(*filters)
+        )
+    ).one()
+    rows = (
+        await session.exec(
+            select(CustomerProfile, User)
+            .join(User, join_on)  # type: ignore[arg-type]
+            .where(*filters)
+            .order_by(CustomerProfile.id)  # type: ignore[arg-type]
+            .offset(offset)
+            .limit(limit)
+        )
+    ).all()
+    items = [
+        AdminCustomerListItem(
+            customer_profile_id=p.id,
+            user_id=u.id,
+            email=u.email,
+            full_name=compose_full_name(p.first_name, p.last_name),
+            phone=p.phone,
+            account_status=u.account_status.value,
+            created_at=p.created_at,
+        )
+        for p, u in rows
+        if p.id is not None and u.id is not None
+    ]
+    return AdminCustomerList(items=items, total=total)
+
+
+@router.get("/customers/{customer_profile_id}", response_model=AdminCustomerHub)
+async def admin_customer_hub(
+    customer_profile_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> AdminCustomerHub:
+    profile, user = await _resolve_customer(session, customer_profile_id)
+    assert profile.id is not None and user.id is not None
+    open_orders, credit_accounts = await has_open_obligations(session, profile.id)
+    return AdminCustomerHub(
+        customer_profile_id=profile.id,
+        user_id=user.id,
+        email=user.email,
+        full_name=compose_full_name(profile.first_name, profile.last_name),
+        phone=profile.phone,
+        account_status=user.account_status.value,
+        status_reason=user.status_reason,
+        status_changed_at=user.status_changed_at,
+        open_orders=open_orders,
+        open_credit_accounts=credit_accounts,
+    )
+
+
+@router.get(
+    "/customers/{customer_profile_id}/activity",
+    response_model=list[AdminCustomerEvent],
+)
+async def admin_customer_activity(
+    customer_profile_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> list[AdminCustomerEvent]:
+    _, user = await _resolve_customer(session, customer_profile_id)
+    assert user.id is not None
+    rows = (
+        await session.exec(
+            select(CustomerAccountEvent)
+            .where(CustomerAccountEvent.user_id == user.id)
+            .order_by(CustomerAccountEvent.created_at.desc())  # type: ignore[attr-defined]
+        )
+    ).all()
+    return [
+        AdminCustomerEvent(
+            id=r.id,
+            actor_user_id=r.actor_user_id,
+            actor_role=r.actor_role,
+            from_status=r.from_status.value,
+            to_status=r.to_status.value,
+            reason=r.reason,
+            created_at=r.created_at,
+        )
+        for r in rows
+        if r.id is not None
+    ]
+
+
+@router.get(
+    "/customers/{customer_profile_id}/orders",
+    response_model=list[AdminCustomerOrder],
+)
+async def admin_customer_orders(
+    customer_profile_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> list[AdminCustomerOrder]:
+    profile, _ = await _resolve_customer(session, customer_profile_id)
+    assert profile.id is not None
+    rows = (
+        await session.exec(
+            select(Order)
+            .where(Order.customer_profile_id == profile.id)
+            .order_by(Order.placed_at.desc())  # type: ignore[attr-defined]
+        )
+    ).all()
+    return [
+        AdminCustomerOrder(
+            id=o.id,
+            store_id=o.store_id,
+            service_name_snapshot=o.service_name_snapshot,
+            status=o.status.value,
+            total=o.total,
+            placed_at=o.placed_at,
+        )
+        for o in rows
+        if o.id is not None
+    ]
+
+
+@router.get(
+    "/customers/{customer_profile_id}/addresses",
+    response_model=list[CustomerAddressRead],
+)
+async def admin_customer_addresses(
+    customer_profile_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> list[CustomerAddressRead]:
+    profile, _ = await _resolve_customer(session, customer_profile_id)
+    assert profile.id is not None
+    rows = (
+        await session.exec(
+            select(CustomerAddress)
+            .where(CustomerAddress.customer_profile_id == profile.id)
+            .options(selectinload(CustomerAddress.address))  # type: ignore[arg-type]
+            .order_by(CustomerAddress.id)  # type: ignore[arg-type]
+        )
+    ).all()
+    return [
+        CustomerAddressRead(
+            id=ca.id,
+            label=ca.label,
+            is_default=ca.is_default,
+            address=address_to_payload(ca.address),
+        )
+        for ca in rows
+        if ca.id is not None
+    ]
+
+
+@router.get(
+    "/customers/{customer_profile_id}/notifications",
+    response_model=list[AdminCustomerNotification],
+)
+async def admin_customer_notifications(
+    customer_profile_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(get_current_admin),
+) -> list[AdminCustomerNotification]:
+    profile, _ = await _resolve_customer(session, customer_profile_id)
+    assert profile.id is not None
+    rows = (
+        await session.exec(
+            select(Notification)
+            .where(Notification.customer_profile_id == profile.id)
+            .order_by(Notification.created_at.desc())  # type: ignore[attr-defined]
+        )
+    ).all()
+    return [
+        AdminCustomerNotification(
+            id=n.id,
+            type=n.type.value,
+            title=n.title,
+            body=n.body,
+            read=n.read,
+            created_at=n.created_at,
+        )
+        for n in rows
+        if n.id is not None
+    ]

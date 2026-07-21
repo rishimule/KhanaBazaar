@@ -1,0 +1,5 @@
+Hi {{ first_name }},
+
+Your {{ brand_name }} account has been deleted as you requested. You can no longer sign in with this email.
+
+If you didn't request this, contact us at {{ support_email }} as soon as possible and we can help.

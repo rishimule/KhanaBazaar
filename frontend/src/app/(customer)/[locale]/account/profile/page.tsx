@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import PhoneVerifyModal from "@/components/PhoneVerifyModal";
 import Avatar from "@/components/Avatar";
 import AvatarUploader from "@/components/AvatarUploader";
+import DangerZone from "./_components/DangerZone";
 import { get, patch } from "@/lib/api";
 import { deleteCustomerAvatar, uploadCustomerAvatar } from "@/lib/avatars";
 import { getCustomerStats } from "@/lib/orders";
@@ -454,6 +455,8 @@ export default function AccountProfilePage() {
           )}
         </div>
       </section>
+
+      <DangerZone />
 
       {phoneModal.open && (
         <PhoneVerifyModal

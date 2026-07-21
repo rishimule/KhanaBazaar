@@ -1,0 +1,222 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.heading {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-neutral-900);
+  margin: 0 0 0.9rem;
+}
+
+.state {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-neutral-500);
+}
+
+.empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-neutral-500);
+  background: var(--color-neutral-50);
+  border: 1px dashed var(--color-neutral-200);
+  border-radius: 8px;
+}
+
+.errorBox {
+  padding: 0.6rem 0.9rem;
+  background: var(--tomato-red-light-1);
+  border: 1px solid var(--color-error);
+  border-radius: 6px;
+  color: var(--color-error);
+  font-size: 0.9rem;
+}
+
+/* --- Overview details grid --- */
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.5rem;
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.detailLabel {
+  font-size: 0.78rem;
+  color: var(--color-neutral-500);
+}
+.detailValue {
+  color: var(--color-neutral-900);
+  word-break: break-word;
+}
+
+/* --- Generic table --- */
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.table thead tr {
+  background: var(--color-neutral-50);
+}
+.table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-neutral-200);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-neutral-100);
+  vertical-align: top;
+}
+.table a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.table a:hover {
+  text-decoration: underline;
+}
+
+/* --- Activity timeline --- */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-left: 2px solid var(--color-neutral-200);
+  padding-left: 1.1rem;
+  margin-left: 0.4rem;
+}
+.event {
+  position: relative;
+  padding: 0 0 1.25rem;
+}
+.event:last-child {
+  padding-bottom: 0;
+}
+.event::before {
+  content: "";
+  position: absolute;
+  left: -1.5rem;
+  top: 0.25rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+.eventHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.2rem;
+}
+.transition {
+  font-weight: 600;
+  color: var(--color-neutral-900);
+}
+.eventMeta {
+  font-size: 0.8rem;
+  color: var(--color-neutral-500);
+}
+.eventReason {
+  color: var(--color-neutral-700);
+  font-size: 0.9rem;
+  margin-top: 0.15rem;
+}
+
+/* --- Address cards --- */
+.addressGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+.addressCard {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 10px;
+  padding: 1rem;
+}
+.addressLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.addressLabel {
+  font-weight: 600;
+  color: var(--color-neutral-900);
+}
+.defaultBadge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--jade-green-dark-1);
+  background: var(--jade-green-light-1);
+  border-radius: var(--radius-pill);
+  padding: 0.1rem 0.5rem;
+}
+.addressBody {
+  color: var(--color-neutral-700);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* --- Notification list --- */
+.notifList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.notif {
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+}
+.notifUnread {
+  border-left: 3px solid var(--color-primary);
+}
+.notifHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.2rem;
+}
+.notifTitle {
+  font-weight: 600;
+  color: var(--color-neutral-900);
+}
+.notifDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+.notifBody {
+  color: var(--color-neutral-700);
+  font-size: 0.9rem;
+}
+.notifMeta {
+  font-size: 0.78rem;
+  color: var(--color-neutral-500);
+  margin-top: 0.3rem;
+}
+
+@media (max-width: 640px) {
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
+}

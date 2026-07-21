@@ -40,7 +40,7 @@ from app.core.sms import SMSSender, get_sms_sender
 from app.core.whatsapp import WhatsAppSender, get_whatsapp_sender
 from app.db.session import get_db_session
 from app.models.address import Address
-from app.models.base import User, UserRole
+from app.models.base import AccountStatus, User, UserRole
 from app.models.catalog import LanguageCode
 from app.models.profile import CustomerProfile, SellerProfile
 from app.schemas.address import address_from_payload
@@ -258,6 +258,20 @@ async def otp_verify(
         if user.id is not None:
             dispatch_customer_welcome(user.id)
     else:
+        if user.account_status == AccountStatus.deleted:
+            raise HTTPException(status_code=403, detail={"error": "account_deleted"})
+        if user.account_status == AccountStatus.suspended:
+            raise HTTPException(status_code=403, detail={"error": "account_suspended"})
+        if user.account_status == AccountStatus.deactivated:
+            # A fresh OTP login silently reactivates a self-deactivated account.
+            from app.services.account_lifecycle import transition
+
+            assert user.id is not None
+            await transition(
+                session, user_id=user.id, to_status=AccountStatus.active,
+                actor_user_id=None, actor_role="customer", reason=None,
+                enforce_obligations=False,
+            )
         full_name, avatar_url = await _profile_display(session, user)
 
     await consume_otp_key(email, redis)
@@ -330,6 +344,11 @@ async def refresh(
         raise HTTPException(
             status_code=401, detail={"error": "invalid_session"}
         ) from None
+
+    # A deactivated/suspended/deleted account must not refresh — a deactivated
+    # user reactivates only via a fresh OTP login, never a silent refresh.
+    if user.account_status != AccountStatus.active:
+        raise HTTPException(status_code=401, detail={"error": "account_inactive"})
 
     # Mint the access token BEFORE commit: commit expires the ORM attributes,
     # and accessing user/row afterwards would trigger a sync lazy-load that
