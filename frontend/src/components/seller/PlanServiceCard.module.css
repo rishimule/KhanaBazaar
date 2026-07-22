@@ -20,12 +20,6 @@
   margin: 0;
 }
 
-.model {
-  font-size: var(--body-sm);
-  color: var(--shade-cool-base-7);
-  margin-top: 4px;
-}
-
 .validity {
   font-size: var(--body-sm);
   color: var(--color-text);
@@ -38,7 +32,7 @@
   margin-top: 12px;
 }
 
-/* Offline payment block ------------------------------------------------ */
+/* Active-model panel (PPT balance / OV summary) ----------------------- */
 .payBox {
   margin-top: 16px;
   padding: 16px;
@@ -47,85 +41,13 @@
   border-radius: var(--radius-card);
 }
 
-.payHead {
-  font-weight: var(--weight-semibold);
-  color: var(--color-text-strong);
-}
-
 .amount {
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
   margin-top: 4px;
 }
 
-.payIntro {
-  font-size: var(--body-sm);
-  color: var(--shade-cool-base-7);
-  margin: 8px 0 12px;
-}
-
-.payRows {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-}
-
-.payRow {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: var(--body-sm);
-}
-
-.payLabel {
-  color: var(--shade-cool-base-7);
-}
-
-.payValue {
-  color: var(--color-text-strong);
-  font-weight: var(--weight-medium);
-  text-align: right;
-  word-break: break-word;
-}
-
-.qr {
-  width: 140px;
-  height: 140px;
-  margin: 12px 0 0;
-  border: 1px solid var(--hairline);
-  border-radius: 8px;
-  object-fit: contain;
-  background: var(--white);
-}
-
-.noteWrap {
-  margin-top: 12px;
-}
-
-.noteLabel {
-  display: block;
-  font-size: var(--body-sm);
-  color: var(--shade-cool-base-7);
-  margin-bottom: 4px;
-}
-
-.note {
-  width: 100%;
-  min-height: 60px;
-  padding: 8px 10px;
-  border: 1px solid var(--hairline);
-  border-radius: 8px;
-  resize: vertical;
-}
-
-.actions {
-  margin-top: 12px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-/* Opt-in / renew panel ------------------------------------------------- */
+/* Opt-in / renew / switch section ------------------------------------- */
 .section {
   margin-top: 16px;
   padding-top: 16px;
@@ -168,7 +90,14 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Cancel -------------------------------------------------------------- */
+.actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Cancel / stop link -------------------------------------------------- */
 .cancelBtn {
   margin-top: 14px;
   background: none;
@@ -184,4 +113,129 @@
 .cancelBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Segmented model chooser --------------------------------------------- */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 4px;
+  background: var(--color-surface-tint);
+  border-radius: var(--radius-card);
+}
+.tab {
+  flex: 1 1 0;
+  min-width: 116px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--shade-cool-base-7);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tabActive {
+  background: var(--white);
+  color: var(--color-text-strong);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-md);
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.caption {
+  margin-top: 14px;
+  font-size: var(--body-2xs);
+  color: var(--shade-cool-base-7);
+}
+
+.inlineInput {
+  margin-top: 8px;
+  max-width: 220px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--white);
+  font: inherit;
+}
+
+.warnBox {
+  margin-top: 10px;
+  background: var(--mandarin-orange-light-1);
+  color: var(--mandarin-orange-dark-1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: var(--body-sm);
+}
+
+.statRow {
+  display: flex;
+  gap: 12px;
+  margin: 10px 0;
+}
+.stat {
+  flex: 1;
+  background: var(--color-surface-tint);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.invoiceList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.invoiceRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.invoiceRow + .invoiceRow {
+  border-top: 1px solid var(--hairline);
+}
+.invoiceMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.meterTrack {
+  height: 8px;
+  border-radius: 100px;
+  background: var(--color-surface-tint);
+  overflow: hidden;
+  margin: 6px 0;
+}
+.meterFill {
+  height: 100%;
+  border-radius: 100px;
+}
+
+.creditRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.creditRow .inlineInput {
+  margin-top: 0;
+  max-width: 140px;
 }

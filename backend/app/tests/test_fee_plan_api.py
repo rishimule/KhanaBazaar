@@ -56,6 +56,68 @@ async def test_get_plan_lists_service(client: AsyncClient, session: AsyncSession
 
 
 @pytest.mark.asyncio
+async def test_me_plan_nulls_disabled_method_fields(
+    client: AsyncClient, session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app.services.platform_fees import get_or_create_settings
+
+    await _enrolled(session, approved_seller_with_store)
+    settings = await get_or_create_settings(session)
+    settings.upi_id = "pay@oksbi"
+    settings.qr_image_url = "http://x/q.png"
+    settings.bank_account_number = "123456"
+    settings.bank_ifsc = "HDFC0001"
+    settings.upi_enabled = False  # disabled → its details must be withheld
+    settings.bank_transfer_enabled = True
+    session.add(settings)
+    await session.commit()
+
+    app.dependency_overrides[get_current_seller] = lambda: approved_seller_with_store.user
+    try:
+        r = await client.get("/api/v1/sellers/me/plan")
+        assert r.status_code == 200
+        pd = r.json()["payment_details"]
+        assert pd["upi_enabled"] is False and pd["bank_transfer_enabled"] is True
+        # Disabled UPI → fields nulled; enabled bank → fields present.
+        assert pd["upi_id"] is None and pd["qr_image_url"] is None
+        assert pd["bank_account_number"] == "123456"
+        assert pd["bank_ifsc"] == "HDFC0001"
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+
+
+@pytest.mark.asyncio
+async def test_me_plan_nulls_disabled_bank_keeps_upi(
+    client: AsyncClient, session: AsyncSession, approved_seller_with_store
+) -> None:
+    """Mirror of the UPI-disabled case: bank off + UPI on → bank fields nulled,
+    UPI fields surfaced."""
+    from app.services.platform_fees import get_or_create_settings
+
+    await _enrolled(session, approved_seller_with_store)
+    settings = await get_or_create_settings(session)
+    settings.upi_id = "pay@oksbi"
+    settings.qr_image_url = "http://x/q.png"
+    settings.bank_account_number = "123456"
+    settings.bank_ifsc = "HDFC0001"
+    settings.upi_enabled = True
+    settings.bank_transfer_enabled = False  # disabled → its details withheld
+    session.add(settings)
+    await session.commit()
+
+    app.dependency_overrides[get_current_seller] = lambda: approved_seller_with_store.user
+    try:
+        r = await client.get("/api/v1/sellers/me/plan")
+        assert r.status_code == 200
+        pd = r.json()["payment_details"]
+        assert pd["upi_enabled"] is True and pd["bank_transfer_enabled"] is False
+        assert pd["upi_id"] == "pay@oksbi" and pd["qr_image_url"] == "http://x/q.png"
+        assert pd["bank_account_number"] is None and pd["bank_ifsc"] is None
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+
+
+@pytest.mark.asyncio
 async def test_opt_in_then_mark_paid(client: AsyncClient, session: AsyncSession, approved_seller_with_store) -> None:
     await _enrolled(session, approved_seller_with_store)
     sid = approved_seller_with_store.service_id

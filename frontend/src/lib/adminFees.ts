@@ -19,6 +19,9 @@ export type PlatformFeeSettings = {
   upi_id: string | null;
   qr_image_url: string | null;
   gstin: string | null;
+  /** Which payment methods are offered to sellers (admin-controlled). */
+  upi_enabled: boolean;
+  bank_transfer_enabled: boolean;
 };
 
 export type PlatformFeeSettingsPatch = Partial<PlatformFeeSettings>;

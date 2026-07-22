@@ -112,6 +112,12 @@ class PlatformFeeSettings(BaseSchema, table=True):
     qr_image_url: Optional[str] = Field(default=None, max_length=500)
     qr_storage_key: Optional[str] = Field(default=None, max_length=300)
     gstin: Optional[str] = Field(default=None, max_length=20)
+    # Which payment methods the admin offers sellers for platform-fee payments.
+    # Default False: a method is offered only once the admin explicitly enables
+    # it (and its payee details are present — enforced at the PATCH endpoint).
+    # The migration backfills existing installs to True where details exist.
+    upi_enabled: bool = Field(default=False, nullable=False)
+    bank_transfer_enabled: bool = Field(default=False, nullable=False)
 
 
 class ServiceFeeConfig(BaseSchema, table=True):

@@ -15,6 +15,8 @@ class PlatformFeeSettingsRead(BaseModel):
     upi_id: Optional[str] = None
     qr_image_url: Optional[str] = None
     gstin: Optional[str] = None
+    upi_enabled: bool = False
+    bank_transfer_enabled: bool = False
 
 
 class PlatformFeeSettingsPatch(BaseModel):
@@ -27,6 +29,8 @@ class PlatformFeeSettingsPatch(BaseModel):
     upi_id: Optional[str] = Field(default=None, max_length=100)
     qr_image_url: Optional[str] = Field(default=None, max_length=500)
     gstin: Optional[str] = Field(default=None, max_length=20)
+    upi_enabled: Optional[bool] = None
+    bank_transfer_enabled: Optional[bool] = None
 
 
 class ServiceFeeConfigRead(BaseModel):
@@ -82,6 +86,8 @@ class SellerPaymentDetails(BaseModel):
     upi_id: Optional[str] = None
     qr_image_url: Optional[str] = None
     gstin: Optional[str] = None
+    upi_enabled: bool = False
+    bank_transfer_enabled: bool = False
 
 
 class SellerPlanServiceView(BaseModel):
