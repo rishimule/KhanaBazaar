@@ -46,6 +46,14 @@ class FeePaymentStatus(str, enum.Enum):
     Rejected = "rejected"
 
 
+class InvoiceStatus(str, enum.Enum):
+    Pending = "pending"
+    Paid = "paid"
+    Overdue = "overdue"
+    Waived = "waived"
+    Cancelled = "cancelled"
+
+
 class FeeEventType(str, enum.Enum):
     ArrangementCreated = "arrangement_created"
     ModelChanged = "model_changed"
@@ -119,6 +127,8 @@ class ServiceFeeConfig(BaseSchema, table=True):
     order_value_percent: float = Field(default=0.0, nullable=False)
     order_value_min_deposit: float = Field(default=0.0, nullable=False)
     order_value_billing_day: int = Field(default=5, nullable=False)
+    # Net days after an invoice is issued before it is due (grace runs after this).
+    order_value_payment_days: int = Field(default=7, nullable=False)
     pay_per_txn_enabled: bool = Field(default=False, nullable=False)
     pay_per_txn_fee: float = Field(default=0.0, nullable=False)
     pay_per_txn_min_deposit: float = Field(default=0.0, nullable=False)
@@ -167,6 +177,9 @@ class FeeArrangement(BaseSchema, table=True):
     price_snapshot: Optional[float] = Field(default=None)
     security_deposit_amount: float = Field(default=0.0, nullable=False)
     balance: float = Field(default=0.0, nullable=False)
+    # Order Value % billing anchors: activation date + end of the last billed period.
+    order_value_activated_on: Optional[date] = Field(default=None)
+    last_billed_period_end: Optional[date] = Field(default=None)
     auto_renew: bool = Field(default=True, nullable=False)
     cancel_requested: bool = Field(default=False, nullable=False)
     queued_model: Optional[FeeModel] = Field(
@@ -219,6 +232,47 @@ class FeePayment(BaseSchema, table=True):
         default=None, sa_type=DateTime(timezone=True)
     )
     reject_reason: Optional[str] = Field(default=None, max_length=200)
+
+
+class FeeInvoice(BaseSchema, table=True):
+    """A monthly postpaid charge for the Order Value % model. One row per
+    (arrangement, billed period). Distinct from FeePayment (seller -> platform)."""
+
+    __tablename__ = "fee_invoice"
+    __table_args__ = (
+        UniqueConstraint(
+            "arrangement_id", "period_start", name="uq_fee_invoice_arrangement_period"
+        ),
+    )
+    arrangement_id: int = Field(
+        foreign_key="fee_arrangement.id", nullable=False, index=True
+    )
+    store_id: int = Field(foreign_key="store.id", nullable=False, index=True)
+    service_id: int = Field(foreign_key="service.id", nullable=False, index=True)
+    period_start: date = Field(nullable=False)
+    period_end: date = Field(nullable=False)
+    sales_total: float = Field(default=0.0, nullable=False)
+    fee_percent_snapshot: float = Field(default=0.0, nullable=False)
+    amount_due: float = Field(default=0.0, nullable=False)
+    status: InvoiceStatus = Field(
+        sa_column=Column(
+            SAEnum(
+                InvoiceStatus,
+                name="invoicestatus",
+                values_callable=_enum_values,
+                create_type=False,
+            ),
+            nullable=False,
+            index=True,
+        )
+    )
+    issued_on: date = Field(nullable=False)
+    due_date: date = Field(nullable=False)
+    suspend_after: date = Field(nullable=False)
+    paid_at: Optional[datetime] = Field(  # type: ignore[call-overload]
+        default=None, sa_type=DateTime(timezone=True)
+    )
+    payment_id: Optional[int] = Field(default=None, foreign_key="fee_payment.id")
 
 
 class FeeEvent(BaseSchema, table=True):
