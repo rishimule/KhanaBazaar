@@ -33,6 +33,36 @@ export type SellerPlanServiceView = {
   /** Prepaid balance — present only when the arrangement is Pay-Per-Transaction. */
   balance: number | null;
   low_balance_threshold: number | null;
+  // Order Value % (postpaid) fields.
+  order_value_enabled: boolean;
+  order_value_percent: number;
+  order_value_min_deposit: number;
+  order_value_billing_day: number;
+  order_value_payment_days: number;
+  /** Held security deposit — present only when the arrangement is Order Value %. */
+  security_deposit_amount: number | null;
+  /** Sum of unpaid invoices — present only when the arrangement is Order Value %. */
+  outstanding_balance: number | null;
+};
+
+/** One monthly postpaid charge (Order Value %). Mirrors backend InvoiceView. */
+export type FeeInvoice = {
+  id: number;
+  arrangement_id: number;
+  service_id: number;
+  period_start: string;
+  period_end: string;
+  sales_total: number;
+  fee_percent_snapshot: number;
+  amount_due: number;
+  /** "pending" | "paid" | "overdue" | "waived" | "cancelled" */
+  status: string;
+  issued_on: string;
+  due_date: string;
+  suspend_after: string;
+  paid_at: string | null;
+  /** True when an offline payment for this invoice is awaiting admin confirmation. */
+  payment_pending: boolean;
 };
 
 export type SellerPaymentDetails = {
@@ -146,4 +176,40 @@ export function switchFromPpt(
   token: string | null,
 ): Promise<{ service_id: number; status: string }> {
   return post(`/api/v1/sellers/me/plan/${serviceId}/switch`, undefined, token);
+}
+
+// ── Order Value % (postpaid + security deposit) ──────────────────────────
+
+export function optInOrderValue(
+  serviceId: number,
+  depositAmount: number,
+  token: string | null,
+): Promise<{ payment_id: number; amount: number }> {
+  return post(
+    `/api/v1/sellers/me/plan/${serviceId}/order-value/opt-in`,
+    { deposit_amount: depositAmount },
+    token,
+  );
+}
+
+export function getInvoices(
+  serviceId: number,
+  token: string | null,
+): Promise<FeeInvoice[]> {
+  return get<FeeInvoice[]>(
+    `/api/v1/sellers/me/plan/${serviceId}/invoices`,
+    token,
+  );
+}
+
+export function markInvoicePaid(
+  serviceId: number,
+  invoiceId: number,
+  token: string | null,
+): Promise<{ payment_id: number; amount: number }> {
+  return post(
+    `/api/v1/sellers/me/plan/${serviceId}/invoices/${invoiceId}/mark-paid`,
+    undefined,
+    token,
+  );
 }

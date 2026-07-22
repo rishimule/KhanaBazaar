@@ -38,6 +38,14 @@ _COPY: dict[NotificationType, tuple[str, str, str]] = {
         "Store service reactivated", "reactivated",
         "Your service is active again. Thanks for topping up.",
     ),
+    NotificationType.FeeInvoiceRaised: (
+        "Invoice raised", "invoice_raised",
+        "Your monthly platform fee invoice is ready. Please pay{until} to keep your store active.",
+    ),
+    NotificationType.FeeInvoiceOverdue: (
+        "Payment overdue", "invoice_overdue",
+        "Your platform fee payment is overdue. Clear it{until} to avoid suspension.",
+    ),
 }
 
 
@@ -66,6 +74,11 @@ async def notify_seller_fee_event(
     until_clause = f" until {valid_until.isoformat()}" if valid_until else ""
     if type is NotificationType.FeeExpiring:
         until_clause = f" on {valid_until.isoformat()}" if valid_until else " soon"
+    elif type in (
+        NotificationType.FeeInvoiceRaised,
+        NotificationType.FeeInvoiceOverdue,
+    ):
+        until_clause = f" by {valid_until.isoformat()}" if valid_until else ""
     body = body_tmpl.format(until=until_clause)
     await record_seller_notification(
         session,

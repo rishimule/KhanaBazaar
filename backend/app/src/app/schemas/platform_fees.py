@@ -38,6 +38,7 @@ class ServiceFeeConfigRead(BaseModel):
     order_value_percent: float
     order_value_min_deposit: float
     order_value_billing_day: int
+    order_value_payment_days: int
     pay_per_txn_enabled: bool
     pay_per_txn_fee: float
     pay_per_txn_min_deposit: float
@@ -52,6 +53,7 @@ class ServiceFeeConfigPatch(BaseModel):
     order_value_percent: Optional[float] = Field(default=None, ge=0, le=100)
     order_value_min_deposit: Optional[float] = Field(default=None, ge=0)
     order_value_billing_day: Optional[int] = Field(default=None, ge=1, le=28)
+    order_value_payment_days: Optional[int] = Field(default=None, ge=0, le=60)
     pay_per_txn_enabled: Optional[bool] = None
     pay_per_txn_fee: Optional[float] = Field(default=None, ge=0)
     pay_per_txn_min_deposit: Optional[float] = Field(default=None, ge=0)
@@ -99,6 +101,14 @@ class SellerPlanServiceView(BaseModel):
     pay_per_txn_min_deposit: float = 0.0
     balance: Optional[float] = None
     low_balance_threshold: Optional[float] = None
+    # Order Value % (postpaid) fields.
+    order_value_enabled: bool = False
+    order_value_percent: float = 0.0
+    order_value_min_deposit: float = 0.0
+    order_value_billing_day: int = 5
+    order_value_payment_days: int = 7
+    security_deposit_amount: Optional[float] = None
+    outstanding_balance: Optional[float] = None
 
 
 class SellerPlanView(BaseModel):
@@ -114,6 +124,10 @@ class OptInBody(BaseModel):
 class PayPerTxnOptInBody(BaseModel):
     deposit_amount: float = Field(gt=0)
     use_credit: bool = False
+
+
+class OrderValueOptInBody(BaseModel):
+    deposit_amount: float = Field(gt=0)
 
 
 class TopUpBody(BaseModel):
@@ -167,8 +181,37 @@ class PaymentQueueItem(BaseModel):
     created_at: str
 
 
+class InvoiceView(BaseModel):
+    id: int
+    arrangement_id: int
+    service_id: int
+    period_start: str
+    period_end: str
+    sales_total: float
+    fee_percent_snapshot: float
+    amount_due: float
+    status: str
+    issued_on: str
+    due_date: str
+    suspend_after: str
+    paid_at: Optional[str] = None
+    # True when an offline payment for this invoice is awaiting admin confirmation.
+    payment_pending: bool = False
+
+
 class RejectBody(BaseModel):
     reason: str = Field(min_length=1, max_length=200)
+
+
+class ForfeitBody(BaseModel):
+    amount: float = Field(gt=0)
+    invoice_id: Optional[int] = None
+    reason: str = Field(min_length=10, max_length=200)
+
+
+class RefundDepositBody(BaseModel):
+    mode: str = Field(pattern="^(offline|credit)$")
+    note: Optional[str] = Field(default=None, max_length=200)
 
 
 class ArrangementSummary(BaseModel):

@@ -55,6 +55,30 @@ const FAQ: { q: string; a: string }[] = [
     a: "A suspended service stops accepting new orders and is hidden from customers. Orders that were already placed are not affected. Renew to bring the service back.",
   },
   {
+    q: "What is the on-order-value (%) plan?",
+    a: "A postpaid plan: instead of a fixed fee you pay a small percentage of your completed monthly sales for a service. You hold a refundable security deposit while you're on the plan.",
+  },
+  {
+    q: "How is the order-value fee calculated and billed?",
+    a: "At the start of each month we total the previous calendar month's completed (delivered) orders for the service and charge the agreed percentage. An invoice appears on your Plan page — by default on the 5th — with a due date to pay by.",
+  },
+  {
+    q: "What is the security deposit for?",
+    a: "It's held as collateral, not a prepayment. Your store activates once the team confirms the deposit, and it stays untouched unless fees go unpaid. It's refundable when you leave the plan.",
+  },
+  {
+    q: "What happens if I miss a monthly order-value invoice?",
+    a: "Each invoice has a due date followed by a short grace period. If it's still unpaid after that, the service is suspended until you clear it. Orders already placed are unaffected.",
+  },
+  {
+    q: "Will my security deposit be returned?",
+    a: "Yes. When you leave the plan the deposit is returned minus any outstanding fees — either back to you directly or as store wallet credit.",
+  },
+  {
+    q: "Is GST included in the platform fees?",
+    a: "Yes. All platform fees — subscriptions, pay-per-order, and the order-value percentage — are inclusive of GST as configured by the marketplace team.",
+  },
+  {
     q: "What do paid plans get me?",
     a: "A premium crown on your store, priority placement when customers compare prices, and access to advanced revenue reports.",
   },

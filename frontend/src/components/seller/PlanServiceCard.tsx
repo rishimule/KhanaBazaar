@@ -5,6 +5,7 @@
 import { useState } from "react";
 
 import type {
+  FeeInvoice,
   SellerPaymentDetails,
   SellerPlanServiceView,
 } from "@/lib/sellerPlan";
@@ -15,6 +16,8 @@ interface Props {
   payment: SellerPaymentDetails;
   busy: boolean;
   feeCredit: number;
+  /** Order Value % invoices for this service (empty/undefined otherwise). */
+  invoices?: FeeInvoice[];
   onOptIn: (serviceId: number, durationMonths: number) => void;
   onMarkPaid: (serviceId: number, sellerNote: string | null) => void;
   onCancel: (serviceId: number) => void;
@@ -22,6 +25,8 @@ interface Props {
   onTopUp: (serviceId: number) => void;
   onApplyCredit: (serviceId: number) => void;
   onSwitchPpt: (serviceId: number) => void;
+  onOptInOrderValue: (serviceId: number, deposit: number) => void;
+  onPayInvoice: (serviceId: number, invoiceId: number) => void;
 }
 
 const MODEL_LABEL: Record<string, string> = {
@@ -60,11 +65,19 @@ function daysLeft(iso: string): number {
   return Math.ceil((parseDate(iso).getTime() - Date.now()) / 86_400_000);
 }
 
+function fmtMonth(iso: string): string {
+  const d = parseDate(iso);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+}
+
 export default function PlanServiceCard({
   service,
   payment,
   busy,
   feeCredit,
+  invoices,
   onOptIn,
   onMarkPaid,
   onCancel,
@@ -72,6 +85,8 @@ export default function PlanServiceCard({
   onTopUp,
   onApplyCredit,
   onSwitchPpt,
+  onOptInOrderValue,
+  onPayInvoice,
 }: Props) {
   const activePlans = service.subscription_plans.filter((p) => p.is_active);
   const [duration, setDuration] = useState<number>(
@@ -81,9 +96,11 @@ export default function PlanServiceCard({
   const [note, setNote] = useState("");
   const [pptDeposit, setPptDeposit] = useState<string>("");
   const [pptUseCredit, setPptUseCredit] = useState(false);
+  const [ovDeposit, setOvDeposit] = useState<string>("");
 
   const isPaidSub = service.model === "subscription";
   const isPpt = service.model === "pay_per_transaction";
+  const isOrderValue = service.model === "order_value_percent";
   const isLive = service.status === "active" || service.status === "grace";
   const pill = service.payment_pending
     ? { label: "Payment under review", kind: "warning" }
@@ -97,14 +114,24 @@ export default function PlanServiceCard({
   // A non-PPT service the admin has enabled for pay-per-order → offer opt-in.
   const showPptOptIn =
     service.pay_per_txn_enabled && !isPpt && !service.payment_pending;
+  // A service the admin has enabled for Order Value % → offer opt-in.
+  const showOvOptIn =
+    service.order_value_enabled && !isOrderValue && !isPpt && !service.payment_pending;
   const showCancel =
     isPaidSub && service.status === "active" && !service.cancel_requested && !service.payment_pending;
   // Nothing to act on (no opt-in panel, no pending payment, no cancel) — show
   // an explanatory line instead of a bare card. Covers freebie-with-no-plans
   // and a subscription whose plans were all deactivated.
   const noActionable =
-    !showOptIn && !showCancel && !isPpt && !showPptOptIn &&
+    !showOptIn && !showCancel && !isPpt && !isOrderValue && !showPptOptIn && !showOvOptIn &&
     !service.payment_pending && !service.cancel_requested;
+
+  // Order Value % (postpaid) derived values.
+  const ovInvoices = invoices ?? [];
+  const ovDeposited = service.security_deposit_amount ?? 0;
+  const ovOutstanding = service.outstanding_balance ?? 0;
+  const ovHasOverdue = ovInvoices.some((i) => i.status === "overdue");
+  const ovMinDeposit = service.order_value_min_deposit || 0;
 
   // Pay-Per-Transaction balance meter.
   const fee = service.pay_per_txn_fee || 0;
@@ -202,6 +229,150 @@ export default function PlanServiceCard({
             </button>
           </div>
           <p className={styles.muted}>Store wallet credit available: {rupees(feeCredit)}</p>
+        </div>
+      )}
+
+      {isOrderValue && (
+        <div className={styles.payBox}>
+          <p className={styles.sectionTitle}>{service.order_value_percent}% of monthly sales</p>
+          <p className={styles.muted}>
+            Security deposit held as collateral · invoiced on day{" "}
+            {service.order_value_billing_day} for the previous month · payable within{" "}
+            {service.order_value_payment_days} days · incl. GST.
+          </p>
+          {(ovHasOverdue || service.status === "suspended") && (
+            <p
+              className={styles.muted}
+              style={{
+                background: "var(--color-status-warning-tint, #FEEFDB)",
+                color: "var(--color-status-pending-text, #92400E)",
+                borderRadius: 10,
+                padding: "10px 12px",
+              }}
+            >
+              {service.status === "suspended"
+                ? "Service suspended for non-payment. Clear your outstanding invoice to reactivate."
+                : "You have an overdue invoice. Pay it to avoid suspension."}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: 12, margin: "4px 0" }}>
+            <div className={styles.section} style={{ flex: 1, margin: 0, padding: 12 }}>
+              <p className={styles.muted} style={{ margin: 0 }}>Security deposit held</p>
+              <p className={styles.amount} style={{ margin: 0 }}>{rupees(ovDeposited)}</p>
+            </div>
+            <div className={styles.section} style={{ flex: 1, margin: 0, padding: 12 }}>
+              <p className={styles.muted} style={{ margin: 0 }}>Outstanding</p>
+              <p className={styles.amount} style={{ margin: 0 }}>{rupees(ovOutstanding)}</p>
+            </div>
+          </div>
+          {ovInvoices.length > 0 && (
+            <>
+              <p className={styles.sectionTitle}>Invoices</p>
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, border: "1px solid var(--color-border-divider, #EAEAEA)", borderRadius: 10, overflow: "hidden" }}>
+                {ovInvoices.map((inv, idx) => {
+                  const kind =
+                    inv.status === "paid" ? "member"
+                      : inv.status === "overdue" ? "sale"
+                        : inv.status === "pending" ? "warning" : "neutral";
+                  const payable = inv.status === "pending" || inv.status === "overdue";
+                  return (
+                    <li
+                      key={inv.id}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                        borderTop: idx === 0 ? "none" : "1px solid var(--color-border-divider, #EAEAEA)",
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div>{fmtMonth(inv.period_start)}</div>
+                        <div className={styles.muted} style={{ fontSize: 12 }}>
+                          Sales {rupees(inv.sales_total)} · {inv.fee_percent_snapshot}%
+                        </div>
+                      </div>
+                      <span>{rupees(inv.amount_due)}</span>
+                      <span className={`badge badge--${kind}`}>{inv.status}</span>
+                      {inv.payment_pending ? (
+                        <span className="badge badge--warning">Under review</span>
+                      ) : (
+                        payable && (
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            disabled={busy}
+                            onClick={() => onPayInvoice(service.service_id, inv.id)}
+                          >
+                            Pay
+                          </button>
+                        )
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+          {ovInvoices.some(
+            (i) => (i.status === "pending" || i.status === "overdue") && !i.payment_pending,
+          ) && (
+            <div className={styles.section} style={{ marginTop: 4 }}>
+              <p className={styles.sectionTitle}>How to pay</p>
+              <p className={styles.muted}>
+                Pay the invoice amount offline using the details below, then tap “Pay”
+                on the invoice to submit it for confirmation.
+              </p>
+              <dl className={styles.payRows}>
+                {payRows.map(([label, value]) =>
+                  value ? (
+                    <div className={styles.payRow} key={label}>
+                      <dt className={styles.payLabel}>{label}</dt>
+                      <dd className={styles.payValue}>{value}</dd>
+                    </div>
+                  ) : null,
+                )}
+              </dl>
+              {payment.qr_image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  className={styles.qr}
+                  src={payment.qr_image_url}
+                  alt="Payment QR code"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {showOvOptIn && (
+        <div className={styles.section}>
+          <p className={styles.sectionTitle}>Start Order Value %</p>
+          <p className={styles.muted}>
+            Postpaid: {service.order_value_percent || 0}% of each month’s completed sales,
+            invoiced on day {service.order_value_billing_day}. Pay a refundable security
+            deposit of at least {rupees(ovMinDeposit)} to activate.
+          </p>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={ovMinDeposit}
+            className={styles.note}
+            style={{ maxWidth: 200 }}
+            value={ovDeposit}
+            onChange={(e) => setOvDeposit(e.target.value)}
+            placeholder={`Deposit (min ${rupees(ovMinDeposit)})`}
+            aria-label="Security deposit amount"
+          />
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || Number(ovDeposit) < ovMinDeposit || Number(ovDeposit) <= 0}
+              onClick={() => onOptInOrderValue(service.service_id, Number(ovDeposit))}
+            >
+              Pay deposit &amp; start
+            </button>
+          </div>
         </div>
       )}
 

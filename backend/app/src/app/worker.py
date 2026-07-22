@@ -1527,6 +1527,16 @@ _FEE_CHANNEL_COPY: dict[str, tuple[str, str]] = {
         "A service on your store was suspended",
         "A service on your store has been suspended. Renew or clear your balance to reactivate it.",
     ),
+    "fee_invoice_raised": (
+        "Your platform fee invoice is ready",
+        "Your monthly platform fee invoice is ready. It is payable{until}. "
+        "Pay from your seller dashboard to keep your store active.",
+    ),
+    "fee_invoice_overdue": (
+        "Platform fee payment overdue",
+        "Your platform fee payment is overdue. Please clear it now to avoid "
+        "suspension of your store.",
+    ),
 }
 
 

@@ -260,6 +260,7 @@ async def test_sweep_ignores_unexpired_and_suspended(
     assert arr.status == ArrangementStatus.Trial
     assert counts == {
         "to_grace": 0, "to_suspended": 0, "held": 0, "protected": 0, "reminded": 0,
+        "invoices_raised": 0, "ov_overdue": 0,
     }
 
 

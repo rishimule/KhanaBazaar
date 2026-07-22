@@ -5,6 +5,7 @@
 `admin_router` mounted at /api/v1/admin. Global settings + per-service fee config
 + subscription-plan pricing."""
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 
 import anyio
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -21,6 +22,7 @@ from app.models.notification import NotificationType
 from app.models.platform_fee import (
     ArrangementStatus,
     FeeArrangement,
+    FeeInvoice,
     FeeModel,
     FeePayment,
     FeePaymentKind,
@@ -39,12 +41,16 @@ from app.schemas.platform_fees import (
     CreditAdjustBody,
     CreditAmountBody,
     ExtendBody,
+    ForfeitBody,
+    InvoiceView,
     MarkPaidBody,
     OptInBody,
+    OrderValueOptInBody,
     PaymentQueueItem,
     PayPerTxnOptInBody,
     PlatformFeeSettingsPatch,
     PlatformFeeSettingsRead,
+    RefundDepositBody,
     RejectBody,
     SellerPaymentDetails,
     SellerPlanServiceView,
@@ -78,6 +84,16 @@ from app.services.fee_lifecycle import (
     seller_switch_from_ppt,
 )
 from app.services.fee_notifications import notify_seller_fee_event
+from app.services.fee_order_value import (
+    IST,
+    confirm_invoice_payment,
+    confirm_order_value_deposit,
+    create_invoice_payment,
+    forfeit_deposit,
+    generate_final_order_value_invoice,
+    opt_into_order_value,
+    refund_deposit,
+)
 from app.services.image_processing import ImageValidationError, process_image
 from app.services.image_storage import get_image_storage
 
@@ -155,6 +171,7 @@ def _config_read(c: ServiceFeeConfig) -> ServiceFeeConfigRead:
         order_value_percent=c.order_value_percent,
         order_value_min_deposit=c.order_value_min_deposit,
         order_value_billing_day=c.order_value_billing_day,
+        order_value_payment_days=c.order_value_payment_days,
         pay_per_txn_enabled=c.pay_per_txn_enabled,
         pay_per_txn_fee=c.pay_per_txn_fee,
         pay_per_txn_min_deposit=c.pay_per_txn_min_deposit,
@@ -330,6 +347,14 @@ async def confirm_payment(
         await notify_seller_fee_event(
             session, store_id=arr.store_id, type=notif, valid_until=arr.valid_until,
         )
+    elif payment.kind == FeePaymentKind.SecurityDeposit:
+        # confirm_order_value_deposit records the single FeeActivated in-app
+        # notification itself — do NOT re-notify here.
+        arr, notif = await confirm_order_value_deposit(session, payment, admin.id)
+    elif payment.kind == FeePaymentKind.OrderValueInvoice:
+        # confirm_invoice_payment records the single FeeReactivated in-app
+        # notification itself (only when it reactivates) — do NOT re-notify here.
+        arr, notif = await confirm_invoice_payment(session, payment, admin.id)
     else:
         raise HTTPException(
             status_code=400, detail={"error": "unsupported_payment_kind"}
@@ -458,6 +483,10 @@ async def admin_terminate_arrangement(
     arr, profile = await _arrangement_with_seller(session, arrangement_id)
     assert admin.id is not None and profile.id is not None
     before = _arr_before(arr)
+    # Order Value % exit: bill trailing completed sales as a final partial invoice
+    # before suspending (deposit is then settled via the refund-deposit action).
+    if arr.model == FeeModel.OrderValuePercent:
+        await generate_final_order_value_invoice(session, arr, datetime.now(IST).date())
     admin_terminate(session, arr, body.reason, admin.id)
     await admin_audit.log(
         session=session, admin_user_id=admin.id, target_seller_id=profile.id,
@@ -474,6 +503,80 @@ async def admin_terminate_arrangement(
     if spid is not None:
         dispatch_seller_fee_channels(spid, NotificationType.FeeSuspended.value, None)
     return {"arrangement_id": arrangement_id, "status": "suspended"}
+
+
+@admin_router.post("/fees/arrangements/{arrangement_id}/forfeit")
+async def admin_forfeit_deposit(
+    arrangement_id: int,
+    body: ForfeitBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    arr, profile = await _arrangement_with_seller(session, arrangement_id)
+    assert admin.id is not None and profile.id is not None
+    if arr.model != FeeModel.OrderValuePercent:
+        raise HTTPException(status_code=409, detail={"error": "not_order_value"})
+    before = {
+        "security_deposit_amount": arr.security_deposit_amount,
+        "balance": arr.balance,
+    }
+    try:
+        _arr, notif = await forfeit_deposit(
+            session, arr, body.amount, admin.id,
+            invoice_id=body.invoice_id, reason=body.reason,
+        )
+    except FeeError as exc:
+        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    after = {
+        "security_deposit_amount": arr.security_deposit_amount,
+        "balance": arr.balance,
+    }
+    await admin_audit.log(
+        session=session, admin_user_id=admin.id, target_seller_id=profile.id,
+        target_type=AdminActionTargetType.SellerProfile, target_id=profile.id,
+        action="fee.order_value.forfeit", before_json=before, after_json=after,
+        reason=body.reason,
+    )
+    store_id = arr.store_id
+    status_value = arr.status.value
+    await session.commit()
+    if notif is not None:  # forfeit cleared the last unpaid invoice → reactivated
+        spid = await _store_seller_id(session, store_id)
+        if spid is not None:
+            dispatch_seller_fee_channels(spid, notif.value, None)
+    return {
+        "arrangement_id": arrangement_id,
+        "status": status_value,
+        "security_deposit_amount": after["security_deposit_amount"],
+        "balance": after["balance"],
+    }
+
+
+@admin_router.post("/fees/arrangements/{arrangement_id}/refund-deposit")
+async def admin_refund_deposit(
+    arrangement_id: int,
+    body: RefundDepositBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    arr, profile = await _arrangement_with_seller(session, arrangement_id)
+    assert admin.id is not None and profile.id is not None
+    if arr.model != FeeModel.OrderValuePercent:
+        raise HTTPException(status_code=409, detail={"error": "not_order_value"})
+    before = {"security_deposit_amount": arr.security_deposit_amount, "balance": arr.balance}
+    try:
+        refunded = await refund_deposit(session, arr, body.mode, admin.id, note=body.note)
+    except (FeeError, store_credit.StoreCreditError) as exc:
+        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    await admin_audit.log(
+        session=session, admin_user_id=admin.id, target_seller_id=profile.id,
+        target_type=AdminActionTargetType.SellerProfile, target_id=profile.id,
+        action="fee.order_value.refund_deposit", before_json=before,
+        after_json={"security_deposit_amount": arr.security_deposit_amount, "balance": arr.balance},
+        reason=body.note or f"deposit refund ({body.mode})",
+    )
+    await session.commit()
+    return {"arrangement_id": arrangement_id, "refunded": refunded, "mode": body.mode}
 
 
 @admin_router.post("/fees/arrangements/{arrangement_id}/comp")
@@ -740,6 +843,7 @@ async def get_my_plan(
             amount_due = match.price if match else None
         is_ppt = arr is not None and arr.model == FeeModel.PayPerTransaction
         ppt_balance = arr.balance if (arr is not None and is_ppt) else None
+        is_ov = arr is not None and arr.model == FeeModel.OrderValuePercent
         views.append(
             SellerPlanServiceView(
                 service_id=svc.id,
@@ -762,6 +866,15 @@ async def get_my_plan(
                 low_balance_threshold=(
                     cfg.pay_per_txn_low_balance_threshold if is_ppt else None
                 ),
+                order_value_enabled=cfg.order_value_enabled,
+                order_value_percent=cfg.order_value_percent,
+                order_value_min_deposit=cfg.order_value_min_deposit,
+                order_value_billing_day=cfg.order_value_billing_day,
+                order_value_payment_days=cfg.order_value_payment_days,
+                security_deposit_amount=(
+                    arr.security_deposit_amount if (arr is not None and is_ov) else None
+                ),
+                outstanding_balance=(arr.balance if (arr is not None and is_ov) else None),
             )
         )
     return SellerPlanView(
@@ -855,6 +968,128 @@ async def opt_in_ppt(
         return {"payment_id": None, "status": "active"}
     await session.refresh(payment)
     return {"payment_id": payment.id, "amount": payment.amount}
+
+
+@seller_router.post("/me/plan/{service_id}/order-value/opt-in")
+async def opt_in_order_value(
+    service_id: int,
+    body: OrderValueOptInBody,
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    _profile, store = await _seller_store(session, seller)
+    arr = await _arrangement(session, store.id, service_id)
+    try:
+        payment = await opt_into_order_value(session, arr, body.deposit_amount)
+    except FeeError as exc:
+        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    await session.commit()
+    await session.refresh(payment)
+    return {"payment_id": payment.id, "amount": payment.amount}
+
+
+def _invoice_view(inv: FeeInvoice, *, payment_pending: bool = False) -> InvoiceView:
+    return InvoiceView(
+        id=inv.id,  # type: ignore[arg-type]
+        arrangement_id=inv.arrangement_id,
+        service_id=inv.service_id,
+        period_start=inv.period_start.isoformat(),
+        period_end=inv.period_end.isoformat(),
+        sales_total=inv.sales_total,
+        fee_percent_snapshot=inv.fee_percent_snapshot,
+        amount_due=inv.amount_due,
+        status=inv.status.value,
+        issued_on=inv.issued_on.isoformat(),
+        due_date=inv.due_date.isoformat(),
+        suspend_after=inv.suspend_after.isoformat(),
+        paid_at=inv.paid_at.isoformat() if inv.paid_at else None,
+        payment_pending=payment_pending,
+    )
+
+
+async def _invoices_with_pending(
+    session: AsyncSession, invoices: list[FeeInvoice]
+) -> list[InvoiceView]:
+    """Serialize invoices, flagging those whose linked FeePayment is still
+    Pending (awaiting admin confirmation) so the UI can show 'under review'."""
+    payment_ids = [i.payment_id for i in invoices if i.payment_id is not None]
+    pending_payment_ids: set[int] = set()
+    if payment_ids:
+        pending_payment_ids = set(
+            (
+                await session.exec(
+                    select(FeePayment.id).where(
+                        FeePayment.id.in_(payment_ids),  # type: ignore[union-attr]
+                        FeePayment.status == FeePaymentStatus.Pending,
+                    )
+                )
+            ).all()
+        )
+    return [
+        _invoice_view(
+            i, payment_pending=i.payment_id is not None and i.payment_id in pending_payment_ids
+        )
+        for i in invoices
+    ]
+
+
+@seller_router.get(
+    "/me/plan/{service_id}/invoices", response_model=list[InvoiceView]
+)
+async def list_my_invoices(
+    service_id: int,
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[InvoiceView]:
+    _profile, store = await _seller_store(session, seller)
+    arr = await _arrangement(session, store.id, service_id)
+    invoices = (
+        await session.exec(
+            select(FeeInvoice)
+            .where(FeeInvoice.arrangement_id == arr.id)
+            .order_by(FeeInvoice.period_start.desc())  # type: ignore[attr-defined]
+        )
+    ).all()
+    return await _invoices_with_pending(session, list(invoices))
+
+
+@seller_router.post("/me/plan/{service_id}/invoices/{invoice_id}/mark-paid")
+async def mark_invoice_paid(
+    service_id: int,
+    invoice_id: int,
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    _profile, store = await _seller_store(session, seller)
+    arr = await _arrangement(session, store.id, service_id)
+    try:
+        payment = await create_invoice_payment(session, arr, invoice_id)
+    except FeeError as exc:
+        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    await session.commit()
+    await session.refresh(payment)
+    return {"payment_id": payment.id, "amount": payment.amount}
+
+
+@admin_router.get(
+    "/fees/arrangements/{arrangement_id}/invoices", response_model=list[InvoiceView]
+)
+async def admin_list_arrangement_invoices(
+    arrangement_id: int,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[InvoiceView]:
+    arr = await session.get(FeeArrangement, arrangement_id)
+    if arr is None:
+        raise HTTPException(status_code=404, detail={"error": "arrangement_not_found"})
+    invoices = (
+        await session.exec(
+            select(FeeInvoice)
+            .where(FeeInvoice.arrangement_id == arrangement_id)
+            .order_by(FeeInvoice.period_start.desc())  # type: ignore[attr-defined]
+        )
+    ).all()
+    return await _invoices_with_pending(session, list(invoices))
 
 
 @seller_router.post("/me/plan/{service_id}/top-up")
