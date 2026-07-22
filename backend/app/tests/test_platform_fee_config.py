@@ -131,22 +131,60 @@ async def test_put_plans_rejects_bad_duration(client: AsyncClient, admin_auth_he
 
 
 @pytest.mark.asyncio
-async def test_payment_method_flags_default_true_and_roundtrip(
+async def test_payment_method_flags_default_false_and_roundtrip(
     client: AsyncClient, admin_auth_headers
 ) -> None:
-    # New installs default both methods ON (no migrate regression).
+    # Fresh installs offer no method until the admin explicitly enables one.
     r = await client.get("/api/v1/admin/fees/settings", headers=admin_auth_headers)
     assert r.status_code == 200
     body = r.json()
-    assert body["upi_enabled"] is True
-    assert body["bank_transfer_enabled"] is True
+    assert body["upi_enabled"] is False
+    assert body["bank_transfer_enabled"] is False
 
-    # Enable UPI with a valid id, disable bank transfer — flags persist.
+    # Enable UPI with a valid id (bank stays off) — flag persists.
     r2 = await client.patch(
         "/api/v1/admin/fees/settings",
         headers=admin_auth_headers,
-        json={"upi_enabled": True, "bank_transfer_enabled": False, "upi_id": "pay@oksbi"},
+        json={"upi_enabled": True, "upi_id": "pay@oksbi"},
     )
     assert r2.status_code == 200, r2.text
     assert r2.json()["upi_enabled"] is True
     assert r2.json()["bank_transfer_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_enabling_upi_without_details_rejected(
+    client: AsyncClient, admin_auth_headers
+) -> None:
+    # Bank disabled so only the UPI guard can fire; no upi_id and no QR → 400.
+    r = await client.patch(
+        "/api/v1/admin/fees/settings",
+        headers=admin_auth_headers,
+        json={
+            "upi_enabled": True,
+            "bank_transfer_enabled": False,
+            "upi_id": "",
+            "qr_image_url": "",
+        },
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"]["error"] == "upi_incomplete"
+
+
+@pytest.mark.asyncio
+async def test_enabling_bank_without_details_rejected(
+    client: AsyncClient, admin_auth_headers
+) -> None:
+    # UPI disabled so only the bank guard can fire; IFSC missing → 400.
+    r = await client.patch(
+        "/api/v1/admin/fees/settings",
+        headers=admin_auth_headers,
+        json={
+            "upi_enabled": False,
+            "bank_transfer_enabled": True,
+            "bank_account_number": "123",
+            "bank_ifsc": "",
+        },
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"]["error"] == "bank_incomplete"

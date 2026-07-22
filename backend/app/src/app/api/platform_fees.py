@@ -133,6 +133,11 @@ async def patch_fee_settings(
     row = await fees.get_or_create_settings(session)
     for key, value in body.model_dump(exclude_unset=True).items():
         setattr(row, key, value)
+    # A method can only be offered to sellers if its payee details are present.
+    if row.upi_enabled and not (row.upi_id or row.qr_image_url):
+        raise HTTPException(status_code=400, detail={"error": "upi_incomplete"})
+    if row.bank_transfer_enabled and not (row.bank_account_number and row.bank_ifsc):
+        raise HTTPException(status_code=400, detail={"error": "bank_incomplete"})
     session.add(row)
     await session.commit()
     await session.refresh(row)
@@ -882,12 +887,28 @@ async def get_my_plan(
     return SellerPlanView(
         services=views,
         payment_details=SellerPaymentDetails(
-            bank_account_name=settings_row.bank_account_name,
-            bank_account_number=settings_row.bank_account_number,
-            bank_ifsc=settings_row.bank_ifsc,
-            upi_id=settings_row.upi_id,
-            qr_image_url=settings_row.qr_image_url,
+            # Only surface a method's payee details when the admin enabled it —
+            # disabled-method details must never reach the seller's browser.
+            bank_account_name=(
+                settings_row.bank_account_name
+                if settings_row.bank_transfer_enabled
+                else None
+            ),
+            bank_account_number=(
+                settings_row.bank_account_number
+                if settings_row.bank_transfer_enabled
+                else None
+            ),
+            bank_ifsc=(
+                settings_row.bank_ifsc if settings_row.bank_transfer_enabled else None
+            ),
+            upi_id=settings_row.upi_id if settings_row.upi_enabled else None,
+            qr_image_url=(
+                settings_row.qr_image_url if settings_row.upi_enabled else None
+            ),
             gstin=settings_row.gstin,
+            upi_enabled=settings_row.upi_enabled,
+            bank_transfer_enabled=settings_row.bank_transfer_enabled,
         ),
         fee_credit_balance=store.fee_credit_balance,
     )

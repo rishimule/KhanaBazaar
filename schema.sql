@@ -624,8 +624,8 @@ CREATE TABLE "platform_fee_settings" (
   "qr_image_url" VARCHAR(500),
   "qr_storage_key" VARCHAR(300),
   "gstin" VARCHAR(20),
-  "upi_enabled" BOOLEAN NOT NULL DEFAULT TRUE,
-  "bank_transfer_enabled" BOOLEAN NOT NULL DEFAULT TRUE
+  "upi_enabled" BOOLEAN NOT NULL DEFAULT FALSE,
+  "bank_transfer_enabled" BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE "service_fee_config" (

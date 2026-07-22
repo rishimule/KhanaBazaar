@@ -20,11 +20,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Add per-method enable flags to the platform-fee settings singleton."""
+    """Add per-method enable flags to the platform-fee settings singleton.
+
+    New rows default False (a method is offered only once explicitly enabled).
+    Existing rows are backfilled to True where the method's payee details are
+    already present, so installs configured before this migration keep offering
+    those methods with no behavioral regression.
+    """
     op.add_column(
         "platform_fee_settings",
         sa.Column(
-            "upi_enabled", sa.Boolean(), nullable=False, server_default=sa.true()
+            "upi_enabled", sa.Boolean(), nullable=False, server_default=sa.false()
         ),
     )
     op.add_column(
@@ -33,8 +39,16 @@ def upgrade() -> None:
             "bank_transfer_enabled",
             sa.Boolean(),
             nullable=False,
-            server_default=sa.true(),
+            server_default=sa.false(),
         ),
+    )
+    op.execute(
+        "UPDATE platform_fee_settings SET upi_enabled = TRUE "
+        "WHERE upi_id IS NOT NULL OR qr_image_url IS NOT NULL"
+    )
+    op.execute(
+        "UPDATE platform_fee_settings SET bank_transfer_enabled = TRUE "
+        "WHERE bank_account_number IS NOT NULL AND bank_ifsc IS NOT NULL"
     )
 
 
