@@ -94,6 +94,16 @@ export default function PlanServiceCard({
   const [pptDeposit, setPptDeposit] = useState("");
   const [creditAmt, setCreditAmt] = useState("");
 
+  // Re-sync the selected tab when the active model changes (after a reload
+  // following an action, or an admin force-switch) so no orphaned panel is
+  // shown. Adjusted during render per React's "info from previous renders"
+  // pattern — avoids a setState-in-effect.
+  const [prevModel, setPrevModel] = useState(service.model);
+  if (service.model !== prevModel) {
+    setPrevModel(service.model);
+    setSelected(service.model);
+  }
+
   const pending = service.payment_pending;
   const isLive = service.status === "active" || service.status === "grace";
 
@@ -340,10 +350,10 @@ export default function PlanServiceCard({
     const belowFee = balance < fee;
     const lowBalance = !belowFee && lowThr > 0 && balance < lowThr;
     const meterColor = belowFee
-      ? "var(--color-status-warning, #FF5026)"
+      ? "var(--color-warning)"
       : lowBalance
-        ? "var(--accent-turmeric, #F18A1F)"
-        : "var(--brand-flag-green, #138808)";
+        ? "var(--turmeric-base-4)"
+        : "var(--color-success)";
 
     return (
       <div className={styles.payBox}>
@@ -363,10 +373,10 @@ export default function PlanServiceCard({
           </p>
         )}
         <div className={styles.actions}>
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={() => onTopUp(service.service_id)}>
+          <button type="button" className="btn btn-primary" disabled={busy || pending} onClick={() => onTopUp(service.service_id)}>
             Top up
           </button>
-          <button type="button" className={styles.cancelBtn} disabled={busy} onClick={() => onStopPpt(service.service_id)}>
+          <button type="button" className={styles.cancelBtn} disabled={busy || pending} onClick={() => onStopPpt(service.service_id)}>
             Stop pay-per-order
           </button>
         </div>
@@ -385,7 +395,7 @@ export default function PlanServiceCard({
             <button
               type="button"
               className="btn"
-              disabled={busy || Number(creditAmt) <= 0 || Number(creditAmt) > feeCredit}
+              disabled={busy || pending || Number(creditAmt) <= 0 || Number(creditAmt) > feeCredit}
               onClick={() => onApplyCredit(service.service_id, Number(creditAmt))}
             >
               Apply credit
@@ -421,14 +431,28 @@ export default function PlanServiceCard({
 
       {segments.length > 1 && (
         <div className={styles.tabs} role="tablist" aria-label="Fee plan">
-          {segments.map((m) => (
+          {segments.map((m, i) => (
             <button
               key={m}
               type="button"
               role="tab"
+              id={`tab-${service.service_id}-${m}`}
               aria-selected={selected === m}
+              aria-controls={`panel-${service.service_id}`}
+              tabIndex={selected === m ? 0 : -1}
               className={`${styles.tab} ${selected === m ? styles.tabActive : ""}`}
               onClick={() => setSelected(m)}
+              onKeyDown={(e) => {
+                if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+                e.preventDefault();
+                const next =
+                  e.key === "ArrowRight"
+                    ? (i + 1) % segments.length
+                    : (i - 1 + segments.length) % segments.length;
+                setSelected(segments[next]);
+                const tabs = e.currentTarget.parentElement?.querySelectorAll<HTMLElement>('[role="tab"]');
+                tabs?.[next]?.focus();
+              }}
             >
               {MODEL_LABEL[m]}
               {isActiveModel(m) && <span className={styles.dot} aria-hidden />}
@@ -443,10 +467,16 @@ export default function PlanServiceCard({
         </p>
       )}
 
-      {selected === "subscription" && renderSubscription()}
-      {selected === "order_value_percent" && renderOrderValue()}
-      {selected === "pay_per_transaction" && renderPpt()}
-      {selected === "freebie" && renderFreebie()}
+      <div
+        role="tabpanel"
+        id={`panel-${service.service_id}`}
+        aria-labelledby={`tab-${service.service_id}-${selected}`}
+      >
+        {selected === "subscription" && renderSubscription()}
+        {selected === "order_value_percent" && renderOrderValue()}
+        {selected === "pay_per_transaction" && renderPpt()}
+        {selected === "freebie" && renderFreebie()}
+      </div>
 
       <p className={styles.caption}>
         Only one plan is active per service at a time. Switching replaces the current plan.

@@ -188,3 +188,40 @@ async def test_enabling_bank_without_details_rejected(
     )
     assert r.status_code == 400
     assert r.json()["detail"]["error"] == "bank_incomplete"
+
+
+@pytest.mark.asyncio
+async def test_enabling_bank_with_details_succeeds(
+    client: AsyncClient, admin_auth_headers
+) -> None:
+    r = await client.patch(
+        "/api/v1/admin/fees/settings",
+        headers=admin_auth_headers,
+        json={
+            "bank_transfer_enabled": True,
+            "bank_account_number": "50100123456789",
+            "bank_ifsc": "HDFC0001234",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["bank_transfer_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_unrelated_patch_not_blocked_when_method_enabled_and_valid(
+    client: AsyncClient, admin_auth_headers
+) -> None:
+    # Enable UPI validly, then change only an unrelated timing field — must save.
+    await client.patch(
+        "/api/v1/admin/fees/settings",
+        headers=admin_auth_headers,
+        json={"upi_enabled": True, "upi_id": "pay@oksbi"},
+    )
+    r = await client.patch(
+        "/api/v1/admin/fees/settings",
+        headers=admin_auth_headers,
+        json={"grace_period_days": 3},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["grace_period_days"] == 3
+    assert r.json()["upi_enabled"] is True

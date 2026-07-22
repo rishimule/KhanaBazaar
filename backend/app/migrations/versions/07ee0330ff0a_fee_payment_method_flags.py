@@ -42,13 +42,17 @@ def upgrade() -> None:
             server_default=sa.false(),
         ),
     )
+    # NULLIF(x, '') so an empty-string payee field counts as absent, matching
+    # the app's truthiness guard — otherwise a pre-existing '' row would backfill
+    # to enabled+incomplete and then block every subsequent settings PATCH.
     op.execute(
         "UPDATE platform_fee_settings SET upi_enabled = TRUE "
-        "WHERE upi_id IS NOT NULL OR qr_image_url IS NOT NULL"
+        "WHERE NULLIF(upi_id, '') IS NOT NULL OR NULLIF(qr_image_url, '') IS NOT NULL"
     )
     op.execute(
         "UPDATE platform_fee_settings SET bank_transfer_enabled = TRUE "
-        "WHERE bank_account_number IS NOT NULL AND bank_ifsc IS NOT NULL"
+        "WHERE NULLIF(bank_account_number, '') IS NOT NULL "
+        "AND NULLIF(bank_ifsc, '') IS NOT NULL"
     )
 
 

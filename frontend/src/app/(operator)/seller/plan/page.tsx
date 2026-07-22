@@ -64,6 +64,7 @@ export default function SellerPlanPage() {
   const [busyService, setBusyService] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [paySheet, setPaySheet] = useState<PaySheetReq | null>(null);
+  const [sheetError, setSheetError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -110,54 +111,61 @@ export default function SellerPlanPage() {
 
   const svcName = (id: number) => data?.services.find((s) => s.service_id === id)?.service_name ?? "";
 
+  const openSheet = (req: PaySheetReq) => {
+    setSheetError(null);
+    setPaySheet(req);
+  };
+
   // ── Pay-sheet openers (each raises the unified sheet) ────────────────
+  // A blank note is a no-op on the backend, so mark-paid is skipped when the
+  // seller leaves the reference empty (keeps confirm a single request).
   const onSubscribe = (serviceId: number, duration: number, price: number) =>
-    setPaySheet({
+    openSheet({
       serviceId,
       title: `Subscribe · ${svcName(serviceId)} · ${duration} months`,
       amount: price,
       confirm: async ({ note }) => {
         await optIn(serviceId, duration, token);
-        await markPaid(serviceId, note, token);
+        if (note) await markPaid(serviceId, note, token);
       },
     });
 
   const onStartOrderValue = (serviceId: number, deposit: number) =>
-    setPaySheet({
+    openSheet({
       serviceId,
       title: `Security deposit · ${svcName(serviceId)}`,
       amount: deposit,
       confirm: async ({ note }) => {
         await optInOrderValue(serviceId, deposit, token);
-        await markPaid(serviceId, note, token);
+        if (note) await markPaid(serviceId, note, token);
       },
     });
 
   const onStartPpt = (serviceId: number, deposit: number) =>
-    setPaySheet({
+    openSheet({
       serviceId,
       title: `Deposit · ${svcName(serviceId)}`,
       amount: deposit,
       confirm: async ({ note }) => {
         await optInPpt(serviceId, deposit, false, token);
-        await markPaid(serviceId, note, token);
+        if (note) await markPaid(serviceId, note, token);
       },
     });
 
   const onTopUp = (serviceId: number) =>
-    setPaySheet({
+    openSheet({
       serviceId,
       title: `Top up · ${svcName(serviceId)}`,
       amount: null,
       amountEditable: true,
       confirm: async ({ amount, note }) => {
         await topUpPpt(serviceId, amount, token);
-        await markPaid(serviceId, note, token);
+        if (note) await markPaid(serviceId, note, token);
       },
     });
 
   const onPayInvoice = (serviceId: number, invoiceId: number, amount: number) =>
-    setPaySheet({
+    openSheet({
       serviceId,
       title: `Invoice payment · ${svcName(serviceId)}`,
       amount,
@@ -170,16 +178,20 @@ export default function SellerPlanPage() {
     if (!paySheet) return;
     const req = paySheet;
     setBusyService(req.serviceId);
-    setActionError(null);
+    setSheetError(null);
+    let ok = false;
     try {
       await req.confirm(opts);
-      setPaySheet(null);
-      await load();
+      ok = true;
     } catch (err) {
-      setActionError(messageFor(feeErrorCode(err)));
+      // Show the error inside the sheet, where the seller is looking.
+      setSheetError(messageFor(feeErrorCode(err)));
     } finally {
       setBusyService(null);
+      // Refresh even after a partial failure — the opt-in step may have landed.
+      await load();
     }
+    if (ok) setPaySheet(null);
   }
 
   // ── Direct actions (no offline payment) ──────────────────────────────
@@ -268,8 +280,12 @@ export default function SellerPlanPage() {
           amountEditable={paySheet.amountEditable}
           payment={data.payment_details}
           busy={busyService === paySheet.serviceId}
+          error={sheetError}
           onConfirm={handleSheetConfirm}
-          onClose={() => setPaySheet(null)}
+          onClose={() => {
+            setSheetError(null);
+            setPaySheet(null);
+          }}
         />
       )}
     </div>

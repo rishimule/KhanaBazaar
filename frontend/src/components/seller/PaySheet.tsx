@@ -17,6 +17,8 @@ export interface PaySheetProps {
   amountEditable?: boolean;
   payment: SellerPaymentDetails;
   busy: boolean;
+  /** Error from the last confirm attempt, shown in-sheet (role=alert). */
+  error?: string | null;
   onConfirm: (opts: { amount: number; note: string | null }) => void;
   onClose: () => void;
 }
@@ -32,6 +34,7 @@ export default function PaySheet({
   amountEditable = false,
   payment,
   busy,
+  error,
   onConfirm,
   onClose,
 }: PaySheetProps) {
@@ -88,6 +91,12 @@ export default function PaySheet({
           amount != null && <p className={styles.amount}>{rupees(amount)}</p>
         )}
         <p className={styles.purpose}>{title}</p>
+
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        )}
 
         {!anyMethod ? (
           <p className={styles.empty} role="alert">

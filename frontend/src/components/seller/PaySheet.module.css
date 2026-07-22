@@ -21,7 +21,7 @@
 }
 .amountInput {
   padding: 10px 12px;
-  border: 1px solid var(--border-input, var(--hairline));
+  border: 1px solid var(--color-input-border);
   border-radius: var(--radius-md, 8px);
   background: var(--white);
   font-size: var(--body-base);
@@ -86,7 +86,7 @@
   font-weight: var(--weight-medium);
 }
 .note {
-  border: 1px solid var(--border-input, var(--hairline));
+  border: 1px solid var(--color-input-border);
   border-radius: var(--radius-md, 8px);
   padding: 10px 12px;
   min-height: 44px;
@@ -97,10 +97,20 @@
 
 .empty {
   font-size: var(--body-sm);
-  color: var(--color-status-pending-text, #92400e);
-  background: var(--color-status-warning-tint, #feefdb);
+  color: var(--mandarin-orange-dark-1);
+  background: var(--mandarin-orange-light-1);
   border-radius: var(--radius-md, 8px);
   padding: 12px 14px;
+  margin: 0;
+}
+
+.error {
+  font-size: var(--body-sm);
+  color: var(--tomato-red-dark-1);
+  background: var(--tomato-red-light-1);
+  border: 1px solid var(--tomato-red-light-2);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 12px;
   margin: 0;
 }
 

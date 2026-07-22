@@ -50,10 +50,6 @@
   background: var(--white);
 }
 
-.wide {
-  grid-column: 1 / -1;
-}
-
 .qr {
   width: 140px;
   height: 140px;
@@ -180,14 +176,14 @@
   height: 24px;
   border-radius: 100px;
   border: none;
-  background: var(--border-strong, #c4ccd8);
+  background: var(--shade-cool-light-7);
   cursor: pointer;
   padding: 0;
   transition: background 0.15s ease;
   flex: none;
 }
 .switchOn {
-  background: var(--brand-deep-green, #0f6b06);
+  background: var(--color-primary-1);
 }
 .switchKnob {
   position: absolute;
@@ -205,8 +201,8 @@
 
 .warn {
   font-size: var(--body-sm);
-  color: var(--color-status-pending-text, #92400e);
-  background: var(--color-status-warning-tint, #feefdb);
+  color: var(--mandarin-orange-dark-1);
+  background: var(--mandarin-orange-light-1);
   border-radius: var(--radius-md, 8px);
   padding: 8px 12px;
   margin: 0;
