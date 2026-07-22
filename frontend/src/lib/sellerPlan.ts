@@ -72,6 +72,10 @@ export type SellerPaymentDetails = {
   upi_id: string | null;
   qr_image_url: string | null;
   gstin: string | null;
+  /** Method offered by the admin. A method's fields are nulled server-side
+   *  when its flag is false, so disabled details never reach the browser. */
+  upi_enabled: boolean;
+  bank_transfer_enabled: boolean;
 };
 
 export type SellerPlanView = {

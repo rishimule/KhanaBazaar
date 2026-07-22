@@ -1,0 +1,111 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.body {
+  display: grid;
+  gap: 14px;
+}
+
+.amount {
+  font-size: var(--display-xl, 2rem);
+  font-weight: var(--weight-bold, 700);
+  color: var(--color-text-strong);
+  margin: 0;
+}
+
+.amountLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  font-weight: var(--weight-medium);
+}
+.amountInput {
+  padding: 10px 12px;
+  border: 1px solid var(--border-input, var(--hairline));
+  border-radius: var(--radius-md, 8px);
+  background: var(--white);
+  font-size: var(--body-base);
+  max-width: 200px;
+}
+
+.purpose {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin: -8px 0 0;
+}
+
+.hint {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin: 0;
+}
+
+/* One offered method (UPI / Bank transfer). */
+.method {
+  display: grid;
+  gap: 6px;
+  background: var(--color-surface-tint, #eef2fb);
+  border-radius: var(--radius-md, 10px);
+  padding: 14px 16px;
+}
+.methodName {
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-base-7);
+  margin: 0;
+}
+.methodValue {
+  font-size: var(--body-base);
+  color: var(--color-text-strong);
+  margin: 0;
+  word-break: break-all;
+}
+
+.qr {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  margin-top: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.gstin {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin: 0;
+}
+
+.noteLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  font-weight: var(--weight-medium);
+}
+.note {
+  border: 1px solid var(--border-input, var(--hairline));
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 12px;
+  min-height: 44px;
+  resize: vertical;
+  font: inherit;
+  background: var(--white);
+}
+
+.empty {
+  font-size: var(--body-sm);
+  color: var(--color-status-pending-text, #92400e);
+  background: var(--color-status-warning-tint, #feefdb);
+  border-radius: var(--radius-md, 8px);
+  padding: 12px 14px;
+  margin: 0;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
