@@ -378,3 +378,84 @@ async def sweep_order_value_overdue(
 
     await session.flush()
     return counts
+
+
+async def confirm_invoice_payment(
+    session: AsyncSession,
+    payment: FeePayment,
+    admin_user_id: int,
+    *,
+    today: date | None = None,
+) -> tuple[FeeArrangement, NotificationType | None]:
+    """Admin confirms an offline OrderValueInvoice payment. Marks the linked
+    invoice Paid, subtracts it from the arrangement balance, and — if the
+    arrangement was Suspended/Grace and no unpaid invoices remain — reactivates
+    it. Records the single FeeReactivated in-app notification when reactivating.
+    Returns (arrangement, notification_type). Caller commits."""
+    now = datetime.now(timezone.utc)
+    payment.status = FeePaymentStatus.Confirmed
+    payment.confirmed_by_admin_id = admin_user_id
+    payment.confirmed_at = now
+    session.add(payment)
+
+    invoice = (
+        await session.exec(
+            select(FeeInvoice).where(FeeInvoice.payment_id == payment.id)
+        )
+    ).first()
+    arrangement = (
+        await session.exec(
+            select(FeeArrangement).where(FeeArrangement.id == payment.arrangement_id)
+        )
+    ).one()
+
+    if invoice is not None and invoice.status != InvoiceStatus.Paid:
+        invoice.status = InvoiceStatus.Paid
+        invoice.paid_at = now
+        session.add(invoice)
+        arrangement.balance = round(arrangement.balance - invoice.amount_due, 2)
+
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.InvoicePaid,
+            amount_delta=payment.amount,
+            actor=f"admin:{admin_user_id}",
+            note="order-value invoice paid",
+        )
+    )
+
+    notif: NotificationType | None = None
+    if arrangement.status in (ArrangementStatus.Suspended, ArrangementStatus.Grace):
+        remaining = (
+            await session.exec(
+                select(FeeInvoice).where(
+                    FeeInvoice.arrangement_id == arrangement.id,
+                    FeeInvoice.status.in_(  # type: ignore[attr-defined]
+                        [InvoiceStatus.Pending, InvoiceStatus.Overdue]
+                    ),
+                )
+            )
+        ).first()
+        if remaining is None:
+            arrangement.status = ArrangementStatus.Active
+            arrangement.suspended_at = None
+            arrangement.suspended_reason = None
+            notif = NotificationType.FeeReactivated
+            session.add(
+                FeeEvent(
+                    arrangement_id=arrangement.id,
+                    event_type=FeeEventType.Reactivated,
+                    actor=f"admin:{admin_user_id}",
+                    note="order-value invoice cleared",
+                )
+            )
+    session.add(arrangement)
+    await session.flush()
+
+    if notif is not None:
+        await notify_seller_fee_event(
+            session, store_id=arrangement.store_id, type=notif
+        )
+        await session.flush()
+    return arrangement, notif

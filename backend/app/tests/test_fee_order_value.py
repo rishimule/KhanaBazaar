@@ -558,3 +558,101 @@ async def test_run_fee_sweep_generates_order_value_invoice(
     invs = await _invoices(session, arr.id)
     assert len(invs) == 1
     assert invs[0].amount_due == 20.0
+
+
+async def _invoice_with_payment(
+    session: AsyncSession,
+    env: _Env,
+    arr: FeeArrangement,
+    *,
+    amount: float,
+    inv_status: InvoiceStatus,
+    due_date: date = date(2026, 2, 12),
+    suspend_after: date = date(2026, 2, 14),
+) -> tuple[FeeInvoice, FeePayment]:
+    inv = await _mk_invoice(
+        session, env, arr, amount=amount, status=inv_status,
+        due_date=due_date, suspend_after=suspend_after,
+    )
+    payment = FeePayment(
+        arrangement_id=arr.id,
+        kind=FeePaymentKind.OrderValueInvoice,
+        amount=amount,
+        status=FeePaymentStatus.Pending,
+    )
+    session.add(payment)
+    await session.flush()
+    inv.payment_id = payment.id
+    session.add(inv)
+    await session.flush()
+    return inv, payment
+
+
+@pytest.mark.asyncio
+async def test_confirm_invoice_reduces_balance(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_order_value import confirm_invoice_payment
+
+    env = ov_env
+    arr = await _ov_arr(session, env, status=ArrangementStatus.Active)
+    inv, payment = await _invoice_with_payment(session, env, arr, amount=100.0, inv_status=InvoiceStatus.Pending)
+    await session.commit()
+
+    result_arr, notif = await confirm_invoice_payment(session, payment, admin_user_id=1)
+    await session.commit()
+
+    await session.refresh(inv)
+    await session.refresh(payment)
+    assert inv.status == InvoiceStatus.Paid
+    assert inv.paid_at is not None
+    assert payment.status == FeePaymentStatus.Confirmed
+    assert result_arr.balance == 0.0
+    assert result_arr.status == ArrangementStatus.Active
+    assert notif is None  # was already active, no reactivation
+
+
+@pytest.mark.asyncio
+async def test_confirm_invoice_reactivates_suspended(session: AsyncSession, ov_env: _Env) -> None:
+    from app.models.notification import NotificationType
+    from app.services.fee_order_value import confirm_invoice_payment
+
+    env = ov_env
+    arr = await _ov_arr(session, env, status=ArrangementStatus.Suspended)
+    inv, payment = await _invoice_with_payment(session, env, arr, amount=100.0, inv_status=InvoiceStatus.Overdue)
+    await session.commit()
+
+    result_arr, notif = await confirm_invoice_payment(session, payment, admin_user_id=1)
+    await session.commit()
+
+    assert result_arr.status == ArrangementStatus.Active
+    assert notif == NotificationType.FeeReactivated
+
+
+@pytest.mark.asyncio
+async def test_confirm_invoice_stays_suspended_with_other_unpaid(
+    session: AsyncSession, ov_env: _Env
+) -> None:
+    from app.services.fee_order_value import confirm_invoice_payment
+
+    env = ov_env
+    arr = await _ov_arr(session, env, status=ArrangementStatus.Suspended)
+    inv1, pay1 = await _invoice_with_payment(
+        session, env, arr, amount=100.0, inv_status=InvoiceStatus.Overdue,
+    )
+    # a second, still-unpaid invoice (different period so the unique constraint holds)
+    inv2 = FeeInvoice(
+        arrangement_id=arr.id, store_id=env.store.id, service_id=env.service_id,
+        period_start=date(2026, 2, 1), period_end=date(2026, 2, 28),
+        sales_total=5000.0, fee_percent_snapshot=2.0, amount_due=100.0,
+        status=InvoiceStatus.Overdue, issued_on=date(2026, 3, 5),
+        due_date=date(2026, 3, 12), suspend_after=date(2026, 3, 14),
+    )
+    session.add(inv2)
+    arr.balance += 100.0
+    session.add(arr)
+    await session.commit()
+
+    result_arr, notif = await confirm_invoice_payment(session, pay1, admin_user_id=1)
+    await session.commit()
+
+    assert result_arr.status == ArrangementStatus.Suspended  # inv2 still unpaid
+    assert notif is None
