@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import type { Service } from "@/types";
 import {
+  feeErrorCode,
   getFeeSettings,
   patchFeeSettings,
   getServiceFeeConfig,
@@ -25,6 +26,30 @@ import styles from "./page.module.css";
 function toNum(v: string): number {
   const n = Number(v);
   return Number.isNaN(n) ? 0 : n;
+}
+
+// Accessible on/off switch (no native checkbox styling to fight).
+function Switch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      className={`${styles.switch} ${checked ? styles.switchOn : ""}`}
+      onClick={() => onChange(!checked)}
+    >
+      <span className={styles.switchKnob} />
+    </button>
+  );
 }
 
 export default function AdminFeesPage() {
@@ -104,6 +129,15 @@ export default function AdminFeesPage() {
     }
   }
 
+  // A method can only be offered when its payee details are present — mirror of
+  // the backend PATCH guards so the admin sees the block before submitting.
+  const upiIncomplete = !!settings && settings.upi_enabled && !settings.upi_id && !settings.qr_image_url;
+  const bankIncomplete =
+    !!settings &&
+    settings.bank_transfer_enabled &&
+    (!settings.bank_account_number || !settings.bank_ifsc);
+  const settingsInvalid = upiIncomplete || bankIncomplete;
+
   async function saveSettings() {
     if (!settings || !token) return;
     setSavingSettings(true);
@@ -112,8 +146,15 @@ export default function AdminFeesPage() {
       const saved = await patchFeeSettings(token, settings);
       setSettings(saved);
       setSettingsMsg("Saved.");
-    } catch {
-      setSettingsMsg("Save failed. Please try again.");
+    } catch (err) {
+      const code = feeErrorCode(err);
+      setSettingsMsg(
+        code === "upi_incomplete"
+          ? "Add a UPI ID or QR before enabling UPI."
+          : code === "bank_incomplete"
+            ? "Add an account number and IFSC before enabling bank transfer."
+            : "Save failed. Please try again.",
+      );
     } finally {
       setSavingSettings(false);
     }
@@ -140,12 +181,12 @@ export default function AdminFeesPage() {
   return (
     <div className={styles.page}>
       <p className={styles.intro}>
-        Configure global payment details and, per service, which fee models sellers can opt into.
+        Configure payment methods and, per service, which fee models sellers can opt into.
       </p>
 
-      {/* ── Global settings ─────────────────────────────────────────── */}
+      {/* ── Timing ──────────────────────────────────────────────────── */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>Global settings</h2>
+        <h2 className={styles.cardTitle}>Timing</h2>
         <div className={styles.grid}>
           <label className={styles.field}>
             <span>Grace period (days)</span>
@@ -162,65 +203,105 @@ export default function AdminFeesPage() {
             <input type="number" min={0} max={60} value={settings.pending_payment_protect_days}
               onChange={(e) => setS("pending_payment_protect_days", toNum(e.target.value))} />
           </label>
-          <label className={styles.field}>
-            <span>Bank account name</span>
-            <input value={settings.bank_account_name ?? ""}
-              onChange={(e) => setS("bank_account_name", e.target.value || null)} />
-          </label>
-          <label className={styles.field}>
-            <span>Bank account number</span>
-            <input value={settings.bank_account_number ?? ""}
-              onChange={(e) => setS("bank_account_number", e.target.value || null)} />
-          </label>
-          <label className={styles.field}>
-            <span>IFSC</span>
-            <input value={settings.bank_ifsc ?? ""}
-              onChange={(e) => setS("bank_ifsc", e.target.value || null)} />
-          </label>
+        </div>
+      </section>
+
+      {/* ── Payment methods ─────────────────────────────────────────── */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>Payment methods</h2>
+        <p className={styles.hint}>
+          Choose which methods sellers can use to pay platform fees. Only enabled methods
+          appear to sellers when they send money.
+        </p>
+
+        {/* UPI */}
+        <div className={styles.method}>
+          <div className={styles.methodHead}>
+            <span className={styles.methodName}>UPI</span>
+            <Switch
+              checked={settings.upi_enabled}
+              onChange={(v) => setS("upi_enabled", v)}
+              label="Enable UPI"
+            />
+          </div>
           <label className={styles.field}>
             <span>UPI ID</span>
-            <input value={settings.upi_id ?? ""}
+            <input value={settings.upi_id ?? ""} placeholder="name@bank"
               onChange={(e) => setS("upi_id", e.target.value || null)} />
           </label>
-          <label className={styles.field}>
-            <span>GSTIN</span>
-            <input value={settings.gstin ?? ""}
-              onChange={(e) => setS("gstin", e.target.value || null)} />
-          </label>
-          <label className={`${styles.field} ${styles.wide}`}>
-            <span>Payment QR image URL</span>
-            <input value={settings.qr_image_url ?? ""} placeholder="https://…"
-              onChange={(e) => setS("qr_image_url", e.target.value || null)} />
-          </label>
+          <div className={styles.qrUploadRow}>
+            <label className={styles.uploadBtn}>
+              {qrUploading ? "Uploading…" : "Upload QR image"}
+              <input type="file" accept="image/png,image/jpeg,image/webp" hidden
+                disabled={qrUploading} onChange={handleQrUpload} />
+            </label>
+            <span className={styles.uploadHint}>PNG/JPG/WebP</span>
+          </div>
+          {settings.qr_image_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className={styles.qr} src={settings.qr_image_url} alt="Payment QR preview" referrerPolicy="no-referrer" />
+          )}
+          {upiIncomplete && (
+            <p className={styles.warn} role="alert">Add a UPI ID or QR before enabling UPI.</p>
+          )}
         </div>
-        <div className={styles.qrUploadRow}>
-          <label className={styles.uploadBtn}>
-            {qrUploading ? "Uploading…" : "Upload QR image"}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              hidden
-              disabled={qrUploading}
-              onChange={handleQrUpload}
+
+        {/* Bank transfer */}
+        <div className={styles.method}>
+          <div className={styles.methodHead}>
+            <span className={styles.methodName}>Bank transfer</span>
+            <Switch
+              checked={settings.bank_transfer_enabled}
+              onChange={(v) => setS("bank_transfer_enabled", v)}
+              label="Enable bank transfer"
             />
-          </label>
-          <span className={styles.uploadHint}>or paste a hosted URL above</span>
+          </div>
+          <div className={styles.grid}>
+            <label className={styles.field}>
+              <span>Account name</span>
+              <input value={settings.bank_account_name ?? ""}
+                onChange={(e) => setS("bank_account_name", e.target.value || null)} />
+            </label>
+            <label className={styles.field}>
+              <span>Account number</span>
+              <input value={settings.bank_account_number ?? ""}
+                onChange={(e) => setS("bank_account_number", e.target.value || null)} />
+            </label>
+            <label className={styles.field}>
+              <span>IFSC</span>
+              <input value={settings.bank_ifsc ?? ""}
+                onChange={(e) => setS("bank_ifsc", e.target.value || null)} />
+            </label>
+          </div>
+          {bankIncomplete && (
+            <p className={styles.warn} role="alert">
+              Add an account number and IFSC before enabling bank transfer.
+            </p>
+          )}
         </div>
-        {settings.qr_image_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className={styles.qr} src={settings.qr_image_url} alt="Payment QR preview" referrerPolicy="no-referrer" />
-        )}
+
         <div className={styles.actions}>
-          <button type="button" className="btn btn-primary" disabled={savingSettings} onClick={saveSettings}>
+          <button type="button" className="btn btn-primary"
+            disabled={savingSettings || settingsInvalid} onClick={saveSettings}>
             Save settings
           </button>
           {settingsMsg && <span className={styles.msg}>{settingsMsg}</span>}
         </div>
       </section>
 
+      {/* ── GSTIN ───────────────────────────────────────────────────── */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>GSTIN</h2>
+        <label className={styles.field}>
+          <span>GSTIN (shown on invoices)</span>
+          <input value={settings.gstin ?? ""} placeholder="27ABCDE1234F1Z5"
+            onChange={(e) => setS("gstin", e.target.value || null)} />
+        </label>
+      </section>
+
       {/* ── Per-service config ──────────────────────────────────────── */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>Per-service configuration</h2>
+        <h2 className={styles.cardTitle}>Per-service fee models</h2>
         <label className={styles.field}>
           <span>Service</span>
           <select value={serviceId ?? ""} onChange={(e) => setServiceId(toNum(e.target.value))}>
@@ -279,7 +360,7 @@ export default function AdminFeesPage() {
               <label className={styles.check}>
                 <input type="checkbox" checked={config.order_value_enabled}
                   onChange={(e) => setC("order_value_enabled", e.target.checked)} />
-                <span>Order-value % enabled (Phase 2)</span>
+                <span>Order-value % enabled</span>
               </label>
               <div className={styles.grid}>
                 <label className={styles.field}><span>Percent</span>
@@ -301,7 +382,7 @@ export default function AdminFeesPage() {
               <label className={styles.check}>
                 <input type="checkbox" checked={config.pay_per_txn_enabled}
                   onChange={(e) => setC("pay_per_txn_enabled", e.target.checked)} />
-                <span>Pay-per-transaction enabled (Phase 2)</span>
+                <span>Pay-per-order enabled</span>
               </label>
               <div className={styles.grid}>
                 <label className={styles.field}><span>Fee per order (₹)</span>

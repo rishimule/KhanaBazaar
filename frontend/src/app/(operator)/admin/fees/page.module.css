@@ -145,3 +145,69 @@
   text-align: center;
   color: var(--shade-cool-base-7);
 }
+
+.hint {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+  margin: -8px 0 14px;
+}
+
+/* One payment method (UPI / Bank transfer) inside the Payment methods card. */
+.method {
+  display: grid;
+  gap: 12px;
+  background: var(--color-surface-tint, #eef2fb);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.methodHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.methodName {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-strong);
+}
+
+/* Accessible on/off switch. */
+.switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 100px;
+  border: none;
+  background: var(--border-strong, #c4ccd8);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease;
+  flex: none;
+}
+.switchOn {
+  background: var(--brand-deep-green, #0f6b06);
+}
+.switchKnob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--white);
+  transition: left 0.15s ease;
+}
+.switchOn .switchKnob {
+  left: 23px;
+}
+
+.warn {
+  font-size: var(--body-sm);
+  color: var(--color-status-pending-text, #92400e);
+  background: var(--color-status-warning-tint, #feefdb);
+  border-radius: var(--radius-md, 8px);
+  padding: 8px 12px;
+  margin: 0;
+}
