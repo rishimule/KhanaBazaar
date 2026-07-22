@@ -2743,6 +2743,105 @@ async def seed_platform_fees(session: AsyncSession) -> None:
     if len(arrs) >= 8:  # a second store with wallet credit → admin worklist row
         await _set_store_credit(arrs[7].store_id, 75.0)
 
+    # 6) Order Value % (postpaid) — seeded on the PHARMACY service, since every
+    #    grocery arrangement above is already claimed by subscription/PPT states.
+    #    Looked up by store name (== business_name) so the states land on known
+    #    logins: Wellness First = seller7, Reddy MediMart = seller8, Bhatt Care =
+    #    seller9 (left on Freebie so a live opt-in can be tested end-to-end).
+    from app.models.platform_fee import FeeInvoice, InvoiceStatus
+
+    pharmacy = next((s for s in services if s.slug and "pharm" in s.slug.lower()), None)
+    if pharmacy is not None and pharmacy.id is not None:
+        ph_cfg = (
+            await session.exec(
+                select(ServiceFeeConfig).where(ServiceFeeConfig.service_id == pharmacy.id)
+            )
+        ).first()
+        if ph_cfg is None:
+            ph_cfg = ServiceFeeConfig(service_id=pharmacy.id)
+            session.add(ph_cfg)
+        ph_cfg.order_value_enabled = True
+        ph_cfg.order_value_percent = 2.0
+        ph_cfg.order_value_min_deposit = 500.0
+        ph_cfg.order_value_billing_day = 5
+        ph_cfg.order_value_payment_days = 7
+        await session.flush()
+
+        first_this = today.replace(day=1)
+        prev_end = first_this - timedelta(days=1)
+        prev_start = prev_end.replace(day=1)
+        prev2_end = prev_start - timedelta(days=1)
+        prev2_start = prev2_end.replace(day=1)
+
+        async def _ph_arr(store_name: str) -> FeeArrangement | None:
+            st = (await session.exec(select(Store).where(Store.name == store_name))).first()
+            if st is None or st.id is None:
+                return None
+            return (
+                await session.exec(
+                    select(FeeArrangement).where(
+                        FeeArrangement.store_id == st.id,
+                        FeeArrangement.service_id == pharmacy.id,
+                    )
+                )
+            ).first()
+
+        # (a) Wellness First Pharmacy (seller7) — Active OV: overdue + paid invoices,
+        #     deposit held. suspend_after kept in the future so a daily sweep during
+        #     testing won't flip it to Suspended.
+        a = await _ph_arr("Wellness First Pharmacy")
+        if a is not None:
+            a.model = FeeModel.OrderValuePercent
+            a.status = ArrangementStatus.Active
+            a.valid_until = None
+            a.subscription_duration_months = None
+            a.price_snapshot = None
+            a.security_deposit_amount = 500.0
+            a.order_value_activated_on = today - timedelta(days=75)
+            a.last_billed_period_end = prev_end
+            a.balance = 100.0
+            session.add(
+                FeeInvoice(
+                    arrangement_id=a.id, store_id=a.store_id, service_id=pharmacy.id,
+                    period_start=prev_start, period_end=prev_end, sales_total=5000.0,
+                    fee_percent_snapshot=2.0, amount_due=100.0, status=InvoiceStatus.Overdue,
+                    issued_on=today - timedelta(days=8), due_date=today - timedelta(days=1),
+                    suspend_after=today + timedelta(days=10),
+                )
+            )
+            session.add(
+                FeeInvoice(
+                    arrangement_id=a.id, store_id=a.store_id, service_id=pharmacy.id,
+                    period_start=prev2_start, period_end=prev2_end, sales_total=4000.0,
+                    fee_percent_snapshot=2.0, amount_due=80.0, status=InvoiceStatus.Paid,
+                    issued_on=prev_start, due_date=prev_start + timedelta(days=7),
+                    suspend_after=prev_start + timedelta(days=9), paid_at=now,
+                )
+            )
+        # (b) Reddy MediMart (seller8) — Suspended for non-payment + overdue invoice.
+        a = await _ph_arr("Reddy MediMart")
+        if a is not None:
+            a.model = FeeModel.OrderValuePercent
+            a.status = ArrangementStatus.Suspended
+            a.valid_until = None
+            a.subscription_duration_months = None
+            a.price_snapshot = None
+            a.security_deposit_amount = 500.0
+            a.order_value_activated_on = today - timedelta(days=95)
+            a.last_billed_period_end = prev_end
+            a.balance = 120.0
+            a.suspended_at = now
+            a.suspended_reason = "order_value_nonpayment"
+            session.add(
+                FeeInvoice(
+                    arrangement_id=a.id, store_id=a.store_id, service_id=pharmacy.id,
+                    period_start=prev_start, period_end=prev_end, sales_total=6000.0,
+                    fee_percent_snapshot=2.0, amount_due=120.0, status=InvoiceStatus.Overdue,
+                    issued_on=today - timedelta(days=20), due_date=today - timedelta(days=13),
+                    suspend_after=today - timedelta(days=11),
+                )
+            )
+
     await session.commit()
 
 
