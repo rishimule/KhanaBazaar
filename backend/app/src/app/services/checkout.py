@@ -617,6 +617,13 @@ async def place_order_for_sub_basket(
     session.add(payment)
     session.add(delivery)
 
+    # Pay-Per-Transaction: charge the flat platform fee against the seller's
+    # prepaid balance (row-locked, atomic with the order). No-op for other
+    # fee models.
+    from app.services.platform_txn import charge_platform_txn_fee
+
+    await charge_platform_txn_fee(session, order)
+
     for item in cart_items:
         await session.delete(item)
     await session.flush()

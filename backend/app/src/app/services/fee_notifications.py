@@ -30,6 +30,14 @@ _COPY: dict[NotificationType, tuple[str, str, str]] = {
         "Store service suspended", "suspended",
         "A service on your store has been suspended. Renew or clear your balance to reactivate it.",
     ),
+    NotificationType.FeeLowBalance: (
+        "Low balance", "low_balance",
+        "Your pay-per-order balance is running low. Top up to avoid interruption.",
+    ),
+    NotificationType.FeeReactivated: (
+        "Store service reactivated", "reactivated",
+        "Your service is active again. Thanks for topping up.",
+    ),
 }
 
 

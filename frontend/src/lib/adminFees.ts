@@ -76,6 +76,13 @@ export type ArrangementSummary = {
   pending: boolean;
 };
 
+// Store wallet credit worklist
+export type StoreCreditView = {
+  store_id: number;
+  store_name: string;
+  fee_credit_balance: number;
+};
+
 export function feeErrorCode(err: unknown): string | null {
   if (err instanceof ApiError) {
     const d = err.detail as unknown;
@@ -210,4 +217,71 @@ export function compArrangement(
     { duration_months: durationMonths, reason },
     token,
   );
+}
+
+// Force-switch a store's plan at any balance (disposition settles leftover PPT
+// balance: "credit" | "cash_out" | "waive").
+export function switchArrangement(
+  token: string | null,
+  arrangementId: number,
+  targetModel: string,
+  reason: string,
+  opts?: { durationMonths?: number; disposition?: string },
+): Promise<{ arrangement_id: number; status: string; model: string }> {
+  return post(
+    `/api/v1/admin/fees/arrangements/${arrangementId}/switch`,
+    {
+      target_model: targetModel,
+      duration_months: opts?.durationMonths,
+      disposition: opts?.disposition ?? "credit",
+      reason,
+    },
+    token,
+  );
+}
+
+// Apply a store's wallet credit to a PPT arrangement on the seller's behalf.
+export function applyCreditOnBehalf(
+  token: string | null,
+  arrangementId: number,
+  amount: number,
+  reason: string,
+): Promise<{ arrangement_id: number; applied: number; balance: number; status: string }> {
+  return post(
+    `/api/v1/admin/fees/arrangements/${arrangementId}/apply-credit`,
+    { amount, reason },
+    token,
+  );
+}
+
+// ── Wallet credit worklist ──────────────────────────────────────────────────
+export function listStoreCredit(token: string | null): Promise<StoreCreditView[]> {
+  return get<StoreCreditView[]>("/api/v1/admin/fees/stores/credit", token);
+}
+
+export function grantStoreCredit(
+  token: string | null,
+  storeId: number,
+  amount: number,
+  reason: string,
+): Promise<{ store_id: number; fee_credit_balance: number }> {
+  return post(`/api/v1/admin/fees/stores/${storeId}/credit/grant`, { amount, reason }, token);
+}
+
+export function adjustStoreCredit(
+  token: string | null,
+  storeId: number,
+  amount: number,
+  reason: string,
+): Promise<{ store_id: number; fee_credit_balance: number }> {
+  return post(`/api/v1/admin/fees/stores/${storeId}/credit/adjust`, { amount, reason }, token);
+}
+
+export function cashOutStoreCredit(
+  token: string | null,
+  storeId: number,
+  amount: number,
+  reason: string,
+): Promise<{ store_id: number; fee_credit_balance: number }> {
+  return post(`/api/v1/admin/fees/stores/${storeId}/credit/cash-out`, { amount, reason }, token);
 }

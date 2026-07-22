@@ -72,6 +72,13 @@ class FeeEventType(str, enum.Enum):
     InvoiceWaived = "invoice_waived"
 
 
+class StoreCreditReason(str, enum.Enum):
+    GrantedOnExit = "granted_on_exit"
+    AppliedToFee = "applied_to_fee"
+    AdminCashOut = "admin_cash_out"
+    AdminAdjust = "admin_adjust"
+
+
 def _enum_values(enum_cls: type[enum.Enum]) -> list[str]:
     """Serialize enum members by VALUE, not NAME (snake_case PG labels)."""
     return [m.value for m in enum_cls]
@@ -217,6 +224,7 @@ class FeePayment(BaseSchema, table=True):
 class FeeEvent(BaseSchema, table=True):
     __tablename__ = "fee_event"
     arrangement_id: int = Field(foreign_key="fee_arrangement.id", nullable=False, index=True)
+    order_id: Optional[int] = Field(default=None, foreign_key="order.id", index=True)
     event_type: FeeEventType = Field(
         sa_column=Column(
             SAEnum(
@@ -231,3 +239,28 @@ class FeeEvent(BaseSchema, table=True):
     amount_delta: Optional[float] = Field(default=None)
     note: Optional[str] = Field(default=None, max_length=300)
     actor: Optional[str] = Field(default=None, max_length=60)
+
+
+class StoreCreditEvent(BaseSchema, table=True):
+    __tablename__ = "store_credit_event"
+    store_id: int = Field(foreign_key="store.id", nullable=False, index=True)
+    amount_delta: float = Field(nullable=False)
+    reason: StoreCreditReason = Field(
+        sa_column=Column(
+            SAEnum(
+                StoreCreditReason,
+                name="storecreditreason",
+                values_callable=_enum_values,
+                create_type=False,
+            ),
+            nullable=False,
+        )
+    )
+    related_arrangement_id: Optional[int] = Field(
+        default=None, foreign_key="fee_arrangement.id"
+    )
+    related_payment_id: Optional[int] = Field(
+        default=None, foreign_key="fee_payment.id"
+    )
+    actor: Optional[str] = Field(default=None, max_length=60)
+    note: Optional[str] = Field(default=None, max_length=300)

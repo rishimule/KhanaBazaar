@@ -8,11 +8,15 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import PlanServiceCard from "@/components/seller/PlanServiceCard";
 import {
+  applyCreditPpt,
   cancelPlan,
   feeErrorCode,
   getMyPlan,
   markPaid,
   optIn,
+  optInPpt,
+  switchFromPpt,
+  topUpPpt,
   type SellerPlanView,
 } from "@/lib/sellerPlan";
 import styles from "./page.module.css";
@@ -22,6 +26,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   plan_not_available: "That plan duration isn't offered.",
   payment_already_pending: "You already have a payment awaiting review.",
   no_pending_payment: "There's no pending payment to confirm.",
+  below_min_deposit: "Deposit is below the minimum for this service.",
+  pay_per_txn_not_offerable: "Pay-per-order isn't available for this service.",
+  amount_exceeds_credit: "That's more than your available wallet credit.",
+  no_credit_available: "You have no wallet credit to apply.",
+  balance_negative: "Settle the outstanding balance before switching plans.",
+  bad_amount: "Enter a valid amount.",
 };
 
 function messageFor(code: string | null): string {
@@ -83,6 +93,40 @@ export default function SellerPlanPage() {
     void run(serviceId, () => cancelPlan(serviceId, token));
   };
 
+  const handleOptInPpt = (serviceId: number, deposit: number, useCredit: boolean) => {
+    void run(serviceId, () => optInPpt(serviceId, deposit, useCredit, token));
+  };
+  const handleTopUp = (serviceId: number) => {
+    const raw = window.prompt("Top-up amount (₹) — pay this offline via the QR/bank details, then an admin confirms it:");
+    if (raw == null) return;
+    const amount = Number(raw);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setActionError("Enter a valid amount.");
+      return;
+    }
+    void run(serviceId, () => topUpPpt(serviceId, amount, token));
+  };
+  const handleApplyCredit = (serviceId: number) => {
+    const raw = window.prompt("Amount of wallet credit to move into this balance (₹):");
+    if (raw == null) return;
+    const amount = Number(raw);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setActionError("Enter a valid amount.");
+      return;
+    }
+    void run(serviceId, () => applyCreditPpt(serviceId, amount, token));
+  };
+  const handleSwitchPpt = (serviceId: number) => {
+    if (
+      !window.confirm(
+        "Leave pay-per-order? Any positive balance is moved to your store wallet credit. A negative balance must be settled first.",
+      )
+    ) {
+      return;
+    }
+    void run(serviceId, () => switchFromPpt(serviceId, token));
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.head}>
@@ -119,9 +163,14 @@ export default function SellerPlanPage() {
               service={s}
               payment={data.payment_details}
               busy={busyService === s.service_id}
+              feeCredit={data.fee_credit_balance}
               onOptIn={handleOptIn}
               onMarkPaid={handleMarkPaid}
               onCancel={handleCancel}
+              onOptInPpt={handleOptInPpt}
+              onTopUp={handleTopUp}
+              onApplyCredit={handleApplyCredit}
+              onSwitchPpt={handleSwitchPpt}
             />
           ))}
         </div>

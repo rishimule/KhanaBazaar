@@ -12,6 +12,7 @@ import {
   extendArrangement,
   terminateArrangement,
   compArrangement,
+  switchArrangement,
   feeErrorCode,
   type ArrangementSummary,
 } from "@/lib/adminFees";
@@ -37,9 +38,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   arrangement_not_found: "That arrangement no longer exists.",
   store_not_found: "Store not found.",
   seller_not_found: "Seller not found.",
+  duration_required: "Pick a subscription duration.",
+  bad_target_model: "Unsupported target plan.",
+  unsupported_target_model: "Unsupported target plan.",
 };
 
-type ActionType = "extend" | "terminate" | "comp";
+type ActionType = "extend" | "terminate" | "comp" | "switch";
 
 export default function AdminSellerFeesPage({
   params,
@@ -57,6 +61,8 @@ export default function AdminSellerFeesPage({
   const [action, setAction] = useState<{ type: ActionType; arr: ArrangementSummary } | null>(null);
   const [days, setDays] = useState(30);
   const [months, setMonths] = useState(3);
+  const [targetModel, setTargetModel] = useState("subscription");
+  const [disposition, setDisposition] = useState("credit");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -98,6 +104,8 @@ export default function AdminSellerFeesPage({
     setAction({ type, arr });
     setDays(30);
     setMonths(3);
+    setTargetModel("subscription");
+    setDisposition("credit");
     setReason("");
     setActionError(null);
   }
@@ -109,12 +117,21 @@ export default function AdminSellerFeesPage({
       setActionError("A reason is required to terminate.");
       return;
     }
+    if (type === "switch" && reason.trim().length < 10) {
+      setActionError("A reason of at least 10 characters is required to switch.");
+      return;
+    }
     setBusy(true);
     setActionError(null);
     try {
       const note = reason.trim() || undefined;
       if (type === "extend") await extendArrangement(token, arr.id, days, note);
       else if (type === "comp") await compArrangement(token, arr.id, months, note);
+      else if (type === "switch")
+        await switchArrangement(token, arr.id, targetModel, reason.trim(), {
+          durationMonths: targetModel === "subscription" ? months : undefined,
+          disposition,
+        });
       else await terminateArrangement(token, arr.id, reason.trim());
       setAction(null);
       await loadRows(storeId);
@@ -133,7 +150,8 @@ export default function AdminSellerFeesPage({
   const actionTitle =
     action?.type === "extend" ? "Extend arrangement"
       : action?.type === "comp" ? "Comp (grant) subscription"
-        : "Terminate arrangement";
+        : action?.type === "switch" ? "Force-switch plan"
+          : "Terminate arrangement";
 
   return (
     <div className={styles.page}>
@@ -163,6 +181,7 @@ export default function AdminSellerFeesPage({
                 <div className={styles.rowActions}>
                   <button type="button" className={styles.actionBtn} onClick={() => openAction("extend", r)}>Extend</button>
                   <button type="button" className={styles.actionBtn} onClick={() => openAction("comp", r)}>Comp</button>
+                  <button type="button" className={styles.actionBtn} onClick={() => openAction("switch", r)}>Switch</button>
                   <button type="button" className={styles.terminateBtn} onClick={() => openAction("terminate", r)}>Terminate</button>
                 </div>
               </div>
@@ -182,9 +201,13 @@ export default function AdminSellerFeesPage({
                 type="button"
                 className="btn btn-primary"
                 onClick={submitAction}
-                disabled={busy || (action.type === "terminate" && !reason.trim())}
+                disabled={
+                  busy ||
+                  (action.type === "terminate" && !reason.trim()) ||
+                  (action.type === "switch" && reason.trim().length < 10)
+                }
               >
-                {action.type === "terminate" ? "Terminate" : "Confirm"}
+                {action.type === "terminate" ? "Terminate" : action.type === "switch" ? "Switch plan" : "Confirm"}
               </button>
             </div>
           }
@@ -206,8 +229,40 @@ export default function AdminSellerFeesPage({
                 onChange={(e) => { const n = Number(e.target.value); setMonths(Number.isNaN(n) ? 1 : n); }} />
             </label>
           )}
+          {action.type === "switch" && (
+            <>
+              <label className={styles.field}>
+                <span>Target plan</span>
+                <select value={targetModel} onChange={(e) => setTargetModel(e.target.value)}>
+                  <option value="subscription">Subscription</option>
+                  <option value="freebie">Free trial (freebie)</option>
+                </select>
+              </label>
+              {targetModel === "subscription" && (
+                <label className={styles.field}>
+                  <span>Subscription duration (months)</span>
+                  <input type="number" min={1} max={60} value={months}
+                    onChange={(e) => { const n = Number(e.target.value); setMonths(Number.isNaN(n) ? 1 : n); }} />
+                </label>
+              )}
+              <label className={styles.field}>
+                <span>Leftover pay-per-order balance</span>
+                <select value={disposition} onChange={(e) => setDisposition(e.target.value)}>
+                  <option value="credit">Move to wallet credit</option>
+                  <option value="cash_out">Cash out (record refund)</option>
+                  <option value="waive">Waive debt (write off a negative balance)</option>
+                </select>
+              </label>
+            </>
+          )}
           <label className={styles.field}>
-            <span>{action.type === "terminate" ? "Reason (required)" : "Reason (optional)"}</span>
+            <span>
+              {action.type === "terminate"
+                ? "Reason (required)"
+                : action.type === "switch"
+                  ? "Reason (required, ≥10 chars)"
+                  : "Reason (optional)"}
+            </span>
             <textarea maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)}
               placeholder="Shown in the audit log and seller notification" />
           </label>

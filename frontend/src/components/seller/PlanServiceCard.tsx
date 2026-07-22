@@ -14,9 +14,14 @@ interface Props {
   service: SellerPlanServiceView;
   payment: SellerPaymentDetails;
   busy: boolean;
+  feeCredit: number;
   onOptIn: (serviceId: number, durationMonths: number) => void;
   onMarkPaid: (serviceId: number, sellerNote: string | null) => void;
   onCancel: (serviceId: number) => void;
+  onOptInPpt: (serviceId: number, deposit: number, useCredit: boolean) => void;
+  onTopUp: (serviceId: number) => void;
+  onApplyCredit: (serviceId: number) => void;
+  onSwitchPpt: (serviceId: number) => void;
 }
 
 const MODEL_LABEL: Record<string, string> = {
@@ -59,9 +64,14 @@ export default function PlanServiceCard({
   service,
   payment,
   busy,
+  feeCredit,
   onOptIn,
   onMarkPaid,
   onCancel,
+  onOptInPpt,
+  onTopUp,
+  onApplyCredit,
+  onSwitchPpt,
 }: Props) {
   const activePlans = service.subscription_plans.filter((p) => p.is_active);
   const [duration, setDuration] = useState<number>(
@@ -69,8 +79,11 @@ export default function PlanServiceCard({
   );
   const [showNote, setShowNote] = useState(false);
   const [note, setNote] = useState("");
+  const [pptDeposit, setPptDeposit] = useState<string>("");
+  const [pptUseCredit, setPptUseCredit] = useState(false);
 
   const isPaidSub = service.model === "subscription";
+  const isPpt = service.model === "pay_per_transaction";
   const isLive = service.status === "active" || service.status === "grace";
   const pill = service.payment_pending
     ? { label: "Payment under review", kind: "warning" }
@@ -81,13 +94,31 @@ export default function PlanServiceCard({
     activePlans.length > 0 &&
     !service.payment_pending &&
     !service.cancel_requested;
+  // A non-PPT service the admin has enabled for pay-per-order → offer opt-in.
+  const showPptOptIn =
+    service.pay_per_txn_enabled && !isPpt && !service.payment_pending;
   const showCancel =
     isPaidSub && service.status === "active" && !service.cancel_requested && !service.payment_pending;
   // Nothing to act on (no opt-in panel, no pending payment, no cancel) — show
   // an explanatory line instead of a bare card. Covers freebie-with-no-plans
   // and a subscription whose plans were all deactivated.
   const noActionable =
-    !showOptIn && !showCancel && !service.payment_pending && !service.cancel_requested;
+    !showOptIn && !showCancel && !isPpt && !showPptOptIn &&
+    !service.payment_pending && !service.cancel_requested;
+
+  // Pay-Per-Transaction balance meter.
+  const fee = service.pay_per_txn_fee || 0;
+  const balance = service.balance ?? 0;
+  const lowThr = service.low_balance_threshold ?? 0;
+  const meterTarget = Math.max(lowThr * 2, fee * 10, 1);
+  const meterPct = Math.max(4, Math.min(100, (balance / meterTarget) * 100));
+  const belowFee = isPpt && balance < fee;
+  const lowBalance = isPpt && !belowFee && lowThr > 0 && balance < lowThr;
+  const meterColor = belowFee
+    ? "var(--color-status-warning, #FF5026)"
+    : lowBalance
+      ? "var(--accent-turmeric, #F18A1F)"
+      : "var(--brand-flag-green, #138808)";
 
   // Validity line
   let validity: string | null = null;
@@ -126,6 +157,93 @@ export default function PlanServiceCard({
 
       {noActionable && (
         <p className={styles.muted}>No paid plans are available for this service right now.</p>
+      )}
+
+      {isPpt && (
+        <div className={styles.payBox}>
+          <p className={styles.sectionTitle}>Prepaid balance</p>
+          <p className={styles.amount}>{rupees(balance)}</p>
+          <div
+            style={{
+              height: 8,
+              borderRadius: 100,
+              background: "var(--surface-tint, #EEF2FB)",
+              overflow: "hidden",
+              margin: "6px 0",
+            }}
+          >
+            <div style={{ height: "100%", width: `${meterPct}%`, borderRadius: 100, background: meterColor }} />
+          </div>
+          <p className={styles.muted}>
+            {rupees(fee)} per order
+            {belowFee ? " · low balance" : lowBalance ? " · running low" : ""}
+          </p>
+          {(service.status === "grace" || service.status === "suspended") && (
+            <p className={styles.muted}>
+              {service.status === "grace"
+                ? "Balance is below one order fee. Top up within the grace period, or the service is suspended."
+                : "Service suspended — top up to reactivate and receive new orders."}
+            </p>
+          )}
+          <div className={styles.actions}>
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => onTopUp(service.service_id)}>
+              Top up
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || feeCredit <= 0}
+              onClick={() => onApplyCredit(service.service_id)}
+            >
+              Apply credit
+            </button>
+            <button type="button" className={styles.cancelBtn} disabled={busy} onClick={() => onSwitchPpt(service.service_id)}>
+              Switch plan
+            </button>
+          </div>
+          <p className={styles.muted}>Store wallet credit available: {rupees(feeCredit)}</p>
+        </div>
+      )}
+
+      {showPptOptIn && (
+        <div className={styles.section}>
+          <p className={styles.sectionTitle}>Start pay-per-order</p>
+          <p className={styles.muted}>
+            Prepay a deposit; {rupees(service.pay_per_txn_fee)} is charged per order. Minimum
+            deposit {rupees(service.pay_per_txn_min_deposit)}.
+          </p>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={service.pay_per_txn_min_deposit}
+            className={styles.note}
+            style={{ maxWidth: 200 }}
+            value={pptDeposit}
+            onChange={(e) => setPptDeposit(e.target.value)}
+            placeholder={`Deposit (min ${rupees(service.pay_per_txn_min_deposit)})`}
+            aria-label="Deposit amount"
+          />
+          {feeCredit > 0 && (
+            <label className={styles.muted} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={pptUseCredit}
+                onChange={(e) => setPptUseCredit(e.target.checked)}
+              />
+              Pay the deposit from my wallet credit ({rupees(feeCredit)})
+            </label>
+          )}
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || Number(pptDeposit) < service.pay_per_txn_min_deposit || Number(pptDeposit) <= 0}
+              onClick={() => onOptInPpt(service.service_id, Number(pptDeposit), pptUseCredit)}
+            >
+              Start pay-per-order
+            </button>
+          </div>
+        </div>
       )}
 
       {service.payment_pending && (

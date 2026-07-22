@@ -1,0 +1,73 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.intro {
+  color: var(--color-text, #52667d);
+  font-size: var(--body-sm, 14px);
+  max-width: 720px;
+}
+.errorBanner {
+  padding: 12px 16px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--status-error-tint, #fef2f2);
+  color: var(--status-error-text, #b91c1c);
+  font-size: var(--body-sm, 14px);
+}
+.loader {
+  padding: 32px;
+  text-align: center;
+  color: var(--color-text, #52667d);
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.positive {
+  color: var(--status-savings, #018260);
+  font-weight: var(--weight-semibold, 600);
+}
+.negative {
+  color: var(--status-error-text, #b91c1c);
+  font-weight: var(--weight-semibold, 600);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.label {
+  font-size: var(--caption-sm, 13px);
+  font-weight: var(--weight-medium, 500);
+  color: var(--color-text, #52667d);
+}
+.input,
+.textarea {
+  border: 1px solid var(--border-input, #d3daeb);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--color-text-strong, #07101a);
+  background: var(--surface-white, #fff);
+}
+.textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+.card {
+  border: 1px solid var(--border-divider, #eaeaea);
+  border-radius: var(--radius-card, 10px);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

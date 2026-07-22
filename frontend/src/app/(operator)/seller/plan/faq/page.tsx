@@ -16,7 +16,27 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "What paid plans are available?",
-    a: "Fixed-term subscriptions of 3, 6, or 12 months. The marketplace team sets the price for each service, and you'll see the current prices on your Plan page.",
+    a: "Fixed-term subscriptions of 3, 6, or 12 months, or pay-per-order where a small flat fee is charged for each order. The marketplace team sets the prices for each service, and you'll see the current options on your Plan page.",
+  },
+  {
+    q: "How does pay-per-order work?",
+    a: "You keep a prepaid balance. A fixed fee is deducted for each order you receive. When the balance runs low we warn you; top up before it runs out to keep taking orders.",
+  },
+  {
+    q: "How do I top up my pay-per-order balance?",
+    a: "Tap “Top up” on the Plan page, pay the amount offline via the UPI/bank details shown, and the team confirms it. Confirming a top-up reactivates your store straight away if it was paused for a low balance.",
+  },
+  {
+    q: "What happens if my pay-per-order balance runs out?",
+    a: "Your store enters a 2-day grace period so you can top up without interruption. If you don't top up within that window, the service is suspended until you add funds. Orders already placed are unaffected.",
+  },
+  {
+    q: "Is a fee refunded if I cancel an order?",
+    a: "Yes. If an order is cancelled, the per-order fee is credited straight back to your prepaid balance.",
+  },
+  {
+    q: "What is store wallet credit?",
+    a: "It's money the platform holds for you — for example, the leftover balance when you switch off pay-per-order. It's applied automatically towards future fees, or you can request it back from the marketplace team.",
   },
   {
     q: "How do I pay?",
