@@ -397,3 +397,69 @@ async def test_confirm_deposit_activates(session: AsyncSession, ov_env: _Env) ->
     await session.refresh(payment)
     assert payment.status == FeePaymentStatus.Confirmed
     assert payment.confirmed_by_admin_id == 1
+
+
+# ─── Slice C2: seller + admin API ────────────────────────────────────────
+
+
+async def _persist_test_admin(session: AsyncSession) -> None:
+    if await session.get(User, 99001) is None:
+        session.add(
+            User(id=99001, email="admin-ov@kb.com", role=UserRole.Admin, is_active=True)
+        )
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_api_opt_in_then_admin_confirm_activates(
+    client, session: AsyncSession, approved_seller_with_store, admin_auth_headers
+) -> None:
+    from app import app
+    from app.core.security import get_current_seller
+
+    bundle = approved_seller_with_store
+    sid = bundle.service_id
+    await _persist_test_admin(session)
+    session.add(
+        ServiceFeeConfig(
+            service_id=sid, order_value_enabled=True, order_value_percent=2.0,
+            order_value_min_deposit=500.0, order_value_billing_day=5,
+        )
+    )
+    session.add(
+        FeeArrangement(
+            store_id=bundle.store.id, service_id=sid,
+            model=FeeModel.Freebie, status=ArrangementStatus.Trial,
+        )
+    )
+    await session.commit()
+
+    app.dependency_overrides[get_current_seller] = lambda: bundle.user
+    try:
+        r = await client.post(
+            f"/api/v1/sellers/me/plan/{sid}/order-value/opt-in",
+            json={"deposit_amount": 800.0},
+        )
+        assert r.status_code == 200, r.text
+        payment_id = r.json()["payment_id"]
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+
+    # arrangement is pending until admin confirms
+    arr = (
+        await session.exec(
+            select(FeeArrangement).where(FeeArrangement.store_id == bundle.store.id)
+        )
+    ).one()
+    await session.refresh(arr)
+    assert arr.status == ArrangementStatus.PendingActivation
+
+    r2 = await client.post(
+        f"/api/v1/admin/fees/payments/{payment_id}/confirm", headers=admin_auth_headers
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["status"] == "active"
+
+    await session.refresh(arr)
+    assert arr.status == ArrangementStatus.Active
+    assert arr.security_deposit_amount == 800.0

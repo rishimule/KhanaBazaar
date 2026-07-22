@@ -41,6 +41,7 @@ from app.schemas.platform_fees import (
     ExtendBody,
     MarkPaidBody,
     OptInBody,
+    OrderValueOptInBody,
     PaymentQueueItem,
     PayPerTxnOptInBody,
     PlatformFeeSettingsPatch,
@@ -78,6 +79,10 @@ from app.services.fee_lifecycle import (
     seller_switch_from_ppt,
 )
 from app.services.fee_notifications import notify_seller_fee_event
+from app.services.fee_order_value import (
+    confirm_order_value_deposit,
+    opt_into_order_value,
+)
 from app.services.image_processing import ImageValidationError, process_image
 from app.services.image_storage import get_image_storage
 
@@ -330,6 +335,10 @@ async def confirm_payment(
         await notify_seller_fee_event(
             session, store_id=arr.store_id, type=notif, valid_until=arr.valid_until,
         )
+    elif payment.kind == FeePaymentKind.SecurityDeposit:
+        # confirm_order_value_deposit records the single FeeActivated in-app
+        # notification itself — do NOT re-notify here.
+        arr, notif = await confirm_order_value_deposit(session, payment, admin.id)
     else:
         raise HTTPException(
             status_code=400, detail={"error": "unsupported_payment_kind"}
@@ -853,6 +862,24 @@ async def opt_in_ppt(
     await session.commit()
     if payment is None:
         return {"payment_id": None, "status": "active"}
+    await session.refresh(payment)
+    return {"payment_id": payment.id, "amount": payment.amount}
+
+
+@seller_router.post("/me/plan/{service_id}/order-value/opt-in")
+async def opt_in_order_value(
+    service_id: int,
+    body: OrderValueOptInBody,
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    _profile, store = await _seller_store(session, seller)
+    arr = await _arrangement(session, store.id, service_id)
+    try:
+        payment = await opt_into_order_value(session, arr, body.deposit_amount)
+    except FeeError as exc:
+        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    await session.commit()
     await session.refresh(payment)
     return {"payment_id": payment.id, "amount": payment.amount}
 

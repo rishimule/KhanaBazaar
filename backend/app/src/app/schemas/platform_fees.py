@@ -116,6 +116,10 @@ class PayPerTxnOptInBody(BaseModel):
     use_credit: bool = False
 
 
+class OrderValueOptInBody(BaseModel):
+    deposit_amount: float = Field(gt=0)
+
+
 class TopUpBody(BaseModel):
     amount: float = Field(gt=0)
 
