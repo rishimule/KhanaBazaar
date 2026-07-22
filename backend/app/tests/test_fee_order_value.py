@@ -463,3 +463,98 @@ async def test_api_opt_in_then_admin_confirm_activates(
     await session.refresh(arr)
     assert arr.status == ArrangementStatus.Active
     assert arr.security_deposit_amount == 800.0
+
+
+# ─── Slice D: overdue sweep, suspension, reactivation ────────────────────
+
+
+async def _mk_invoice(
+    session: AsyncSession,
+    env: _Env,
+    arr: FeeArrangement,
+    *,
+    amount: float,
+    status: InvoiceStatus,
+    due_date: date,
+    suspend_after: date,
+) -> FeeInvoice:
+    inv = FeeInvoice(
+        arrangement_id=arr.id,
+        store_id=env.store.id,
+        service_id=env.service_id,
+        period_start=date(2026, 1, 1),
+        period_end=date(2026, 1, 31),
+        sales_total=amount * 50,
+        fee_percent_snapshot=2.0,
+        amount_due=amount,
+        status=status,
+        issued_on=date(2026, 2, 5),
+        due_date=due_date,
+        suspend_after=suspend_after,
+    )
+    session.add(inv)
+    arr.balance += amount
+    session.add(arr)
+    await session.flush()
+    return inv
+
+
+@pytest.mark.asyncio
+async def test_sweep_marks_overdue(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_order_value import sweep_order_value_overdue
+
+    env = ov_env
+    arr = await _ov_arr(session, env)
+    inv = await _mk_invoice(
+        session, env, arr, amount=100.0, status=InvoiceStatus.Pending,
+        due_date=date(2026, 2, 12), suspend_after=date(2026, 2, 14),
+    )
+    await session.commit()
+
+    await sweep_order_value_overdue(session, date(2026, 2, 13))  # past due, before suspend
+    await session.commit()
+
+    await session.refresh(inv)
+    await session.refresh(arr)
+    assert inv.status == InvoiceStatus.Overdue
+    assert arr.status == ArrangementStatus.Active  # not yet suspended
+
+
+@pytest.mark.asyncio
+async def test_sweep_suspends_after_grace(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_order_value import sweep_order_value_overdue
+
+    env = ov_env
+    arr = await _ov_arr(session, env)
+    await _mk_invoice(
+        session, env, arr, amount=100.0, status=InvoiceStatus.Overdue,
+        due_date=date(2026, 2, 12), suspend_after=date(2026, 2, 14),
+    )
+    await session.commit()
+
+    await sweep_order_value_overdue(session, date(2026, 2, 15))  # past suspend_after
+    await session.commit()
+
+    await session.refresh(arr)
+    assert arr.status == ArrangementStatus.Suspended
+    assert arr.suspended_reason == "order_value_nonpayment"
+
+
+@pytest.mark.asyncio
+async def test_run_fee_sweep_generates_order_value_invoice(
+    session: AsyncSession, ov_env: _Env
+) -> None:
+    from app.services.fee_lifecycle import run_fee_sweep
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, percent=2.0, billing_day=5)
+    arr = await _ov_arr(session, env, activated_on=date(2026, 1, 1))
+    await _ov_order(session, env, total=1000.0, status=OrderStatus.Delivered, placed_at=_at(date(2026, 1, 15)))
+    await session.commit()
+
+    await run_fee_sweep(session, today=date(2026, 2, 5))
+    await session.commit()
+
+    invs = await _invoices(session, arr.id)
+    assert len(invs) == 1
+    assert invs[0].amount_due == 20.0

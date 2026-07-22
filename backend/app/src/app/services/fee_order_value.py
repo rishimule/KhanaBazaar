@@ -35,7 +35,7 @@ from app.models.platform_fee import (
     PlatformFeeSettings,
     ServiceFeeConfig,
 )
-from app.services.fee_lifecycle import FeeError
+from app.services.fee_lifecycle import FeeError, _suspend
 from app.services.fee_notifications import notify_seller_fee_event
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -87,7 +87,7 @@ async def generate_order_value_invoices(
     session: AsyncSession,
     today: date,
     *,
-    notices: list[tuple[int, str, "date | None"]] | None = None,
+    notices: list[tuple[int, str, str | None]] | None = None,
 ) -> int:
     """On each arrangement's billing day, raise a FeeInvoice for the prior
     calendar month's completed sales. Idempotent (unique arrangement+period).
@@ -179,8 +179,17 @@ async def generate_order_value_invoices(
                 note=f"invoice {period_start}..{prev_end} sales={sales}",
             )
         )
-        if not is_zero and notices is not None:
-            notices.append((arr.store_id, "FeeInvoiceRaised", None))
+        if not is_zero:
+            spid = await notify_seller_fee_event(
+                session,
+                store_id=arr.store_id,
+                type=NotificationType.FeeInvoiceRaised,
+                valid_until=due,
+            )
+            if notices is not None and spid is not None:
+                notices.append(
+                    (spid, NotificationType.FeeInvoiceRaised.value, due.isoformat())
+                )
         created += 1
 
     await session.flush()
@@ -306,3 +315,66 @@ async def confirm_order_value_deposit(
     await notify_seller_fee_event(session, store_id=arrangement.store_id, type=notif)
     await session.flush()
     return arrangement, notif
+
+
+async def sweep_order_value_overdue(
+    session: AsyncSession,
+    today: date,
+    *,
+    notices: list[tuple[int, str, str | None]] | None = None,
+) -> dict[str, int]:
+    """Daily overdue pass for Order Value % arrangements: pending invoices past
+    their due date become Overdue (with a reminder); an arrangement with any
+    unpaid invoice past its suspend_after date is suspended. Flushes; caller
+    commits."""
+    counts = {"overdue": 0, "suspended": 0}
+    unpaid = (
+        await session.exec(
+            select(FeeInvoice).where(
+                FeeInvoice.status.in_(  # type: ignore[attr-defined]
+                    [InvoiceStatus.Pending, InvoiceStatus.Overdue]
+                )
+            )
+        )
+    ).all()
+
+    to_suspend: set[int] = set()
+    for inv in unpaid:
+        if inv.status == InvoiceStatus.Pending and today > inv.due_date:
+            inv.status = InvoiceStatus.Overdue
+            session.add(inv)
+            spid = await notify_seller_fee_event(
+                session,
+                store_id=inv.store_id,
+                type=NotificationType.FeeInvoiceOverdue,
+                valid_until=inv.suspend_after,
+            )
+            if notices is not None and spid is not None:
+                notices.append(
+                    (
+                        spid,
+                        NotificationType.FeeInvoiceOverdue.value,
+                        inv.suspend_after.isoformat(),
+                    )
+                )
+            counts["overdue"] += 1
+        if today > inv.suspend_after:
+            to_suspend.add(inv.arrangement_id)
+
+    for arr_id in to_suspend:
+        arr = await session.get(FeeArrangement, arr_id)
+        if arr is None or arr.status not in (
+            ArrangementStatus.Active,
+            ArrangementStatus.Grace,
+        ):
+            continue
+        _suspend(session, arr, "order_value_nonpayment")
+        spid = await notify_seller_fee_event(
+            session, store_id=arr.store_id, type=NotificationType.FeeSuspended
+        )
+        if notices is not None and spid is not None:
+            notices.append((spid, NotificationType.FeeSuspended.value, None))
+        counts["suspended"] += 1
+
+    await session.flush()
+    return counts

@@ -602,6 +602,21 @@ async def run_fee_sweep(
                     notices.append((spid, NotificationType.FeeSuspended.value, None))
                 counts["to_suspended"] += 1
 
+    # ── Order Value % pass (postpaid monthly invoicing + overdue suspension) ──
+    # Lazy import: fee_order_value imports from this module, so importing it at
+    # module load would create a cycle.
+    from app.services.fee_order_value import (
+        generate_order_value_invoices,
+        sweep_order_value_overdue,
+    )
+
+    counts["invoices_raised"] = await generate_order_value_invoices(
+        session, today, notices=notices
+    )
+    ov = await sweep_order_value_overdue(session, today, notices=notices)
+    counts["ov_overdue"] = ov["overdue"]
+    counts["to_suspended"] += ov["suspended"]
+
     await session.flush()
     return counts
 
