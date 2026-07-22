@@ -195,6 +195,8 @@ class InvoiceView(BaseModel):
     due_date: str
     suspend_after: str
     paid_at: Optional[str] = None
+    # True when an offline payment for this invoice is awaiting admin confirmation.
+    payment_pending: bool = False
 
 
 class RejectBody(BaseModel):

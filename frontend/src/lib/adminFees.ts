@@ -99,6 +99,7 @@ export type FeeInvoice = {
   due_date: string;
   suspend_after: string;
   paid_at: string | null;
+  payment_pending: boolean;
 };
 
 export function feeErrorCode(err: unknown): string | null {

@@ -988,7 +988,7 @@ async def opt_in_order_value(
     return {"payment_id": payment.id, "amount": payment.amount}
 
 
-def _invoice_view(inv: FeeInvoice) -> InvoiceView:
+def _invoice_view(inv: FeeInvoice, *, payment_pending: bool = False) -> InvoiceView:
     return InvoiceView(
         id=inv.id,  # type: ignore[arg-type]
         arrangement_id=inv.arrangement_id,
@@ -1003,7 +1003,34 @@ def _invoice_view(inv: FeeInvoice) -> InvoiceView:
         due_date=inv.due_date.isoformat(),
         suspend_after=inv.suspend_after.isoformat(),
         paid_at=inv.paid_at.isoformat() if inv.paid_at else None,
+        payment_pending=payment_pending,
     )
+
+
+async def _invoices_with_pending(
+    session: AsyncSession, invoices: list[FeeInvoice]
+) -> list[InvoiceView]:
+    """Serialize invoices, flagging those whose linked FeePayment is still
+    Pending (awaiting admin confirmation) so the UI can show 'under review'."""
+    payment_ids = [i.payment_id for i in invoices if i.payment_id is not None]
+    pending_payment_ids: set[int] = set()
+    if payment_ids:
+        pending_payment_ids = set(
+            (
+                await session.exec(
+                    select(FeePayment.id).where(
+                        FeePayment.id.in_(payment_ids),  # type: ignore[union-attr]
+                        FeePayment.status == FeePaymentStatus.Pending,
+                    )
+                )
+            ).all()
+        )
+    return [
+        _invoice_view(
+            i, payment_pending=i.payment_id is not None and i.payment_id in pending_payment_ids
+        )
+        for i in invoices
+    ]
 
 
 @seller_router.get(
@@ -1023,7 +1050,7 @@ async def list_my_invoices(
             .order_by(FeeInvoice.period_start.desc())  # type: ignore[attr-defined]
         )
     ).all()
-    return [_invoice_view(inv) for inv in invoices]
+    return await _invoices_with_pending(session, list(invoices))
 
 
 @seller_router.post("/me/plan/{service_id}/invoices/{invoice_id}/mark-paid")
@@ -1062,7 +1089,7 @@ async def admin_list_arrangement_invoices(
             .order_by(FeeInvoice.period_start.desc())  # type: ignore[attr-defined]
         )
     ).all()
-    return [_invoice_view(inv) for inv in invoices]
+    return await _invoices_with_pending(session, list(invoices))
 
 
 @seller_router.post("/me/plan/{service_id}/top-up")

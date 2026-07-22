@@ -61,6 +61,8 @@ export type FeeInvoice = {
   due_date: string;
   suspend_after: string;
   paid_at: string | null;
+  /** True when an offline payment for this invoice is awaiting admin confirmation. */
+  payment_pending: boolean;
 };
 
 export type SellerPaymentDetails = {

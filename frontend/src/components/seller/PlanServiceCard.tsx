@@ -291,21 +291,55 @@ export default function PlanServiceCard({
                       </div>
                       <span>{rupees(inv.amount_due)}</span>
                       <span className={`badge badge--${kind}`}>{inv.status}</span>
-                      {payable && (
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          disabled={busy || service.payment_pending}
-                          onClick={() => onPayInvoice(service.service_id, inv.id)}
-                        >
-                          Pay
-                        </button>
+                      {inv.payment_pending ? (
+                        <span className="badge badge--warning">Under review</span>
+                      ) : (
+                        payable && (
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            disabled={busy}
+                            onClick={() => onPayInvoice(service.service_id, inv.id)}
+                          >
+                            Pay
+                          </button>
+                        )
                       )}
                     </li>
                   );
                 })}
               </ul>
             </>
+          )}
+          {ovInvoices.some(
+            (i) => (i.status === "pending" || i.status === "overdue") && !i.payment_pending,
+          ) && (
+            <div className={styles.section} style={{ marginTop: 4 }}>
+              <p className={styles.sectionTitle}>How to pay</p>
+              <p className={styles.muted}>
+                Pay the invoice amount offline using the details below, then tap “Pay”
+                on the invoice to submit it for confirmation.
+              </p>
+              <dl className={styles.payRows}>
+                {payRows.map(([label, value]) =>
+                  value ? (
+                    <div className={styles.payRow} key={label}>
+                      <dt className={styles.payLabel}>{label}</dt>
+                      <dd className={styles.payValue}>{value}</dd>
+                    </div>
+                  ) : null,
+                )}
+              </dl>
+              {payment.qr_image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  className={styles.qr}
+                  src={payment.qr_image_url}
+                  alt="Payment QR code"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+            </div>
           )}
         </div>
       )}

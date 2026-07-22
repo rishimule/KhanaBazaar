@@ -780,6 +780,12 @@ async def test_api_invoice_pay_confirm_loop(
         )
         assert r2.status_code == 200, r2.text
         payment_id = r2.json()["payment_id"]
+
+        # After paying, the invoice is flagged under-review so the UI hides Pay.
+        r_after = await client.get(f"/api/v1/sellers/me/plan/{sid}/invoices")
+        assert r_after.status_code == 200, r_after.text
+        paid_row = next(i for i in r_after.json() if i["id"] == inv_id)
+        assert paid_row["status"] == "pending" and paid_row["payment_pending"] is True
     finally:
         app.dependency_overrides.pop(get_current_seller, None)
 
