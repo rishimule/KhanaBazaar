@@ -3,12 +3,18 @@
 """Integration tests for the Order Value % (postpaid + security deposit) fee model."""
 from datetime import date
 
+from app.models.notification import NotificationType
 from app.models.platform_fee import (
     FeeArrangement,
     FeeInvoice,
     InvoiceStatus,
     ServiceFeeConfig,
 )
+
+
+def test_order_value_notification_types_present() -> None:
+    assert NotificationType.FeeInvoiceRaised.value == "fee_invoice_raised"
+    assert NotificationType.FeeInvoiceOverdue.value == "fee_invoice_overdue"
 
 
 def test_invoice_model_and_enum_shape() -> None:
