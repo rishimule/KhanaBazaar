@@ -2630,6 +2630,13 @@ async def seed_platform_fees(session: AsyncSession) -> None:
         cfg.freebie_enabled = True
         cfg.freebie_default_days = 30
         cfg.subscription_enabled = svc.id in target_ids
+        # Pay-Per-Transaction (prepaid) enabled on the primary service so the
+        # seller opt-in + balance card and the admin credit worklist have data.
+        if svc.id == primary.id:
+            cfg.pay_per_txn_enabled = True
+            cfg.pay_per_txn_fee = 2.0
+            cfg.pay_per_txn_min_deposit = 100.0
+            cfg.pay_per_txn_low_balance_threshold = 25.0
         if svc.id in target_ids:
             for dur, price in PLAN_PRICES.items():
                 session.add(
@@ -2694,6 +2701,48 @@ async def seed_platform_fees(session: AsyncSession) -> None:
         a.suspended_at = now
         a.suspended_reason = "Subscription payment overdue"
 
+    # 5) Pay-Per-Transaction states — prepaid card, grace, admin queue + credit.
+    from app.models.store import Store
+
+    async def _set_store_credit(store_id: int, amount: float) -> None:
+        st = await session.get(Store, store_id)
+        if st is not None:
+            st.fee_credit_balance = amount
+            session.add(st)
+
+    if len(arrs) >= 5:  # Active PPT — healthy balance + store wallet credit
+        a = arrs[4]
+        a.model = FeeModel.PayPerTransaction
+        a.status = ArrangementStatus.Active
+        a.valid_until = None
+        a.subscription_duration_months = None
+        a.price_snapshot = None
+        a.balance = 250.0
+        await _set_store_credit(a.store_id, 40.0)
+    if len(arrs) >= 6:  # Grace PPT — below one order fee, in grace (low-balance card)
+        a = arrs[5]
+        a.model = FeeModel.PayPerTransaction
+        a.status = ArrangementStatus.Grace
+        a.valid_until = today
+        a.balance = 1.0
+    if len(arrs) >= 7:  # PPT opt-in awaiting a deposit → admin confirmation queue
+        a = arrs[6]
+        a.model = FeeModel.PayPerTransaction
+        a.status = ArrangementStatus.PendingActivation
+        a.pending_since = now
+        a.balance = 0.0
+        session.add(
+            FeePayment(
+                arrangement_id=a.id,
+                kind=FeePaymentKind.PayPerTxnTopUp,
+                amount=150.0,
+                status=FeePaymentStatus.Pending,
+                seller_note="PPT deposit via UPI, ref 778899012",
+            )
+        )
+    if len(arrs) >= 8:  # a second store with wallet credit → admin worklist row
+        await _set_store_credit(arrs[7].store_id, 75.0)
+
     await session.commit()
 
 
@@ -2704,7 +2753,12 @@ async def _seed_customer_account_states(
     customer supervisor (`/admin/customers`) + its status filters have realistic
     data out of the box. Idempotent: skips a user that already has a lifecycle
     event. The anchor customer (`customer@khanabazaar.dev`) stays active."""
-    admin = users_by_email.get(ADMIN["email"])
+    # Re-fetch fresh by email: the `users_by_email` objects were loaded earlier
+    # and are expired after intervening commits, so touching their attributes
+    # here would trigger a sync lazy-load → MissingGreenlet in the async session.
+    admin = (
+        await session.exec(select(User).where(User.email == ADMIN["email"]))
+    ).first()
     admin_id = admin.id if admin is not None else None
     now = datetime.now(timezone.utc)
     # (email, target status, actor_role, actor_user_id, reason)
@@ -2732,7 +2786,9 @@ async def _seed_customer_account_states(
         ),
     ]
     for email, status, actor_role, actor_id, reason in plan:
-        user = users_by_email.get(email)
+        user = (
+            await session.exec(select(User).where(User.email == email))
+        ).first()
         if user is None or user.id is None:
             continue
         existing = (
