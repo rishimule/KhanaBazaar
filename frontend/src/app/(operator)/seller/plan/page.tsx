@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { useAuth } from "@/lib/AuthContext";
 import PlanServiceCard from "@/components/seller/PlanServiceCard";
+import PaySheet from "@/components/seller/PaySheet";
 import {
   applyCreditPpt,
   cancelPlan,
@@ -45,6 +46,15 @@ function messageFor(code: string | null): string {
   return (code && ERROR_MESSAGES[code]) || "Something went wrong. Please try again.";
 }
 
+/** A pending pay-sheet request raised by a card action. */
+interface PaySheetReq {
+  serviceId: number;
+  title: string;
+  amount: number | null;
+  amountEditable?: boolean;
+  confirm: (opts: { amount: number; note: string | null }) => Promise<unknown>;
+}
+
 export default function SellerPlanPage() {
   const { token } = useAuth();
   const [data, setData] = useState<SellerPlanView | null>(null);
@@ -53,6 +63,7 @@ export default function SellerPlanPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyService, setBusyService] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [paySheet, setPaySheet] = useState<PaySheetReq | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -62,9 +73,7 @@ export default function SellerPlanPage() {
       const plan = await getMyPlan(token);
       setData(plan);
       // Fetch invoices for each Order Value % service (best-effort per service).
-      const ovServices = plan.services.filter(
-        (s) => s.model === "order_value_percent",
-      );
+      const ovServices = plan.services.filter((s) => s.model === "order_value_percent");
       const entries = await Promise.all(
         ovServices.map(async (s) => {
           try {
@@ -99,13 +108,82 @@ export default function SellerPlanPage() {
     }
   }
 
-  const handleOptIn = (serviceId: number, duration: number) => {
-    void run(serviceId, () => optIn(serviceId, duration, token));
-  };
-  const handleMarkPaid = (serviceId: number, note: string | null) => {
-    void run(serviceId, () => markPaid(serviceId, note, token));
-  };
-  const handleCancel = (serviceId: number) => {
+  const svcName = (id: number) => data?.services.find((s) => s.service_id === id)?.service_name ?? "";
+
+  // ── Pay-sheet openers (each raises the unified sheet) ────────────────
+  const onSubscribe = (serviceId: number, duration: number, price: number) =>
+    setPaySheet({
+      serviceId,
+      title: `Subscribe · ${svcName(serviceId)} · ${duration} months`,
+      amount: price,
+      confirm: async ({ note }) => {
+        await optIn(serviceId, duration, token);
+        await markPaid(serviceId, note, token);
+      },
+    });
+
+  const onStartOrderValue = (serviceId: number, deposit: number) =>
+    setPaySheet({
+      serviceId,
+      title: `Security deposit · ${svcName(serviceId)}`,
+      amount: deposit,
+      confirm: async ({ note }) => {
+        await optInOrderValue(serviceId, deposit, token);
+        await markPaid(serviceId, note, token);
+      },
+    });
+
+  const onStartPpt = (serviceId: number, deposit: number) =>
+    setPaySheet({
+      serviceId,
+      title: `Deposit · ${svcName(serviceId)}`,
+      amount: deposit,
+      confirm: async ({ note }) => {
+        await optInPpt(serviceId, deposit, false, token);
+        await markPaid(serviceId, note, token);
+      },
+    });
+
+  const onTopUp = (serviceId: number) =>
+    setPaySheet({
+      serviceId,
+      title: `Top up · ${svcName(serviceId)}`,
+      amount: null,
+      amountEditable: true,
+      confirm: async ({ amount, note }) => {
+        await topUpPpt(serviceId, amount, token);
+        await markPaid(serviceId, note, token);
+      },
+    });
+
+  const onPayInvoice = (serviceId: number, invoiceId: number, amount: number) =>
+    setPaySheet({
+      serviceId,
+      title: `Invoice payment · ${svcName(serviceId)}`,
+      amount,
+      confirm: async () => {
+        await markInvoicePaid(serviceId, invoiceId, token);
+      },
+    });
+
+  async function handleSheetConfirm(opts: { amount: number; note: string | null }) {
+    if (!paySheet) return;
+    const req = paySheet;
+    setBusyService(req.serviceId);
+    setActionError(null);
+    try {
+      await req.confirm(opts);
+      setPaySheet(null);
+      await load();
+    } catch (err) {
+      setActionError(messageFor(feeErrorCode(err)));
+    } finally {
+      setBusyService(null);
+    }
+  }
+
+  // ── Direct actions (no offline payment) ──────────────────────────────
+  const onCancel = (serviceId: number) => {
     if (
       !window.confirm(
         "Cancel this subscription? It stays active until the end of the paid term, then stops renewing.",
@@ -116,30 +194,13 @@ export default function SellerPlanPage() {
     void run(serviceId, () => cancelPlan(serviceId, token));
   };
 
-  const handleOptInPpt = (serviceId: number, deposit: number, useCredit: boolean) => {
-    void run(serviceId, () => optInPpt(serviceId, deposit, useCredit, token));
-  };
-  const handleTopUp = (serviceId: number) => {
-    const raw = window.prompt("Top-up amount (₹) — pay this offline via the QR/bank details, then an admin confirms it:");
-    if (raw == null) return;
-    const amount = Number(raw);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setActionError("Enter a valid amount.");
-      return;
-    }
-    void run(serviceId, () => topUpPpt(serviceId, amount, token));
-  };
-  const handleApplyCredit = (serviceId: number) => {
-    const raw = window.prompt("Amount of wallet credit to move into this balance (₹):");
-    if (raw == null) return;
-    const amount = Number(raw);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setActionError("Enter a valid amount.");
-      return;
-    }
+  const onStartPptWithCredit = (serviceId: number, deposit: number) =>
+    void run(serviceId, () => optInPpt(serviceId, deposit, true, token));
+
+  const onApplyCredit = (serviceId: number, amount: number) =>
     void run(serviceId, () => applyCreditPpt(serviceId, amount, token));
-  };
-  const handleSwitchPpt = (serviceId: number) => {
+
+  const onStopPpt = (serviceId: number) => {
     if (
       !window.confirm(
         "Leave pay-per-order? Any positive balance is moved to your store wallet credit. A negative balance must be settled first.",
@@ -150,21 +211,12 @@ export default function SellerPlanPage() {
     void run(serviceId, () => switchFromPpt(serviceId, token));
   };
 
-  const handleOptInOrderValue = (serviceId: number, deposit: number) => {
-    void run(serviceId, () => optInOrderValue(serviceId, deposit, token));
-  };
-  const handlePayInvoice = (serviceId: number, invoiceId: number) => {
-    void run(serviceId, () => markInvoicePaid(serviceId, invoiceId, token));
-  };
-
   return (
     <div className={styles.page}>
       <div className={styles.head}>
         <div>
           <h1 className={styles.title}>Plan &amp; Billing</h1>
-          <p className={styles.subtitle}>
-            Manage your store&apos;s platform-fee plan for each service.
-          </p>
+          <p className={styles.subtitle}>Manage your store&apos;s platform-fee plan for each service.</p>
         </div>
         <Link href="/seller/plan/faq" className={styles.faqLink}>
           Read the FAQ →
@@ -191,22 +243,34 @@ export default function SellerPlanPage() {
             <PlanServiceCard
               key={s.service_id}
               service={s}
-              payment={data.payment_details}
               busy={busyService === s.service_id}
               feeCredit={data.fee_credit_balance}
               invoices={invoices[s.service_id]}
-              onOptIn={handleOptIn}
-              onMarkPaid={handleMarkPaid}
-              onCancel={handleCancel}
-              onOptInPpt={handleOptInPpt}
-              onTopUp={handleTopUp}
-              onApplyCredit={handleApplyCredit}
-              onSwitchPpt={handleSwitchPpt}
-              onOptInOrderValue={handleOptInOrderValue}
-              onPayInvoice={handlePayInvoice}
+              onSubscribe={onSubscribe}
+              onStartOrderValue={onStartOrderValue}
+              onStartPpt={onStartPpt}
+              onTopUp={onTopUp}
+              onPayInvoice={onPayInvoice}
+              onCancel={onCancel}
+              onStartPptWithCredit={onStartPptWithCredit}
+              onApplyCredit={onApplyCredit}
+              onStopPpt={onStopPpt}
             />
           ))}
         </div>
+      )}
+
+      {paySheet && data && (
+        <PaySheet
+          open
+          title={paySheet.title}
+          amount={paySheet.amount}
+          amountEditable={paySheet.amountEditable}
+          payment={data.payment_details}
+          busy={busyService === paySheet.serviceId}
+          onConfirm={handleSheetConfirm}
+          onClose={() => setPaySheet(null)}
+        />
       )}
     </div>
   );
