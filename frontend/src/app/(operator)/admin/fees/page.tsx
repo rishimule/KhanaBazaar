@@ -291,6 +291,9 @@ export default function AdminFeesPage() {
                 <label className={styles.field}><span>Billing day</span>
                   <input type="number" min={1} max={28} value={config.order_value_billing_day}
                     onChange={(e) => setC("order_value_billing_day", toNum(e.target.value))} /></label>
+                <label className={styles.field}><span>Days to pay</span>
+                  <input type="number" min={0} max={60} value={config.order_value_payment_days}
+                    onChange={(e) => setC("order_value_payment_days", toNum(e.target.value))} /></label>
               </div>
             </div>
 

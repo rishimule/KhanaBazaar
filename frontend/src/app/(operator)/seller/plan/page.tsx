@@ -11,12 +11,16 @@ import {
   applyCreditPpt,
   cancelPlan,
   feeErrorCode,
+  getInvoices,
   getMyPlan,
+  markInvoicePaid,
   markPaid,
   optIn,
+  optInOrderValue,
   optInPpt,
   switchFromPpt,
   topUpPpt,
+  type FeeInvoice,
   type SellerPlanView,
 } from "@/lib/sellerPlan";
 import styles from "./page.module.css";
@@ -28,6 +32,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   no_pending_payment: "There's no pending payment to confirm.",
   below_min_deposit: "Deposit is below the minimum for this service.",
   pay_per_txn_not_offerable: "Pay-per-order isn't available for this service.",
+  order_value_not_offerable: "Order Value % isn't available for this service.",
+  invoice_not_found: "That invoice couldn't be found.",
+  invoice_not_payable: "That invoice is already settled.",
   amount_exceeds_credit: "That's more than your available wallet credit.",
   no_credit_available: "You have no wallet credit to apply.",
   balance_negative: "Settle the outstanding balance before switching plans.",
@@ -41,6 +48,7 @@ function messageFor(code: string | null): string {
 export default function SellerPlanPage() {
   const { token } = useAuth();
   const [data, setData] = useState<SellerPlanView | null>(null);
+  const [invoices, setInvoices] = useState<Record<number, FeeInvoice[]>>({});
   const [fetching, setFetching] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyService, setBusyService] = useState<number | null>(null);
@@ -51,7 +59,22 @@ export default function SellerPlanPage() {
     setFetching(true);
     setLoadError(null);
     try {
-      setData(await getMyPlan(token));
+      const plan = await getMyPlan(token);
+      setData(plan);
+      // Fetch invoices for each Order Value % service (best-effort per service).
+      const ovServices = plan.services.filter(
+        (s) => s.model === "order_value_percent",
+      );
+      const entries = await Promise.all(
+        ovServices.map(async (s) => {
+          try {
+            return [s.service_id, await getInvoices(s.service_id, token)] as const;
+          } catch {
+            return [s.service_id, [] as FeeInvoice[]] as const;
+          }
+        }),
+      );
+      setInvoices(Object.fromEntries(entries));
     } catch {
       setLoadError("Couldn't load your plan. Please refresh.");
     } finally {
@@ -127,6 +150,13 @@ export default function SellerPlanPage() {
     void run(serviceId, () => switchFromPpt(serviceId, token));
   };
 
+  const handleOptInOrderValue = (serviceId: number, deposit: number) => {
+    void run(serviceId, () => optInOrderValue(serviceId, deposit, token));
+  };
+  const handlePayInvoice = (serviceId: number, invoiceId: number) => {
+    void run(serviceId, () => markInvoicePaid(serviceId, invoiceId, token));
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.head}>
@@ -164,6 +194,7 @@ export default function SellerPlanPage() {
               payment={data.payment_details}
               busy={busyService === s.service_id}
               feeCredit={data.fee_credit_balance}
+              invoices={invoices[s.service_id]}
               onOptIn={handleOptIn}
               onMarkPaid={handleMarkPaid}
               onCancel={handleCancel}
@@ -171,6 +202,8 @@ export default function SellerPlanPage() {
               onTopUp={handleTopUp}
               onApplyCredit={handleApplyCredit}
               onSwitchPpt={handleSwitchPpt}
+              onOptInOrderValue={handleOptInOrderValue}
+              onPayInvoice={handlePayInvoice}
             />
           ))}
         </div>

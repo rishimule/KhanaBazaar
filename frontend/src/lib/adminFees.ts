@@ -38,6 +38,7 @@ export type ServiceFeeConfig = {
   order_value_percent: number;
   order_value_min_deposit: number;
   order_value_billing_day: number;
+  order_value_payment_days: number;
   pay_per_txn_enabled: boolean;
   pay_per_txn_fee: number;
   pay_per_txn_min_deposit: number;
@@ -81,6 +82,23 @@ export type StoreCreditView = {
   store_id: number;
   store_name: string;
   fee_credit_balance: number;
+};
+
+// Order Value % monthly invoice (mirrors backend InvoiceView).
+export type FeeInvoice = {
+  id: number;
+  arrangement_id: number;
+  service_id: number;
+  period_start: string;
+  period_end: string;
+  sales_total: number;
+  fee_percent_snapshot: number;
+  amount_due: number;
+  status: string;
+  issued_on: string;
+  due_date: string;
+  suspend_after: string;
+  paid_at: string | null;
 };
 
 export function feeErrorCode(err: unknown): string | null {
@@ -236,6 +254,49 @@ export function switchArrangement(
       disposition: opts?.disposition ?? "credit",
       reason,
     },
+    token,
+  );
+}
+
+// ── Order Value % (postpaid) — invoices + deposit settlement ────────────────
+export function getArrangementInvoices(
+  token: string | null,
+  arrangementId: number,
+): Promise<FeeInvoice[]> {
+  return get<FeeInvoice[]>(
+    `/api/v1/admin/fees/arrangements/${arrangementId}/invoices`,
+    token,
+  );
+}
+
+export function forfeitDeposit(
+  token: string | null,
+  arrangementId: number,
+  amount: number,
+  reason: string,
+  invoiceId?: number,
+): Promise<{
+  arrangement_id: number;
+  status: string;
+  security_deposit_amount: number;
+  balance: number;
+}> {
+  return post(
+    `/api/v1/admin/fees/arrangements/${arrangementId}/forfeit`,
+    { amount, reason, invoice_id: invoiceId },
+    token,
+  );
+}
+
+export function refundDeposit(
+  token: string | null,
+  arrangementId: number,
+  mode: "offline" | "credit",
+  note?: string,
+): Promise<{ arrangement_id: number; refunded: number; mode: string }> {
+  return post(
+    `/api/v1/admin/fees/arrangements/${arrangementId}/refund-deposit`,
+    { mode, note },
     token,
   );
 }

@@ -13,8 +13,12 @@ import {
   terminateArrangement,
   compArrangement,
   switchArrangement,
+  getArrangementInvoices,
+  forfeitDeposit,
+  refundDeposit,
   feeErrorCode,
   type ArrangementSummary,
+  type FeeInvoice,
 } from "@/lib/adminFees";
 import styles from "./page.module.css";
 
@@ -41,9 +45,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   duration_required: "Pick a subscription duration.",
   bad_target_model: "Unsupported target plan.",
   unsupported_target_model: "Unsupported target plan.",
+  bad_forfeit_amount: "Enter an amount between ₹0 and the held deposit.",
+  refund_requires_exit: "Terminate the arrangement before refunding the deposit.",
+  not_order_value: "This action only applies to an Order Value % arrangement.",
 };
 
-type ActionType = "extend" | "terminate" | "comp" | "switch";
+type ActionType = "extend" | "terminate" | "comp" | "switch" | "invoices" | "forfeit" | "refund";
 
 export default function AdminSellerFeesPage({
   params,
@@ -64,6 +71,9 @@ export default function AdminSellerFeesPage({
   const [targetModel, setTargetModel] = useState("subscription");
   const [disposition, setDisposition] = useState("credit");
   const [reason, setReason] = useState("");
+  const [forfeitAmount, setForfeitAmount] = useState("");
+  const [refundMode, setRefundMode] = useState<"offline" | "credit">("offline");
+  const [invoiceRows, setInvoiceRows] = useState<FeeInvoice[]>([]);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -107,7 +117,15 @@ export default function AdminSellerFeesPage({
     setTargetModel("subscription");
     setDisposition("credit");
     setReason("");
+    setForfeitAmount("");
+    setRefundMode("offline");
+    setInvoiceRows([]);
     setActionError(null);
+    if (type === "invoices" && token) {
+      getArrangementInvoices(token, arr.id)
+        .then(setInvoiceRows)
+        .catch(() => setActionError("Couldn't load invoices."));
+    }
   }
 
   async function submitAction() {
@@ -121,6 +139,14 @@ export default function AdminSellerFeesPage({
       setActionError("A reason of at least 10 characters is required to switch.");
       return;
     }
+    if (type === "forfeit" && reason.trim().length < 10) {
+      setActionError("A reason of at least 10 characters is required to forfeit.");
+      return;
+    }
+    if (type === "forfeit" && !(Number(forfeitAmount) > 0)) {
+      setActionError("Enter the amount to forfeit.");
+      return;
+    }
     setBusy(true);
     setActionError(null);
     try {
@@ -132,6 +158,10 @@ export default function AdminSellerFeesPage({
           durationMonths: targetModel === "subscription" ? months : undefined,
           disposition,
         });
+      else if (type === "forfeit")
+        await forfeitDeposit(token, arr.id, Number(forfeitAmount), reason.trim());
+      else if (type === "refund")
+        await refundDeposit(token, arr.id, refundMode, note);
       else await terminateArrangement(token, arr.id, reason.trim());
       setAction(null);
       await loadRows(storeId);
@@ -151,7 +181,10 @@ export default function AdminSellerFeesPage({
     action?.type === "extend" ? "Extend arrangement"
       : action?.type === "comp" ? "Comp (grant) subscription"
         : action?.type === "switch" ? "Force-switch plan"
-          : "Terminate arrangement";
+          : action?.type === "invoices" ? "Order Value % invoices"
+            : action?.type === "forfeit" ? "Forfeit security deposit"
+              : action?.type === "refund" ? "Refund security deposit"
+                : "Terminate arrangement";
 
   return (
     <div className={styles.page}>
@@ -179,6 +212,13 @@ export default function AdminSellerFeesPage({
                   {r.pending ? " · payment pending" : ""}
                 </div>
                 <div className={styles.rowActions}>
+                  {r.model === "order_value_percent" && (
+                    <>
+                      <button type="button" className={styles.actionBtn} onClick={() => openAction("invoices", r)}>Invoices</button>
+                      <button type="button" className={styles.actionBtn} onClick={() => openAction("forfeit", r)}>Forfeit</button>
+                      <button type="button" className={styles.actionBtn} onClick={() => openAction("refund", r)}>Refund</button>
+                    </>
+                  )}
                   <button type="button" className={styles.actionBtn} onClick={() => openAction("extend", r)}>Extend</button>
                   <button type="button" className={styles.actionBtn} onClick={() => openAction("comp", r)}>Comp</button>
                   <button type="button" className={styles.actionBtn} onClick={() => openAction("switch", r)}>Switch</button>
@@ -195,21 +235,32 @@ export default function AdminSellerFeesPage({
           title={actionTitle}
           onClose={() => setAction(null)}
           footer={
-            <div className={styles.modalFooter}>
-              <button type="button" className={styles.cancelBtn} onClick={() => setAction(null)} disabled={busy}>Cancel</button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={submitAction}
-                disabled={
-                  busy ||
-                  (action.type === "terminate" && !reason.trim()) ||
-                  (action.type === "switch" && reason.trim().length < 10)
-                }
-              >
-                {action.type === "terminate" ? "Terminate" : action.type === "switch" ? "Switch plan" : "Confirm"}
-              </button>
-            </div>
+            action.type === "invoices" ? (
+              <div className={styles.modalFooter}>
+                <button type="button" className="btn btn-primary" onClick={() => setAction(null)}>Close</button>
+              </div>
+            ) : (
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.cancelBtn} onClick={() => setAction(null)} disabled={busy}>Cancel</button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={submitAction}
+                  disabled={
+                    busy ||
+                    (action.type === "terminate" && !reason.trim()) ||
+                    (action.type === "switch" && reason.trim().length < 10) ||
+                    (action.type === "forfeit" && (reason.trim().length < 10 || !(Number(forfeitAmount) > 0)))
+                  }
+                >
+                  {action.type === "terminate" ? "Terminate"
+                    : action.type === "switch" ? "Switch plan"
+                      : action.type === "forfeit" ? "Forfeit"
+                        : action.type === "refund" ? "Refund deposit"
+                          : "Confirm"}
+                </button>
+              </div>
+            )
           }
         >
           <p className={styles.modalService}>
@@ -255,17 +306,56 @@ export default function AdminSellerFeesPage({
               </label>
             </>
           )}
-          <label className={styles.field}>
-            <span>
-              {action.type === "terminate"
-                ? "Reason (required)"
-                : action.type === "switch"
-                  ? "Reason (required, ≥10 chars)"
-                  : "Reason (optional)"}
-            </span>
-            <textarea maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)}
-              placeholder="Shown in the audit log and seller notification" />
-          </label>
+          {action.type === "invoices" && (
+            invoiceRows.length === 0 ? (
+              <p className={styles.modalService}>No invoices yet.</p>
+            ) : (
+              <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                {invoiceRows.map((inv) => (
+                  <li key={inv.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: "1px solid var(--color-border-divider, #EAEAEA)" }}>
+                    <span style={{ flex: 1 }}>{inv.period_start.slice(0, 7)}</span>
+                    <span>₹{inv.sales_total.toLocaleString("en-IN")}</span>
+                    <span>₹{inv.amount_due.toLocaleString("en-IN")}</span>
+                    <span className={`badge badge--${inv.status === "paid" ? "member" : inv.status === "overdue" ? "sale" : inv.status === "pending" ? "warning" : "neutral"}`}>{inv.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )
+          )}
+          {action.type === "forfeit" && (
+            <label className={styles.field}>
+              <span>Amount to forfeit (₹)</span>
+              <input type="number" min={0} value={forfeitAmount}
+                onChange={(e) => setForfeitAmount(e.target.value)}
+                placeholder="Applied against outstanding invoices" />
+            </label>
+          )}
+          {action.type === "refund" && (
+            <label className={styles.field}>
+              <span>Refund via</span>
+              <select value={refundMode} onChange={(e) => setRefundMode(e.target.value as "offline" | "credit")}>
+                <option value="offline">Offline (UPI/bank — recorded only)</option>
+                <option value="credit">Store wallet credit</option>
+              </select>
+            </label>
+          )}
+          {action.type !== "invoices" && (
+            <label className={styles.field}>
+              <span>
+                {action.type === "terminate"
+                  ? "Reason (required)"
+                  : action.type === "switch"
+                    ? "Reason (required, ≥10 chars)"
+                    : action.type === "forfeit"
+                      ? "Reason (required, ≥10 chars)"
+                      : action.type === "refund"
+                        ? "Note (optional)"
+                        : "Reason (optional)"}
+              </span>
+              <textarea maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)}
+                placeholder="Shown in the audit log and seller notification" />
+            </label>
+          )}
           {actionError && <p className={styles.modalError} role="alert">{actionError}</p>}
         </Modal>
       )}
