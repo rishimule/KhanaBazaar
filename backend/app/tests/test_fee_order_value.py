@@ -944,3 +944,40 @@ async def test_api_admin_terminate_bills_final_invoice(
     invs = await _invoices(session, arr_id)
     assert len(invs) == 1
     assert invs[0].amount_due == 20.0  # 1000 * 2%
+
+
+# ─── Slice F: notifications ──────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_invoice_records_inapp_notification(
+    session: AsyncSession, approved_seller_with_store, ov_env: _Env
+) -> None:
+    from app.models.notification import Notification
+    from app.services.fee_order_value import generate_order_value_invoices
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, percent=2.0, billing_day=5)
+    await _ov_arr(session, env, activated_on=date(2026, 1, 1))
+    await _ov_order(session, env, total=1000.0, status=OrderStatus.Delivered, placed_at=_at(date(2026, 1, 15)))
+    await session.commit()
+
+    await generate_order_value_invoices(session, date(2026, 2, 5))
+    await session.commit()
+
+    notes = (
+        await session.exec(
+            select(Notification).where(
+                Notification.seller_profile_id == approved_seller_with_store.profile.id,
+                Notification.type == NotificationType.FeeInvoiceRaised,
+            )
+        )
+    ).all()
+    assert len(notes) == 1
+
+
+def test_fee_channel_copy_has_invoice_types() -> None:
+    from app.worker import _FEE_CHANNEL_COPY
+
+    assert "fee_invoice_raised" in _FEE_CHANNEL_COPY
+    assert "fee_invoice_overdue" in _FEE_CHANNEL_COPY
