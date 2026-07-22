@@ -5,6 +5,7 @@
 `admin_router` mounted at /api/v1/admin. Global settings + per-service fee config
 + subscription-plan pricing."""
 from collections.abc import Awaitable, Callable
+from datetime import date
 
 import anyio
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -40,6 +41,7 @@ from app.schemas.platform_fees import (
     CreditAdjustBody,
     CreditAmountBody,
     ExtendBody,
+    ForfeitBody,
     InvoiceView,
     MarkPaidBody,
     OptInBody,
@@ -48,6 +50,7 @@ from app.schemas.platform_fees import (
     PayPerTxnOptInBody,
     PlatformFeeSettingsPatch,
     PlatformFeeSettingsRead,
+    RefundDepositBody,
     RejectBody,
     SellerPaymentDetails,
     SellerPlanServiceView,
@@ -85,7 +88,10 @@ from app.services.fee_order_value import (
     confirm_invoice_payment,
     confirm_order_value_deposit,
     create_invoice_payment,
+    forfeit_deposit,
+    generate_final_order_value_invoice,
     opt_into_order_value,
+    refund_deposit,
 )
 from app.services.image_processing import ImageValidationError, process_image
 from app.services.image_storage import get_image_storage
@@ -475,6 +481,10 @@ async def admin_terminate_arrangement(
     arr, profile = await _arrangement_with_seller(session, arrangement_id)
     assert admin.id is not None and profile.id is not None
     before = _arr_before(arr)
+    # Order Value % exit: bill trailing completed sales as a final partial invoice
+    # before suspending (deposit is then settled via the refund-deposit action).
+    if arr.model == FeeModel.OrderValuePercent:
+        await generate_final_order_value_invoice(session, arr, date.today())
     admin_terminate(session, arr, body.reason, admin.id)
     await admin_audit.log(
         session=session, admin_user_id=admin.id, target_seller_id=profile.id,
@@ -491,6 +501,73 @@ async def admin_terminate_arrangement(
     if spid is not None:
         dispatch_seller_fee_channels(spid, NotificationType.FeeSuspended.value, None)
     return {"arrangement_id": arrangement_id, "status": "suspended"}
+
+
+@admin_router.post("/fees/arrangements/{arrangement_id}/forfeit")
+async def admin_forfeit_deposit(
+    arrangement_id: int,
+    body: ForfeitBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    arr, profile = await _arrangement_with_seller(session, arrangement_id)
+    assert admin.id is not None and profile.id is not None
+    if arr.model != FeeModel.OrderValuePercent:
+        raise HTTPException(status_code=409, detail={"error": "not_order_value"})
+    before = {
+        "security_deposit_amount": arr.security_deposit_amount,
+        "balance": arr.balance,
+    }
+    try:
+        await forfeit_deposit(
+            session, arr, body.amount, admin.id,
+            invoice_id=body.invoice_id, reason=body.reason,
+        )
+    except FeeError as exc:
+        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    after = {
+        "security_deposit_amount": arr.security_deposit_amount,
+        "balance": arr.balance,
+    }
+    await admin_audit.log(
+        session=session, admin_user_id=admin.id, target_seller_id=profile.id,
+        target_type=AdminActionTargetType.SellerProfile, target_id=profile.id,
+        action="fee.order_value.forfeit", before_json=before, after_json=after,
+        reason=body.reason,
+    )
+    await session.commit()
+    return {
+        "arrangement_id": arrangement_id,
+        "security_deposit_amount": after["security_deposit_amount"],
+        "balance": after["balance"],
+    }
+
+
+@admin_router.post("/fees/arrangements/{arrangement_id}/refund-deposit")
+async def admin_refund_deposit(
+    arrangement_id: int,
+    body: RefundDepositBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    arr, profile = await _arrangement_with_seller(session, arrangement_id)
+    assert admin.id is not None and profile.id is not None
+    if arr.model != FeeModel.OrderValuePercent:
+        raise HTTPException(status_code=409, detail={"error": "not_order_value"})
+    before = {"security_deposit_amount": arr.security_deposit_amount, "balance": arr.balance}
+    try:
+        refunded = await refund_deposit(session, arr, body.mode, admin.id, note=body.note)
+    except FeeError as exc:
+        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    await admin_audit.log(
+        session=session, admin_user_id=admin.id, target_seller_id=profile.id,
+        target_type=AdminActionTargetType.SellerProfile, target_id=profile.id,
+        action="fee.order_value.refund_deposit", before_json=before,
+        after_json={"security_deposit_amount": arr.security_deposit_amount, "balance": arr.balance},
+        reason=body.note or f"deposit refund ({body.mode})",
+    )
+    await session.commit()
+    return {"arrangement_id": arrangement_id, "refunded": refunded, "mode": body.mode}
 
 
 @admin_router.post("/fees/arrangements/{arrangement_id}/comp")

@@ -191,6 +191,17 @@ class RejectBody(BaseModel):
     reason: str = Field(min_length=1, max_length=200)
 
 
+class ForfeitBody(BaseModel):
+    amount: float = Field(gt=0)
+    invoice_id: Optional[int] = None
+    reason: str = Field(min_length=10, max_length=200)
+
+
+class RefundDepositBody(BaseModel):
+    mode: str = Field(pattern="^(offline|credit)$")
+    note: Optional[str] = Field(default=None, max_length=200)
+
+
 class ArrangementSummary(BaseModel):
     id: int
     service_id: int

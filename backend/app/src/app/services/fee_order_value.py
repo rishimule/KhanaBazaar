@@ -34,7 +34,9 @@ from app.models.platform_fee import (
     InvoiceStatus,
     PlatformFeeSettings,
     ServiceFeeConfig,
+    StoreCreditReason,
 )
+from app.services import store_credit
 from app.services.fee_lifecycle import FeeError, _suspend
 from app.services.fee_notifications import notify_seller_fee_event
 
@@ -194,6 +196,87 @@ async def generate_order_value_invoices(
 
     await session.flush()
     return created
+
+
+async def generate_final_order_value_invoice(
+    session: AsyncSession,
+    arrangement: FeeArrangement,
+    today: date,
+) -> FeeInvoice | None:
+    """On exit/switch-out, bill any completed sales since the last billed period
+    (or activation) through `today` as a final partial invoice. Returns the
+    invoice, or None if there's nothing to bill. Caller commits."""
+    if arrangement.model != FeeModel.OrderValuePercent:
+        return None
+    cfg = (
+        await session.exec(
+            select(ServiceFeeConfig).where(
+                ServiceFeeConfig.service_id == arrangement.service_id
+            )
+        )
+    ).first()
+    if cfg is None:
+        return None
+
+    start = arrangement.order_value_activated_on
+    if arrangement.last_billed_period_end is not None:
+        cand = arrangement.last_billed_period_end + timedelta(days=1)
+        if start is None or cand > start:
+            start = cand
+    if start is None or start > today:
+        return None
+
+    exists = (
+        await session.exec(
+            select(FeeInvoice).where(
+                FeeInvoice.arrangement_id == arrangement.id,
+                FeeInvoice.period_start == start,
+            )
+        )
+    ).first()
+    if exists is not None:
+        return None
+
+    sales = await compute_order_value_sales(
+        session, arrangement.store_id, arrangement.service_id, start, today
+    )
+    pct = cfg.order_value_percent
+    amount = round(sales * pct / 100.0, 2)
+    grace = await _grace_days(session)
+    due = today + timedelta(days=cfg.order_value_payment_days)
+    is_zero = amount <= 0.0
+
+    invoice = FeeInvoice(
+        arrangement_id=arrangement.id,
+        store_id=arrangement.store_id,
+        service_id=arrangement.service_id,
+        period_start=start,
+        period_end=today,
+        sales_total=sales,
+        fee_percent_snapshot=pct,
+        amount_due=amount,
+        status=InvoiceStatus.Paid if is_zero else InvoiceStatus.Pending,
+        issued_on=today,
+        due_date=due,
+        suspend_after=due + timedelta(days=grace),
+        paid_at=datetime.now(timezone.utc) if is_zero else None,
+    )
+    session.add(invoice)
+    if not is_zero:
+        arrangement.balance = round(arrangement.balance + amount, 2)
+    arrangement.last_billed_period_end = today
+    session.add(arrangement)
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.InvoiceIssued,
+            amount_delta=amount,
+            actor="system",
+            note=f"final invoice {start}..{today} sales={sales}",
+        )
+    )
+    await session.flush()
+    return invoice
 
 
 async def _order_value_config(
@@ -378,6 +461,113 @@ async def sweep_order_value_overdue(
 
     await session.flush()
     return counts
+
+
+async def forfeit_deposit(
+    session: AsyncSession,
+    arrangement: FeeArrangement,
+    amount: float,
+    admin_user_id: int,
+    *,
+    invoice_id: int | None = None,
+    reason: str | None = None,
+) -> FeeArrangement:
+    """Admin forfeits `amount` of the held security deposit and applies it
+    against outstanding balance. Never auto-triggered. Any shortfall (deposit <
+    balance) stays owed. If `invoice_id` is given, that unpaid invoice is marked
+    Waived. Caller commits."""
+    if amount <= 0 or amount > arrangement.security_deposit_amount:
+        raise FeeError("bad_forfeit_amount")
+
+    arrangement.security_deposit_amount = round(
+        arrangement.security_deposit_amount - amount, 2
+    )
+    applied = min(amount, max(arrangement.balance, 0.0))
+    arrangement.balance = round(arrangement.balance - applied, 2)
+    session.add(arrangement)
+
+    if invoice_id is not None:
+        invoice = await session.get(FeeInvoice, invoice_id)
+        if (
+            invoice is not None
+            and invoice.arrangement_id == arrangement.id
+            and invoice.status in (InvoiceStatus.Pending, InvoiceStatus.Overdue)
+        ):
+            invoice.status = InvoiceStatus.Waived
+            session.add(invoice)
+
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.DepositForfeited,
+            amount_delta=-amount,
+            actor=f"admin:{admin_user_id}",
+            note=reason or "deposit forfeited",
+        )
+    )
+    await session.flush()
+    return arrangement
+
+
+async def refund_deposit(
+    session: AsyncSession,
+    arrangement: FeeArrangement,
+    mode: str,
+    admin_user_id: int,
+    *,
+    note: str | None = None,
+) -> float:
+    """Settle the held deposit on exit. Outstanding balance is first cleared by
+    the deposit; the remainder (deposit - outstanding) is refunded via `mode`:
+    'offline' records a negative SecurityDeposit payment (money returned outside
+    the platform); 'credit' grants store wallet credit. Zeroes the deposit and
+    returns the refunded amount (0 if outstanding >= deposit). Caller commits."""
+    if mode not in ("offline", "credit"):
+        raise FeeError("bad_refund_mode")
+
+    deposit = arrangement.security_deposit_amount
+    consumed = min(deposit, max(arrangement.balance, 0.0))
+    refundable = round(deposit - consumed, 2)
+    arrangement.balance = round(arrangement.balance - consumed, 2)
+    arrangement.security_deposit_amount = 0.0
+    session.add(arrangement)
+
+    if refundable > 0:
+        if mode == "offline":
+            session.add(
+                FeePayment(
+                    arrangement_id=arrangement.id,
+                    kind=FeePaymentKind.SecurityDeposit,
+                    amount=-refundable,
+                    status=FeePaymentStatus.Confirmed,
+                    confirmed_by_admin_id=admin_user_id,
+                    confirmed_at=datetime.now(timezone.utc),
+                    seller_note=note,
+                )
+            )
+        else:  # credit
+            store = await store_credit.load_store(session, arrangement.store_id)
+            await store_credit.grant(
+                session,
+                store,
+                refundable,
+                actor=f"admin:{admin_user_id}",
+                note=note or "order-value deposit refund",
+                reason=StoreCreditReason.GrantedOnExit,
+                related_arrangement_id=arrangement.id,
+            )
+
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.DepositRefunded,
+            amount_delta=refundable,
+            actor=f"admin:{admin_user_id}",
+            note=note or f"deposit refund ({mode})",
+        )
+    )
+    await session.flush()
+    return refundable
 
 
 async def create_invoice_payment(
