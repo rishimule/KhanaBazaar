@@ -1167,6 +1167,38 @@ async def test_api_config_exposes_payment_days(
     assert r2.json()["config"]["order_value_payment_days"] == 10
 
 
+@pytest.mark.asyncio
+async def test_api_my_plan_surfaces_order_value(
+    client, session: AsyncSession, approved_seller_with_store
+) -> None:
+    from app import app
+    from app.core.security import get_current_seller
+
+    bundle = approved_seller_with_store
+    sid = bundle.service_id
+    await _ov_cfg(session, sid, percent=2.5, min_deposit=500.0, billing_day=5, payment_days=7)
+    arr = FeeArrangement(
+        store_id=bundle.store.id, service_id=sid,
+        model=FeeModel.OrderValuePercent, status=ArrangementStatus.Active,
+        security_deposit_amount=500.0, balance=100.0,
+    )
+    session.add(arr)
+    await session.commit()
+
+    app.dependency_overrides[get_current_seller] = lambda: bundle.user
+    try:
+        r = await client.get("/api/v1/sellers/me/plan")
+        assert r.status_code == 200, r.text
+        svc = next(s for s in r.json()["services"] if s["service_id"] == sid)
+        assert svc["order_value_enabled"] is True
+        assert svc["order_value_percent"] == 2.5
+        assert svc["order_value_min_deposit"] == 500.0
+        assert svc["security_deposit_amount"] == 500.0
+        assert svc["outstanding_balance"] == 100.0
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+
+
 # ─── Slice F: notifications ──────────────────────────────────────────────
 
 

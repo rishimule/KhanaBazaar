@@ -843,6 +843,7 @@ async def get_my_plan(
             amount_due = match.price if match else None
         is_ppt = arr is not None and arr.model == FeeModel.PayPerTransaction
         ppt_balance = arr.balance if (arr is not None and is_ppt) else None
+        is_ov = arr is not None and arr.model == FeeModel.OrderValuePercent
         views.append(
             SellerPlanServiceView(
                 service_id=svc.id,
@@ -865,6 +866,15 @@ async def get_my_plan(
                 low_balance_threshold=(
                     cfg.pay_per_txn_low_balance_threshold if is_ppt else None
                 ),
+                order_value_enabled=cfg.order_value_enabled,
+                order_value_percent=cfg.order_value_percent,
+                order_value_min_deposit=cfg.order_value_min_deposit,
+                order_value_billing_day=cfg.order_value_billing_day,
+                order_value_payment_days=cfg.order_value_payment_days,
+                security_deposit_amount=(
+                    arr.security_deposit_amount if (arr is not None and is_ov) else None
+                ),
+                outstanding_balance=(arr.balance if (arr is not None and is_ov) else None),
             )
         )
     return SellerPlanView(

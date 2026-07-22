@@ -101,6 +101,14 @@ class SellerPlanServiceView(BaseModel):
     pay_per_txn_min_deposit: float = 0.0
     balance: Optional[float] = None
     low_balance_threshold: Optional[float] = None
+    # Order Value % (postpaid) fields.
+    order_value_enabled: bool = False
+    order_value_percent: float = 0.0
+    order_value_min_deposit: float = 0.0
+    order_value_billing_day: int = 5
+    order_value_payment_days: int = 7
+    security_deposit_amount: Optional[float] = None
+    outstanding_balance: Optional[float] = None
 
 
 class SellerPlanView(BaseModel):
