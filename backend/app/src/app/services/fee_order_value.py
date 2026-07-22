@@ -20,6 +20,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.commerce import Order, OrderStatus
+from app.models.notification import NotificationType
 from app.models.platform_fee import (
     ArrangementStatus,
     FeeArrangement,
@@ -27,10 +28,15 @@ from app.models.platform_fee import (
     FeeEventType,
     FeeInvoice,
     FeeModel,
+    FeePayment,
+    FeePaymentKind,
+    FeePaymentStatus,
     InvoiceStatus,
     PlatformFeeSettings,
     ServiceFeeConfig,
 )
+from app.services.fee_lifecycle import FeeError
+from app.services.fee_notifications import notify_seller_fee_event
 
 IST = ZoneInfo("Asia/Kolkata")
 DEFAULT_GRACE_DAYS = 2
@@ -179,3 +185,124 @@ async def generate_order_value_invoices(
 
     await session.flush()
     return created
+
+
+async def _order_value_config(
+    session: AsyncSession, service_id: int
+) -> ServiceFeeConfig:
+    """Return the service's fee config, or raise if Order Value % isn't offerable."""
+    cfg = (
+        await session.exec(
+            select(ServiceFeeConfig).where(ServiceFeeConfig.service_id == service_id)
+        )
+    ).first()
+    if cfg is None or not cfg.order_value_enabled:
+        raise FeeError("order_value_not_offerable")
+    return cfg
+
+
+async def opt_into_order_value(
+    session: AsyncSession,
+    arrangement: FeeArrangement,
+    deposit_amount: float,
+    *,
+    now: datetime | None = None,
+) -> FeePayment:
+    """Seller opts into Order Value %: pay the min security deposit offline, admin
+    confirms it, then the arrangement activates (deposit-first). Creates a pending
+    SecurityDeposit FeePayment; the arrangement flips to PendingActivation. Caller
+    commits."""
+    now = now or datetime.now(timezone.utc)
+    cfg = await _order_value_config(session, arrangement.service_id)
+    if deposit_amount < cfg.order_value_min_deposit:
+        raise FeeError("below_min_deposit")
+    existing_pending = (
+        await session.exec(
+            select(FeePayment).where(
+                FeePayment.arrangement_id == arrangement.id,
+                FeePayment.status == FeePaymentStatus.Pending,
+            )
+        )
+    ).first()
+    if existing_pending is not None:
+        raise FeeError("payment_already_pending")
+
+    arrangement.model = FeeModel.OrderValuePercent
+    arrangement.status = ArrangementStatus.PendingActivation
+    arrangement.pending_since = now
+    session.add(arrangement)
+    payment = FeePayment(
+        arrangement_id=arrangement.id,
+        kind=FeePaymentKind.SecurityDeposit,
+        amount=deposit_amount,
+        status=FeePaymentStatus.Pending,
+    )
+    session.add(payment)
+    await session.flush()
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.PaymentRecorded,
+            amount_delta=deposit_amount,
+            actor="seller",
+            note="order-value opt-in deposit",
+        )
+    )
+    return payment
+
+
+async def confirm_order_value_deposit(
+    session: AsyncSession,
+    payment: FeePayment,
+    admin_user_id: int,
+    *,
+    today: date | None = None,
+) -> tuple[FeeArrangement, NotificationType | None]:
+    """Admin confirms the offline security deposit → arrangement goes Active and
+    billing anchors are set. Records the single in-app FeeActivated notification;
+    caller does channel fan-out. Returns (arrangement, notification_type). Caller
+    commits."""
+    today = today or date.today()
+    arrangement = (
+        await session.exec(
+            select(FeeArrangement).where(FeeArrangement.id == payment.arrangement_id)
+        )
+    ).one()
+
+    arrangement.model = FeeModel.OrderValuePercent
+    arrangement.security_deposit_amount = payment.amount
+    arrangement.status = ArrangementStatus.Active
+    arrangement.order_value_activated_on = today
+    arrangement.last_billed_period_end = None
+    arrangement.pending_since = None
+    arrangement.valid_until = None
+    session.add(arrangement)
+
+    payment.status = FeePaymentStatus.Confirmed
+    payment.confirmed_by_admin_id = admin_user_id
+    payment.confirmed_at = datetime.now(timezone.utc)
+    session.add(payment)
+
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.DepositRecorded,
+            amount_delta=payment.amount,
+            actor=f"admin:{admin_user_id}",
+            note="order-value security deposit",
+        )
+    )
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.Activated,
+            actor=f"admin:{admin_user_id}",
+            note="order-value activated",
+        )
+    )
+    await session.flush()
+
+    notif = NotificationType.FeeActivated
+    await notify_seller_fee_event(session, store_id=arrangement.store_id, type=notif)
+    await session.flush()
+    return arrangement, notif

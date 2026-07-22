@@ -18,6 +18,9 @@ from app.models.platform_fee import (
     FeeArrangement,
     FeeInvoice,
     FeeModel,
+    FeePayment,
+    FeePaymentKind,
+    FeePaymentStatus,
     InvoiceStatus,
     ServiceFeeConfig,
 )
@@ -308,3 +311,89 @@ async def test_generate_invoice_only_on_billing_day(session: AsyncSession, ov_en
     await session.commit()
     assert created == 0
     assert len(await _invoices(session, arr.id)) == 0
+
+
+# ─── Slice C: opt-in + deposit activation ────────────────────────────────
+
+
+async def _freebie_arr(session: AsyncSession, env: _Env) -> FeeArrangement:
+    arr = FeeArrangement(
+        store_id=env.store.id,
+        service_id=env.service_id,
+        model=FeeModel.Freebie,
+        status=ArrangementStatus.Trial,
+    )
+    session.add(arr)
+    await session.flush()
+    return arr
+
+
+@pytest.mark.asyncio
+async def test_opt_in_below_min_deposit_raises(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_lifecycle import FeeError
+    from app.services.fee_order_value import opt_into_order_value
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, min_deposit=500.0)
+    arr = await _freebie_arr(session, env)
+    with pytest.raises(FeeError, match="below_min_deposit"):
+        await opt_into_order_value(session, arr, 100.0)
+
+
+@pytest.mark.asyncio
+async def test_opt_in_not_enabled_raises(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_lifecycle import FeeError
+    from app.services.fee_order_value import opt_into_order_value
+
+    env = ov_env
+    session.add(ServiceFeeConfig(service_id=env.service_id, order_value_enabled=False))
+    await session.flush()
+    arr = await _freebie_arr(session, env)
+    with pytest.raises(FeeError, match="order_value_not_offerable"):
+        await opt_into_order_value(session, arr, 1000.0)
+
+
+@pytest.mark.asyncio
+async def test_opt_in_creates_pending_deposit(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_order_value import opt_into_order_value
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, min_deposit=500.0)
+    arr = await _freebie_arr(session, env)
+    payment = await opt_into_order_value(session, arr, 800.0)
+    await session.commit()
+
+    assert arr.status == ArrangementStatus.PendingActivation
+    assert arr.model == FeeModel.OrderValuePercent
+    assert payment.kind == FeePaymentKind.SecurityDeposit
+    assert payment.amount == 800.0
+    assert payment.status == FeePaymentStatus.Pending
+
+
+@pytest.mark.asyncio
+async def test_confirm_deposit_activates(session: AsyncSession, ov_env: _Env) -> None:
+    from app.models.notification import NotificationType
+    from app.services.fee_order_value import (
+        confirm_order_value_deposit,
+        opt_into_order_value,
+    )
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, min_deposit=500.0)
+    arr = await _freebie_arr(session, env)
+    payment = await opt_into_order_value(session, arr, 800.0)
+    await session.commit()
+
+    result_arr, notif = await confirm_order_value_deposit(
+        session, payment, admin_user_id=1, today=date(2026, 1, 20)
+    )
+    await session.commit()
+
+    assert result_arr.status == ArrangementStatus.Active
+    assert result_arr.security_deposit_amount == 800.0
+    assert result_arr.order_value_activated_on == date(2026, 1, 20)
+    assert result_arr.last_billed_period_end is None
+    assert notif == NotificationType.FeeActivated
+    await session.refresh(payment)
+    assert payment.status == FeePaymentStatus.Confirmed
+    assert payment.confirmed_by_admin_id == 1
