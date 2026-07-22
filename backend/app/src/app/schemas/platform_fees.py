@@ -171,6 +171,22 @@ class PaymentQueueItem(BaseModel):
     created_at: str
 
 
+class InvoiceView(BaseModel):
+    id: int
+    arrangement_id: int
+    service_id: int
+    period_start: str
+    period_end: str
+    sales_total: float
+    fee_percent_snapshot: float
+    amount_due: float
+    status: str
+    issued_on: str
+    due_date: str
+    suspend_after: str
+    paid_at: Optional[str] = None
+
+
 class RejectBody(BaseModel):
     reason: str = Field(min_length=1, max_length=200)
 

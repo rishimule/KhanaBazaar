@@ -21,6 +21,7 @@ from app.models.notification import NotificationType
 from app.models.platform_fee import (
     ArrangementStatus,
     FeeArrangement,
+    FeeInvoice,
     FeeModel,
     FeePayment,
     FeePaymentKind,
@@ -39,6 +40,7 @@ from app.schemas.platform_fees import (
     CreditAdjustBody,
     CreditAmountBody,
     ExtendBody,
+    InvoiceView,
     MarkPaidBody,
     OptInBody,
     OrderValueOptInBody,
@@ -80,7 +82,9 @@ from app.services.fee_lifecycle import (
 )
 from app.services.fee_notifications import notify_seller_fee_event
 from app.services.fee_order_value import (
+    confirm_invoice_payment,
     confirm_order_value_deposit,
+    create_invoice_payment,
     opt_into_order_value,
 )
 from app.services.image_processing import ImageValidationError, process_image
@@ -339,6 +343,10 @@ async def confirm_payment(
         # confirm_order_value_deposit records the single FeeActivated in-app
         # notification itself — do NOT re-notify here.
         arr, notif = await confirm_order_value_deposit(session, payment, admin.id)
+    elif payment.kind == FeePaymentKind.OrderValueInvoice:
+        # confirm_invoice_payment records the single FeeReactivated in-app
+        # notification itself (only when it reactivates) — do NOT re-notify here.
+        arr, notif = await confirm_invoice_payment(session, payment, admin.id)
     else:
         raise HTTPException(
             status_code=400, detail={"error": "unsupported_payment_kind"}
@@ -882,6 +890,83 @@ async def opt_in_order_value(
     await session.commit()
     await session.refresh(payment)
     return {"payment_id": payment.id, "amount": payment.amount}
+
+
+def _invoice_view(inv: FeeInvoice) -> InvoiceView:
+    return InvoiceView(
+        id=inv.id,  # type: ignore[arg-type]
+        arrangement_id=inv.arrangement_id,
+        service_id=inv.service_id,
+        period_start=inv.period_start.isoformat(),
+        period_end=inv.period_end.isoformat(),
+        sales_total=inv.sales_total,
+        fee_percent_snapshot=inv.fee_percent_snapshot,
+        amount_due=inv.amount_due,
+        status=inv.status.value,
+        issued_on=inv.issued_on.isoformat(),
+        due_date=inv.due_date.isoformat(),
+        suspend_after=inv.suspend_after.isoformat(),
+        paid_at=inv.paid_at.isoformat() if inv.paid_at else None,
+    )
+
+
+@seller_router.get(
+    "/me/plan/{service_id}/invoices", response_model=list[InvoiceView]
+)
+async def list_my_invoices(
+    service_id: int,
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[InvoiceView]:
+    _profile, store = await _seller_store(session, seller)
+    arr = await _arrangement(session, store.id, service_id)
+    invoices = (
+        await session.exec(
+            select(FeeInvoice)
+            .where(FeeInvoice.arrangement_id == arr.id)
+            .order_by(FeeInvoice.period_start.desc())  # type: ignore[attr-defined]
+        )
+    ).all()
+    return [_invoice_view(inv) for inv in invoices]
+
+
+@seller_router.post("/me/plan/{service_id}/invoices/{invoice_id}/mark-paid")
+async def mark_invoice_paid(
+    service_id: int,
+    invoice_id: int,
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:  # type: ignore[type-arg]
+    _profile, store = await _seller_store(session, seller)
+    arr = await _arrangement(session, store.id, service_id)
+    try:
+        payment = await create_invoice_payment(session, arr, invoice_id)
+    except FeeError as exc:
+        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    await session.commit()
+    await session.refresh(payment)
+    return {"payment_id": payment.id, "amount": payment.amount}
+
+
+@admin_router.get(
+    "/fees/arrangements/{arrangement_id}/invoices", response_model=list[InvoiceView]
+)
+async def admin_list_arrangement_invoices(
+    arrangement_id: int,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[InvoiceView]:
+    arr = await session.get(FeeArrangement, arrangement_id)
+    if arr is None:
+        raise HTTPException(status_code=404, detail={"error": "arrangement_not_found"})
+    invoices = (
+        await session.exec(
+            select(FeeInvoice)
+            .where(FeeInvoice.arrangement_id == arrangement_id)
+            .order_by(FeeInvoice.period_start.desc())  # type: ignore[attr-defined]
+        )
+    ).all()
+    return [_invoice_view(inv) for inv in invoices]
 
 
 @seller_router.post("/me/plan/{service_id}/top-up")

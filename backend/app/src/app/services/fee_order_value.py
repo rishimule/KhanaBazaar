@@ -380,6 +380,50 @@ async def sweep_order_value_overdue(
     return counts
 
 
+async def create_invoice_payment(
+    session: AsyncSession,
+    arrangement: FeeArrangement,
+    invoice_id: int,
+    *,
+    now: datetime | None = None,
+) -> FeePayment:
+    """Seller records an offline payment for a specific invoice → a Pending
+    OrderValueInvoice FeePayment, linked to the invoice. Admin confirms it via
+    confirm_invoice_payment. Caller commits."""
+    now = now or datetime.now(timezone.utc)
+    invoice = await session.get(FeeInvoice, invoice_id)
+    if invoice is None or invoice.arrangement_id != arrangement.id:
+        raise FeeError("invoice_not_found")
+    if invoice.status not in (InvoiceStatus.Pending, InvoiceStatus.Overdue):
+        raise FeeError("invoice_not_payable")
+    if invoice.payment_id is not None:
+        existing = await session.get(FeePayment, invoice.payment_id)
+        if existing is not None and existing.status == FeePaymentStatus.Pending:
+            raise FeeError("payment_already_pending")
+
+    payment = FeePayment(
+        arrangement_id=arrangement.id,
+        kind=FeePaymentKind.OrderValueInvoice,
+        amount=invoice.amount_due,
+        status=FeePaymentStatus.Pending,
+    )
+    session.add(payment)
+    await session.flush()
+    invoice.payment_id = payment.id
+    session.add(invoice)
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.PaymentRecorded,
+            amount_delta=invoice.amount_due,
+            actor="seller",
+            note=f"order-value invoice #{invoice_id} payment",
+        )
+    )
+    await session.flush()
+    return payment
+
+
 async def confirm_invoice_payment(
     session: AsyncSession,
     payment: FeePayment,

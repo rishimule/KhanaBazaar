@@ -656,3 +656,63 @@ async def test_confirm_invoice_stays_suspended_with_other_unpaid(
 
     assert result_arr.status == ArrangementStatus.Suspended  # inv2 still unpaid
     assert notif is None
+
+
+@pytest.mark.asyncio
+async def test_api_invoice_pay_confirm_loop(
+    client, session: AsyncSession, approved_seller_with_store, admin_auth_headers
+) -> None:
+    from app import app
+    from app.core.security import get_current_seller
+
+    bundle = approved_seller_with_store
+    sid = bundle.service_id
+    await _persist_test_admin(session)
+    await _ov_cfg(session, sid, percent=2.0)
+    arr = FeeArrangement(
+        store_id=bundle.store.id, service_id=sid,
+        model=FeeModel.OrderValuePercent, status=ArrangementStatus.Active,
+        security_deposit_amount=500.0,
+    )
+    session.add(arr)
+    await session.flush()
+    inv = FeeInvoice(
+        arrangement_id=arr.id, store_id=bundle.store.id, service_id=sid,
+        period_start=date(2026, 1, 1), period_end=date(2026, 1, 31),
+        sales_total=5000.0, fee_percent_snapshot=2.0, amount_due=100.0,
+        status=InvoiceStatus.Pending, issued_on=date(2026, 2, 5),
+        due_date=date(2026, 2, 12), suspend_after=date(2026, 2, 14),
+    )
+    session.add(inv)
+    arr.balance = 100.0
+    session.add(arr)
+    await session.commit()
+    arr_id, inv_id = arr.id, inv.id
+
+    app.dependency_overrides[get_current_seller] = lambda: bundle.user
+    try:
+        r = await client.get(f"/api/v1/sellers/me/plan/{sid}/invoices")
+        assert r.status_code == 200, r.text
+        assert len(r.json()) == 1 and r.json()[0]["status"] == "pending"
+
+        r2 = await client.post(
+            f"/api/v1/sellers/me/plan/{sid}/invoices/{inv_id}/mark-paid"
+        )
+        assert r2.status_code == 200, r2.text
+        payment_id = r2.json()["payment_id"]
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+
+    r3 = await client.post(
+        f"/api/v1/admin/fees/payments/{payment_id}/confirm", headers=admin_auth_headers
+    )
+    assert r3.status_code == 200, r3.text
+
+    await session.refresh(inv)
+    assert inv.status == InvoiceStatus.Paid
+
+    r4 = await client.get(
+        f"/api/v1/admin/fees/arrangements/{arr_id}/invoices", headers=admin_auth_headers
+    )
+    assert r4.status_code == 200, r4.text
+    assert r4.json()[0]["status"] == "paid"
