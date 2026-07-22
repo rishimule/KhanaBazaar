@@ -111,6 +111,8 @@ def _settings_read(s: PlatformFeeSettings) -> PlatformFeeSettingsRead:
         upi_id=s.upi_id,
         qr_image_url=s.qr_image_url,
         gstin=s.gstin,
+        upi_enabled=s.upi_enabled,
+        bank_transfer_enabled=s.bank_transfer_enabled,
     )
 
 

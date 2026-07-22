@@ -112,6 +112,10 @@ class PlatformFeeSettings(BaseSchema, table=True):
     qr_image_url: Optional[str] = Field(default=None, max_length=500)
     qr_storage_key: Optional[str] = Field(default=None, max_length=300)
     gstin: Optional[str] = Field(default=None, max_length=20)
+    # Which payment methods the admin offers sellers for platform-fee payments.
+    # Default True so existing installs keep showing already-configured details.
+    upi_enabled: bool = Field(default=True, nullable=False)
+    bank_transfer_enabled: bool = Field(default=True, nullable=False)
 
 
 class ServiceFeeConfig(BaseSchema, table=True):

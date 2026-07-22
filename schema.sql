@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `9bb307d813e9`. Regenerate this file when the head changes.
+-- migration head `07ee0330ff0a`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
@@ -623,7 +623,9 @@ CREATE TABLE "platform_fee_settings" (
   "upi_id" VARCHAR(100),
   "qr_image_url" VARCHAR(500),
   "qr_storage_key" VARCHAR(300),
-  "gstin" VARCHAR(20)
+  "gstin" VARCHAR(20),
+  "upi_enabled" BOOLEAN NOT NULL DEFAULT TRUE,
+  "bank_transfer_enabled" BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE "service_fee_config" (

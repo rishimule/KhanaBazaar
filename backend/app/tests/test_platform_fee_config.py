@@ -128,3 +128,25 @@ async def test_put_plans_rejects_bad_duration(client: AsyncClient, admin_auth_he
         json={"plans": [{"duration_months": 4, "price": 100, "is_active": True}]},
     )
     assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_payment_method_flags_default_true_and_roundtrip(
+    client: AsyncClient, admin_auth_headers
+) -> None:
+    # New installs default both methods ON (no migrate regression).
+    r = await client.get("/api/v1/admin/fees/settings", headers=admin_auth_headers)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["upi_enabled"] is True
+    assert body["bank_transfer_enabled"] is True
+
+    # Enable UPI with a valid id, disable bank transfer — flags persist.
+    r2 = await client.patch(
+        "/api/v1/admin/fees/settings",
+        headers=admin_auth_headers,
+        json={"upi_enabled": True, "bank_transfer_enabled": False, "upi_id": "pay@oksbi"},
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["upi_enabled"] is True
+    assert r2.json()["bank_transfer_enabled"] is False
