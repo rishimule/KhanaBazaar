@@ -87,6 +87,7 @@ async def _ov_arr(
     deposit: float = 500.0,
     activated_on: date | None = None,
     last_billed_period_end: date | None = None,
+    suspended_reason: str | None = None,
 ) -> FeeArrangement:
     arr = FeeArrangement(
         store_id=env.store.id,
@@ -96,6 +97,7 @@ async def _ov_arr(
         security_deposit_amount=deposit,
         order_value_activated_on=activated_on,
         last_billed_period_end=last_billed_period_end,
+        suspended_reason=suspended_reason,
     )
     session.add(arr)
     await session.flush()
@@ -307,10 +309,57 @@ async def test_generate_invoice_only_on_billing_day(session: AsyncSession, ov_en
     arr = await _ov_arr(session, env, activated_on=date(2026, 1, 1))
     await session.commit()
 
-    created = await generate_order_value_invoices(session, date(2026, 2, 4))  # not the 5th
+    created = await generate_order_value_invoices(session, date(2026, 2, 4))  # before the 5th
     await session.commit()
     assert created == 0
     assert len(await _invoices(session, arr.id)) == 0
+
+
+@pytest.mark.asyncio
+async def test_generate_invoice_catches_up_missed_day(session: AsyncSession, ov_env: _Env) -> None:
+    """A sweep that runs AFTER the billing day still bills the prior month."""
+    from app.services.fee_order_value import generate_order_value_invoices
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, percent=2.0, billing_day=5)
+    arr = await _ov_arr(session, env, activated_on=date(2026, 1, 1))
+    await _ov_order(session, env, total=1000.0, status=OrderStatus.Delivered, placed_at=_at(date(2026, 1, 15)))
+    await session.commit()
+
+    # Feb 5 sweep was missed; the Feb 8 run still generates January's invoice.
+    created = await generate_order_value_invoices(session, date(2026, 2, 8))
+    await session.commit()
+
+    invs = await _invoices(session, arr.id)
+    assert created == 1 and len(invs) == 1
+    assert invs[0].period_start == date(2026, 1, 1)
+    assert invs[0].period_end == date(2026, 1, 31)
+    assert invs[0].amount_due == 20.0
+
+
+@pytest.mark.asyncio
+async def test_generate_invoice_catches_up_missed_month(session: AsyncSession, ov_env: _Env) -> None:
+    """A whole missed month is caught up: two invoices (Jan + Feb) on one run."""
+    from app.services.fee_order_value import generate_order_value_invoices
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, percent=2.0, billing_day=5)
+    arr = await _ov_arr(session, env, activated_on=date(2026, 1, 1))
+    await _ov_order(session, env, total=1000.0, status=OrderStatus.Delivered, placed_at=_at(date(2026, 1, 15)))
+    await _ov_order(session, env, total=2000.0, status=OrderStatus.Delivered, placed_at=_at(date(2026, 2, 15)))
+    await session.commit()
+
+    # Neither Feb 5 nor... the first run happens Mar 5 → bills BOTH Jan and Feb.
+    created = await generate_order_value_invoices(session, date(2026, 3, 5))
+    await session.commit()
+
+    invs = sorted(await _invoices(session, arr.id), key=lambda i: i.period_start)
+    assert created == 2 and len(invs) == 2
+    assert invs[0].period_start == date(2026, 1, 1) and invs[0].amount_due == 20.0
+    assert invs[1].period_start == date(2026, 2, 1) and invs[1].amount_due == 40.0
+    await session.refresh(arr)
+    assert arr.balance == 60.0
+    assert arr.last_billed_period_end == date(2026, 2, 28)
 
 
 # ─── Slice C: opt-in + deposit activation ────────────────────────────────
@@ -613,10 +662,12 @@ async def test_confirm_invoice_reduces_balance(session: AsyncSession, ov_env: _E
 @pytest.mark.asyncio
 async def test_confirm_invoice_reactivates_suspended(session: AsyncSession, ov_env: _Env) -> None:
     from app.models.notification import NotificationType
-    from app.services.fee_order_value import confirm_invoice_payment
+    from app.services.fee_order_value import NONPAYMENT_REASON, confirm_invoice_payment
 
     env = ov_env
-    arr = await _ov_arr(session, env, status=ArrangementStatus.Suspended)
+    arr = await _ov_arr(
+        session, env, status=ArrangementStatus.Suspended, suspended_reason=NONPAYMENT_REASON,
+    )
     inv, payment = await _invoice_with_payment(session, env, arr, amount=100.0, inv_status=InvoiceStatus.Overdue)
     await session.commit()
 
@@ -631,10 +682,12 @@ async def test_confirm_invoice_reactivates_suspended(session: AsyncSession, ov_e
 async def test_confirm_invoice_stays_suspended_with_other_unpaid(
     session: AsyncSession, ov_env: _Env
 ) -> None:
-    from app.services.fee_order_value import confirm_invoice_payment
+    from app.services.fee_order_value import NONPAYMENT_REASON, confirm_invoice_payment
 
     env = ov_env
-    arr = await _ov_arr(session, env, status=ArrangementStatus.Suspended)
+    arr = await _ov_arr(
+        session, env, status=ArrangementStatus.Suspended, suspended_reason=NONPAYMENT_REASON,
+    )
     inv1, pay1 = await _invoice_with_payment(
         session, env, arr, amount=100.0, inv_status=InvoiceStatus.Overdue,
     )
@@ -655,6 +708,33 @@ async def test_confirm_invoice_stays_suspended_with_other_unpaid(
     await session.commit()
 
     assert result_arr.status == ArrangementStatus.Suspended  # inv2 still unpaid
+    assert notif is None
+
+
+@pytest.mark.asyncio
+async def test_confirm_invoice_does_not_resurrect_terminated(
+    session: AsyncSession, ov_env: _Env
+) -> None:
+    """Paying the trailing invoice of an admin-TERMINATED arrangement must not
+    reactivate it (only non-payment suspensions auto-reactivate)."""
+    from app.services.fee_order_value import confirm_invoice_payment
+
+    env = ov_env
+    arr = await _ov_arr(
+        session, env, status=ArrangementStatus.Suspended,
+        suspended_reason="admin_terminate",  # NOT the non-payment reason
+    )
+    inv, payment = await _invoice_with_payment(
+        session, env, arr, amount=100.0, inv_status=InvoiceStatus.Pending,
+    )
+    await session.commit()
+
+    result_arr, notif = await confirm_invoice_payment(session, payment, admin_user_id=1)
+    await session.commit()
+
+    await session.refresh(inv)
+    assert inv.status == InvoiceStatus.Paid  # bill still settles
+    assert result_arr.status == ArrangementStatus.Suspended  # stays terminated
     assert notif is None
 
 
@@ -721,22 +801,52 @@ async def test_api_invoice_pay_confirm_loop(
 # ─── Slice E: forfeit, refund, switch-out ────────────────────────────────
 
 
+async def _mk_period_invoice(
+    session: AsyncSession, env: _Env, arr: FeeArrangement, *,
+    amount: float, period_start: date, period_end: date,
+    status: InvoiceStatus = InvoiceStatus.Overdue,
+) -> FeeInvoice:
+    inv = FeeInvoice(
+        arrangement_id=arr.id, store_id=env.store.id, service_id=env.service_id,
+        period_start=period_start, period_end=period_end, sales_total=amount * 50,
+        fee_percent_snapshot=2.0, amount_due=amount, status=status,
+        issued_on=period_end, due_date=period_end, suspend_after=period_end,
+    )
+    session.add(inv)
+    arr.balance = round(arr.balance + amount, 2)
+    session.add(arr)
+    await session.flush()
+    return inv
+
+
 @pytest.mark.asyncio
-async def test_forfeit_reduces_deposit_and_balance(session: AsyncSession, ov_env: _Env) -> None:
-    from app.services.fee_order_value import forfeit_deposit
+async def test_forfeit_waives_invoice_and_reactivates(session: AsyncSession, ov_env: _Env) -> None:
+    from app.models.notification import NotificationType
+    from app.services.fee_order_value import NONPAYMENT_REASON, forfeit_deposit
 
     env = ov_env
-    arr = await _ov_arr(session, env, status=ArrangementStatus.Suspended, deposit=500.0)
-    arr.balance = 100.0
-    session.add(arr)
+    arr = await _ov_arr(
+        session, env, status=ArrangementStatus.Suspended, deposit=500.0,
+        suspended_reason=NONPAYMENT_REASON,
+    )
+    inv = await _mk_invoice(
+        session, env, arr, amount=100.0, status=InvoiceStatus.Overdue,
+        due_date=date(2026, 2, 12), suspend_after=date(2026, 2, 14),
+    )
     await session.commit()
 
-    await forfeit_deposit(session, arr, 100.0, admin_user_id=1, reason="nonpayment")
+    result_arr, notif = await forfeit_deposit(
+        session, arr, 100.0, admin_user_id=1, reason="nonpayment write-down"
+    )
     await session.commit()
 
     await session.refresh(arr)
+    await session.refresh(inv)
     assert arr.security_deposit_amount == 400.0
     assert arr.balance == 0.0
+    assert inv.status == InvoiceStatus.Waived  # settled by the forfeit — not re-payable
+    assert arr.status == ArrangementStatus.Active  # cleared last unpaid → reactivated
+    assert notif == NotificationType.FeeReactivated
 
 
 @pytest.mark.asyncio
@@ -754,21 +864,45 @@ async def test_forfeit_over_deposit_raises(session: AsyncSession, ov_env: _Env) 
 
 
 @pytest.mark.asyncio
-async def test_forfeit_shortfall_stays_owed(session: AsyncSession, ov_env: _Env) -> None:
-    from app.services.fee_order_value import forfeit_deposit
+async def test_forfeit_settles_whole_invoices_only(session: AsyncSession, ov_env: _Env) -> None:
+    """Forfeit waives whole invoices oldest-first; an amount that can't cover a
+    whole invoice leaves it owed, and balance stays == sum(unpaid invoices)."""
+    from app.services.fee_order_value import NONPAYMENT_REASON, forfeit_deposit
 
     env = ov_env
-    arr = await _ov_arr(session, env, deposit=50.0)
-    arr.balance = 200.0  # owes more than the deposit
-    session.add(arr)
+    arr = await _ov_arr(
+        session, env, status=ArrangementStatus.Suspended, deposit=50.0,
+        suspended_reason=NONPAYMENT_REASON,
+    )
+    inv_jan = await _mk_period_invoice(session, env, arr, amount=50.0, period_start=date(2026, 1, 1), period_end=date(2026, 1, 31))
+    inv_feb = await _mk_period_invoice(session, env, arr, amount=150.0, period_start=date(2026, 2, 1), period_end=date(2026, 2, 28))
     await session.commit()
 
-    await forfeit_deposit(session, arr, 50.0, admin_user_id=1)
+    result_arr, notif = await forfeit_deposit(session, arr, 50.0, admin_user_id=1)
     await session.commit()
 
     await session.refresh(arr)
+    await session.refresh(inv_jan)
+    await session.refresh(inv_feb)
     assert arr.security_deposit_amount == 0.0
-    assert arr.balance == 150.0  # shortfall remains owed
+    assert inv_jan.status == InvoiceStatus.Waived  # 50 covered
+    assert inv_feb.status == InvoiceStatus.Overdue  # 150 not covered by 50
+    assert arr.balance == 150.0  # shortfall stays owed, balance == unpaid invoices
+    assert arr.status == ArrangementStatus.Suspended  # still unpaid → not reactivated
+    assert notif is None
+
+
+@pytest.mark.asyncio
+async def test_refund_requires_exit_state(session: AsyncSession, ov_env: _Env) -> None:
+    """Refund is rejected on a live (Active) arrangement — never strips collateral."""
+    from app.services.fee_lifecycle import FeeError
+    from app.services.fee_order_value import refund_deposit
+
+    env = ov_env
+    arr = await _ov_arr(session, env, status=ArrangementStatus.Active, deposit=500.0)
+    await session.commit()
+    with pytest.raises(FeeError, match="refund_requires_exit"):
+        await refund_deposit(session, arr, "offline", admin_user_id=1)
 
 
 @pytest.mark.asyncio
@@ -776,9 +910,14 @@ async def test_refund_offline_records_negative_payment(session: AsyncSession, ov
     from app.services.fee_order_value import refund_deposit
 
     env = ov_env
-    arr = await _ov_arr(session, env, deposit=500.0)
-    arr.balance = 100.0
-    session.add(arr)
+    arr = await _ov_arr(
+        session, env, status=ArrangementStatus.Suspended, deposit=500.0,
+        suspended_reason="admin_terminate",
+    )
+    inv = await _mk_invoice(
+        session, env, arr, amount=100.0, status=InvoiceStatus.Overdue,
+        due_date=date(2026, 2, 12), suspend_after=date(2026, 2, 14),
+    )
     await session.commit()
 
     refunded = await refund_deposit(session, arr, "offline", admin_user_id=1)
@@ -786,8 +925,10 @@ async def test_refund_offline_records_negative_payment(session: AsyncSession, ov
 
     assert refunded == 400.0
     await session.refresh(arr)
+    await session.refresh(inv)
     assert arr.security_deposit_amount == 0.0
     assert arr.balance == 0.0
+    assert inv.status == InvoiceStatus.Cancelled  # trailing invoice written off
     pay = (
         await session.exec(
             select(FeePayment).where(
@@ -806,7 +947,10 @@ async def test_refund_credit_grants_wallet(session: AsyncSession, ov_env: _Env) 
     from app.services.fee_order_value import refund_deposit
 
     env = ov_env
-    arr = await _ov_arr(session, env, deposit=500.0)  # balance 0
+    arr = await _ov_arr(
+        session, env, status=ArrangementStatus.Suspended, deposit=500.0,
+        suspended_reason="admin_terminate",
+    )  # balance 0
     await session.commit()
 
     refunded = await refund_deposit(session, arr, "credit", admin_user_id=1)
@@ -822,9 +966,14 @@ async def test_refund_when_outstanding_exceeds_deposit(session: AsyncSession, ov
     from app.services.fee_order_value import refund_deposit
 
     env = ov_env
-    arr = await _ov_arr(session, env, deposit=50.0)
-    arr.balance = 200.0
-    session.add(arr)
+    arr = await _ov_arr(
+        session, env, status=ArrangementStatus.Suspended, deposit=50.0,
+        suspended_reason="admin_terminate",
+    )
+    await _mk_invoice(
+        session, env, arr, amount=200.0, status=InvoiceStatus.Overdue,
+        due_date=date(2026, 2, 12), suspend_after=date(2026, 2, 14),
+    )
     await session.commit()
 
     refunded = await refund_deposit(session, arr, "offline", admin_user_id=1)
@@ -833,7 +982,7 @@ async def test_refund_when_outstanding_exceeds_deposit(session: AsyncSession, ov
     assert refunded == 0.0
     await session.refresh(arr)
     assert arr.security_deposit_amount == 0.0
-    assert arr.balance == 150.0  # deposit consumed toward debt; remainder owed
+    assert arr.balance == 0.0  # deposit consumed; remainder written off (invoice Cancelled)
 
 
 @pytest.mark.asyncio
@@ -861,9 +1010,12 @@ async def test_final_invoice_bills_trailing_sales(session: AsyncSession, ov_env:
 
 
 @pytest.mark.asyncio
-async def test_api_admin_forfeit_and_refund(
+async def test_api_admin_forfeit_then_refund_exit(
     client, session: AsyncSession, approved_seller_with_store, admin_auth_headers
 ) -> None:
+    """Exit settlement: a terminated (Suspended) arrangement — admin forfeits
+    part of the deposit against the outstanding invoice (does NOT resurrect the
+    terminated store), then refunds the remainder."""
     bundle = approved_seller_with_store
     sid = bundle.service_id
     await _persist_test_admin(session)
@@ -871,21 +1023,35 @@ async def test_api_admin_forfeit_and_refund(
     arr = FeeArrangement(
         store_id=bundle.store.id, service_id=sid,
         model=FeeModel.OrderValuePercent, status=ArrangementStatus.Suspended,
-        security_deposit_amount=500.0, balance=100.0,
+        security_deposit_amount=500.0, suspended_reason="admin_terminate",
     )
     session.add(arr)
+    await session.flush()
+    inv = FeeInvoice(
+        arrangement_id=arr.id, store_id=bundle.store.id, service_id=sid,
+        period_start=date(2026, 1, 1), period_end=date(2026, 1, 31),
+        sales_total=5000.0, fee_percent_snapshot=2.0, amount_due=100.0,
+        status=InvoiceStatus.Overdue, issued_on=date(2026, 2, 5),
+        due_date=date(2026, 2, 12), suspend_after=date(2026, 2, 14),
+    )
+    session.add(inv)
+    arr.balance = 100.0
+    session.add(arr)
     await session.commit()
-    arr_id = arr.id
+    arr_id, inv_id = arr.id, inv.id
 
     r = await client.post(
         f"/api/v1/admin/fees/arrangements/{arr_id}/forfeit",
         headers=admin_auth_headers,
-        json={"amount": 100.0, "reason": "non-payment write-down over 10 chars"},
+        json={"amount": 100.0, "invoice_id": inv_id, "reason": "exit write-down over 10 chars"},
     )
     assert r.status_code == 200, r.text
     await session.refresh(arr)
+    await session.refresh(inv)
     assert arr.security_deposit_amount == 400.0
     assert arr.balance == 0.0
+    assert inv.status == InvoiceStatus.Waived
+    assert arr.status == ArrangementStatus.Suspended  # terminated store NOT resurrected
 
     r2 = await client.post(
         f"/api/v1/admin/fees/arrangements/{arr_id}/refund-deposit",
@@ -944,6 +1110,61 @@ async def test_api_admin_terminate_bills_final_invoice(
     invs = await _invoices(session, arr_id)
     assert len(invs) == 1
     assert invs[0].amount_due == 20.0  # 1000 * 2%
+
+
+@pytest.mark.asyncio
+async def test_switch_out_settles_deposit_not_wiped(session: AsyncSession, ov_env: _Env) -> None:
+    """Switching OV → Freebie bills trailing sales + settles the deposit to
+    wallet credit; it must NOT silently zero the balance or orphan the deposit."""
+    from app.services import store_credit
+    from app.services.fee_lifecycle import admin_switch_model
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, percent=2.0)
+    arr = await _ov_arr(
+        session, env, status=ArrangementStatus.Active, deposit=500.0,
+        activated_on=date(2026, 1, 1), last_billed_period_end=date(2026, 1, 31),
+    )
+    # Trailing Feb sales, not yet billed.
+    await _ov_order(session, env, total=2000.0, status=OrderStatus.Delivered, placed_at=_at(date(2026, 2, 15)))
+    await session.commit()
+
+    await admin_switch_model(
+        session, arr, target_model=FeeModel.Freebie, disposition="credit",
+        admin_user_id=1, today=date(2026, 3, 10),
+    )
+    await session.commit()
+
+    await session.refresh(arr)
+    assert arr.model == FeeModel.Freebie
+    assert arr.balance == 0.0
+    assert arr.security_deposit_amount == 0.0
+    store = await store_credit.load_store(session, env.store.id)
+    # Feb fee = 2000 * 2% = 40 consumed from the 500 deposit → 460 returned.
+    assert store.fee_credit_balance == 460.0
+
+
+@pytest.mark.asyncio
+async def test_api_config_exposes_payment_days(
+    client, session: AsyncSession, approved_seller_with_store, admin_auth_headers
+) -> None:
+    bundle = approved_seller_with_store
+    sid = bundle.service_id
+    await _persist_test_admin(session)
+
+    r = await client.patch(
+        f"/api/v1/admin/fees/services/{sid}",
+        headers=admin_auth_headers,
+        json={"order_value_enabled": True, "order_value_payment_days": 10},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["order_value_payment_days"] == 10
+
+    r2 = await client.get(
+        f"/api/v1/admin/fees/services/{sid}", headers=admin_auth_headers
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["config"]["order_value_payment_days"] == 10
 
 
 # ─── Slice F: notifications ──────────────────────────────────────────────

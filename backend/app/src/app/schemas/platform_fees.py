@@ -38,6 +38,7 @@ class ServiceFeeConfigRead(BaseModel):
     order_value_percent: float
     order_value_min_deposit: float
     order_value_billing_day: int
+    order_value_payment_days: int
     pay_per_txn_enabled: bool
     pay_per_txn_fee: float
     pay_per_txn_min_deposit: float
@@ -52,6 +53,7 @@ class ServiceFeeConfigPatch(BaseModel):
     order_value_percent: Optional[float] = Field(default=None, ge=0, le=100)
     order_value_min_deposit: Optional[float] = Field(default=None, ge=0)
     order_value_billing_day: Optional[int] = Field(default=None, ge=1, le=28)
+    order_value_payment_days: Optional[int] = Field(default=None, ge=0, le=60)
     pay_per_txn_enabled: Optional[bool] = None
     pay_per_txn_fee: Optional[float] = Field(default=None, ge=0)
     pay_per_txn_min_deposit: Optional[float] = Field(default=None, ge=0)

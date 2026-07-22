@@ -42,12 +42,21 @@ from app.services.fee_notifications import notify_seller_fee_event
 
 IST = ZoneInfo("Asia/Kolkata")
 DEFAULT_GRACE_DAYS = 2
+# Marks a suspension caused by an unpaid order-value invoice. Only suspensions
+# with this reason auto-reactivate on payment/forfeit — an admin *terminate*
+# (different reason, auto_renew=False) must never be resurrected by settling a bill.
+NONPAYMENT_REASON = "order_value_nonpayment"
 
 
 def _last_day_of_month(d: date) -> int:
     """Last calendar day of the month containing `d`."""
     nxt = d.replace(day=28) + timedelta(days=4)
     return (nxt.replace(day=1) - timedelta(days=1)).day
+
+
+def _month_end(d: date) -> date:
+    """Last date of the calendar month containing `d`."""
+    return d.replace(day=_last_day_of_month(d))
 
 
 async def compute_order_value_sales(
@@ -91,12 +100,12 @@ async def generate_order_value_invoices(
     *,
     notices: list[tuple[int, str, str | None]] | None = None,
 ) -> int:
-    """On each arrangement's billing day, raise a FeeInvoice for the prior
-    calendar month's completed sales. Idempotent (unique arrangement+period).
-    A zero-amount invoice is auto-settled (Paid). Flushes; caller commits.
-    Returns the number of invoices created."""
-    prev_end = today.replace(day=1) - timedelta(days=1)
-    prev_start = prev_end.replace(day=1)
+    """Raise FeeInvoices for every *complete, unbilled* calendar month that has
+    become due (its month's invoice is due on the next month's billing day).
+    Bills each month oldest-first, so a missed sweep day (or a whole missed
+    month) is caught up on the next run — never silently skipped. Idempotent
+    (unique arrangement+period). A zero-amount invoice is auto-settled (Paid).
+    Flushes; caller commits. Returns the number of invoices created."""
     grace = await _grace_days(session)
     created = 0
 
@@ -111,6 +120,7 @@ async def generate_order_value_invoices(
         )
     ).all()
 
+    this_month_start = today.replace(day=1)
     for arr in arrangements:
         cfg = (
             await session.exec(
@@ -122,80 +132,109 @@ async def generate_order_value_invoices(
         if cfg is None:
             continue
         billing_day = min(cfg.order_value_billing_day, _last_day_of_month(today))
-        if today.day != billing_day:
+        # The prior month becomes billable once we reach the billing day this
+        # month; before that, only months ending before the prior month are due.
+        if today.day >= billing_day:
+            last_billable_end = this_month_start - timedelta(days=1)
+        else:
+            prior_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
+            last_billable_end = prior_month_start - timedelta(days=1)
+
+        # Earliest unbilled period start: after the last billed month, else from
+        # activation (which may be mid-month → partial first invoice).
+        if arr.last_billed_period_end is not None:
+            cursor = arr.last_billed_period_end + timedelta(days=1)
+        elif arr.order_value_activated_on is not None:
+            cursor = arr.order_value_activated_on
+        else:
             continue
 
-        period_start = prev_start
-        if arr.order_value_activated_on and arr.order_value_activated_on > period_start:
-            period_start = arr.order_value_activated_on
-        if arr.last_billed_period_end and arr.last_billed_period_end >= period_start:
-            period_start = arr.last_billed_period_end + timedelta(days=1)
-        if period_start > prev_end:
-            continue  # activated after the period closed; bill next cycle
-
-        already = (
-            await session.exec(
-                select(FeeInvoice).where(
-                    FeeInvoice.arrangement_id == arr.id,
-                    FeeInvoice.period_start == period_start,
+        while cursor <= last_billable_end:
+            period_end = _month_end(cursor)
+            already = (
+                await session.exec(
+                    select(FeeInvoice).where(
+                        FeeInvoice.arrangement_id == arr.id,
+                        FeeInvoice.period_start == cursor,
+                    )
                 )
-            )
-        ).first()
-        if already is not None:
-            continue
+            ).first()
+            if already is None:
+                if await _emit_invoice(
+                    session, arr, cfg, cursor, period_end,
+                    issued_on=today, grace=grace, notices=notices,
+                ):
+                    created += 1
+            arr.last_billed_period_end = period_end
+            session.add(arr)
+            cursor = period_end + timedelta(days=1)
 
-        sales = await compute_order_value_sales(
-            session, arr.store_id, arr.service_id, period_start, prev_end
-        )
-        pct = cfg.order_value_percent
-        amount = round(sales * pct / 100.0, 2)
-        due = today + timedelta(days=cfg.order_value_payment_days)
-        is_zero = amount <= 0.0
+    await session.flush()
+    return created
 
-        invoice = FeeInvoice(
+
+async def _emit_invoice(
+    session: AsyncSession,
+    arr: FeeArrangement,
+    cfg: ServiceFeeConfig,
+    period_start: date,
+    period_end: date,
+    *,
+    issued_on: date,
+    grace: int,
+    notices: list[tuple[int, str, str | None]] | None,
+) -> bool:
+    """Create one FeeInvoice for [period_start, period_end], update balance +
+    audit + notification. Zero-amount → auto-Paid. Returns True. Flush-only."""
+    sales = await compute_order_value_sales(
+        session, arr.store_id, arr.service_id, period_start, period_end
+    )
+    pct = cfg.order_value_percent
+    amount = round(sales * pct / 100.0, 2)
+    due = issued_on + timedelta(days=cfg.order_value_payment_days)
+    is_zero = amount <= 0.0
+
+    session.add(
+        FeeInvoice(
             arrangement_id=arr.id,
             store_id=arr.store_id,
             service_id=arr.service_id,
             period_start=period_start,
-            period_end=prev_end,
+            period_end=period_end,
             sales_total=sales,
             fee_percent_snapshot=pct,
             amount_due=amount,
             status=InvoiceStatus.Paid if is_zero else InvoiceStatus.Pending,
-            issued_on=today,
+            issued_on=issued_on,
             due_date=due,
             suspend_after=due + timedelta(days=grace),
             paid_at=datetime.now(timezone.utc) if is_zero else None,
         )
-        session.add(invoice)
-        if not is_zero:
-            arr.balance += amount
-        arr.last_billed_period_end = prev_end
-        session.add(arr)
-        session.add(
-            FeeEvent(
-                arrangement_id=arr.id,
-                event_type=FeeEventType.InvoiceIssued,
-                amount_delta=amount,
-                actor="system",
-                note=f"invoice {period_start}..{prev_end} sales={sales}",
-            )
+    )
+    if not is_zero:
+        arr.balance = round(arr.balance + amount, 2)
+    session.add(arr)
+    session.add(
+        FeeEvent(
+            arrangement_id=arr.id,
+            event_type=FeeEventType.InvoiceIssued,
+            amount_delta=amount,
+            actor="system",
+            note=f"invoice {period_start}..{period_end} sales={sales}",
         )
-        if not is_zero:
-            spid = await notify_seller_fee_event(
-                session,
-                store_id=arr.store_id,
-                type=NotificationType.FeeInvoiceRaised,
-                valid_until=due,
+    )
+    if not is_zero:
+        spid = await notify_seller_fee_event(
+            session,
+            store_id=arr.store_id,
+            type=NotificationType.FeeInvoiceRaised,
+            valid_until=due,
+        )
+        if notices is not None and spid is not None:
+            notices.append(
+                (spid, NotificationType.FeeInvoiceRaised.value, due.isoformat())
             )
-            if notices is not None and spid is not None:
-                notices.append(
-                    (spid, NotificationType.FeeInvoiceRaised.value, due.isoformat())
-                )
-        created += 1
-
-    await session.flush()
-    return created
+    return True
 
 
 async def generate_final_order_value_invoice(
@@ -451,7 +490,7 @@ async def sweep_order_value_overdue(
             ArrangementStatus.Grace,
         ):
             continue
-        _suspend(session, arr, "order_value_nonpayment")
+        _suspend(session, arr, NONPAYMENT_REASON)
         spid = await notify_seller_fee_event(
             session, store_id=arr.store_id, type=NotificationType.FeeSuspended
         )
@@ -463,6 +502,123 @@ async def sweep_order_value_overdue(
     return counts
 
 
+async def _unpaid_invoices(
+    session: AsyncSession, arrangement_id: int
+) -> list[FeeInvoice]:
+    """Pending + Overdue invoices for an arrangement, oldest period first."""
+    return list(
+        (
+            await session.exec(
+                select(FeeInvoice)
+                .where(
+                    FeeInvoice.arrangement_id == arrangement_id,
+                    FeeInvoice.status.in_(  # type: ignore[attr-defined]
+                        [InvoiceStatus.Pending, InvoiceStatus.Overdue]
+                    ),
+                )
+                .order_by(FeeInvoice.period_start)  # type: ignore[arg-type]
+            )
+        ).all()
+    )
+
+
+async def _reactivate_if_cleared(
+    session: AsyncSession, arrangement: FeeArrangement, actor: str
+) -> NotificationType | None:
+    """If the arrangement is suspended FOR NON-PAYMENT and no unpaid invoices
+    remain, flip it back to Active and record the FeeReactivated in-app
+    notification. Returns the notification type (for channel fan-out) or None.
+    Deliberately does NOT reactivate an admin-terminated arrangement."""
+    if (
+        arrangement.status != ArrangementStatus.Suspended
+        or arrangement.suspended_reason != NONPAYMENT_REASON
+    ):
+        return None
+    if await _unpaid_invoices(session, arrangement.id):  # type: ignore[arg-type]
+        return None
+    arrangement.status = ArrangementStatus.Active
+    arrangement.suspended_at = None
+    arrangement.suspended_reason = None
+    session.add(arrangement)
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.Reactivated,
+            actor=actor,
+            note="order-value outstanding cleared",
+        )
+    )
+    await notify_seller_fee_event(
+        session, store_id=arrangement.store_id, type=NotificationType.FeeReactivated
+    )
+    return NotificationType.FeeReactivated
+
+
+async def settle_order_value_exit(
+    session: AsyncSession,
+    arrangement: FeeArrangement,
+    today: date,
+    *,
+    disposition: str,
+    admin_user_id: int,
+) -> float:
+    """Settle an Order Value % arrangement that is switching to another model.
+    Bills trailing sales (final partial invoice), writes off any still-unpaid
+    invoices, consumes the deposit against outstanding, and disposes the
+    remainder per `disposition` ('credit' → wallet, 'cash_out' → offline record,
+    'waive' → platform keeps it). Zeroes balance + deposit. Returns the amount
+    returned to the seller. Caller commits. Prevents the silent balance-wipe /
+    orphaned-deposit that a plain model switch would otherwise cause."""
+    await generate_final_order_value_invoice(session, arrangement, today)
+    for invoice in await _unpaid_invoices(session, arrangement.id):  # type: ignore[arg-type]
+        invoice.status = InvoiceStatus.Cancelled
+        session.add(invoice)
+
+    deposit = arrangement.security_deposit_amount
+    consumed = min(deposit, max(arrangement.balance, 0.0))
+    returned = round(deposit - consumed, 2)
+    arrangement.balance = 0.0
+    arrangement.security_deposit_amount = 0.0
+    session.add(arrangement)
+
+    if returned > 0 and disposition != "waive":
+        if disposition == "cash_out":
+            session.add(
+                FeePayment(
+                    arrangement_id=arrangement.id,
+                    kind=FeePaymentKind.SecurityDeposit,
+                    amount=-returned,
+                    status=FeePaymentStatus.Confirmed,
+                    confirmed_by_admin_id=admin_user_id,
+                    confirmed_at=datetime.now(timezone.utc),
+                    seller_note="order-value switch-out refund",
+                )
+            )
+        else:  # credit (default)
+            store = await store_credit.load_store(session, arrangement.store_id)
+            await store_credit.grant(
+                session,
+                store,
+                returned,
+                actor=f"admin:{admin_user_id}",
+                note="order-value switch-out deposit",
+                reason=StoreCreditReason.GrantedOnExit,
+                related_arrangement_id=arrangement.id,
+            )
+
+    session.add(
+        FeeEvent(
+            arrangement_id=arrangement.id,
+            event_type=FeeEventType.DepositRefunded,
+            amount_delta=returned,
+            actor=f"admin:{admin_user_id}",
+            note=f"order-value switch-out settle ({disposition})",
+        )
+    )
+    await session.flush()
+    return returned
+
+
 async def forfeit_deposit(
     session: AsyncSession,
     arrangement: FeeArrangement,
@@ -471,21 +627,29 @@ async def forfeit_deposit(
     *,
     invoice_id: int | None = None,
     reason: str | None = None,
-) -> FeeArrangement:
-    """Admin forfeits `amount` of the held security deposit and applies it
-    against outstanding balance. Never auto-triggered. Any shortfall (deposit <
-    balance) stays owed. If `invoice_id` is given, that unpaid invoice is marked
-    Waived. Caller commits."""
+) -> tuple[FeeArrangement, NotificationType | None]:
+    """Admin forfeits `amount` of the held security deposit toward outstanding
+    invoices. Never auto-triggered. To keep `balance` == sum(unpaid invoices),
+    the forfeited amount settles WHOLE unpaid invoices (marking them Waived):
+    the specific `invoice_id` if given, else oldest-first up to the applied
+    amount. Reactivates the store if this clears the last non-payment invoice.
+    Returns (arrangement, reactivation_notification|None). Caller commits."""
+    # Row-lock to avoid a lost update racing another admin action / the sweep.
+    arrangement = (
+        await session.exec(
+            select(FeeArrangement)
+            .where(FeeArrangement.id == arrangement.id)
+            .with_for_update()
+        )
+    ).one()
     if amount <= 0 or amount > arrangement.security_deposit_amount:
         raise FeeError("bad_forfeit_amount")
 
     arrangement.security_deposit_amount = round(
         arrangement.security_deposit_amount - amount, 2
     )
-    applied = min(amount, max(arrangement.balance, 0.0))
-    arrangement.balance = round(arrangement.balance - applied, 2)
-    session.add(arrangement)
 
+    waived_total = 0.0
     if invoice_id is not None:
         invoice = await session.get(FeeInvoice, invoice_id)
         if (
@@ -495,7 +659,20 @@ async def forfeit_deposit(
         ):
             invoice.status = InvoiceStatus.Waived
             session.add(invoice)
+            waived_total += invoice.amount_due
+    else:
+        remaining = amount
+        for invoice in await _unpaid_invoices(session, arrangement.id):  # type: ignore[arg-type]
+            if remaining + 1e-9 < invoice.amount_due:
+                break
+            invoice.status = InvoiceStatus.Waived
+            session.add(invoice)
+            remaining = round(remaining - invoice.amount_due, 2)
+            waived_total += invoice.amount_due
 
+    # balance mirrors the unpaid invoices, so drop exactly what we waived.
+    arrangement.balance = round(arrangement.balance - waived_total, 2)
+    session.add(arrangement)
     session.add(
         FeeEvent(
             arrangement_id=arrangement.id,
@@ -505,8 +682,9 @@ async def forfeit_deposit(
             note=reason or "deposit forfeited",
         )
     )
+    notif = await _reactivate_if_cleared(session, arrangement, f"admin:{admin_user_id}")
     await session.flush()
-    return arrangement
+    return arrangement, notif
 
 
 async def refund_deposit(
@@ -517,18 +695,35 @@ async def refund_deposit(
     *,
     note: str | None = None,
 ) -> float:
-    """Settle the held deposit on exit. Outstanding balance is first cleared by
-    the deposit; the remainder (deposit - outstanding) is refunded via `mode`:
-    'offline' records a negative SecurityDeposit payment (money returned outside
-    the platform); 'credit' grants store wallet credit. Zeroes the deposit and
-    returns the refunded amount (0 if outstanding >= deposit). Caller commits."""
+    """Settle the held deposit on exit. Only valid once the arrangement is
+    Suspended (exit state) — never strips collateral from a live store. Any
+    remaining unpaid invoices are Cancelled (written off); the deposit first
+    clears the outstanding, then the remainder (deposit - outstanding) is
+    refunded via `mode`: 'offline' records a negative SecurityDeposit payment
+    (money returned outside the platform); 'credit' grants store wallet credit.
+    Zeroes the deposit + balance and returns the refunded amount. Caller commits."""
     if mode not in ("offline", "credit"):
         raise FeeError("bad_refund_mode")
+
+    # Row-lock; guard against refunding a live (operating) store.
+    arrangement = (
+        await session.exec(
+            select(FeeArrangement)
+            .where(FeeArrangement.id == arrangement.id)
+            .with_for_update()
+        )
+    ).one()
+    if arrangement.status != ArrangementStatus.Suspended:
+        raise FeeError("refund_requires_exit")
 
     deposit = arrangement.security_deposit_amount
     consumed = min(deposit, max(arrangement.balance, 0.0))
     refundable = round(deposit - consumed, 2)
-    arrangement.balance = round(arrangement.balance - consumed, 2)
+    # Write off any still-unpaid invoices (the remainder beyond `consumed`).
+    for invoice in await _unpaid_invoices(session, arrangement.id):  # type: ignore[arg-type]
+        invoice.status = InvoiceStatus.Cancelled
+        session.add(invoice)
+    arrangement.balance = 0.0
     arrangement.security_deposit_amount = 0.0
     session.add(arrangement)
 
@@ -623,9 +818,10 @@ async def confirm_invoice_payment(
 ) -> tuple[FeeArrangement, NotificationType | None]:
     """Admin confirms an offline OrderValueInvoice payment. Marks the linked
     invoice Paid, subtracts it from the arrangement balance, and — if the
-    arrangement was Suspended/Grace and no unpaid invoices remain — reactivates
-    it. Records the single FeeReactivated in-app notification when reactivating.
-    Returns (arrangement, notification_type). Caller commits."""
+    arrangement was suspended FOR NON-PAYMENT and no unpaid invoices remain —
+    reactivates it (records the single FeeReactivated in-app notification). An
+    admin-terminated arrangement is NOT resurrected. Returns (arrangement,
+    notification_type). Caller commits."""
     now = datetime.now(timezone.utc)
     payment.status = FeePaymentStatus.Confirmed
     payment.confirmed_by_admin_id = admin_user_id
@@ -637,9 +833,12 @@ async def confirm_invoice_payment(
             select(FeeInvoice).where(FeeInvoice.payment_id == payment.id)
         )
     ).first()
+    # Row-lock the arrangement to serialize concurrent confirm/forfeit/refund.
     arrangement = (
         await session.exec(
-            select(FeeArrangement).where(FeeArrangement.id == payment.arrangement_id)
+            select(FeeArrangement)
+            .where(FeeArrangement.id == payment.arrangement_id)
+            .with_for_update()
         )
     ).one()
 
@@ -658,38 +857,7 @@ async def confirm_invoice_payment(
             note="order-value invoice paid",
         )
     )
-
-    notif: NotificationType | None = None
-    if arrangement.status in (ArrangementStatus.Suspended, ArrangementStatus.Grace):
-        remaining = (
-            await session.exec(
-                select(FeeInvoice).where(
-                    FeeInvoice.arrangement_id == arrangement.id,
-                    FeeInvoice.status.in_(  # type: ignore[attr-defined]
-                        [InvoiceStatus.Pending, InvoiceStatus.Overdue]
-                    ),
-                )
-            )
-        ).first()
-        if remaining is None:
-            arrangement.status = ArrangementStatus.Active
-            arrangement.suspended_at = None
-            arrangement.suspended_reason = None
-            notif = NotificationType.FeeReactivated
-            session.add(
-                FeeEvent(
-                    arrangement_id=arrangement.id,
-                    event_type=FeeEventType.Reactivated,
-                    actor=f"admin:{admin_user_id}",
-                    note="order-value invoice cleared",
-                )
-            )
     session.add(arrangement)
+    notif = await _reactivate_if_cleared(session, arrangement, f"admin:{admin_user_id}")
     await session.flush()
-
-    if notif is not None:
-        await notify_seller_fee_event(
-            session, store_id=arrangement.store_id, type=notif
-        )
-        await session.flush()
     return arrangement, notif

@@ -5,7 +5,7 @@
 `admin_router` mounted at /api/v1/admin. Global settings + per-service fee config
 + subscription-plan pricing."""
 from collections.abc import Awaitable, Callable
-from datetime import date
+from datetime import datetime
 
 import anyio
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -85,6 +85,7 @@ from app.services.fee_lifecycle import (
 )
 from app.services.fee_notifications import notify_seller_fee_event
 from app.services.fee_order_value import (
+    IST,
     confirm_invoice_payment,
     confirm_order_value_deposit,
     create_invoice_payment,
@@ -170,6 +171,7 @@ def _config_read(c: ServiceFeeConfig) -> ServiceFeeConfigRead:
         order_value_percent=c.order_value_percent,
         order_value_min_deposit=c.order_value_min_deposit,
         order_value_billing_day=c.order_value_billing_day,
+        order_value_payment_days=c.order_value_payment_days,
         pay_per_txn_enabled=c.pay_per_txn_enabled,
         pay_per_txn_fee=c.pay_per_txn_fee,
         pay_per_txn_min_deposit=c.pay_per_txn_min_deposit,
@@ -484,7 +486,7 @@ async def admin_terminate_arrangement(
     # Order Value % exit: bill trailing completed sales as a final partial invoice
     # before suspending (deposit is then settled via the refund-deposit action).
     if arr.model == FeeModel.OrderValuePercent:
-        await generate_final_order_value_invoice(session, arr, date.today())
+        await generate_final_order_value_invoice(session, arr, datetime.now(IST).date())
     admin_terminate(session, arr, body.reason, admin.id)
     await admin_audit.log(
         session=session, admin_user_id=admin.id, target_seller_id=profile.id,
@@ -519,7 +521,7 @@ async def admin_forfeit_deposit(
         "balance": arr.balance,
     }
     try:
-        await forfeit_deposit(
+        _arr, notif = await forfeit_deposit(
             session, arr, body.amount, admin.id,
             invoice_id=body.invoice_id, reason=body.reason,
         )
@@ -535,9 +537,16 @@ async def admin_forfeit_deposit(
         action="fee.order_value.forfeit", before_json=before, after_json=after,
         reason=body.reason,
     )
+    store_id = arr.store_id
+    status_value = arr.status.value
     await session.commit()
+    if notif is not None:  # forfeit cleared the last unpaid invoice → reactivated
+        spid = await _store_seller_id(session, store_id)
+        if spid is not None:
+            dispatch_seller_fee_channels(spid, notif.value, None)
     return {
         "arrangement_id": arrangement_id,
+        "status": status_value,
         "security_deposit_amount": after["security_deposit_amount"],
         "balance": after["balance"],
     }
@@ -557,7 +566,7 @@ async def admin_refund_deposit(
     before = {"security_deposit_amount": arr.security_deposit_amount, "balance": arr.balance}
     try:
         refunded = await refund_deposit(session, arr, body.mode, admin.id, note=body.note)
-    except FeeError as exc:
+    except (FeeError, store_credit.StoreCreditError) as exc:
         raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
     await admin_audit.log(
         session=session, admin_user_id=admin.id, target_seller_id=profile.id,

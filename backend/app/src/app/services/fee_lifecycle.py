@@ -8,6 +8,7 @@ Pure/service-layer logic; callers own the commit. Seller notifications +
 expiry reminders are added in Plan 3."""
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal, Optional
+from zoneinfo import ZoneInfo
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -35,6 +36,9 @@ from app.services.fee_notifications import notify_seller_fee_event
 DEFAULT_FREEBIE_DAYS = 30
 DEFAULT_GRACE_DAYS = 2
 _MONTH_DAYS = 30  # dependency-free month arithmetic for validity windows
+# All fee dates are reckoned in IST (India-only marketplace) so billing-day and
+# expiry comparisons don't drift with the worker's UTC clock.
+IST = ZoneInfo("Asia/Kolkata")
 
 
 async def _freebie_days_by_service(
@@ -421,7 +425,7 @@ async def run_fee_sweep(
     When `notices` is provided, appends `(seller_profile_id, type_value,
     until_iso)` for each fee notification recorded during the sweep, so the
     caller can fan out to other channels (SMS/WhatsApp/email) post-commit."""
-    today = today or date.today()
+    today = today or datetime.now(IST).date()
     settings_row = (
         await session.exec(
             select(PlatformFeeSettings).order_by(PlatformFeeSettings.id).limit(1)  # type: ignore[arg-type]
@@ -993,11 +997,20 @@ async def admin_switch_model(
     """Admin force-switches an arrangement to `target_model` at ANY balance
     (disposes leftover PPT balance per `disposition`). Bypasses seller guards +
     gating. Caller commits + audits."""
-    today = today or date.today()
+    today = today or datetime.now(IST).date()
     if arr.model == FeeModel.PayPerTransaction:
         await _dispose_ppt_balance(
             session, arr, disposition=disposition, actor=f"admin:{admin_user_id}",
             note="admin switch",
+        )
+    elif arr.model == FeeModel.OrderValuePercent:
+        # Bill trailing sales + settle the deposit before switching, so the
+        # balance/deposit are never silently discarded. Lazy import: avoids the
+        # fee_lifecycle <-> fee_order_value cycle.
+        from app.services.fee_order_value import settle_order_value_exit
+
+        await settle_order_value_exit(
+            session, arr, today, disposition=disposition, admin_user_id=admin_user_id
         )
     if target_model == FeeModel.Subscription:
         if not target_duration_months:
