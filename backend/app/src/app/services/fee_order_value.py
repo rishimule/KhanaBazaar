@@ -20,8 +20,20 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.commerce import Order, OrderStatus
+from app.models.platform_fee import (
+    ArrangementStatus,
+    FeeArrangement,
+    FeeEvent,
+    FeeEventType,
+    FeeInvoice,
+    FeeModel,
+    InvoiceStatus,
+    PlatformFeeSettings,
+    ServiceFeeConfig,
+)
 
 IST = ZoneInfo("Asia/Kolkata")
+DEFAULT_GRACE_DAYS = 2
 
 
 def _last_day_of_month(d: date) -> int:
@@ -54,3 +66,116 @@ async def compute_order_value_sales(
         )
     ).one()
     return float(total or 0.0)
+
+
+async def _grace_days(session: AsyncSession) -> int:
+    settings = (
+        await session.exec(
+            select(PlatformFeeSettings).order_by(PlatformFeeSettings.id).limit(1)  # type: ignore[arg-type]
+        )
+    ).first()
+    return settings.grace_period_days if settings else DEFAULT_GRACE_DAYS
+
+
+async def generate_order_value_invoices(
+    session: AsyncSession,
+    today: date,
+    *,
+    notices: list[tuple[int, str, "date | None"]] | None = None,
+) -> int:
+    """On each arrangement's billing day, raise a FeeInvoice for the prior
+    calendar month's completed sales. Idempotent (unique arrangement+period).
+    A zero-amount invoice is auto-settled (Paid). Flushes; caller commits.
+    Returns the number of invoices created."""
+    prev_end = today.replace(day=1) - timedelta(days=1)
+    prev_start = prev_end.replace(day=1)
+    grace = await _grace_days(session)
+    created = 0
+
+    arrangements = (
+        await session.exec(
+            select(FeeArrangement).where(
+                FeeArrangement.model == FeeModel.OrderValuePercent,
+                FeeArrangement.status.in_(  # type: ignore[attr-defined]
+                    [ArrangementStatus.Active, ArrangementStatus.Grace]
+                ),
+            )
+        )
+    ).all()
+
+    for arr in arrangements:
+        cfg = (
+            await session.exec(
+                select(ServiceFeeConfig).where(
+                    ServiceFeeConfig.service_id == arr.service_id
+                )
+            )
+        ).first()
+        if cfg is None:
+            continue
+        billing_day = min(cfg.order_value_billing_day, _last_day_of_month(today))
+        if today.day != billing_day:
+            continue
+
+        period_start = prev_start
+        if arr.order_value_activated_on and arr.order_value_activated_on > period_start:
+            period_start = arr.order_value_activated_on
+        if arr.last_billed_period_end and arr.last_billed_period_end >= period_start:
+            period_start = arr.last_billed_period_end + timedelta(days=1)
+        if period_start > prev_end:
+            continue  # activated after the period closed; bill next cycle
+
+        already = (
+            await session.exec(
+                select(FeeInvoice).where(
+                    FeeInvoice.arrangement_id == arr.id,
+                    FeeInvoice.period_start == period_start,
+                )
+            )
+        ).first()
+        if already is not None:
+            continue
+
+        sales = await compute_order_value_sales(
+            session, arr.store_id, arr.service_id, period_start, prev_end
+        )
+        pct = cfg.order_value_percent
+        amount = round(sales * pct / 100.0, 2)
+        due = today + timedelta(days=cfg.order_value_payment_days)
+        is_zero = amount <= 0.0
+
+        invoice = FeeInvoice(
+            arrangement_id=arr.id,
+            store_id=arr.store_id,
+            service_id=arr.service_id,
+            period_start=period_start,
+            period_end=prev_end,
+            sales_total=sales,
+            fee_percent_snapshot=pct,
+            amount_due=amount,
+            status=InvoiceStatus.Paid if is_zero else InvoiceStatus.Pending,
+            issued_on=today,
+            due_date=due,
+            suspend_after=due + timedelta(days=grace),
+            paid_at=datetime.now(timezone.utc) if is_zero else None,
+        )
+        session.add(invoice)
+        if not is_zero:
+            arr.balance += amount
+        arr.last_billed_period_end = prev_end
+        session.add(arr)
+        session.add(
+            FeeEvent(
+                arrangement_id=arr.id,
+                event_type=FeeEventType.InvoiceIssued,
+                amount_delta=amount,
+                actor="system",
+                note=f"invoice {period_start}..{prev_end} sales={sales}",
+            )
+        )
+        if not is_zero and notices is not None:
+            notices.append((arr.store_id, "FeeInvoiceRaised", None))
+        created += 1
+
+    await session.flush()
+    return created

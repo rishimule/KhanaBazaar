@@ -189,3 +189,122 @@ async def test_compute_sales_delivered_in_period(
         session, env.store.id, env.service_id, date(2026, 1, 1), date(2026, 1, 31)
     )
     assert total == 5000.0
+
+
+async def _invoices(session: AsyncSession, arr_id: int) -> list[FeeInvoice]:
+    return list(
+        (
+            await session.exec(
+                select(FeeInvoice).where(FeeInvoice.arrangement_id == arr_id)
+            )
+        ).all()
+    )
+
+
+@pytest.mark.asyncio
+async def test_generate_invoice_normal_month(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_order_value import generate_order_value_invoices
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, percent=2.0, billing_day=5)
+    arr = await _ov_arr(session, env, activated_on=date(2026, 1, 1))
+    await _ov_order(session, env, total=5000.0, status=OrderStatus.Delivered, placed_at=_at(date(2026, 1, 15)))
+    await session.commit()
+
+    created = await generate_order_value_invoices(session, date(2026, 2, 5))
+    await session.commit()
+
+    assert created == 1
+    invs = await _invoices(session, arr.id)
+    assert len(invs) == 1
+    inv = invs[0]
+    assert inv.period_start == date(2026, 1, 1)
+    assert inv.period_end == date(2026, 1, 31)
+    assert inv.sales_total == 5000.0
+    assert inv.amount_due == 100.0
+    assert inv.status == InvoiceStatus.Pending
+    assert inv.issued_on == date(2026, 2, 5)
+    assert inv.due_date == date(2026, 2, 12)  # +7 payment days
+    assert inv.suspend_after == date(2026, 2, 14)  # +2 grace default
+    await session.refresh(arr)
+    assert arr.balance == 100.0
+    assert arr.last_billed_period_end == date(2026, 1, 31)
+
+
+@pytest.mark.asyncio
+async def test_generate_invoice_zero_sales_auto_paid(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_order_value import generate_order_value_invoices
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, percent=2.0, billing_day=5)
+    arr = await _ov_arr(session, env, activated_on=date(2026, 1, 1))
+    await session.commit()
+
+    created = await generate_order_value_invoices(session, date(2026, 2, 5))
+    await session.commit()
+
+    assert created == 1
+    inv = (await _invoices(session, arr.id))[0]
+    assert inv.amount_due == 0.0
+    assert inv.status == InvoiceStatus.Paid
+    assert inv.paid_at is not None
+    await session.refresh(arr)
+    assert arr.balance == 0.0  # zero invoice never touches balance
+
+
+@pytest.mark.asyncio
+async def test_generate_invoice_idempotent(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_order_value import generate_order_value_invoices
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, billing_day=5)
+    arr = await _ov_arr(session, env, activated_on=date(2026, 1, 1))
+    await _ov_order(session, env, total=1000.0, status=OrderStatus.Delivered, placed_at=_at(date(2026, 1, 15)))
+    await session.commit()
+
+    first = await generate_order_value_invoices(session, date(2026, 2, 5))
+    await session.commit()
+    second = await generate_order_value_invoices(session, date(2026, 2, 5))
+    await session.commit()
+
+    assert first == 1
+    assert second == 0
+    assert len(await _invoices(session, arr.id)) == 1
+
+
+@pytest.mark.asyncio
+async def test_generate_invoice_partial_first_month(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_order_value import generate_order_value_invoices
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, percent=2.0, billing_day=5)
+    arr = await _ov_arr(session, env, activated_on=date(2026, 1, 20))
+    # Before activation -> excluded from the clipped period.
+    await _ov_order(session, env, total=4000.0, status=OrderStatus.Delivered, placed_at=_at(date(2026, 1, 10)))
+    # After activation -> counted.
+    await _ov_order(session, env, total=1000.0, status=OrderStatus.Delivered, placed_at=_at(date(2026, 1, 25)))
+    await session.commit()
+
+    await generate_order_value_invoices(session, date(2026, 2, 5))
+    await session.commit()
+
+    inv = (await _invoices(session, arr.id))[0]
+    assert inv.period_start == date(2026, 1, 20)
+    assert inv.period_end == date(2026, 1, 31)
+    assert inv.sales_total == 1000.0
+    assert inv.amount_due == 20.0
+
+
+@pytest.mark.asyncio
+async def test_generate_invoice_only_on_billing_day(session: AsyncSession, ov_env: _Env) -> None:
+    from app.services.fee_order_value import generate_order_value_invoices
+
+    env = ov_env
+    await _ov_cfg(session, env.service_id, billing_day=5)
+    arr = await _ov_arr(session, env, activated_on=date(2026, 1, 1))
+    await session.commit()
+
+    created = await generate_order_value_invoices(session, date(2026, 2, 4))  # not the 5th
+    await session.commit()
+    assert created == 0
+    assert len(await _invoices(session, arr.id)) == 0
