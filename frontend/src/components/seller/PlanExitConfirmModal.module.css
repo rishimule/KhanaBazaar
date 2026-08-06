@@ -50,14 +50,17 @@
   border-color: var(--color-primary-1);
 }
 
+/* --color-error (#ec4143) only reaches 3.89:1 against white — under the 4.5:1
+   AA floor for this 16px label. --tomato-red-dark-1 gives 6.83:1, so the fill
+   uses it and --color-error stays the accent on the consequence block. */
 .danger {
   border: 0;
-  background: var(--color-error);
+  background: var(--tomato-red-dark-1);
   color: var(--white);
 }
 
 .danger:hover:not(:disabled) {
-  background: var(--tomato-red-dark-1);
+  background: var(--vermillion-red-dark-1);
 }
 
 .danger:disabled {

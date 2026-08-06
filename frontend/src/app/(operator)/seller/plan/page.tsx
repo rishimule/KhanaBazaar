@@ -289,7 +289,10 @@ export default function SellerPlanPage() {
               ? t("exitPptMoney", { amount: pptExit.balance.toLocaleString("en-IN") })
               : t("exitPptMoneyNone")
           }
-          recovery={t("exitPptRecovery")}
+          // "put that credit straight back" is only true when there IS a
+          // balance moving to wallet credit; with none, promising it would be
+          // the exact dishonesty this modal removes.
+          recovery={pptExit.balance > 0 ? t("exitPptRecovery") : undefined}
           keepLabel={t("exitPptKeep")}
           confirmLabel={t("exitPptConfirm", { service: pptExit.serviceName })}
           busy={busyService === pptExit.serviceId}

@@ -11,8 +11,10 @@ interface Props {
   consequence: string;
   /** What happens to the seller's money. */
   money: string;
-  /** How the seller gets back to live. */
-  recovery: string;
+  /** How the seller gets back to live. Omit when there is no way back to
+   *  promise — a recovery line that names credit the seller does not have is
+   *  the same dishonesty this modal exists to remove. */
+  recovery?: string;
   keepLabel: string;
   confirmLabel: string;
   busy: boolean;
@@ -46,7 +48,7 @@ export default function PlanExitConfirmModal({
         {consequence}
       </p>
       <p className={styles.line}>{money}</p>
-      <p className={styles.line}>{recovery}</p>
+      {recovery && <p className={styles.line}>{recovery}</p>}
       <div className={styles.actions}>
         <button type="button" className={styles.keep} onClick={onKeep}>
           {keepLabel}
