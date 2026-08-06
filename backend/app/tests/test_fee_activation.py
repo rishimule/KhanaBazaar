@@ -18,7 +18,6 @@ from app.services.fee_lifecycle import (
     confirm_subscription_payment,
     opt_into_subscription,
     reject_payment,
-    request_cancellation,
     run_fee_sweep,
 )
 
@@ -110,18 +109,24 @@ async def test_reject_clears_pending_leaves_arrangement(session: AsyncSession, a
 
 
 @pytest.mark.asyncio
-async def test_cancel_sets_flags(session: AsyncSession, approved_seller_with_store) -> None:
+async def test_confirm_clears_cancel_requested(session: AsyncSession, approved_seller_with_store) -> None:
+    # A legacy arrangement flagged by the removed cancel endpoint must heal on
+    # its next confirmed renewal — the flag once permanently disabled the
+    # seller's own Subscribe/Renew button (seller UX audit BLOCKER #2).
     arr = await _setup(
         session, approved_seller_with_store,
         status=ArrangementStatus.Active, valid_until=date(2026, 9, 1),
     )
     arr.model = FeeModel.Subscription
+    arr.cancel_requested = True
+    arr.auto_renew = False
     await session.flush()
-    request_cancellation(session, arr)
-    await session.flush()
+    payment = await opt_into_subscription(session, arr, 3, now=datetime(2026, 7, 5, tzinfo=timezone.utc))
+    await confirm_subscription_payment(session, payment, admin_user_id=1, today=date(2026, 7, 5))
     await session.refresh(arr)
-    assert arr.cancel_requested is True
-    assert arr.auto_renew is False
+    assert arr.cancel_requested is False
+    assert arr.auto_renew is True
+    assert arr.status == ArrangementStatus.Active
 
 
 @pytest.mark.asyncio

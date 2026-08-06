@@ -80,7 +80,6 @@ from app.services.fee_lifecycle import (
     opt_into_pay_per_transaction,
     opt_into_subscription,
     reject_payment,
-    request_cancellation,
     seller_switch_from_ppt,
 )
 from app.services.fee_notifications import notify_seller_fee_event
@@ -956,19 +955,6 @@ async def mark_paid(
     await session.commit()
     await session.refresh(payment)
     return {"payment_id": payment.id}
-
-
-@seller_router.post("/me/plan/{service_id}/cancel")
-async def cancel_plan(
-    service_id: int,
-    seller: User = Depends(get_current_seller),
-    session: AsyncSession = Depends(get_db_session),
-) -> dict:  # type: ignore[type-arg]
-    _profile, store = await _seller_store(session, seller)
-    arr = await _arrangement(session, store.id, service_id)
-    request_cancellation(session, arr)
-    await session.commit()
-    return {"service_id": service_id, "cancel_requested": True}
 
 
 @seller_router.post("/me/plan/{service_id}/pay-per-transaction/opt-in")
