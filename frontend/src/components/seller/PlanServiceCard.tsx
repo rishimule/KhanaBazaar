@@ -145,7 +145,11 @@ export default function PlanServiceCard({
       <div className={styles.section}>
         <p className={styles.sectionTitle}>{active && isLive ? "Renew or change plan" : "Subscribe"}</p>
         {active && validity && <p className={styles.validity}>{validity}</p>}
-        {active && isLive && service.valid_until && (
+        {/* Gated on `active`, not `isLive`: in Grace the sweep leaves
+            `valid_until` at the original (now past) expiry, so "renew before
+            {date}" would name a date that has already gone by. Grace gets its
+            own line below, keyed to the real cutoff. */}
+        {active && service.status === "active" && service.valid_until && (
           <p className={styles.muted}>
             {t("noAutoRenew")}{" "}
             {t("endsOnRenewBefore", {
@@ -154,18 +158,21 @@ export default function PlanServiceCard({
             })}
           </p>
         )}
-        {active && service.status === "grace" && service.valid_until && (
-          <p className={styles.recovery} role="status">
+        {/* `suspend_after` is expiry + grace_period_days, computed server-side.
+            During Grace the service is still fully visible and orderable, so
+            this must not claim customers already can't find it. */}
+        {active && service.status === "grace" && service.suspend_after && (
+          <p className={styles.recovery}>
             {t("graceHiddenAfter", {
               service: service.service_name,
-              date: fmtDate(service.valid_until),
+              date: fmtDate(service.suspend_after),
             })}
           </p>
         )}
         {active && service.status === "suspended" && (
-          <p className={styles.recovery} role="status">
+          <p className={styles.recovery}>
             {t("suspendedHidden", { service: service.service_name })}{" "}
-            {t("hiddenUntilRenew", { service: service.service_name })}
+            {t("restoreOnRenew")}
           </p>
         )}
         <div className={styles.options} role="radiogroup" aria-label="Subscription duration">
@@ -387,17 +394,25 @@ export default function PlanServiceCard({
           </p>
         )}
         {/* apply_credit_to_arrangement moves wallet credit into the PPT balance
-            with no admin step, and _evaluate_ppt_status(allow_unsuspend=True)
-            reactivates once it clears one order fee — so "immediately" is
-            literal. The "Apply credit" control below is the button that does it. */}
+            with no admin step, but _evaluate_ppt_status reactivates only once the
+            balance clears ONE ORDER FEE (`balance >= fee`), not merely above
+            zero. So "immediately" is promised only at `feeCredit >= fee`; below
+            that the seller is told to top up the difference. The "Apply credit"
+            control below is the button that does it. */}
         {service.status === "suspended" && (
-          <p className={styles.recovery} role="status">
-            {feeCredit > 0
+          <p className={styles.recovery}>
+            {feeCredit >= fee && feeCredit > 0
               ? t("pptSuspendedRecovery", {
                   service: service.service_name,
                   amount: feeCredit.toLocaleString("en-IN"),
                 })
-              : t("pptSuspendedRecoveryNoCredit", { service: service.service_name })}
+              : feeCredit > 0
+                ? t("pptSuspendedRecoveryBelowFee", {
+                    service: service.service_name,
+                    amount: feeCredit.toLocaleString("en-IN"),
+                    fee: fee.toLocaleString("en-IN"),
+                  })
+                : t("pptSuspendedRecoveryNoCredit", { service: service.service_name })}
           </p>
         )}
         <div className={styles.actions}>

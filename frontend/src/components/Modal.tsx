@@ -23,6 +23,11 @@ interface Props {
   /** When false, the modal cannot be dismissed by backdrop, Escape, or ✕
    *  (the close button is hidden). Used by the blocking policy-consent gate. */
   dismissible?: boolean;
+  /** id of the element describing this dialog. Announced once, after the title,
+   *  on open — the correct mechanism for a consequence a caller must read
+   *  before acting (a `role="alert"` inserted at mount announces unreliably and
+   *  can interrupt the title). */
+  describedById?: string;
 }
 
 export default function Modal({
@@ -32,6 +37,7 @@ export default function Modal({
   onClose,
   size = "default",
   dismissible = true,
+  describedById,
 }: Props) {
   const t = useTranslations("Shared");
   const [mounted, setMounted] = useState(false);
@@ -112,6 +118,7 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        aria-describedby={describedById}
       >
         <div className={styles.header}>
           <h2 className={styles.title}>{title}</h2>

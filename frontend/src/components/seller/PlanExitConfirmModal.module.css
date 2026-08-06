@@ -15,9 +15,23 @@
   line-height: 1.5;
 }
 
+/* --color-text-muted (#758296) is only 3.90:1 on white — under AA for this
+   body-size text, and these two lines carry the money and the way back. The
+   card's own .muted precedent (--shade-cool-base-7, #52667d) is 5.90:1. */
 .line {
   margin: 0 0 var(--space-2);
-  color: var(--color-text-muted);
+  color: var(--shade-cool-base-7);
+  line-height: 1.5;
+}
+
+.error {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--tomato-red-light-1);
+  color: var(--tomato-red-dark-1);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
   line-height: 1.5;
 }
 

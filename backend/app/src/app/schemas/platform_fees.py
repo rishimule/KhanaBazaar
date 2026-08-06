@@ -96,6 +96,11 @@ class SellerPlanServiceView(BaseModel):
     model: str
     status: str
     valid_until: Optional[str] = None
+    #: The date customers actually stop seeing the service. During Grace the
+    #: sweep leaves `valid_until` at the original (now past) expiry and only
+    #: suspends once `today > valid_until + grace_period_days`, so `valid_until`
+    #: is the wrong date to warn a seller with. Present only while in Grace.
+    suspend_after: Optional[str] = None
     subscription_enabled: bool
     subscription_plans: list[SubscriptionPlanItem] = []
     payment_pending: bool = False

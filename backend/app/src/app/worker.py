@@ -1519,13 +1519,20 @@ _FEE_CHANNEL_COPY: dict[str, tuple[str, str]] = {
         "Your subscription is active",
         "Your store subscription is active{until}. Thank you for subscribing.",
     ),
+    # These three must state the same consequence as the in-app bodies in
+    # services/fee_notifications.py — SMS/email/WhatsApp are the channels that
+    # actually reach a seller, so disclosing the penalty only in-app would leave
+    # the audit's "penalty is never disclosed" finding half open.
     "fee_expiring": (
         "Your plan is expiring soon",
-        "Your store plan expires{until}. Renew from your seller dashboard to stay active.",
+        "Your store plan expires{until}. Renew from your seller dashboard — "
+        "once the short grace period after that runs out, customers can't find "
+        "or order from this service.",
     ),
     "fee_suspended": (
         "A service on your store was suspended",
-        "A service on your store has been suspended. Renew or clear your balance to reactivate it.",
+        "A service on your store is now hidden from customers — they can't find "
+        "it or place an order. Renew or clear your balance to restore it.",
     ),
     "fee_invoice_raised": (
         "Your platform fee invoice is ready",
@@ -1534,8 +1541,8 @@ _FEE_CHANNEL_COPY: dict[str, tuple[str, str]] = {
     ),
     "fee_invoice_overdue": (
         "Platform fee payment overdue",
-        "Your platform fee payment is overdue. Please clear it now to avoid "
-        "suspension of your store.",
+        "Your platform fee payment is overdue. Clear it now — otherwise "
+        "customers can't find or order from this service.",
     ),
 }
 

@@ -5,19 +5,28 @@
 import Modal from "@/components/Modal";
 import styles from "./PlanExitConfirmModal.module.css";
 
+const CONSEQUENCE_ID = "plan-exit-consequence";
+
 interface Props {
   title: string;
-  /** What the customer-facing consequence is. Rendered in danger tone. */
+  /** What the customer-facing consequence is. Rendered in danger tone and wired
+   *  as the dialog's accessible description. */
   consequence: string;
   /** What happens to the seller's money. */
   money: string;
   /** How the seller gets back to live. Omit when there is no way back to
-   *  promise — a recovery line that names credit the seller does not have is
-   *  the same dishonesty this modal exists to remove. */
+   *  promise — a recovery line that names credit the seller does not have, or
+   *  that cannot actually clear the fee threshold, is the same dishonesty this
+   *  modal exists to remove. */
   recovery?: string;
   keepLabel: string;
   confirmLabel: string;
   busy: boolean;
+  /** Blocks confirmation outright (e.g. a negative balance the backend rejects). */
+  blocked?: boolean;
+  /** Failure from the confirm request, shown here rather than in a page-level
+   *  banner the seller has already scrolled past. */
+  error?: string | null;
   onKeep: () => void;
   onConfirm: () => void;
 }
@@ -39,21 +48,33 @@ export default function PlanExitConfirmModal({
   keepLabel,
   confirmLabel,
   busy,
+  blocked = false,
+  error,
   onKeep,
   onConfirm,
 }: Props) {
   return (
-    <Modal title={title} size="sheet" onClose={onKeep}>
-      <p className={styles.consequence} role="alert">
+    <Modal title={title} size="sheet" onClose={onKeep} describedById={CONSEQUENCE_ID}>
+      <p id={CONSEQUENCE_ID} className={styles.consequence}>
         {consequence}
       </p>
       <p className={styles.line}>{money}</p>
       {recovery && <p className={styles.line}>{recovery}</p>}
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
       <div className={styles.actions}>
         <button type="button" className={styles.keep} onClick={onKeep}>
           {keepLabel}
         </button>
-        <button type="button" className={styles.danger} disabled={busy} onClick={onConfirm}>
+        <button
+          type="button"
+          className={styles.danger}
+          disabled={busy || blocked}
+          onClick={onConfirm}
+        >
           {confirmLabel}
         </button>
       </div>

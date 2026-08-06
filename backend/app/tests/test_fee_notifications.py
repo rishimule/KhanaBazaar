@@ -52,6 +52,9 @@ async def test_expiring_notification_names_the_consequence(
     assert items
     assert "2026-09-01" in items[0].body
     assert "find or order" in items[0].body
+    # Expiry is not the cutoff — suspension is expiry + grace_period_days, so the
+    # copy must not promise the penalty lands on the expiry date itself.
+    assert "grace" in items[0].body
 
 
 @pytest.mark.asyncio

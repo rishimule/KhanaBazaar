@@ -56,6 +56,68 @@ async def test_get_plan_lists_service(client: AsyncClient, session: AsyncSession
 
 
 @pytest.mark.asyncio
+async def test_grace_exposes_suspend_after_not_just_valid_until(
+    client: AsyncClient, session: AsyncSession, approved_seller_with_store
+) -> None:
+    # In Grace the sweep leaves `valid_until` at the original (past) expiry and
+    # only suspends at valid_until + grace_period_days. Warning a seller with
+    # `valid_until` names a date that has already gone by, so the view exposes
+    # the real cutoff (seller UX audit BLOCKER #3).
+    from datetime import date, timedelta
+
+    from app.models.platform_fee import PlatformFeeSettings
+
+    session.add(ServiceFeeConfig(service_id=approved_seller_with_store.service_id, subscription_enabled=True))
+    session.add(PlatformFeeSettings(grace_period_days=2))
+    session.add(FeeArrangement(
+        store_id=approved_seller_with_store.store.id,
+        service_id=approved_seller_with_store.service_id,
+        model=FeeModel.Subscription, status=ArrangementStatus.Grace,
+        valid_until=date(2026, 9, 1),
+    ))
+    await session.commit()
+    app.dependency_overrides[get_current_seller] = lambda: approved_seller_with_store.user
+    try:
+        r = await client.get("/api/v1/sellers/me/plan")
+        assert r.status_code == 200
+        svc = next(
+            s for s in r.json()["services"]
+            if s["service_id"] == approved_seller_with_store.service_id
+        )
+        assert svc["valid_until"] == "2026-09-01"
+        assert svc["suspend_after"] == (date(2026, 9, 1) + timedelta(days=2)).isoformat()
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+
+
+@pytest.mark.asyncio
+async def test_active_arrangement_has_no_suspend_after(
+    client: AsyncClient, session: AsyncSession, approved_seller_with_store
+) -> None:
+    # Only meaningful in Grace — an Active plan is nowhere near suspension.
+    from datetime import date
+
+    session.add(ServiceFeeConfig(service_id=approved_seller_with_store.service_id, subscription_enabled=True))
+    session.add(FeeArrangement(
+        store_id=approved_seller_with_store.store.id,
+        service_id=approved_seller_with_store.service_id,
+        model=FeeModel.Subscription, status=ArrangementStatus.Active,
+        valid_until=date(2027, 1, 1),
+    ))
+    await session.commit()
+    app.dependency_overrides[get_current_seller] = lambda: approved_seller_with_store.user
+    try:
+        r = await client.get("/api/v1/sellers/me/plan")
+        svc = next(
+            s for s in r.json()["services"]
+            if s["service_id"] == approved_seller_with_store.service_id
+        )
+        assert svc["suspend_after"] is None
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+
+
+@pytest.mark.asyncio
 async def test_me_plan_nulls_disabled_method_fields(
     client: AsyncClient, session: AsyncSession, approved_seller_with_store
 ) -> None:

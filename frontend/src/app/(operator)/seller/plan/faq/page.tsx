@@ -4,7 +4,10 @@ import Link from "next/link";
 
 import styles from "./page.module.css";
 
-// Operator page — hardcoded English (fee subsystem copy is English-only).
+// Operator page — hardcoded English. NOTE: the plan surface itself is no longer
+// English-only (the `Plan` i18n namespace now covers the exit/suspension copy in
+// all five locales), so this FAQ is the remaining English-only gap on the money
+// surface. Audit blocker #39 tracks extracting it.
 const FAQ: { q: string; a: string }[] = [
   {
     q: "What is the platform fee?",
@@ -36,7 +39,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "What is store wallet credit?",
-    a: "It's money the platform holds for you — for example, the leftover balance when you switch off pay-per-order. It's applied automatically towards future fees, or you can request it back from the marketplace team.",
+    a: "It's money the platform holds for you — for example, the leftover balance when you switch off pay-per-order. Nothing is deducted from it automatically: you apply it to a plan yourself from the Plan page, or you can request it back from the marketplace team.",
   },
   {
     q: "How do I pay?",
@@ -84,11 +87,11 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "How do I cancel?",
-    a: "There's nothing to cancel — no plan renews automatically, so a plan you don't renew simply runs to the end of its paid term. After that, customers can't find or order from the service until you renew. Paid terms aren't refunded.",
+    a: "There's nothing to cancel — no plan renews automatically, so a plan you don't renew simply runs to the end of its paid term. You then get a short grace period during which customers can still order; once that runs out, they can't find or order from the service until you renew. Paid terms aren't refunded.",
   },
   {
     q: "How do I leave pay-per-order?",
-    a: "Use “Stop pay-per-order” on the Plan page. Any remaining balance moves to your store wallet credit, and the service is hidden from customers until you start a new plan. You can put that credit straight back into pay-per-order to go live again immediately — no waiting for the team.",
+    a: "Use “Stop pay-per-order” on the Plan page. Any remaining balance moves to your store wallet credit, and the service is hidden from customers until you fund pay-per-order again or pick another plan. A negative balance has to be settled before you can leave. Putting credit back brings the service live again with no admin approval, as long as it covers at least one order fee.",
   },
 ];
 

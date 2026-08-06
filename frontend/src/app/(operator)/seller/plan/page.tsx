@@ -47,6 +47,13 @@ function messageFor(code: string | null): string {
   return (code && ERROR_MESSAGES[code]) || "Something went wrong. Please try again.";
 }
 
+/** Amount for interpolation into a `Plan` message that already carries `₹`.
+ *  Matches PlanServiceCard's `rupees()` grouping; drops a trailing `.0` so a
+ *  whole-rupee balance never renders as "120.5"-style noise. */
+function money(n: number): string {
+  return n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+}
+
 /** A pending pay-sheet request raised by a card action. */
 interface PaySheetReq {
   serviceId: number;
@@ -67,7 +74,14 @@ export default function SellerPlanPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [paySheet, setPaySheet] = useState<PaySheetReq | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
-  const [pptExit, setPptExit] = useState<{ serviceId: number; serviceName: string; balance: number } | null>(null);
+  const [pptExit, setPptExit] = useState<{
+    serviceId: number;
+    serviceName: string;
+    balance: number;
+    /** One order fee — the threshold `_evaluate_ppt_status` reactivates at. */
+    fee: number;
+  } | null>(null);
+  const [pptExitError, setPptExitError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -208,12 +222,34 @@ export default function SellerPlanPage() {
   // it gets a disclosed modal, never a window.confirm (audit BLOCKER #8).
   const onStopPpt = (serviceId: number) => {
     const svc = data?.services.find((s) => s.service_id === serviceId);
+    setPptExitError(null);
     setPptExit({
       serviceId,
       serviceName: svc?.service_name ?? "",
       balance: svc?.balance ?? 0,
+      fee: svc?.pay_per_txn_fee ?? 0,
     });
   };
+
+  // Mirrors handleSheetConfirm: hold the surface open on failure so the error
+  // lands where the seller is looking, not in a page banner they scrolled past.
+  async function handlePptExitConfirm() {
+    if (!pptExit) return;
+    const req = pptExit;
+    setBusyService(req.serviceId);
+    setPptExitError(null);
+    let ok = false;
+    try {
+      await switchFromPpt(req.serviceId, token);
+      ok = true;
+    } catch (err) {
+      setPptExitError(messageFor(feeErrorCode(err)));
+    } finally {
+      setBusyService(null);
+      await load();
+    }
+    if (ok) setPptExit(null);
+  }
 
   return (
     <div className={styles.page}>
@@ -284,24 +320,37 @@ export default function SellerPlanPage() {
         <PlanExitConfirmModal
           title={t("exitPptTitle")}
           consequence={t("exitPptConsequence", { service: pptExit.serviceName })}
+          // Three real money states, not two: the backend refuses the exit
+          // outright on a negative balance (FeeError "balance_negative"), so
+          // saying "no balance left to move" there would be false.
           money={
-            pptExit.balance > 0
-              ? t("exitPptMoney", { amount: pptExit.balance.toLocaleString("en-IN") })
-              : t("exitPptMoneyNone")
+            pptExit.balance < 0
+              ? t("exitPptMoneyNegative", { amount: money(-pptExit.balance) })
+              : pptExit.balance > 0
+                ? t("exitPptMoney", { amount: money(pptExit.balance) })
+                : t("exitPptMoneyNone")
           }
-          // "put that credit straight back" is only true when there IS a
-          // balance moving to wallet credit; with none, promising it would be
-          // the exact dishonesty this modal removes.
-          recovery={pptExit.balance > 0 ? t("exitPptRecovery") : undefined}
+          // The undo is only *immediate* once the balance clears one order fee —
+          // `_evaluate_ppt_status` reactivates on `balance >= fee`, not `> 0`. A
+          // seller quitting from grace is below the fee by definition, which is
+          // exactly who would have been misled by the unconditional promise.
+          recovery={
+            pptExit.balance >= pptExit.fee && pptExit.balance > 0
+              ? t("exitPptRecovery")
+              : pptExit.balance > 0
+                ? t("exitPptRecoveryBelowFee", { fee: money(pptExit.fee) })
+                : undefined
+          }
           keepLabel={t("exitPptKeep")}
           confirmLabel={t("exitPptConfirm", { service: pptExit.serviceName })}
           busy={busyService === pptExit.serviceId}
-          onKeep={() => setPptExit(null)}
-          onConfirm={() => {
-            const req = pptExit;
+          blocked={pptExit.balance < 0}
+          error={pptExitError}
+          onKeep={() => {
+            setPptExitError(null);
             setPptExit(null);
-            void run(req.serviceId, () => switchFromPpt(req.serviceId, token));
           }}
+          onConfirm={() => void handlePptExitConfirm()}
         />
       )}
     </div>

@@ -21,6 +21,10 @@ export type SellerPlanServiceView = {
   status: string;
   service_name: string;
   valid_until: string | null;
+  /** Date customers actually stop seeing the service (expiry + grace days).
+   *  Present only while in grace — `valid_until` is the original, already-past
+   *  expiry during grace, so it's the wrong date to warn a seller with. */
+  suspend_after: string | null;
   subscription_enabled: boolean;
   subscription_plans: SubscriptionPlanItem[];
   payment_pending: boolean;
