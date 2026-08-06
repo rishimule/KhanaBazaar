@@ -14,6 +14,8 @@ interface NavItem {
   href: string;
   label: string;
   icon: string;
+  /** Optional count pill (e.g. pending orders). Omitted or 0 renders nothing. */
+  badge?: number;
 }
 
 type DashboardRole = "seller" | "admin" | "customer";
@@ -103,7 +105,12 @@ export default function DashboardLayout({
               onClick={() => setSidebarOpen(false)}
             >
               <span className={styles.sidebarLinkIcon}>{item.icon}</span>
-              {item.label}
+              <span className={styles.sidebarLinkLabel}>{item.label}</span>
+              {item.badge ? (
+                <span className={styles.sidebarLinkBadge}>
+                  {item.badge > 99 ? "99+" : item.badge}
+                </span>
+              ) : null}
             </Link>
           ))}
         </nav>

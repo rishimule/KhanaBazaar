@@ -140,6 +140,27 @@
   flex-shrink: 0;
 }
 
+.sidebarLinkLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Count pill on a nav row (e.g. pending orders). Rendered only when the
+   count is a known non-zero — an unknown count hides it, never shows 0. */
+.sidebarLinkBadge {
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 var(--space-1-5);
+  border-radius: 10px;
+  background: var(--color-primary-1);
+  color: #fff;
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-bold);
+  line-height: 20px;
+  text-align: center;
+}
+
 .sidebarFooter {
   margin-top: auto;
   padding: var(--space-4);
