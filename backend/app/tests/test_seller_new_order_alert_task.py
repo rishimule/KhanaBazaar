@@ -192,10 +192,15 @@ async def test_hourly_quota_caps_the_billable_channel(session: AsyncSession) -> 
     order_id = await _seed_order(
         session, account_status=AccountStatus.active, phone="+919812300044"
     )
+    from fakeredis.aioredis import FakeRedis
+
+    fake = FakeRedis(decode_responses=True)
     sms = _RecordingSMS()
     with patch("app.core.sms.get_sms_sender", lambda: sms), patch(
         "app.core.whatsapp.get_whatsapp_sender", lambda: None
-    ), patch.object(settings, "SELLER_NEW_ORDER_ALERT_MAX_PER_HOUR", 2):
+    ), patch("redis.asyncio.Redis.from_url", lambda *a, **kw: fake), patch.object(
+        settings, "SELLER_NEW_ORDER_ALERT_MAX_PER_HOUR", 2
+    ):
         for _ in range(5):
             await seller_new_order_alert(order_id)
 
@@ -209,13 +214,13 @@ async def test_quota_check_fails_open(session: AsyncSession) -> None:
         session, account_status=AccountStatus.active, phone="+919812300055"
     )
 
-    async def _boom() -> None:
+    def _boom(*args: object, **kwargs: object) -> None:
         raise RuntimeError("redis down")
 
     sms = _RecordingSMS()
     with patch("app.core.sms.get_sms_sender", lambda: sms), patch(
         "app.core.whatsapp.get_whatsapp_sender", lambda: None
-    ), patch("app.core.redis.get_redis", _boom):
+    ), patch("redis.asyncio.Redis.from_url", _boom):
         await seller_new_order_alert(order_id)
 
     assert len(sms.calls) == 1

@@ -1679,11 +1679,18 @@ async def _seller_alert_quota_exceeded(seller_profile_id: int) -> bool:
     limit = settings.SELLER_NEW_ORDER_ALERT_MAX_PER_HOUR
     if limit <= 0:
         return False
-    from app.core.rate_limit import incr_with_ttl
-    from app.core.redis import get_redis
+    import redis.asyncio as aioredis
 
+    from app.core.rate_limit import incr_with_ttl
+
+    # Deliberately NOT app.core.redis.get_redis(): that client is @lru_cache'd
+    # and binds its connection pool to the first event loop that uses it. Celery
+    # runs each task in a fresh thread + `asyncio.run` loop, so the cached client
+    # would be attached to a closed loop from the second task onward. Build a
+    # short-lived client bound to this loop and close it.
+    redis = None
     try:
-        redis = await get_redis()
+        redis = aioredis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
         count = await incr_with_ttl(
             redis, f"seller_new_order_alert:{seller_profile_id}", 3600
         )
@@ -1694,6 +1701,12 @@ async def _seller_alert_quota_exceeded(seller_profile_id: int) -> bool:
             exc_info=True,
         )
         return False
+    finally:
+        if redis is not None:
+            try:
+                await redis.aclose()
+            except Exception:
+                pass
     if count > limit:
         logging.getLogger(__name__).warning(
             "seller_profile_id=%s exceeded %s new-order alerts/hour; skipping the "
