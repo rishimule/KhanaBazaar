@@ -1667,63 +1667,82 @@ def send_seller_fee_email_async(
         ex.submit(lambda: asyncio.run(_run())).result()
 
 
-@celery_app.task(name="send_seller_new_order_alert_async")  # type: ignore[untyped-decorator]
-def send_seller_new_order_alert_async(order_id: int) -> None:
-    """Best-effort phone alert to the seller that a new order arrived.
+async def seller_new_order_alert(order_id: int) -> None:
+    """Body of `send_seller_new_order_alert_async`, awaitable on the caller's loop.
 
-    WhatsApp-preferred with SMS fallback, so per-order messaging cost drops
-    automatically once WHATSAPP_PROVIDER goes live. No-ops when the seller has
-    no phone on file.
+    Split out from the Celery task so tests can exercise the real query and row
+    unpack in-loop. Driving the task's thread-bridged `asyncio.run` from a test
+    opens a second engine on a worker thread and races the schema teardown.
     """
-    import asyncio
-    import concurrent.futures
-
     from sqlmodel import select
 
     from app.core.phone_delivery import deliver_phone_message
     from app.core.sms import get_sms_sender
     from app.core.whatsapp import get_whatsapp_sender
     from app.db.session import async_session_factory
+    from app.models.base import AccountStatus, User
     from app.models.commerce import Order
     from app.models.profile import SellerProfile
     from app.models.store import Store
 
-    async def _run() -> None:
-        async with async_session_factory() as session:
-            row = (
-                await session.exec(
-                    select(SellerProfile.phone, Order.total)
-                    .join(Store, Store.id == Order.store_id)  # type: ignore[arg-type]
-                    .join(SellerProfile, SellerProfile.id == Store.seller_profile_id)  # type: ignore[arg-type]
-                    .where(Order.id == order_id)
-                )
-            ).first()
-        if row is None:
-            return
-        phone, total = row
-        if not phone:
-            return
-        amount = f"{float(total):.2f}"
-        sms_text = (
-            f"New order #{order_id} for ₹{amount} on your "
-            f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
+    async with async_session_factory() as session:
+        row = (
+            await session.exec(
+                select(SellerProfile.phone, Order.total, User.account_status)
+                .select_from(Order)
+                .join(Store, Store.id == Order.store_id)  # type: ignore[arg-type]
+                .join(SellerProfile, SellerProfile.id == Store.seller_profile_id)  # type: ignore[arg-type]
+                .join(User, User.id == SellerProfile.user_id)  # type: ignore[arg-type]
+                .where(Order.id == order_id)
+            )
+        ).first()
+    if row is None:
+        return
+    phone, total, account_status = row
+    if not phone or account_status != AccountStatus.active:
+        return
+    amount = f"{float(total):.2f}"
+    # ASCII "Rs." not "₹": a rupee sign is outside GSM-7, which forces the
+    # whole message to UCS-2 (70-char segments instead of 160) and doubles
+    # the cost of the highest-volume transactional SMS we send — one per
+    # order. The WhatsApp template keeps ₹; that path isn't segment-billed.
+    sms_text = (
+        f"New order #{order_id} for Rs.{amount} on your "
+        f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
+    )
+    try:
+        await deliver_phone_message(
+            to=phone,
+            template_name="seller_new_order",
+            variables={"order_id": str(order_id), "amount": amount},
+            sms_text=sms_text,
+            sms_sender=get_sms_sender(),
+            whatsapp_sender=get_whatsapp_sender(),
         )
-        try:
-            await deliver_phone_message(
-                to=phone,
-                template_name="seller_new_order",
-                variables={"order_id": str(order_id), "amount": amount},
-                sms_text=sms_text,
-                sms_sender=get_sms_sender(),
-                whatsapp_sender=get_whatsapp_sender(),
-            )
-        except Exception:
-            logging.getLogger(__name__).exception(
-                "seller new-order alert failed for order_id=%s", order_id
-            )
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "seller new-order alert failed for order_id=%s", order_id
+        )
+
+
+@celery_app.task(name="send_seller_new_order_alert_async")  # type: ignore[untyped-decorator]
+def send_seller_new_order_alert_async(order_id: int) -> None:
+    """Best-effort phone alert to the seller that a new order arrived.
+
+    WhatsApp-preferred with SMS fallback. No-ops when the seller has no phone
+    on file or their account is not active — the same "skip all comms for
+    non-active accounts" rule the in-app row follows, so a suspended seller
+    can't keep drawing billable messages.
+
+    Cost note: WhatsApp is preferred over SMS, but no template in the registry
+    carries a ContentSid yet, so with WHATSAPP_PROVIDER=twilio the send raises
+    and falls back to SMS. Per-order cost only drops once ContentSids land.
+    """
+    import asyncio
+    import concurrent.futures
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-        ex.submit(lambda: asyncio.run(_run())).result()
+        ex.submit(lambda: asyncio.run(seller_new_order_alert(order_id))).result()
 
 
 def _referral_activation_url(token: str, target_role: str) -> str:

@@ -7,7 +7,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
@@ -522,10 +522,15 @@ async def seller_alert_summary(
     session: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_seller),
 ) -> SellerOrderAlertSummary:
-    """Pending-order count + newest pending id for the caller's stores.
+    """Pending-order count + newest pending order for the caller's stores.
 
-    Polled every 30s by the seller shell, so this deliberately returns
-    aggregates rather than order rows.
+    Polled every 30s by the seller shell, so it returns one aggregate row
+    rather than order rows. `COUNT(*) OVER ()` is evaluated over the whole
+    filtered set before LIMIT, which lets a single query carry both the total
+    and the newest row — so `latest_pending_order_id` and `latest_pending_at`
+    always describe the SAME order. (Separate `max(id)`/`max(placed_at)`
+    aggregates would not: `placed_at` is set Python-side at construction, so
+    under concurrent checkouts the higher id can carry the earlier timestamp.)
     """
     store_ids = await _seller_store_ids(session, user)
     if not store_ids:
@@ -533,18 +538,22 @@ async def seller_alert_summary(
     row = (
         await session.exec(
             select(
-                func.count(Order.id),
-                func.max(Order.id),
-                func.max(Order.placed_at),  # type: ignore[arg-type]
+                Order.id,
+                Order.placed_at,
+                func.count().over().label("pending_total"),
             )
             .where(Order.store_id.in_(store_ids))  # type: ignore[attr-defined]
             .where(Order.status == OrderStatus.Pending)
+            .order_by(col(Order.id).desc())
+            .limit(1)
         )
-    ).one()
+    ).first()
+    if row is None:
+        return SellerOrderAlertSummary(pending_count=0)
     return SellerOrderAlertSummary(
-        pending_count=int(row[0] or 0),
-        latest_pending_order_id=row[1],
-        latest_pending_at=row[2],
+        pending_count=int(row[2] or 0),
+        latest_pending_order_id=row[0],
+        latest_pending_at=row[1],
     )
 
 

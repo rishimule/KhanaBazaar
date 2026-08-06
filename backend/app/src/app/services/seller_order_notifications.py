@@ -27,11 +27,14 @@ async def record_seller_new_order_notification(
     session: AsyncSession, order: Order
 ) -> None:
     """Record + commit one SellerNewOrder notification. Never raises."""
-    # Captured up front: a rollback in the except-branch expires the ORM
-    # instance, so touching order.id afterwards would itself raise
-    # MissingGreenlet from inside the error handler.
-    order_id = order.id
+    order_id: int | None = None
     try:
+        # Captured inside the try: a rollback in the except-branch expires the
+        # ORM instance, so touching order.id afterwards would itself raise
+        # MissingGreenlet from inside the error handler. Reading it here (not
+        # before the try) keeps the "never raises" contract even if `order`
+        # arrives already expired.
+        order_id = order.id
         row = (
             await session.exec(
                 select(SellerProfile.id, User.account_status)
@@ -71,17 +74,21 @@ async def record_seller_new_order_notification(
             status_value="new_order",
             order_id=order.id,
         )
+        # No refresh here: the request session is expire_on_commit=False, so a
+        # successful commit leaves `order` usable as-is.
         await session.commit()
-        await session.refresh(order)
     except Exception:
         try:
             await session.rollback()
-            # The rollback expired `order`; refresh it explicitly so the
-            # caller's response serializer doesn't trip MissingGreenlet on the
-            # first lazy attribute read.
-            await session.refresh(order)
         except Exception:
             logger.exception("Rollback after seller notification failure also failed")
+        try:
+            # The rollback expired `order`; refresh it so the caller's response
+            # serializer doesn't trip MissingGreenlet on its first lazy read.
+            # Its own try: a failed rollback must not skip this.
+            await session.refresh(order)
+        except Exception:
+            logger.exception("Refresh after seller notification failure also failed")
         logger.exception(
             "Failed to record seller new-order notification for order_id=%s", order_id
         )
