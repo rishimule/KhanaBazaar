@@ -2,10 +2,12 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useAuth } from "@/lib/AuthContext";
+import PlanExitConfirmModal from "@/components/seller/PlanExitConfirmModal";
 import PlanServiceCard from "@/components/seller/PlanServiceCard";
 import PaySheet from "@/components/seller/PaySheet";
 import {
@@ -56,6 +58,7 @@ interface PaySheetReq {
 
 export default function SellerPlanPage() {
   const { token } = useAuth();
+  const t = useTranslations("Plan");
   const [data, setData] = useState<SellerPlanView | null>(null);
   const [invoices, setInvoices] = useState<Record<number, FeeInvoice[]>>({});
   const [fetching, setFetching] = useState(true);
@@ -64,6 +67,7 @@ export default function SellerPlanPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [paySheet, setPaySheet] = useState<PaySheetReq | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
+  const [pptExit, setPptExit] = useState<{ serviceId: number; serviceName: string; balance: number } | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -200,15 +204,15 @@ export default function SellerPlanPage() {
   const onApplyCredit = (serviceId: number, amount: number) =>
     void run(serviceId, () => applyCreditPpt(serviceId, amount, token));
 
+  // Stopping pay-per-order hides the service from every customer surface, so
+  // it gets a disclosed modal, never a window.confirm (audit BLOCKER #8).
   const onStopPpt = (serviceId: number) => {
-    if (
-      !window.confirm(
-        "Leave pay-per-order? Any positive balance is moved to your store wallet credit. A negative balance must be settled first.",
-      )
-    ) {
-      return;
-    }
-    void run(serviceId, () => switchFromPpt(serviceId, token));
+    const svc = data?.services.find((s) => s.service_id === serviceId);
+    setPptExit({
+      serviceId,
+      serviceName: svc?.service_name ?? "",
+      balance: svc?.balance ?? 0,
+    });
   };
 
   return (
@@ -272,6 +276,28 @@ export default function SellerPlanPage() {
           onClose={() => {
             setSheetError(null);
             setPaySheet(null);
+          }}
+        />
+      )}
+
+      {pptExit && (
+        <PlanExitConfirmModal
+          title={t("exitPptTitle")}
+          consequence={t("exitPptConsequence", { service: pptExit.serviceName })}
+          money={
+            pptExit.balance > 0
+              ? t("exitPptMoney", { amount: pptExit.balance.toLocaleString("en-IN") })
+              : t("exitPptMoneyNone")
+          }
+          recovery={t("exitPptRecovery")}
+          keepLabel={t("exitPptKeep")}
+          confirmLabel={t("exitPptConfirm", { service: pptExit.serviceName })}
+          busy={busyService === pptExit.serviceId}
+          onKeep={() => setPptExit(null)}
+          onConfirm={() => {
+            const req = pptExit;
+            setPptExit(null);
+            void run(req.serviceId, () => switchFromPpt(req.serviceId, token));
           }}
         />
       )}
