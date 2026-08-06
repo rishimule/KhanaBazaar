@@ -64,7 +64,7 @@ export default function SellerOrdersPage() {
     });
   }, [token, statusFilter, serviceId, debouncedQuery, fromDate, toDate, sortKey, page]);
 
-  const { data, loading } = usePagedList<OrderListResponse>(fetcher, {
+  const { data, loading, refetch } = usePagedList<OrderListResponse>(fetcher, {
     token: Boolean(token),
     statusFilter,
     serviceId,
@@ -74,6 +74,19 @@ export default function SellerOrdersPage() {
     sortKey,
     page,
   });
+
+  // A seller who gets a new-order chime and tabs back must not see a stale list.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refetch();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [refetch]);
 
   const orders = data?.orders ?? [];
   const total = data?.total ?? 0;

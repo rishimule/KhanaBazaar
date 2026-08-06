@@ -1,7 +1,7 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -55,9 +55,13 @@ export default function RecentOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  // Monotonic request id: a slow response from a superseded tab/page (or a
+  // stale focus-triggered refetch) must not clobber the newest result.
+  const reqIdRef = useRef(0);
+
+  const load = useCallback(async () => {
     if (!token) return;
-    let cancelled = false;
+    const reqId = ++reqIdRef.current;
     const params = new URLSearchParams({
       from_date: sevenDaysAgoIsoDate(),
       sort: "date_desc",
@@ -65,22 +69,39 @@ export default function RecentOrders() {
       page_size: String(PAGE_SIZE),
     });
     if (tab !== "all") params.set("status", tab);
-    get<OrderListResponse>(`/api/v1/orders?${params.toString()}`, token)
-      .then((d) => {
-        if (cancelled) return;
-        setData(d);
-        setError(false);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const d = await get<OrderListResponse>(
+        `/api/v1/orders?${params.toString()}`,
+        token
+      );
+      if (reqId !== reqIdRef.current) return;
+      setData(d);
+      setError(false);
+    } catch {
+      if (reqId !== reqIdRef.current) return;
+      setError(true);
+    } finally {
+      if (reqId === reqIdRef.current) setLoading(false);
+    }
   }, [token, tab, page]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // The dashboard is the surface a seller tabs back to after a new-order
+  // chime — refetch on focus so the list is never stale.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [load]);
 
   function switchTab(next: Tab) {
     setTab(next);
