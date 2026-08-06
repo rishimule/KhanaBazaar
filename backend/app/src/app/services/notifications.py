@@ -80,10 +80,15 @@ async def record_seller_notification(
     title: str,
     body: str,
     status_value: str,
+    order_id: Optional[int] = None,
 ) -> Notification:
-    """Insert (flush, not commit) one seller notification row."""
+    """Insert (flush, not commit) one seller notification row.
+
+    ``order_id`` makes the seller bell deep-link to /seller/orders/{id}.
+    """
     notif = Notification(
         seller_profile_id=seller_profile_id,
+        order_id=order_id,
         type=type,
         title=title,
         body=body,
