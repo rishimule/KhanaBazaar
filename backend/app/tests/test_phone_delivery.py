@@ -40,8 +40,8 @@ async def test_prefers_whatsapp_when_sender_present() -> None:
         template_name="otp_seller_phone",
         variables={"code": "111111"},
         sms_text="sms copy",
-        sms_sender=sms,  # type: ignore[arg-type]
-        whatsapp_sender=wa,  # type: ignore[arg-type]
+        sms_sender=sms,
+        whatsapp_sender=wa,
     )
     assert channel == "whatsapp"
     assert wa.calls == [("+918888888888", "otp_seller_phone", {"code": "111111"})]
@@ -56,8 +56,8 @@ async def test_falls_back_to_sms_when_whatsapp_raises() -> None:
         template_name="otp_seller_phone",
         variables={"code": "111111"},
         sms_text="sms copy",
-        sms_sender=sms,  # type: ignore[arg-type]
-        whatsapp_sender=_FailingWhatsApp(),  # type: ignore[arg-type]
+        sms_sender=sms,
+        whatsapp_sender=_FailingWhatsApp(),
     )
     assert channel == "sms"
     assert sms.calls == [("+918888888888", "sms copy")]
@@ -71,7 +71,7 @@ async def test_uses_sms_when_whatsapp_disabled() -> None:
         template_name="otp_seller_phone",
         variables={"code": "111111"},
         sms_text="sms copy",
-        sms_sender=sms,  # type: ignore[arg-type]
+        sms_sender=sms,
         whatsapp_sender=None,
     )
     assert channel == "sms"

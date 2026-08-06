@@ -48,6 +48,7 @@ from app.schemas.orders import (
     OrderReviewInOrder,
     PaymentRead,
     PlaceOrderRequest,
+    SellerOrderAlertSummary,
     TransitionRequest,
 )
 from app.schemas.price_comparison import ReplaceAdjustment
@@ -514,6 +515,37 @@ async def _load_order_for_user(session: AsyncSession, order_id: int, user: User)
     if user.role == UserRole.Admin:
         return order, True
     raise HTTPException(status_code=403, detail="forbidden")
+
+
+@router.get("/seller/alert-summary", response_model=SellerOrderAlertSummary)
+async def seller_alert_summary(
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_seller),
+) -> SellerOrderAlertSummary:
+    """Pending-order count + newest pending id for the caller's stores.
+
+    Polled every 30s by the seller shell, so this deliberately returns
+    aggregates rather than order rows.
+    """
+    store_ids = await _seller_store_ids(session, user)
+    if not store_ids:
+        return SellerOrderAlertSummary(pending_count=0)
+    row = (
+        await session.exec(
+            select(
+                func.count(Order.id),
+                func.max(Order.id),
+                func.max(Order.placed_at),  # type: ignore[arg-type]
+            )
+            .where(Order.store_id.in_(store_ids))  # type: ignore[attr-defined]
+            .where(Order.status == OrderStatus.Pending)
+        )
+    ).one()
+    return SellerOrderAlertSummary(
+        pending_count=int(row[0] or 0),
+        latest_pending_order_id=row[1],
+        latest_pending_at=row[2],
+    )
 
 
 @router.get("/{order_id}", response_model=OrderRead)

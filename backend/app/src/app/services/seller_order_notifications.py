@@ -43,7 +43,7 @@ async def record_seller_new_order_notification(
         if row is None:
             return
         seller_profile_id, account_status = row
-        if account_status != AccountStatus.active:
+        if seller_profile_id is None or account_status != AccountStatus.active:
             return
 
         item_count = int(

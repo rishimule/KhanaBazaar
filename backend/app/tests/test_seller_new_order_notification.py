@@ -3,7 +3,7 @@
 from collections.abc import AsyncGenerator
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Response
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -112,6 +112,8 @@ async def order_seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], No
     assert store.id is not None
     assert cust_address.id is not None
     assert seller_profile.id is not None
+    assert _SELLER.id is not None
+    assert customer_profile.id is not None
     ids: dict[str, int] = {
         "store_id": store.id,
         "service_id": grocery_service_id,
@@ -152,6 +154,7 @@ async def test_record_seller_notification_persists_order_id(
     )
     session.add(profile)
     await session.flush()
+    assert profile.id is not None
 
     await record_seller_notification(
         session,
@@ -174,7 +177,7 @@ async def test_record_seller_notification_persists_order_id(
     assert row.order_id is None
 
 
-async def _place_order(seed: dict[str, int]) -> "object":
+async def _place_order(seed: dict[str, int]) -> Response:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         return await client.post(
