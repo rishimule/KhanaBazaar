@@ -135,7 +135,9 @@ export default function DashboardLayout({
             </button>
             <h1 className={styles.topBarTitle}>{title}</h1>
           </div>
-          {headerAction}
+          {headerAction && (
+            <div className={styles.headerAction}>{headerAction}</div>
+          )}
         </div>
         <div className={styles.content}>{children}</div>
       </div>

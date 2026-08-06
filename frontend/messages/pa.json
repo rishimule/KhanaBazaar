@@ -995,6 +995,17 @@
       "storeQr": "ਸਟੋਰ QR",
       "devices": "ਡਿਵਾਈਸ"
     },
+    "alerts": {
+      "soundOn": "ਆਰਡਰ ਆਵਾਜ਼ ਚਾਲੂ",
+      "soundOff": "ਆਰਡਰ ਆਵਾਜ਼ ਬੰਦ",
+      "enableSound": "ਨਵੇਂ ਆਰਡਰ ਦੀ ਆਵਾਜ਼ ਚਾਲੂ ਕਰੋ",
+      "disableSound": "ਨਵੇਂ ਆਰਡਰ ਦੀ ਆਵਾਜ਼ ਬੰਦ ਕਰੋ",
+      "newOrderTitle": "ਨਵਾਂ ਆਰਡਰ #{id}",
+      "newOrderBody": "ਇੱਕ ਗਾਹਕ ਨੇ ਹੁਣੇ ਆਰਡਰ ਦਿੱਤਾ ਹੈ।",
+      "viewOrder": "ਆਰਡਰ ਵੇਖੋ",
+      "dismiss": "ਬੰਦ ਕਰੋ",
+      "pendingBadgeLabel": "{count} ਆਰਡਰ ਉਡੀਕ ਵਿੱਚ"
+    },
     "titles": {
       "dashboard": "ਵਿਕਰੇਤਾ ਡੈਸ਼ਬੋਰਡ",
       "inventory": "ਇਨਵੈਂਟਰੀ ਪ੍ਰਬੰਧਨ",

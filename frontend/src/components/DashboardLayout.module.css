@@ -203,6 +203,14 @@
   gap: 12px;
 }
 
+/* Groups the caller's topbar controls so multiple nodes stay together on the
+   right instead of being spread apart by the topBar's space-between. */
+.headerAction {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .mobileToggle {
   display: none;
   width: 36px;

@@ -3,11 +3,12 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import DashboardLayout from "@/components/DashboardLayout";
 import Navbar from "@/components/Navbar";
 import SellerNotificationBell from "@/components/seller/SellerNotificationBell";
+import SellerOrderAlerts from "@/components/seller/SellerOrderAlerts";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { Store, VerificationStatus } from "@/types";
@@ -24,6 +25,12 @@ export default function SellerLayout({
   const [storeName, setStoreName] = useState("");
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
+  // null = unknown (never loaded / fetch failed) → the nav badge stays hidden.
+  const [pendingOrders, setPendingOrders] = useState<number | null>(null);
+  const onPendingCountChange = useCallback(
+    (count: number | null) => setPendingOrders(count),
+    []
+  );
 
   // Compute before effects so value is stable
   const isSignupRoute = pathname.startsWith("/seller/signup");
@@ -98,7 +105,12 @@ export default function SellerLayout({
   const sellerNav = [
     { href: "/seller", label: t("nav.dashboard"), icon: "📊" },
     { href: "/seller/profile", label: t("nav.profile"), icon: "🪪" },
-    { href: "/seller/orders", label: t("nav.orders"), icon: "📦" },
+    {
+      href: "/seller/orders",
+      label: t("nav.orders"),
+      icon: "📦",
+      badge: pendingOrders ?? undefined,
+    },
     { href: "/seller/inventory", label: t("nav.inventory"), icon: "🏷️" },
     { href: "/seller/settings", label: t("nav.settings"), icon: "⚙️" },
     { href: "/seller/plan", label: t("nav.plan"), icon: "💳" },
@@ -143,7 +155,12 @@ export default function SellerLayout({
         title={title}
         navItems={sellerNav}
         avatarUrl={dbUser.avatar_url}
-        headerAction={<SellerNotificationBell />}
+        headerAction={
+          <>
+            <SellerOrderAlerts onPendingCountChange={onPendingCountChange} />
+            <SellerNotificationBell />
+          </>
+        }
       >
         {children}
       </DashboardLayout>
