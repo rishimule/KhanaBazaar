@@ -124,6 +124,15 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
             "Renew or clear your balance from your seller dashboard to reactivate it."
         ),
     ),
+    "seller_new_order": WhatsAppTemplate(
+        name="seller_new_order",
+        category="UTILITY",
+        variables=("order_id", "amount"),
+        render=lambda v: (
+            f"New order #{v['order_id']} for ₹{v['amount']} on your "
+            f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
+        ),
+    ),
 }
 
 
@@ -143,4 +152,10 @@ FEE_TEMPLATES: dict[str, WhatsAppTemplate] = {
     "fee_activated": TEMPLATES["fee_activated"],
     "fee_expiring": TEMPLATES["fee_expiring"],
     "fee_suspended": TEMPLATES["fee_suspended"],
+}
+
+
+# Seller-facing order events → UTILITY template.
+ORDER_SELLER_TEMPLATES: dict[str, WhatsAppTemplate] = {
+    "new_order": TEMPLATES["seller_new_order"],
 }

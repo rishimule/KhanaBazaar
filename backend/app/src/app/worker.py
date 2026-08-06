@@ -1667,6 +1667,65 @@ def send_seller_fee_email_async(
         ex.submit(lambda: asyncio.run(_run())).result()
 
 
+@celery_app.task(name="send_seller_new_order_alert_async")  # type: ignore[untyped-decorator]
+def send_seller_new_order_alert_async(order_id: int) -> None:
+    """Best-effort phone alert to the seller that a new order arrived.
+
+    WhatsApp-preferred with SMS fallback, so per-order messaging cost drops
+    automatically once WHATSAPP_PROVIDER goes live. No-ops when the seller has
+    no phone on file.
+    """
+    import asyncio
+    import concurrent.futures
+
+    from sqlmodel import select
+
+    from app.core.phone_delivery import deliver_phone_message
+    from app.core.sms import get_sms_sender
+    from app.core.whatsapp import get_whatsapp_sender
+    from app.db.session import async_session_factory
+    from app.models.commerce import Order
+    from app.models.profile import SellerProfile
+    from app.models.store import Store
+
+    async def _run() -> None:
+        async with async_session_factory() as session:
+            row = (
+                await session.exec(
+                    select(SellerProfile.phone, Order.total)
+                    .join(Store, Store.id == Order.store_id)  # type: ignore[arg-type]
+                    .join(SellerProfile, SellerProfile.id == Store.seller_profile_id)  # type: ignore[arg-type]
+                    .where(Order.id == order_id)
+                )
+            ).first()
+        if row is None:
+            return
+        phone, total = row
+        if not phone:
+            return
+        amount = f"{float(total):.2f}"
+        sms_text = (
+            f"New order #{order_id} for ₹{amount} on your "
+            f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
+        )
+        try:
+            await deliver_phone_message(
+                to=phone,
+                template_name="seller_new_order",
+                variables={"order_id": str(order_id), "amount": amount},
+                sms_text=sms_text,
+                sms_sender=get_sms_sender(),
+                whatsapp_sender=get_whatsapp_sender(),
+            )
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "seller new-order alert failed for order_id=%s", order_id
+            )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        ex.submit(lambda: asyncio.run(_run())).result()
+
+
 def _referral_activation_url(token: str, target_role: str) -> str:
     """Absolute activation link carried in the invite comms. Seller invites
     open the seller-signup wizard (non-localized); customer invites open the

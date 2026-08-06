@@ -21,6 +21,7 @@ from app.worker import (
     send_order_placed_seller_async,
     send_order_review_request_async,
     send_order_status_changed_async,
+    send_seller_new_order_alert_async,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,12 +51,13 @@ def _safe_delay(task: Any, *args: Any) -> None:
 
 
 def dispatch_order_placed(order_ids: list[int]) -> None:
-    """Notify the customer (one summary email) and each seller (one per order)."""
+    """Notify the customer (one summary email) and each seller (email + phone)."""
     if not order_ids:
         return
     _safe_delay(send_order_confirmed_customer_async, order_ids)
     for oid in order_ids:
         _safe_delay(send_order_placed_seller_async, oid)
+        _safe_delay(send_seller_new_order_alert_async, oid)
 
 
 def dispatch_delivery_otp(order_id: int, code: str) -> None:
