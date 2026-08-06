@@ -11,6 +11,7 @@ import {
   playNewOrderChime,
   primeAudio,
 } from "@/lib/sellerOrderAlerts";
+import { useVisibilityRefresh } from "@/lib/useVisibilityRefresh";
 
 const POLL_MS = 30_000;
 
@@ -89,17 +90,10 @@ export function useSellerOrderAlerts(): SellerOrderAlertsState {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- tick() is async; every setState lands after the network await, not synchronously in the effect
     void tick();
     const iv = setInterval(() => void tick(), POLL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void tick();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
-    return () => {
-      clearInterval(iv);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
-    };
+    return () => clearInterval(iv);
   }, [token, tick]);
+
+  useVisibilityRefresh(() => void tick());
 
   return {
     pendingCount,

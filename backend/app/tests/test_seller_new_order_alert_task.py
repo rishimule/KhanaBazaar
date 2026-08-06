@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.core.whatsapp_templates import TEMPLATES
 from app.models.address import Address
 from app.models.base import AccountStatus, User, UserRole
@@ -183,3 +184,38 @@ async def test_task_noops_for_unknown_order(session: AsyncSession) -> None:
         await seller_new_order_alert(999_999)
 
     assert sms.calls == []
+
+
+@pytest.mark.asyncio
+async def test_hourly_quota_caps_the_billable_channel(session: AsyncSession) -> None:
+    """Order spam must not bill an unbounded number of messages."""
+    order_id = await _seed_order(
+        session, account_status=AccountStatus.active, phone="+919812300044"
+    )
+    sms = _RecordingSMS()
+    with patch("app.core.sms.get_sms_sender", lambda: sms), patch(
+        "app.core.whatsapp.get_whatsapp_sender", lambda: None
+    ), patch.object(settings, "SELLER_NEW_ORDER_ALERT_MAX_PER_HOUR", 2):
+        for _ in range(5):
+            await seller_new_order_alert(order_id)
+
+    assert len(sms.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_quota_check_fails_open(session: AsyncSession) -> None:
+    """A Redis outage must never silence a real order alert."""
+    order_id = await _seed_order(
+        session, account_status=AccountStatus.active, phone="+919812300055"
+    )
+
+    async def _boom() -> None:
+        raise RuntimeError("redis down")
+
+    sms = _RecordingSMS()
+    with patch("app.core.sms.get_sms_sender", lambda: sms), patch(
+        "app.core.whatsapp.get_whatsapp_sender", lambda: None
+    ), patch("app.core.redis.get_redis", _boom):
+        await seller_new_order_alert(order_id)
+
+    assert len(sms.calls) == 1

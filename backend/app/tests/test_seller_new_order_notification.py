@@ -212,6 +212,19 @@ async def test_place_order_writes_seller_notification(
     assert rows[0].status_value == "new_order"
     assert f"#{order_id}" in rows[0].title
 
+    # The seller row's extra mid-request commit must not swallow the customer's
+    # own order-placed notification.
+    customer_rows = (
+        await session.exec(
+            select(Notification)
+            .where(
+                Notification.customer_profile_id == order_seed["customer_profile_id"]
+            )
+            .where(Notification.type == NotificationType.OrderStatus)
+        )
+    ).all()
+    assert [r.order_id for r in customer_rows] == [order_id]
+
 
 @pytest.mark.asyncio
 async def test_no_seller_notification_for_inactive_seller_account(

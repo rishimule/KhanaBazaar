@@ -9,6 +9,8 @@ import { useTranslations } from "next-intl";
 import { useSellerOrderAlerts } from "@/lib/useSellerOrderAlerts";
 import styles from "./SellerOrderAlerts.module.css";
 
+const TOAST_MS = 15_000;
+
 interface Props {
   /** Reports the pending-order count upward so the layout can badge the nav. */
   onPendingCountChange: (count: number | null) => void;
@@ -28,6 +30,15 @@ export default function SellerOrderAlerts({ onPendingCountChange }: Props) {
   useEffect(() => {
     onPendingCountChange(pendingCount);
   }, [pendingCount, onPendingCountChange]);
+
+  // Auto-dismiss: the toast is pinned over the dashboard on every page, and
+  // the nav badge + bell already carry the order persistently, so it does not
+  // need to sit there until clicked.
+  useEffect(() => {
+    if (newOrderId === null) return;
+    const timer = setTimeout(dismissNewOrder, TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [newOrderId, dismissNewOrder]);
 
   return (
     <>

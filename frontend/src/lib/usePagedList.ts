@@ -59,7 +59,11 @@ export function usePagedList<R>(
       })
       .finally(() => {
         if (reqIdRef.current !== reqId) return;
-        if (!quiet) setLoading(false);
+        // Unconditional, even for a quiet refetch: a quiet refetch can
+        // supersede an in-flight loud one (tab focused mid-load), and the
+        // superseded request's finally bails on the reqId guard — so skipping
+        // it here would strand `loading` at true forever.
+        setLoading(false);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depsKey]);

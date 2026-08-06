@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { useVisibilityRefresh } from "@/lib/useVisibilityRefresh";
 import type { OrderListResponse } from "@/types";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
@@ -95,17 +96,7 @@ export default function RecentOrders() {
 
   // The dashboard is the surface a seller tabs back to after a new-order
   // chime — refetch on focus so the list is never stale.
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void load({ quiet: true });
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
-    };
-  }, [load]);
+  useVisibilityRefresh(() => void load({ quiet: true }));
 
   function switchTab(next: Tab) {
     setTab(next);

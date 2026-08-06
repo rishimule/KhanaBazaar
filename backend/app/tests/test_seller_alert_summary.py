@@ -162,6 +162,51 @@ async def test_summary_counts_only_pending_orders_of_this_seller(
 
 
 @pytest.mark.asyncio
+async def test_other_seller_sees_only_their_own_pending_order(
+    seller_client_seed: dict[str, int],
+) -> None:
+    """Tenant isolation from the other side: the second seller's single pending
+    order at their own store must not be mixed with this seller's two."""
+    app.dependency_overrides[get_current_user] = lambda: _OTHER_SELLER
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get("/api/v1/orders/seller/alert-summary")
+    assert res.status_code == 200, res.text
+    assert res.json()["pending_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_admin_without_a_seller_profile_sees_no_orders(
+    seller_client_seed: dict[str, int],
+) -> None:
+    """get_current_seller admits Admins; an admin owns no store, so the
+    store-less early return must fire rather than leaking a platform-wide count."""
+    admin = User(id=9213, email="sas-admin@kb.com", role=UserRole.Admin, is_active=True)
+    app.dependency_overrides[get_current_user] = lambda: admin
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get("/api/v1/orders/seller/alert-summary")
+    assert res.status_code == 200, res.text
+    assert res.json() == {
+        "pending_count": 0,
+        "latest_pending_order_id": None,
+        "latest_pending_at": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_customer_is_forbidden(seller_client_seed: dict[str, int]) -> None:
+    customer = User(
+        id=9214, email="sas-c2@kb.com", role=UserRole.Customer, is_active=True
+    )
+    app.dependency_overrides[get_current_user] = lambda: customer
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get("/api/v1/orders/seller/alert-summary")
+    assert res.status_code == 403, res.text
+
+
+@pytest.mark.asyncio
 async def test_summary_is_zero_for_a_seller_with_no_pending_orders(
     seller_no_orders_seed: dict[str, int],
 ) -> None:

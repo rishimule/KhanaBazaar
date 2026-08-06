@@ -1667,6 +1667,44 @@ def send_seller_fee_email_async(
         ex.submit(lambda: asyncio.run(_run())).result()
 
 
+async def _seller_alert_quota_exceeded(seller_profile_id: int) -> bool:
+    """True when this seller has already had their hourly alert quota.
+
+    `POST /orders` carries no rate limit and has no minimum order value, so a
+    customer placing orders in a loop would otherwise bill one SMS per order.
+    The in-app notification, the nav badge and the toast are unaffected — only
+    the paid channel is capped. Fails OPEN: a Redis outage must not silence
+    real order alerts.
+    """
+    limit = settings.SELLER_NEW_ORDER_ALERT_MAX_PER_HOUR
+    if limit <= 0:
+        return False
+    from app.core.rate_limit import incr_with_ttl
+    from app.core.redis import get_redis
+
+    try:
+        redis = await get_redis()
+        count = await incr_with_ttl(
+            redis, f"seller_new_order_alert:{seller_profile_id}", 3600
+        )
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "seller alert quota check failed for seller_profile_id=%s; allowing send",
+            seller_profile_id,
+            exc_info=True,
+        )
+        return False
+    if count > limit:
+        logging.getLogger(__name__).warning(
+            "seller_profile_id=%s exceeded %s new-order alerts/hour; skipping the "
+            "phone alert (in-app notification still delivered)",
+            seller_profile_id,
+            limit,
+        )
+        return True
+    return False
+
+
 async def seller_new_order_alert(order_id: int) -> None:
     """Body of `send_seller_new_order_alert_async`, awaitable on the caller's loop.
 
@@ -1688,7 +1726,9 @@ async def seller_new_order_alert(order_id: int) -> None:
     async with async_session_factory() as session:
         row = (
             await session.exec(
-                select(SellerProfile.phone, Order.total, User.account_status)
+                select(
+                    SellerProfile.id, SellerProfile.phone, Order.total, User.account_status
+                )
                 .select_from(Order)
                 .join(Store, Store.id == Order.store_id)  # type: ignore[arg-type]
                 .join(SellerProfile, SellerProfile.id == Store.seller_profile_id)  # type: ignore[arg-type]
@@ -1698,8 +1738,10 @@ async def seller_new_order_alert(order_id: int) -> None:
         ).first()
     if row is None:
         return
-    phone, total, account_status = row
+    seller_profile_id, phone, total, account_status = row
     if not phone or account_status != AccountStatus.active:
+        return
+    if await _seller_alert_quota_exceeded(seller_profile_id):
         return
     amount = f"{float(total):.2f}"
     # ASCII "Rs." not "₹": a rupee sign is outside GSM-7, which forces the

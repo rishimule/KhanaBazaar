@@ -101,6 +101,11 @@ class Settings(BaseSettings):
     GOOGLE_MAPS_SERVER_API_KEY: str = ""
     GOOGLE_MAPS_BROWSER_API_KEY: str = ""  # exposed to FE; referrer-restricted
     GEO_RATE_LIMIT_PER_MIN: int = 30
+    # Abuse ceiling on the per-order seller phone alert (SMS/WhatsApp is
+    # billable and `POST /orders` is unrated). Set high enough that a real shop
+    # never reaches it — it exists to bound an order-spam attack, not to shape
+    # normal traffic. 0 disables the cap.
+    SELLER_NEW_ORDER_ALERT_MAX_PER_HOUR: int = 40
     GEO_AUTOCOMPLETE_CACHE_TTL_SECONDS: int = 60
     GEO_REVERSE_CACHE_TTL_SECONDS: int = 86400
 

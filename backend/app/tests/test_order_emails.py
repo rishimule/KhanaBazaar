@@ -11,6 +11,7 @@ import pytest
     ("send_order_confirmed_customer_async", ([1, 2],)),
     ("send_order_status_changed_async", (1, "packed", "customer")),
     ("send_order_status_changed_async", (1, "cancelled", "seller")),
+    ("send_seller_new_order_alert_async", (1,)),
 ])
 def test_email_tasks_callable_in_console_mode(task_name: str, args: tuple[Any, ...]) -> None:
     from app import worker

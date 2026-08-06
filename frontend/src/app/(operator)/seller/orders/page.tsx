@@ -10,6 +10,7 @@ import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
 import { listOrdersPaged } from "@/lib/orders";
 import { usePagedList } from "@/lib/usePagedList";
+import { useVisibilityRefresh } from "@/lib/useVisibilityRefresh";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
@@ -78,17 +79,7 @@ export default function SellerOrdersPage() {
   // A seller who gets a new-order chime and tabs back must not see a stale
   // list. Quiet: refresh in place rather than replacing the table with a
   // spinner on every window focus.
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refetch({ quiet: true });
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
-    };
-  }, [refetch]);
+  useVisibilityRefresh(() => refetch({ quiet: true }));
 
   const orders = data?.orders ?? [];
   const total = data?.total ?? 0;

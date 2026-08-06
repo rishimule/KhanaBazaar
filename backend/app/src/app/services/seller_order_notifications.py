@@ -74,9 +74,12 @@ async def record_seller_new_order_notification(
             status_value="new_order",
             order_id=order.id,
         )
-        # No refresh here: the request session is expire_on_commit=False, so a
-        # successful commit leaves `order` usable as-is.
         await session.commit()
+        # Kept even though the production session is expire_on_commit=False:
+        # that is a property of the *caller's* session, not a guarantee of this
+        # function's contract (the test harness builds a default session, which
+        # does expire — and then _serialize_order trips MissingGreenlet).
+        await session.refresh(order)
     except Exception:
         try:
             await session.rollback()
