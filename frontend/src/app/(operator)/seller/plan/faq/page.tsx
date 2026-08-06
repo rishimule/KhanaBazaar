@@ -84,7 +84,11 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "How do I cancel?",
-    a: "Use “Cancel subscription” on the Plan page. Your plan stays active until the end of the paid term and then stops renewing — it isn't refunded.",
+    a: "There's nothing to cancel — no plan renews automatically, so a plan you don't renew simply runs to the end of its paid term. After that, customers can't find or order from the service until you renew. Paid terms aren't refunded.",
+  },
+  {
+    q: "How do I leave pay-per-order?",
+    a: "Use “Stop pay-per-order” on the Plan page. Any remaining balance moves to your store wallet credit, and the service is hidden from customers until you start a new plan. You can put that credit straight back into pay-per-order to go live again immediately — no waiting for the team.",
   },
 ];
 

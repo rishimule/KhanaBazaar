@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/lib/AuthContext";
@@ -17,25 +18,27 @@ function daysLeft(iso: string): number {
   );
 }
 
+type Translator = (key: string, values?: Record<string, string | number>) => string;
+
 // Pick the single most-urgent plan message across the store's services.
+// `summarize` runs outside the component (inside an effect), so the translator
+// is passed in rather than pulled from the hook here.
 function summarize(
   services: SellerPlanServiceView[],
   isPremium: boolean,
+  t: Translator,
 ): { tone: Tone; text: string } | null {
   const suspended = services.find((s) => s.status === "suspended");
   if (suspended) {
-    return { tone: "danger", text: `${suspended.service_name} is suspended — renew to restore it.` };
+    return { tone: "danger", text: t("bannerSuspended", { service: suspended.service_name }) };
   }
   const pending = services.find((s) => s.payment_pending);
   if (pending) {
-    return { tone: "info", text: `Payment under review for ${pending.service_name}.` };
+    return { tone: "info", text: t("bannerPending", { service: pending.service_name }) };
   }
   const grace = services.find((s) => s.status === "grace");
   if (grace) {
-    return {
-      tone: "warn",
-      text: `${grace.service_name} is in its grace period — renew now to avoid suspension.`,
-    };
+    return { tone: "warn", text: t("bannerGrace", { service: grace.service_name }) };
   }
   let soon: { name: string; d: number } | null = null;
   for (const s of services) {
@@ -49,22 +52,19 @@ function summarize(
       tone: "warn",
       text:
         soon.d > 0
-          ? `${soon.name} free trial ends in ${soon.d} day${soon.d === 1 ? "" : "s"} — upgrade to go premium.`
-          : `${soon.name} free trial has ended.`,
+          ? t("bannerTrialEndsIn", { service: soon.name, days: soon.d })
+          : t("bannerTrialEnded", { service: soon.name }),
     };
   }
-  const cancelling = services.find((s) => s.cancel_requested);
-  if (cancelling) {
-    return { tone: "warn", text: `${cancelling.service_name} subscription is set to cancel at term end.` };
-  }
   if (isPremium) {
-    return { tone: "success", text: "Your store is premium — all paid plans are in good standing." };
+    return { tone: "success", text: t("bannerPremium") };
   }
   return null;
 }
 
 export default function PlanValidityBanner({ isPremium }: { isPremium: boolean }) {
   const { token } = useAuth();
+  const t = useTranslations("Plan");
   const [summary, setSummary] = useState<{ tone: Tone; text: string } | null>(null);
 
   useEffect(() => {
@@ -72,20 +72,20 @@ export default function PlanValidityBanner({ isPremium }: { isPremium: boolean }
     let cancelled = false;
     getMyPlan(token)
       .then((v) => {
-        if (!cancelled) setSummary(summarize(v.services, isPremium));
+        if (!cancelled) setSummary(summarize(v.services, isPremium, t));
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [token, isPremium]);
+  }, [token, isPremium, t]);
 
   if (!summary) return null;
   return (
     <div className={`${styles.banner} ${styles[summary.tone]}`} role="status">
       <span className={styles.text}>{summary.text}</span>
       <Link href="/seller/plan" className={styles.link}>
-        Manage plan →
+        {t("bannerManage")}
       </Link>
     </div>
   );

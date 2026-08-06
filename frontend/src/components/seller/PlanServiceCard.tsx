@@ -2,6 +2,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import type { FeeInvoice, SellerPlanServiceView } from "@/lib/sellerPlan";
@@ -20,7 +21,6 @@ interface Props {
   onTopUp: (serviceId: number) => void;
   onPayInvoice: (serviceId: number, invoiceId: number, amount: number) => void;
   /** Direct actions — no offline payment. */
-  onCancel: (serviceId: number) => void;
   onStartPptWithCredit: (serviceId: number, deposit: number) => void;
   onApplyCredit: (serviceId: number, amount: number) => void;
   onStopPpt: (serviceId: number) => void;
@@ -82,11 +82,11 @@ export default function PlanServiceCard({
   onStartPpt,
   onTopUp,
   onPayInvoice,
-  onCancel,
   onStartPptWithCredit,
   onApplyCredit,
   onStopPpt,
 }: Props) {
+  const t = useTranslations("Plan");
   const activePlans = service.subscription_plans.filter((p) => p.is_active);
   const [selected, setSelected] = useState<string>(service.model);
   const [duration, setDuration] = useState<number>(() => activePlans[0]?.duration_months ?? 0);
@@ -125,9 +125,7 @@ export default function PlanServiceCard({
 
   // ── Validity line (for the active model) ─────────────────────────────
   let validity: string | null = null;
-  if (service.cancel_requested && service.valid_until) {
-    validity = `Cancellation scheduled — access until ${fmtDate(service.valid_until)}.`;
-  } else if (service.valid_until) {
+  if (service.valid_until) {
     const d = daysLeft(service.valid_until);
     const left = Number.isFinite(d) ? (d > 0 ? ` · ${d} day${d === 1 ? "" : "s"} left` : " · expired") : "";
     validity =
@@ -147,6 +145,15 @@ export default function PlanServiceCard({
       <div className={styles.section}>
         <p className={styles.sectionTitle}>{active && isLive ? "Renew or change plan" : "Subscribe"}</p>
         {active && validity && <p className={styles.validity}>{validity}</p>}
+        {active && isLive && service.valid_until && (
+          <p className={styles.muted}>
+            {t("noAutoRenew")}{" "}
+            {t("endsOnRenewBefore", {
+              service: service.service_name,
+              date: fmtDate(service.valid_until),
+            })}
+          </p>
+        )}
         <div className={styles.options} role="radiogroup" aria-label="Subscription duration">
           {activePlans.map((p) => (
             <label
@@ -168,17 +175,12 @@ export default function PlanServiceCard({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={busy || pending || duration === 0 || service.cancel_requested}
+            disabled={busy || pending || duration === 0}
             onClick={() => onSubscribe(service.service_id, duration, selectedPlan?.price ?? 0)}
           >
-            {active && isLive ? "Renew" : "Subscribe"}
+            {active && isLive ? t("renewCta") : t("subscribeCta")}
           </button>
         </div>
-        {active && service.status === "active" && !service.cancel_requested && !pending && (
-          <button type="button" className={styles.cancelBtn} disabled={busy} onClick={() => onCancel(service.service_id)}>
-            Cancel subscription
-          </button>
-        )}
       </div>
     );
   }

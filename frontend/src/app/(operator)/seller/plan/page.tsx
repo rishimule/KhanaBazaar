@@ -10,7 +10,6 @@ import PlanServiceCard from "@/components/seller/PlanServiceCard";
 import PaySheet from "@/components/seller/PaySheet";
 import {
   applyCreditPpt,
-  cancelPlan,
   feeErrorCode,
   getInvoices,
   getMyPlan,
@@ -195,17 +194,6 @@ export default function SellerPlanPage() {
   }
 
   // ── Direct actions (no offline payment) ──────────────────────────────
-  const onCancel = (serviceId: number) => {
-    if (
-      !window.confirm(
-        "Cancel this subscription? It stays active until the end of the paid term, then stops renewing.",
-      )
-    ) {
-      return;
-    }
-    void run(serviceId, () => cancelPlan(serviceId, token));
-  };
-
   const onStartPptWithCredit = (serviceId: number, deposit: number) =>
     void run(serviceId, () => optInPpt(serviceId, deposit, true, token));
 
@@ -263,7 +251,6 @@ export default function SellerPlanPage() {
               onStartPpt={onStartPpt}
               onTopUp={onTopUp}
               onPayInvoice={onPayInvoice}
-              onCancel={onCancel}
               onStartPptWithCredit={onStartPptWithCredit}
               onApplyCredit={onApplyCredit}
               onStopPpt={onStopPpt}

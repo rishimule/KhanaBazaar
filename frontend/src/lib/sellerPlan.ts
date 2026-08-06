@@ -25,7 +25,6 @@ export type SellerPlanServiceView = {
   subscription_plans: SubscriptionPlanItem[];
   payment_pending: boolean;
   amount_due: number | null;
-  cancel_requested: boolean;
   // Pay-Per-Transaction (prepaid) fields.
   pay_per_txn_enabled: boolean;
   pay_per_txn_fee: number;
@@ -127,13 +126,6 @@ export function markPaid(
     { seller_note: sellerNote },
     token,
   );
-}
-
-export function cancelPlan(
-  serviceId: number,
-  token: string | null,
-): Promise<{ service_id: number; cancel_requested: boolean }> {
-  return post(`/api/v1/sellers/me/plan/${serviceId}/cancel`, undefined, token);
 }
 
 // ── Pay-Per-Transaction (prepaid) ────────────────────────────────────────
