@@ -1004,7 +1004,7 @@
       "newOrderBody": "ਇੱਕ ਗਾਹਕ ਨੇ ਹੁਣੇ ਆਰਡਰ ਦਿੱਤਾ ਹੈ।",
       "viewOrder": "ਆਰਡਰ ਵੇਖੋ",
       "dismiss": "ਬੰਦ ਕਰੋ",
-      "pendingBadgeLabel": "{count} ਆਰਡਰ ਉਡੀਕ ਵਿੱਚ"
+      "pendingBadgeLabel": "{count, plural, one {# ਆਰਡਰ ਉਡੀਕ ਵਿੱਚ} other {# ਆਰਡਰ ਉਡੀਕ ਵਿੱਚ}}"
     },
     "titles": {
       "dashboard": "ਵਿਕਰੇਤਾ ਡੈਸ਼ਬੋਰਡ",

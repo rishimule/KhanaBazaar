@@ -75,10 +75,12 @@ export default function SellerOrdersPage() {
     page,
   });
 
-  // A seller who gets a new-order chime and tabs back must not see a stale list.
+  // A seller who gets a new-order chime and tabs back must not see a stale
+  // list. Quiet: refresh in place rather than replacing the table with a
+  // spinner on every window focus.
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible") refetch();
+      if (document.visibilityState === "visible") refetch({ quiet: true });
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);

@@ -4,11 +4,20 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+interface RefetchOptions {
+  /**
+   * Skip the loading flag so an already-rendered list is refreshed in place
+   * instead of being replaced by a spinner. Used by background refreshes
+   * (focus / visibilitychange), never by a user-initiated query change.
+   */
+  quiet?: boolean;
+}
+
 interface UsePagedListResult<R> {
   data: R | null;
   loading: boolean;
   error: Error | null;
-  refetch: () => void;
+  refetch: (options?: RefetchOptions) => void;
 }
 
 /**
@@ -29,23 +38,28 @@ export function usePagedList<R>(
   fetcherRef.current = fetcher;
   const depsKey = JSON.stringify(deps);
 
-  const refetch = useCallback(() => {
+  const refetch = useCallback((options?: RefetchOptions) => {
+    const quiet = options?.quiet === true;
     const reqId = ++reqIdRef.current;
-    setLoading(true);
-    setError(null);
+    if (!quiet) {
+      setLoading(true);
+      setError(null);
+    }
     fetcherRef
       .current()
       .then((res) => {
         if (reqIdRef.current !== reqId) return;
         setData(res);
+        if (quiet) setError(null);
       })
       .catch((e) => {
         if (reqIdRef.current !== reqId) return;
-        setError(e as Error);
+        // A failed background refresh keeps the last good page on screen.
+        if (!quiet) setError(e as Error);
       })
       .finally(() => {
         if (reqIdRef.current !== reqId) return;
-        setLoading(false);
+        if (!quiet) setLoading(false);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depsKey]);

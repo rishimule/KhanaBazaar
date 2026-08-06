@@ -1004,7 +1004,7 @@
       "newOrderBody": "एक ग्राहक ने अभी ऑर्डर दिया है।",
       "viewOrder": "ऑर्डर देखें",
       "dismiss": "बंद करें",
-      "pendingBadgeLabel": "{count} ऑर्डर प्रतीक्षा में"
+      "pendingBadgeLabel": "{count, plural, one {# ऑर्डर प्रतीक्षा में} other {# ऑर्डर प्रतीक्षा में}}"
     },
     "titles": {
       "dashboard": "विक्रेता डैशबोर्ड",

@@ -110,6 +110,9 @@ export default function SellerLayout({
       label: t("nav.orders"),
       icon: "📦",
       badge: pendingOrders ?? undefined,
+      badgeLabel: pendingOrders
+        ? t("alerts.pendingBadgeLabel", { count: pendingOrders })
+        : undefined,
     },
     { href: "/seller/inventory", label: t("nav.inventory"), icon: "🏷️" },
     { href: "/seller/settings", label: t("nav.settings"), icon: "⚙️" },

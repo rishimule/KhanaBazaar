@@ -1003,7 +1003,7 @@
       "newOrderBody": "A customer just placed an order.",
       "viewOrder": "View order",
       "dismiss": "Dismiss",
-      "pendingBadgeLabel": "{count} orders waiting"
+      "pendingBadgeLabel": "{count, plural, one {# order waiting} other {# orders waiting}}"
     },
     "titles": {
       "dashboard": "Seller Dashboard",

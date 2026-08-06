@@ -154,7 +154,7 @@
   padding: 0 var(--space-1-5);
   border-radius: 10px;
   background: var(--color-primary-1);
-  color: #fff;
+  color: var(--color-neutral-0);
   font-size: var(--body-2xs);
   font-weight: var(--weight-bold);
   line-height: 20px;
@@ -212,6 +212,7 @@
 }
 
 .mobileToggle {
+  position: relative;
   display: none;
   width: 36px;
   height: 36px;
@@ -226,6 +227,18 @@
 }
 
 .mobileToggle:hover { background: var(--shade-cool-light-1); }
+
+/* Decorative mirror of an off-canvas nav badge. The count itself lives on the
+   nav row inside the drawer; this only says "look in here". */
+.mobileToggleDot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-1);
+}
 
 @media (max-width: 768px) {
   .mobileToggle { display: inline-flex; }

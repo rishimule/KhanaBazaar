@@ -29,6 +29,11 @@ export function useSellerOrderAlerts(): SellerOrderAlertsState {
   const [newOrderId, setNewOrderId] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabledState] = useState(false);
   const lastSeenRef = useRef<number | null>(null);
+  // Distinct from `lastSeenRef === null`: a seller with an EMPTY queue gets
+  // latest_pending_order_id === null, so the ref alone can't tell "never polled"
+  // from "nothing pending". Without this flag the very first order after an
+  // empty queue would be mistaken for pre-existing backlog and never alert.
+  const seededRef = useRef(false);
   const soundRef = useRef(false);
 
   // Restore the per-device sound preference.
@@ -55,22 +60,26 @@ export function useSellerOrderAlerts(): SellerOrderAlertsState {
       const res = await getSellerOrderAlertSummary(token);
       setPendingCount(res.pending_count);
       const latest = res.latest_pending_order_id;
-      if (latest !== null) {
-        if (lastSeenRef.current === null) {
-          // First successful response seeds the baseline — never alert for a
-          // pre-existing backlog on page load.
-          lastSeenRef.current = latest;
-        } else if (latest > lastSeenRef.current) {
-          lastSeenRef.current = latest;
-          setNewOrderId(latest);
-          if (soundRef.current) playNewOrderChime();
-          if (typeof navigator !== "undefined" && navigator.vibrate) {
-            navigator.vibrate([200, 100, 200]);
-          }
+      if (!seededRef.current) {
+        // The first successful response seeds the baseline (even when it is
+        // null) — a pre-existing backlog must never alert on page load.
+        seededRef.current = true;
+        lastSeenRef.current = latest;
+      } else if (
+        latest !== null &&
+        (lastSeenRef.current === null || latest > lastSeenRef.current)
+      ) {
+        lastSeenRef.current = latest;
+        setNewOrderId(latest);
+        if (soundRef.current) playNewOrderChime();
+        if (typeof navigator !== "undefined" && navigator.vibrate) {
+          navigator.vibrate([200, 100, 200]);
         }
       }
     } catch {
       // Unknown, not zero — the badge hides rather than lying about the count.
+      // The last-seen baseline is deliberately left intact so a flaky poll
+      // can't replay an old order as "new" on the next success.
       setPendingCount(null);
     }
   }, [token]);

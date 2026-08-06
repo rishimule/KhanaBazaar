@@ -59,9 +59,11 @@ export default function RecentOrders() {
   // stale focus-triggered refetch) must not clobber the newest result.
   const reqIdRef = useRef(0);
 
-  const load = useCallback(async () => {
-    if (!token) return;
+  const load = useCallback(async (opts?: { quiet?: boolean }) => {
+    // Bump first: when `token` goes null the in-flight request fetched under
+    // the old token must not be allowed to land.
     const reqId = ++reqIdRef.current;
+    if (!token) return;
     const params = new URLSearchParams({
       from_date: sevenDaysAgoIsoDate(),
       sort: "date_desc",
@@ -79,7 +81,9 @@ export default function RecentOrders() {
       setError(false);
     } catch {
       if (reqId !== reqIdRef.current) return;
-      setError(true);
+      // A failed background refresh keeps the last good list on screen rather
+      // than replacing it with an error the seller did nothing to cause.
+      if (!opts?.quiet) setError(true);
     } finally {
       if (reqId === reqIdRef.current) setLoading(false);
     }
@@ -93,7 +97,7 @@ export default function RecentOrders() {
   // chime — refetch on focus so the list is never stale.
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible") void load();
+      if (document.visibilityState === "visible") void load({ quiet: true });
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);

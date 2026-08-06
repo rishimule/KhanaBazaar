@@ -26,9 +26,12 @@
 
 .toast {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--z-toast);
   right: 1rem;
-  top: 5rem;
+  /* Clears the site navbar AND the dashboard topbar beneath it — anchoring at
+     5rem would sit on top of the sound toggle and the notification bell and
+     block both while a toast is up. */
+  top: calc(var(--nav-height) + 76px);
   display: flex;
   align-items: center;
   gap: 0.75rem;
