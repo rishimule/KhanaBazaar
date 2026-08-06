@@ -7,7 +7,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
@@ -48,6 +48,7 @@ from app.schemas.orders import (
     OrderReviewInOrder,
     PaymentRead,
     PlaceOrderRequest,
+    SellerOrderAlertSummary,
     TransitionRequest,
 )
 from app.schemas.price_comparison import ReplaceAdjustment
@@ -70,6 +71,9 @@ from app.services.orders import (
     cancel_order,
     resend_delivery_otp,
     transition_order_status,
+)
+from app.services.seller_order_notifications import (
+    record_seller_new_order_notification,
 )
 
 router = APIRouter()
@@ -513,6 +517,46 @@ async def _load_order_for_user(session: AsyncSession, order_id: int, user: User)
     raise HTTPException(status_code=403, detail="forbidden")
 
 
+@router.get("/seller/alert-summary", response_model=SellerOrderAlertSummary)
+async def seller_alert_summary(
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_seller),
+) -> SellerOrderAlertSummary:
+    """Pending-order count + newest pending order for the caller's stores.
+
+    Polled every 30s by the seller shell, so it returns one aggregate row
+    rather than order rows. `COUNT(*) OVER ()` is evaluated over the whole
+    filtered set before LIMIT, which lets a single query carry both the total
+    and the newest row — so `latest_pending_order_id` and `latest_pending_at`
+    always describe the SAME order. (Separate `max(id)`/`max(placed_at)`
+    aggregates would not: `placed_at` is set Python-side at construction, so
+    under concurrent checkouts the higher id can carry the earlier timestamp.)
+    """
+    store_ids = await _seller_store_ids(session, user)
+    if not store_ids:
+        return SellerOrderAlertSummary(pending_count=0)
+    row = (
+        await session.exec(
+            select(
+                Order.id,
+                Order.placed_at,
+                func.count().over().label("pending_total"),
+            )
+            .where(Order.store_id.in_(store_ids))  # type: ignore[attr-defined]
+            .where(Order.status == OrderStatus.Pending)
+            .order_by(col(Order.id).desc())
+            .limit(1)
+        )
+    ).first()
+    if row is None:
+        return SellerOrderAlertSummary(pending_count=0)
+    return SellerOrderAlertSummary(
+        pending_count=int(row[2] or 0),
+        latest_pending_order_id=row[0],
+        latest_pending_at=row[1],
+    )
+
+
 @router.get("/{order_id}", response_model=OrderRead)
 async def get_order(
     order_id: int,
@@ -549,6 +593,7 @@ async def place_order(
     if order.id is not None:
         dispatch_order_placed([order.id])
         await record_and_dispatch_notification(session, order, "pending")
+        await record_seller_new_order_notification(session, order)
         if payload.payment_method == PaymentMethod.Credit:
             from app.services.credit_notifications import (
                 record_and_dispatch_credit_charge_notifications,

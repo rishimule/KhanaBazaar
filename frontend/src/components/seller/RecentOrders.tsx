@@ -1,12 +1,13 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { useVisibilityRefresh } from "@/lib/useVisibilityRefresh";
 import type { OrderListResponse } from "@/types";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
@@ -55,9 +56,15 @@ export default function RecentOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  // Monotonic request id: a slow response from a superseded tab/page (or a
+  // stale focus-triggered refetch) must not clobber the newest result.
+  const reqIdRef = useRef(0);
+
+  const load = useCallback(async (opts?: { quiet?: boolean }) => {
+    // Bump first: when `token` goes null the in-flight request fetched under
+    // the old token must not be allowed to land.
+    const reqId = ++reqIdRef.current;
     if (!token) return;
-    let cancelled = false;
     const params = new URLSearchParams({
       from_date: sevenDaysAgoIsoDate(),
       sort: "date_desc",
@@ -65,22 +72,31 @@ export default function RecentOrders() {
       page_size: String(PAGE_SIZE),
     });
     if (tab !== "all") params.set("status", tab);
-    get<OrderListResponse>(`/api/v1/orders?${params.toString()}`, token)
-      .then((d) => {
-        if (cancelled) return;
-        setData(d);
-        setError(false);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const d = await get<OrderListResponse>(
+        `/api/v1/orders?${params.toString()}`,
+        token
+      );
+      if (reqId !== reqIdRef.current) return;
+      setData(d);
+      setError(false);
+    } catch {
+      if (reqId !== reqIdRef.current) return;
+      // A failed background refresh keeps the last good list on screen rather
+      // than replacing it with an error the seller did nothing to cause.
+      if (!opts?.quiet) setError(true);
+    } finally {
+      if (reqId === reqIdRef.current) setLoading(false);
+    }
   }, [token, tab, page]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // The dashboard is the surface a seller tabs back to after a new-order
+  // chime — refetch on focus so the list is never stale.
+  useVisibilityRefresh(() => void load({ quiet: true }));
 
   function switchTab(next: Tab) {
     setTab(next);

@@ -10,6 +10,7 @@ import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
 import { listOrdersPaged } from "@/lib/orders";
 import { usePagedList } from "@/lib/usePagedList";
+import { useVisibilityRefresh } from "@/lib/useVisibilityRefresh";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
@@ -64,7 +65,7 @@ export default function SellerOrdersPage() {
     });
   }, [token, statusFilter, serviceId, debouncedQuery, fromDate, toDate, sortKey, page]);
 
-  const { data, loading } = usePagedList<OrderListResponse>(fetcher, {
+  const { data, loading, refetch } = usePagedList<OrderListResponse>(fetcher, {
     token: Boolean(token),
     statusFilter,
     serviceId,
@@ -74,6 +75,11 @@ export default function SellerOrdersPage() {
     sortKey,
     page,
   });
+
+  // A seller who gets a new-order chime and tabs back must not see a stale
+  // list. Quiet: refresh in place rather than replacing the table with a
+  // spinner on every window focus.
+  useVisibilityRefresh(() => refetch({ quiet: true }));
 
   const orders = data?.orders ?? [];
   const total = data?.total ?? 0;

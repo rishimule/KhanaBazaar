@@ -966,3 +966,9 @@ export interface AdminMetrics {
   open_change_requests: number;
   orders_by_service: OrderServiceStat[];
 }
+
+export interface SellerOrderAlertSummary {
+  pending_count: number;
+  latest_pending_order_id: number | null;
+  latest_pending_at: string | null;
+}

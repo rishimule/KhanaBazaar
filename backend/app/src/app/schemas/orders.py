@@ -105,3 +105,11 @@ class TransitionRequest(BaseModel):
     to: Literal["packed", "dispatched", "delivered"]
     otp: Optional[str] = None
     reason: Optional[str] = None
+
+
+class SellerOrderAlertSummary(BaseModel):
+    """Cheap poll payload driving the seller Orders nav badge + new-order chime."""
+
+    pending_count: int
+    latest_pending_order_id: Optional[int] = None
+    latest_pending_at: Optional[datetime] = None

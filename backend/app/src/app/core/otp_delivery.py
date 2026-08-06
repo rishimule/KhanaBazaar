@@ -2,17 +2,12 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Phone-OTP channel routing: WhatsApp-preferred, SMS fallback.
 
-Decouples channel selection from copy: each call site supplies the WhatsApp
-template name + variables AND its own verbatim SMS fallback text, so SMS-only
-recipients (and the WHATSAPP_PROVIDER=none path) see unchanged behavior.
+Thin OTP-named delegate over core.phone_delivery.deliver_phone_message so the
+channel-routing rule lives in exactly one place.
 """
-import logging
-
+from app.core.phone_delivery import deliver_phone_message
 from app.core.sms import SMSSender
 from app.core.whatsapp import WhatsAppSender
-from app.core.whatsapp_templates import TEMPLATES
-
-logger = logging.getLogger(__name__)
 
 
 async def deliver_phone_otp(
@@ -26,16 +21,11 @@ async def deliver_phone_otp(
 ) -> str:
     """Send the OTP over WhatsApp if enabled, else/then SMS. Returns the channel
     actually used ("whatsapp" | "sms")."""
-    if whatsapp_sender is not None:
-        try:
-            await whatsapp_sender.send_template(
-                to, TEMPLATES[template_name], variables
-            )
-            return "whatsapp"
-        except Exception:  # noqa: BLE001 — any WhatsApp error → SMS fallback
-            logger.warning(
-                "WhatsApp OTP send failed (template=%s); falling back to SMS",
-                template_name, exc_info=True,
-            )
-    await sms_sender.send(to=to, text=sms_text)
-    return "sms"
+    return await deliver_phone_message(
+        to=to,
+        template_name=template_name,
+        variables=variables,
+        sms_text=sms_text,
+        sms_sender=sms_sender,
+        whatsapp_sender=whatsapp_sender,
+    )

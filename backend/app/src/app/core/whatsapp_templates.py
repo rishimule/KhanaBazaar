@@ -124,6 +124,15 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
             "Renew or clear your balance from your seller dashboard to reactivate it."
         ),
     ),
+    "seller_new_order": WhatsAppTemplate(
+        name="seller_new_order",
+        category="UTILITY",
+        variables=("order_id", "amount"),
+        render=lambda v: (
+            f"New order #{v['order_id']} for ₹{v['amount']} on your "
+            f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
+        ),
+    ),
 }
 
 

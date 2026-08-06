@@ -140,6 +140,27 @@
   flex-shrink: 0;
 }
 
+.sidebarLinkLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Count pill on a nav row (e.g. pending orders). Rendered only when the
+   count is a known non-zero — an unknown count hides it, never shows 0. */
+.sidebarLinkBadge {
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 var(--space-1-5);
+  border-radius: 10px;
+  background: var(--color-primary-1);
+  color: var(--color-neutral-0);
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-bold);
+  line-height: 20px;
+  text-align: center;
+}
+
 .sidebarFooter {
   margin-top: auto;
   padding: var(--space-4);
@@ -182,7 +203,16 @@
   gap: 12px;
 }
 
+/* Groups the caller's topbar controls so multiple nodes stay together on the
+   right instead of being spread apart by the topBar's space-between. */
+.headerAction {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .mobileToggle {
+  position: relative;
   display: none;
   width: 36px;
   height: 36px;
@@ -197,6 +227,18 @@
 }
 
 .mobileToggle:hover { background: var(--shade-cool-light-1); }
+
+/* Decorative mirror of an off-canvas nav badge. The count itself lives on the
+   nav row inside the drawer; this only says "look in here". */
+.mobileToggleDot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-1);
+}
 
 @media (max-width: 768px) {
   .mobileToggle { display: inline-flex; }

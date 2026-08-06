@@ -25,6 +25,7 @@ def test_registry_has_all_templates():
         "order_placed", "order_packed", "order_dispatched",
         "order_delivered", "order_cancelled",
         "fee_activated", "fee_expiring", "fee_suspended",
+        "seller_new_order",
     }
     assert set(TEMPLATES) == expected
 

@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `07ee0330ff0a`. Regenerate this file when the head changes.
+-- migration head `b4c1d2e3f5a6`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
@@ -15,7 +15,7 @@
 --   deliverystatus               : 'Pending', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'
 --   locationsource               : 'manual', 'autocomplete', 'pin', 'geocoded'
 --   adminactiontargettype        : 'Inventory', 'Order', 'Store', 'SellerProfile'
---   notificationtype             : 'OrderStatus', 'DeliveryOtp', 'FeeActivated', 'FeeExpiring', 'FeeSuspended', 'FeeLowBalance', 'FeeReactivated', 'FeeInvoiceRaised', 'FeeInvoiceOverdue', 'Referral', 'Credit', 'Announcement'  (PG value is the enum member NAME; Python values are 'order_status', 'delivery_otp', 'fee_activated', 'fee_expiring', 'fee_suspended', 'fee_low_balance', 'fee_reactivated', 'fee_invoice_raised', 'fee_invoice_overdue', 'referral', 'credit', 'announcement')
+--   notificationtype             : 'OrderStatus', 'DeliveryOtp', 'FeeActivated', 'FeeExpiring', 'FeeSuspended', 'FeeLowBalance', 'FeeReactivated', 'FeeInvoiceRaised', 'FeeInvoiceOverdue', 'Referral', 'Credit', 'Announcement', 'SellerNewOrder'  (PG value is the enum member NAME; Python values are 'order_status', 'delivery_otp', 'fee_activated', 'fee_expiring', 'fee_suspended', 'fee_low_balance', 'fee_reactivated', 'fee_invoice_raised', 'fee_invoice_overdue', 'referral', 'credit', 'announcement', 'seller_new_order')
 --   notificationaudience         : 'customers', 'sellers', 'both'  (snake_case values)
 --   campaignstatus               : 'draft', 'sending', 'sent', 'failed'  (snake_case values)
 --   sellerprofilechangegroup     : 'identity', 'address', 'legal', 'banking', 'services', 'store_basics', 'avatar', 'store_logo'

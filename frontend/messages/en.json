@@ -994,6 +994,17 @@
       "storeQr": "Store QR",
       "devices": "Devices"
     },
+    "alerts": {
+      "soundOn": "Order sound on",
+      "soundOff": "Order sound off",
+      "enableSound": "Turn on new-order sound",
+      "disableSound": "Turn off new-order sound",
+      "newOrderTitle": "New order #{id}",
+      "newOrderBody": "A customer just placed an order.",
+      "viewOrder": "View order",
+      "dismiss": "Dismiss",
+      "pendingBadgeLabel": "{count, plural, one {# order waiting} other {# orders waiting}}"
+    },
     "titles": {
       "dashboard": "Seller Dashboard",
       "inventory": "Inventory Management",

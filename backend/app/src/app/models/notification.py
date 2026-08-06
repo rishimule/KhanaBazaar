@@ -23,6 +23,7 @@ class NotificationType(str, enum.Enum):
     Referral = "referral"
     Credit = "credit"
     Announcement = "announcement"
+    SellerNewOrder = "seller_new_order"
 
 
 class Notification(BaseSchema, table=True):

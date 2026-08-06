@@ -1,0 +1,98 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+   This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author. */
+
+.soundBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.soundBtn:hover {
+  background: var(--color-neutral-100);
+}
+
+.soundBtn[aria-pressed="true"] {
+  border-color: var(--color-primary);
+  background: var(--color-primary-50);
+}
+
+.toast {
+  position: fixed;
+  z-index: var(--z-toast);
+  right: 1rem;
+  /* Clears the site navbar AND the dashboard topbar beneath it — anchoring at
+     5rem would sit on top of the sound toggle and the notification bell and
+     block both while a toast is up. */
+  top: calc(var(--nav-height) + 76px);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 430px;
+  padding: 0.875rem 0.75rem 0.875rem 1rem;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-modal);
+}
+
+.toastText {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: var(--body-sm);
+  color: var(--color-text-muted);
+}
+
+.toastText strong {
+  color: var(--color-text-strong);
+  font-weight: var(--weight-semibold);
+}
+
+.toastCta {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-neutral-0);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.toastClose {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: var(--body-md);
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .toast {
+    right: 0.75rem;
+    left: 0.75rem;
+    top: auto;
+    bottom: 1rem;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    transition: none;
+  }
+}

@@ -14,6 +14,11 @@ interface NavItem {
   href: string;
   label: string;
   icon: string;
+  /** Optional count pill (e.g. pending orders). Omitted or 0 renders nothing. */
+  badge?: number;
+  /** Accessible name for the pill — the bare digits mean nothing to a screen
+   *  reader. Required in practice whenever `badge` is set. */
+  badgeLabel?: string;
 }
 
 type DashboardRole = "seller" | "admin" | "customer";
@@ -103,7 +108,17 @@ export default function DashboardLayout({
               onClick={() => setSidebarOpen(false)}
             >
               <span className={styles.sidebarLinkIcon}>{item.icon}</span>
-              {item.label}
+              <span className={styles.sidebarLinkLabel}>{item.label}</span>
+              {item.badge ? (
+                <span className={styles.sidebarLinkBadge}>
+                  <span aria-hidden="true">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                  {item.badgeLabel && (
+                    <span className="sr-only">{item.badgeLabel}</span>
+                  )}
+                </span>
+              ) : null}
             </Link>
           ))}
         </nav>
@@ -125,10 +140,17 @@ export default function DashboardLayout({
               aria-label={t("openSidebar")}
             >
               ☰
+              {/* The sidebar (and its count pills) is off-canvas on phones, so
+                  mirror "something in there needs you" onto the toggle. */}
+              {navItems.some((i) => i.badge) && (
+                <span className={styles.mobileToggleDot} aria-hidden="true" />
+              )}
             </button>
             <h1 className={styles.topBarTitle}>{title}</h1>
           </div>
-          {headerAction}
+          {headerAction && (
+            <div className={styles.headerAction}>{headerAction}</div>
+          )}
         </div>
         <div className={styles.content}>{children}</div>
       </div>

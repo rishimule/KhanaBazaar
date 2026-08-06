@@ -1667,6 +1667,139 @@ def send_seller_fee_email_async(
         ex.submit(lambda: asyncio.run(_run())).result()
 
 
+async def _seller_alert_quota_exceeded(seller_profile_id: int) -> bool:
+    """True when this seller has already had their hourly alert quota.
+
+    `POST /orders` carries no rate limit and has no minimum order value, so a
+    customer placing orders in a loop would otherwise bill one SMS per order.
+    The in-app notification, the nav badge and the toast are unaffected — only
+    the paid channel is capped. Fails OPEN: a Redis outage must not silence
+    real order alerts.
+    """
+    limit = settings.SELLER_NEW_ORDER_ALERT_MAX_PER_HOUR
+    if limit <= 0:
+        return False
+    import redis.asyncio as aioredis
+
+    from app.core.rate_limit import incr_with_ttl
+
+    # Deliberately NOT app.core.redis.get_redis(): that client is @lru_cache'd
+    # and binds its connection pool to the first event loop that uses it. Celery
+    # runs each task in a fresh thread + `asyncio.run` loop, so the cached client
+    # would be attached to a closed loop from the second task onward. Build a
+    # short-lived client bound to this loop and close it.
+    redis = None
+    try:
+        redis = aioredis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
+        count = await incr_with_ttl(
+            redis, f"seller_new_order_alert:{seller_profile_id}", 3600
+        )
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "seller alert quota check failed for seller_profile_id=%s; allowing send",
+            seller_profile_id,
+            exc_info=True,
+        )
+        return False
+    finally:
+        if redis is not None:
+            try:
+                await redis.aclose()
+            except Exception:
+                pass
+    if count > limit:
+        logging.getLogger(__name__).warning(
+            "seller_profile_id=%s exceeded %s new-order alerts/hour; skipping the "
+            "phone alert (in-app notification still delivered)",
+            seller_profile_id,
+            limit,
+        )
+        return True
+    return False
+
+
+async def seller_new_order_alert(order_id: int) -> None:
+    """Body of `send_seller_new_order_alert_async`, awaitable on the caller's loop.
+
+    Split out from the Celery task so tests can exercise the real query and row
+    unpack in-loop. Driving the task's thread-bridged `asyncio.run` from a test
+    opens a second engine on a worker thread and races the schema teardown.
+    """
+    from sqlmodel import select
+
+    from app.core.phone_delivery import deliver_phone_message
+    from app.core.sms import get_sms_sender
+    from app.core.whatsapp import get_whatsapp_sender
+    from app.db.session import async_session_factory
+    from app.models.base import AccountStatus, User
+    from app.models.commerce import Order
+    from app.models.profile import SellerProfile
+    from app.models.store import Store
+
+    async with async_session_factory() as session:
+        row = (
+            await session.exec(
+                select(
+                    SellerProfile.id, SellerProfile.phone, Order.total, User.account_status
+                )
+                .select_from(Order)
+                .join(Store, Store.id == Order.store_id)  # type: ignore[arg-type]
+                .join(SellerProfile, SellerProfile.id == Store.seller_profile_id)  # type: ignore[arg-type]
+                .join(User, User.id == SellerProfile.user_id)  # type: ignore[arg-type]
+                .where(Order.id == order_id)
+            )
+        ).first()
+    if row is None:
+        return
+    seller_profile_id, phone, total, account_status = row
+    if not phone or account_status != AccountStatus.active:
+        return
+    if await _seller_alert_quota_exceeded(seller_profile_id):
+        return
+    amount = f"{float(total):.2f}"
+    # ASCII "Rs." not "₹": a rupee sign is outside GSM-7, which forces the
+    # whole message to UCS-2 (70-char segments instead of 160) and doubles
+    # the cost of the highest-volume transactional SMS we send — one per
+    # order. The WhatsApp template keeps ₹; that path isn't segment-billed.
+    sms_text = (
+        f"New order #{order_id} for Rs.{amount} on your "
+        f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
+    )
+    try:
+        await deliver_phone_message(
+            to=phone,
+            template_name="seller_new_order",
+            variables={"order_id": str(order_id), "amount": amount},
+            sms_text=sms_text,
+            sms_sender=get_sms_sender(),
+            whatsapp_sender=get_whatsapp_sender(),
+        )
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "seller new-order alert failed for order_id=%s", order_id
+        )
+
+
+@celery_app.task(name="send_seller_new_order_alert_async")  # type: ignore[untyped-decorator]
+def send_seller_new_order_alert_async(order_id: int) -> None:
+    """Best-effort phone alert to the seller that a new order arrived.
+
+    WhatsApp-preferred with SMS fallback. No-ops when the seller has no phone
+    on file or their account is not active — the same "skip all comms for
+    non-active accounts" rule the in-app row follows, so a suspended seller
+    can't keep drawing billable messages.
+
+    Cost note: WhatsApp is preferred over SMS, but no template in the registry
+    carries a ContentSid yet, so with WHATSAPP_PROVIDER=twilio the send raises
+    and falls back to SMS. Per-order cost only drops once ContentSids land.
+    """
+    import asyncio
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        ex.submit(lambda: asyncio.run(seller_new_order_alert(order_id))).result()
+
+
 def _referral_activation_url(token: str, target_role: str) -> str:
     """Absolute activation link carried in the invite comms. Seller invites
     open the seller-signup wizard (non-localized); customer invites open the
