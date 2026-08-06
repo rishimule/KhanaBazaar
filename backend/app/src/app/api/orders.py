@@ -71,6 +71,9 @@ from app.services.orders import (
     resend_delivery_otp,
     transition_order_status,
 )
+from app.services.seller_order_notifications import (
+    record_seller_new_order_notification,
+)
 
 router = APIRouter()
 
@@ -549,6 +552,7 @@ async def place_order(
     if order.id is not None:
         dispatch_order_placed([order.id])
         await record_and_dispatch_notification(session, order, "pending")
+        await record_seller_new_order_notification(session, order)
         if payload.payment_method == PaymentMethod.Credit:
             from app.services.credit_notifications import (
                 record_and_dispatch_credit_charge_notifications,
