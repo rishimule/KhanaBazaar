@@ -239,3 +239,17 @@
   margin-top: 0;
   max-width: 140px;
 }
+
+/* Suspension/grace disclosure + the way back out of it. Uses --color-surface-tint
+   and --body-sm because design-tokens.css has no --color-surface-alt or
+   --font-size-sm. */
+.recovery {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-tint);
+  color: var(--color-text);
+  font-size: var(--body-sm);
+  line-height: 1.5;
+}

@@ -154,6 +154,20 @@ export default function PlanServiceCard({
             })}
           </p>
         )}
+        {active && service.status === "grace" && service.valid_until && (
+          <p className={styles.recovery} role="status">
+            {t("graceHiddenAfter", {
+              service: service.service_name,
+              date: fmtDate(service.valid_until),
+            })}
+          </p>
+        )}
+        {active && service.status === "suspended" && (
+          <p className={styles.recovery} role="status">
+            {t("suspendedHidden", { service: service.service_name })}{" "}
+            {t("hiddenUntilRenew", { service: service.service_name })}
+          </p>
+        )}
         <div className={styles.options} role="radiogroup" aria-label="Subscription duration">
           {activePlans.map((p) => (
             <label
@@ -367,11 +381,23 @@ export default function PlanServiceCard({
         <p className={styles.muted}>
           {rupees(fee)} per order{belowFee ? " · low balance" : lowBalance ? " · running low" : ""}
         </p>
-        {(service.status === "grace" || service.status === "suspended") && (
+        {service.status === "grace" && (
           <p className={styles.muted}>
-            {service.status === "grace"
-              ? "Balance is below one order fee. Top up within the grace period, or the service is suspended."
-              : "Service suspended — top up to reactivate and receive new orders."}
+            {t("pptGraceWarning", { service: service.service_name })}
+          </p>
+        )}
+        {/* apply_credit_to_arrangement moves wallet credit into the PPT balance
+            with no admin step, and _evaluate_ppt_status(allow_unsuspend=True)
+            reactivates once it clears one order fee — so "immediately" is
+            literal. The "Apply credit" control below is the button that does it. */}
+        {service.status === "suspended" && (
+          <p className={styles.recovery} role="status">
+            {feeCredit > 0
+              ? t("pptSuspendedRecovery", {
+                  service: service.service_name,
+                  amount: feeCredit.toLocaleString("en-IN"),
+                })
+              : t("pptSuspendedRecoveryNoCredit", { service: service.service_name })}
           </p>
         )}
         <div className={styles.actions}>
