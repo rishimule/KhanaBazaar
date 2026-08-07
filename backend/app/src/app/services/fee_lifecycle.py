@@ -240,6 +240,10 @@ async def confirm_subscription_payment(
     arrangement.queued_duration_months = None
     arrangement.suspended_at = None
     arrangement.suspended_reason = None
+    # Heal a legacy cancel flag: it once permanently disabled the seller's own
+    # Subscribe/Renew button, and nothing in the product auto-renews.
+    arrangement.cancel_requested = False
+    arrangement.auto_renew = True
     session.add(arrangement)
 
     payment.status = FeePaymentStatus.Confirmed
@@ -287,22 +291,6 @@ async def reject_payment(
         )
     )
     await session.flush()
-
-
-def request_cancellation(session: AsyncSession, arrangement: FeeArrangement) -> None:
-    """Seller cancels auto-renewal; the arrangement runs to its paid expiry then
-    the sweep suspends it. Non-refundable. Caller commits."""
-    arrangement.cancel_requested = True
-    arrangement.auto_renew = False
-    session.add(arrangement)
-    session.add(
-        FeeEvent(
-            arrangement_id=arrangement.id,
-            event_type=FeeEventType.ModelChanged,
-            actor="seller",
-            note="cancellation requested",
-        )
-    )
 
 
 def admin_extend(

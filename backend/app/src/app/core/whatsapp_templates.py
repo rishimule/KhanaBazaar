@@ -106,13 +106,18 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
             "Thank you!"
         ),
     ),
+    # NOTE: production WhatsApp text comes from Twilio-approved templates, so
+    # editing these render functions only changes the `console` mock. The wording
+    # is kept in step with fee_notifications._COPY so the approved templates can
+    # be re-submitted from one source of truth at go-live.
     "fee_expiring": WhatsAppTemplate(
         name="fee_expiring",
         category="UTILITY",
         variables=("until",),
         render=lambda v: (
             f"Your {settings.COMPANY_NAME} store plan expires on {v['until']}. "
-            "Renew from your seller dashboard to keep your store active."
+            "Renew from your seller dashboard — once the short grace period "
+            "after that runs out, customers can't find or order from this service."
         ),
     ),
     "fee_suspended": WhatsAppTemplate(
@@ -120,8 +125,9 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
         category="UTILITY",
         variables=(),
         render=lambda v: (
-            f"A service on your {settings.COMPANY_NAME} store has been suspended. "
-            "Renew or clear your balance from your seller dashboard to reactivate it."
+            f"A service on your {settings.COMPANY_NAME} store is now hidden from "
+            "customers — they can't find it or place an order. Renew or clear "
+            "your balance from your seller dashboard to restore it."
         ),
     ),
     "seller_new_order": WhatsAppTemplate(

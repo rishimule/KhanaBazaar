@@ -2,6 +2,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import type { FeeInvoice, SellerPlanServiceView } from "@/lib/sellerPlan";
@@ -20,7 +21,6 @@ interface Props {
   onTopUp: (serviceId: number) => void;
   onPayInvoice: (serviceId: number, invoiceId: number, amount: number) => void;
   /** Direct actions — no offline payment. */
-  onCancel: (serviceId: number) => void;
   onStartPptWithCredit: (serviceId: number, deposit: number) => void;
   onApplyCredit: (serviceId: number, amount: number) => void;
   onStopPpt: (serviceId: number) => void;
@@ -82,11 +82,11 @@ export default function PlanServiceCard({
   onStartPpt,
   onTopUp,
   onPayInvoice,
-  onCancel,
   onStartPptWithCredit,
   onApplyCredit,
   onStopPpt,
 }: Props) {
+  const t = useTranslations("Plan");
   const activePlans = service.subscription_plans.filter((p) => p.is_active);
   const [selected, setSelected] = useState<string>(service.model);
   const [duration, setDuration] = useState<number>(() => activePlans[0]?.duration_months ?? 0);
@@ -125,9 +125,7 @@ export default function PlanServiceCard({
 
   // ── Validity line (for the active model) ─────────────────────────────
   let validity: string | null = null;
-  if (service.cancel_requested && service.valid_until) {
-    validity = `Cancellation scheduled — access until ${fmtDate(service.valid_until)}.`;
-  } else if (service.valid_until) {
+  if (service.valid_until) {
     const d = daysLeft(service.valid_until);
     const left = Number.isFinite(d) ? (d > 0 ? ` · ${d} day${d === 1 ? "" : "s"} left` : " · expired") : "";
     validity =
@@ -147,6 +145,36 @@ export default function PlanServiceCard({
       <div className={styles.section}>
         <p className={styles.sectionTitle}>{active && isLive ? "Renew or change plan" : "Subscribe"}</p>
         {active && validity && <p className={styles.validity}>{validity}</p>}
+        {/* Gated on `active`, not `isLive`: in Grace the sweep leaves
+            `valid_until` at the original (now past) expiry, so "renew before
+            {date}" would name a date that has already gone by. Grace gets its
+            own line below, keyed to the real cutoff. */}
+        {active && service.status === "active" && service.valid_until && (
+          <p className={styles.muted}>
+            {t("noAutoRenew")}{" "}
+            {t("endsOnRenewBefore", {
+              service: service.service_name,
+              date: fmtDate(service.valid_until),
+            })}
+          </p>
+        )}
+        {/* `suspend_after` is expiry + grace_period_days, computed server-side.
+            During Grace the service is still fully visible and orderable, so
+            this must not claim customers already can't find it. */}
+        {active && service.status === "grace" && service.suspend_after && (
+          <p className={styles.recovery}>
+            {t("graceHiddenAfter", {
+              service: service.service_name,
+              date: fmtDate(service.suspend_after),
+            })}
+          </p>
+        )}
+        {active && service.status === "suspended" && (
+          <p className={styles.recovery}>
+            {t("suspendedHidden", { service: service.service_name })}{" "}
+            {t("restoreOnRenew")}
+          </p>
+        )}
         <div className={styles.options} role="radiogroup" aria-label="Subscription duration">
           {activePlans.map((p) => (
             <label
@@ -168,17 +196,12 @@ export default function PlanServiceCard({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={busy || pending || duration === 0 || service.cancel_requested}
+            disabled={busy || pending || duration === 0}
             onClick={() => onSubscribe(service.service_id, duration, selectedPlan?.price ?? 0)}
           >
-            {active && isLive ? "Renew" : "Subscribe"}
+            {active && isLive ? t("renewCta") : t("subscribeCta")}
           </button>
         </div>
-        {active && service.status === "active" && !service.cancel_requested && !pending && (
-          <button type="button" className={styles.cancelBtn} disabled={busy} onClick={() => onCancel(service.service_id)}>
-            Cancel subscription
-          </button>
-        )}
       </div>
     );
   }
@@ -365,11 +388,31 @@ export default function PlanServiceCard({
         <p className={styles.muted}>
           {rupees(fee)} per order{belowFee ? " · low balance" : lowBalance ? " · running low" : ""}
         </p>
-        {(service.status === "grace" || service.status === "suspended") && (
+        {service.status === "grace" && (
           <p className={styles.muted}>
-            {service.status === "grace"
-              ? "Balance is below one order fee. Top up within the grace period, or the service is suspended."
-              : "Service suspended — top up to reactivate and receive new orders."}
+            {t("pptGraceWarning", { service: service.service_name })}
+          </p>
+        )}
+        {/* apply_credit_to_arrangement moves wallet credit into the PPT balance
+            with no admin step, but _evaluate_ppt_status reactivates only once the
+            balance clears ONE ORDER FEE (`balance >= fee`), not merely above
+            zero. So "immediately" is promised only at `feeCredit >= fee`; below
+            that the seller is told to top up the difference. The "Apply credit"
+            control below is the button that does it. */}
+        {service.status === "suspended" && (
+          <p className={styles.recovery}>
+            {feeCredit >= fee && feeCredit > 0
+              ? t("pptSuspendedRecovery", {
+                  service: service.service_name,
+                  amount: feeCredit.toLocaleString("en-IN"),
+                })
+              : feeCredit > 0
+                ? t("pptSuspendedRecoveryBelowFee", {
+                    service: service.service_name,
+                    amount: feeCredit.toLocaleString("en-IN"),
+                    fee: fee.toLocaleString("en-IN"),
+                  })
+                : t("pptSuspendedRecoveryNoCredit", { service: service.service_name })}
           </p>
         )}
         <div className={styles.actions}>

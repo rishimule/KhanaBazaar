@@ -1,0 +1,96 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+   This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author. */
+
+/* Danger tone uses the existing semantic aliases — design-tokens.css has no
+   --color-danger / --color-danger-soft, so --color-error and the vermillion/
+   tomato ramp stand in rather than inventing a token. */
+.consequence {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3) 14px;
+  border-left: 3px solid var(--color-error);
+  border-radius: var(--radius-sm);
+  background: var(--tomato-red-light-1);
+  color: var(--tomato-red-dark-1);
+  font-weight: var(--weight-medium);
+  line-height: 1.5;
+}
+
+/* --color-text-muted (#758296) is only 3.90:1 on white — under AA for this
+   body-size text, and these two lines carry the money and the way back. The
+   card's own .muted precedent (--shade-cool-base-7, #52667d) is 5.90:1. */
+.line {
+  margin: 0 0 var(--space-2);
+  color: var(--shade-cool-base-7);
+  line-height: 1.5;
+}
+
+.error {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--tomato-red-light-1);
+  color: var(--tomato-red-dark-1);
+  font-size: var(--body-sm);
+  font-weight: var(--weight-medium);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+
+.keep,
+.danger {
+  min-height: 44px;
+  padding: 12px 20px;
+  border-radius: var(--radius-card);
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.keep {
+  border: 1px solid var(--shade-cool-light-6);
+  background: var(--white);
+  color: var(--color-text-strong);
+}
+
+.keep:hover {
+  border-color: var(--color-primary-1);
+}
+
+/* --color-error (#ec4143) only reaches 3.89:1 against white — under the 4.5:1
+   AA floor for this 16px label. --tomato-red-dark-1 gives 6.83:1, so the fill
+   uses it and --color-error stays the accent on the consequence block. */
+.danger {
+  border: 0;
+  background: var(--tomato-red-dark-1);
+  color: var(--white);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--vermillion-red-dark-1);
+}
+
+.danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Bottom-sheet breakpoint (matches Modal's .modalSheet): stack the actions
+   full-width so two long labels never crowd each other at 375px. */
+@media (max-width: 768px) {
+  .actions {
+    flex-direction: column;
+  }
+
+  .keep,
+  .danger {
+    width: 100%;
+  }
+}

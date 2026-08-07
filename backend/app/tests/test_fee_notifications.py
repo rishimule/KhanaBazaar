@@ -35,6 +35,54 @@ async def test_notify_records_seller_notification(
 
 
 @pytest.mark.asyncio
+async def test_expiring_notification_names_the_consequence(
+    session: AsyncSession, approved_seller_with_store
+) -> None:
+    # The seller UX audit (BLOCKER #3) found the real penalty — removal from
+    # every customer surface — disclosed only in FAQ Q12. Dunning copy must say it.
+    spid = await notify_seller_fee_event(
+        session,
+        store_id=approved_seller_with_store.store.id,
+        type=NotificationType.FeeExpiring,
+        valid_until=date(2026, 9, 1),
+    )
+    await session.commit()
+    assert spid is not None
+    items, _unread = await list_notifications(session, seller_profile_id=spid)
+    assert items
+    assert "2026-09-01" in items[0].body
+    assert "find or order" in items[0].body
+    # Expiry is not the cutoff — suspension is expiry + grace_period_days, so the
+    # copy must not promise the penalty lands on the expiry date itself.
+    assert "grace" in items[0].body
+
+
+@pytest.mark.asyncio
+async def test_suspended_and_overdue_notifications_name_the_consequence(
+    session: AsyncSession, approved_seller_with_store
+) -> None:
+    # The other two dunning notices carry the same canonical penalty clause.
+    for ntype in (
+        NotificationType.FeeSuspended,
+        NotificationType.FeeInvoiceOverdue,
+    ):
+        spid = await notify_seller_fee_event(
+            session,
+            store_id=approved_seller_with_store.store.id,
+            type=ntype,
+            valid_until=date(2026, 9, 1),
+        )
+        assert spid is not None
+    await session.commit()
+    items, _unread = await list_notifications(
+        session, seller_profile_id=approved_seller_with_store.profile.id
+    )
+    bodies = {i.type: i.body for i in items}
+    assert "find it or place an order" in bodies[NotificationType.FeeSuspended]
+    assert "find or order" in bodies[NotificationType.FeeInvoiceOverdue]
+
+
+@pytest.mark.asyncio
 async def test_notify_noop_when_store_missing(session: AsyncSession) -> None:
     # Unresolvable store → silent no-op, no exception.
     await notify_seller_fee_event(

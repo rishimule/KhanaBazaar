@@ -5,7 +5,7 @@
 `admin_router` mounted at /api/v1/admin. Global settings + per-service fee config
 + subscription-plan pricing."""
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import anyio
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -80,7 +80,6 @@ from app.services.fee_lifecycle import (
     opt_into_pay_per_transaction,
     opt_into_subscription,
     reject_payment,
-    request_cancellation,
     seller_switch_from_ppt,
 )
 from app.services.fee_notifications import notify_seller_fee_event
@@ -851,6 +850,15 @@ async def get_my_plan(
         is_ppt = arr is not None and arr.model == FeeModel.PayPerTransaction
         ppt_balance = arr.balance if (arr is not None and is_ppt) else None
         is_ov = arr is not None and arr.model == FeeModel.OrderValuePercent
+        # Grace leaves `valid_until` at the original expiry, so the date the
+        # seller must actually act by is expiry + grace. Only meaningful in Grace.
+        suspend_after = (
+            (arr.valid_until + timedelta(days=settings_row.grace_period_days)).isoformat()
+            if arr is not None
+            and arr.status == ArrangementStatus.Grace
+            and arr.valid_until is not None
+            else None
+        )
         views.append(
             SellerPlanServiceView(
                 service_id=svc.id,
@@ -858,6 +866,7 @@ async def get_my_plan(
                 model=(arr.model.value if arr else FeeModel.Freebie.value),
                 status=(arr.status.value if arr else ArrangementStatus.Trial.value),
                 valid_until=(arr.valid_until.isoformat() if arr and arr.valid_until else None),
+                suspend_after=suspend_after,
                 subscription_enabled=cfg.subscription_enabled,
                 subscription_plans=[
                     SubscriptionPlanItem(duration_months=p.duration_months, price=p.price, is_active=p.is_active)
@@ -956,19 +965,6 @@ async def mark_paid(
     await session.commit()
     await session.refresh(payment)
     return {"payment_id": payment.id}
-
-
-@seller_router.post("/me/plan/{service_id}/cancel")
-async def cancel_plan(
-    service_id: int,
-    seller: User = Depends(get_current_seller),
-    session: AsyncSession = Depends(get_db_session),
-) -> dict:  # type: ignore[type-arg]
-    _profile, store = await _seller_store(session, seller)
-    arr = await _arrangement(session, store.id, service_id)
-    request_cancellation(session, arr)
-    await session.commit()
-    return {"service_id": service_id, "cancel_requested": True}
 
 
 @seller_router.post("/me/plan/{service_id}/pay-per-transaction/opt-in")

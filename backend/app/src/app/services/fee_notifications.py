@@ -22,13 +22,19 @@ _COPY: dict[NotificationType, tuple[str, str, str]] = {
         "Subscription active", "active",
         "Your subscription is active{until}.",
     ),
+    # Expiry alone hides nothing: the sweep moves Active → Grace and only
+    # suspends once `today > valid_until + grace_period_days`. Naming expiry as
+    # the cutoff would overstate the penalty by the whole grace window.
     NotificationType.FeeExpiring: (
         "Plan expiring soon", "expiring",
-        "Your plan expires{until}. Renew to keep your store active.",
+        "Your plan expires{until}. Renew before then — once the short grace "
+        "period after that runs out, customers can't find or order from this "
+        "service.",
     ),
     NotificationType.FeeSuspended: (
         "Store service suspended", "suspended",
-        "A service on your store has been suspended. Renew or clear your balance to reactivate it.",
+        "A service on your store is now hidden from customers — they can't find "
+        "it or place an order. Renew or clear your balance to restore it.",
     ),
     NotificationType.FeeLowBalance: (
         "Low balance", "low_balance",
@@ -44,7 +50,8 @@ _COPY: dict[NotificationType, tuple[str, str, str]] = {
     ),
     NotificationType.FeeInvoiceOverdue: (
         "Payment overdue", "invoice_overdue",
-        "Your platform fee payment is overdue. Clear it{until} to avoid suspension.",
+        "Your platform fee payment is overdue. Clear it{until} — otherwise "
+        "customers can't find or order from this service.",
     ),
 }
 
