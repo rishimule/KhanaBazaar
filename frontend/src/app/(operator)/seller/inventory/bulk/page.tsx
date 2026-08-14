@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import LoadError from "@/components/LoadError";
 import { useAuth } from "@/lib/AuthContext";
 import { get, put } from "@/lib/api";
 import {
@@ -63,6 +64,8 @@ export default function BulkInventoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [rows, setRows] = useState<SheetRow[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerPreset, setPickerPreset] = useState<{
     serviceId: number;
@@ -121,10 +124,15 @@ export default function BulkInventoryPage() {
             );
           }
         })
-        .catch(() => {})
+        .catch((e: unknown) => {
+          // A failed load rendered an empty sheet, which invites the seller to
+          // re-enter prices they already have — against a store that may
+          // already hold different values.
+          setLoadError(e instanceof Error ? e : new Error(String(e)));
+        })
         .finally(() => setFetching(false));
     }
-  }, [authLoading, dbUser, token, router]);
+  }, [authLoading, dbUser, token, router, loadAttempt]);
 
   const alreadyInSheet = useMemo(
     () => new Set(rows.map((r) => r.product_id)),
@@ -325,6 +333,24 @@ export default function BulkInventoryPage() {
   if (authLoading || fetching) {
     return (
       <div style={{ padding: "2rem", textAlign: "center" }}>{tc("loading")}</div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div style={{ padding: "2rem" }}>
+        <LoadError
+          variant="card"
+          error={loadError}
+          title={t("loadFailedTitle")}
+          body={t("loadFailedBody")}
+          onRetry={() => {
+            setLoadError(null);
+            setFetching(true);
+            setLoadAttempt((n) => n + 1);
+          }}
+        />
+      </div>
     );
   }
 

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import DataTable, { Column } from "@/components/DataTable";
+import LoadError from "@/components/LoadError";
 import Modal from "@/components/Modal";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
@@ -42,6 +43,8 @@ export default function SellerCreditPage() {
   const [config, setConfig] = useState<SellerCreditConfig | null>(null);
   const [accounts, setAccounts] = useState<CreditAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [toggleError, setToggleError] = useState<Error | null>(null);
 
   // grant form
   const [contact, setContact] = useState("");
@@ -69,12 +72,17 @@ export default function SellerCreditPage() {
   const refetch = useCallback(() => {
     if (!token) return;
     setLoading(true);
+    setLoadError(null);
     Promise.all([getSellerCreditConfig(token), listSellerCreditAccounts(token)])
       .then(([cfg, accts]) => {
         setConfig(cfg);
         setAccounts(accts);
       })
-      .catch(() => setAccounts([]))
+      .catch((e: unknown) => {
+        // `setAccounts([])` rendered a confident empty khata — a seller with
+        // real outstanding debt was shown "no credit customers yet".
+        setLoadError(e instanceof Error ? e : new Error(String(e)));
+      })
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -114,11 +122,16 @@ export default function SellerCreditPage() {
   const toggleStatus = async (acct: CreditAccount) => {
     if (!token) return;
     setBusyId(acct.id);
+    setToggleError(null);
     try {
       await patchCreditAccount(token, acct.id, {
         status: acct.status === "active" ? "suspended" : "active",
       });
       refetch();
+    } catch (e: unknown) {
+      // There was no `catch` here at all — the rejection went unhandled and
+      // the row silently kept its old status.
+      setToggleError(e instanceof Error ? e : new Error(String(e)));
     } finally {
       setBusyId(null);
     }
@@ -238,8 +251,18 @@ export default function SellerCreditPage() {
 
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>{t("accountsTitle")}</h2>
+        {toggleError && (
+          <LoadError variant="inline" error={toggleError} title={t("toggleFailed")} />
+        )}
         {loading ? (
           <p className={styles.muted}>{t("loading")}</p>
+        ) : loadError ? (
+          <LoadError
+            variant="card"
+            error={loadError}
+            title={t("loadFailed")}
+            onRetry={() => refetch()}
+          />
         ) : (
           <DataTable
             columns={columns}

@@ -59,7 +59,10 @@ export default function SellerRequestDetailPage() {
         setServiceNames(new Map(all.map((s) => [s.id, s.name])));
       })
       .catch(() => {
-        // Names fall back to "Service #<id>"; diff still renders.
+        // Benign: names fall back to "Service #<id>" and the diff still
+        // renders every changed value. Set the empty map explicitly rather
+        // than leaving a bare swallow, so the fallback is a decision.
+        setServiceNames(new Map());
       });
     return () => {
       cancelled = true;

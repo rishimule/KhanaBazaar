@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useAuth } from "@/lib/AuthContext";
+import LoadError from "@/components/LoadError";
 import PlanExitConfirmModal from "@/components/seller/PlanExitConfirmModal";
 import PlanServiceCard from "@/components/seller/PlanServiceCard";
 import PaySheet from "@/components/seller/PaySheet";
@@ -68,6 +69,7 @@ export default function SellerPlanPage() {
   const t = useTranslations("Plan");
   const [data, setData] = useState<SellerPlanView | null>(null);
   const [invoices, setInvoices] = useState<Record<number, FeeInvoice[]>>({});
+  const [invoiceErrors, setInvoiceErrors] = useState<number[]>([]);
   const [fetching, setFetching] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyService, setBusyService] = useState<number | null>(null);
@@ -92,16 +94,23 @@ export default function SellerPlanPage() {
       setData(plan);
       // Fetch invoices for each Order Value % service (best-effort per service).
       const ovServices = plan.services.filter((s) => s.model === "order_value_percent");
+      const failed: number[] = [];
       const entries = await Promise.all(
         ovServices.map(async (s) => {
           try {
             return [s.service_id, await getInvoices(s.service_id, token)] as const;
           } catch {
+            // An empty invoice list reads as "nothing owed" — the exact
+            // opposite of the truth when the seller is overdue, and paying
+            // an overdue invoice is the only cure for an order-value
+            // suspension. Record the failure so the panel can say so.
+            failed.push(s.service_id);
             return [s.service_id, [] as FeeInvoice[]] as const;
           }
         }),
       );
       setInvoices(Object.fromEntries(entries));
+      setInvoiceErrors(failed);
     } catch {
       setLoadError("Couldn't load your plan. Please refresh.");
     } finally {
@@ -280,8 +289,15 @@ export default function SellerPlanPage() {
       ) : (
         <div className={styles.list}>
           {data.services.map((s) => (
+            <div key={s.service_id}>
+              {invoiceErrors.includes(s.service_id) && (
+                <LoadError
+                  variant="inline"
+                  title={t("invoicesLoadFailed")}
+                  onRetry={() => void load()}
+                />
+              )}
             <PlanServiceCard
-              key={s.service_id}
               service={s}
               busy={busyService === s.service_id}
               feeCredit={data.fee_credit_balance}
@@ -295,6 +311,7 @@ export default function SellerPlanPage() {
               onApplyCredit={onApplyCredit}
               onStopPpt={onStopPpt}
             />
+            </div>
           ))}
         </div>
       )}

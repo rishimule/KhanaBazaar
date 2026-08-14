@@ -2,33 +2,41 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
+import { useResource } from "@/lib/useResource";
 import type { Store } from "@/types";
 import LanguagePreferenceCard from "@/components/LanguagePreferenceCard";
+import LoadError from "@/components/LoadError";
 import styles from "./page.module.css";
 
 export default function SellerSettingsPage() {
   const t = useTranslations("Seller.settings");
   const tc = useTranslations("Seller.common");
   const { token } = useAuth();
-  const [store, setStore] = useState<Store | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!token) return;
-    get<Store[]>("/api/v1/stores/my", token)
-      .then((stores) => {
-        if (stores.length > 0) setStore(stores[0]);
-      })
-      .catch(() => setError(t("loadStoreError")))
-      .finally(() => setLoading(false));
-  }, [token, t]);
+  const { data: stores, loading, error, refetch } = useResource<Store[]>(
+    token ? () => get<Store[]>("/api/v1/stores/my", token) : null,
+    [Boolean(token)],
+  );
+  const store = stores?.[0] ?? null;
 
   if (loading) return <div className={styles.empty}>{tc("loading")}</div>;
+  // `error` must be checked BEFORE `!store`: the old order returned the
+  // "No store" empty state first, which made the error banner structurally
+  // unreachable and blamed the seller's setup for a network fault.
+  if (error) {
+    return (
+      <div className={styles.page}>
+        <LoadError
+          variant="card"
+          error={error}
+          title={t("loadStoreError")}
+          onRetry={() => refetch()}
+        />
+      </div>
+    );
+  }
   if (!store) return <div className={styles.empty}>{t("noStore")}</div>;
 
   return (
@@ -44,7 +52,6 @@ export default function SellerSettingsPage() {
         </div>
       )}
 
-      {error && <div className={styles.errorBanner}>{error}</div>}
 
       <LanguagePreferenceCard />
 

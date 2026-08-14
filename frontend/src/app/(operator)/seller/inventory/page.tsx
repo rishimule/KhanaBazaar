@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { Column } from "@/components/DataTable";
+import LoadError from "@/components/LoadError";
 import Modal, { modalStyles } from "@/components/Modal";
 import Skeleton from "@/components/Skeleton";
 import { useAuth } from "@/lib/AuthContext";
@@ -110,6 +111,12 @@ export default function SellerInventoryPage() {
   const [allProducts, setAllProducts] = useState<EligibleProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  /** Write errors, rendered next to the control that caused them. */
+  const [editError, setEditError] = useState<Error | null>(null);
+  const [addError, setAddError] = useState<Error | null>(null);
+  const [rowError, setRowError] = useState<{ id: number; error: Error } | null>(null);
 
   const [editItem, setEditItem] = useState<InventoryWithProduct | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -134,6 +141,7 @@ export default function SellerInventoryPage() {
         get<Category[]>("/api/v1/catalog/categories"),
       ])
         .then(async ([myStores, products, cats]) => {
+          setLoadError(null);
           setAllProducts(products);
           setCategories(cats);
           if (myStores.length > 0) {
@@ -151,10 +159,14 @@ export default function SellerInventoryPage() {
             );
           }
         })
-        .catch(() => {})
+        .catch((e: unknown) => {
+          // A failed load used to render as a normal empty inventory, which a
+          // seller reads as "my products are gone".
+          setLoadError(e instanceof Error ? e : new Error(String(e)));
+        })
         .finally(() => setFetching(false));
     }
-  }, [authLoading, dbUser, token, router]);
+  }, [authLoading, dbUser, token, router, loadAttempt]);
 
   const buckets: ServiceBucket[] = useMemo(() => {
     if (!store) return [];
@@ -255,7 +267,12 @@ export default function SellerInventoryPage() {
           i.id === item.id ? { ...i, is_available: !i.is_available } : i
         )
       );
-    } catch { /* silent */ }
+      setRowError(null);
+    } catch (e: unknown) {
+      // This is a money operation: a swallowed 403/404/timeout used to look
+      // exactly like success, and the row kept showing the old state.
+      setRowError({ id: item.id, error: e instanceof Error ? e : new Error(String(e)) });
+    }
   }
 
   function handleEdit(item: InventoryWithProduct) {
@@ -266,6 +283,7 @@ export default function SellerInventoryPage() {
 
   async function handleSaveEdit() {
     if (!editItem || !store || !token) return;
+    setEditError(null);
     try {
       await put(
         `/api/v1/stores/${store.id}/inventory/${editItem.id}`,
@@ -287,8 +305,15 @@ export default function SellerInventoryPage() {
             : i
         )
       );
+      // Closing only on success. Previously this ran inside the try, so the
+      // happy path taught "modal closed = saved" and the failure path then
+      // broke that promise in silence.
       setEditItem(null);
-    } catch { /* silent */ }
+    } catch (e: unknown) {
+      // Keep the modal open with the typed values intact so the seller can
+      // retry without re-entering their price.
+      setEditError(e instanceof Error ? e : new Error(String(e)));
+    }
   }
 
   async function handleDelete(item: InventoryWithProduct) {
@@ -296,7 +321,10 @@ export default function SellerInventoryPage() {
     try {
       await del(`/api/v1/stores/${store.id}/inventory/${item.id}`, token);
       setInventory((prev) => prev.filter((i) => i.id !== item.id));
-    } catch { /* silent */ }
+      setRowError(null);
+    } catch (e: unknown) {
+      setRowError({ id: item.id, error: e instanceof Error ? e : new Error(String(e)) });
+    }
   }
 
   function openAdd(categoryId?: number) {
@@ -323,6 +351,7 @@ export default function SellerInventoryPage() {
     if (!store || !token) return;
     const product = allProducts.find((p) => p.id === formProductId);
     if (!product) return;
+    setAddError(null);
     try {
       const created = await post<StoreInventory>(
         `/api/v1/stores/${store.id}/inventory`,
@@ -336,7 +365,9 @@ export default function SellerInventoryPage() {
       );
       setInventory((prev) => [...prev, { ...created, product }]);
       closeAdd();
-    } catch { /* silent */ }
+    } catch (e: unknown) {
+      setAddError(e instanceof Error ? e : new Error(String(e)));
+    }
   }
 
   if (authLoading || fetching) {
@@ -350,8 +381,35 @@ export default function SellerInventoryPage() {
     );
   }
 
+  if (loadError) {
+    return (
+      <div style={{ padding: "2rem" }}>
+        <LoadError
+          variant="card"
+          error={loadError}
+          title={t("loadFailedTitle")}
+          body={t("loadFailedBody")}
+          onRetry={() => {
+            setLoadError(null);
+            setFetching(true);
+            setLoadAttempt((n) => n + 1);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <>
+      {rowError && (
+        <LoadError
+          variant="inline"
+          error={rowError.error}
+          title={t("saveFailed")}
+          onRetry={() => setRowError(null)}
+          retryLabel={tc("cancel")}
+        />
+      )}
       <div className={styles.toolbar}>
         <span className={styles.toolbarLeft}>
           {t("productCount", { count: inventory.length })}
@@ -472,6 +530,9 @@ export default function SellerInventoryPage() {
             </>
           }
         >
+          {editError && (
+            <LoadError variant="inline" error={editError} title={t("saveFailed")} />
+          )}
           <div className={modalStyles.formGroup}>
             <label className={modalStyles.label}>{t("priceLabel")}</label>
             <input
@@ -582,6 +643,9 @@ export default function SellerInventoryPage() {
             </>
           }
         >
+          {addError && (
+            <LoadError variant="inline" error={addError} title={t("addFailed")} />
+          )}
           <div className={modalStyles.formGroup}>
             <label className={modalStyles.label}>{t("productLabel")}</label>
             <input
