@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { type Column } from "@/components/DataTable";
+import LoadError from "@/components/LoadError";
 import Pager from "@/components/Pager";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
@@ -65,7 +66,10 @@ export default function SellerOrdersPage() {
     });
   }, [token, statusFilter, serviceId, debouncedQuery, fromDate, toDate, sortKey, page]);
 
-  const { data, loading, refetch } = usePagedList<OrderListResponse>(fetcher, {
+  // `error` was previously dropped here, so a failed fetch rendered the
+  // "No orders match these filters." empty state — a seller on patchy mobile
+  // data concluded business was quiet and walked away from real orders.
+  const { data, loading, error, refetch } = usePagedList<OrderListResponse>(fetcher, {
     token: Boolean(token),
     statusFilter,
     serviceId,
@@ -213,8 +217,24 @@ export default function SellerOrdersPage() {
 
       {loading ? (
         <div className={styles.empty}>{tc("loading")}</div>
+      ) : error && orders.length === 0 ? (
+        <LoadError
+          variant="card"
+          error={error}
+          title={t("loadFailedTitle")}
+          body={t("loadFailedBody")}
+          onRetry={() => refetch()}
+        />
       ) : (
         <>
+          {error && (
+            <LoadError
+              variant="banner"
+              error={error}
+              title={t("loadFailedTitle")}
+              onRetry={() => refetch()}
+            />
+          )}
           <div
             className={styles.rowClickable}
             onClick={(e) => {

@@ -95,6 +95,10 @@ function SellerSignupPageInner() {
   const [businessName, setBusinessName] = useState("");
   const [serviceIds, setServiceIds] = useState<number[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  /** Prefill is a convenience; a failure asserts nothing false. */
+  const [prefillFailed, setPrefillFailed] = useState(false);
+  /** Distinguishes "no services configured" from "the services fetch failed". */
+  const [servicesFailed, setServicesFailed] = useState(false);
   const [address, setAddress] = useState<Address>(emptyAddress());
   const [gstNumber, setGstNumber] = useState("");
   const [fssaiLicense, setFssaiLicense] = useState("");
@@ -157,12 +161,24 @@ function SellerSignupPageInner() {
         setBankIfsc(profile.bank_ifsc ?? "");
       })
       .catch(() => {
-        /* user fills in manually */
+        // Benign: prefill is a convenience for resubmitting sellers. A failure
+        // leaves the fields blank and every one of them is still editable, so
+        // nothing false is asserted — unlike a zeroed money figure.
+        setPrefillFailed(true);
       });
   }, [isResubmit, token, dbUser]);
 
   useEffect(() => {
-    get<Service[]>("/api/v1/catalog/services").then(setServices).catch(() => {});
+    get<Service[]>("/api/v1/catalog/services")
+      .then(setServices)
+      .catch(() => {
+        // NOT benign, and not fixed here: an empty services list makes step 4
+        // an unsatisfiable gate with no explanation. Tracked as seller-UX
+        // audit MAJOR #4 (Batch 2 — "make onboarding survivable"), which
+        // rebuilds this step's empty state and copy. Recorded so the wizard
+        // can say so rather than silently offering nothing to choose.
+        setServicesFailed(true);
+      });
   }, []);
 
   /* ---------------------------------------------------------------- */
@@ -764,6 +780,11 @@ function SellerSignupPageInner() {
         {/* ---- Step 5: Personal Info ---- */}
         {currentStep === 5 && (
           <>
+            {prefillFailed && (
+              <div className={styles.toast} role="alert">
+                {tc("loadFailedBody")}
+              </div>
+            )}
             {toast && (
               <div
                 className={
@@ -884,6 +905,11 @@ function SellerSignupPageInner() {
                 }}
                 services={services.length > 0 ? services : undefined}
               />
+              {servicesFailed && (
+                <p className={styles.errorText} role="alert">
+                  {tc("loadFailedBody")}
+                </p>
+              )}
               {fieldErrors.services && (
                 <p className={styles.errorText}>{fieldErrors.services}</p>
               )}

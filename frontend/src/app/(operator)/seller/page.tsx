@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { get, patch } from "@/lib/api";
 import type { SellerMetrics } from "@/types";
+import LoadError from "@/components/LoadError";
 import StatsCard from "@/components/StatsCard";
 import DashboardHeader from "@/components/seller/DashboardHeader";
 import CloseStoreModal from "@/components/seller/CloseStoreModal";
@@ -46,9 +47,11 @@ export default function SellerDashboardPage() {
   const router = useRouter();
   const { dbUser, token, loading } = useAuth();
   const [metrics, setMetrics] = useState<SellerMetrics | null>(null);
+  const [metricsError, setMetricsError] = useState<Error | null>(null);
   const [fetching, setFetching] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pauseBusy, setPauseBusy] = useState(false);
+  const [pauseError, setPauseError] = useState<Error | null>(null);
   const [closePrompt, setClosePrompt] = useState(false);
 
   const load = useCallback(
@@ -56,8 +59,15 @@ export default function SellerDashboardPage() {
       if (!token) return;
       if (refresh) setRefreshing(true);
       get<SellerMetrics>("/api/v1/sellers/me/metrics", token)
-        .then(setMetrics)
-        .catch(() => {})
+        .then((res) => {
+          setMetrics(res);
+          setMetricsError(null);
+        })
+        .catch((e: unknown) => {
+          // Never fall through to `EMPTY`: an all-zero dashboard is
+          // indistinguishable from a genuinely dead business day.
+          setMetricsError(e instanceof Error ? e : new Error(String(e)));
+        })
         .finally(() => {
           setFetching(false);
           setRefreshing(false);
@@ -70,12 +80,15 @@ export default function SellerDashboardPage() {
     async (body: { is_paused: boolean; reason?: string; paused_until?: string }) => {
       if (!token) return;
       setPauseBusy(true);
+      setPauseError(null);
       try {
         await patch("/api/v1/sellers/me/store/pause", body, token);
         setClosePrompt(false);
         load(true);
-      } catch {
-        // surfaced via metrics not flipping; keep dashboard responsive
+      } catch (e: unknown) {
+        // "Surfaced via metrics not flipping" was never a signal a seller could
+        // read — an unchanged chip looks identical to a chip that never tried.
+        setPauseError(e instanceof Error ? e : new Error(String(e)));
       } finally {
         setPauseBusy(false);
       }
@@ -111,6 +124,9 @@ export default function SellerDashboardPage() {
   }
 
   const m = metrics ?? EMPTY;
+  // Only substitute EMPTY when we have never loaded AND nothing went wrong.
+  // A failed first load must not render as a zero-rupee day.
+  const metricsUnknown = metricsError !== null && metrics === null;
 
   return (
     <div className={styles.page}>
@@ -138,6 +154,26 @@ export default function SellerDashboardPage() {
         />
       )}
 
+      {pauseError && (
+        <LoadError
+          variant="inline"
+          error={pauseError}
+          title={t("pauseFailed")}
+          onRetry={() => setPauseError(null)}
+          retryLabel={tc("cancel")}
+        />
+      )}
+
+      {metricsUnknown ? (
+        <LoadError
+          variant="card"
+          error={metricsError}
+          title={t("metricsFailedTitle")}
+          body={t("metricsFailedBody")}
+          onRetry={() => load(true)}
+        />
+      ) : (
+        <>
       <AttentionBanner activeOrders={m.active_orders} counts={m.order_status_counts} />
 
       <div className={styles.statsGrid}>
@@ -167,19 +203,27 @@ export default function SellerDashboardPage() {
         <StatsCard icon="🗓️" label={t("statsOrdersToday")} value={m.orders_today} variant="info" />
         <StatsCard icon="📦" label={t("statsTotalProducts")} value={m.total_products} variant="primary" />
       </div>
+        </>
+      )}
 
       <div className={styles.grid}>
         <div className={styles.main}>
-          {m.is_premium ? <RevenueChart /> : <ReportsUpsellCard />}
+          {/* `is_premium` is false in EMPTY, so rendering this while metrics
+              are unknown showed a paying seller an upsell to the plan they
+              are already on — a confident claim from an unknown value. */}
+          {!metricsUnknown && (m.is_premium ? <RevenueChart /> : <ReportsUpsellCard />)}
           <RecentOrders />
         </div>
         <aside className={styles.rail}>
-          <OrderStatusDonut counts={m.order_status_counts} />
-          <InventoryByService
-            services={m.inventory_by_service}
-            outOfStock={m.out_of_stock}
-            topSubcategory={m.top_subcategory}
-          />
+          {/* Both are metrics-derived: hidden rather than zeroed when unknown. */}
+          {!metricsUnknown && <OrderStatusDonut counts={m.order_status_counts} />}
+          {!metricsUnknown && (
+            <InventoryByService
+              services={m.inventory_by_service}
+              outOfStock={m.out_of_stock}
+              topSubcategory={m.top_subcategory}
+            />
+          )}
           <QuickActions />
         </aside>
       </div>

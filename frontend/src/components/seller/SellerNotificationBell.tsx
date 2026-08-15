@@ -43,6 +43,7 @@ export default function SellerNotificationBell() {
   const router = useRouter();
   const [items, setItems] = useState<OrderNotification[]>([]);
   const [unread, setUnread] = useState(0);
+  const [feedFailed, setFeedFailed] = useState(false);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -52,8 +53,12 @@ export default function SellerNotificationBell() {
       const res = await listSellerNotifications(token);
       setItems(res.notifications);
       setUnread(res.unread_count);
+      setFeedFailed(false);
     } catch {
-      /* best-effort */
+      // Not "best-effort": hiding this showed 0 unread and "No notifications
+      // yet" while the seller's store was being suspended for non-payment.
+      // The count goes indeterminate rather than falsely reading zero.
+      setFeedFailed(true);
     }
   }, [token]);
 
@@ -82,14 +87,17 @@ export default function SellerNotificationBell() {
 
   const onItem = (id: number, orderId: number | null, wasUnread: boolean) => {
     setOpen(false);
-    if (token) void markSellerNotificationRead(token, id).catch(() => {});
+    // The local state below is optimistic. If the write failed, re-reading the
+    // feed is what keeps the badge honest — swallowing left the count claiming
+    // a notification had been read when the server still had it unread.
+    if (token) void markSellerNotificationRead(token, id).catch(() => void load());
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     if (wasUnread) setUnread((u) => Math.max(0, u - 1));
     router.push(orderId ? `/seller/orders/${orderId}` : "/seller/plan");
   };
 
   const onMarkAll = () => {
-    if (token) void markAllSellerNotificationsRead(token).catch(() => {});
+    if (token) void markAllSellerNotificationsRead(token).catch(() => void load());
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnread(0);
   };
@@ -104,8 +112,16 @@ export default function SellerNotificationBell() {
         onClick={() => setOpen((o) => !o)}
       >
         <BellIcon />
-        {unread > 0 && (
-          <span className={styles.badge}>{unread > 99 ? "99+" : unread}</span>
+        {feedFailed ? (
+          <span className={styles.badge} aria-live="polite" title="Couldn't load notifications">
+            !
+          </span>
+        ) : (
+          unread > 0 && (
+            <span className={styles.badge} aria-live="polite">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )
         )}
       </button>
 
@@ -121,7 +137,15 @@ export default function SellerNotificationBell() {
           </div>
 
           <ul className={styles.list}>
-            {items.length === 0 ? (
+            {feedFailed && items.length === 0 ? (
+              // Operator English-only copy, matching this file's convention.
+              <li className={styles.empty}>
+                Couldn&apos;t load your notifications.{" "}
+                <button type="button" className={styles.linkBtn} onClick={() => void load()}>
+                  Retry
+                </button>
+              </li>
+            ) : items.length === 0 ? (
               <li className={styles.empty}>No notifications yet</li>
             ) : (
               items.map((n) => (

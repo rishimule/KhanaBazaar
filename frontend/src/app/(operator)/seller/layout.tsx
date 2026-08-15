@@ -9,6 +9,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import Navbar from "@/components/Navbar";
 import SellerNotificationBell from "@/components/seller/SellerNotificationBell";
 import SellerOrderAlerts from "@/components/seller/SellerOrderAlerts";
+import LoadError from "@/components/LoadError";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { Store, VerificationStatus } from "@/types";
@@ -25,6 +26,12 @@ export default function SellerLayout({
   const [storeName, setStoreName] = useState("");
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
+  // `null` used to mean both "still loading" and "the fetch failed", and the
+  // guard below read the second as the first — trapping the seller on
+  // "Loading…" forever. The error is now tracked separately so a transient
+  // failure fails *open* (dashboard renders) with a visible warning.
+  const [statusError, setStatusError] = useState<Error | null>(null);
+  const [statusAttempt, setStatusAttempt] = useState(0);
   // null = unknown (never loaded / fetch failed) → the nav badge stays hidden.
   const [pendingOrders, setPendingOrders] = useState<number | null>(null);
   const onPendingCountChange = useCallback(
@@ -50,7 +57,12 @@ export default function SellerLayout({
       .then((stores) => {
         if (stores.length > 0) setStoreName(stores[0].name);
       })
-      .catch(() => {});
+      .catch(() => {
+        // Deliberate, and the one place a swallow is defensible: the store name
+        // is cosmetic chrome. The fallback is the neutral portal name, which
+        // makes no claim about the business — unlike a "₹0" or an empty list.
+        setStoreName("");
+      });
   }, [loading, dbUser, token, isSignupRoute]);
 
   // Effect 3: verification status guard — only for non-signup routes
@@ -61,16 +73,19 @@ export default function SellerLayout({
       token
     )
       .then((data) => {
+        setStatusError(null);
         setVerificationStatus(data.verification_status);
         if (data.verification_status !== "approved") {
           router.replace("/seller/signup/pending");
         }
       })
-      .catch(() => {
-        // On error, don't block the UI — allow dashboard to load
+      .catch((e: unknown) => {
+        // Fail open: an approved seller must not lose their dashboard to one
+        // flaky GET. The banner below tells them the check didn't run.
+        setStatusError(e instanceof Error ? e : new Error(String(e)));
       })
       .finally(() => setStatusLoading(false));
-  }, [loading, dbUser, token, router, isSignupRoute]);
+  }, [loading, dbUser, token, router, isSignupRoute, statusAttempt]);
 
   // --- All hooks above this line ---
 
@@ -93,8 +108,9 @@ export default function SellerLayout({
     );
   }
 
-  // Waiting for verification status or redirecting
-  if (statusLoading || verificationStatus === null || verificationStatus !== "approved") {
+  // Waiting for verification status, or redirecting a non-approved seller.
+  // A failed status check deliberately does NOT land here — see `statusError`.
+  if (statusLoading || (!statusError && verificationStatus !== "approved")) {
     return (
       <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-neutral-500)" }}>
         {t("common.loading")}
@@ -165,6 +181,18 @@ export default function SellerLayout({
           </>
         }
       >
+        {statusError && (
+          <LoadError
+            variant="banner"
+            error={statusError}
+            title={t("common.loadFailedTitle")}
+            onRetry={() => {
+              setStatusError(null);
+              setStatusLoading(true);
+              setStatusAttempt((n) => n + 1);
+            }}
+          />
+        )}
         {children}
       </DashboardLayout>
     </>

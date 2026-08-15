@@ -4,10 +4,11 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 
+import LoadError from "@/components/LoadError";
 import { useAuth } from "@/lib/AuthContext";
 import { getMyPlan, type SellerPlanServiceView } from "@/lib/sellerPlan";
+import { useResource } from "@/lib/useResource";
 import styles from "./PlanValidityBanner.module.css";
 
 type Tone = "danger" | "warn" | "info" | "success";
@@ -65,20 +66,26 @@ function summarize(
 export default function PlanValidityBanner({ isPremium }: { isPremium: boolean }) {
   const { token } = useAuth();
   const t = useTranslations("Plan");
-  const [summary, setSummary] = useState<{ tone: Tone; text: string } | null>(null);
+  // Swallowing this used to return `null`, so a seller whose service was
+  // suspended for non-payment could be shown no warning at all. `null` is now
+  // reserved for "genuinely nothing to say".
+  const { data: plan, error, refetch } = useResource(
+    token ? () => getMyPlan(token) : null,
+    [Boolean(token)],
+  );
 
-  useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
-    getMyPlan(token)
-      .then((v) => {
-        if (!cancelled) setSummary(summarize(v.services, isPremium, t));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [token, isPremium, t]);
+  const summary = plan ? summarize(plan.services, isPremium, t) : null;
+
+  if (error && !summary) {
+    return (
+      <LoadError
+        variant="banner"
+        error={error}
+        title={t("bannerLoadFailed")}
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   if (!summary) return null;
   return (

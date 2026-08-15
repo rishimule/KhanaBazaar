@@ -1030,7 +1030,9 @@
       "search": "Search",
       "noResults": "No results",
       "retry": "Retry",
-      "portalName": "Seller Portal"
+      "portalName": "Seller Portal",
+      "loadFailedTitle": "Couldn't load this",
+      "loadFailedBody": "Check your connection and try again."
     },
     "dashboard": {
       "statsActiveOrders": "Active orders",
@@ -1105,7 +1107,10 @@
       "optional": "(optional)",
       "reopenHint": "Shown to customers as “Closed — back <date>”. You still reopen the store manually; this date never reopens it automatically.",
       "reason": "Reason",
-      "reasonPlaceholder": "e.g. Diwali holidays"
+      "reasonPlaceholder": "e.g. Diwali holidays",
+      "metricsFailedTitle": "Couldn't load your numbers",
+      "metricsFailedBody": "This does not mean you earned nothing — we couldn't reach the server. Check your connection and try again.",
+      "pauseFailed": "Couldn't change your store status. Nothing was changed."
     },
     "inventory": {
       "categoriesAria": "Categories",
@@ -1142,7 +1147,14 @@
       "addToStore": "Add Product",
       "searchBtn": "🔍 Search",
       "searchInventoryPlaceholder": "Search your inventory…",
-      "servicesAria": "Services"
+      "servicesAria": "Services",
+      "loadFailedTitle": "Couldn't load your products",
+      "loadFailedBody": "This does not mean your store is empty — we couldn't reach the server.",
+      "saveFailed": "Couldn't save. Your old price and stock are unchanged.",
+      "deleteFailed": "Couldn't delete. Nothing was removed.",
+      "addFailed": "Couldn't add this product. Nothing was added.",
+      "availabilityFailed": "Couldn't change visibility. Nothing was changed.",
+      "saveOk": "Saved"
     },
     "bulk": {
       "mobileBanner": "Bulk editor works best on a wider screen. Open from a desktop browser to use it comfortably.",
@@ -1179,7 +1191,9 @@
       "allServices": "All services",
       "allCategories": "All categories",
       "noApprovedServices": "You haven't been approved for any services yet. Contact admin.",
-      "addToSheet": "Add {count} to sheet"
+      "addToSheet": "Add {count} to sheet",
+      "loadFailedTitle": "Couldn't load the bulk sheet",
+      "loadFailedBody": "Check your connection and try again."
     },
     "orders": {
       "title": "Store orders",
@@ -1213,7 +1227,9 @@
       "loadMore": "Load more",
       "prev": "‹ Prev",
       "next": "Next ›",
-      "showing": "Showing {from}–{to} of {total}"
+      "showing": "Showing {from}–{to} of {total}",
+      "loadFailedTitle": "Couldn't load your orders",
+      "loadFailedBody": "This does not mean you have no orders — we couldn't reach the server."
     },
     "orderDetail": {
       "loadError": "Could not load order.",
@@ -2444,7 +2460,9 @@
     "save": "Save",
     "saving": "Saving…",
     "saved": "Saved.",
-    "errInvalidCap": "Enter a valid amount."
+    "errInvalidCap": "Enter a valid amount.",
+    "loadFailed": "Couldn't load your khata",
+    "toggleFailed": "Couldn't change this account. Nothing was changed."
   },
   "Plan": {
     "noAutoRenew": "Nothing renews automatically.",
@@ -2474,7 +2492,9 @@
     "bannerPremium": "Your store is premium — all paid plans are in good standing.",
     "bannerManage": "Manage plan →",
     "renewCta": "Renew",
-    "subscribeCta": "Subscribe"
+    "subscribeCta": "Subscribe",
+    "bannerLoadFailed": "Couldn't check your plan status",
+    "invoicesLoadFailed": "Couldn't load your invoices"
   },
   "StoreQR": {
     "posterCta": "Scan to shop with us on {brand}",
