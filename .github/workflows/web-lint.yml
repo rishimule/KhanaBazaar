@@ -1,0 +1,43 @@
+# Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+# This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+
+name: web-lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Why this exists: `deploy.yml` builds the web image with `next build`, and
+# Next 16 removed build-time ESLint (`next lint` is gone, and the build no
+# longer lints). So before this workflow, nothing in CI ran the frontend
+# linter — including the seller-surface rule that bans swallowing a fetch
+# error. A type error, meanwhile, DOES fail `next build`, i.e. it failed at
+# deploy time on `main` rather than on the PR. Both are cheaper to catch here.
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint (eslint)
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Type check (tsc)
+        working-directory: frontend
+        run: npx tsc --noEmit
