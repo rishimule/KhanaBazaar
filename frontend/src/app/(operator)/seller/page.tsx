@@ -208,7 +208,10 @@ export default function SellerDashboardPage() {
 
       <div className={styles.grid}>
         <div className={styles.main}>
-          {m.is_premium ? <RevenueChart /> : <ReportsUpsellCard />}
+          {/* `is_premium` is false in EMPTY, so rendering this while metrics
+              are unknown showed a paying seller an upsell to the plan they
+              are already on — a confident claim from an unknown value. */}
+          {!metricsUnknown && (m.is_premium ? <RevenueChart /> : <ReportsUpsellCard />)}
           <RecentOrders />
         </div>
         <aside className={styles.rail}>
