@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getOrder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
@@ -13,6 +13,7 @@ import OrderActionButtons from "@/components/orders/OrderActionButtons";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
+import LoadError from "@/components/LoadError";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -24,16 +25,23 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const { id } = use(params);
   const { token } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!token) return;
     getOrder(token, Number(id))
-      .then(setOrder)
-      .catch((e: { detail?: string }) => setError(e?.detail ?? t("loadError")));
-  }, [token, id, t]);
+      .then((next) => {
+        setOrder(next);
+        setError(null);
+      })
+      .catch(setError);
+  }, [token, id]);
 
-  if (error) return <div className={styles.error}>{error}</div>;
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (error != null) return <LoadError error={error} onRetry={load} title={t("loadError")} />;
   if (!order) return <div className={styles.loading}>{tc("loading")}</div>;
 
   return (

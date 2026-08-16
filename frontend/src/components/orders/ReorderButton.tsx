@@ -7,6 +7,7 @@ import { useRouter } from "@/i18n/navigation";
 import { reorder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
+import { apiErrorCode } from "@/lib/errors";
 import styles from "./ReorderButton.module.css";
 
 export default function ReorderButton({
@@ -49,8 +50,8 @@ export default function ReorderButton({
         router.push("/cart");
       }
     } catch (err) {
-      const detail = (err as { detail?: string })?.detail;
-      setMsg(detail === "service_unavailable" ? t("serviceUnavailable") : t("failed"));
+      const code = apiErrorCode(err);
+      setMsg(code === "service_unavailable" ? t("serviceUnavailable") : t("failed"));
     } finally {
       setBusy(false);
     }
