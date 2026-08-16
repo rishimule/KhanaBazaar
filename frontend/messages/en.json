@@ -396,7 +396,9 @@
     "boundaryRetry": "Try again",
     "boundaryHome": "Back to dashboard",
     "boundaryRef": "Reference: {digest}",
-    "illegal_rewind": "This order cannot be moved back to that stage."
+    "illegal_rewind": "This order cannot be moved back to that stage.",
+    "boundaryBodyShop": "The page stopped loading. Nothing in your cart was lost. Try again, or head back to the home page.",
+    "boundaryShopHome": "Back to home"
   },
   "Footer": {
     "tagline": "Empower local sellers with a digital presence. Together, we grow a stronger, connected ecosystem.",

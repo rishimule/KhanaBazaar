@@ -62,8 +62,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
   ]),
   {
-    // Whole operator surface plus the order components shared with customers —
-    // the crash sites for BLOCKER #32 spanned seller AND admin.
+    // Every app surface. The crash sites for BLOCKER #32 spanned seller AND
+    // admin, and review found the identical live pattern on the customer cart
+    // and order pages — where it had already crashed for real, since
+    // api/carts.py raises 400 with an object detail.
     //
     // MUST stay above the seller block below: flat config REPLACES
     // `no-restricted-syntax` rather than merging it, so for a seller file the
@@ -71,8 +73,9 @@ const eslintConfig = defineConfig([
     // get the seller block's fuller list, and the empty-catch rules stay
     // seller-scoped as PR #272 intended.
     files: [
-      "src/app/(operator)/**/*.{ts,tsx}",
-      "src/components/orders/**/*.{ts,tsx}",
+      "src/app/**/*.{ts,tsx}",
+      "src/components/**/*.{ts,tsx}",
+      "src/lib/**/*.{ts,tsx}",
     ],
     rules: {
       "no-restricted-syntax": ["error", ...NO_STRING_DETAIL_CAST],
