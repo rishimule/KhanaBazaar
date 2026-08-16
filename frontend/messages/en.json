@@ -385,7 +385,20 @@
     "serverError": "Server error. Please try again.",
     "service_unavailable": "This service is no longer offered by the store. Remove the items and try a different service.",
     "service_mismatch": "An item in your cart no longer belongs to this service. Remove it and try again.",
-    "store_paused": "This store is temporarily closed and isn't taking orders right now."
+    "store_paused": "This store is temporarily closed and isn't taking orders right now.",
+    "illegal_transition": "This order cannot move to that stage from where it is now. Refresh to see its current status.",
+    "terminal_status": "This order is already closed — it cannot be changed now.",
+    "seller_not_active": "This seller account is not active right now, so this change cannot be saved.",
+    "order_not_mutable": "This order can no longer be changed.",
+    "not_dispatched": "This order has not been sent out yet.",
+    "boundaryTitle": "Something went wrong on this screen",
+    "boundaryBody": "The page stopped loading. Nothing you saved was lost. Try again, or go back to your dashboard.",
+    "boundaryRetry": "Try again",
+    "boundaryHome": "Back to dashboard",
+    "boundaryRef": "Reference: {digest}",
+    "illegal_rewind": "This order cannot be moved back to that stage.",
+    "boundaryBodyShop": "The page stopped loading. Nothing in your cart was lost. Try again, or head back to the home page.",
+    "boundaryShopHome": "Back to home"
   },
   "Footer": {
     "tagline": "Empower local sellers with a digital presence. Together, we grow a stronger, connected ecosystem.",

@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { getOrder } from "@/lib/orders";
 import { formatDeliveryEta } from "@/lib/deliveryEta";
 import { useAuth } from "@/lib/AuthContext";
-import { apiErrorKey } from "@/lib/errors";
+import { apiErrorCode, apiErrorKey } from "@/lib/errors";
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import DeliveryOtpPanel from "@/components/orders/DeliveryOtpPanel";
 import OrderItemList from "@/components/orders/OrderItemList";
@@ -39,8 +39,10 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
         if (key) {
           setError(tErr(key.replace(/^Errors\./, "")));
         } else {
-          const detail = (e as { detail?: string })?.detail;
-          setError(detail ?? t("loadError"));
+          // apiErrorCode() always returns a string or null. The old cast
+          // claimed `string` while the backend can send an object, which then
+          // rendered as a JSX child and crashed the page (audit BLOCKER #32).
+          setError(apiErrorCode(e) ?? t("loadError"));
         }
       });
   }, [token, id, t, tErr]);

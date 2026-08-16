@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
 import { get } from "@/lib/api";
-import { apiErrorKey } from "@/lib/errors";
+import { apiErrorCode, apiErrorKey } from "@/lib/errors";
 import type { Cart, Store } from "@/types";
 import ReplaceAdjustmentsBanner from "@/components/orders/ReplaceAdjustmentsBanner";
 import CartAddedToast from "@/components/orders/CartAddedToast";
@@ -87,9 +87,12 @@ export default function CartPage() {
       if (key) {
         setErrorMsg(tErr(key.replace(/^Errors\./, "")));
       } else {
+        // apiErrorCode() always returns a string or null. The old cast
+        // claimed `string` while the backend can send an object, and `??`
+        // does not skip an object — so it reached setErrorMsg and crashed
+        // the render as a JSX child (seller UX audit BLOCKER #32).
         const detail =
-          (err as { detail?: string })?.detail ??
-          (err instanceof Error ? err.message : null);
+          apiErrorCode(err) ?? (err instanceof Error ? err.message : null);
         setErrorMsg(detail ?? t("errClear"));
       }
     }
@@ -108,9 +111,12 @@ export default function CartPage() {
       if (key) {
         setErrorMsg(tErr(key.replace(/^Errors\./, "")));
       } else {
+        // apiErrorCode() always returns a string or null. The old cast
+        // claimed `string` while the backend can send an object, and `??`
+        // does not skip an object — so it reached setErrorMsg and crashed
+        // the render as a JSX child (seller UX audit BLOCKER #32).
         const detail =
-          (err as { detail?: string })?.detail ??
-          (err instanceof Error ? err.message : null);
+          apiErrorCode(err) ?? (err instanceof Error ? err.message : null);
         setErrorMsg(detail ?? t("errRemove"));
       }
     }
@@ -130,9 +136,12 @@ export default function CartPage() {
       if (key) {
         setErrorMsg(tErr(key.replace(/^Errors\./, "")));
       } else {
+        // apiErrorCode() always returns a string or null. The old cast
+        // claimed `string` while the backend can send an object, and `??`
+        // does not skip an object — so it reached setErrorMsg and crashed
+        // the render as a JSX child (seller UX audit BLOCKER #32).
         const detail =
-          (err as { detail?: string })?.detail ??
-          (err instanceof Error ? err.message : null);
+          apiErrorCode(err) ?? (err instanceof Error ? err.message : null);
         setErrorMsg(detail ?? t("errUpdateQty"));
       }
     }

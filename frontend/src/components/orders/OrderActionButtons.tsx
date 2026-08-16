@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { cancelOrder, transitionOrder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import { ApiError } from "@/lib/api";
+import { apiErrorCode, errorsKey } from "@/lib/errors";
 import Modal from "@/components/Modal";
 import OrderReviewForm from "@/components/orders/OrderReviewForm";
 import type { Order, OrderStatus, UserRole } from "@/types";
@@ -24,11 +25,20 @@ const NEXT_LABEL_KEYS: Record<NonNullable<typeof NEXT_TRANSITION[OrderStatus]>, 
   delivered: "markDelivered",
 };
 
-function errorDetail(e: unknown): { code?: string; remaining?: number } | null {
-  if (e instanceof ApiError && e.detail && typeof e.detail === "object") {
-    return e.detail as { code?: string; remaining?: number };
-  }
-  return null;
+/** Normalised read of a caught order error: the code, whatever key the backend
+ * used for it, plus the numeric extras some codes carry.
+ *
+ * Before apiErrorCode(), this read `e.detail.code` directly, so it could never
+ * match `illegal_transition` — that one uses the key `detail`, not `code`. The
+ * modal paths below now fall back to errorsKey() so a stale submit on the
+ * deliver step (the most contended transition) gets the specific message too,
+ * not just the generic errUpdate. */
+function errorDetail(e: unknown): { code: string | null; remaining?: number } {
+  const bag =
+    e instanceof ApiError && e.detail && typeof e.detail === "object"
+      ? (e.detail as { remaining?: number })
+      : null;
+  return { code: apiErrorCode(e), remaining: bag?.remaining };
 }
 
 interface Props {
@@ -39,6 +49,7 @@ interface Props {
 
 export default function OrderActionButtons({ order, role, onChange }: Props) {
   const t = useTranslations("Order.actions");
+  const tErr = useTranslations("Errors");
   const { token } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +106,8 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
       const next = await transitionOrder(token, order.id, nextStep);
       onChange(next);
     } catch (e) {
-      setError((e as { detail?: string })?.detail ?? t("errUpdate"));
+      const key = errorsKey(e);
+      setError(key ? tErr(key) : t("errUpdate"));
     } finally {
       setBusy(false);
     }
@@ -113,14 +125,15 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
       setOtpOpen(false);
     } catch (e) {
       const d = errorDetail(e);
-      if (d?.code === "delivery_otp_invalid") {
+      if (d.code === "delivery_otp_invalid") {
         setOtpError(t("otpInvalid", { remaining: d.remaining ?? 0 }));
-      } else if (d?.code === "delivery_otp_locked") {
+      } else if (d.code === "delivery_otp_locked") {
         setOtpError(t("otpLocked"));
-      } else if (d?.code === "delivery_otp_required") {
+      } else if (d.code === "delivery_otp_required") {
         setOtpError(t("otpRequired"));
       } else {
-        setOtpError(t("errUpdate"));
+        const key = errorsKey(e);
+        setOtpError(key ? tErr(key) : t("errUpdate"));
       }
     } finally {
       setBusy(false);
@@ -143,7 +156,12 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
       setReasonOpen(false);
     } catch (e) {
       const d = errorDetail(e);
-      setReasonError(d?.code === "reason_required" ? t("reasonTooShort") : t("errUpdate"));
+      if (d.code === "reason_required") {
+        setReasonError(t("reasonTooShort"));
+      } else {
+        const key = errorsKey(e);
+        setReasonError(key ? tErr(key) : t("errUpdate"));
+      }
     } finally {
       setBusy(false);
     }
@@ -158,7 +176,8 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
       const next = await cancelOrder(token, order.id);
       onChange(next);
     } catch (e) {
-      setError((e as { detail?: string })?.detail ?? t("errCancel"));
+      const key = errorsKey(e);
+      setError(key ? tErr(key) : t("errCancel"));
     } finally {
       setBusy(false);
     }

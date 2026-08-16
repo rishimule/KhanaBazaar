@@ -194,8 +194,10 @@ export default function CheckoutPage() {
       }
       router.push(`/order-confirmed/${placedOrder.id}`);
     } catch (e) {
-      // The pause 409 carries a structured dict detail, so it must be
-      // matched before apiErrorKey() (which maps every 409 to "conflict").
+      // The pause 409 carries a structured dict detail. This pre-match is kept
+      // because `store_paused`/`service_paused` also need the /cart redirect
+      // below; apiErrorKey() itself now reads object-shaped details via
+      // apiErrorCode(), so it no longer collapses every 409 to "conflict".
       const rawDetail = (e as { detail?: unknown })?.detail;
       const structured =
         rawDetail && typeof rawDetail === "object" && "detail" in rawDetail

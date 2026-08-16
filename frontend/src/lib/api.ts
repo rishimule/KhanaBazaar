@@ -40,11 +40,19 @@ function readBrowserCookie(name: string): string | null {
   return value && SUPPORTED_LOCALES.has(value) ? value : null;
 }
 
-/** Standard error thrown when a FastAPI backend response is not ok. */
+/** Standard error thrown when a FastAPI backend response is not ok.
+ *
+ * `detail` is deliberately `unknown`: this backend raises an object-shaped
+ * detail in 20+ places (`services/orders.py` alone), so declaring it `string`
+ * lied to every call site and made `(e as { detail?: string }).detail` look
+ * safe. Reading it as a string then pushed an object into React state and
+ * white-screened the page. Use `apiErrorCode()` / `apiErrorKey()` from
+ * `@/lib/errors` rather than touching this field directly.
+ */
 export class ApiError extends Error {
-  detail: string;
+  detail: unknown;
   status: number;
-  constructor(detail: string, status: number) {
+  constructor(detail: unknown, status: number) {
     super(typeof detail === "string" ? detail : `HTTP ${status}`);
     this.name = "ApiError";
     this.detail = detail;

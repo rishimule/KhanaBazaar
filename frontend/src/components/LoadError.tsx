@@ -4,7 +4,7 @@
 
 import { useTranslations } from "next-intl";
 
-import { apiErrorKey } from "@/lib/errors";
+import { errorsKey } from "@/lib/errors";
 import styles from "./LoadError.module.css";
 
 export type LoadErrorVariant = "card" | "inline" | "banner";
@@ -47,8 +47,7 @@ export default function LoadError({
   const t = useTranslations("Seller.common");
   const tErr = useTranslations("Errors");
 
-  const key = apiErrorKey(error);
-  const mappedKey = key?.startsWith("Errors.") ? key.slice("Errors.".length) : key;
+  const mappedKey = errorsKey(error);
   const mapped = mappedKey ? tErr(mappedKey) : null;
 
   const heading = title ?? t("loadFailedTitle");
@@ -77,12 +76,19 @@ export default function LoadError({
     );
   }
 
+  // Inline/banner are one-line strips, but they must still carry the mapped
+  // reason: without it a 401 ("Please sign in.") and a 500 read identically,
+  // which is the "failure rendered as a shrug" problem this component exists
+  // to fix. Appended to the heading rather than stacked, to keep one line.
+  const line =
+    explanation && explanation !== heading ? `${heading} — ${explanation}` : heading;
+
   return (
     <div className={rootClass} role="alert">
       <span className={styles.icon} aria-hidden="true">
         ⚠
       </span>
-      <span className={styles.text}>{heading}</span>
+      <span className={styles.text}>{line}</span>
       {retry}
     </div>
   );

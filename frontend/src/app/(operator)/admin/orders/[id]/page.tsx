@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getOrder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
@@ -13,6 +13,7 @@ import OrderActionButtons from "@/components/orders/OrderActionButtons";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
+import LoadError from "@/components/LoadError";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -24,16 +25,35 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const { id } = use(params);
   const { token } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+
+  // Generation guard: `error` is checked before `order` in the render, so a
+  // rejection from an older in-flight request landing after a newer success
+  // would pin the page on LoadError while holding good data. Reachable by
+  // double-tapping Retry on a flaky connection, or by a token refresh
+  // restarting the fetch mid-flight.
+  const reqId = useRef(0);
+
+  const load = useCallback(() => {
+    if (!token) return;
+    const mine = ++reqId.current;
+    getOrder(token, Number(id))
+      .then((next) => {
+        if (mine !== reqId.current) return;
+        setOrder(next);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        if (mine !== reqId.current) return;
+        setError(e);
+      });
+  }, [token, id]);
 
   useEffect(() => {
-    if (!token) return;
-    getOrder(token, Number(id))
-      .then(setOrder)
-      .catch((e: { detail?: string }) => setError(e?.detail ?? t("loadError")));
-  }, [token, id, t]);
+    load();
+  }, [load]);
 
-  if (error) return <div className={styles.error}>{error}</div>;
+  if (error != null) return <LoadError error={error} onRetry={load} title={t("loadError")} />;
   if (!order) return <div className={styles.loading}>{tc("loading")}</div>;
 
   return (

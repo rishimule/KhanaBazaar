@@ -5,13 +5,14 @@
  *
  * Maps an error from the API client to a key in the `Errors` namespace
  * (see frontend/messages/*.json). Call sites are expected to:
- *   1. Call `apiErrorKey(err)`.
+ *   1. Call `errorsKey(err)`.
  *   2. If it returns a key, render `t(key)` with the `Errors` namespace.
- *   3. If it returns `null`, fall back to the raw `err.detail` string
- *      (or any locally appropriate default).
+ *   3. If it returns `null`, fall back to a local default string.
  *
- * This helper is opt-in: existing call sites are unchanged. Adopt
- * incrementally where the UX benefits from a localized error message.
+ * NEVER fall back to `err.detail`. It is typed `unknown` because this backend
+ * raises an object-shaped detail in 20+ places; rendering that object as a JSX
+ * child crashes the page. That was audit BLOCKER #32. If you need the raw code,
+ * use `apiErrorCode(err)`, which always returns a string or null.
  *
  * Usage example:
  *
@@ -19,12 +20,39 @@
  *   try {
  *     await post(...);
  *   } catch (err) {
- *     const key = apiErrorKey(err);
- *     setError(key ? t(key.replace(/^Errors\./, "")) : (err as ApiError).detail);
+ *     const key = errorsKey(err);
+ *     setError(key ? t(key) : t("unknown"));
  *   }
  */
 
 import { ApiError } from "./api";
+
+/**
+ * Read the machine-readable code out of a caught API error, whatever shape the
+ * backend used.
+ *
+ * FastAPI handlers in this repo raise four different shapes for one idea:
+ *   detail: "forbidden"                          — bare string
+ *   detail: { code: "terminal_status" }          — most of services/orders.py
+ *   detail: { detail: "illegal_transition", … }  — services/orders.py:104, :386
+ *   detail: { error: "review_exists" }           — api/orders.py:714, :720
+ *
+ * Always returns a string or null — never an object — because callers push the
+ * result into render state.
+ */
+export function apiErrorCode(err: unknown): string | null {
+  if (!(err instanceof ApiError)) return null;
+  const detail = err.detail;
+  if (typeof detail === "string") return detail || null;
+  if (detail && typeof detail === "object") {
+    const bag = detail as Record<string, unknown>;
+    for (const key of ["code", "detail", "error"]) {
+      const value = bag[key];
+      if (typeof value === "string" && value) return value;
+    }
+  }
+  return null;
+}
 
 export function apiErrorKey(err: unknown): string | null {
   if (!(err instanceof ApiError)) {
@@ -32,7 +60,7 @@ export function apiErrorKey(err: unknown): string | null {
     return null;
   }
 
-  const detail = typeof err.detail === "string" ? err.detail : "";
+  const detail = apiErrorCode(err) ?? "";
   const lower = detail.toLowerCase();
 
   // Detail-string matches that should win over the generic status fallback.
@@ -40,6 +68,19 @@ export function apiErrorKey(err: unknown): string | null {
   if (lower === "service_mismatch") return "Errors.service_mismatch";
   if (lower === "store_paused" || lower === "service_paused")
     return "Errors.store_paused";
+
+  // Codes that arrive object-shaped, so they were unreachable before
+  // apiErrorCode() normalised the three key names the backend uses.
+  // `seller_not_active` is raised from nine mostly NON-order sites (inventory
+  // writes, profile change requests, admin service settings, platform fees), so
+  // its copy is deliberately scope-neutral. `not_dispatched` is a delivery-OTP
+  // resend code, not an order transition — sellers are 403'd from that route.
+  if (lower === "illegal_transition") return "Errors.illegal_transition";
+  if (lower === "illegal_rewind") return "Errors.illegal_rewind";
+  if (lower === "terminal_status") return "Errors.terminal_status";
+  if (lower === "seller_not_active") return "Errors.seller_not_active";
+  if (lower === "order_not_mutable") return "Errors.order_not_mutable";
+  if (lower === "not_dispatched") return "Errors.not_dispatched";
 
   switch (err.status) {
     case 401:
@@ -70,4 +111,12 @@ export function apiErrorKey(err: unknown): string | null {
       if (err.status >= 500) return "Errors.serverError";
       return null;
   }
+}
+
+/** `apiErrorKey` with the `Errors.` prefix stripped, ready to hand straight to
+ * `useTranslations("Errors")`. Returns null when nothing maps. */
+export function errorsKey(err: unknown): string | null {
+  const key = apiErrorKey(err);
+  if (!key) return null;
+  return key.startsWith("Errors.") ? key.slice("Errors.".length) : key;
 }

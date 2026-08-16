@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { listOrders } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import OrderCard from "./OrderCard";
+import LoadError from "@/components/LoadError";
 import type { Order, UserRole } from "@/types";
 import styles from "./ActiveOrdersWidget.module.css";
 
@@ -28,7 +29,7 @@ export default function ActiveOrdersWidget({ role, limit = 5 }: Props) {
   const t = useTranslations("Order.active");
   const { token } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -41,8 +42,8 @@ export default function ActiveOrdersWidget({ role, limit = 5 }: Props) {
             setError(null);
           }
         })
-        .catch((e: { detail?: string }) => {
-          if (!cancelled) setError(e?.detail ?? t("errLoad"));
+        .catch((e: unknown) => {
+          if (!cancelled) setError(e);
         });
     tick();
     const id = setInterval(tick, POLL_MS);
@@ -50,7 +51,7 @@ export default function ActiveOrdersWidget({ role, limit = 5 }: Props) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [token, limit, t]);
+  }, [token, limit]);
 
   return (
     <section className={styles.widget}>
@@ -60,7 +61,7 @@ export default function ActiveOrdersWidget({ role, limit = 5 }: Props) {
           {t("viewAll")}
         </Link>
       </div>
-      {error && <div className={styles.error}>{error}</div>}
+      {error != null && <LoadError error={error} variant="inline" title={t("errLoad")} />}
       {orders.length === 0 ? (
         <div className={styles.empty}>{t("empty")}</div>
       ) : (

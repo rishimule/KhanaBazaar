@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
-import { ApiError } from "@/lib/api";
+import { apiErrorCode } from "@/lib/errors";
 import {
   addProductImageUrl,
   deleteProductImage,
@@ -68,7 +68,7 @@ export function ProductImageManager({ productId, initial }: Props) {
   const full = images.length >= MAX_IMAGES;
 
   function reportError(e: unknown) {
-    setError(e instanceof ApiError ? e.detail : t("requestFailed"));
+    setError(apiErrorCode(e) ?? t("requestFailed"));
   }
 
   async function doUpload(blob: Blob) {
