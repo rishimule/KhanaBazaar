@@ -4,6 +4,21 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+// `ApiError.detail` is `unknown` because this backend raises an object-shaped
+// detail in 20+ places. Casting a caught error to `{ detail: string }` claims
+// otherwise, and the object that comes back used to be pushed into React state
+// and rendered as a JSX child — which React refuses, white-screening the whole
+// operator dashboard on a duplicate status tap (seller UX audit BLOCKER #32).
+//
+// Targets the string annotation specifically: `{ detail?: unknown }` is the
+// safe form, since TypeScript then forces the caller to narrow before use.
+const NO_STRING_DETAIL_CAST = {
+  selector:
+    "TSAsExpression > TSTypeLiteral > TSPropertySignature[key.name='detail'] > TSTypeAnnotation > TSStringKeyword",
+  message:
+    "Do not cast a caught error to `{ detail: string }`: the backend returns an object detail in 20+ places, and rendering that object crashes the page. Use apiErrorCode(err) or errorsKey(err) from @/lib/errors.",
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -15,6 +30,23 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    // Whole operator surface plus the order components shared with customers —
+    // the crash sites for BLOCKER #32 spanned seller AND admin.
+    //
+    // MUST stay above the seller block below: flat config REPLACES
+    // `no-restricted-syntax` rather than merging it, so for a seller file the
+    // last matching block wins outright. Keeping this first means seller files
+    // get the seller block's fuller list, and the empty-catch rules stay
+    // seller-scoped as PR #272 intended.
+    files: [
+      "src/app/(operator)/**/*.{ts,tsx}",
+      "src/components/orders/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-syntax": ["error", NO_STRING_DETAIL_CAST],
+    },
+  },
   {
     // Seller surface only. A swallowed error here renders as "₹0", an empty
     // order list, or an absent suspension warning — states a shop owner reads
@@ -45,6 +77,9 @@ const eslintConfig = defineConfig([
           message:
             "Do not swallow a seller-surface fetch error: an empty .catch() renders failure as a confident zero or empty list. Track the error and render <LoadError />.",
         },
+        // Repeated from the operator block above, which this block overrides
+        // for seller files. Removing it here would silently un-ban the cast.
+        NO_STRING_DETAIL_CAST,
       ],
     },
   },
