@@ -22,8 +22,15 @@ import styles from "./error.module.css";
  * (operator)/layout.tsx mounts NextIntlClientProvider — so unlike
  * app/global-error.tsx this boundary is fully translatable.
  *
- * Never renders `error.message`: that is the raw backend detail string, and
- * showing it to a seller is the defect this file exists to stop (audit T2).
+ * Never renders `error.message`: for an ApiError that is the raw backend detail
+ * string (or the literal "HTTP 409" when the detail was an object), and showing
+ * either to a shop owner is the defect this file exists to stop (audit T2).
+ *
+ * NOTE: ~20 operator call sites still render `err.message` directly — the rest
+ * of T2 is open work, not something this boundary fixes. The rule holds here.
+ *
+ * A throw inside (operator)/layout.tsx itself is NOT caught here — a segment
+ * boundary cannot catch its own layout. That case falls to app/global-error.tsx.
  */
 export default function OperatorError({
   error,

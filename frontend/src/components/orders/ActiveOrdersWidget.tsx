@@ -51,7 +51,7 @@ export default function ActiveOrdersWidget({ role, limit = 5 }: Props) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [token, limit, t]);
+  }, [token, limit]);
 
   return (
     <section className={styles.widget}>

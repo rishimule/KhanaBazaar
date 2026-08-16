@@ -26,8 +26,13 @@ const NEXT_LABEL_KEYS: Record<NonNullable<typeof NEXT_TRANSITION[OrderStatus]>, 
 };
 
 /** Normalised read of a caught order error: the code, whatever key the backend
- * used for it, plus the numeric extras some codes carry. `illegal_transition`
- * was previously unreachable here — it uses the key `detail`, not `code`. */
+ * used for it, plus the numeric extras some codes carry.
+ *
+ * Before apiErrorCode(), this read `e.detail.code` directly, so it could never
+ * match `illegal_transition` — that one uses the key `detail`, not `code`. The
+ * modal paths below now fall back to errorsKey() so a stale submit on the
+ * deliver step (the most contended transition) gets the specific message too,
+ * not just the generic errUpdate. */
 function errorDetail(e: unknown): { code: string | null; remaining?: number } {
   const bag =
     e instanceof ApiError && e.detail && typeof e.detail === "object"
@@ -127,7 +132,8 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
       } else if (d.code === "delivery_otp_required") {
         setOtpError(t("otpRequired"));
       } else {
-        setOtpError(t("errUpdate"));
+        const key = errorsKey(e);
+        setOtpError(key ? tErr(key) : t("errUpdate"));
       }
     } finally {
       setBusy(false);
@@ -150,7 +156,12 @@ export default function OrderActionButtons({ order, role, onChange }: Props) {
       setReasonOpen(false);
     } catch (e) {
       const d = errorDetail(e);
-      setReasonError(d.code === "reason_required" ? t("reasonTooShort") : t("errUpdate"));
+      if (d.code === "reason_required") {
+        setReasonError(t("reasonTooShort"));
+      } else {
+        const key = errorsKey(e);
+        setReasonError(key ? tErr(key) : t("errUpdate"));
+      }
     } finally {
       setBusy(false);
     }

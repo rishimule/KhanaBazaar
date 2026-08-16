@@ -76,12 +76,19 @@ export default function LoadError({
     );
   }
 
+  // Inline/banner are one-line strips, but they must still carry the mapped
+  // reason: without it a 401 ("Please sign in.") and a 500 read identically,
+  // which is the "failure rendered as a shrug" problem this component exists
+  // to fix. Appended to the heading rather than stacked, to keep one line.
+  const line =
+    explanation && explanation !== heading ? `${heading} — ${explanation}` : heading;
+
   return (
     <div className={rootClass} role="alert">
       <span className={styles.icon} aria-hidden="true">
         ⚠
       </span>
-      <span className={styles.text}>{heading}</span>
+      <span className={styles.text}>{line}</span>
       {retry}
     </div>
   );

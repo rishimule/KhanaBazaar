@@ -5,13 +5,14 @@
  *
  * Maps an error from the API client to a key in the `Errors` namespace
  * (see frontend/messages/*.json). Call sites are expected to:
- *   1. Call `apiErrorKey(err)`.
+ *   1. Call `errorsKey(err)`.
  *   2. If it returns a key, render `t(key)` with the `Errors` namespace.
- *   3. If it returns `null`, fall back to the raw `err.detail` string
- *      (or any locally appropriate default).
+ *   3. If it returns `null`, fall back to a local default string.
  *
- * This helper is opt-in: existing call sites are unchanged. Adopt
- * incrementally where the UX benefits from a localized error message.
+ * NEVER fall back to `err.detail`. It is typed `unknown` because this backend
+ * raises an object-shaped detail in 20+ places; rendering that object as a JSX
+ * child crashes the page. That was audit BLOCKER #32. If you need the raw code,
+ * use `apiErrorCode(err)`, which always returns a string or null.
  *
  * Usage example:
  *
@@ -19,8 +20,8 @@
  *   try {
  *     await post(...);
  *   } catch (err) {
- *     const key = apiErrorKey(err);
- *     setError(key ? t(key.replace(/^Errors\./, "")) : (err as ApiError).detail);
+ *     const key = errorsKey(err);
+ *     setError(key ? t(key) : t("unknown"));
  *   }
  */
 
@@ -68,9 +69,14 @@ export function apiErrorKey(err: unknown): string | null {
   if (lower === "store_paused" || lower === "service_paused")
     return "Errors.store_paused";
 
-  // Order-lifecycle codes. These arrive object-shaped, so they were unreachable
-  // before apiErrorCode() normalised the three key names the backend uses.
+  // Codes that arrive object-shaped, so they were unreachable before
+  // apiErrorCode() normalised the three key names the backend uses.
+  // `seller_not_active` is raised from nine mostly NON-order sites (inventory
+  // writes, profile change requests, admin service settings, platform fees), so
+  // its copy is deliberately scope-neutral. `not_dispatched` is a delivery-OTP
+  // resend code, not an order transition — sellers are 403'd from that route.
   if (lower === "illegal_transition") return "Errors.illegal_transition";
+  if (lower === "illegal_rewind") return "Errors.illegal_rewind";
   if (lower === "terminal_status") return "Errors.terminal_status";
   if (lower === "seller_not_active") return "Errors.seller_not_active";
   if (lower === "order_not_mutable") return "Errors.order_not_mutable";

@@ -79,16 +79,11 @@
   margin-top: 4px;
 }
 
-.loading,
-.error {
+.loading {
   padding: 32px 16px;
   text-align: center;
   color: var(--shade-cool-base-5);
   font-size: var(--body-base);
-}
-
-.error {
-  color: var(--tomato-red-dark-1);
 }
 
 @media (max-width: 768px) {

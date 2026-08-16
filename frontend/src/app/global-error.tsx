@@ -69,6 +69,18 @@ export default function GlobalError({
           >
             Try again
           </button>
+          {/* A crash on a customer route lands here (there is no (customer)
+              error.tsx), and this screen replaces the whole document — so
+              without a link home the visitor has no navigation at all.
+
+              Deliberately a plain <a>, not next/link: this boundary fires when
+              a layout itself has thrown, which is exactly the state in which
+              the client router is least trustworthy. A hard navigation always
+              works. eslint-disable is the honest call here, not a shortcut. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a href="/" style={{ fontSize: 14, color: "#0F6B06" }}>
+            Go to the home page
+          </a>
           {error.digest && (
             <p style={{ margin: 0, fontSize: 12, color: "#666" }}>
               Reference: {error.digest}
