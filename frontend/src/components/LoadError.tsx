@@ -4,7 +4,7 @@
 
 import { useTranslations } from "next-intl";
 
-import { apiErrorKey } from "@/lib/errors";
+import { errorsKey } from "@/lib/errors";
 import styles from "./LoadError.module.css";
 
 export type LoadErrorVariant = "card" | "inline" | "banner";
@@ -47,8 +47,7 @@ export default function LoadError({
   const t = useTranslations("Seller.common");
   const tErr = useTranslations("Errors");
 
-  const key = apiErrorKey(error);
-  const mappedKey = key?.startsWith("Errors.") ? key.slice("Errors.".length) : key;
+  const mappedKey = errorsKey(error);
   const mapped = mappedKey ? tErr(mappedKey) : null;
 
   const heading = title ?? t("loadFailedTitle");

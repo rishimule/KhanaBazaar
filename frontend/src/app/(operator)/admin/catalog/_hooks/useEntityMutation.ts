@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { ApiError } from "@/lib/api";
+import { apiErrorCode } from "@/lib/errors";
 import {
   createCatalog,
   deleteCatalog,
@@ -30,7 +31,7 @@ function extractError(e: unknown): FieldError {
     // TODO(i18n): "Request failed" fallback is i18n-deferred — this is a
     // non-component hook so it cannot call useTranslations. Translate at the
     // component display site (Shared.requestFailed) when that page is i18n'd.
-    const detail = e.detail || "Request failed";
+    const detail = apiErrorCode(e) ?? "Request failed";
     return {
       detail,
       field: SLUG_DETAILS.has(detail) ? "slug" : undefined,
