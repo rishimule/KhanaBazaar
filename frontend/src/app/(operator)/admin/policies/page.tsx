@@ -15,6 +15,14 @@ interface PolicyItem {
   published_at: string | null;
 }
 
+// Keyed by PolicyKind. A lookup rather than a ternary: a third kind used to
+// fall through to "Privacy Policy" and silently mislabel itself.
+const POLICY_LABEL_KEYS: Record<string, string> = {
+  terms: "terms",
+  privacy: "privacy",
+  return_agreement: "returnAgreement",
+};
+
 export default function AdminPoliciesPage() {
   const t = useTranslations("Admin.policies");
   const { token } = useAuth();
@@ -71,7 +79,7 @@ export default function AdminPoliciesPage() {
       {items.map((item) => (
         <section key={item.kind} className={styles.card}>
           <div className={styles.cardHeader}>
-            <h3>{t(item.kind === "terms" ? "terms" : "privacy")}</h3>
+            <h3>{t(POLICY_LABEL_KEYS[item.kind] ?? "unknownKind")}</h3>
             <span className={styles.version}>
               {item.version > 0
                 ? t("currentVersion", { version: item.version })

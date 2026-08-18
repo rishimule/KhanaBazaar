@@ -10,9 +10,14 @@ from app.models.base import BaseSchema
 
 class PolicyKind(str, enum.Enum):
     # Member names are lowercase and equal their values so the native PG enum
-    # ('terms','privacy') created by metadata matches the hand-written migration.
+    # ('terms','privacy','return_agreement') created by metadata matches the
+    # hand-written migration.
     terms = "terms"
     privacy = "privacy"
+    # Consent (`get_effective_policy_version`) reads terms + privacy only, so
+    # publishing this never forces users to re-accept. It is shown and version-
+    # stamped per return request instead.
+    return_agreement = "return_agreement"
 
 
 class PolicyDocument(BaseSchema, table=True):

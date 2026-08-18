@@ -1928,7 +1928,9 @@
       "confirmPublish": "This will require all users to re-accept the policies. Publish a new version?",
       "published": "Published v{version}.",
       "loadError": "Could not load policies.",
-      "publishError": "Could not publish. Please try again."
+      "publishError": "Could not publish. Please try again.",
+      "returnAgreement": "Return agreement",
+      "unknownKind": "Unknown policy"
     },
     "onboarding": {
       "colStore": "Store",
