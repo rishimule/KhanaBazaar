@@ -171,7 +171,11 @@ async def test_returns_full_payload_for_available_product(session: AsyncSession)
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["store"] == {"id": seed.store_id, "name": "Sai Kirana"}
+    assert body["store"] == {
+        "id": seed.store_id,
+        "name": "Sai Kirana",
+        "is_premium": False,
+    }
     assert body["service"] == {"id": seed.service_id, "name": "Grocery"}
     inv = body["inventory"]
     assert inv["store_id"] == seed.store_id
