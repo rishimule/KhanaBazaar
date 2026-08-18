@@ -97,11 +97,11 @@ async def list_profile_services_for_many(
         )
         .join(
             SellerProfileService,
-            SellerProfileService.service_id == Service.id,  # type: ignore[arg-type]
+            SellerProfileService.service_id == Service.id,
         )
         .join(
             ServiceTranslation,
-            ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+            ServiceTranslation.service_id == Service.id,
             isouter=True,
         )
         .where(SellerProfileService.seller_profile_id.in_(deduped))  # type: ignore[attr-defined]
@@ -109,7 +109,7 @@ async def list_profile_services_for_many(
             (ServiceTranslation.language_code == language_code)
             | (ServiceTranslation.id.is_(None))  # type: ignore[union-attr]
         )
-        .order_by(Service.sort_order, Service.id)  # type: ignore[arg-type]
+        .order_by(Service.sort_order, Service.id)
     )
     result = await session.exec(stmt)
     grouped: dict[int, list[ServicePayload]] = {sid: [] for sid in deduped}
