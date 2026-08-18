@@ -2085,3 +2085,125 @@ def send_account_status_email_async(user_id: int, event_key: str) -> None:
         html=payload.html,
         reply_to=settings.EMAIL_REPLY_TO,
     )
+
+
+def _load_return_otp_context(user_id: int) -> dict[str, Any]:
+    """Email + verified phone for the customer confirming a return.
+
+    Same thread-bridged loader idiom as `_load_order_email_context`: Celery's
+    prefork worker has no ambient loop, and EAGER test mode is already inside
+    one. Returns {} when the user is gone (callers short-circuit).
+    """
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.models.base import User
+    from app.models.profile import CustomerProfile
+
+    async def _load() -> dict[str, Any]:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                user = (
+                    await session.exec(select(User).where(User.id == user_id))
+                ).first()
+                if user is None:
+                    return {}
+                profile = (
+                    await session.exec(
+                        select(CustomerProfile).where(
+                            CustomerProfile.user_id == user_id
+                        )
+                    )
+                ).first()
+                return {
+                    "email": user.email,
+                    "phone": profile.phone if profile else None,
+                    "phone_verified": bool(profile and profile.phone_verified_at),
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+def _return_otp_purpose_text(purpose: str) -> str:
+    return (
+        "confirm your return request"
+        if purpose == "initiate"
+        else "confirm you received your return payment"
+    )
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_return_otp_email_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_return_otp_email_async(
+    user_id: int, return_id: int, code: str, purpose: str
+) -> None:
+    """Email a return confirmation code. `purpose` is 'initiate' or 'payment'."""
+    ctx = _load_return_otp_context(user_id)
+    to = ctx.get("email")
+    if not to or not isinstance(to, str):
+        return
+    subject = f"Code for return #{return_id}"
+    body = (
+        f"Use this code to {_return_otp_purpose_text(purpose)} for return "
+        f"#{return_id}: {code}\n\n"
+        f"It expires in {settings.OTP_TTL_SECONDS // 60} minutes. "
+        "Do not share it with anyone."
+    )
+    _resolve_email(to, subject, body)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_return_otp_phone_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_return_otp_phone_async(
+    user_id: int, return_id: int, code: str, purpose: str
+) -> None:
+    """WhatsApp-preferred, SMS-fallback delivery of a return code.
+
+    No-op without a VERIFIED phone: an unverified number is not a channel we
+    trust with a confirmation code.
+    """
+    import asyncio
+    import concurrent.futures
+
+    from app.core.otp_delivery import deliver_phone_otp
+    from app.core.sms import get_sms_sender
+    from app.core.whatsapp import get_whatsapp_sender
+
+    ctx = _load_return_otp_context(user_id)
+    phone = ctx.get("phone")
+    if not phone or not isinstance(phone, str) or not ctx.get("phone_verified"):
+        return
+    sms_text = (
+        f"{settings.COMPANY_NAME}: your confirmation code for return "
+        f"#{return_id} is {code}. Do not share it with anyone."
+    )
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(
+            lambda: asyncio.run(
+                deliver_phone_otp(
+                    to=phone,
+                    template_name="otp_return",
+                    variables={"return_no": str(return_id), "code": code},
+                    sms_text=sms_text,
+                    sms_sender=get_sms_sender(),
+                    whatsapp_sender=get_whatsapp_sender(),
+                )
+            )
+        ).result()

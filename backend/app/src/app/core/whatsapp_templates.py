@@ -53,6 +53,16 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
             f"{v['code']}. Share it only with your delivery partner at handover."
         ),
     ),
+    "otp_return": WhatsAppTemplate(
+        name="otp_return",
+        category="AUTHENTICATION",
+        variables=("return_no", "code"),
+        render=lambda v: (
+            f"Your {settings.COMPANY_NAME} confirmation code for return "
+            f"#{v['return_no']} is {v['code']}. It expires in 10 minutes. "
+            "Do not share it with anyone."
+        ),
+    ),
     "order_placed": WhatsAppTemplate(
         name="order_placed",
         category="UTILITY",
