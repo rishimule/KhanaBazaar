@@ -10,6 +10,7 @@ Four routers, mounted at four prefixes (mirrors `platform_fees.py`):
   * ``admin_router``        → /admin
 """
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -26,13 +27,19 @@ from app.core.otp import (
     verify_otp,
 )
 from app.core.redis import get_redis
-from app.core.security import get_current_customer, get_current_seller
+from app.core.security import (
+    get_current_admin,
+    get_current_customer,
+    get_current_seller,
+)
 from app.db.session import get_db_session
+from app.models.admin_audit import AdminActionTargetType
 from app.models.base import User
 from app.models.commerce import Order
 from app.models.consent import PolicyKind
 from app.models.profile import CustomerProfile, SellerProfile
 from app.models.returns import (
+    TERMINAL_RETURN_STATUSES,
     CustomerStoreCredit,
     ReturnInitiator,
     ReturnRequest,
@@ -41,6 +48,8 @@ from app.models.returns import (
 )
 from app.models.store import Store
 from app.schemas.returns import (
+    AdminReturnAcceptBody,
+    AdminReturnReasonBody,
     ReturnAcceptBody,
     ReturnConfirmBody,
     ReturnCreateBody,
@@ -56,6 +65,7 @@ from app.schemas.returns import (
 )
 from app.services import customer_store_credit as store_credit_svc
 from app.services import returns as returns_svc
+from app.services.admin_audit import log as audit_log
 from app.services.consent import get_current_version
 from app.services.return_comms import dispatch_return_otp
 
@@ -587,3 +597,214 @@ async def get_store_credit_ledger(
         )
         for e in entries
     ]
+
+
+# ─── Admin ───────────────────────────────────────────────────────────────
+
+
+def _require_reason(reason: str) -> str:
+    """Force paths need a real reason. Checked here rather than in the schema
+    so the error uses the repo's `{"code": ...}` shape."""
+    cleaned = (reason or "").strip()
+    if len(cleaned) < 10:
+        raise returns_svc.ReturnError(422, "reason_required")
+    return cleaned
+
+
+async def _load_return(session: AsyncSession, return_id: int) -> ReturnRequest:
+    request = await session.get(ReturnRequest, return_id)
+    if request is None:
+        raise returns_svc.ReturnError(404, "return_not_found")
+    return request
+
+
+async def _audit_return_action(
+    session: AsyncSession,
+    *,
+    admin_user_id: int,
+    request: ReturnRequest,
+    action: str,
+    before: dict[str, object],
+    reason: str,
+) -> None:
+    """Written in the SAME transaction as the mutation, so a rollback takes the
+    audit row with it."""
+    await audit_log(
+        session=session,
+        admin_user_id=admin_user_id,
+        target_seller_id=request.seller_profile_id,
+        target_type=AdminActionTargetType.Return,
+        target_id=_pk(request.id),
+        action=action,
+        before_json=before,
+        after_json={"status": request.status.value},
+        reason=reason,
+    )
+
+
+@admin_router.get("/returns", response_model=list[ReturnRead])
+async def admin_list_returns(
+    seller_id: Optional[int] = Query(default=None),
+    status_filter: Optional[ReturnStatus] = Query(default=None, alias="status"),
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[ReturnRead]:
+    query = select(ReturnRequest)
+    if seller_id is not None:
+        query = query.where(ReturnRequest.seller_profile_id == seller_id)
+    if status_filter is not None:
+        query = query.where(ReturnRequest.status == status_filter)
+    rows = list(
+        (
+            await session.exec(
+                query.order_by(col(ReturnRequest.created_at).desc()).limit(200)
+            )
+        ).all()
+    )
+    return [_serialize(row, await _load_items(session, _pk(row.id))) for row in rows]
+
+
+@admin_router.get(
+    "/sellers/{seller_profile_id}/returns", response_model=list[ReturnRead]
+)
+async def admin_list_seller_returns(
+    seller_profile_id: int,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[ReturnRead]:
+    rows = list(
+        (
+            await session.exec(
+                select(ReturnRequest)
+                .where(ReturnRequest.seller_profile_id == seller_profile_id)
+                .order_by(col(ReturnRequest.created_at).desc())
+                .limit(200)
+            )
+        ).all()
+    )
+    return [_serialize(row, await _load_items(session, _pk(row.id))) for row in rows]
+
+
+@admin_router.get("/returns/{return_id}", response_model=ReturnRead)
+async def admin_get_return(
+    return_id: int,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    request = await _load_return(session, return_id)
+    return _serialize(request, await _load_items(session, return_id))
+
+
+@admin_router.post("/returns", response_model=ReturnRead, status_code=201)
+async def admin_create_return(
+    body: ReturnCreateOnBehalfBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    """Initiate on a customer's behalf. The customer's consent OTP is still
+    mandatory — this lands in `awaiting_customer_confirmation` like any other.
+    Force paths resolve stuck returns; they never manufacture consent."""
+    order = await session.get(Order, body.order_id)
+    if order is None or order.customer_profile_id != body.customer_profile_id:
+        raise returns_svc.ReturnError(404, "order_not_found")
+    version = await _require_agreement_version(session)
+    request = await returns_svc.create_return(
+        session, order=order, customer_profile_id=body.customer_profile_id,
+        order_item_ids=body.order_item_ids, reason_code=body.reason_code,
+        reason_note=body.reason_note, settlement_choice=body.settlement_choice,
+        initiated_by=ReturnInitiator.admin, initiated_by_user_id=_pk(admin.id),
+        agreement_version=version,
+    )
+    await session.commit()
+    await session.refresh(request)
+    owner_user_id = (
+        await session.exec(
+            select(CustomerProfile.user_id).where(
+                CustomerProfile.id == body.customer_profile_id
+            )
+        )
+    ).first()
+    if owner_user_id is not None:
+        await _send_initiation_otp(int(owner_user_id), _pk(request.id))
+    return _serialize(request, await _load_items(session, _pk(request.id)))
+
+
+@admin_router.post("/returns/{return_id}/accept", response_model=ReturnRead)
+async def admin_force_accept(
+    return_id: int,
+    body: AdminReturnAcceptBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    request = await _load_return(session, return_id)
+    reason = _require_reason(body.reason)
+    before = {"status": request.status.value}
+    await returns_svc.accept_return(
+        session, request, actor_role="admin", actor_user_id=_pk(admin.id),
+        otp=None, restock=body.restock, bypass_otp=True,
+        note=f"admin force accept: {reason}",
+    )
+    await _audit_return_action(
+        session, admin_user_id=_pk(admin.id), request=request,
+        action="return.force_accept", before=before, reason=reason,
+    )
+    await session.commit()
+    await session.refresh(request)
+    return _serialize(request, await _load_items(session, return_id))
+
+
+@admin_router.post("/returns/{return_id}/reject", response_model=ReturnRead)
+async def admin_force_reject(
+    return_id: int,
+    body: AdminReturnReasonBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    request = await _load_return(session, return_id)
+    reason = _require_reason(body.reason)
+    before = {"status": request.status.value}
+    await returns_svc.reject_return(
+        session, request, actor_role="admin", actor_user_id=_pk(admin.id),
+        reason=reason,
+    )
+    await _audit_return_action(
+        session, admin_user_id=_pk(admin.id), request=request,
+        action="return.force_reject", before=before, reason=reason,
+    )
+    await session.commit()
+    await session.refresh(request)
+    return _serialize(request, await _load_items(session, return_id))
+
+
+@admin_router.post("/returns/{return_id}/close", response_model=ReturnRead)
+async def admin_force_close(
+    return_id: int,
+    body: AdminReturnReasonBody,
+    admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    """Close a stuck return without settling anything further — used when the
+    money moved outside the app and nobody confirmed."""
+    request = await _load_return(session, return_id)
+    reason = _require_reason(body.reason)
+    if request.status in TERMINAL_RETURN_STATUSES:
+        raise returns_svc.ReturnError(
+            409, "illegal_return_transition",
+            **{"from": request.status.value, "to": "closed"},
+        )
+    before = {"status": request.status.value}
+    request.closed_at = datetime.now(timezone.utc)
+    request.closed_by_user_id = _pk(admin.id)
+    request.receipt_otp = None
+    await returns_svc.record_transition(
+        session, request, to_status=ReturnStatus.closed,
+        actor_role="admin", actor_user_id=_pk(admin.id),
+        note=f"admin force close: {reason}",
+    )
+    await _audit_return_action(
+        session, admin_user_id=_pk(admin.id), request=request,
+        action="return.force_close", before=before, reason=reason,
+    )
+    await session.commit()
+    await session.refresh(request)
+    return _serialize(request, await _load_items(session, return_id))

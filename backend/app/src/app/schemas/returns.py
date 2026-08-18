@@ -122,3 +122,15 @@ class StoreCreditEntryRead(BaseModel):
     order_id: Optional[int] = None
     note: Optional[str] = None
     created_at: datetime
+
+
+class AdminReturnAcceptBody(BaseModel):
+    """`reason` length is checked in the handler, not here, so the error comes
+    back in the repo's `{"code": ...}` shape rather than Pydantic's."""
+
+    reason: str = PydanticField(max_length=500)
+    restock: bool = False
+
+
+class AdminReturnReasonBody(BaseModel):
+    reason: str = PydanticField(max_length=500)

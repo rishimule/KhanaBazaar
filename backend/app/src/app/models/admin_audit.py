@@ -13,10 +13,12 @@ from sqlmodel import Field, SQLModel
 
 
 class AdminActionTargetType(str, enum.Enum):
+    # Native PG enum `adminactiontargettype` stores member NAMES (PascalCase).
     Inventory = "inventory"
     Order = "order"
     Store = "store"
     SellerProfile = "seller_profile"
+    Return = "return"
 
 
 class AdminActionLog(SQLModel, table=True):
