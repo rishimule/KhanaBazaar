@@ -8,7 +8,7 @@ Soft-delete only — no row is hard-deleted, no PII is scrubbed.
 from datetime import datetime, timezone
 
 from sqlalchemy import func
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.base import AccountStatus, User
@@ -16,6 +16,7 @@ from app.models.commerce import Order, OrderStatus
 from app.models.credit import CreditAccount
 from app.models.customer_account_event import CustomerAccountEvent
 from app.models.profile import CustomerProfile
+from app.models.returns import TERMINAL_RETURN_STATUSES, ReturnRequest
 from app.services.sessions import revoke_all_sessions
 
 TERMINAL_ORDER_STATUSES: set[OrderStatus] = {
@@ -57,18 +58,27 @@ class InvalidTransition(AccountLifecycleError):
 
 
 class OpenObligations(AccountLifecycleError):
-    def __init__(self, open_orders: int, credit_accounts: int) -> None:
+    def __init__(
+        self, open_orders: int, credit_accounts: int, open_returns: int = 0
+    ) -> None:
         self.open_orders = open_orders
         self.credit_accounts = credit_accounts
+        self.open_returns = open_returns
         super().__init__(
-            f"open obligations: {open_orders} orders, {credit_accounts} credit accounts"
+            f"open obligations: {open_orders} orders, {credit_accounts} credit "
+            f"accounts, {open_returns} returns"
         )
 
 
 async def has_open_obligations(
     session: AsyncSession, customer_profile_id: int
-) -> tuple[int, int]:
-    """Return (non-terminal order count, credit accounts with outstanding_balance>0)."""
+) -> tuple[int, int, int]:
+    """Return (non-terminal orders, credit accounts owing, non-terminal returns).
+
+    A positive customer store-credit balance is deliberately NOT an obligation:
+    that is money the customer is owed, not money they owe, and it must never
+    trap someone in an account they want to leave.
+    """
     order_count = (
         await session.exec(
             select(func.count())
@@ -89,7 +99,17 @@ async def has_open_obligations(
             )
         )
     ).one()
-    return int(order_count), int(credit_count)
+    return_count = (
+        await session.exec(
+            select(func.count())
+            .select_from(ReturnRequest)
+            .where(
+                ReturnRequest.customer_profile_id == customer_profile_id,
+                col(ReturnRequest.status).notin_(TERMINAL_RETURN_STATUSES),
+            )
+        )
+    ).one()
+    return int(order_count), int(credit_count), int(return_count)
 
 
 async def transition(
@@ -126,11 +146,11 @@ async def transition(
             )
         ).first()
         if profile is not None and profile.id is not None:
-            open_orders, credit_accounts = await has_open_obligations(
+            open_orders, credit_accounts, open_returns = await has_open_obligations(
                 session, profile.id
             )
-            if open_orders or credit_accounts:
-                raise OpenObligations(open_orders, credit_accounts)
+            if open_orders or credit_accounts or open_returns:
+                raise OpenObligations(open_orders, credit_accounts, open_returns)
 
     user.account_status = to_status
     user.is_active = to_status == AccountStatus.active
