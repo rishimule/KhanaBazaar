@@ -522,6 +522,7 @@ async def place_order_for_sub_basket(
     customer_address_id: int | None = None,
     preferred_delivery_date: date | None = None,
     preferred_delivery_window: str | None = None,
+    apply_store_credit: bool = True,
 ) -> Order:
     profile = await _customer_profile(session, user)
     assert profile.id is not None
@@ -570,16 +571,42 @@ async def place_order_for_sub_basket(
         else await _compute_delivery_fee(session, store_id, service_id, subtotal)
     )
 
+    total_due = subtotal + delivery_fee + MVP_TAX
+
+    # Store credit is the customer's own money — spend it FIRST, so a postpaid
+    # order only borrows the remainder and is measured for eligibility against
+    # that reduced amount. The account is locked here and the ledger entry is
+    # written after the order flush (the entry needs an order id).
+    from app.services import credit as credit_svc
+    from app.services import customer_store_credit as store_credit_svc
+
+    store_credit_account = None
+    store_credit_planned = 0.0
+    if apply_store_credit:
+        seller_profile_id = await credit_svc.resolve_seller_id_for_store(
+            session, store_id
+        )
+        if seller_profile_id is not None:
+            locked_credit = await store_credit_svc.lock_account(
+                session,
+                seller_profile_id=seller_profile_id,
+                customer_profile_id=profile.id,
+            )
+            if locked_credit is not None and locked_credit.balance > 0:
+                store_credit_account = locked_credit
+                store_credit_planned = round(
+                    min(locked_credit.balance, total_due), 2
+                )
+
+    payable = round(total_due - store_credit_planned, 2)
+
     # Pay-on-credit: lock the account + assert available credit BEFORE creating
     # anything (fail fast + serialize concurrent credit checkouts). Charged after
     # the order flush, within this same atomic transaction.
     credit_account = None
     if payment_method == PaymentMethod.Credit:
-        from app.services import credit as credit_svc
-
-        total_due = subtotal + delivery_fee + MVP_TAX
         credit_account = await credit_svc.assert_credit_eligible(
-            session, store_id=store_id, customer_profile_id=profile.id, total=total_due
+            session, store_id=store_id, customer_profile_id=profile.id, total=payable
         )
 
     name_by_inv = await _snapshot_product_names(session, inv_ids)
@@ -601,11 +628,23 @@ async def place_order_for_sub_basket(
     session.add(order)
     await session.flush()
     assert order.id is not None
-    if credit_account is not None:
-        from app.services import credit as credit_svc
 
+    # `order.total` stays the gross cost of the goods; `store_credit_applied`
+    # records the discount and `payment.amount` is what is actually payable.
+    if store_credit_account is not None and store_credit_planned > 0:
+        applied = await store_credit_svc.spend(
+            session, store_credit_account, store_credit_planned, order_id=order.id
+        )
+        order.store_credit_applied = applied
+        # `payment` is still transient here — it gets its order_id and is added
+        # to the session further down. Adding it now would make the flush inside
+        # spend() insert it with a null order_id.
+        payment.amount = round(order.total - applied, 2)
+        session.add(order)
+
+    if credit_account is not None:
         await credit_svc.charge_credit_account(
-            session, account=credit_account, order_id=order.id, amount=order.total
+            session, account=credit_account, order_id=order.id, amount=payment.amount
         )
     for oi in order_items:
         oi.order_id = order.id

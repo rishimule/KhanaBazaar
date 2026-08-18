@@ -63,6 +63,8 @@ class OrderRead(BaseModel):
     delivery_fee: float
     tax: float
     total: float
+    # Gross `total` minus this is what the customer actually pays.
+    store_credit_applied: float = 0.0
     placed_at: datetime
     delivery_address_snapshot: str
     store_latitude: Optional[float] = None
@@ -90,6 +92,8 @@ class PlaceOrderRequest(BaseModel):
     delivery_mode: DeliveryMode = DeliveryMode.DoorDelivery
     preferred_delivery_date: Optional[date] = None
     preferred_delivery_window: Optional[str] = None
+    # Store credit auto-applies; the checkout page offers an opt-out.
+    apply_store_credit: bool = True
 
     @model_validator(mode="after")
     def _check_preferred_window(self) -> "PlaceOrderRequest":
