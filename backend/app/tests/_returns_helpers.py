@@ -40,8 +40,12 @@ from app.models.store import Store, StoreInventory
 @dataclass
 class SeededOrder:
     customer_user: User
+    # Narrowed ids: User.id is Optional[int] on the model, and every test that
+    # reaches through `.id` otherwise trips mypy.
+    customer_user_id: int
     customer_profile_id: int
     seller_user: User
+    seller_user_id: int
     seller_profile_id: int
     store_id: int
     service_id: int
@@ -214,8 +218,10 @@ async def seed_delivered_order(
     await session.commit()
 
     return SeededOrder(
-        customer_user=customer, customer_profile_id=cprofile.id,
-        seller_user=seller_user, seller_profile_id=seller.id, store_id=store.id,
+        customer_user=customer, customer_user_id=customer.id,
+        customer_profile_id=cprofile.id,
+        seller_user=seller_user, seller_user_id=seller_user.id,
+        seller_profile_id=seller.id, store_id=store.id,
         service_id=service.id, order_id=order.id, order_item_ids=order_item_ids,
         inventory_ids=inventory_ids, subtotal=subtotal, delivery_fee=delivery_fee,
     )

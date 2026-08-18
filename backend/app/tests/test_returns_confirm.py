@@ -42,7 +42,9 @@ async def _known_code(user_id: int, return_id: int, code: str = "424242") -> Non
     """Overwrite the Redis OTP with a code the test knows."""
     redis = await get_redis()
     key = f"otp:return_initiate:code:{user_id}:{return_id}"
-    await redis.hset(key, mapping={"code_hash": hash_code(code), "attempts": "0"})
+    await redis.hset(  # type: ignore[misc]
+        key, mapping={"code_hash": hash_code(code), "attempts": "0"}
+    )
 
 
 async def test_confirm_activates_and_issues_a_receipt_code(
@@ -52,7 +54,7 @@ async def test_confirm_activates_and_issues_a_receipt_code(
     await publish_return_agreement(session)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
 
     resp = await client.post(
         f"/api/v1/returns/{rid}/confirm",
@@ -73,7 +75,7 @@ async def test_confirm_records_the_transition_and_acceptance(
     await publish_return_agreement(session)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
 
     await client.post(
         f"/api/v1/returns/{rid}/confirm",
@@ -101,15 +103,15 @@ async def test_confirm_consumes_the_otp(
     await publish_return_agreement(session)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
 
     await client.post(
         f"/api/v1/returns/{rid}/confirm",
         json={"otp": "424242", "agreement_accepted": True},
     )
     redis = await get_redis()
-    key = f"otp:return_initiate:code:{seed.customer_user.id}:{rid}"
-    assert await redis.hget(key, "code_hash") is None
+    key = f"otp:return_initiate:code:{seed.customer_user_id}:{rid}"
+    assert await redis.hget(key, "code_hash") is None  # type: ignore[misc]
 
 
 async def test_wrong_code_does_not_activate(
@@ -119,7 +121,7 @@ async def test_wrong_code_does_not_activate(
     await publish_return_agreement(session)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
 
     resp = await client.post(
         f"/api/v1/returns/{rid}/confirm",
@@ -140,7 +142,7 @@ async def test_declining_the_agreement_is_refused(
     await publish_return_agreement(session)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
 
     resp = await client.post(
         f"/api/v1/returns/{rid}/confirm",
@@ -157,7 +159,7 @@ async def test_expired_confirmation_window_is_refused(
     await publish_return_agreement(session)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
 
     row = await session.get(ReturnRequest, rid)
     assert row is not None
@@ -180,13 +182,13 @@ async def test_double_confirm_is_refused(
     await publish_return_agreement(session)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
     await client.post(
         f"/api/v1/returns/{rid}/confirm",
         json={"otp": "424242", "agreement_accepted": True},
     )
 
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
     resp = await client.post(
         f"/api/v1/returns/{rid}/confirm",
         json={"otp": "424242", "agreement_accepted": True},
@@ -202,7 +204,7 @@ async def test_withdraw_after_confirming_releases_the_lines(
     await publish_return_agreement(session)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
     await client.post(
         f"/api/v1/returns/{rid}/confirm",
         json={"otp": "424242", "agreement_accepted": True},
@@ -226,7 +228,7 @@ async def test_withdraw_clears_the_receipt_code(
     await publish_return_agreement(session)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
     await client.post(
         f"/api/v1/returns/{rid}/confirm",
         json={"otp": "424242", "agreement_accepted": True},
@@ -273,7 +275,7 @@ async def test_another_customer_cannot_confirm(
     await publish_return_agreement(session)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await _known_code(seed.customer_user.id, rid)
+    await _known_code(seed.customer_user_id, rid)
 
     as_customer(other.customer_user)
     resp = await client.post(

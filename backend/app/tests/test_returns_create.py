@@ -102,8 +102,8 @@ async def test_creation_stores_an_otp_in_redis(
     rid = (await client.post("/api/v1/returns", json=_body(seed))).json()["id"]
 
     redis = await get_redis()
-    key = f"otp:return_initiate:code:{seed.customer_user.id}:{rid}"
-    assert await redis.hget(key, "code_hash") is not None
+    key = f"otp:return_initiate:code:{seed.customer_user_id}:{rid}"
+    assert await redis.hget(key, "code_hash") is not None  # type: ignore[misc]
 
 
 async def test_creation_without_a_published_agreement_is_refused(
