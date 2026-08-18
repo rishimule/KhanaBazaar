@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Optional
 
 from fastapi import HTTPException
+from sqlalchemy import and_, or_
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -556,3 +557,46 @@ async def close_after_payment(
         note="payment receipt otp confirmed",
     )
     return request
+
+
+async def expire_stale_returns(
+    session: AsyncSession, *, now: Optional[datetime] = None
+) -> list[int]:
+    """Expire returns that stalled at either stage. Flushes; caller commits.
+
+    Two deadlines, one pass: a return the customer never confirmed, and a
+    confirmed return whose goods never arrived. Both hold item lines locked,
+    which is why neither can be left open indefinitely.
+    """
+    moment = now or datetime.now(timezone.utc)
+    stale = list(
+        (
+            await session.exec(
+                select(ReturnRequest).where(
+                    or_(
+                        and_(
+                            ReturnRequest.status
+                            == ReturnStatus.awaiting_customer_confirmation,
+                            ReturnRequest.confirm_expires_at < moment,
+                        ),
+                        and_(
+                            ReturnRequest.status == ReturnStatus.active,
+                            col(ReturnRequest.handover_expires_at).is_not(None),
+                            ReturnRequest.handover_expires_at < moment,
+                        ),
+                    )
+                )
+            )
+        ).all()
+    )
+    expired_ids: list[int] = []
+    for request in stale:
+        request.receipt_otp = None
+        request.closed_at = moment
+        await record_transition(
+            session, request, to_status=ReturnStatus.expired,
+            actor_role="system", actor_user_id=None,
+            note="expired by sweep",
+        )
+        expired_ids.append(_pk(request.id))
+    return expired_ids

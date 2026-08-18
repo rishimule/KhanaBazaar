@@ -2207,3 +2207,22 @@ def send_return_otp_phone_async(
                 )
             )
         ).result()
+
+
+@celery_app.task(name="returns.sweep_expired")  # type: ignore[untyped-decorator]
+def sweep_expired_returns() -> int:
+    """Expire stalled returns at both stages. Returns how many moved."""
+    import asyncio
+    import concurrent.futures
+
+    from app.db.session import async_session_factory
+    from app.services.returns import expire_stale_returns
+
+    async def _run() -> int:
+        async with async_session_factory() as session:
+            expired = await expire_stale_returns(session)
+            await session.commit()
+            return len(expired)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return int(executor.submit(lambda: asyncio.run(_run())).result())

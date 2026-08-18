@@ -59,6 +59,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=4, minute=45),
         "args": ("store", True),
     },
+    # Minute 12 keeps this clear of the hourly search reconcilers (7 and 22).
+    "returns-sweep-expired-hourly": {
+        "task": "returns.sweep_expired",
+        "schedule": crontab(minute=12),
+    },
     "fees-daily-sweep": {
         "task": "fees.run_daily_sweep",
         "schedule": crontab(hour=2, minute=0),
