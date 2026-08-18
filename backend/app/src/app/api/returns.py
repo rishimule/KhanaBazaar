@@ -11,7 +11,7 @@ Four routers, mounted at four prefixes (mirrors `platform_fees.py`):
 """
 import logging
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import col, select
@@ -624,7 +624,7 @@ async def _audit_return_action(
     admin_user_id: int,
     request: ReturnRequest,
     action: str,
-    before: dict[str, object],
+    before: dict[str, Any],
     reason: str,
 ) -> None:
     """Written in the SAME transaction as the mutation, so a rollback takes the

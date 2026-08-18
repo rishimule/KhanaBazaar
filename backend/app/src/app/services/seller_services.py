@@ -93,6 +93,7 @@ async def list_profile_services_for_many(
             SellerProfileService.is_paused,
             SellerProfileService.pause_reason,
             SellerProfileService.paused_until,
+            SellerProfileService.return_window_days,
         )
         .join(
             SellerProfileService,
@@ -124,6 +125,7 @@ async def list_profile_services_for_many(
         is_paused,
         pause_reason,
         paused_until,
+        return_window_days,
     ) in result.all():
         assert service.id is not None
         grouped.setdefault(profile_id, []).append(
@@ -144,6 +146,7 @@ async def list_profile_services_for_many(
                 is_paused=is_paused,
                 pause_reason=pause_reason,
                 paused_until=paused_until.isoformat() if paused_until else None,
+                return_window_days=return_window_days,
             )
         )
     return grouped

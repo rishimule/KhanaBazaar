@@ -66,7 +66,11 @@ from app.services.seller_services import (
     replace_profile_services,
     validate_service_ids,
 )
-from app.services.store_pause import set_service_pause, set_store_pause
+from app.services.store_pause import (
+    set_service_pause,
+    set_service_return_window,
+    set_store_pause,
+)
 
 router = APIRouter()
 
@@ -621,6 +625,41 @@ async def pause_my_service(
     return payload
 
 
+class SetReturnWindowBody(BaseModel):
+    return_window_days: int
+
+
+@router.patch("/me/services/{service_id}/returns", response_model=ServicePayload)
+async def set_my_service_return_window(
+    service_id: int,
+    body: SetReturnWindowBody,
+    current_user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> ServicePayload:
+    """Set the return window for one of my services.
+
+    Deliberately NOT part of PATCH /me/services/{id}: that route rejects
+    approved sellers with `use_change_request`, because it edits
+    profile-shaped fields. A return window is operational, like pausing a
+    service, so it follows the pause route's shape instead.
+    """
+    assert current_user.id is not None
+    profile = await _seller_profile_with_address(session, current_user.id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+    assert profile.id is not None
+    profile_id: int = profile.id
+    await set_service_return_window(
+        session, seller_profile_id=profile_id, service_id=service_id,
+        return_window_days=body.return_window_days,
+    )
+    await session.commit()
+    services = await list_profile_services(session, profile_id)
+    payload = next((s for s in services if s.id == service_id), None)
+    assert payload is not None
+    return payload
+
+
 class AdminVerifyBody(BaseModel):
     action: str
     rejection_reason: Optional[str] = None
@@ -1054,6 +1093,38 @@ async def admin_pause_service(
     await set_service_pause(
         session, seller_profile_id=profile_id, service_id=service_id,
         is_paused=body.is_paused, reason=body.reason, paused_until=body.paused_until,
+        acting_admin_id=current_user.id,
+    )
+    await session.commit()
+    services = await list_profile_services(session, profile_id)
+    payload = next((s for s in services if s.id == service_id), None)
+    assert payload is not None
+    return payload
+
+
+@router.patch(
+    "/admin/{seller_id}/services/{service_id}/returns", response_model=ServicePayload
+)
+async def admin_set_service_return_window(
+    seller_id: int,
+    service_id: int,
+    body: SetReturnWindowBody,
+    current_user: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> ServicePayload:
+    assert current_user.id is not None
+    profile = (
+        await session.exec(select(SellerProfile).where(SellerProfile.user_id == seller_id))
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Seller profile not found")
+    if profile.verification_status != VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="seller_not_active")
+    assert profile.id is not None
+    profile_id: int = profile.id
+    await set_service_return_window(
+        session, seller_profile_id=profile_id, service_id=service_id,
+        return_window_days=body.return_window_days,
         acting_admin_id=current_user.id,
     )
     await session.commit()

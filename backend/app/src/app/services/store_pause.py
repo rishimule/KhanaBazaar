@@ -103,3 +103,56 @@ async def set_service_pause(
             },
         )
     return row
+
+
+async def set_service_return_window(
+    session: AsyncSession,
+    *,
+    seller_profile_id: int,
+    service_id: int,
+    return_window_days: int,
+    acting_admin_id: Optional[int] = None,
+) -> SellerProfileService:
+    """Set the per-service return window. 0 disables returns for that service.
+
+    Lives beside `set_service_pause` because it is the same kind of thing: an
+    operational setting an approved seller may change directly, unlike the
+    profile-shaped edits that route through a change request.
+
+    Flushes; the caller commits. With `acting_admin_id`, the audit row is
+    written in the same transaction as the mutation.
+    """
+    if return_window_days < 0 or return_window_days > 365:
+        raise HTTPException(status_code=422, detail={"code": "invalid_return_window"})
+    row = (
+        await session.exec(
+            select(SellerProfileService).where(
+                SellerProfileService.seller_profile_id == seller_profile_id,
+                SellerProfileService.service_id == service_id,
+            )
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Service not offered by this seller")
+    before = {
+        "service_id": service_id,
+        "return_window_days": row.return_window_days,
+    }
+    row.return_window_days = return_window_days
+    session.add(row)
+    await session.flush()
+    if acting_admin_id is not None:
+        await admin_audit.log(
+            session=session,
+            admin_user_id=acting_admin_id,
+            target_seller_id=seller_profile_id,
+            target_type=AdminActionTargetType.SellerProfile,
+            target_id=seller_profile_id,
+            action="service.set_return_window",
+            before_json=before,
+            after_json={
+                "service_id": service_id,
+                "return_window_days": return_window_days,
+            },
+        )
+    return row

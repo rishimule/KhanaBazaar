@@ -26,3 +26,5 @@ class ServicePayload(BaseModel):
     is_paused: bool = False
     pause_reason: Optional[str] = None
     paused_until: Optional[str] = None
+    # 0 means returns are off for this service.
+    return_window_days: int = 0
