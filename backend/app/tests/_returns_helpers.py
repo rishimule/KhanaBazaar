@@ -56,6 +56,13 @@ class SeededOrder:
     delivery_fee: float = 0.0
 
 
+def pk(value: Optional[int]) -> int:
+    """Narrow a persisted row's primary key in tests. Rows read back from the
+    DB always have one; the model types it Optional for the pre-flush case."""
+    assert value is not None
+    return value
+
+
 _COUNTER = {"n": 0}
 
 

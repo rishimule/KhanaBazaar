@@ -103,3 +103,22 @@ class ReturnRejectBody(BaseModel):
 
 class ReturnPaymentConfirmBody(BaseModel):
     otp: str = PydanticField(min_length=4, max_length=8)
+
+
+class StoreCreditBalanceRead(BaseModel):
+    seller_profile_id: int
+    store_name: str
+    balance: float
+    lifetime_earned: float
+    lifetime_spent: float
+
+
+class StoreCreditEntryRead(BaseModel):
+    id: int
+    entry_type: str
+    amount: float
+    balance_after: float
+    return_request_id: Optional[int] = None
+    order_id: Optional[int] = None
+    note: Optional[str] = None
+    created_at: datetime

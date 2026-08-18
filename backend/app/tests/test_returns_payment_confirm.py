@@ -16,7 +16,12 @@ from app.models.returns import (
     ReturnSettlementChoice,
     ReturnStatus,
 )
-from tests._returns_helpers import as_customer, clear_overrides, seed_delivered_order
+from tests._returns_helpers import (
+    as_customer,
+    clear_overrides,
+    pk,
+    seed_delivered_order,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -59,7 +64,7 @@ async def test_confirming_payment_closes_the_return(
     seed = await seed_delivered_order(session)
     req = await _awaiting_payment(session, seed)
     as_customer(seed.customer_user)
-    await _known_code(seed.customer_user_id, req.id)
+    await _known_code(seed.customer_user_id, pk(req.id))
 
     resp = await client.post(
         f"/api/v1/returns/{req.id}/payment/confirm", json={"otp": "313131"}
@@ -79,7 +84,7 @@ async def test_wrong_code_leaves_it_open(
     seed = await seed_delivered_order(session)
     req = await _awaiting_payment(session, seed)
     as_customer(seed.customer_user)
-    await _known_code(seed.customer_user_id, req.id)
+    await _known_code(seed.customer_user_id, pk(req.id))
 
     resp = await client.post(
         f"/api/v1/returns/{req.id}/payment/confirm", json={"otp": "000000"}
@@ -99,7 +104,7 @@ async def test_confirming_consumes_the_code(
     seed = await seed_delivered_order(session)
     req = await _awaiting_payment(session, seed)
     as_customer(seed.customer_user)
-    await _known_code(seed.customer_user_id, req.id)
+    await _known_code(seed.customer_user_id, pk(req.id))
 
     await client.post(
         f"/api/v1/returns/{req.id}/payment/confirm", json={"otp": "313131"}
@@ -147,7 +152,7 @@ async def test_confirming_in_the_wrong_state_is_refused(
     session.add(req)
     await session.commit()
     as_customer(seed.customer_user)
-    await _known_code(seed.customer_user_id, req.id)
+    await _known_code(seed.customer_user_id, pk(req.id))
 
     resp = await client.post(
         f"/api/v1/returns/{req.id}/payment/confirm", json={"otp": "313131"}
@@ -162,7 +167,7 @@ async def test_another_customer_cannot_confirm_payment(
     seed = await seed_delivered_order(session, email_suffix="owner")
     other = await seed_delivered_order(session, email_suffix="other")
     req = await _awaiting_payment(session, seed)
-    await _known_code(seed.customer_user_id, req.id)
+    await _known_code(seed.customer_user_id, pk(req.id))
     as_customer(other.customer_user)
 
     resp = await client.post(

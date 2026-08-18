@@ -10,8 +10,9 @@ Four routers, mounted at four prefixes (mirrors `platform_fees.py`):
   * ``admin_router``        → /admin
 """
 import logging
+from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -32,11 +33,13 @@ from app.models.commerce import Order
 from app.models.consent import PolicyKind
 from app.models.profile import CustomerProfile, SellerProfile
 from app.models.returns import (
+    CustomerStoreCredit,
     ReturnInitiator,
     ReturnRequest,
     ReturnRequestItem,
     ReturnStatus,
 )
+from app.models.store import Store
 from app.schemas.returns import (
     ReturnAcceptBody,
     ReturnConfirmBody,
@@ -48,7 +51,10 @@ from app.schemas.returns import (
     ReturnPaymentConfirmBody,
     ReturnRead,
     ReturnRejectBody,
+    StoreCreditBalanceRead,
+    StoreCreditEntryRead,
 )
+from app.services import customer_store_credit as store_credit_svc
 from app.services import returns as returns_svc
 from app.services.consent import get_current_version
 from app.services.return_comms import dispatch_return_otp
@@ -436,3 +442,148 @@ async def seller_reject_return(
     await session.commit()
     await session.refresh(request)
     return _serialize(request, await _load_items(session, return_id))
+
+
+# ─── Customer + seller listings ──────────────────────────────────────────
+
+
+@router.get("", response_model=list[ReturnRead])
+async def list_my_returns(
+    status_filter: Optional[ReturnStatus] = Query(default=None, alias="status"),
+    user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[ReturnRead]:
+    profile_id = await _customer_profile_id(session, user)
+    query = select(ReturnRequest).where(
+        ReturnRequest.customer_profile_id == profile_id
+    )
+    if status_filter is not None:
+        query = query.where(ReturnRequest.status == status_filter)
+    rows = list(
+        (
+            await session.exec(
+                query.order_by(col(ReturnRequest.created_at).desc()).limit(100)
+            )
+        ).all()
+    )
+    return [
+        _serialize(
+            row, await _load_items(session, _pk(row.id)),
+            include_receipt_otp=row.status == ReturnStatus.active,
+        )
+        for row in rows
+    ]
+
+
+@router.get("/{return_id}", response_model=ReturnRead)
+async def get_my_return(
+    return_id: int,
+    user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    profile_id = await _customer_profile_id(session, user)
+    request = await _owned_return(session, return_id, profile_id)
+    return _serialize(
+        request, await _load_items(session, return_id),
+        include_receipt_otp=request.status == ReturnStatus.active,
+    )
+
+
+@seller_router.get("/me/returns", response_model=list[ReturnRead])
+async def list_seller_returns(
+    status_filter: Optional[ReturnStatus] = Query(default=None, alias="status"),
+    user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[ReturnRead]:
+    profile_id = await _seller_profile_id(session, user)
+    query = select(ReturnRequest).where(
+        ReturnRequest.seller_profile_id == profile_id
+    )
+    if status_filter is not None:
+        query = query.where(ReturnRequest.status == status_filter)
+    rows = list(
+        (
+            await session.exec(
+                query.order_by(col(ReturnRequest.created_at).desc()).limit(100)
+            )
+        ).all()
+    )
+    # Sellers never see the handover code — they type what the customer shows.
+    return [_serialize(row, await _load_items(session, _pk(row.id))) for row in rows]
+
+
+@seller_router.get("/me/returns/{return_id}", response_model=ReturnRead)
+async def get_seller_return(
+    return_id: int,
+    user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    request = await _seller_return(session, return_id, user)
+    return _serialize(request, await _load_items(session, return_id))
+
+
+# ─── Store credit ────────────────────────────────────────────────────────
+
+
+@store_credit_router.get("", response_model=list[StoreCreditBalanceRead])
+async def list_store_credit(
+    user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[StoreCreditBalanceRead]:
+    profile_id = await _customer_profile_id(session, user)
+    accounts = await store_credit_svc.list_balances(session, profile_id)
+    out: list[StoreCreditBalanceRead] = []
+    for account in accounts:
+        store_name = (
+            await session.exec(
+                select(Store.name).where(
+                    Store.seller_profile_id == account.seller_profile_id
+                )
+            )
+        ).first()
+        out.append(
+            StoreCreditBalanceRead(
+                seller_profile_id=account.seller_profile_id,
+                store_name=store_name or "Store",
+                balance=account.balance,
+                lifetime_earned=account.lifetime_earned,
+                lifetime_spent=account.lifetime_spent,
+            )
+        )
+    return out
+
+
+@store_credit_router.get(
+    "/{seller_profile_id}/ledger", response_model=list[StoreCreditEntryRead]
+)
+async def get_store_credit_ledger(
+    seller_profile_id: int,
+    limit: int = Query(default=50, le=200),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[StoreCreditEntryRead]:
+    profile_id = await _customer_profile_id(session, user)
+    account = (
+        await session.exec(
+            select(CustomerStoreCredit).where(
+                CustomerStoreCredit.seller_profile_id == seller_profile_id,
+                CustomerStoreCredit.customer_profile_id == profile_id,
+            )
+        )
+    ).first()
+    # Another customer's account simply has no rows for this caller — never 403,
+    # which would confirm the account exists.
+    if account is None:
+        return []
+    entries = await store_credit_svc.list_entries(
+        session, _pk(account.id), limit=limit, offset=offset
+    )
+    return [
+        StoreCreditEntryRead(
+            id=_pk(e.id), entry_type=e.entry_type.value, amount=e.amount,
+            balance_after=e.balance_after, return_request_id=e.return_request_id,
+            order_id=e.order_id, note=e.note, created_at=e.created_at,
+        )
+        for e in entries
+    ]
