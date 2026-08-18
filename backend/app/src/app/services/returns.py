@@ -535,3 +535,24 @@ async def reject_return(
         actor_role=actor_role, actor_user_id=actor_user_id, note=cleaned,
     )
     return request
+
+
+async def close_after_payment(
+    session: AsyncSession, request: ReturnRequest, *, actor_user_id: int
+) -> ReturnRequest:
+    """Customer confirms the money reached them. The platform validates nothing
+    about the transfer itself — this records the confirmation (spec §2)."""
+    if request.status != ReturnStatus.awaiting_payment_confirmation:
+        raise ReturnError(
+            409, "illegal_return_transition",
+            **{"from": request.status.value, "to": ReturnStatus.closed.value},
+        )
+    now = datetime.now(timezone.utc)
+    request.closed_at = now
+    request.closed_by_user_id = actor_user_id
+    await record_transition(
+        session, request, to_status=ReturnStatus.closed,
+        actor_role="customer", actor_user_id=actor_user_id,
+        note="payment receipt otp confirmed",
+    )
+    return request

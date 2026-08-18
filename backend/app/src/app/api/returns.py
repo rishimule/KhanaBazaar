@@ -45,6 +45,7 @@ from app.schemas.returns import (
     ReturnEligibilityLine,
     ReturnEligibilityRead,
     ReturnItemRead,
+    ReturnPaymentConfirmBody,
     ReturnRead,
     ReturnRejectBody,
 )
@@ -281,6 +282,60 @@ async def withdraw_return_request(
     await session.commit()
     await session.refresh(request)
     return _serialize(request, await _load_items(session, return_id))
+
+
+@router.post("/{return_id}/payment/otp/request", status_code=200)
+async def request_payment_otp(
+    return_id: int,
+    user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, bool]:
+    profile_id = await _customer_profile_id(session, user)
+    request = await _owned_return(session, return_id, profile_id)
+    if request.status != ReturnStatus.awaiting_payment_confirmation:
+        raise returns_svc.ReturnError(409, "return_not_awaiting_payment")
+
+    redis = await get_redis()
+    identifier = f"{user.id}:{return_id}"
+    try:
+        code = await request_otp(identifier, redis, namespace="return_payment")
+    except RateLimited as exc:
+        raise returns_svc.ReturnError(
+            429, "resend_cooldown", retry_after=exc.retry_after
+        ) from exc
+    dispatch_return_otp(_pk(user.id), return_id, code, "payment")
+    return {"sent": True}
+
+
+@router.post("/{return_id}/payment/confirm", response_model=ReturnRead)
+async def confirm_payment_received(
+    return_id: int,
+    body: ReturnPaymentConfirmBody,
+    user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    profile_id = await _customer_profile_id(session, user)
+    request = await _owned_return(session, return_id, profile_id)
+    # Status first, so a stale request fails before we burn an OTP attempt.
+    if request.status != ReturnStatus.awaiting_payment_confirmation:
+        raise returns_svc.ReturnError(
+            409, "illegal_return_transition",
+            **{"from": request.status.value, "to": "closed"},
+        )
+
+    redis = await get_redis()
+    identifier = f"{user.id}:{return_id}"
+    try:
+        await verify_otp(identifier, body.otp, redis, namespace="return_payment")
+    except (CodeExpired, InvalidCode, TooManyAttempts) as exc:
+        raise returns_svc.ReturnError(422, "return_otp_invalid") from exc
+
+    await returns_svc.close_after_payment(session, request, actor_user_id=_pk(user.id))
+    await session.commit()
+    await session.refresh(request)
+    await consume_otp_key(identifier, redis, namespace="return_payment")
+    return _serialize(request, await _load_items(session, return_id))
+
 
 
 # ─── Seller ──────────────────────────────────────────────────────────────

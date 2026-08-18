@@ -99,3 +99,7 @@ class ReturnAcceptBody(BaseModel):
 
 class ReturnRejectBody(BaseModel):
     reason: str = PydanticField(max_length=500)
+
+
+class ReturnPaymentConfirmBody(BaseModel):
+    otp: str = PydanticField(min_length=4, max_length=8)
