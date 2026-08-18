@@ -34,9 +34,10 @@ from app.core.security import (
 )
 from app.db.session import get_db_session
 from app.models.admin_audit import AdminActionTargetType
-from app.models.base import User
+from app.models.base import AccountStatus, User
 from app.models.commerce import Order
 from app.models.consent import PolicyKind
+from app.models.notification import NotificationType
 from app.models.profile import CustomerProfile, SellerProfile
 from app.models.returns import (
     TERMINAL_RETURN_STATUSES,
@@ -67,7 +68,8 @@ from app.services import customer_store_credit as store_credit_svc
 from app.services import returns as returns_svc
 from app.services.admin_audit import log as audit_log
 from app.services.consent import get_current_version
-from app.services.return_comms import dispatch_return_otp
+from app.services.notifications import record_return_notification
+from app.services.return_comms import dispatch_return_otp, dispatch_return_status
 
 router = APIRouter()
 store_credit_router = APIRouter()
@@ -205,6 +207,112 @@ async def _send_initiation_otp(user_id: int, return_id: int) -> None:
     dispatch_return_otp(user_id, return_id, code, "initiate")
 
 
+# ─── Notifications ───────────────────────────────────────────────────────
+
+# One place for the six English strings, mirroring _STATUS_COPY in api/orders.py.
+def _return_copy(
+    request: ReturnRequest, event_key: str
+) -> tuple[str, str, str, NotificationType]:
+    rid = request.id
+    if event_key == "return_initiated":
+        return (
+            f"Confirm return #{rid}",
+            "A return was started for your order. Review the agreement and "
+            "confirm it with the code we sent you.",
+            "awaiting_customer_confirmation",
+            NotificationType.ReturnStatusUpdate,
+        )
+    if event_key == "return_confirmed":
+        return (
+            f"Handover code for return #{rid}",
+            f"Show code {request.receipt_otp} to the store when you hand the "
+            "items over.",
+            "active",
+            NotificationType.ReturnReceiptOtp,
+        )
+    if event_key == "return_accepted":
+        return (
+            f"Return #{rid} accepted",
+            "The store received your items. Check the app for how the amount "
+            "is being settled.",
+            request.status.value,
+            NotificationType.ReturnStatusUpdate,
+        )
+    if event_key == "return_rejected":
+        return (
+            f"Return #{rid} was not accepted",
+            f"Reason: {request.rejection_reason or 'not given'}. Settle this "
+            "directly with the store, per the return agreement.",
+            "rejected",
+            NotificationType.ReturnStatusUpdate,
+        )
+    if event_key == "return_expired":
+        return (
+            f"Return #{rid} expired",
+            "It was not completed in time. The items are free to return again "
+            "if the order's return window is still open.",
+            "expired",
+            NotificationType.ReturnStatusUpdate,
+        )
+    return (
+        f"Return #{rid} closed",
+        "Your return is complete.",
+        "closed",
+        NotificationType.ReturnStatusUpdate,
+    )
+
+
+async def _notify_return(
+    session: AsyncSession, request: ReturnRequest, event_key: str
+) -> None:
+    """Best-effort in-app + email + WhatsApp. Never raises into the request
+    path — a notification outage must not fail a return that already committed.
+    """
+    # Capture before any commit: commit expires ORM attributes, and reading
+    # request.id afterwards triggers a sync lazy load -> MissingGreenlet.
+    return_id = _pk(request.id)
+    try:
+        owner = (
+            await session.exec(
+                select(User)
+                .join(CustomerProfile, col(CustomerProfile.user_id) == User.id)
+                .where(CustomerProfile.id == request.customer_profile_id)
+            )
+        ).first()
+        # Skip all comms for a non-active account, matching
+        # record_and_dispatch_notification in api/orders.py.
+        if owner is not None and owner.account_status == AccountStatus.active:
+            title, body, status_value, notif_type = _return_copy(request, event_key)
+            await record_return_notification(
+                session, return_request_id=return_id, type=notif_type,
+                title=title, body=body, status_value=status_value,
+                customer_profile_id=request.customer_profile_id,
+            )
+            if event_key == "return_confirmed":
+                await record_return_notification(
+                    session, return_request_id=return_id,
+                    type=NotificationType.SellerReturnRequest,
+                    title=f"Return #{request.id} confirmed",
+                    body=(
+                        "A customer confirmed a return. Collect the items and "
+                        "enter their handover code to accept it."
+                    ),
+                    status_value="active",
+                    seller_profile_id=request.seller_profile_id,
+                )
+            await session.commit()
+    except Exception:  # noqa: BLE001 - notifications are never load-bearing
+        logger.exception("return notification failed return_id=%s", return_id)
+        await session.rollback()
+    # Commit (or rollback) expires the caller's instance; refresh so the
+    # handler can still serialize the return it just mutated.
+    try:
+        await session.refresh(request)
+    except Exception:  # noqa: BLE001 - best effort, same as above
+        logger.exception("could not refresh return after notify id=%s", return_id)
+    dispatch_return_status(return_id, event_key)
+
+
 @router.post("", response_model=ReturnRead, status_code=201)
 async def create_return_request(
     body: ReturnCreateBody,
@@ -224,6 +332,7 @@ async def create_return_request(
     await session.commit()
     await session.refresh(request)
     await _send_initiation_otp(_pk(user.id), _pk(request.id))
+    await _notify_return(session, request, "return_initiated")
     return _serialize(request, await _load_items(session, _pk(request.id)))
 
 
@@ -281,6 +390,9 @@ async def confirm_return_request(
     await session.commit()
     await session.refresh(request)
     await consume_otp_key(identifier, redis, namespace="return_initiate")
+    # Fires before the code is hidden from later payloads — the notification and
+    # the WhatsApp message both carry it.
+    await _notify_return(session, request, "return_confirmed")
     return _serialize(
         request, await _load_items(session, return_id), include_receipt_otp=True
     )
@@ -350,6 +462,7 @@ async def confirm_payment_received(
     await session.commit()
     await session.refresh(request)
     await consume_otp_key(identifier, redis, namespace="return_payment")
+    await _notify_return(session, request, "return_closed")
     return _serialize(request, await _load_items(session, return_id))
 
 
@@ -417,6 +530,7 @@ async def seller_create_return(
     ).first()
     if owner_user_id is not None:
         await _send_initiation_otp(int(owner_user_id), _pk(request.id))
+    await _notify_return(session, request, "return_initiated")
     return _serialize(request, await _load_items(session, _pk(request.id)))
 
 
@@ -434,6 +548,7 @@ async def seller_accept_return(
     )
     await session.commit()
     await session.refresh(request)
+    await _notify_return(session, request, "return_accepted")
     return _serialize(request, await _load_items(session, return_id))
 
 
@@ -451,6 +566,7 @@ async def seller_reject_return(
     )
     await session.commit()
     await session.refresh(request)
+    await _notify_return(session, request, "return_rejected")
     return _serialize(request, await _load_items(session, return_id))
 
 
@@ -726,6 +842,7 @@ async def admin_create_return(
     ).first()
     if owner_user_id is not None:
         await _send_initiation_otp(int(owner_user_id), _pk(request.id))
+    await _notify_return(session, request, "return_initiated")
     return _serialize(request, await _load_items(session, _pk(request.id)))
 
 
@@ -750,6 +867,7 @@ async def admin_force_accept(
     )
     await session.commit()
     await session.refresh(request)
+    await _notify_return(session, request, "return_accepted")
     return _serialize(request, await _load_items(session, return_id))
 
 
@@ -773,6 +891,7 @@ async def admin_force_reject(
     )
     await session.commit()
     await session.refresh(request)
+    await _notify_return(session, request, "return_rejected")
     return _serialize(request, await _load_items(session, return_id))
 
 
@@ -807,4 +926,5 @@ async def admin_force_close(
     )
     await session.commit()
     await session.refresh(request)
+    await _notify_return(session, request, "return_closed")
     return _serialize(request, await _load_items(session, return_id))

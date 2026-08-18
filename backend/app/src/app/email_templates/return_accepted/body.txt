@@ -1,0 +1,7 @@
+Hi {{ customer_first_name|default('there') }},
+
+{{ store_name }} received the items for return #{{ return_id }}.
+
+{{ settlement_line }}
+
+{{ frontend_base_url }}/account/returns/{{ return_id }}

@@ -354,6 +354,7 @@ def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, Non
         "app.api.orders.dispatch_admin_order_action",
         "app.api.admin_actions.dispatch_admin_order_action",
         "app.api.returns.dispatch_return_otp",
+        "app.api.returns.dispatch_return_status",
         "app.api.sellers.dispatch_seller_approved",
         "app.api.sellers.dispatch_seller_rejected",
         "app.api.sellers.dispatch_seller_application_submitted",

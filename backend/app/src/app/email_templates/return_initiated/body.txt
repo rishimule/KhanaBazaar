@@ -1,0 +1,9 @@
+Hi {{ customer_first_name|default('there') }},
+
+A return was started for your {{ service_name }} order #{{ order_id }} from {{ store_name }}.
+
+Return total: {{ currency }}{{ total_amount }}
+
+It is not active yet. Review the agreement and confirm with the code we sent you. If you do nothing it expires in {{ confirm_hours }} hours.
+
+{{ frontend_base_url }}/account/returns/{{ return_id }}

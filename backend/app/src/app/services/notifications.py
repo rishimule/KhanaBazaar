@@ -264,3 +264,30 @@ async def delete_push_subscription(
     await session.delete(sub)
     await session.commit()
     return True
+
+
+async def record_return_notification(
+    session: AsyncSession,
+    *,
+    return_request_id: int,
+    type: NotificationType,  # noqa: A002 - matches the model field name
+    title: str,
+    body: str,
+    status_value: str,
+    customer_profile_id: Optional[int] = None,
+    seller_profile_id: Optional[int] = None,
+) -> Notification:
+    """One in-app row about a return. Exactly one recipient id must be given
+    (enforced by the model's XOR check constraint). Flushes; caller commits."""
+    notif = Notification(
+        customer_profile_id=customer_profile_id,
+        seller_profile_id=seller_profile_id,
+        return_request_id=return_request_id,
+        type=type,
+        title=title,
+        body=body,
+        status_value=status_value,
+    )
+    session.add(notif)
+    await session.flush()
+    return notif

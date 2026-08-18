@@ -10,7 +10,12 @@ from typing import Any
 
 from kombu.exceptions import OperationalError as KombuOperationalError
 
-from app.worker import send_return_otp_email_async, send_return_otp_phone_async
+from app.worker import (
+    send_return_otp_email_async,
+    send_return_otp_phone_async,
+    send_return_status_email_async,
+    send_return_status_whatsapp_async,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,3 +45,10 @@ def dispatch_return_otp(user_id: int, return_id: int, code: str, purpose: str) -
     'initiate' or 'payment'."""
     _safe_delay(send_return_otp_email_async, user_id, return_id, code, purpose)
     _safe_delay(send_return_otp_phone_async, user_id, return_id, code, purpose)
+
+
+def dispatch_return_status(return_id: int, event_key: str) -> None:
+    """Email + WhatsApp for one return event. In-app rows are written
+    separately, inside the request transaction."""
+    _safe_delay(send_return_status_email_async, return_id, event_key)
+    _safe_delay(send_return_status_whatsapp_async, return_id, event_key)

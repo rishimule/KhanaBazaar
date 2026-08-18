@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi {{ customer_first_name|default('there') }},</p>
+  <p><strong>{{ store_name }}</strong> received the items for return #{{ return_id }}.</p>
+  <p>{{ settlement_line }}</p>
+  {% set cta_url = frontend_base_url ~ "/account/returns/" ~ return_id|string %}
+  {% set cta_label = "View this return" %}
+  {% include "_partials/button.html" %}
+{% endblock %}

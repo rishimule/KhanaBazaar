@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi {{ customer_first_name|default('there') }},</p>
+  <p>Your return #{{ return_id }} for order #{{ order_id }} is confirmed.</p>
+  <p>Take the items to <strong>{{ store_name }}</strong>. Staff will ask for your handover code:</p><p style="font-size:28px;font-weight:700;letter-spacing:4px;">{{ receipt_code }}</p><p style="color:#6b7280;font-size:14px;">Share it only with the store when you hand the items over.</p>
+  {% set cta_url = frontend_base_url ~ "/account/returns/" ~ return_id|string %}
+  {% set cta_label = "View this return" %}
+  {% include "_partials/button.html" %}
+{% endblock %}

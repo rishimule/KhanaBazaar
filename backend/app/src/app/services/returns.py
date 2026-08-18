@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.core.otp import generate_code
 from app.models.base import User
 from app.models.commerce import Delivery, Order, OrderItem, OrderStatus
+from app.models.notification import NotificationType
 from app.models.profile import SellerProfile, SellerProfileService
 from app.models.returns import (
     ACCEPTED_RETURN_STATUSES,
@@ -32,6 +33,7 @@ from app.models.returns import (
     ReturnStatus,
 )
 from app.models.store import Store, StoreInventory
+from app.services.notifications import record_return_notification
 
 if TYPE_CHECKING:  # avoids a cycle: return_settlement imports this module
     from app.services.return_settlement import SettlementResult
@@ -597,6 +599,20 @@ async def expire_stale_returns(
             session, request, to_status=ReturnStatus.expired,
             actor_role="system", actor_user_id=None,
             note="expired by sweep",
+        )
+        # In-app row inside the sweep's transaction; email/WhatsApp is fired by
+        # the caller after commit so a comms outage cannot roll back the sweep.
+        await record_return_notification(
+            session,
+            return_request_id=_pk(request.id),
+            type=NotificationType.ReturnStatusUpdate,
+            title=f"Return #{request.id} expired",
+            body=(
+                "It was not completed in time. The items are free to return "
+                "again if the order's return window is still open."
+            ),
+            status_value="expired",
+            customer_profile_id=request.customer_profile_id,
         )
         expired_ids.append(_pk(request.id))
     return expired_ids
