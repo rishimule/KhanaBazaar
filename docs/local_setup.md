@@ -14,7 +14,7 @@ Get KhanaBazaar running on your machine in under 10 minutes. Stack: FastAPI + Ne
 |------|---------|-------|
 | Python | 3.12+ | Backend runtime |
 | Node.js | 20 LTS+ | Frontend runtime |
-| Docker + Docker Compose | latest | Postgres + Redis containers |
+| Docker + Docker Compose | latest | Postgres + Redis containers. **Optional** — see [§3b](#3b-alternative-run-without-docker) to run the same services without Docker or root |
 | `uv` | latest | Python package manager |
 | `gh` CLI | latest | Optional, used for PR workflow |
 
@@ -78,6 +78,73 @@ Verify both containers are healthy:
 ```bash
 docker compose ps
 ```
+
+## 3b. Alternative: run without Docker
+
+Docker is optional. `scripts/native_infra.sh` installs Postgres 15 + PostGIS 3.4, Redis 7 and
+Meilisearch v1.11 as ordinary user-space processes — **no root, no system packages, no containers**.
+Postgres, Redis and Node come from conda-forge via micromamba; Meilisearch is the upstream static
+binary. Versions mirror `docker-compose.yml`.
+
+One-time install (a few minutes, mostly downloads):
+
+```bash
+./scripts/native_infra.sh setup
+```
+
+That installs micromamba under `~/.local/share/khanabazaar`, creates a `kb-dev` conda env
+(`postgresql=15` + `postgis`, `redis-server=7.4`, `nodejs=22`), downloads the Meilisearch binary,
+installs `uv` if missing, runs `initdb`, and creates `khanabazaar` + `khanabazaar_test` with the
+`postgis` and `pg_trgm` extensions.
+
+The `DATABASE_URL` / `REDIS_URL` / `MEILI_URL` values from `.env.example` work unchanged — same
+ports and the same `postgres` / `password` credentials as the containers. No `PATH` changes needed.
+
+### Day-to-day
+
+`scripts/dev.sh` detects the native install and uses it automatically:
+
+```bash
+./scripts/dev.sh start
+```
+
+```bash
+./scripts/dev.sh stop --all
+```
+
+A provisioned native env wins over a merely-installed Docker. Force either backend explicitly:
+
+```bash
+KB_INFRA_MODE=docker ./scripts/dev.sh start
+```
+
+Manage the services on their own:
+
+```bash
+./scripts/native_infra.sh up --with-test
+```
+
+`up` starts the three services (`--with-test` also starts `meilisearch-test` on `:7701`, which
+`pytest` needs); `down` stops them; `status` shows what is running; `reset` destroys all data and
+rebuilds empty clusters.
+
+### Where things live
+
+| Path | Contents |
+|------|----------|
+| `~/.local/share/khanabazaar/mamba/envs/kb-dev/bin` | `postgres`, `psql`, `redis-server`, `node`, `npm` |
+| `~/.local/share/khanabazaar/bin` | `micromamba`, `meilisearch` |
+| `~/.local/share/khanabazaar/data` | `pgdata/`, `redis/`, `meili/`, `meili-test/` |
+| `~/.local/share/khanabazaar/logs` | `postgres.log`, `redis.log`, `meilisearch.log` |
+
+Service data is machine-global, exactly as the Docker named volumes were: the ports are global, so
+two checkouts cannot each own `:5432`. Per-checkout app pids and logs still live in `.dev/`.
+
+`dev.sh` **appends** the env's `bin` to `PATH` rather than prepending, so a system `node`/`npm` still
+wins and the env only fills in what the machine lacks.
+
+Relocate everything with `KB_HOME=/some/path`. To uninstall: stop the services, then
+`rm -rf ~/.local/share/khanabazaar`.
 
 ## 4. Backend
 
@@ -190,10 +257,18 @@ Notes:
 
 ## 7. Test database
 
-Tests run against a separate Postgres database, `khanabazaar_test` (see `backend/app/tests/conftest.py:25`). Create it once:
+Tests run against a separate Postgres database, `khanabazaar_test` (see `backend/app/tests/conftest.py:32`), plus an isolated Meilisearch on `:7701`. Create the database once:
 
 ```bash
 docker compose exec postgres createdb -U postgres khanabazaar_test
+```
+
+Then start the test Meilisearch: `docker compose --profile test up -d meilisearch-test`.
+
+Without Docker ([§3b](#3b-alternative-run-without-docker)), `native_infra.sh setup` already created the database; start the test search instance with:
+
+```bash
+./scripts/native_infra.sh up --with-test
 ```
 
 Run tests from `backend/app/`:
@@ -236,6 +311,8 @@ docker compose down
 ```
 
 **`asyncpg.InvalidPasswordError` or `connection refused`** — Postgres isn't up yet. `docker compose ps` should show `postgres` running. Recreate with `docker compose up -d postgres`.
+
+**Native (no-Docker) infra won't start** — check `~/.local/share/khanabazaar/logs/{postgres,redis,meilisearch}.log`. `./scripts/native_infra.sh status` reports each service by probing its port, so a stale pid file never shows a false positive. `Address already in use` means something else already owns the port — often a leftover container, so try `docker compose down`.
 
 **`InvalidArgumentError: dialect 'postgres' is not supported`** — `DATABASE_URL` uses wrong scheme. Must be `postgresql+asyncpg://...`, not `postgres://` or `postgresql://`.
 
