@@ -27,6 +27,26 @@ export LOG_VIEWER_PORT="${LOG_VIEWER_PORT:-8001}"
 
 mkdir -p "${RUN_DIR}" "${LOG_DIR}"
 
+# Infrastructure backend: "docker" (docker compose) or "native" (no Docker, no
+# root -- see scripts/native_infra.sh). Sourcing only defines paths + functions.
+# shellcheck source=./native_infra.sh
+. "${SCRIPT_DIR}/native_infra.sh"
+
+# A provisioned native env means someone deliberately ran 'native_infra.sh
+# setup', so it wins over a merely-installed Docker. Force either with
+# KB_INFRA_MODE=docker|native.
+INFRA_MODE="${KB_INFRA_MODE:-}"
+if [ -z "${INFRA_MODE}" ]; then
+  if infra_native_installed; then INFRA_MODE="native"; else INFRA_MODE="docker"; fi
+fi
+
+if [ "${INFRA_MODE}" = "native" ]; then
+  # Appended, not prepended: a system node/npm still wins, and this only fills
+  # in what the machine lacks (node/npm/psql/redis-cli).
+  PATH="${PATH}:${KB_ENV_BIN}"
+  export PATH
+fi
+
 require_command() {
   local cmd="$1"
   if ! command -v "${cmd}" >/dev/null 2>&1; then
@@ -206,6 +226,132 @@ cmd_tunnel_url() {
   fi
 }
 
+# ------------------------------------------------------- infra backend dispatch
+
+infra_require() {
+  case "${INFRA_MODE}" in
+    docker)
+      require_command docker
+      if ! docker compose version >/dev/null 2>&1; then
+        echo "docker compose not available" >&2
+        exit 1
+      fi
+      ;;
+    native)
+      if ! infra_native_installed; then
+        echo "Native infra is not installed yet. Run:" >&2
+        echo "  ${SCRIPT_DIR}/native_infra.sh setup" >&2
+        exit 1
+      fi
+      ;;
+    *)
+      echo "Unknown KB_INFRA_MODE: ${INFRA_MODE} (expected 'docker' or 'native')" >&2
+      exit 1
+      ;;
+  esac
+}
+
+infra_up() {
+  local with_test="${1:-0}"
+  if [ "${INFRA_MODE}" = "native" ]; then
+    echo "Bringing up Postgres + Redis + Meilisearch (native, no Docker)..."
+    infra_native_up "${with_test}"
+  else
+    echo "Bringing up Postgres + Redis + Meilisearch..."
+    (cd "${REPO_ROOT}" && docker compose up -d postgres redis meilisearch)
+  fi
+}
+
+infra_wait_ready() {
+  if [ "${INFRA_MODE}" = "native" ]; then
+    infra_native_wait_ready
+    return
+  fi
+  # pg_isready only proves the listener is up. On a freshly-initialized volume
+  # the postmaster briefly restarts while initdb finishes, so also gate on a
+  # real TCP query -- that is the path asyncpg takes from the host.
+  for attempt in $(seq 1 60); do
+    if (cd "${REPO_ROOT}" && docker compose exec -T postgres pg_isready -U postgres -d khanabazaar >/dev/null 2>&1); then
+      break
+    fi
+    [ "${attempt}" -eq 60 ] && { echo "Postgres did not become ready (pg_isready)" >&2; exit 1; }
+    sleep 1
+  done
+  for attempt in $(seq 1 60); do
+    if (cd "${REPO_ROOT}" && PGPASSWORD=password docker compose exec -T postgres psql -h 127.0.0.1 -U postgres -d khanabazaar -tAc 'SELECT 1' >/dev/null 2>&1); then
+      break
+    fi
+    [ "${attempt}" -eq 60 ] && { echo "Postgres did not accept TCP queries" >&2; exit 1; }
+    sleep 1
+  done
+  for attempt in $(seq 1 60); do
+    if curl -fsS --max-time 1 http://localhost:7700/health >/dev/null 2>&1; then
+      break
+    fi
+    [ "${attempt}" -eq 60 ] && { echo "Meilisearch did not become ready" >&2; exit 1; }
+    sleep 1
+  done
+}
+
+infra_stop() {
+  if [ "${INFRA_MODE}" = "native" ]; then
+    echo "Stopping native infra services..."
+    infra_native_down
+  else
+    echo "Stopping Docker services..."
+    (cd "${REPO_ROOT}" && docker compose stop postgres redis meilisearch)
+  fi
+}
+
+infra_status() {
+  if [ "${INFRA_MODE}" = "native" ]; then
+    echo "Infra (native, no Docker):"
+    infra_native_status
+  else
+    echo "Docker:"
+    (cd "${REPO_ROOT}" && docker compose ps postgres redis meilisearch) || true
+  fi
+}
+
+infra_reset() {
+  if [ "${INFRA_MODE}" = "native" ]; then
+    echo "Wiping native infra data and rebuilding empty clusters..."
+    infra_native_reset
+    return
+  fi
+
+  echo "Tearing down docker stack (volumes included)..."
+  (cd "${REPO_ROOT}" && docker compose down -v --remove-orphans)
+
+  # Belt-and-braces: nuke any stragglers that survived compose down (e.g. left
+  # behind by an aborted previous run with a stale project name).
+  for container_name in khanabazaar-postgres khanabazaar-redis khanabazaar-meilisearch; do
+    if docker container inspect "${container_name}" >/dev/null 2>&1; then
+      docker rm -f "${container_name}" >/dev/null
+    fi
+  done
+
+  echo "Pulling fresh images..."
+  (cd "${REPO_ROOT}" && docker compose pull postgres redis meilisearch)
+
+  echo "Recreating containers..."
+  (cd "${REPO_ROOT}" && docker compose up -d --force-recreate postgres redis meilisearch)
+
+  infra_wait_ready
+}
+
+# Human-readable description of what 'reset' destroys, for the prompt.
+infra_reset_description() {
+  if [ "${INFRA_MODE}" = "native" ]; then
+    echo "  - Delete the native Postgres / Redis / Meilisearch data dirs under ${KB_DATA}"
+    echo "  - Re-run initdb and recreate the ${KB_DEV_DB} + ${KB_TEST_DB} databases"
+  else
+    echo "  - 'docker compose down -v' (deletes postgres / redis / meilisearch volumes)"
+    echo "  - 'docker compose pull' to refresh images"
+    echo "  - Recreate containers from scratch"
+  fi
+}
+
 cmd_start() {
   local with_tunnel=0
   while [ "$#" -gt 0 ]; do
@@ -215,33 +361,12 @@ cmd_start() {
     esac
   done
 
-  require_command docker
+  infra_require
   require_command uv
   require_command npm
 
-  if ! docker compose version >/dev/null 2>&1; then
-    echo "docker compose not available" >&2
-    exit 1
-  fi
-
-  echo "Bringing up Postgres + Redis + Meilisearch..."
-  (cd "${REPO_ROOT}" && docker compose up -d postgres redis meilisearch)
-
-  for attempt in $(seq 1 60); do
-    if (cd "${REPO_ROOT}" && docker compose exec -T postgres pg_isready -U postgres -d khanabazaar >/dev/null 2>&1); then
-      break
-    fi
-    [ "${attempt}" -eq 60 ] && { echo "Postgres did not become ready" >&2; exit 1; }
-    sleep 1
-  done
-
-  for attempt in $(seq 1 60); do
-    if curl -fsS --max-time 1 http://localhost:7700/health >/dev/null 2>&1; then
-      break
-    fi
-    [ "${attempt}" -eq 60 ] && { echo "Meilisearch did not become ready" >&2; exit 1; }
-    sleep 1
-  done
+  infra_up
+  infra_wait_ready
 
   start_proc "backend"  "${BACKEND_PID}"  "${BACKEND_LOG}"  "${BACKEND_APP_DIR}" \
     uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -284,8 +409,7 @@ cmd_stop() {
   stop_proc "backend"    "${BACKEND_PID}"
 
   if [ "${1:-}" = "--all" ]; then
-    echo "Stopping Docker services..."
-    (cd "${REPO_ROOT}" && docker compose stop postgres redis meilisearch)
+    infra_stop
   fi
 }
 
@@ -320,8 +444,7 @@ for t in (d.get("tunnels") or []):
     fi
   fi
   echo
-  echo "Docker:"
-  (cd "${REPO_ROOT}" && docker compose ps postgres redis meilisearch) || true
+  infra_status
 }
 
 cmd_logs() {
@@ -357,22 +480,15 @@ cmd_reset() {
     esac
   done
 
-  require_command docker
+  infra_require
   require_command uv
   require_command npm
-
-  if ! docker compose version >/dev/null 2>&1; then
-    echo "docker compose not available" >&2
-    exit 1
-  fi
 
   if [ "${assume_yes}" -ne 1 ]; then
     cat <<EOF
 About to HARD RESET local dev state. This will:
   - Stop ngrok, log viewer, frontend, celery, backend
-  - 'docker compose down -v' (deletes postgres / redis / meilisearch volumes)
-  - 'docker compose pull' to refresh images
-  - Recreate containers from scratch
+$(infra_reset_description)
   - Apply alembic migrations and reseed the dev DB
   - Restart backend, celery, frontend, log viewer$([ "${with_tunnel}" -eq 1 ] && echo " (and ngrok)")
 
@@ -404,51 +520,7 @@ PY
   echo "Stopping app processes..."
   cmd_stop
 
-  echo "Tearing down docker stack (volumes included)..."
-  (cd "${REPO_ROOT}" && docker compose down -v --remove-orphans)
-
-  # Belt-and-braces: nuke any stragglers that survived compose down (e.g. left
-  # behind by an aborted previous run with a stale project name).
-  for container_name in khanabazaar-postgres khanabazaar-redis khanabazaar-meilisearch; do
-    if docker container inspect "${container_name}" >/dev/null 2>&1; then
-      docker rm -f "${container_name}" >/dev/null
-    fi
-  done
-
-  echo "Pulling fresh images..."
-  (cd "${REPO_ROOT}" && docker compose pull postgres redis meilisearch)
-
-  echo "Recreating containers..."
-  (cd "${REPO_ROOT}" && docker compose up -d --force-recreate postgres redis meilisearch)
-
-  # Three-stage postgres readiness. pg_isready only checks the listener is up.
-  # Unix-socket psql becomes ready before the TCP listener stabilizes on a
-  # freshly-initialized volume — postmaster briefly restarts while initdb
-  # finishes. The migration step runs asyncpg over TCP from the host, so
-  # gate on a real TCP query (`psql -h 127.0.0.1`) to match that path.
-  for attempt in $(seq 1 60); do
-    if (cd "${REPO_ROOT}" && docker compose exec -T postgres pg_isready -U postgres -d khanabazaar >/dev/null 2>&1); then
-      break
-    fi
-    [ "${attempt}" -eq 60 ] && { echo "Postgres did not become ready (pg_isready)" >&2; exit 1; }
-    sleep 1
-  done
-
-  for attempt in $(seq 1 60); do
-    if (cd "${REPO_ROOT}" && PGPASSWORD=password docker compose exec -T postgres psql -h 127.0.0.1 -U postgres -d khanabazaar -tAc 'SELECT 1' >/dev/null 2>&1); then
-      break
-    fi
-    [ "${attempt}" -eq 60 ] && { echo "Postgres did not accept TCP queries" >&2; exit 1; }
-    sleep 1
-  done
-
-  for attempt in $(seq 1 60); do
-    if curl -fsS --max-time 1 http://localhost:7700/health >/dev/null 2>&1; then
-      break
-    fi
-    [ "${attempt}" -eq 60 ] && { echo "Meilisearch did not become ready" >&2; exit 1; }
-    sleep 1
-  done
+  infra_reset
 
   echo "Applying migrations and reseeding..."
   (
@@ -474,19 +546,24 @@ usage() {
 Usage: $0 <command>
 
 Commands:
-  start              Start Postgres+Redis+Meilisearch (docker), backend, celery, frontend
+  start              Start Postgres+Redis+Meilisearch, backend, celery, frontend
   start --tunnel     Same as start, plus ngrok tunnels for :3000 + log viewer
-  stop               Stop ngrok, log viewer, backend, celery, frontend (leaves docker running)
-  stop --all         Also stop docker postgres+redis+meilisearch
+  stop               Stop ngrok, log viewer, backend, celery, frontend (leaves infra running)
+  stop --all         Also stop postgres+redis+meilisearch
   restart            Stop then start app processes
-  reset              HARD RESET: stop everything, wipe docker volumes, pull
-                     fresh images, recreate containers, re-apply migrations,
-                     reseed DB, then restart all app processes.
+  reset              HARD RESET: stop everything, wipe all infra data, rebuild
+                     from scratch, re-apply migrations, reseed DB, then restart
+                     all app processes.
                      Flags: --tunnel (also start ngrok), --yes / -y (skip prompt)
-  status             Show pids + docker status (incl. ngrok URL when running)
+  status             Show pids + infra status (incl. ngrok URL when running)
   logs [name]        Tail logs (name: backend|celery|frontend|ngrok|log_viewer; default: all app logs)
   tunnel             Start ngrok tunnels (frontend + log viewer)
   tunnel-url         Print the current ngrok public URL (exits 1 if no tunnel)
+
+Infrastructure backend: ${INFRA_MODE}
+  Set KB_INFRA_MODE=docker|native to force one. "native" runs Postgres+PostGIS,
+  Redis and Meilisearch with no Docker and no root -- install it once with
+  ./scripts/native_infra.sh setup
 EOF
 }
 

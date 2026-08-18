@@ -21,7 +21,7 @@ Search is powered by **Meilisearch** (products / stores / search terms indexes, 
 | Backend | FastAPI 0.135, Python 3.12, Uvicorn, SQLModel + Alembic, asyncpg |
 | Database | PostgreSQL 15 + PostGIS 3.4 (`postgis/postgis:15-3.4` locally) |
 | Cache / Broker | Redis 7, Celery 5.6 |
-| Search | Meilisearch v1.11 (Docker locally; on the deploy VM in prod) |
+| Search | Meilisearch v1.11 (Docker or native locally; on the deploy VM in prod) |
 | Geo | Google Maps Platform (server-side proxy via `/api/v1/geo/*`) |
 | Auth | Self-hosted email-OTP + JWT (PyJWT HS256) |
 | Email | `console` (dev) / `resend` (prod, raw httpx) |
@@ -58,13 +58,13 @@ frontend/src/
   public/                icons/, manifest.json, sw.js
 docs/                    architecture, flows, local_setup, development_guide, gcp_deployment,
                           seller_signup, google_maps_setup, price_comparison
-scripts/                 dev.sh, reset_local_state.sh, log_viewer.py
+scripts/                 dev.sh, native_infra.sh, reset_local_state.sh, log_viewer.py
 deploy/gcp/              GCP deploy: bootstrap.sh, VM docker-compose, GitHub Actions workflow, runbook
 ```
 
 ## Prerequisites
 
-- Docker + Docker Compose
+- Docker + Docker Compose — optional; `./scripts/native_infra.sh setup` runs Postgres + PostGIS, Redis and Meilisearch without Docker or root ([details](docs/local_setup.md#3b-alternative-run-without-docker))
 - Python 3.12 + [`uv`](https://docs.astral.sh/uv/)
 - Node.js 20+ + npm
 
@@ -94,6 +94,7 @@ python -c "import secrets; print(secrets.token_hex(16))"   # OTP_PEPPER
 
 ```bash
 # Postgres + Redis + Meilisearch
+# (no Docker? run './scripts/native_infra.sh setup' once instead)
 docker compose up -d postgres redis meilisearch
 
 # Backend
@@ -116,10 +117,10 @@ cd ..
 ./scripts/dev.sh start
 ```
 
-Brings up Postgres + Redis + Meilisearch (Docker), backend (Uvicorn :8000), Celery worker, frontend (Next.js :3000), and a lightweight SSE log viewer on :8001 streaming `.dev/logs/*.log`. Logs land in `.dev/logs/`.
+Brings up Postgres + Redis + Meilisearch (Docker, or the native no-Docker stack when installed — `KB_INFRA_MODE=docker|native` forces one), backend (Uvicorn :8000), Celery worker, frontend (Next.js :3000), and a lightweight SSE log viewer on :8001 streaming `.dev/logs/*.log`. Logs land in `.dev/logs/`.
 
 ```bash
-./scripts/dev.sh status              # pids + docker (incl. ngrok URL when tunnel up)
+./scripts/dev.sh status              # pids + infra (incl. ngrok URL when tunnel up)
 ./scripts/dev.sh logs backend        # tail single log (also: celery, frontend, ngrok, log_viewer)
 ./scripts/dev.sh stop                # stop app procs (incl. tunnel + log viewer)
 ./scripts/dev.sh stop --all          # also stop Postgres + Redis + Meilisearch
