@@ -25,12 +25,12 @@ from app.core.otp import (
     verify_otp,
 )
 from app.core.redis import get_redis
-from app.core.security import get_current_customer
+from app.core.security import get_current_customer, get_current_seller
 from app.db.session import get_db_session
 from app.models.base import User
 from app.models.commerce import Order
 from app.models.consent import PolicyKind
-from app.models.profile import CustomerProfile
+from app.models.profile import CustomerProfile, SellerProfile
 from app.models.returns import (
     ReturnInitiator,
     ReturnRequest,
@@ -38,12 +38,15 @@ from app.models.returns import (
     ReturnStatus,
 )
 from app.schemas.returns import (
+    ReturnAcceptBody,
     ReturnConfirmBody,
     ReturnCreateBody,
+    ReturnCreateOnBehalfBody,
     ReturnEligibilityLine,
     ReturnEligibilityRead,
     ReturnItemRead,
     ReturnRead,
+    ReturnRejectBody,
 )
 from app.services import returns as returns_svc
 from app.services.consent import get_current_version
@@ -275,6 +278,106 @@ async def withdraw_return_request(
     profile_id = await _customer_profile_id(session, user)
     request = await _owned_return(session, return_id, profile_id)
     await returns_svc.withdraw_return(session, request, actor_user_id=_pk(user.id))
+    await session.commit()
+    await session.refresh(request)
+    return _serialize(request, await _load_items(session, return_id))
+
+
+# ─── Seller ──────────────────────────────────────────────────────────────
+
+
+async def _seller_profile_id(session: AsyncSession, user: User) -> int:
+    profile_id = (
+        await session.exec(
+            select(SellerProfile.id).where(SellerProfile.user_id == user.id)
+        )
+    ).first()
+    if profile_id is None:
+        raise returns_svc.ReturnError(404, "seller_profile_not_found")
+    return int(profile_id)
+
+
+async def _seller_return(
+    session: AsyncSession, return_id: int, user: User
+) -> ReturnRequest:
+    request = await session.get(ReturnRequest, return_id)
+    if request is None or not await returns_svc.seller_owns_return(
+        session, user, request
+    ):
+        raise returns_svc.ReturnError(404, "return_not_found")
+    return request
+
+
+@seller_router.post("/me/returns", response_model=ReturnRead, status_code=201)
+async def seller_create_return(
+    body: ReturnCreateOnBehalfBody,
+    user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    """Seller starts a return for a customer. No seller OTP — the return is
+    inert until the customer accepts the agreement and confirms by OTP, which
+    is the consent the BRD requires."""
+    seller_profile_id = await _seller_profile_id(session, user)
+    order = await session.get(Order, body.order_id)
+    if order is None or order.customer_profile_id != body.customer_profile_id:
+        raise returns_svc.ReturnError(404, "order_not_found")
+    # The order must belong to THIS seller's store.
+    if await returns_svc.resolve_seller_profile_id(
+        session, order.store_id
+    ) != seller_profile_id:
+        raise returns_svc.ReturnError(404, "order_not_found")
+
+    version = await _require_agreement_version(session)
+    request = await returns_svc.create_return(
+        session, order=order, customer_profile_id=body.customer_profile_id,
+        order_item_ids=body.order_item_ids, reason_code=body.reason_code,
+        reason_note=body.reason_note, settlement_choice=body.settlement_choice,
+        initiated_by=ReturnInitiator.seller, initiated_by_user_id=_pk(user.id),
+        agreement_version=version,
+    )
+    await session.commit()
+    await session.refresh(request)
+    owner_user_id = (
+        await session.exec(
+            select(CustomerProfile.user_id).where(
+                CustomerProfile.id == body.customer_profile_id
+            )
+        )
+    ).first()
+    if owner_user_id is not None:
+        await _send_initiation_otp(int(owner_user_id), _pk(request.id))
+    return _serialize(request, await _load_items(session, _pk(request.id)))
+
+
+@seller_router.post("/me/returns/{return_id}/accept", response_model=ReturnRead)
+async def seller_accept_return(
+    return_id: int,
+    body: ReturnAcceptBody,
+    user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    request = await _seller_return(session, return_id, user)
+    await returns_svc.accept_return(
+        session, request, actor_role="seller", actor_user_id=_pk(user.id),
+        otp=body.otp, restock=body.restock,
+    )
+    await session.commit()
+    await session.refresh(request)
+    return _serialize(request, await _load_items(session, return_id))
+
+
+@seller_router.post("/me/returns/{return_id}/reject", response_model=ReturnRead)
+async def seller_reject_return(
+    return_id: int,
+    body: ReturnRejectBody,
+    user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    request = await _seller_return(session, return_id, user)
+    await returns_svc.reject_return(
+        session, request, actor_role="seller", actor_user_id=_pk(user.id),
+        reason=body.reason,
+    )
     await session.commit()
     await session.refresh(request)
     return _serialize(request, await _load_items(session, return_id))

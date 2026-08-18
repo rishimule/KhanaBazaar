@@ -5,9 +5,10 @@
 Services flush; callers commit. Every status change goes through
 ``record_transition`` so ``return_event`` never drifts from ``return_request``.
 """
+import hmac
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from fastapi import HTTPException
 from sqlmodel import col, select
@@ -15,8 +16,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.core.otp import generate_code
+from app.models.base import User
 from app.models.commerce import Delivery, Order, OrderItem, OrderStatus
-from app.models.profile import SellerProfileService
+from app.models.profile import SellerProfile, SellerProfileService
 from app.models.returns import (
     ACCEPTED_RETURN_STATUSES,
     LINE_LOCKING_STATUSES,
@@ -28,7 +30,10 @@ from app.models.returns import (
     ReturnSettlementChoice,
     ReturnStatus,
 )
-from app.models.store import Store
+from app.models.store import Store, StoreInventory
+
+if TYPE_CHECKING:  # avoids a cycle: return_settlement imports this module
+    from app.services.return_settlement import SettlementResult
 
 
 def _pk(value: Optional[int]) -> int:
@@ -383,5 +388,150 @@ async def withdraw_return(
     await record_transition(
         session, request, to_status=ReturnStatus.withdrawn,
         actor_role=actor_role, actor_user_id=actor_user_id, note=note,
+    )
+    return request
+
+
+async def seller_owns_return(
+    session: AsyncSession, user: User, request: ReturnRequest
+) -> bool:
+    profile_id = (
+        await session.exec(
+            select(SellerProfile.id).where(SellerProfile.user_id == user.id)
+        )
+    ).first()
+    return profile_id is not None and int(profile_id) == request.seller_profile_id
+
+
+async def restock_items(session: AsyncSession, request: ReturnRequest) -> None:
+    """Add returned quantities back to sellable stock.
+
+    Lines whose `inventory_id` is NULL (product de-listed since the order) are
+    skipped — there is no row to credit, and inventing one would be worse than
+    leaving the seller to adjust by hand.
+    """
+    rows = await session.exec(
+        select(ReturnRequestItem, OrderItem)
+        .join(OrderItem, col(OrderItem.id) == ReturnRequestItem.order_item_id)
+        .where(ReturnRequestItem.return_request_id == request.id)
+    )
+    for return_item, order_item in rows.all():
+        if order_item.inventory_id is None:
+            continue
+        inventory = (
+            await session.exec(
+                select(StoreInventory)
+                .where(StoreInventory.id == order_item.inventory_id)
+                .with_for_update()
+            )
+        ).first()
+        if inventory is None:
+            continue
+        inventory.stock += return_item.quantity
+        session.add(inventory)
+    await session.flush()
+
+
+async def verify_receipt_otp(
+    session: AsyncSession, request: ReturnRequest, otp: Optional[str]
+) -> None:
+    """Handover-code gate, adapted from the delivery-OTP gate in
+    services/orders.py. Runs BEFORE any status mutation so a failed
+    verification never persists an accepted return."""
+    if request.receipt_otp is None:
+        raise ReturnError(409, "receipt_otp_not_issued")
+    if request.receipt_otp_attempts >= settings.RETURN_OTP_MAX_ATTEMPTS:
+        raise ReturnError(409, "receipt_otp_locked")
+    if not otp:
+        raise ReturnError(422, "receipt_otp_required")
+    # `otp.isascii()` short-circuits before compare_digest, which raises
+    # TypeError on non-ASCII str input — a non-ASCII code counts as a wrong
+    # attempt (no 500, no counter bypass).
+    if not (otp.isascii() and hmac.compare_digest(otp, request.receipt_otp)):
+        request.receipt_otp_attempts += 1
+        session.add(request)
+        # Capture before commit() expires the instance (reading the attribute
+        # afterwards would trigger a lazy load → MissingGreenlet).
+        attempts_now = request.receipt_otp_attempts
+        await session.commit()  # persist the failed attempt; status untouched
+        raise ReturnError(
+            422, "receipt_otp_invalid",
+            remaining=max(0, settings.RETURN_OTP_MAX_ATTEMPTS - attempts_now),
+        )
+
+
+async def accept_return(
+    session: AsyncSession,
+    request: ReturnRequest,
+    *,
+    actor_role: str,
+    actor_user_id: int,
+    otp: Optional[str],
+    restock: bool,
+    bypass_otp: bool = False,
+    note: Optional[str] = None,
+) -> "SettlementResult":
+    """Seller (or admin, with `bypass_otp`) takes receipt and settles."""
+    from app.services.return_settlement import settle
+
+    if request.status != ReturnStatus.active:
+        raise ReturnError(
+            409, "illegal_return_transition",
+            **{"from": request.status.value, "to": "accepted"},
+        )
+    if not bypass_otp:
+        await verify_receipt_otp(session, request, otp)
+
+    now = datetime.now(timezone.utc)
+    request.restock = restock
+    request.decided_at = now
+    request.decided_by_user_id = actor_user_id
+    if not bypass_otp:
+        request.receipt_otp_verified_at = now
+    request.receipt_otp = None  # consume the code
+
+    result = await settle(session, request, actor_user_id=actor_user_id)
+    if restock:
+        await restock_items(session, request)
+
+    if result.next_status == ReturnStatus.closed:
+        request.closed_at = now
+        request.closed_by_user_id = actor_user_id
+    await record_transition(
+        session, request, to_status=result.next_status,
+        actor_role=actor_role, actor_user_id=actor_user_id,
+        note=note or "receipt otp confirmed",
+    )
+    return result
+
+
+async def reject_return(
+    session: AsyncSession,
+    request: ReturnRequest,
+    *,
+    actor_role: str,
+    actor_user_id: int,
+    reason: str,
+) -> ReturnRequest:
+    """Seller refuses the return. Terminal; the two parties settle off-platform
+    and the application records only the status and the reason (BRD §7)."""
+    if request.status != ReturnStatus.active:
+        raise ReturnError(
+            409, "illegal_return_transition",
+            **{"from": request.status.value, "to": ReturnStatus.rejected.value},
+        )
+    cleaned = (reason or "").strip()
+    if not cleaned:
+        raise ReturnError(422, "reason_required")
+    now = datetime.now(timezone.utc)
+    request.rejection_reason = cleaned
+    request.receipt_otp = None
+    request.decided_at = now
+    request.decided_by_user_id = actor_user_id
+    request.closed_at = now
+    request.closed_by_user_id = actor_user_id
+    await record_transition(
+        session, request, to_status=ReturnStatus.rejected,
+        actor_role=actor_role, actor_user_id=actor_user_id, note=cleaned,
     )
     return request

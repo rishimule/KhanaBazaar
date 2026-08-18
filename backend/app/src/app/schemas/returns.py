@@ -90,3 +90,12 @@ class ReturnCreateOnBehalfBody(ReturnCreateBody):
 class ReturnConfirmBody(BaseModel):
     otp: str = PydanticField(min_length=4, max_length=8)
     agreement_accepted: bool
+
+
+class ReturnAcceptBody(BaseModel):
+    otp: Optional[str] = PydanticField(default=None, max_length=16)
+    restock: bool = False
+
+
+class ReturnRejectBody(BaseModel):
+    reason: str = PydanticField(max_length=500)

@@ -165,7 +165,9 @@ async def seed_delivered_order(
         await session.flush()
         assert sub.id is not None
         for idx, (_name, price, _qty) in enumerate(specs):
-            product = MasterProduct(subcategory_id=sub.id, slug=f"p-{tag}-{idx}")
+            product = MasterProduct(
+                subcategory_id=sub.id, slug=f"p-{tag}-{idx}", base_price=price
+            )
             session.add(product)
             await session.flush()
             assert product.id is not None
