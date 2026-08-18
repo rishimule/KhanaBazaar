@@ -575,14 +575,14 @@ async def expire_stale_returns(
                 select(ReturnRequest).where(
                     or_(
                         and_(
-                            ReturnRequest.status
+                            col(ReturnRequest.status)
                             == ReturnStatus.awaiting_customer_confirmation,
-                            ReturnRequest.confirm_expires_at < moment,
+                            col(ReturnRequest.confirm_expires_at) < moment,
                         ),
                         and_(
-                            ReturnRequest.status == ReturnStatus.active,
+                            col(ReturnRequest.status) == ReturnStatus.active,
                             col(ReturnRequest.handover_expires_at).is_not(None),
-                            ReturnRequest.handover_expires_at < moment,
+                            col(ReturnRequest.handover_expires_at) < moment,
                         ),
                     )
                 )
