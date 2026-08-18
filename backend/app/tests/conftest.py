@@ -39,6 +39,27 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     yield loop
     loop.close()
 
+@pytest.fixture(autouse=True)
+def _whatsapp_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    """Pin WhatsApp off so the suite never depends on the developer's .env.
+
+    `.env.example` defaults WHATSAPP_PROVIDER to "none", but the working dev
+    .env sets "console". With it enabled, phone OTP routes through
+    core.otp_delivery (WhatsApp-preferred, SMS fallback) and never reaches the
+    SMS sender, so tests asserting on an injected SMS recorder see nothing.
+    get_whatsapp_sender is lru_cached, hence the cache_clear on both sides.
+
+    Tests that exercise WhatsApp monkeypatch the provider back on in their own
+    body, which runs after this fixture.
+    """
+    from app.core import whatsapp as whatsapp_mod
+
+    monkeypatch.setattr(whatsapp_mod.settings, "WHATSAPP_PROVIDER", "none")
+    whatsapp_mod.get_whatsapp_sender.cache_clear()
+    yield
+    whatsapp_mod.get_whatsapp_sender.cache_clear()
+
+
 async def _reset_schema(conn: Any) -> None:
     """Drop and recreate the public schema to clear tables AND Postgres enum
     types. SQLModel.metadata.drop_all does not drop enum types, so reused
