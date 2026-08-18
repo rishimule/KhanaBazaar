@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import func
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.otp import generate_code
@@ -57,6 +57,7 @@ from app.models.commerce import (
     PaymentMethod,
     PaymentStatus,
 )
+from app.models.consent import PolicyDocument, PolicyKind
 from app.models.customer_account_event import CustomerAccountEvent
 from app.models.profile import (
     AdminProfile,
@@ -65,6 +66,18 @@ from app.models.profile import (
     SellerProfile,
     SellerProfileService,
     VerificationStatus,
+)
+from app.models.returns import (
+    CustomerStoreCredit,
+    CustomerStoreCreditEntry,
+    ReturnEvent,
+    ReturnInitiator,
+    ReturnReasonCode,
+    ReturnRequest,
+    ReturnRequestItem,
+    ReturnSettlementChoice,
+    ReturnStatus,
+    StoreCreditEntryType,
 )
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_to_payload
@@ -2918,6 +2931,279 @@ async def _seed_customer_account_states(
     await session.commit()
 
 
+# ─── Returns ─────────────────────────────────────────────────────────────
+
+# One demo return per resting state, so every screen (customer wizard, seller
+# queue, admin supervisor) has something real to render. `days_after_delivery`
+# places the return inside its order's return window.
+DEMO_RETURNS: list[dict[str, Any]] = [
+    {
+        "state": "awaiting_customer_confirmation",
+        "initiated_by": ReturnInitiator.seller,
+        "reason": ReturnReasonCode.damaged,
+        "settlement": ReturnSettlementChoice.store_credit,
+        "note": None,
+    },
+    {
+        "state": "active",
+        "initiated_by": ReturnInitiator.customer,
+        "reason": ReturnReasonCode.wrong_item,
+        "settlement": ReturnSettlementChoice.store_credit,
+        "note": None,
+    },
+    {
+        "state": "awaiting_payment_confirmation",
+        "initiated_by": ReturnInitiator.customer,
+        "reason": ReturnReasonCode.quality_issue,
+        "settlement": ReturnSettlementChoice.payment,
+        "note": None,
+    },
+    {
+        "state": "closed",
+        "initiated_by": ReturnInitiator.customer,
+        "reason": ReturnReasonCode.damaged,
+        "settlement": ReturnSettlementChoice.store_credit,
+        "note": None,
+    },
+    {
+        "state": "rejected",
+        "initiated_by": ReturnInitiator.customer,
+        "reason": ReturnReasonCode.not_as_described,
+        "settlement": ReturnSettlementChoice.payment,
+        "note": None,
+        "rejection_reason": "Seal was broken and roughly half the contents were used.",
+    },
+    {
+        "state": "expired",
+        "initiated_by": ReturnInitiator.seller,
+        "reason": ReturnReasonCode.past_expiry,
+        "settlement": ReturnSettlementChoice.store_credit,
+        "note": None,
+    },
+    {
+        "state": "withdrawn",
+        "initiated_by": ReturnInitiator.customer,
+        "reason": ReturnReasonCode.other,
+        "settlement": ReturnSettlementChoice.store_credit,
+        "note": "Changed my mind, the replacement arrived first.",
+    },
+]
+
+RETURN_AGREEMENT_BODY = """\
+Returns are accepted on delivered orders within the window shown for each store.
+
+1. Items must be complete. Part of an item cannot be returned.
+2. You choose, before the return starts, whether the amount comes back as money
+   or as credit with the same store. That choice is recorded with your OTP.
+3. If you owe this store on credit, the amount clears that balance first.
+4. The store inspects the items and either accepts them, confirming with the
+   handover code you show, or rejects them and records a reason.
+5. If the store rejects the return, you and the store settle the matter
+   directly. This application records the decision and the reason only.
+6. Store credit can be spent with the same store and nowhere else.
+"""
+
+# Return windows per service slug. Pharmacy stays 0 so the "returns disabled"
+# path has a real example to render.
+RETURN_WINDOW_DAYS_BY_SERVICE: dict[str, int] = {
+    "grocery": 7,
+    "food": 0,
+    "pharmacy": 0,
+    "electronics": 14,
+}
+
+
+async def _seed_returns(session: AsyncSession) -> None:
+    """Publish the return agreement, set per-service windows, and build one
+    return per resting state against delivered demo orders.
+
+    Idempotent — skipped entirely once any ReturnRequest exists.
+    """
+    existing = await session.exec(select(func.count()).select_from(ReturnRequest))
+    if int(existing.one()) > 0:
+        return
+
+    agreement = (
+        await session.exec(
+            select(PolicyDocument).where(
+                PolicyDocument.kind == PolicyKind.return_agreement
+            )
+        )
+    ).first()
+    if agreement is None:
+        session.add(
+            PolicyDocument(
+                kind=PolicyKind.return_agreement, version=1,
+                body=RETURN_AGREEMENT_BODY,
+            )
+        )
+        await session.flush()
+    agreement_version = 1
+
+    # Per-service return windows.
+    service_rows = (await session.exec(select(Service))).all()
+    slug_by_id = {s.id: s.slug for s in service_rows if s.id is not None}
+    returnable_service_ids: set[int] = set()
+    for sps in (await session.exec(select(SellerProfileService))).all():
+        slug = slug_by_id.get(sps.service_id)
+        if slug is None:
+            continue
+        sps.return_window_days = RETURN_WINDOW_DAYS_BY_SERVICE.get(slug, 7)
+        session.add(sps)
+        if sps.return_window_days > 0:
+            returnable_service_ids.add(sps.service_id)
+    await session.flush()
+
+    # Delivered orders whose service actually allows returns, newest first.
+    # Derived from the windows just applied, not from the slug map: an unknown
+    # slug gets the 7-day default and must therefore be a candidate too.
+    candidates = [
+        order
+        for order in (
+            await session.exec(
+                select(Order)
+                .where(Order.status == OrderStatus.Delivered)
+                .order_by(col(Order.placed_at).desc())
+            )
+        ).all()
+        if order.service_id in returnable_service_ids
+    ]
+    if not candidates:
+        return
+
+    now = datetime.now(timezone.utc)
+    # strict=False on purpose: fewer eligible orders than demo states just
+    # seeds fewer returns rather than blowing up the whole seed.
+    for spec, order in zip(DEMO_RETURNS, candidates, strict=False):
+        assert order.id is not None
+        items = list(
+            (
+                await session.exec(
+                    select(OrderItem).where(OrderItem.order_id == order.id)
+                )
+            ).all()
+        )
+        if not items:
+            continue
+        line = items[0]
+        assert line.id is not None
+        seller_profile_id = (
+            await session.exec(
+                select(Store.seller_profile_id).where(Store.id == order.store_id)
+            )
+        ).first()
+        if seller_profile_id is None:
+            continue
+
+        state = ReturnStatus(spec["state"])
+        is_terminal = state in {
+            ReturnStatus.closed, ReturnStatus.rejected,
+            ReturnStatus.withdrawn, ReturnStatus.expired,
+        }
+        total = round(line.line_total, 2)
+        request = ReturnRequest(
+            order_id=order.id,
+            customer_profile_id=order.customer_profile_id,
+            store_id=order.store_id,
+            seller_profile_id=int(seller_profile_id),
+            service_id=order.service_id,
+            initiated_by=spec["initiated_by"],
+            initiated_by_user_id=1,
+            status=state,
+            is_full_order=False,
+            reason_code=spec["reason"],
+            reason_note=spec["note"],
+            items_amount=total,
+            delivery_fee_amount=0.0,
+            total_amount=total,
+            settlement_choice=spec["settlement"],
+            agreement_policy_version=agreement_version,
+            agreement_accepted_at=(
+                None if state == ReturnStatus.awaiting_customer_confirmation else now
+            ),
+            window_expires_at=now + timedelta(days=3),
+            confirm_expires_at=now + timedelta(hours=48),
+            handover_expires_at=(
+                now + timedelta(days=5)
+                if state == ReturnStatus.active
+                else None
+            ),
+            receipt_otp="483920" if state == ReturnStatus.active else None,
+            receipt_otp_sent_at=now if state == ReturnStatus.active else None,
+            rejection_reason=spec.get("rejection_reason"),
+            decided_at=now if is_terminal or state == ReturnStatus.awaiting_payment_confirmation else None,
+            closed_at=now if is_terminal else None,
+        )
+        if state == ReturnStatus.closed:
+            request.store_credit_amount = total
+        elif state == ReturnStatus.awaiting_payment_confirmation:
+            request.payment_amount = total
+        session.add(request)
+        await session.flush()
+        assert request.id is not None
+
+        session.add(
+            ReturnRequestItem(
+                return_request_id=request.id,
+                order_item_id=line.id,
+                quantity=line.quantity,
+                product_name_snapshot=line.product_name_snapshot,
+                unit_price_snapshot=line.unit_price_snapshot,
+                line_total=line.line_total,
+            )
+        )
+        session.add(
+            ReturnEvent(
+                return_request_id=request.id, from_status=None,
+                to_status=ReturnStatus.awaiting_customer_confirmation,
+                actor_role=spec["initiated_by"].value, actor_user_id=1,
+            )
+        )
+        if state != ReturnStatus.awaiting_customer_confirmation:
+            session.add(
+                ReturnEvent(
+                    return_request_id=request.id,
+                    from_status=ReturnStatus.awaiting_customer_confirmation,
+                    to_status=state, actor_role="customer", actor_user_id=1,
+                    note=request.rejection_reason,
+                )
+            )
+
+        # Store credit for the closed return, so the account page has history.
+        if state == ReturnStatus.closed:
+            account = (
+                await session.exec(
+                    select(CustomerStoreCredit).where(
+                        CustomerStoreCredit.seller_profile_id == int(seller_profile_id),
+                        CustomerStoreCredit.customer_profile_id
+                        == order.customer_profile_id,
+                    )
+                )
+            ).first()
+            if account is None:
+                account = CustomerStoreCredit(
+                    seller_profile_id=int(seller_profile_id),
+                    customer_profile_id=order.customer_profile_id,
+                )
+                session.add(account)
+                await session.flush()
+            assert account.id is not None
+            account.balance = round(account.balance + total, 2)
+            account.lifetime_earned = round(account.lifetime_earned + total, 2)
+            session.add(account)
+            session.add(
+                CustomerStoreCreditEntry(
+                    account_id=account.id,
+                    entry_type=StoreCreditEntryType.return_credit,
+                    amount=total, balance_after=account.balance,
+                    return_request_id=request.id,
+                    note=f"return #{request.id}",
+                )
+            )
+
+    await session.flush()
+
+
 async def seed_demo_data(session: AsyncSession) -> None:
     await _ensure_languages(session)
 
@@ -2998,6 +3284,7 @@ async def seed_demo_data(session: AsyncSession) -> None:
     await _seed_demo_orders(session)
     await _seed_favorites(session)
     await _seed_customer_account_states(session, users_by_email)
+    await _seed_returns(session)
 
     await verify_expected_counts(session)
 
