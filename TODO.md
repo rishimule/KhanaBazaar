@@ -61,6 +61,13 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 - [x] Dev seed: one return per resting state + store-credit balances (`_seed_returns`).
 - [ ] **Figma pass owed** for the 15 return screens (customer wizard/list/detail/store-credit/checkout toggle, seller queue/detail/window config, admin list/detail/hub tab/customer credit viewer). The Figma connector was unavailable when these shipped, so the file is currently behind the code — treat that as a bug per the Figma-first workflow.
 - [ ] Twilio ContentSids for the 5 new WhatsApp templates (`otp_return`, `return_initiated`, `return_confirmed`, `return_accepted`, `return_rejected`, `return_closed`) before `WHATSAPP_PROVIDER=twilio`.
+- [ ] Seller/admin **initiate on a customer's behalf** is API-only — no frontend client or screen (`POST /sellers/me/returns`, `POST /admin/returns` both work and are tested).
+- [ ] Seller in-app notifications cover only "customer confirmed a return"; closed/expired/withdrawn notify the customer only, and there is no seller *email* path for returns.
+- [ ] Dev-seed return histories are single-hop and attribute every transition to the customer, so a `return_event` timeline shows a path the state machine would reject. No seeded example of a full-order return (delivery fee) or a credit reversal.
+- [ ] Returns tables are absent from `_COUNT_MODELS`, so `verify_expected_counts` cannot catch a seeding regression.
+- [ ] Wizard creates the return on entering step 4, before the agreement is shown — abandoning the page leaves an unconfirmed return holding item locks, and re-entry reports "already in a return" with no resume path.
+- [ ] `ReturnTimeline` marks the payment step done for a return whose reversal absorbed the whole amount (`payment_amount == 0`).
+- [ ] Concurrency is guarded by row locks but has no automated test; single-process pytest can't exercise it.
 - [ ] Platform-fee treatment of returned orders is deliberately out of scope (D11) — fees stand as charged. Revisit post-MVP.
 
 ## Design / UI follow-ups
