@@ -218,3 +218,40 @@ async def test_cancelling_an_order_returns_the_credit(session: AsyncSession) -> 
     ).all()
     assert len(reverted) == 1
     assert reverted[0].amount == 40.0
+
+
+async def test_cancel_reverses_only_what_was_borrowed(session: AsyncSession) -> None:
+    """Regression: cancel reversed the GROSS total while checkout had charged
+    only the post-credit remainder, so a mixed-tender order refunded the credit
+    portion twice and ate unrelated debt."""
+    from app.models.base import UserRole
+    from app.services.orders import cancel_order
+
+    seed = await _seed(session, credit_limit=2000.0, outstanding=300.0)
+    await _grant(session, seed, 40.0)
+
+    order = await _place(session, seed, payment_method=PaymentMethod.Credit)
+    assert order.store_credit_applied == 40.0
+    account = (
+        await session.exec(
+            select(CreditAccount).where(
+                CreditAccount.seller_profile_id == seed["seller_profile_id"]
+            )
+        )
+    ).one()
+    # 300 prior debt + 60 borrowed (100 order - 40 store credit)
+    assert account.outstanding_balance == 360.0
+
+    actor = seed["user"]
+    actor.role = UserRole.Customer
+    await cancel_order(session, order, actor)
+
+    await session.refresh(account)
+    # Back to the prior debt exactly. Reversing the gross 100 would leave 260,
+    # silently erasing 40 of unrelated debt.
+    assert account.outstanding_balance == 300.0
+    credit_account = await store_credit_svc.get_or_create_account(
+        session, seller_profile_id=seed["seller_profile_id"],
+        customer_profile_id=seed["customer_profile_id"],
+    )
+    assert credit_account.balance == 40.0

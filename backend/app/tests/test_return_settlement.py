@@ -6,7 +6,7 @@ from typing import Any
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.commerce import PaymentMethod
+from app.models.commerce import Order, PaymentMethod
 from app.models.credit import CreditAccount, CreditEntryType, CreditLedgerEntry
 from app.models.returns import (
     CustomerStoreCredit,
@@ -229,3 +229,79 @@ async def test_amounts_always_sum_to_the_total(session: AsyncSession) -> None:
     assert req.credit_reversal_amount == result.credit_reversal_amount
     assert req.store_credit_amount == result.store_credit_amount
     assert req.payment_amount == result.payment_amount
+
+
+async def test_store_credit_cannot_be_laundered_into_cash(
+    session: AsyncSession,
+) -> None:
+    """Regression: a return used to pay out its full value in cash regardless of
+    how the order was funded, so store credit — deliberately seller-scoped and
+    non-cashable — could be converted to money 1:1, repeatedly."""
+    seed = await seed_delivered_order(session)
+    order = await session.get(Order, seed.order_id)
+    assert order is not None
+    order.total = 500.0
+    order.store_credit_applied = 400.0  # customer paid only 100 in cash
+    session.add(order)
+    await session.commit()
+
+    req = await _request(
+        session, seed, total=500.0, choice=ReturnSettlementChoice.payment
+    )
+    result = await settle(session, req, actor_user_id=seed.customer_user_id)
+    await session.commit()
+
+    # Only the 100 they actually paid can come back as cash.
+    assert result.payment_amount == 100.0
+    assert result.store_credit_amount == 400.0
+    acct = (await session.exec(select(CustomerStoreCredit))).first()
+    assert acct is not None
+    assert acct.balance == 400.0
+
+
+async def test_tender_split_is_proportional_for_a_partial_return(
+    session: AsyncSession,
+) -> None:
+    seed = await seed_delivered_order(session)
+    order = await session.get(Order, seed.order_id)
+    assert order is not None
+    order.total = 500.0
+    order.store_credit_applied = 250.0  # half the order was paid in credit
+    session.add(order)
+    await session.commit()
+
+    req = await _request(
+        session, seed, total=200.0, choice=ReturnSettlementChoice.payment
+    )
+    result = await settle(session, req, actor_user_id=seed.customer_user_id)
+    await session.commit()
+
+    assert result.store_credit_amount == 100.0
+    assert result.payment_amount == 100.0
+
+
+async def test_reversal_only_touches_the_cash_funded_part(
+    session: AsyncSession,
+) -> None:
+    """A credit-method order partly paid with store credit must not reverse
+    debt for the store-credit-funded portion."""
+    seed = await seed_delivered_order(session, payment_method=PaymentMethod.Credit)
+    order = await session.get(Order, seed.order_id)
+    assert order is not None
+    order.total = 500.0
+    order.store_credit_applied = 400.0
+    session.add(order)
+    await session.commit()
+    await _credit_account(session, seed, outstanding=1000.0)
+
+    req = await _request(
+        session, seed, total=500.0, choice=ReturnSettlementChoice.payment
+    )
+    result = await settle(session, req, actor_user_id=seed.customer_user_id)
+    await session.commit()
+
+    assert result.credit_reversal_amount == 100.0
+    assert result.store_credit_amount == 400.0
+    acct = (await session.exec(select(CreditAccount))).first()
+    assert acct is not None
+    assert acct.outstanding_balance == 900.0
