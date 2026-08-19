@@ -11,8 +11,10 @@ import {
   confirmReturn,
   createReturn,
   getReturnEligibility,
+  listReturns,
   resendReturnOtp,
   returnErrorKey,
+  withdrawReturn,
 } from "@/lib/returns";
 import type {
   ReturnEligibility,
@@ -38,7 +40,7 @@ interface Props {
   agreementBody: string | null;
 }
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 export default function ReturnWizard({ orderId, agreementBody }: Props) {
   const t = useTranslations("Account.returns");
@@ -56,6 +58,10 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
   const [accepted, setAccepted] = useState(false);
   const [otp, setOtp] = useState("");
   const [created, setCreated] = useState<ReturnRequest | null>(null);
+  /** An unconfirmed return already open on this order, found on mount. It
+   *  holds item locks, so the customer must resume or discard it before
+   *  starting a new one. */
+  const [pending, setPending] = useState<ReturnRequest | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -65,8 +71,13 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const data = await getReturnEligibility(token, orderId);
-        if (!cancelled) setEligibility(data);
+        const [data, open] = await Promise.all([
+          getReturnEligibility(token, orderId),
+          listReturns(token, "awaiting_customer_confirmation"),
+        ]);
+        if (cancelled) return;
+        setEligibility(data);
+        setPending(open.find((r) => r.order_id === orderId) ?? null);
       } catch (e) {
         // Never render a failed fetch as "nothing is returnable".
         if (!cancelled) setLoadError(apiErrorCode(e) ?? "unknown");
@@ -77,6 +88,34 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
     };
   }, [token, orderId]);
 
+  /** Resume the unconfirmed return found on mount — straight to the code step. */
+  const resumePending = () => {
+    if (!pending) return;
+    setCreated(pending);
+    setPending(null);
+    setAccepted(true);
+    setStep(5);
+  };
+
+  /** Discard it, releasing its item lines so a fresh selection is possible. */
+  const discardPending = async () => {
+    if (!token || !pending) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await withdrawReturn(token, pending.id);
+      const fresh = await getReturnEligibility(token, orderId);
+      setEligibility(fresh);
+      setPending(null);
+      setSelected([]);
+      setStep(1);
+    } catch (e) {
+      setError(t(`errors.${returnErrorKey(apiErrorCode(e), "customer")}`));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (loadError) {
     return (
       <p role="alert" className={styles.error}>
@@ -85,6 +124,47 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
     );
   }
   if (!eligibility) return <p className={styles.muted}>{t("loading")}</p>;
+
+  if (pending) {
+    return (
+      <div className={styles.wizard}>
+        <section className={`${styles.card} ${styles.resumeCard}`}>
+          <h2 className={styles.heading}>{t("resumeTitle")}</h2>
+          <p className={styles.muted}>{t("resumeBody")}</p>
+          <ul className={styles.pendingLines}>
+            {pending.items.map((item) => (
+              <li key={item.order_item_id}>
+                {item.product_name} × {item.quantity}
+              </li>
+            ))}
+          </ul>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={resumePending}
+            >
+              {t("resumeCta")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={discardPending}
+              disabled={busy}
+            >
+              {t("discardCta")}
+            </button>
+          </div>
+          {error && (
+            <p role="alert" className={styles.error}>
+              {error}
+            </p>
+          )}
+        </section>
+      </div>
+    );
+  }
+
 
   if (!eligibility.eligible) {
     return (
@@ -115,8 +195,14 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
       allSelected ? [] : eligibility.lines.filter((l) => l.returnable).map((l) => l.order_item_id)
     );
 
-  const submitDraft = async () => {
-    if (!token) return;
+  /**
+   * Creates the return AND dispatches the confirmation code, in one action, at
+   * the moment the customer accepts the agreement. Nothing is written before
+   * this — steps 1-3 are local state — so abandoning the wizard earlier leaves
+   * no unconfirmed return holding item locks.
+   */
+  const acceptAndSendCode = async () => {
+    if (!token || !accepted) return;
     setBusy(true);
     setError(null);
     try {
@@ -128,7 +214,21 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
         settlement_choice: settlement,
       });
       setCreated(req);
-      setStep(4);
+      setStep(5);
+    } catch (e) {
+      setError(t(`errors.${returnErrorKey(apiErrorCode(e), "customer")}`));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const withdrawCurrent = async () => {
+    if (!token || !created) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await withdrawReturn(token, created.id);
+      router.push("/account/returns");
     } catch (e) {
       setError(t(`errors.${returnErrorKey(apiErrorCode(e), "customer")}`));
     } finally {
@@ -167,7 +267,7 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
 
   return (
     <div className={styles.wizard}>
-      <p className={styles.stepLabel}>{t("stepOf", { step, total: 4 })}</p>
+      <p className={styles.stepLabel}>{t("stepOf", { step, total: 5 })}</p>
 
       {step === 1 && (
         <section className={styles.card}>
@@ -290,8 +390,7 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={submitDraft}
-              disabled={busy}
+              onClick={() => setStep(4)}
             >
               {t("next")}
             </button>
@@ -304,9 +403,65 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
         </section>
       )}
 
-      {step === 4 && created && (
+      {step === 4 && (
         <section className={styles.card}>
           <h2 className={styles.heading}>{t("step4Title")}</h2>
+          {/* Amounts here are the client's preview. The server recomputes and
+              its numbers are what the confirmation step shows. */}
+          <dl className={styles.summary}>
+            <div>
+              <dt>{t("summaryItems")}</dt>
+              <dd>₹{itemsTotal.toFixed(2)}</dd>
+            </div>
+            {feeReturned && (
+              <div>
+                <dt>{t("summaryDeliveryFee")}</dt>
+                <dd>₹{eligibility.delivery_fee.toFixed(2)}</dd>
+              </div>
+            )}
+            <div className={styles.summaryTotal}>
+              <dt>{t("summaryTotal")}</dt>
+              <dd>₹{previewTotal.toFixed(2)}</dd>
+            </div>
+          </dl>
+          {agreementBody && (
+            <div className={styles.agreement}>
+              <pre className={styles.agreementBody}>{agreementBody}</pre>
+            </div>
+          )}
+          <label className={styles.acceptRow}>
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+            />
+            <span>{t("acceptAgreement")}</span>
+          </label>
+          <p className={styles.notCreatedNote}>{t("notCreatedYet")}</p>
+          <div className={styles.actions}>
+            <button type="button" className="btn" onClick={() => setStep(3)}>
+              {t("back")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!accepted || busy}
+              onClick={acceptAndSendCode}
+            >
+              {t("acceptAndSendCode")}
+            </button>
+          </div>
+          {error && (
+            <p role="alert" className={styles.error}>
+              {error}
+            </p>
+          )}
+        </section>
+      )}
+
+      {step === 5 && created && (
+        <section className={styles.card}>
+          <h2 className={styles.heading}>{t("step5Title")}</h2>
           <dl className={styles.summary}>
             <div>
               <dt>{t("summaryItems")}</dt>
@@ -323,19 +478,6 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
               <dd>₹{created.total_amount.toFixed(2)}</dd>
             </div>
           </dl>
-          {agreementBody && (
-            <div className={styles.agreement}>
-              <pre className={styles.agreementBody}>{agreementBody}</pre>
-            </div>
-          )}
-          <label className={styles.acceptRow}>
-            <input
-              type="checkbox"
-              checked={accepted}
-              onChange={(e) => setAccepted(e.target.checked)}
-            />
-            <span>{t("acceptAgreement")}</span>
-          </label>
           <label className={styles.label} htmlFor="return-otp">
             {t("otpLabel")}
           </label>
@@ -351,14 +493,23 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
             {t("otpResend")}
           </button>
           {notice && <p className={styles.muted}>{notice}</p>}
+          <p className={styles.savedNote}>{t("savedNote")}</p>
           <div className={styles.actions}>
             <button
               type="button"
               className="btn btn-primary"
-              disabled={!accepted || otp.length !== 6 || busy}
+              disabled={otp.length !== 6 || busy}
               onClick={submitOtp}
             >
               {t("confirmReturn")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={withdrawCurrent}
+              disabled={busy}
+            >
+              {t("withdraw")}
             </button>
           </div>
           {error && (

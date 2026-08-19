@@ -232,3 +232,29 @@
   text-align: right;
   font-weight: 600;
 }
+
+/* Resume banner — shown instead of the wizard when an unconfirmed return is
+   already holding this order's lines. */
+.resumeCard {
+  border-color: var(--color-warning, #b26a00);
+  background: var(--color-warning-tint, #fff8e6);
+}
+
+.pendingLines {
+  margin: 0;
+  padding-left: var(--space-5, 20px);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* Reassures the customer that nothing has been submitted yet. */
+.notCreatedNote,
+.savedNote {
+  margin: 0;
+  padding: var(--space-3, 12px);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--color-surface-tint, #f4f6f5);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}

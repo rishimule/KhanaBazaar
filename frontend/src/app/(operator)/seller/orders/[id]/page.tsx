@@ -13,6 +13,7 @@ import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
 import LoadError from "@/components/LoadError";
+import Link from "next/link";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -72,6 +73,16 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
       <section className={styles.section}>
         <OrderTimeline status={order.status} deliveryMode={order.delivery_mode} />
       </section>
+
+      {/* Returns can only start from a delivered order; the backend enforces
+          the window, so this is an entry point, not the eligibility check. */}
+      {order.status === "delivered" && (
+        <section className={styles.section}>
+          <Link className="btn" href={`/seller/orders/${order.id}/return`}>
+            {t("startReturn")}
+          </Link>
+        </section>
+      )}
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("items")}</h2>

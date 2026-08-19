@@ -9,6 +9,7 @@
 import { get, patch, post } from "@/lib/api";
 import type {
   ReturnEligibility,
+  SellerReturnEligibility,
   ReturnReasonCode,
   ReturnRequest,
   ReturnSettlementChoice,
@@ -16,6 +17,10 @@ import type {
   StoreCreditBalance,
   StoreCreditEntry,
 } from "@/types";
+
+export interface CreateReturnOnBehalfBody extends CreateReturnBody {
+  customer_profile_id: number;
+}
 
 export interface CreateReturnBody {
   order_id: number;
@@ -132,6 +137,27 @@ export async function getStoreCreditLedger(
 }
 
 // ─── Seller ──────────────────────────────────────────────────────────────
+
+export async function getSellerReturnEligibility(
+  token: string,
+  orderId: number
+): Promise<SellerReturnEligibility> {
+  return get<SellerReturnEligibility>(
+    `/api/v1/sellers/me/returns/eligibility/${orderId}`,
+    token
+  );
+}
+
+/**
+ * Start a return for a customer. The customer still receives the confirmation
+ * code and must accept the agreement — this only opens the request.
+ */
+export async function sellerCreateReturn(
+  token: string,
+  body: CreateReturnOnBehalfBody
+): Promise<ReturnRequest> {
+  return post<ReturnRequest>("/api/v1/sellers/me/returns", body, token);
+}
 
 export async function listSellerReturns(
   token: string,

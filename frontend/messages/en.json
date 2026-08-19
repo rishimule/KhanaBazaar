@@ -920,7 +920,7 @@
       "settlementPayment": "Money back",
       "settlementPaymentHint": "The store pays you directly; you confirm here once you receive it.",
       "reversalNote": "If you owe this store on credit, the amount clears that balance first.",
-      "step4Title": "Review and confirm",
+      "step4Title": "Review and accept the agreement",
       "summaryItems": "Items",
       "summaryDeliveryFee": "Delivery fee",
       "summaryTotal": "Return total",
@@ -984,7 +984,15 @@
         "reason_note_required": "Please tell us what happened.",
         "resend_cooldown": "Please wait a moment before asking again.",
         "unknown": "Something went wrong. Please try again."
-      }
+      },
+      "step5Title": "Confirm with your code",
+      "acceptAndSendCode": "Accept and send my code",
+      "notCreatedYet": "Nothing has been submitted yet. Your return is created — and your items reserved — only when you accept and ask for the code.",
+      "savedNote": "Your return is saved and is holding the selected items. If you close this page, resume it from Returns in your account, or withdraw it to release them.",
+      "resumeTitle": "You already started a return for this order",
+      "resumeBody": "It is waiting for your confirmation code and is holding these items. Resume it, or discard it to choose different items.",
+      "resumeCta": "Resume confirmation",
+      "discardCta": "Discard and start over"
     },
     "storeCredit": {
       "heading": "Store credit",
@@ -1372,7 +1380,8 @@
       "deliveryTo": "Delivery to",
       "customerFallback": "Customer",
       "storeCreditApplied": "Store credit applied",
-      "amountPayable": "Amount payable"
+      "amountPayable": "Amount payable",
+      "startReturn": "Start a return"
     },
     "settings": {
       "loadStoreError": "Could not load store.",
@@ -1640,6 +1649,32 @@
         "quality_issue": "Quality issue",
         "not_as_described": "Not as described",
         "other": "Other"
+      },
+      "initiate": {
+        "title": "Start a return for a customer",
+        "subtitle": "Order #{orderId}",
+        "loading": "Loading…",
+        "loadFailed": "We couldn't load this order's return options. Please try again.",
+        "consentNote": "{name} must confirm this. Starting a return here sends them a confirmation code — nothing is returned, and no money or credit moves, until they accept the agreement and enter it. It expires after 48 hours.",
+        "itemsTitle": "Which items are coming back?",
+        "wholeLinesOnly": "Whole items only. Items already inside a return can't be selected.",
+        "reasonTitle": "Reason",
+        "noteRequired": "Describe what happened (required)",
+        "noteOptional": "Add a note (optional)",
+        "settlementTitle": "How should it be settled?",
+        "settlementCreditHint": "Usable on future orders with your store.",
+        "settlementPaymentHint": "You settle offline; the customer confirms with a code.",
+        "settlementCustomerNote": "The customer sees this choice on their agreement and can withdraw if they disagree.",
+        "previewTotal": "Return value: ₹{amount}",
+        "submit": "Send to customer for confirmation",
+        "cancel": "Cancel",
+        "ineligible": {
+          "order_not_delivered": "You can start a return once this order is delivered.",
+          "return_window_closed": "The return window for this order has closed.",
+          "returns_disabled_for_service": "Returns are switched off for this service. Set a return window in Settings to accept them.",
+          "items_already_returned": "Every item on this order is already in a return.",
+          "unknown": "This order isn't eligible for a return."
+        }
       }
     }
   },

@@ -1055,6 +1055,11 @@ export interface ReturnEligibility {
   lines: ReturnEligibilityLine[];
 }
 
+export interface SellerReturnEligibility extends ReturnEligibility {
+  customer_profile_id: number;
+  customer_name: string;
+}
+
 export interface StoreCreditBalance {
   seller_profile_id: number;
   /** Present so checkout can match on an id, never a display name. */
