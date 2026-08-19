@@ -107,6 +107,10 @@ class ReturnPaymentConfirmBody(BaseModel):
 
 class StoreCreditBalanceRead(BaseModel):
     seller_profile_id: int
+    # The checkout page knows the store, not the seller. Matching on the
+    # display name instead was fragile: a rename or a duplicate name silently
+    # applied the wrong seller's credit.
+    store_id: Optional[int] = None
     store_name: str
     balance: float
     lifetime_earned: float

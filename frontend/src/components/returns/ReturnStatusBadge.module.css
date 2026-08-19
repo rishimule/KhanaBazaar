@@ -10,26 +10,26 @@
 }
 
 .waiting {
-  background: var(--color-warning-bg, #fff4e5);
-  color: var(--color-warning-text, #8a5300);
+  background: color-mix(in srgb, var(--color-warning) 16%, var(--color-surface));
+  color: var(--color-warning);
 }
 
 .progress {
-  background: var(--color-info-bg, #e8f1ff);
-  color: var(--color-info-text, #12467b);
+  background: color-mix(in srgb, var(--color-info) 14%, var(--color-surface));
+  color: var(--color-info);
 }
 
 .done {
-  background: var(--color-success-bg, #e6f6f1);
-  color: var(--color-success-text, #018260);
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-surface));
+  color: var(--color-success);
 }
 
 .bad {
-  background: var(--color-danger-bg, #fdecec);
-  color: var(--color-danger-text, #b3261e);
+  background: color-mix(in srgb, var(--color-error) 12%, var(--color-surface));
+  color: var(--color-error);
 }
 
 .muted {
-  background: var(--color-surface-muted, #f1f2f4);
-  color: var(--color-text-muted, #5f6368);
+  background: var(--color-surface-tint);
+  color: var(--color-text-muted);
 }

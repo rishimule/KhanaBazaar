@@ -40,7 +40,6 @@ from app.models.consent import PolicyKind
 from app.models.notification import NotificationType
 from app.models.profile import CustomerProfile, SellerProfile
 from app.models.returns import (
-    TERMINAL_RETURN_STATUSES,
     CustomerStoreCredit,
     ReturnInitiator,
     ReturnRequest,
@@ -195,15 +194,31 @@ async def _require_agreement_version(session: AsyncSession) -> int:
     return version
 
 
-async def _send_initiation_otp(user_id: int, return_id: int) -> None:
+async def _send_initiation_otp(
+    user_id: int, return_id: int, *, best_effort: bool = False
+) -> None:
+    """Issue and dispatch the initiation code.
+
+    `best_effort=True` at creation: the return row is already committed and
+    holding item locks, so a Redis hiccup must not 500 the caller — they have
+    the return id and can retry through /otp/resend.
+    """
     redis = await get_redis()
     identifier = f"{user_id}:{return_id}"
     try:
         code = await request_otp(identifier, redis, namespace="return_initiate")
     except RateLimited as exc:
+        if best_effort:
+            logger.warning("return otp rate-limited return_id=%s", return_id)
+            return
         raise returns_svc.ReturnError(
             429, "resend_cooldown", retry_after=exc.retry_after
         ) from exc
+    except Exception:
+        if not best_effort:
+            raise
+        logger.exception("return otp dispatch failed return_id=%s", return_id)
+        return
     dispatch_return_otp(user_id, return_id, code, "initiate")
 
 
@@ -244,6 +259,14 @@ def _return_copy(
             f"Reason: {request.rejection_reason or 'not given'}. Settle this "
             "directly with the store, per the return agreement.",
             "rejected",
+            NotificationType.ReturnStatusUpdate,
+        )
+    if event_key == "return_withdrawn":
+        return (
+            f"Return #{rid} withdrawn",
+            "This return was withdrawn. The items are free to return again if "
+            "the order's return window is still open.",
+            "withdrawn",
             NotificationType.ReturnStatusUpdate,
         )
     if event_key == "return_expired":
@@ -331,7 +354,7 @@ async def create_return_request(
     )
     await session.commit()
     await session.refresh(request)
-    await _send_initiation_otp(_pk(user.id), _pk(request.id))
+    await _send_initiation_otp(_pk(user.id), _pk(request.id), best_effort=True)
     await _notify_return(session, request, "return_initiated")
     return _serialize(request, await _load_items(session, _pk(request.id)))
 
@@ -353,9 +376,15 @@ async def resend_initiation_otp(
 
 
 async def _owned_return(
-    session: AsyncSession, return_id: int, profile_id: int
+    session: AsyncSession, return_id: int, profile_id: int, *, lock: bool = False
 ) -> ReturnRequest:
-    request = await session.get(ReturnRequest, return_id)
+    """`lock=True` on every path that mutates the return — see
+    `returns_svc.lock_return` for why an unlocked read-then-write is unsafe."""
+    request = (
+        await returns_svc.lock_return(session, return_id)
+        if lock
+        else await session.get(ReturnRequest, return_id)
+    )
     if request is None or request.customer_profile_id != profile_id:
         raise returns_svc.ReturnError(404, "return_not_found")
     return request
@@ -369,7 +398,7 @@ async def confirm_return_request(
     session: AsyncSession = Depends(get_db_session),
 ) -> ReturnRead:
     profile_id = await _customer_profile_id(session, user)
-    request = await _owned_return(session, return_id, profile_id)
+    request = await _owned_return(session, return_id, profile_id, lock=True)
     if not body.agreement_accepted:
         raise returns_svc.ReturnError(422, "agreement_not_accepted")
     # Status first, so a stale request fails before we burn an OTP attempt.
@@ -405,11 +434,30 @@ async def withdraw_return_request(
     session: AsyncSession = Depends(get_db_session),
 ) -> ReturnRead:
     profile_id = await _customer_profile_id(session, user)
-    request = await _owned_return(session, return_id, profile_id)
+    request = await _owned_return(session, return_id, profile_id, lock=True)
     await returns_svc.withdraw_return(session, request, actor_user_id=_pk(user.id))
     await session.commit()
     await session.refresh(request)
+    await _notify_return(session, request, "return_withdrawn")
     return _serialize(request, await _load_items(session, return_id))
+
+
+@router.post("/{return_id}/receipt-otp/resend", response_model=ReturnRead)
+async def resend_receipt_otp(
+    return_id: int,
+    user: User = Depends(get_current_customer),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReturnRead:
+    """Reissue the handover code the seller types. Customer-only: they hold it."""
+    profile_id = await _customer_profile_id(session, user)
+    request = await _owned_return(session, return_id, profile_id, lock=True)
+    await returns_svc.reissue_receipt_otp(session, request)
+    await session.commit()
+    await session.refresh(request)
+    await _notify_return(session, request, "return_confirmed")
+    return _serialize(
+        request, await _load_items(session, return_id), include_receipt_otp=True
+    )
 
 
 @router.post("/{return_id}/payment/otp/request", status_code=200)
@@ -443,7 +491,7 @@ async def confirm_payment_received(
     session: AsyncSession = Depends(get_db_session),
 ) -> ReturnRead:
     profile_id = await _customer_profile_id(session, user)
-    request = await _owned_return(session, return_id, profile_id)
+    request = await _owned_return(session, return_id, profile_id, lock=True)
     # Status first, so a stale request fails before we burn an OTP attempt.
     if request.status != ReturnStatus.awaiting_payment_confirmation:
         raise returns_svc.ReturnError(
@@ -482,9 +530,13 @@ async def _seller_profile_id(session: AsyncSession, user: User) -> int:
 
 
 async def _seller_return(
-    session: AsyncSession, return_id: int, user: User
+    session: AsyncSession, return_id: int, user: User, *, lock: bool = False
 ) -> ReturnRequest:
-    request = await session.get(ReturnRequest, return_id)
+    request = (
+        await returns_svc.lock_return(session, return_id)
+        if lock
+        else await session.get(ReturnRequest, return_id)
+    )
     if request is None or not await returns_svc.seller_owns_return(
         session, user, request
     ):
@@ -529,7 +581,9 @@ async def seller_create_return(
         )
     ).first()
     if owner_user_id is not None:
-        await _send_initiation_otp(int(owner_user_id), _pk(request.id))
+        await _send_initiation_otp(
+            int(owner_user_id), _pk(request.id), best_effort=True
+        )
     await _notify_return(session, request, "return_initiated")
     return _serialize(request, await _load_items(session, _pk(request.id)))
 
@@ -541,7 +595,7 @@ async def seller_accept_return(
     user: User = Depends(get_current_seller),
     session: AsyncSession = Depends(get_db_session),
 ) -> ReturnRead:
-    request = await _seller_return(session, return_id, user)
+    request = await _seller_return(session, return_id, user, lock=True)
     await returns_svc.accept_return(
         session, request, actor_role="seller", actor_user_id=_pk(user.id),
         otp=body.otp, restock=body.restock,
@@ -559,7 +613,7 @@ async def seller_reject_return(
     user: User = Depends(get_current_seller),
     session: AsyncSession = Depends(get_db_session),
 ) -> ReturnRead:
-    request = await _seller_return(session, return_id, user)
+    request = await _seller_return(session, return_id, user, lock=True)
     await returns_svc.reject_return(
         session, request, actor_role="seller", actor_user_id=_pk(user.id),
         reason=body.reason,
@@ -660,9 +714,9 @@ async def list_store_credit(
     accounts = await store_credit_svc.list_balances(session, profile_id)
     out: list[StoreCreditBalanceRead] = []
     for account in accounts:
-        store_name = (
+        store = (
             await session.exec(
-                select(Store.name).where(
+                select(Store).where(
                     Store.seller_profile_id == account.seller_profile_id
                 )
             )
@@ -670,7 +724,8 @@ async def list_store_credit(
         out.append(
             StoreCreditBalanceRead(
                 seller_profile_id=account.seller_profile_id,
-                store_name=store_name or "Store",
+                store_id=store.id if store else None,
+                store_name=store.name if store else "Store",
                 balance=account.balance,
                 lifetime_earned=account.lifetime_earned,
                 lifetime_spent=account.lifetime_spent,
@@ -727,8 +782,14 @@ def _require_reason(reason: str) -> str:
     return cleaned
 
 
-async def _load_return(session: AsyncSession, return_id: int) -> ReturnRequest:
-    request = await session.get(ReturnRequest, return_id)
+async def _load_return(
+    session: AsyncSession, return_id: int, *, lock: bool = False
+) -> ReturnRequest:
+    request = (
+        await returns_svc.lock_return(session, return_id)
+        if lock
+        else await session.get(ReturnRequest, return_id)
+    )
     if request is None:
         raise returns_svc.ReturnError(404, "return_not_found")
     return request
@@ -848,7 +909,9 @@ async def admin_create_return(
         )
     ).first()
     if owner_user_id is not None:
-        await _send_initiation_otp(int(owner_user_id), _pk(request.id))
+        await _send_initiation_otp(
+            int(owner_user_id), _pk(request.id), best_effort=True
+        )
     await _notify_return(session, request, "return_initiated")
     return _serialize(request, await _load_items(session, _pk(request.id)))
 
@@ -860,7 +923,7 @@ async def admin_force_accept(
     admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> ReturnRead:
-    request = await _load_return(session, return_id)
+    request = await _load_return(session, return_id, lock=True)
     reason = _require_reason(body.reason)
     before = {"status": request.status.value}
     await returns_svc.accept_return(
@@ -885,7 +948,7 @@ async def admin_force_reject(
     admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> ReturnRead:
-    request = await _load_return(session, return_id)
+    request = await _load_return(session, return_id, lock=True)
     reason = _require_reason(body.reason)
     before = {"status": request.status.value}
     await returns_svc.reject_return(
@@ -909,11 +972,25 @@ async def admin_force_close(
     admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> ReturnRead:
-    """Close a stuck return without settling anything further — used when the
-    money moved outside the app and nobody confirmed."""
-    request = await _load_return(session, return_id)
+    """Resolve a stuck return.
+
+    From `awaiting_payment_confirmation` this closes it — the money moved
+    outside the app and nobody confirmed. From the two earlier states nothing
+    was ever settled, so it lands in `withdrawn` instead: marking those
+    `closed` would record a completed return the customer never consented to,
+    permanently lock the item lines (`closed` is line-locking) and count as a
+    prior accepted return, blocking any retry on that order.
+    """
+    request = await _load_return(session, return_id, lock=True)
     reason = _require_reason(body.reason)
-    if request.status in TERMINAL_RETURN_STATUSES:
+    if request.status == ReturnStatus.awaiting_payment_confirmation:
+        target = ReturnStatus.closed
+    elif request.status in (
+        ReturnStatus.awaiting_customer_confirmation,
+        ReturnStatus.active,
+    ):
+        target = ReturnStatus.withdrawn
+    else:
         raise returns_svc.ReturnError(
             409, "illegal_return_transition",
             **{"from": request.status.value, "to": "closed"},
@@ -923,7 +1000,7 @@ async def admin_force_close(
     request.closed_by_user_id = _pk(admin.id)
     request.receipt_otp = None
     await returns_svc.record_transition(
-        session, request, to_status=ReturnStatus.closed,
+        session, request, to_status=target,
         actor_role="admin", actor_user_id=_pk(admin.id),
         note=f"admin force close: {reason}",
     )
@@ -951,9 +1028,9 @@ async def admin_customer_store_credit(
     accounts = await store_credit_svc.list_balances(session, customer_profile_id)
     out: list[StoreCreditBalanceRead] = []
     for account in accounts:
-        store_name = (
+        store = (
             await session.exec(
-                select(Store.name).where(
+                select(Store).where(
                     Store.seller_profile_id == account.seller_profile_id
                 )
             )
@@ -961,7 +1038,8 @@ async def admin_customer_store_credit(
         out.append(
             StoreCreditBalanceRead(
                 seller_profile_id=account.seller_profile_id,
-                store_name=store_name or "Store",
+                store_id=store.id if store else None,
+                store_name=store.name if store else "Store",
                 balance=account.balance,
                 lifetime_earned=account.lifetime_earned,
                 lifetime_spent=account.lifetime_spent,

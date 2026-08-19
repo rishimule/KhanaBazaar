@@ -1000,7 +1000,9 @@
         "order_applied": "ऑर्डर पर खर्च",
         "order_reverted": "रद्द ऑर्डर से वापस",
         "admin_adjust": "समायोजन"
-      }
+      },
+      "loadingHistory": "इतिहास लोड होत आहे…",
+      "historyFailed": "हा इतिहास आत्ता लोड होऊ शकला नाही."
     }
   },
   "Favorites": {
@@ -1369,7 +1371,9 @@
       "total": "एकूण",
       "payment": "पेमेंट",
       "deliveryTo": "वितरण पत्ता",
-      "customerFallback": "ग्राहक"
+      "customerFallback": "ग्राहक",
+      "storeCreditApplied": "स्टोअर क्रेडिट लागू",
+      "amountPayable": "देय रक्कम"
     },
     "settings": {
       "loadStoreError": "स्टोअर लोड होऊ शकले नाही.",
@@ -1991,7 +1995,8 @@
         "activity": "क्रियाकलाप",
         "fees": "शुल्क / योजना",
         "credits": "क्रेडिट",
-        "qr": "QR"
+        "qr": "QR",
+        "returns": "परतावा"
       },
       "loadSellerError": "विक्रेता लोड करण्यात अयशस्वी",
       "loadingSeller": "विक्रेता लोड होत आहे…",

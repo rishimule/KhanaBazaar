@@ -12,6 +12,7 @@ import {
   createReturn,
   getReturnEligibility,
   resendReturnOtp,
+  returnErrorKey,
 } from "@/lib/returns";
 import type {
   ReturnEligibility,
@@ -129,7 +130,7 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
       setCreated(req);
       setStep(4);
     } catch (e) {
-      setError(t(`errors.${apiErrorCode(e) ?? "unknown"}`));
+      setError(t(`errors.${returnErrorKey(apiErrorCode(e), "customer")}`));
     } finally {
       setBusy(false);
     }
@@ -143,7 +144,7 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
       const done = await confirmReturn(token, created.id, otp.trim());
       router.push(`/account/returns/${done.id}`);
     } catch (e) {
-      setError(t(`errors.${apiErrorCode(e) ?? "unknown"}`));
+      setError(t(`errors.${returnErrorKey(apiErrorCode(e), "customer")}`));
     } finally {
       setBusy(false);
     }

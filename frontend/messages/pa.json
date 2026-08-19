@@ -1000,7 +1000,9 @@
         "order_applied": "ऑर्डर पर खर्च",
         "order_reverted": "रद्द ऑर्डर से वापस",
         "admin_adjust": "समायोजन"
-      }
+      },
+      "loadingHistory": "ਇਤਿਹਾਸ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+      "historyFailed": "ਇਹ ਇਤਿਹਾਸ ਹੁਣੇ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।"
     }
   },
   "Favorites": {
@@ -1369,7 +1371,9 @@
       "total": "ਕੁੱਲ",
       "payment": "ਭੁਗਤਾਨ",
       "deliveryTo": "ਡਿਲੀਵਰੀ ਪਤਾ",
-      "customerFallback": "ਗਾਹਕ"
+      "customerFallback": "ਗਾਹਕ",
+      "storeCreditApplied": "ਸਟੋਰ ਕ੍ਰੈਡਿਟ ਲਾਗੂ",
+      "amountPayable": "ਦੇਣਯੋਗ ਰਕਮ"
     },
     "settings": {
       "loadStoreError": "ਸਟੋਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।",
@@ -1991,7 +1995,8 @@
         "activity": "ਗਤੀਵਿਧੀ",
         "fees": "ਫ਼ੀਸ / ਪਲਾਨ",
         "credits": "ਕ੍ਰੈਡਿਟ",
-        "qr": "QR"
+        "qr": "QR",
+        "returns": "ਵਾਪਸੀ"
       },
       "loadSellerError": "ਵਿਕਰੇਤਾ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫਲ",
       "loadingSeller": "ਵਿਕਰੇਤਾ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",

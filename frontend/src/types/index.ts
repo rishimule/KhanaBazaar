@@ -1057,6 +1057,8 @@ export interface ReturnEligibility {
 
 export interface StoreCreditBalance {
   seller_profile_id: number;
+  /** Present so checkout can match on an id, never a display name. */
+  store_id: number | null;
   store_name: string;
   balance: number;
   lifetime_earned: number;

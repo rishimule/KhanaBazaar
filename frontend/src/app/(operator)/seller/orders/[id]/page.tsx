@@ -81,6 +81,14 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
           <div><span>{t("delivery")}</span><span>₹{order.delivery_fee.toFixed(2)}</span></div>
           <div><span>{t("tax")}</span><span>₹{order.tax.toFixed(2)}</span></div>
           <div className={styles.grand}><span>{t("total")}</span><span>₹{order.total.toFixed(2)}</span></div>
+          {(order.store_credit_applied ?? 0) > 0 && (
+            <>
+              <div><span>{t("storeCreditApplied")}</span><span>−₹{(order.store_credit_applied ?? 0).toFixed(2)}</span></div>
+              {/* What to actually collect. Showing only the gross total here
+                  makes a COD agent over-collect by the credit amount. */}
+              <div className={styles.grand}><span>{t("amountPayable")}</span><span>₹{order.payment.amount.toFixed(2)}</span></div>
+            </>
+          )}
         </div>
       </section>
 

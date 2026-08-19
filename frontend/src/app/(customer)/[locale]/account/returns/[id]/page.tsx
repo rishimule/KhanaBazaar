@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import ReceiptCodePanel from "@/components/returns/ReceiptCodePanel";
 import ReturnStatusBadge from "@/components/returns/ReturnStatusBadge";
@@ -13,6 +13,7 @@ import {
   confirmPaymentReceived,
   getReturn,
   requestPaymentOtp,
+  returnErrorKey,
   withdrawReturn,
 } from "@/lib/returns";
 import type { ReturnRequest } from "@/types";
@@ -35,18 +36,26 @@ export default function ReturnDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!token) return;
-    try {
-      setRequest(await getReturn(token, returnId));
-    } catch {
-      setFailed(true);
-    }
-  }, [token, returnId]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!token) return;
+    let cancelled = false;
+    // Reset on id change: without this, navigating between returns can paint
+    // the previous one's data, and a single failure pins the error banner on
+    // every return opened afterwards.
+    setRequest(null);
+    setFailed(false);
+    (async () => {
+      try {
+        const data = await getReturn(token, returnId);
+        if (!cancelled) setRequest(data);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, returnId]);
 
   if (failed) {
     return (
@@ -69,7 +78,7 @@ export default function ReturnDetailPage({
       await requestPaymentOtp(token, request.id);
       setNotice(t("paymentOtpSent"));
     } catch (e) {
-      setError(t(`errors.${apiErrorCode(e) ?? "unknown"}`));
+      setError(t(`errors.${returnErrorKey(apiErrorCode(e), "customer")}`));
     }
   };
 
@@ -81,7 +90,7 @@ export default function ReturnDetailPage({
       setRequest(await confirmPaymentReceived(token, request.id, otp.trim()));
       setOtp("");
     } catch (e) {
-      setError(t(`errors.${apiErrorCode(e) ?? "unknown"}`));
+      setError(t(`errors.${returnErrorKey(apiErrorCode(e), "customer")}`));
     } finally {
       setBusy(false);
     }
@@ -94,7 +103,7 @@ export default function ReturnDetailPage({
     try {
       setRequest(await withdrawReturn(token, request.id));
     } catch (e) {
-      setError(t(`errors.${apiErrorCode(e) ?? "unknown"}`));
+      setError(t(`errors.${returnErrorKey(apiErrorCode(e), "customer")}`));
     } finally {
       setBusy(false);
     }

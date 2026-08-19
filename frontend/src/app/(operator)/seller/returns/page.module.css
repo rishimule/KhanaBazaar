@@ -12,8 +12,8 @@
 }
 
 .filter {
-  border: 1px solid var(--color-border, #e3e5e8);
-  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   border-radius: var(--radius-pill, 999px);
   padding: 6px 14px;
   font: inherit;
@@ -22,17 +22,17 @@
 }
 
 .filterOn {
-  border-color: var(--color-primary, #0f6b06);
-  background: var(--color-primary, #0f6b06);
-  color: #fff;
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-surface);
   font-weight: 600;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #e3e5e8);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 12px);
   overflow: hidden;
 }
@@ -41,17 +41,17 @@
 .table td {
   text-align: left;
   padding: var(--space-3, 12px);
-  border-bottom: 1px solid var(--color-border, #e3e5e8);
+  border-bottom: 1px solid var(--color-border);
   font-size: 0.9rem;
   vertical-align: top;
 }
 
 .table th {
-  background: var(--color-surface-muted, #f8f9fa);
+  background: var(--color-surface-tint);
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--color-text-muted, #5f6368);
+  color: var(--color-text-muted);
 }
 
 .table tr:last-child td {
@@ -59,14 +59,14 @@
 }
 
 .link {
-  color: var(--color-primary, #0f6b06);
+  color: var(--color-primary);
   font-weight: 600;
   text-decoration: none;
 }
 
 .sub {
   display: block;
-  color: var(--color-text-muted, #5f6368);
+  color: var(--color-text-muted);
   font-size: 0.8rem;
 }
 
@@ -76,9 +76,9 @@
 }
 
 .muted {
-  color: var(--color-text-muted, #5f6368);
+  color: var(--color-text-muted);
 }
 
 .error {
-  color: var(--color-danger-text, #b3261e);
+  color: var(--color-error);
 }

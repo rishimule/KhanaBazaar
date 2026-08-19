@@ -20,9 +20,9 @@
 }
 
 .card {
-  border: 1px solid var(--color-border, #e3e5e8);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 12px);
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
   padding: var(--space-4, 16px);
   display: flex;
   flex-direction: column;
@@ -52,7 +52,7 @@
 }
 
 .settlement li {
-  color: var(--color-text-muted, #5f6368);
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
@@ -61,7 +61,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border-top: 1px solid var(--color-border, #e3e5e8);
+  border-top: 1px solid var(--color-border);
   padding-top: var(--space-2, 8px);
 }
 
@@ -85,7 +85,7 @@
   letter-spacing: 0.4rem;
   text-align: center;
   padding: var(--space-2, 8px);
-  border: 1px solid var(--color-border, #e3e5e8);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm, 8px);
 }
 
@@ -94,7 +94,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: var(--color-primary, #0f6b06);
+  color: var(--color-primary);
   font: inherit;
   font-size: 0.85rem;
   text-decoration: underline;
@@ -104,8 +104,8 @@
 .withdraw {
   align-self: flex-start;
   background: none;
-  border: 1px solid var(--color-danger-text, #b3261e);
-  color: var(--color-danger-text, #b3261e);
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
   border-radius: var(--radius-sm, 8px);
   padding: var(--space-2, 8px) var(--space-3, 12px);
   font: inherit;
@@ -114,11 +114,11 @@
 
 .muted {
   margin: 0;
-  color: var(--color-text-muted, #5f6368);
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
 .error {
   margin: 0;
-  color: var(--color-danger-text, #b3261e);
+  color: var(--color-error);
 }

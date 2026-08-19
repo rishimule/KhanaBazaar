@@ -83,6 +83,26 @@ async def resolve_seller_profile_id(session: AsyncSession, store_id: int) -> int
     return int(seller_id)
 
 
+async def lock_return(
+    session: AsyncSession, return_id: int
+) -> Optional[ReturnRequest]:
+    """Row-lock one return for the duration of a transition.
+
+    Every mutating path must take this before reading `status`. Without it two
+    concurrent requests both observe `active` and both settle: the seller
+    double-clicking Accept reverses a credit debt twice, and an accept racing
+    the expiry sweep can leave the customer holding the credit while the lines
+    are released for a second return.
+    """
+    return (
+        await session.exec(
+            select(ReturnRequest)
+            .where(ReturnRequest.id == return_id)
+            .with_for_update()
+        )
+    ).first()
+
+
 async def load_service_config(
     session: AsyncSession, *, seller_profile_id: int, service_id: int
 ) -> Optional[SellerProfileService]:
@@ -571,10 +591,14 @@ async def expire_stale_returns(
     which is why neither can be left open indefinitely.
     """
     moment = now or datetime.now(timezone.utc)
+    # skip_locked: a return currently being accepted or withdrawn is somebody
+    # else's business — never expire it out from under an in-flight decision.
     stale = list(
         (
             await session.exec(
-                select(ReturnRequest).where(
+                select(ReturnRequest)
+                .with_for_update(skip_locked=True)
+                .where(
                     or_(
                         and_(
                             col(ReturnRequest.status)
@@ -616,3 +640,31 @@ async def expire_stale_returns(
         )
         expired_ids.append(_pk(request.id))
     return expired_ids
+
+
+async def reissue_receipt_otp(
+    session: AsyncSession, request: ReturnRequest, *, now: Optional[datetime] = None
+) -> str:
+    """Issue a fresh handover code and clear the attempt counter.
+
+    Without this a seller who mistypes `RETURN_OTP_MAX_ATTEMPTS` times at the
+    counter bricks the return permanently — the counter is otherwise only reset
+    at confirmation, which an `active` return can never revisit. Mirrors
+    `services/orders.resend_delivery_otp`, including its cooldown.
+    """
+    if request.status != ReturnStatus.active:
+        raise ReturnError(409, "return_not_active")
+    moment = now or datetime.now(timezone.utc)
+    if request.receipt_otp_sent_at is not None:
+        elapsed = (moment - request.receipt_otp_sent_at).total_seconds()
+        remaining = settings.RETURN_OTP_RESEND_COOLDOWN - int(elapsed)
+        if remaining > 0:
+            raise ReturnError(429, "resend_cooldown", retry_after=remaining)
+
+    request.receipt_otp = generate_code()
+    request.receipt_otp_attempts = 0
+    request.receipt_otp_sent_at = moment
+    request.receipt_otp_verified_at = None
+    session.add(request)
+    await session.flush()
+    return request.receipt_otp

@@ -60,7 +60,12 @@ export default function ReturnWindowCard() {
 
   const save = async (serviceId: number) => {
     if (!token) return;
-    const days = Number(drafts[serviceId]);
+    const raw = (drafts[serviceId] ?? "").trim();
+    if (raw === "") {
+      setError(t("errors.invalid_return_window"));
+      return;
+    }
+    const days = Number(raw);
     setSavingId(serviceId);
     setError(null);
     setToast(null);
@@ -115,6 +120,7 @@ export default function ReturnWindowCard() {
               onChange={(e) =>
                 setDrafts((d) => ({ ...d, [service.id]: e.target.value }))
               }
+              required
             />
             <span className={styles.unit}>
               {Number(drafts[service.id]) === 0 ? t("windowOff") : t("windowDays")}

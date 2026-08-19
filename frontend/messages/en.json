@@ -1000,7 +1000,9 @@
         "order_applied": "Spent on an order",
         "order_reverted": "Returned from a cancelled order",
         "admin_adjust": "Adjustment"
-      }
+      },
+      "loadingHistory": "Loading history…",
+      "historyFailed": "We couldn't load this history right now."
     }
   },
   "Favorites": {
@@ -1368,7 +1370,9 @@
       "total": "Total",
       "payment": "Payment",
       "deliveryTo": "Delivery to",
-      "customerFallback": "Customer"
+      "customerFallback": "Customer",
+      "storeCreditApplied": "Store credit applied",
+      "amountPayable": "Amount payable"
     },
     "settings": {
       "loadStoreError": "Could not load store.",
@@ -1990,7 +1994,8 @@
         "activity": "Activity",
         "fees": "Fees / Plans",
         "credits": "Credits",
-        "qr": "QR"
+        "qr": "QR",
+        "returns": "Returns"
       },
       "loadSellerError": "Failed to load seller",
       "loadingSeller": "Loading seller…",

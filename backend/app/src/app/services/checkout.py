@@ -635,6 +635,12 @@ async def place_order_for_sub_basket(
         applied = await store_credit_svc.spend(
             session, store_credit_account, store_credit_planned, order_id=order.id
         )
+        # The row lock guarantees this; assert rather than trust, because a
+        # smaller `applied` would charge the credit account more than
+        # assert_credit_eligible approved.
+        assert applied == store_credit_planned, (
+            f"store credit moved under the lock: {applied} != {store_credit_planned}"
+        )
         order.store_credit_applied = applied
         # `payment` is still transient here — it gets its order_id and is added
         # to the session further down. Adding it now would make the flush inside

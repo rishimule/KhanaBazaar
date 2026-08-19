@@ -9,9 +9,9 @@
 }
 
 .row {
-  border: 1px solid var(--color-border, #e3e5e8);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 12px);
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
 }
 
 .rowLink {
@@ -36,7 +36,7 @@
 }
 
 .rowMeta {
-  color: var(--color-text-muted, #5f6368);
+  color: var(--color-text-muted);
   font-size: 0.85rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -56,9 +56,9 @@
 }
 
 .muted {
-  color: var(--color-text-muted, #5f6368);
+  color: var(--color-text-muted);
 }
 
 .error {
-  color: var(--color-danger-text, #b3261e);
+  color: var(--color-error);
 }

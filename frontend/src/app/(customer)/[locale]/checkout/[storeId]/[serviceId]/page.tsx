@@ -107,8 +107,11 @@ export default function CheckoutPage() {
       try {
         const balances = await listStoreCredit(token);
         if (cancelled) return;
-        // Balances are keyed by seller; match on the store being checked out.
-        const match = balances.find((b) => b.balance > 0 && b.store_name === cart?.store_name);
+        // Match on store_id, never the display name: a rename or a duplicate
+        // store name would otherwise apply a different seller's credit.
+        const match = balances.find(
+          (b) => b.balance > 0 && b.store_id === storeId
+        );
         setStoreCredit(match ?? null);
       } catch {
         // A failed lookup simply means no discount is offered — never a
@@ -119,7 +122,7 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [token, cart?.store_name]);
+  }, [token, storeId]);
 
   const isCustomer = dbUser?.role === "customer";
 
@@ -215,7 +218,9 @@ export default function CheckoutPage() {
         deliveryMode,
         preferredDeliveryDate: preferredWindow?.date ?? null,
         preferredDeliveryWindow: preferredWindow?.window ?? null,
-        applyStoreCredit: useStoreCredit,
+        // Only ever true when the page actually displayed the discount, so
+        // the quoted total and the charged amount cannot diverge.
+        applyStoreCredit: useStoreCredit && Boolean(storeCredit),
       });
       // Placing the order clears this sub-basket server-side. Refresh cart
       // state so the navbar count + cart pages reflect it immediately instead

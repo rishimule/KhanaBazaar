@@ -267,3 +267,49 @@ export async function adminGetCustomerStoreCredit(
     token
   );
 }
+
+/** Error codes the returns API actually raises, per surface. Anything else —
+ *  including FastAPI's bare "Not authenticated" / "Internal Server Error"
+ *  strings, which `apiErrorCode` happily returns — maps to `unknown` rather
+ *  than being concatenated into a translation key and rendered raw. */
+const CUSTOMER_ERROR_CODES = new Set([
+  "agreement_unavailable",
+  "agreement_not_accepted",
+  "items_already_returned",
+  "return_window_closed",
+  "returns_disabled_for_service",
+  "order_not_delivered",
+  "not_eligible",
+  "no_items_selected",
+  "invalid_order_item",
+  "reason_note_required",
+  "return_otp_invalid",
+  "confirmation_expired",
+  "illegal_return_transition",
+  "return_not_found",
+  "return_not_active",
+  "return_not_awaiting_payment",
+  "return_not_awaiting_confirmation",
+  "resend_cooldown",
+]);
+
+const OPERATOR_ERROR_CODES = new Set([
+  "receipt_otp_invalid",
+  "receipt_otp_locked",
+  "receipt_otp_required",
+  "receipt_otp_not_issued",
+  "illegal_return_transition",
+  "reason_required",
+  "invalid_return_window",
+  "return_not_found",
+  "resend_cooldown",
+]);
+
+export function returnErrorKey(
+  code: string | null,
+  surface: "customer" | "operator" = "customer"
+): string {
+  const known =
+    surface === "customer" ? CUSTOMER_ERROR_CODES : OPERATOR_ERROR_CODES;
+  return code && known.has(code) ? code : "unknown";
+}

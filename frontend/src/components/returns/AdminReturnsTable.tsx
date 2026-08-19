@@ -59,18 +59,23 @@ export default function AdminReturnsTable({ sellerUserId }: Props) {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.filters} hidden={Boolean(sellerUserId)}>
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            className={`${styles.filter} ${filter === f ? styles.filterOn : ""}`}
-            onClick={() => setFilter(f)}
-          >
-            {f === "all" ? t("filterAll") : t(`status.${f}`)}
-          </button>
-        ))}
-      </div>
+      {/* The per-seller endpoint takes no status filter, so don't render
+          chips that would do nothing. `hidden` alone loses to display:flex. */}
+      {!sellerUserId && (
+        <div className={styles.filters}>
+          {FILTERS.map((f) => (
+            <button
+              key={f}
+              type="button"
+              aria-pressed={filter === f}
+              className={`${styles.filter} ${filter === f ? styles.filterOn : ""}`}
+              onClick={() => setFilter(f)}
+            >
+              {f === "all" ? t("filterAll") : t(`status.${f}`)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {status === "error" ? (
         <p role="alert" className={styles.error}>

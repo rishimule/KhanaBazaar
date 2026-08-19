@@ -2,12 +2,17 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import ReturnStatusBadge from "@/components/returns/ReturnStatusBadge";
 import { useAuth } from "@/lib/AuthContext";
 import { apiErrorCode } from "@/lib/errors";
-import { acceptReturn, getSellerReturn, rejectReturn } from "@/lib/returns";
+import {
+  acceptReturn,
+  getSellerReturn,
+  rejectReturn,
+  returnErrorKey,
+} from "@/lib/returns";
 import type { ReturnRequest } from "@/types";
 import styles from "./page.module.css";
 
@@ -42,18 +47,26 @@ export default function SellerReturnDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!token) return;
-    try {
-      setRequest(await getSellerReturn(token, returnId));
-    } catch {
-      setFailed(true);
-    }
-  }, [token, returnId]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!token) return;
+    let cancelled = false;
+    // Reset on id change: without this, navigating between returns can paint
+    // the previous one's data, and a single failure pins the error banner on
+    // every return opened afterwards.
+    setRequest(null);
+    setFailed(false);
+    (async () => {
+      try {
+        const data = await getSellerReturn(token, returnId);
+        if (!cancelled) setRequest(data);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, returnId]);
 
   if (failed) {
     return (
@@ -86,7 +99,7 @@ export default function SellerReturnDetailPage({
             : t("errors.receipt_otp_invalid_remaining", { remaining: left })
         );
       } else {
-        setError(t(`errors.${code ?? "unknown"}`));
+        setError(t(`errors.${returnErrorKey(code, "operator")}`));
       }
     } finally {
       setBusy(false);
@@ -102,7 +115,7 @@ export default function SellerReturnDetailPage({
       setConfirmingReject(false);
       setReason("");
     } catch (e) {
-      setError(t(`errors.${apiErrorCode(e) ?? "unknown"}`));
+      setError(t(`errors.${returnErrorKey(apiErrorCode(e), "operator")}`));
     } finally {
       setBusy(false);
     }
@@ -182,7 +195,11 @@ export default function SellerReturnDetailPage({
         <section className={styles.card}>
           <h3 className={styles.heading}>{t("rejectTitle")}</h3>
           <p className={styles.muted}>{t("rejectHint")}</p>
+          <label className={styles.label} htmlFor="seller-reject-reason">
+            {t("rejectReasonPlaceholder")}
+          </label>
           <textarea
+            id="seller-reject-reason"
             className={styles.textarea}
             value={reason}
             maxLength={500}

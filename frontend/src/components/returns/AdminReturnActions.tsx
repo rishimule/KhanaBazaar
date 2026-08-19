@@ -10,6 +10,7 @@ import {
   adminForceAccept,
   adminForceClose,
   adminForceReject,
+  returnErrorKey,
 } from "@/lib/returns";
 import type { ReturnRequest } from "@/types";
 import styles from "./AdminReturnActions.module.css";
@@ -57,7 +58,7 @@ export default function AdminReturnActions({ request, onChange }: Props) {
       setAction(null);
       setReason("");
     } catch (e) {
-      setError(t(`errors.${apiErrorCode(e) ?? "unknown"}`));
+      setError(t(`errors.${returnErrorKey(apiErrorCode(e), "operator")}`));
     } finally {
       setBusy(false);
     }
@@ -74,7 +75,9 @@ export default function AdminReturnActions({ request, onChange }: Props) {
             key={a}
             type="button"
             className={`${styles.action} ${action === a ? styles.actionOn : ""}`}
-            disabled={a === "accept" && request.status !== "active"}
+            // accept + reject are both server-side `active`-only; offering
+            // them elsewhere just produces a 409.
+            disabled={a !== "close" && request.status !== "active"}
             onClick={() => setAction(action === a ? null : a)}
           >
             {t(`force.${a}`)}

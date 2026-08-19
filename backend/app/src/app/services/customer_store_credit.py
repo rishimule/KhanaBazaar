@@ -28,16 +28,25 @@ class StoreCreditError(Exception):
 
 
 async def get_or_create_account(
-    session: AsyncSession, *, seller_profile_id: int, customer_profile_id: int
+    session: AsyncSession,
+    *,
+    seller_profile_id: int,
+    customer_profile_id: int,
+    for_update: bool = False,
 ) -> CustomerStoreCredit:
-    row = (
-        await session.exec(
-            select(CustomerStoreCredit).where(
-                CustomerStoreCredit.seller_profile_id == seller_profile_id,
-                CustomerStoreCredit.customer_profile_id == customer_profile_id,
-            )
-        )
-    ).first()
+    """`for_update=True` on any path that then mutates the balance.
+
+    Locking only on the spend side gives no mutual exclusion: an unlocked grant
+    can read a stale balance while a checkout holds the lock, and the later
+    write clobbers the spend.
+    """
+    query = select(CustomerStoreCredit).where(
+        CustomerStoreCredit.seller_profile_id == seller_profile_id,
+        CustomerStoreCredit.customer_profile_id == customer_profile_id,
+    )
+    if for_update:
+        query = query.with_for_update()
+    row = (await session.exec(query)).first()
     if row is None:
         row = CustomerStoreCredit(
             seller_profile_id=seller_profile_id,

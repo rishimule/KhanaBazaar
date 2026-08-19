@@ -1000,7 +1000,9 @@
         "order_applied": "ऑर्डर पर खर्च",
         "order_reverted": "रद्द ऑर्डर से वापस",
         "admin_adjust": "समायोजन"
-      }
+      },
+      "loadingHistory": "ઇતિહાસ લોડ થાય છે…",
+      "historyFailed": "આ ઇતિહાસ અત્યારે લોડ થઈ શક્યો નથી."
     }
   },
   "Favorites": {
@@ -1369,7 +1371,9 @@
       "total": "કુલ",
       "payment": "ચુકવણી",
       "deliveryTo": "ડિલિવરી સરનામું",
-      "customerFallback": "ગ્રાહક"
+      "customerFallback": "ગ્રાહક",
+      "storeCreditApplied": "સ્ટોર ક્રેડિટ લાગુ",
+      "amountPayable": "ચૂકવવાની રકમ"
     },
     "settings": {
       "loadStoreError": "સ્ટોર લોડ થઈ શક્યો નહીં.",
@@ -1991,7 +1995,8 @@
         "activity": "પ્રવૃત્તિ",
         "fees": "ફી / પ્લાન",
         "credits": "ક્રેડિટ",
-        "qr": "QR"
+        "qr": "QR",
+        "returns": "રિટર્ન"
       },
       "loadSellerError": "વિક્રેતા લોડ કરવામાં નિષ્ફળ",
       "loadingSeller": "વિક્રેતા લોડ થઈ રહ્યો છે…",

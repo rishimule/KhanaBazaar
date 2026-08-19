@@ -532,12 +532,17 @@ async def cancel_order(
         from app.services import credit as credit_svc
 
         assert order.id is not None
+        # Reverse what was actually BORROWED, not the gross total. Store
+        # credit covers part of a mixed-tender order and is refunded on its own
+        # ledger just below; reversing `order.total` here would refund that
+        # portion twice and eat unrelated debt (outstanding is floored at 0).
+        borrowed = round(order.total - order.store_credit_applied, 2)
         await credit_svc.reverse_credit_charge(
             session,
             store_id=order.store_id,
             customer_profile_id=order.customer_profile_id,
             order_id=order.id,
-            amount=order.total,
+            amount=borrowed,
         )
 
     # Pay-Per-Transaction: refund the platform fee charged at placement (idempotent;

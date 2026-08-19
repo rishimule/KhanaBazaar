@@ -22,7 +22,10 @@ export default function StoreCreditSection() {
   const [balances, setBalances] = useState<StoreCreditBalance[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [openSeller, setOpenSeller] = useState<number | null>(null);
-  const [ledger, setLedger] = useState<StoreCreditEntry[]>([]);
+  const [ledger, setLedger] = useState<{
+    status: "loading" | "ok" | "error";
+    rows: StoreCreditEntry[];
+  }>({ status: "loading", rows: [] });
 
   useEffect(() => {
     if (!token) return;
@@ -47,10 +50,24 @@ export default function StoreCreditSection() {
       return;
     }
     setOpenSeller(sellerProfileId);
+    setLedger({ status: "loading", rows: [] });
     try {
-      setLedger(await getStoreCreditLedger(token, sellerProfileId));
+      const rows = await getStoreCreditLedger(token, sellerProfileId);
+      // Guard against a slow first response landing after the user has
+      // already opened a different seller's ledger.
+      setOpenSeller((current) => {
+        if (current === sellerProfileId) setLedger({ status: "ok", rows });
+        return current;
+      });
     } catch {
-      setLedger([]);
+      setOpenSeller((current) => {
+        // Never render a failed fetch as "no entries" — that tells the customer
+        // a seller never credited them, which may be false.
+        if (current === sellerProfileId) {
+          setLedger({ status: "error", rows: [] });
+        }
+        return current;
+      });
     }
   };
 
@@ -89,16 +106,25 @@ export default function StoreCreditSection() {
               <button
                 type="button"
                 className={styles.linkButton}
+                aria-expanded={openSeller === b.seller_profile_id}
                 onClick={() => openLedger(b.seller_profile_id)}
               >
                 {openSeller === b.seller_profile_id ? t("hideHistory") : t("showHistory")}
               </button>
               {openSeller === b.seller_profile_id && (
                 <ul className={styles.ledger}>
-                  {ledger.length === 0 && (
+                  {ledger.status === "loading" && (
+                    <li className={styles.muted}>{t("loadingHistory")}</li>
+                  )}
+                  {ledger.status === "error" && (
+                    <li role="alert" className={styles.error}>
+                      {t("historyFailed")}
+                    </li>
+                  )}
+                  {ledger.status === "ok" && ledger.rows.length === 0 && (
                     <li className={styles.muted}>{t("noHistory")}</li>
                   )}
-                  {ledger.map((entry) => (
+                  {ledger.rows.map((entry) => (
                     <li key={entry.id}>
                       <span>{t(`entry.${entry.entry_type}`)}</span>
                       <span
