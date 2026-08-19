@@ -24,31 +24,36 @@ export default function SellerReturnsPage() {
   const t = useTranslations("Seller.returns");
   const { token } = useAuth();
   const [filter, setFilter] = useState<ReturnStatus | "all">("active");
-  const [rows, setRows] = useState<ReturnRequest[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  // One state value rather than separate rows/failed resets: setting state
+  // synchronously inside the effect triggers cascading renders (and trips the
+  // lint rule). The previous list stays on screen until the new one lands.
+  const [view, setView] = useState<{
+    status: "loading" | "ok" | "error";
+    rows: ReturnRequest[];
+  }>({ status: "loading", rows: [] });
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
-    setRows(null);
-    setFailed(false);
     (async () => {
       try {
         const data = await listSellerReturns(
           token,
           filter === "all" ? undefined : filter
         );
-        if (!cancelled) setRows(data);
+        if (!cancelled) setView({ status: "ok", rows: data });
       } catch {
         // Never show "no returns" for a failed fetch — that would tell a seller
         // nobody is waiting when somebody is.
-        if (!cancelled) setFailed(true);
+        if (!cancelled) setView({ status: "error", rows: [] });
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [token, filter]);
+
+  const { status, rows } = view;
 
   return (
     <div className={styles.page}>
@@ -65,11 +70,11 @@ export default function SellerReturnsPage() {
         ))}
       </div>
 
-      {failed ? (
+      {status === "error" ? (
         <p role="alert" className={styles.error}>
           {t("loadFailed")}
         </p>
-      ) : !rows ? (
+      ) : status === "loading" ? (
         <p className={styles.muted}>{t("loading")}</p>
       ) : rows.length === 0 ? (
         <p className={styles.muted}>{t("empty")}</p>
