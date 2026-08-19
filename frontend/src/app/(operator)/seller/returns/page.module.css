@@ -1,0 +1,84 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+.filter {
+  border: 1px solid var(--color-border, #e3e5e8);
+  background: var(--color-surface, #fff);
+  border-radius: var(--radius-pill, 999px);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.filterOn {
+  border-color: var(--color-primary, #0f6b06);
+  background: var(--color-primary, #0f6b06);
+  color: #fff;
+  font-weight: 600;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e3e5e8);
+  border-radius: var(--radius-md, 12px);
+  overflow: hidden;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--space-3, 12px);
+  border-bottom: 1px solid var(--color-border, #e3e5e8);
+  font-size: 0.9rem;
+  vertical-align: top;
+}
+
+.table th {
+  background: var(--color-surface-muted, #f8f9fa);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #5f6368);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.link {
+  color: var(--color-primary, #0f6b06);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sub {
+  display: block;
+  color: var(--color-text-muted, #5f6368);
+  font-size: 0.8rem;
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--color-text-muted, #5f6368);
+}
+
+.error {
+  color: var(--color-danger-text, #b3261e);
+}

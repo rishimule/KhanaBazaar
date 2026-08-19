@@ -1117,7 +1117,8 @@
       "referrals": "રેફરલ",
       "credit": "ક્રેડિટ",
       "storeQr": "સ્ટોર QR",
-      "devices": "ડિવાઇસ"
+      "devices": "ડિવાઇસ",
+      "returns": "રિટર્ન"
     },
     "alerts": {
       "soundOn": "ઓર્ડર અવાજ ચાલુ",
@@ -1141,7 +1142,8 @@
       "referrals": "રેફરલ",
       "credit": "ક્રેડિટ ગ્રાહકો",
       "storeQr": "સ્ટોર QR કોડ",
-      "devices": "ડિવાઇસ અને સેશન"
+      "devices": "ડિવાઇસ અને સેશન",
+      "returns": "રિટર્ન"
     },
     "common": {
       "save": "સાચવો",
@@ -1570,6 +1572,72 @@
       "diffYouProposed": "તમે પ્રસ્તાવિત કર્યું",
       "diffApplied": "લાગુ",
       "timeline": "સમયરેખા"
+    },
+    "returns": {
+      "loading": "लोड हो रहा है…",
+      "loadFailed": "वापसी लोड नहीं हो सकी। कृपया फिर कोशिश करें।",
+      "empty": "यहाँ कोई वापसी नहीं है।",
+      "filterAll": "બધા",
+      "colReturn": "वापसी",
+      "colItems": "सामान",
+      "colAmount": "राशि",
+      "colStatus": "स्थिति",
+      "orderRef": "ऑर्डर #{orderId}",
+      "itemCount": "{count} सामान",
+      "detailTitle": "वापसी #{id} · ऑर्डर #{orderId}",
+      "itemsTitle": "सामान",
+      "totalLine": "कुल वापसी ₹{amount}",
+      "reasonLine": "कारण: {reason}",
+      "settlementCredit": "ग्राहक ने स्टोर क्रेडिट चुना।",
+      "settlementPayment": "ग्राहक ने पैसे वापस चुने।",
+      "acceptTitle": "यह वापसी स्वीकार करें",
+      "acceptHint": "ग्राहक से 6 अंकों का हैंडओवर कोड लेकर यहाँ दर्ज करें।",
+      "otpLabel": "हैंडओवर कोड",
+      "restockLabel": "इन्हें बिक्री योग्य स्टॉक में वापस डालें",
+      "restockHint": "यदि सामान दोबारा नहीं बिक सकता तो इसे बंद रखें।",
+      "acceptAction": "वापसी स्वीकार करें",
+      "rejectTitle": "यह वापसी अस्वीकार करें",
+      "rejectHint": "कारण दर्ज करें। ग्राहक इसे देखेगा और आप सीधे उनसे निपटान करेंगे।",
+      "rejectReasonPlaceholder": "लौटाए गए सामान में क्या समस्या थी?",
+      "rejectAction": "वापसी अस्वीकार करें",
+      "rejectConfirm": "यह वापस नहीं किया जा सकता।",
+      "rejectConfirmYes": "हाँ, अस्वीकार करें",
+      "cancel": "રદ કરો",
+      "rejectedTitle": "अस्वीकृति का कारण",
+      "windowTitle": "वापसी अवधि",
+      "windowIntro": "डिलीवरी के बाद ग्राहक कितने दिन तक सामान लौटा सकते हैं, प्रति सेवा। 0 का अर्थ वापसी बंद।",
+      "windowFieldLabel": "{service} के लिए वापसी अवधि",
+      "windowDays": "दिन",
+      "windowOff": "वापसी बंद",
+      "windowSaved": "सहेजा गया।",
+      "save": "સાચવો",
+      "errors": {
+        "receipt_otp_invalid": "यह कोड सही नहीं है।",
+        "receipt_otp_invalid_remaining": "यह कोड सही नहीं है। {remaining} कोशिशें बाकी।",
+        "receipt_otp_locked": "बहुत बार गलत कोड। इसे एडमिन ही सुलझा सकता है।",
+        "receipt_otp_required": "ग्राहक का हैंडओवर कोड दर्ज करें।",
+        "illegal_return_transition": "इस वापसी पर पहले ही निर्णय हो चुका है।",
+        "reason_required": "कृपया कारण बताएं।",
+        "invalid_return_window": "0 से 365 के बीच संख्या दर्ज करें।",
+        "unknown": "कुछ गड़बड़ हुई। कृपया फिर कोशिश करें।"
+      },
+      "status": {
+        "awaiting_customer_confirmation": "ગ્રાહકની પુષ્ટિ બાકી",
+        "active": "વસ્તુ મળવાની બાકી",
+        "awaiting_payment_confirmation": "ચુકવણી પુષ્ટિ બાકી",
+        "closed": "પૂર્ણ",
+        "rejected": "નકારેલ",
+        "withdrawn": "પાછું ખેંચ્યું",
+        "expired": "સમય પૂરો"
+      },
+      "reason": {
+        "damaged": "ખરાબ",
+        "wrong_item": "ખોટી વસ્તુ",
+        "past_expiry": "એક્સપાયરી વીતી",
+        "quality_issue": "ગુણવત્તા સમસ્યા",
+        "not_as_described": "વર્ણન મુજબ નથી",
+        "other": "અન્ય"
+      }
     }
   },
   "Admin": {

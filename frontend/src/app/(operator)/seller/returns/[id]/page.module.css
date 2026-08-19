@@ -1,0 +1,124 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.card {
+  border: 1px solid var(--color-border, #e3e5e8);
+  border-radius: var(--radius-md, 12px);
+  background: var(--color-surface, #fff);
+  padding: var(--space-4, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  align-items: flex-start;
+}
+
+.heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.items li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+}
+
+.total {
+  margin: 0;
+  font-weight: 700;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted, #5f6368);
+  font-size: 0.9rem;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted, #5f6368);
+  font-size: 0.82rem;
+}
+
+.otpInput {
+  width: 10rem;
+  font-size: 1.4rem;
+  letter-spacing: 0.4rem;
+  text-align: center;
+  padding: var(--space-2, 8px);
+  border: 1px solid var(--color-border, #e3e5e8);
+  border-radius: var(--radius-sm, 8px);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  cursor: pointer;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 80px;
+  border: 1px solid var(--color-border, #e3e5e8);
+  border-radius: var(--radius-sm, 8px);
+  padding: var(--space-2, 8px);
+  font: inherit;
+  resize: vertical;
+}
+
+.danger {
+  border: 1px solid var(--color-danger-text, #b3261e);
+  color: var(--color-danger-text, #b3261e);
+  background: none;
+  border-radius: var(--radius-sm, 8px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font: inherit;
+  cursor: pointer;
+}
+
+.danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger-text, #b3261e);
+}

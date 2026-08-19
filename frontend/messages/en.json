@@ -1116,7 +1116,8 @@
       "referrals": "Referrals",
       "credit": "Credit",
       "storeQr": "Store QR",
-      "devices": "Devices"
+      "devices": "Devices",
+      "returns": "Returns"
     },
     "alerts": {
       "soundOn": "Order sound on",
@@ -1140,7 +1141,8 @@
       "referrals": "Referrals",
       "credit": "Credit customers",
       "storeQr": "Store QR Code",
-      "devices": "Devices & sessions"
+      "devices": "Devices & sessions",
+      "returns": "Returns"
     },
     "common": {
       "save": "Save",
@@ -1569,6 +1571,72 @@
       "diffYouProposed": "You proposed",
       "diffApplied": "Applied",
       "timeline": "Timeline"
+    },
+    "returns": {
+      "loading": "Loading…",
+      "loadFailed": "We couldn't load returns right now. Please try again.",
+      "empty": "No returns here.",
+      "filterAll": "All",
+      "colReturn": "Return",
+      "colItems": "Items",
+      "colAmount": "Amount",
+      "colStatus": "Status",
+      "orderRef": "Order #{orderId}",
+      "itemCount": "{count} items",
+      "detailTitle": "Return #{id} · order #{orderId}",
+      "itemsTitle": "Items",
+      "totalLine": "Return total ₹{amount}",
+      "reasonLine": "Reason: {reason}",
+      "settlementCredit": "Customer chose store credit.",
+      "settlementPayment": "Customer chose money back.",
+      "acceptTitle": "Accept this return",
+      "acceptHint": "Ask the customer for their 6-digit handover code and enter it here.",
+      "otpLabel": "Handover code",
+      "restockLabel": "Return these to sellable stock",
+      "restockHint": "Leave this off if the items can't be sold again.",
+      "acceptAction": "Accept return",
+      "rejectTitle": "Reject this return",
+      "rejectHint": "Record why. The customer sees this reason and you settle directly with them.",
+      "rejectReasonPlaceholder": "What was wrong with the returned items?",
+      "rejectAction": "Reject return",
+      "rejectConfirm": "This can't be undone.",
+      "rejectConfirmYes": "Yes, reject",
+      "cancel": "Cancel",
+      "rejectedTitle": "Rejection reason",
+      "windowTitle": "Return window",
+      "windowIntro": "How long after delivery customers may return items, per service. 0 turns returns off.",
+      "windowFieldLabel": "Return window for {service}",
+      "windowDays": "days",
+      "windowOff": "returns off",
+      "windowSaved": "Saved.",
+      "save": "Save",
+      "errors": {
+        "receipt_otp_invalid": "That code isn't right.",
+        "receipt_otp_invalid_remaining": "That code isn't right. {remaining} tries left.",
+        "receipt_otp_locked": "Too many wrong codes. An admin has to resolve this return.",
+        "receipt_otp_required": "Enter the customer's handover code.",
+        "illegal_return_transition": "This return has already been decided.",
+        "reason_required": "Please give a reason.",
+        "invalid_return_window": "Enter a number between 0 and 365.",
+        "unknown": "Something went wrong. Please try again."
+      },
+      "status": {
+        "awaiting_customer_confirmation": "Awaiting customer",
+        "active": "Awaiting handover",
+        "awaiting_payment_confirmation": "Awaiting payment confirmation",
+        "closed": "Closed",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn",
+        "expired": "Expired"
+      },
+      "reason": {
+        "damaged": "Damaged",
+        "wrong_item": "Wrong item",
+        "past_expiry": "Past expiry",
+        "quality_issue": "Quality issue",
+        "not_as_described": "Not as described",
+        "other": "Other"
+      }
     }
   },
   "Admin": {

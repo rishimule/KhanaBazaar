@@ -130,6 +130,7 @@ export default function SellerLayout({
         ? t("alerts.pendingBadgeLabel", { count: pendingOrders })
         : undefined,
     },
+    { href: "/seller/returns", label: t("nav.returns"), icon: "↩️" },
     { href: "/seller/inventory", label: t("nav.inventory"), icon: "🏷️" },
     { href: "/seller/settings", label: t("nav.settings"), icon: "⚙️" },
     { href: "/seller/plan", label: t("nav.plan"), icon: "💳" },
@@ -145,8 +146,10 @@ export default function SellerLayout({
       ? t("titles.dashboard")
       : pathname === "/seller/inventory"
         ? t("titles.inventory")
-        : pathname.startsWith("/seller/orders")
-          ? t("titles.orders")
+        : pathname.startsWith("/seller/returns")
+          ? t("titles.returns")
+          : pathname.startsWith("/seller/orders")
+            ? t("titles.orders")
           : pathname.startsWith("/seller/settings")
             ? t("titles.settings")
             : pathname.startsWith("/seller/profile/requests")

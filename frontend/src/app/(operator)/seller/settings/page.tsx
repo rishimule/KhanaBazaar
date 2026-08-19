@@ -8,6 +8,7 @@ import { get } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import type { Store } from "@/types";
 import LanguagePreferenceCard from "@/components/LanguagePreferenceCard";
+import ReturnWindowCard from "@/components/returns/ReturnWindowCard";
 import LoadError from "@/components/LoadError";
 import styles from "./page.module.css";
 
@@ -54,6 +55,8 @@ export default function SellerSettingsPage() {
 
 
       <LanguagePreferenceCard />
+
+      <ReturnWindowCard />
 
       <section className={styles.card}>
         <header className={styles.cardHeader}>
