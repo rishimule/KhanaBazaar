@@ -49,6 +49,20 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 ## Phase 6: Future Enhancements (Payments)
 - [ ] Integrate Razorpay (or other payment gateways) for UPI checkout intent flows.
 
+## Returns (Return Order Management BRD) — DONE
+- [x] `return_request` / `return_request_item` / `return_event` aggregate + state machine (7 resting states).
+- [x] Three OTP events: customer-typed initiation, seller-typed handover receipt, customer-typed payment receipt.
+- [x] Settlement split — postpaid credit reversal first, then store credit or confirmed cash.
+- [x] `customer_store_credit` ledger (seller owes customer) + auto-apply at checkout with opt-out.
+- [x] Per-service `return_window_days` (seller + admin endpoints, audited).
+- [x] Admin parity + force accept/reject/close with mandatory reason and audit rows.
+- [x] In-app + email (6 templates) + WhatsApp (5 templates) on every return event.
+- [x] Hourly expiry sweep for both stalled stages.
+- [x] Dev seed: one return per resting state + store-credit balances (`_seed_returns`).
+- [ ] **Figma pass owed** for the 15 return screens (customer wizard/list/detail/store-credit/checkout toggle, seller queue/detail/window config, admin list/detail/hub tab/customer credit viewer). The Figma connector was unavailable when these shipped, so the file is currently behind the code — treat that as a bug per the Figma-first workflow.
+- [ ] Twilio ContentSids for the 5 new WhatsApp templates (`otp_return`, `return_initiated`, `return_confirmed`, `return_accepted`, `return_rejected`, `return_closed`) before `WHATSAPP_PROVIDER=twilio`.
+- [ ] Platform-fee treatment of returned orders is deliberately out of scope (D11) — fees stand as charged. Revisit post-MVP.
+
 ## Design / UI follow-ups
 - [ ] Redraw PWA icons (`frontend/public/icons/icon-192x192.png`, `icon-512x512.png`, `icon-180x180.png`) + `frontend/src/app/favicon.ico` in brand green (deferred from the 2026-06-23 green recolor — code/CSS are green; raster assets are still saffron).
 - [ ] A11y (pre-existing, unrelated to recolor): `--color-success` `#1eba9c` used as success *text* on white is ~2.45:1 (fails AA) and reads close to brand green; consider pointing success-text uses at the darker `#018260`.
