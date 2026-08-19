@@ -1656,7 +1656,8 @@
       "feeQueue": "शुल्क रांग",
       "referrals": "रेफरल",
       "notifications": "सूचना",
-      "customers": "ग्राहक"
+      "customers": "ग्राहक",
+      "returns": "परतावा"
     },
     "titles": {
       "dashboard": "अ‍ॅडमिन डॅशबोर्ड",
@@ -2342,6 +2343,77 @@
         "orders": "ऑर्डर",
         "addresses": "पत्ते",
         "notifications": "सूचना"
+      }
+    },
+    "tab": {
+      "returns": "परतावा"
+    },
+    "returns": {
+      "title": "परतावा",
+      "loading": "लोड हो रहा है…",
+      "loadFailed": "वापसी लोड नहीं हो सकी। कृपया फिर कोशिश करें।",
+      "empty": "इस फ़िल्टर में कोई वापसी नहीं।",
+      "filterAll": "सर्व",
+      "colReturn": "वापसी",
+      "colOrder": "ऑर्डर",
+      "colSeller": "विक्रेता",
+      "colAmount": "राशि",
+      "colStatus": "स्थिति",
+      "detailTitle": "वापसी #{id} · ऑर्डर #{orderId}",
+      "itemsTitle": "सामान",
+      "fieldInitiatedBy": "किसने शुरू की",
+      "fieldReason": "कारण",
+      "fieldSettlement": "निपटान",
+      "fieldReversal": "क्रेडिट वापस",
+      "fieldRejectionReason": "अस्वीकृति का कारण",
+      "settlementCredit": "स्टोर क्रेडिट",
+      "settlementPayment": "पैसे वापस",
+      "forceTitle": "ऑपरेटर कार्रवाई",
+      "forceHint": "ये विक्रेता का हैंडओवर कोड छोड़ती हैं, ग्राहक की सहमति नहीं। हर कार्रवाई कारण सहित दर्ज होती है।",
+      "reasonLabel": "कारण (आवश्यक)",
+      "reasonMin": "कम से कम {min} अक्षर।",
+      "restockLabel": "इन्हें बिक्री योग्य स्टॉक में वापस डालें",
+      "cancel": "रद्द करा",
+      "force": {
+        "accept": "जबरन स्वीकार",
+        "reject": "जबरन अस्वीकार",
+        "close": "जबरन बंद"
+      },
+      "confirm": {
+        "accept": "यह वापसी स्वीकार करें",
+        "reject": "यह वापसी अस्वीकार करें",
+        "close": "यह वापसी बंद करें"
+      },
+      "storeCreditTitle": "स्टोर क्रेडिट",
+      "storeCreditEmpty": "इस ग्राहक के पास स्टोर क्रेडिट नहीं है।",
+      "storeCreditFailed": "स्टोर क्रेडिट अभी लोड नहीं हो सका।",
+      "errors": {
+        "reason_required": "कम से कम 10 अक्षरों का कारण दें।",
+        "illegal_return_transition": "इस वापसी पर पहले ही निर्णय हो चुका है।",
+        "return_not_found": "यह वापसी अब मौजूद नहीं है।",
+        "unknown": "कुछ गड़बड़ हुई। कृपया फिर कोशिश करें।"
+      },
+      "status": {
+        "awaiting_customer_confirmation": "ग्राहकाची पुष्टी बाकी",
+        "active": "वस्तू मिळणे बाकी",
+        "awaiting_payment_confirmation": "पेमेंट बाकी",
+        "closed": "पूर्ण",
+        "rejected": "नाकारले",
+        "withdrawn": "मागे घेतले",
+        "expired": "मुदत संपली"
+      },
+      "reason": {
+        "damaged": "खराब",
+        "wrong_item": "चुकीची वस्तू",
+        "past_expiry": "मुदत संपली",
+        "quality_issue": "गुणवत्तेची समस्या",
+        "not_as_described": "वर्णनापेक्षा वेगळे",
+        "other": "इतर"
+      },
+      "initiator": {
+        "customer": "ग्राहक",
+        "seller": "विक्रेता",
+        "admin": "अ‍ॅडमिन"
       }
     }
   },

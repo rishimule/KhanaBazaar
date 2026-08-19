@@ -1655,7 +1655,8 @@
       "fees": "Fees",
       "feeQueue": "Fee queue",
       "notifications": "Notifications",
-      "customers": "Customers"
+      "customers": "Customers",
+      "returns": "Returns"
     },
     "titles": {
       "dashboard": "Admin Dashboard",
@@ -2341,6 +2342,77 @@
         "orders": "Orders",
         "addresses": "Addresses",
         "notifications": "Notifications"
+      }
+    },
+    "tab": {
+      "returns": "Returns"
+    },
+    "returns": {
+      "title": "Returns",
+      "loading": "Loading…",
+      "loadFailed": "We couldn't load returns right now. Please try again.",
+      "empty": "No returns match this filter.",
+      "filterAll": "All",
+      "colReturn": "Return",
+      "colOrder": "Order",
+      "colSeller": "Seller",
+      "colAmount": "Amount",
+      "colStatus": "Status",
+      "detailTitle": "Return #{id} · order #{orderId}",
+      "itemsTitle": "Items",
+      "fieldInitiatedBy": "Started by",
+      "fieldReason": "Reason",
+      "fieldSettlement": "Settlement",
+      "fieldReversal": "Credit reversed",
+      "fieldRejectionReason": "Rejection reason",
+      "settlementCredit": "Store credit",
+      "settlementPayment": "Money back",
+      "forceTitle": "Operator actions",
+      "forceHint": "These bypass the seller's handover code, never the customer's consent. Every action is recorded with your reason.",
+      "reasonLabel": "Reason (required)",
+      "reasonMin": "At least {min} characters.",
+      "restockLabel": "Return these to sellable stock",
+      "cancel": "Cancel",
+      "force": {
+        "accept": "Force accept",
+        "reject": "Force reject",
+        "close": "Force close"
+      },
+      "confirm": {
+        "accept": "Accept this return",
+        "reject": "Reject this return",
+        "close": "Close this return"
+      },
+      "storeCreditTitle": "Store credit",
+      "storeCreditEmpty": "This customer has no store credit.",
+      "storeCreditFailed": "We couldn't load store credit right now.",
+      "errors": {
+        "reason_required": "Give a reason of at least 10 characters.",
+        "illegal_return_transition": "This return has already been decided.",
+        "return_not_found": "That return no longer exists.",
+        "unknown": "Something went wrong. Please try again."
+      },
+      "status": {
+        "awaiting_customer_confirmation": "Awaiting customer",
+        "active": "Awaiting handover",
+        "awaiting_payment_confirmation": "Awaiting payment",
+        "closed": "Closed",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn",
+        "expired": "Expired"
+      },
+      "reason": {
+        "damaged": "Damaged",
+        "wrong_item": "Wrong item",
+        "past_expiry": "Past expiry",
+        "quality_issue": "Quality issue",
+        "not_as_described": "Not as described",
+        "other": "Other"
+      },
+      "initiator": {
+        "customer": "Customer",
+        "seller": "Seller",
+        "admin": "Admin"
       }
     }
   },

@@ -219,8 +219,9 @@ async def test_admin_seller_hub_listing(
     req = await _active_return(session, seed)
     as_admin(admin_user)
 
+    # Keyed by the seller's USER id, like every other /admin/sellers route.
     body = (
-        await client.get(f"/api/v1/admin/sellers/{seed.seller_profile_id}/returns")
+        await client.get(f"/api/v1/admin/sellers/{seed.seller_user_id}/returns")
     ).json()
     assert [r["id"] for r in body] == [pk(req.id)]
 
@@ -254,3 +255,51 @@ async def test_force_accept_can_restock(
     inv = await session.get(StoreInventory, seed.inventory_ids[0])
     assert inv is not None
     assert inv.stock == 11
+
+
+async def test_admin_seller_hub_listing_404s_for_an_unknown_seller(
+    session: AsyncSession, client: AsyncClient, admin_user: User
+) -> None:
+    await seed_delivered_order(session)
+    as_admin(admin_user)
+    resp = await client.get("/api/v1/admin/sellers/999999/returns")
+    assert resp.status_code == 404
+
+
+async def test_admin_can_view_customer_store_credit(
+    session: AsyncSession, client: AsyncClient, admin_user: User
+) -> None:
+    from app.models.returns import StoreCreditEntryType
+    from app.services import customer_store_credit as credit_svc
+
+    seed = await seed_delivered_order(session)
+    account = await credit_svc.get_or_create_account(
+        session, seller_profile_id=seed.seller_profile_id,
+        customer_profile_id=seed.customer_profile_id,
+    )
+    await credit_svc.grant(
+        session, account, 175.0, entry_type=StoreCreditEntryType.return_credit
+    )
+    await session.commit()
+    as_admin(admin_user)
+
+    body = (
+        await client.get(
+            f"/api/v1/admin/customers/{seed.customer_profile_id}/store-credit"
+        )
+    ).json()
+    assert body[0]["balance"] == 175.0
+    assert body[0]["store_name"] == "Anil Stores"
+
+
+async def test_admin_store_credit_is_empty_for_a_customer_without_any(
+    session: AsyncSession, client: AsyncClient, admin_user: User
+) -> None:
+    seed = await seed_delivered_order(session)
+    as_admin(admin_user)
+    body = (
+        await client.get(
+            f"/api/v1/admin/customers/{seed.customer_profile_id}/store-credit"
+        )
+    ).json()
+    assert body == []

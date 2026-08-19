@@ -7,24 +7,6 @@ This code and its associated documentation cannot be copied, modified, or distri
 Multi-vendor hyperlocal e-commerce platform for the Indian market (Instacart-like model).
 Admins curate a master product catalog. Sellers register, get admin-approved, run **one store** with **multiple services** (Grocery, Food, Pharmacy, etc.) and manage local inventory/pricing. Customers shop per-store and pay via UPI.
 
-## Subagent routing (gemini-worker)
-
-This project has a `gemini-worker` subagent that wraps the Antigravity CLI (`agy`, running the `Gemini 3.1 Pro (High)` model). It exists to preserve Claude context for planning, writing code, and reviewing diffs.
-
-**Delegate to `gemini-worker` before:**
-- Reading more than 3 files to answer a question
-- Any codebase-wide search ("find every place we…", "list all usages of…")
-- Summarizing any file longer than ~500 lines
-- Reading generated code, large logs, large JSON/CSV, or vendored dependencies
-- Answering "does this repo already have X?" questions
-
-**Do NOT delegate (do it yourself):**
-- Editing, creating, or deleting files
-- Running tests, linters, or build commands
-- Git operations
-- Brainstorming, plan-writing, or spec refinement — plan quality depends on you reading the code directly
-- Reviewing a diff against a plan
-- Small reads (1–3 specific files you already know you need)
 
 ## Tech Stack
 

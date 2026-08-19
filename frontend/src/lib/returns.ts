@@ -203,6 +203,17 @@ export async function adminListReturns(
   );
 }
 
+/** `sellerUserId` is the seller's User id, matching the hub's route param. */
+export async function adminListSellerReturns(
+  token: string,
+  sellerUserId: number
+): Promise<ReturnRequest[]> {
+  return get<ReturnRequest[]>(
+    `/api/v1/admin/sellers/${sellerUserId}/returns`,
+    token
+  );
+}
+
 export async function adminGetReturn(
   token: string,
   returnId: number
@@ -243,6 +254,16 @@ export async function adminForceClose(
   return post<ReturnRequest>(
     `/api/v1/admin/returns/${returnId}/close`,
     { reason },
+    token
+  );
+}
+
+export async function adminGetCustomerStoreCredit(
+  token: string,
+  customerProfileId: number
+): Promise<StoreCreditBalance[]> {
+  return get<StoreCreditBalance[]>(
+    `/api/v1/admin/customers/${customerProfileId}/store-credit`,
     token
   );
 }

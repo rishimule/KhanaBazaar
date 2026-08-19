@@ -5,6 +5,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import CustomerStatusPill from "@/components/admin/CustomerStatusPill";
 import { useAuth } from "@/lib/AuthContext";
+import AdminCustomerStoreCredit from "@/components/returns/AdminCustomerStoreCredit";
 import { fetchCustomerHub } from "@/lib/adminCustomers";
 import type { AdminCustomerHub } from "@/types";
 import styles from "./tabs.module.css";
@@ -85,6 +86,7 @@ export default function CustomerOverviewTab({
           <span className={styles.detailValue}>#{hub.user_id}</span>
         </div>
       </div>
-    </div>
+          <AdminCustomerStoreCredit customerProfileId={Number(id)} />
+</div>
   );
 }

@@ -780,19 +780,26 @@ async def admin_list_returns(
     return [_serialize(row, await _load_items(session, _pk(row.id))) for row in rows]
 
 
-@admin_router.get(
-    "/sellers/{seller_profile_id}/returns", response_model=list[ReturnRead]
-)
+@admin_router.get("/sellers/{seller_id}/returns", response_model=list[ReturnRead])
 async def admin_list_seller_returns(
-    seller_profile_id: int,
+    seller_id: int,
     _admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> list[ReturnRead]:
+    """``seller_id`` is the seller's ``User.id``, matching every other
+    /admin/sellers/{seller_id} route (and the hub's URL param)."""
+    profile_id = (
+        await session.exec(
+            select(SellerProfile.id).where(SellerProfile.user_id == seller_id)
+        )
+    ).first()
+    if profile_id is None:
+        raise returns_svc.ReturnError(404, "seller_not_found")
     rows = list(
         (
             await session.exec(
                 select(ReturnRequest)
-                .where(ReturnRequest.seller_profile_id == seller_profile_id)
+                .where(ReturnRequest.seller_profile_id == int(profile_id))
                 .order_by(col(ReturnRequest.created_at).desc())
                 .limit(200)
             )
@@ -928,3 +935,36 @@ async def admin_force_close(
     await session.refresh(request)
     await _notify_return(session, request, "return_closed")
     return _serialize(request, await _load_items(session, return_id))
+
+
+@admin_router.get(
+    "/customers/{customer_profile_id}/store-credit",
+    response_model=list[StoreCreditBalanceRead],
+)
+async def admin_customer_store_credit(
+    customer_profile_id: int,
+    _admin: User = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[StoreCreditBalanceRead]:
+    """Read-only view of what sellers owe this customer. Sits beside the
+    existing orders / addresses / notifications viewers on the customer hub."""
+    accounts = await store_credit_svc.list_balances(session, customer_profile_id)
+    out: list[StoreCreditBalanceRead] = []
+    for account in accounts:
+        store_name = (
+            await session.exec(
+                select(Store.name).where(
+                    Store.seller_profile_id == account.seller_profile_id
+                )
+            )
+        ).first()
+        out.append(
+            StoreCreditBalanceRead(
+                seller_profile_id=account.seller_profile_id,
+                store_name=store_name or "Store",
+                balance=account.balance,
+                lifetime_earned=account.lifetime_earned,
+                lifetime_spent=account.lifetime_spent,
+            )
+        )
+    return out
