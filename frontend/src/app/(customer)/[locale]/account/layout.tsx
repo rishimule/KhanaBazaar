@@ -48,6 +48,7 @@ export default function AccountLayout({
   const customerNav = [
     { href: "/account", label: t("navDashboard"), icon: "🏠" },
     { href: "/account/orders", label: t("navOrders"), icon: "📦" },
+    { href: "/account/returns", label: t("navReturns"), icon: "↩️" },
     { href: "/account/favorites", label: t("navFavorites"), icon: "❤️" },
     { href: "/account/addresses", label: t("navAddresses"), icon: "📍" },
     { href: "/account/profile", label: t("navProfile"), icon: "👤" },
@@ -61,6 +62,7 @@ export default function AccountLayout({
   const PAGE_TITLE_KEY: Record<string, string> = {
     "/account": "layoutTitle",
     "/account/orders": "layoutOrdersTitle",
+    "/account/returns": "layoutReturnsTitle",
     "/account/favorites": "layoutFavoritesTitle",
     "/account/addresses": "layoutAddressesTitle",
     "/account/profile": "layoutProfileTitle",

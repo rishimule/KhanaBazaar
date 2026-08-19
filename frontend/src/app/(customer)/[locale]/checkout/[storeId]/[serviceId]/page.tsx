@@ -24,6 +24,8 @@ import ReplaceAdjustmentsBanner from "@/components/orders/ReplaceAdjustmentsBann
 import DeliveryTimePicker, {
   type PreferredWindowValue,
 } from "@/components/orders/DeliveryTimePicker";
+import { listStoreCredit } from "@/lib/returns";
+import type { StoreCreditBalance } from "@/types";
 import type { DeliveryMode, PaymentMethod, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -35,6 +37,9 @@ export default function CheckoutPage() {
   const params = useParams<{ storeId: string; serviceId: string }>();
   const storeId = Number(params.storeId);
   const serviceId = Number(params.serviceId);
+  // Store credit the seller owes this customer. Auto-applies unless unticked.
+  const [storeCredit, setStoreCredit] = useState<StoreCreditBalance | null>(null);
+  const [useStoreCredit, setUseStoreCredit] = useState(true);
   const router = useRouter();
   const { dbUser, token, loading: authLoading } = useAuth();
   const { carts, loading: cartLoading, refresh, getTotal } = useCart();
@@ -94,6 +99,27 @@ export default function CheckoutPage() {
       ),
     [carts, storeId, serviceId],
   );
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const balances = await listStoreCredit(token);
+        if (cancelled) return;
+        // Balances are keyed by seller; match on the store being checked out.
+        const match = balances.find((b) => b.balance > 0 && b.store_name === cart?.store_name);
+        setStoreCredit(match ?? null);
+      } catch {
+        // A failed lookup simply means no discount is offered — never a
+        // confident "you have 0 credit".
+        if (!cancelled) setStoreCredit(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, cart?.store_name]);
 
   const isCustomer = dbUser?.role === "customer";
 
@@ -155,7 +181,14 @@ export default function CheckoutPage() {
   const deliveryFee = isPickup ? 0 : shortfall > 0 ? baseFee : 0;
   const feeApplies = deliveryFee > 0;
   const tax = 0;
-  const total = subtotal + deliveryFee + tax;
+  const grossTotal = subtotal + deliveryFee + tax;
+  const creditApplied =
+    useStoreCredit && storeCredit
+      ? Math.min(storeCredit.balance, grossTotal)
+      : 0;
+  // `total` stays what the customer pays, which is what the button and the
+  // postpaid-credit eligibility check below both care about.
+  const total = Number((grossTotal - creditApplied).toFixed(2));
   const hasCredit = creditStanding != null && creditStanding.credit_limit > 0;
   const creditEligible = hasCredit && total <= creditStanding!.available;
   const creditSelectedButBlocked = paymentMethod === "credit" && !creditEligible;
@@ -182,6 +215,7 @@ export default function CheckoutPage() {
         deliveryMode,
         preferredDeliveryDate: preferredWindow?.date ?? null,
         preferredDeliveryWindow: preferredWindow?.window ?? null,
+        applyStoreCredit: useStoreCredit,
       });
       // Placing the order clears this sub-basket server-side. Refresh cart
       // state so the navbar count + cart pages reflect it immediately instead
@@ -371,6 +405,23 @@ export default function CheckoutPage() {
                 )}{" "}
                 ({WINDOW_META[preferredWindow.window].hours})
               </span>
+            </div>
+          )}
+          {storeCredit && storeCredit.balance > 0 && (
+            <div className={styles.summaryRow}>
+              <label className={styles.creditToggle}>
+                <input
+                  type="checkbox"
+                  checked={useStoreCredit}
+                  onChange={(e) => setUseStoreCredit(e.target.checked)}
+                />
+                <span>
+                  {t("storeCreditLabel", {
+                    balance: storeCredit.balance.toFixed(2),
+                  })}
+                </span>
+              </label>
+              <span>−₹{creditApplied.toFixed(2)}</span>
             </div>
           )}
           <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>

@@ -1,0 +1,12 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}

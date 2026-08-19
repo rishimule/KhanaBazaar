@@ -68,6 +68,8 @@ export interface PlaceOrderArgs {
   deliveryMode?: DeliveryMode;
   preferredDeliveryDate?: string | null;
   preferredDeliveryWindow?: string | null;
+  /** Store credit auto-applies; pass false when the customer opts out. */
+  applyStoreCredit?: boolean;
 }
 
 export async function placeOrder(
@@ -84,6 +86,7 @@ export async function placeOrder(
       delivery_mode: args.deliveryMode ?? "door_delivery",
       preferred_delivery_date: args.preferredDeliveryDate ?? null,
       preferred_delivery_window: args.preferredDeliveryWindow ?? null,
+      apply_store_credit: args.applyStoreCredit ?? true,
     },
     token,
   );
