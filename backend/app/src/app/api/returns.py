@@ -60,6 +60,7 @@ from app.schemas.returns import (
     ReturnPaymentConfirmBody,
     ReturnRead,
     ReturnRejectBody,
+    SellerReturnEligibilityRead,
     StoreCreditBalanceRead,
     StoreCreditEntryRead,
 )
@@ -542,6 +543,61 @@ async def _seller_return(
     ):
         raise returns_svc.ReturnError(404, "return_not_found")
     return request
+
+
+@seller_router.get(
+    "/me/returns/eligibility/{order_id}", response_model=SellerReturnEligibilityRead
+)
+async def seller_return_eligibility(
+    order_id: int,
+    user: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> SellerReturnEligibilityRead:
+    """The returnable-line view for an order in this seller's store.
+
+    Mirrors the customer endpoint so both sides of an on-behalf return see the
+    same locked lines and the same window, and returns the customer ids the
+    create call needs.
+    """
+    seller_profile_id = await _seller_profile_id(session, user)
+    order = await session.get(Order, order_id)
+    if order is None:
+        raise returns_svc.ReturnError(404, "order_not_found")
+    if await returns_svc.resolve_seller_profile_id(
+        session, order.store_id
+    ) != seller_profile_id:
+        raise returns_svc.ReturnError(404, "order_not_found")
+
+    profile = await session.get(CustomerProfile, order.customer_profile_id)
+    if profile is None:
+        raise returns_svc.ReturnError(404, "customer_profile_not_found")
+
+    result = await returns_svc.compute_eligibility(
+        session, order=order, customer_profile_id=order.customer_profile_id
+    )
+    agreement_version = await get_current_version(session, PolicyKind.return_agreement)
+    return SellerReturnEligibilityRead(
+        order_id=order_id,
+        eligible=result.eligible,
+        reason_code=result.reason_code,
+        window_expires_at=result.window_expires_at,
+        delivery_fee=result.delivery_fee,
+        full_order_available=result.full_order_available,
+        agreement_version=agreement_version or None,
+        customer_profile_id=order.customer_profile_id,
+        customer_name=" ".join(
+            p for p in [profile.first_name, profile.last_name] if p
+        ).strip(),
+        lines=[
+            ReturnEligibilityLine(
+                order_item_id=line.order_item_id, product_name=line.product_name,
+                unit_price=line.unit_price, quantity=line.quantity,
+                line_total=line.line_total, returnable=line.returnable,
+                lock_reason=line.lock_reason,
+            )
+            for line in result.lines
+        ],
+    )
 
 
 @seller_router.post("/me/returns", response_model=ReturnRead, status_code=201)

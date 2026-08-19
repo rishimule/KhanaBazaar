@@ -35,6 +35,15 @@ class ReturnEligibilityRead(BaseModel):
     lines: list[ReturnEligibilityLine]
 
 
+class SellerReturnEligibilityRead(ReturnEligibilityRead):
+    """Eligibility as the seller sees it before starting a return on a
+    customer's behalf. Carries the ids the create-on-behalf call needs, so the
+    seller UI never has to guess them."""
+
+    customer_profile_id: int
+    customer_name: str
+
+
 class ReturnItemRead(BaseModel):
     order_item_id: int
     product_name: str
