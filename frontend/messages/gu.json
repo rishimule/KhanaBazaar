@@ -234,7 +234,8 @@
     "deliveryModeTitle": "ડિલિવરી પદ્ધતિ",
     "modeDoor": "ઘરે ડિલિવરી",
     "modePickup": "સ્ટોરથી પિકઅપ",
-    "collectAt": "અહીંથી લો"
+    "collectAt": "અહીંથી લો",
+    "storeCreditLabel": "સ્ટોર ક્રેડિટ વાપરો (₹{balance} ઉપલબ્ધ)"
   },
   "Login": {
     "errSendCode": "કોડ મોકલવામાં નિષ્ફળ.",
@@ -890,6 +891,136 @@
       "otpInvalid": "આ કોડ ખોટો છે અથવા સમાપ્ત થઈ ગયો છે. કૃપા કરીને નવો કોડ માંગો.",
       "networkError": "નેટવર્ક ભૂલ. કૃપા કરીને તમારું કનેક્શન તપાસો અને ફરી પ્રયાસ કરો.",
       "genericError": "કંઈક ખોટું થયું. કૃપા કરીને ફરી પ્રયાસ કરો."
+    },
+    "navReturns": "રિટર્ન",
+    "layoutReturnsTitle": "રિટર્ન",
+    "returns": {
+      "loading": "लोड हो रहा है…",
+      "loadFailed": "अभी लोड नहीं हो सका। कृपया फिर कोशिश करें।",
+      "empty": "आपने अभी तक कुछ वापस नहीं किया है।",
+      "panelTitle": "રિટર્ન",
+      "startReturn": "વસ્તુઓ પરત કરો",
+      "wizardTitle": "ऑर्डर #{orderId} से सामान वापस करें",
+      "rowTitle": "वापसी #{id} · ऑर्डर #{orderId}",
+      "itemCount": "{count} सामान",
+      "stepOf": "चरण {step}/{total}",
+      "next": "आगे बढ़ें",
+      "back": "पीछे",
+      "step1Title": "आप कौन सा सामान वापस कर रहे हैं?",
+      "wholeLinesOnly": "पूरा सामान ही वापस होगा — आंशिक मात्रा वापस नहीं की जा सकती।",
+      "returnEverything": "इस ऑर्डर का सारा सामान वापस करें",
+      "feeReturned": "पूरा ऑर्डर वापस करने पर ₹{amount} डिलीवरी शुल्क भी वापस मिलेगा।",
+      "previewTotal": "अब तक वापसी राशि: ₹{amount}",
+      "step2Title": "आप इन्हें क्यों वापस कर रहे हैं?",
+      "noteRequired": "हमें बताएं क्या हुआ (आवश्यक)",
+      "noteOptional": "कुछ और बताना चाहेंगे? (वैकल्पिक)",
+      "step3Title": "राशि आपको किस रूप में चाहिए?",
+      "settlementCredit": "स्टोर क्रेडिट",
+      "settlementCreditHint": "इसी स्टोर के अगले ऑर्डर पर इस्तेमाल करें।",
+      "settlementPayment": "पैसे वापस",
+      "settlementPaymentHint": "स्टोर सीधे भुगतान करेगा; मिलने पर आप यहाँ पुष्टि करें।",
+      "reversalNote": "यदि आप पर इस स्टोर का उधार बकाया है, तो राशि पहले वही चुकाएगी।",
+      "step4Title": "સમીક્ષા કરો અને કરાર સ્વીકારો",
+      "summaryItems": "सामान",
+      "summaryDeliveryFee": "डिलीवरी शुल्क",
+      "summaryTotal": "कुल वापसी",
+      "acceptAgreement": "मैंने वापसी अनुबंध पढ़ लिया है और स्वीकार करता/करती हूँ",
+      "otpLabel": "भेजा गया 6 अंकों का कोड दर्ज करें",
+      "otpResend": "कोड दोबारा भेजें",
+      "otpResent": "कोड भेज दिया गया।",
+      "otpCooldown": "कृपया थोड़ी देर बाद दोबारा कोशिश करें।",
+      "otpResendFailed": "कोड नहीं भेजा जा सका। कृपया फिर कोशिश करें।",
+      "confirmReturn": "वापसी की पुष्टि करें",
+      "itemsTitle": "वापस किया जा रहा सामान",
+      "settlementTitle": "राशि का निपटान",
+      "settlementReversal": "₹{amount} आपके बकाया से घटा दिए गए।",
+      "settlementStoreCredit": "₹{amount} स्टोर क्रेडिट के रूप में जोड़े गए।",
+      "settlementPaymentDue": "₹{amount} आपको सीधे लौटाए जा रहे हैं।",
+      "rejectedTitle": "स्टोर ने यह वापसी स्वीकार नहीं की",
+      "rejectedSettleOffline": "स्वीकृत अनुबंध के अनुसार इसे सीधे स्टोर के साथ सुलझाएं।",
+      "confirmPaymentTitle": "पैसे मिलने की पुष्टि करें",
+      "confirmPaymentHint": "स्टोर से भुगतान मिलने पर यहाँ कोड से पुष्टि करें।",
+      "sendPaymentOtp": "मुझे कोड भेजें",
+      "paymentOtpSent": "कोड भेज दिया गया।",
+      "confirmPaymentAction": "भुगतान मिलने की पुष्टि करें",
+      "handoverCodeTitle": "आपका हैंडओवर कोड",
+      "handoverCodeHint": "सामान सौंपते समय यह कोड स्टोर को दिखाएं।",
+      "withdraw": "यह वापसी वापस लें",
+      "status": {
+        "awaiting_customer_confirmation": "आपकी पुष्टि बाकी",
+        "active": "સોંપવા માટે તૈયાર",
+        "awaiting_payment_confirmation": "आपकी भुगतान पुष्टि बाकी",
+        "closed": "પૂર્ણ",
+        "rejected": "स्वीकार नहीं हुई",
+        "withdrawn": "वापस ली गई",
+        "expired": "समय समाप्त"
+      },
+      "reason": {
+        "damaged": "खराब",
+        "wrong_item": "गलत सामान",
+        "past_expiry": "एक्सपायरी बीत गई",
+        "quality_issue": "गुणवत्ता की समस्या",
+        "not_as_described": "विवरण से अलग",
+        "other": "अन्य"
+      },
+      "lock": {
+        "already_in_return": "पहले से किसी और वापसी में है।",
+        "unknown": "वापसी के लिए उपलब्ध नहीं।"
+      },
+      "ineligible": {
+        "order_not_delivered": "ऑर्डर डिलीवर होने के बाद ही सामान वापस किया जा सकता है।",
+        "return_window_closed": "इस ऑर्डर की वापसी अवधि समाप्त हो चुकी है।",
+        "returns_disabled_for_service": "यह स्टोर इस सेवा पर वापसी स्वीकार नहीं करता।",
+        "items_already_returned": "इस ऑर्डर का सारा सामान पहले से वापसी में है।",
+        "unknown": "यह ऑर्डर वापसी के योग्य नहीं है।"
+      },
+      "errors": {
+        "agreement_unavailable": "वापसी अभी उपलब्ध नहीं है। कृपया बाद में कोशिश करें।",
+        "items_already_returned": "उनमें से एक सामान पहले से किसी और वापसी में है।",
+        "return_window_closed": "इस ऑर्डर की वापसी अवधि समाप्त हो चुकी है।",
+        "return_otp_invalid": "यह कोड सही नहीं है। कृपया जांचकर फिर कोशिश करें।",
+        "confirmation_expired": "पुष्टि से पहले यह वापसी समाप्त हो गई। कृपया नई शुरू करें।",
+        "illegal_return_transition": "यह वापसी आगे बढ़ चुकी है।",
+        "reason_note_required": "कृपया बताएं क्या हुआ।",
+        "resend_cooldown": "कृपया थोड़ी देर बाद दोबारा कोशिश करें।",
+        "unknown": "कुछ गड़बड़ हुई। कृपया फिर कोशिश करें।",
+        "agreement_not_accepted": "આગળ વધવા માટે કૃપા કરી રિટર્ન કરાર સ્વીકારો.",
+        "returns_disabled_for_service": "આ સ્ટોર આ સેવા માટે રિટર્ન સ્વીકારતું નથી.",
+        "order_not_delivered": "ઓર્ડર ડિલિવર થયા પછી તમે વસ્તુઓ પરત કરી શકો છો.",
+        "not_eligible": "આ ઓર્ડર રિટર્ન માટે પાત્ર નથી.",
+        "no_items_selected": "પરત કરવા માટે ઓછામાં ઓછી એક વસ્તુ પસંદ કરો.",
+        "invalid_order_item": "તેમાંની એક વસ્તુ આ ઓર્ડરમાં નથી. કૃપા કરી ફરી લોડ કરીને પ્રયાસ કરો.",
+        "return_not_found": "તે રિટર્ન મળ્યું નથી. તે પાછું ખેંચાયું હોઈ શકે અથવા સમાપ્ત થયું હોઈ શકે.",
+        "return_not_active": "આ રિટર્ન હવે ખુલ્લું નથી.",
+        "return_not_awaiting_payment": "આ રિટર્ન પેમેન્ટ પુષ્ટિની રાહ જોતું નથી.",
+        "return_not_awaiting_confirmation": "આ રિટર્નની પુષ્ટિ પહેલેથી થઈ ગઈ છે."
+      },
+      "step5Title": "તમારા કોડથી પુષ્ટિ કરો",
+      "acceptAndSendCode": "સ્વીકારો અને કોડ મોકલો",
+      "notCreatedYet": "હજી કંઈ સબમિટ થયું નથી. તમે સ્વીકારીને કોડ માંગો ત્યારે જ તમારું રિટર્ન બને છે — અને વસ્તુઓ અનામત થાય છે.",
+      "savedNote": "તમારું રિટર્ન સાચવાયું છે અને પસંદ કરેલી વસ્તુઓ રોકી રાખી છે. આ પેજ બંધ કરો તો, ખાતામાંના 'રિટર્ન'માંથી ફરી શરૂ કરો, અથવા વસ્તુઓ છોડવા માટે તેને પાછું ખેંચો.",
+      "resumeTitle": "તમે આ ઓર્ડર માટે પહેલેથી રિટર્ન શરૂ કર્યું છે",
+      "resumeBody": "તે તમારા પુષ્ટિ કોડની રાહ જુએ છે અને આ વસ્તુઓ રોકી રાખે છે. તેને ચાલુ રાખો, અથવા અલગ વસ્તુઓ પસંદ કરવા માટે કાઢી નાખો.",
+      "resumeCta": "પુષ્ટિ ચાલુ રાખો",
+      "discardCta": "કાઢી નાખો અને ફરી શરૂ કરો"
+    },
+    "storeCredit": {
+      "heading": "સ્ટોર ક્રેડિટ",
+      "intro": "स्वीकृत वापसी से मिला क्रेडिट। हर राशि केवल उसी स्टोर पर खर्च होगी।",
+      "empty": "आपके पास अभी कोई स्टोर क्रेडिट नहीं है।",
+      "loadFailed": "स्टोर क्रेडिट अभी लोड नहीं हो सका।",
+      "lifetime": "कमाया ₹{earned} · खर्च ₹{spent}",
+      "showHistory": "इतिहास देखें",
+      "hideHistory": "इतिहास छिपाएं",
+      "noHistory": "अभी कोई प्रविष्टि नहीं।",
+      "entry": {
+        "return_credit": "वापसी से क्रेडिट",
+        "order_applied": "ऑर्डर पर खर्च",
+        "order_reverted": "रद्द ऑर्डर से वापस",
+        "admin_adjust": "समायोजन"
+      },
+      "loadingHistory": "ઇતિહાસ લોડ થાય છે…",
+      "historyFailed": "આ ઇતિહાસ અત્યારે લોડ થઈ શક્યો નથી."
     }
   },
   "Favorites": {
@@ -1006,7 +1137,8 @@
       "referrals": "રેફરલ",
       "credit": "ક્રેડિટ",
       "storeQr": "સ્ટોર QR",
-      "devices": "ડિવાઇસ"
+      "devices": "ડિવાઇસ",
+      "returns": "રિટર્ન"
     },
     "alerts": {
       "soundOn": "ઓર્ડર અવાજ ચાલુ",
@@ -1030,7 +1162,8 @@
       "referrals": "રેફરલ",
       "credit": "ક્રેડિટ ગ્રાહકો",
       "storeQr": "સ્ટોર QR કોડ",
-      "devices": "ડિવાઇસ અને સેશન"
+      "devices": "ડિવાઇસ અને સેશન",
+      "returns": "રિટર્ન"
     },
     "common": {
       "save": "સાચવો",
@@ -1256,7 +1389,10 @@
       "total": "કુલ",
       "payment": "ચુકવણી",
       "deliveryTo": "ડિલિવરી સરનામું",
-      "customerFallback": "ગ્રાહક"
+      "customerFallback": "ગ્રાહક",
+      "storeCreditApplied": "સ્ટોર ક્રેડિટ લાગુ",
+      "amountPayable": "ચૂકવવાની રકમ",
+      "startReturn": "રિટર્ન શરૂ કરો"
     },
     "settings": {
       "loadStoreError": "સ્ટોર લોડ થઈ શક્યો નહીં.",
@@ -1459,6 +1595,109 @@
       "diffYouProposed": "તમે પ્રસ્તાવિત કર્યું",
       "diffApplied": "લાગુ",
       "timeline": "સમયરેખા"
+    },
+    "returns": {
+      "loading": "लोड हो रहा है…",
+      "loadFailed": "वापसी लोड नहीं हो सकी। कृपया फिर कोशिश करें।",
+      "empty": "यहाँ कोई वापसी नहीं है।",
+      "filterAll": "બધા",
+      "colReturn": "वापसी",
+      "colItems": "सामान",
+      "colAmount": "राशि",
+      "colStatus": "स्थिति",
+      "orderRef": "ऑर्डर #{orderId}",
+      "itemCount": "{count} सामान",
+      "detailTitle": "वापसी #{id} · ऑर्डर #{orderId}",
+      "itemsTitle": "सामान",
+      "totalLine": "कुल वापसी ₹{amount}",
+      "reasonLine": "कारण: {reason}",
+      "settlementCredit": "ग्राहक ने स्टोर क्रेडिट चुना।",
+      "settlementPayment": "ग्राहक ने पैसे वापस चुने।",
+      "acceptTitle": "यह वापसी स्वीकार करें",
+      "acceptHint": "ग्राहक से 6 अंकों का हैंडओवर कोड लेकर यहाँ दर्ज करें।",
+      "otpLabel": "हैंडओवर कोड",
+      "restockLabel": "इन्हें बिक्री योग्य स्टॉक में वापस डालें",
+      "restockHint": "यदि सामान दोबारा नहीं बिक सकता तो इसे बंद रखें।",
+      "acceptAction": "वापसी स्वीकार करें",
+      "rejectTitle": "यह वापसी अस्वीकार करें",
+      "rejectHint": "कारण दर्ज करें। ग्राहक इसे देखेगा और आप सीधे उनसे निपटान करेंगे।",
+      "rejectReasonPlaceholder": "लौटाए गए सामान में क्या समस्या थी?",
+      "rejectAction": "वापसी अस्वीकार करें",
+      "rejectConfirm": "यह वापस नहीं किया जा सकता।",
+      "rejectConfirmYes": "हाँ, अस्वीकार करें",
+      "cancel": "રદ કરો",
+      "rejectedTitle": "अस्वीकृति का कारण",
+      "windowTitle": "वापसी अवधि",
+      "windowIntro": "डिलीवरी के बाद ग्राहक कितने दिन तक सामान लौटा सकते हैं, प्रति सेवा। 0 का अर्थ वापसी बंद।",
+      "windowFieldLabel": "{service} के लिए वापसी अवधि",
+      "windowDays": "दिन",
+      "windowOff": "वापसी बंद",
+      "windowSaved": "सहेजा गया।",
+      "save": "સાચવો",
+      "errors": {
+        "receipt_otp_invalid": "यह कोड सही नहीं है।",
+        "receipt_otp_invalid_remaining": "यह कोड सही नहीं है। {remaining} कोशिशें बाकी।",
+        "receipt_otp_locked": "बहुत बार गलत कोड। इसे एडमिन ही सुलझा सकता है।",
+        "receipt_otp_required": "ग्राहक का हैंडओवर कोड दर्ज करें।",
+        "illegal_return_transition": "इस वापसी पर पहले ही निर्णय हो चुका है।",
+        "reason_required": "कृपया कारण बताएं।",
+        "invalid_return_window": "0 से 365 के बीच संख्या दर्ज करें।",
+        "unknown": "कुछ गड़बड़ हुई। कृपया फिर कोशिश करें।",
+        "agreement_unavailable": "હજી કોઈ રિટર્ન કરાર પ્રકાશિત નથી, તેથી રિટર્ન શરૂ થઈ શકતું નથી. વ્યવસ્થાપકને પ્રકાશિત કરવા કહો.",
+        "items_already_returned": "તે વસ્તુઓ પહેલેથી રિટર્નમાં છે — ગ્રાહકે પહેલાં શરૂ કર્યું હોઈ શકે. વર્તમાન સ્થિતિ જોવા પેજ ફરી લોડ કરો.",
+        "return_window_closed": "આ ઓર્ડરની રિટર્ન અવધિ પૂરી થઈ ગઈ છે.",
+        "returns_disabled_for_service": "આ સેવા માટે રિટર્ન બંધ છે. સેટિંગ્સમાં રિટર્ન અવધિ સેટ કરો.",
+        "order_not_delivered": "ઓર્ડર ડિલિવર થયા પછી જ રિટર્ન શરૂ થઈ શકે.",
+        "no_items_selected": "ઓછામાં ઓછી એક વસ્તુ પસંદ કરો.",
+        "invalid_order_item": "પસંદ કરેલી એક વસ્તુ આ ઓર્ડરમાં નથી. ફરી લોડ કરીને પ્રયાસ કરો.",
+        "reason_note_required": "શું થયું તેનું વર્ણન ઉમેરો.",
+        "receipt_otp_not_issued": "આ રિટર્નનો હેન્ડઓવર કોડ હજી નથી — ગ્રાહકે પુષ્ટિ કરી નથી.",
+        "return_not_found": "તે રિટર્ન મળ્યું નથી. તે પાછું ખેંચાયું હોઈ શકે અથવા સમાપ્ત થયું હોઈ શકે.",
+        "resend_cooldown": "બીજો કોડ મોકલતાં પહેલાં કૃપા કરી થોડી વાર થોભો."
+      },
+      "status": {
+        "awaiting_customer_confirmation": "ગ્રાહકની પુષ્ટિ બાકી",
+        "active": "વસ્તુ મળવાની બાકી",
+        "awaiting_payment_confirmation": "ચુકવણી પુષ્ટિ બાકી",
+        "closed": "પૂર્ણ",
+        "rejected": "નકારેલ",
+        "withdrawn": "પાછું ખેંચ્યું",
+        "expired": "સમય પૂરો"
+      },
+      "reason": {
+        "damaged": "ખરાબ",
+        "wrong_item": "ખોટી વસ્તુ",
+        "past_expiry": "એક્સપાયરી વીતી",
+        "quality_issue": "ગુણવત્તા સમસ્યા",
+        "not_as_described": "વર્ણન મુજબ નથી",
+        "other": "અન્ય"
+      },
+      "initiate": {
+        "title": "ગ્રાહક માટે રિટર્ન શરૂ કરો",
+        "subtitle": "ઓર્ડર #{orderId}",
+        "loading": "લોડ થઈ રહ્યું છે…",
+        "loadFailed": "આ ઓર્ડરના રિટર્ન વિકલ્પો લોડ થઈ શક્યા નથી. કૃપા કરી ફરી પ્રયાસ કરો.",
+        "consentNote": "{name}એ આની પુષ્ટિ કરવી પડશે. અહીં રિટર્ન શરૂ કરવાથી તેમને પુષ્ટિ કોડ મોકલાય છે — તેઓ કરાર સ્વીકારીને કોડ દાખલ ન કરે ત્યાં સુધી કંઈ પાછું જતું નથી કે પૈસા/ક્રેડિટ ખસતાં નથી. તે ૪૮ કલાકે સમાપ્ત થાય છે.",
+        "itemsTitle": "કઈ વસ્તુઓ પાછી આવી રહી છે?",
+        "wholeLinesOnly": "ફક્ત આખી વસ્તુઓ. પહેલેથી રિટર્નમાં હોય તે વસ્તુઓ પસંદ કરી શકાતી નથી.",
+        "reasonTitle": "કારણ",
+        "noteRequired": "શું થયું તે જણાવો (જરૂરી)",
+        "noteOptional": "નોંધ ઉમેરો (વૈકલ્પિક)",
+        "settlementTitle": "સેટલમેન્ટ કેવી રીતે થાય?",
+        "settlementCreditHint": "તમારી દુકાનના ભવિષ્યના ઓર્ડર પર વાપરી શકાય.",
+        "settlementPaymentHint": "તમે બહાર સેટલ કરો; ગ્રાહક કોડથી પુષ્ટિ કરશે.",
+        "settlementCustomerNote": "ગ્રાહક તેના કરારમાં આ પસંદગી જુએ છે અને અસહમત હોય તો પાછું ખેંચી શકે છે.",
+        "previewTotal": "રિટર્ન મૂલ્ય: ₹{amount}",
+        "submit": "પુષ્ટિ માટે ગ્રાહકને મોકલો",
+        "cancel": "રદ કરો",
+        "ineligible": {
+          "order_not_delivered": "આ ઓર્ડર ડિલિવર થયા પછી તમે રિટર્ન શરૂ કરી શકો છો.",
+          "return_window_closed": "આ ઓર્ડરની રિટર્ન અવધિ પૂરી થઈ ગઈ છે.",
+          "returns_disabled_for_service": "આ સેવા માટે રિટર્ન બંધ છે. સ્વીકારવા માટે સેટિંગ્સમાં રિટર્ન અવધિ સેટ કરો.",
+          "items_already_returned": "આ ઓર્ડરની દરેક વસ્તુ પહેલેથી રિટર્નમાં છે.",
+          "unknown": "આ ઓર્ડર રિટર્ન માટે પાત્ર નથી."
+        }
+      }
     }
   },
   "Admin": {
@@ -1477,7 +1716,8 @@
       "feeQueue": "ફી કતાર",
       "referrals": "રેફરલ",
       "notifications": "સૂચનાઓ",
-      "customers": "ગ્રાહકો"
+      "customers": "ગ્રાહકો",
+      "returns": "રિટર્ન"
     },
     "titles": {
       "dashboard": "એડમિન ડેશબોર્ડ",
@@ -1811,7 +2051,8 @@
         "activity": "પ્રવૃત્તિ",
         "fees": "ફી / પ્લાન",
         "credits": "ક્રેડિટ",
-        "qr": "QR"
+        "qr": "QR",
+        "returns": "રિટર્ન"
       },
       "loadSellerError": "વિક્રેતા લોડ કરવામાં નિષ્ફળ",
       "loadingSeller": "વિક્રેતા લોડ થઈ રહ્યો છે…",
@@ -1929,7 +2170,9 @@
       "confirmPublish": "આથી બધા વપરાશકર્તાઓએ નીતિઓ ફરી સ્વીકારવી પડશે. નવી આવૃત્તિ પ્રકાશિત કરવી?",
       "published": "v{version} પ્રકાશિત કરી.",
       "loadError": "નીતિઓ લોડ થઈ શકી નથી.",
-      "publishError": "પ્રકાશિત કરી શકાયું નથી. કૃપા કરીને ફરી પ્રયાસ કરો."
+      "publishError": "પ્રકાશિત કરી શકાયું નથી. કૃપા કરીને ફરી પ્રયાસ કરો.",
+      "returnAgreement": "રિટર્ન કરાર",
+      "unknownKind": "અજ્ઞાત નીતિ"
     },
     "onboarding": {
       "colStore": "સ્ટોર",
@@ -2161,6 +2404,77 @@
         "orders": "ઓર્ડર",
         "addresses": "સરનામાં",
         "notifications": "સૂચનાઓ"
+      }
+    },
+    "tab": {
+      "returns": "રિટર્ન"
+    },
+    "returns": {
+      "title": "રિટર્ન",
+      "loading": "लोड हो रहा है…",
+      "loadFailed": "वापसी लोड नहीं हो सकी। कृपया फिर कोशिश करें।",
+      "empty": "इस फ़िल्टर में कोई वापसी नहीं।",
+      "filterAll": "બધા",
+      "colReturn": "वापसी",
+      "colOrder": "ऑर्डर",
+      "colSeller": "विक्रेता",
+      "colAmount": "राशि",
+      "colStatus": "स्थिति",
+      "detailTitle": "वापसी #{id} · ऑर्डर #{orderId}",
+      "itemsTitle": "सामान",
+      "fieldInitiatedBy": "किसने शुरू की",
+      "fieldReason": "कारण",
+      "fieldSettlement": "निपटान",
+      "fieldReversal": "क्रेडिट वापस",
+      "fieldRejectionReason": "अस्वीकृति का कारण",
+      "settlementCredit": "स्टोर क्रेडिट",
+      "settlementPayment": "पैसे वापस",
+      "forceTitle": "ऑपरेटर कार्रवाई",
+      "forceHint": "ये विक्रेता का हैंडओवर कोड छोड़ती हैं, ग्राहक की सहमति नहीं। हर कार्रवाई कारण सहित दर्ज होती है।",
+      "reasonLabel": "कारण (आवश्यक)",
+      "reasonMin": "कम से कम {min} अक्षर।",
+      "restockLabel": "इन्हें बिक्री योग्य स्टॉक में वापस डालें",
+      "cancel": "રદ કરો",
+      "force": {
+        "accept": "जबरन स्वीकार",
+        "reject": "जबरन अस्वीकार",
+        "close": "जबरन बंद"
+      },
+      "confirm": {
+        "accept": "यह वापसी स्वीकार करें",
+        "reject": "यह वापसी अस्वीकार करें",
+        "close": "यह वापसी बंद करें"
+      },
+      "storeCreditTitle": "स्टोर क्रेडिट",
+      "storeCreditEmpty": "इस ग्राहक के पास स्टोर क्रेडिट नहीं है।",
+      "storeCreditFailed": "स्टोर क्रेडिट अभी लोड नहीं हो सका।",
+      "errors": {
+        "reason_required": "कम से कम 10 अक्षरों का कारण दें।",
+        "illegal_return_transition": "इस वापसी पर पहले ही निर्णय हो चुका है।",
+        "return_not_found": "यह वापसी अब मौजूद नहीं है।",
+        "unknown": "कुछ गड़बड़ हुई। कृपया फिर कोशिश करें।"
+      },
+      "status": {
+        "awaiting_customer_confirmation": "ગ્રાહકની પુષ્ટિ બાકી",
+        "active": "વસ્તુ મળવાની બાકી",
+        "awaiting_payment_confirmation": "ચુકવણી બાકી",
+        "closed": "પૂર્ણ",
+        "rejected": "નકારેલ",
+        "withdrawn": "પાછું ખેંચ્યું",
+        "expired": "સમય પૂરો"
+      },
+      "reason": {
+        "damaged": "ખરાબ",
+        "wrong_item": "ખોટી વસ્તુ",
+        "past_expiry": "એક્સપાયરી વીતી",
+        "quality_issue": "ગુણવત્તા સમસ્યા",
+        "not_as_described": "વર્ણન મુજબ નથી",
+        "other": "અન્ય"
+      },
+      "initiator": {
+        "customer": "ગ્રાહક",
+        "seller": "વિક્રેતા",
+        "admin": "એડમિન"
       }
     }
   },

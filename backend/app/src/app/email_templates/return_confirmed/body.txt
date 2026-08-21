@@ -1,0 +1,11 @@
+Hi {{ customer_first_name|default('there') }},
+
+Your return #{{ return_id }} for order #{{ order_id }} is confirmed.
+
+Take the items to {{ store_name }}. Staff will ask for your handover code:
+
+{{ receipt_code }}
+
+Share it only with the store when you hand the items over.
+
+{{ frontend_base_url }}/account/returns/{{ return_id }}

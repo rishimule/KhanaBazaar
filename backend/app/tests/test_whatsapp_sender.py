@@ -21,17 +21,19 @@ def test_twilio_whatsapp_from_defaults_empty():
 
 def test_registry_has_all_templates():
     expected = {
-        "otp_login", "otp_seller_phone", "otp_delivery",
+        "otp_login", "otp_seller_phone", "otp_delivery", "otp_return",
         "order_placed", "order_packed", "order_dispatched",
         "order_delivered", "order_cancelled",
         "fee_activated", "fee_expiring", "fee_suspended",
         "seller_new_order",
+        "return_initiated", "return_confirmed", "return_accepted",
+        "return_rejected", "return_closed",
     }
     assert set(TEMPLATES) == expected
 
 
 def test_auth_templates_are_authentication_category():
-    for name in ("otp_login", "otp_seller_phone", "otp_delivery"):
+    for name in ("otp_login", "otp_seller_phone", "otp_delivery", "otp_return"):
         assert TEMPLATES[name].category == "AUTHENTICATION"
 
 

@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import StoreCreditSection from "@/components/returns/StoreCreditSection";
 
 import { useAuth } from "@/lib/AuthContext";
 import { type CustomerCreditAccount, getMyCredit } from "@/lib/credit";
@@ -57,6 +58,8 @@ export default function AccountCreditPage() {
           </section>
         ))
       )}
+
+      <StoreCreditSection />
     </div>
   );
 }

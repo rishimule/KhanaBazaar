@@ -16,6 +16,7 @@ const TABS: { slug: string; labelKey: string }[] = [
   { slug: "profile", labelKey: "tab.profile" },
   { slug: "products", labelKey: "tab.products" },
   { slug: "orders", labelKey: "tab.orders" },
+  { slug: "returns", labelKey: "tab.returns" },
   { slug: "requests", labelKey: "tab.requests" },
   { slug: "fees", labelKey: "tab.fees" },
   { slug: "credits", labelKey: "tab.credits" },

@@ -20,6 +20,7 @@ from app.api import (
     platform_fees,
     policies,
     referrals,
+    returns,
     search,
     seller_change_requests,
     seller_onboarding,
@@ -79,3 +80,13 @@ api_router.include_router(
     credit.admin_router, prefix="/admin", tags=["admin", "credit"]
 )
 api_router.include_router(credit.router, prefix="/credit", tags=["credit"])
+api_router.include_router(returns.router, prefix="/returns", tags=["returns"])
+api_router.include_router(
+    returns.store_credit_router, prefix="/store-credit", tags=["returns"]
+)
+api_router.include_router(
+    returns.seller_router, prefix="/sellers", tags=["sellers", "returns"]
+)
+api_router.include_router(
+    returns.admin_router, prefix="/admin", tags=["admin", "returns"]
+)

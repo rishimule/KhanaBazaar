@@ -79,9 +79,10 @@ async def test_has_open_obligations_zero_for_clean_customer(
 ) -> None:
     _, profile = await _seed_customer(session, "svc-clean@kb.com")
     assert profile.id is not None
-    orders, credits = await has_open_obligations(session, profile.id)
+    orders, credits, returns = await has_open_obligations(session, profile.id)
     assert orders == 0
     assert credits == 0
+    assert returns == 0
 
 
 @pytest.mark.asyncio
@@ -91,8 +92,8 @@ async def test_open_obligations_blocks_self_delete(
     user, _ = await _seed_customer(session, "svc-openobl@kb.com")
     assert user.id is not None
 
-    async def _fake(_session: AsyncSession, _cid: int) -> tuple[int, int]:
-        return (1, 0)
+    async def _fake(_session: AsyncSession, _cid: int) -> tuple[int, int, int]:
+        return (1, 0, 0)
 
     monkeypatch.setattr(lifecycle, "has_open_obligations", _fake)
     with pytest.raises(OpenObligations) as exc:
@@ -112,8 +113,8 @@ async def test_admin_delete_bypasses_obligation_guard(
     admin_id = await _seed_admin(session, "svc-admin1@kb.com")
     assert user.id is not None
 
-    async def _fake(_session: AsyncSession, _cid: int) -> tuple[int, int]:
-        return (5, 2)  # obligations exist, but admin bypasses the guard
+    async def _fake(_session: AsyncSession, _cid: int) -> tuple[int, int, int]:
+        return (5, 2, 1)  # obligations exist, but admin bypasses the guard
 
     monkeypatch.setattr(lifecycle, "has_open_obligations", _fake)
     updated = await transition(

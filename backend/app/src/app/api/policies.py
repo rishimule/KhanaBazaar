@@ -69,7 +69,9 @@ async def admin_list_policies(
     session: AsyncSession = Depends(get_db_session),
 ) -> list[PolicyAdminItem]:
     items: list[PolicyAdminItem] = []
-    for kind in (PolicyKind.terms, PolicyKind.privacy):
+    # Enumerate the enum: hardcoding kinds here once stranded the return
+    # agreement with no way to publish it from the dashboard.
+    for kind in PolicyKind:
         doc = await _current_document(session, kind)
         if doc is None:
             items.append(

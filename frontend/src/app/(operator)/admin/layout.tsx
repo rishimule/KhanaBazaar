@@ -32,6 +32,7 @@ export default function AdminLayout({
   const adminNav = [
     { href: "/admin", label: t("nav.dashboard"), icon: "📊" },
     { href: "/admin/orders", label: t("nav.orders"), icon: "📦" },
+    { href: "/admin/returns", label: t("nav.returns"), icon: "↩️" },
     { href: "/admin/sellers", label: t("nav.sellers"), icon: "🏪" },
     { href: "/admin/customers", label: t("nav.customers"), icon: "👤" },
     { href: "/admin/sellers/applications", label: t("nav.applications"), icon: "✅" },

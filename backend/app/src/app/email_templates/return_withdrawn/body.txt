@@ -1,0 +1,7 @@
+Hi {{ customer_first_name|default('there') }},
+
+Return #{{ return_id }} for order #{{ order_id }} was withdrawn.
+
+Nothing was settled. The items are free to return again if the order's return window is still open.
+
+{{ frontend_base_url }}/account/returns/{{ return_id }}

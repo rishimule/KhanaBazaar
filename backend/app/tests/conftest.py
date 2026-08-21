@@ -339,28 +339,46 @@ def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, Non
         # This test exercises the real dispatcher → Celery task wiring.
         yield
         return
+    from contextlib import ExitStack
     from unittest.mock import patch
 
-    with patch("app.api.orders.dispatch_order_placed", lambda *a, **kw: None), \
-         patch("app.api.orders.dispatch_order_status_changed", lambda *a, **kw: None), \
-         patch("app.api.orders.dispatch_notification_push", lambda *a, **kw: None), \
-         patch("app.api.orders.dispatch_order_status_whatsapp", lambda *a, **kw: None), \
-         patch("app.api.orders.dispatch_delivery_otp", lambda *a, **kw: None), \
-         patch("app.api.orders.dispatch_admin_order_action", lambda *a, **kw: None), \
-         patch("app.api.admin_actions.dispatch_admin_order_action", lambda *a, **kw: None), \
-         patch("app.api.sellers.dispatch_seller_approved", lambda *a, **kw: None), \
-         patch("app.api.sellers.dispatch_seller_rejected", lambda *a, **kw: None), \
-         patch("app.api.sellers.dispatch_seller_application_submitted", lambda *a, **kw: None), \
-         patch("app.services.seller_emails.dispatch_seller_application_submitted", lambda *a, **kw: None), \
-         patch("app.services.seller_emails.dispatch_customer_welcome", lambda *a, **kw: None), \
-         patch("app.services.seller_emails.dispatch_seller_change_request_submitted", lambda *a, **kw: None), \
-         patch("app.services.seller_emails.dispatch_seller_change_request_approved", lambda *a, **kw: None), \
-         patch("app.services.seller_emails.dispatch_seller_change_request_changes_requested", lambda *a, **kw: None), \
-         patch("app.services.seller_emails.dispatch_seller_change_request_rejected", lambda *a, **kw: None), \
-         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_submitted", lambda *a, **kw: None, create=True), \
-         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_approved", lambda *a, **kw: None, create=True), \
-         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_changes_requested", lambda *a, **kw: None, create=True), \
-         patch("app.services.seller_profile_change_requests.dispatch_seller_change_request_rejected", lambda *a, **kw: None, create=True):
+    # ExitStack, not a `with a, b, c, ...` chain: CPython caps statically
+    # nested blocks at 20 and the chain had reached it, so the next dispatcher
+    # added here would fail to compile.
+    targets = (
+        "app.api.orders.dispatch_order_placed",
+        "app.api.orders.dispatch_order_status_changed",
+        "app.api.orders.dispatch_notification_push",
+        "app.api.orders.dispatch_order_status_whatsapp",
+        "app.api.orders.dispatch_delivery_otp",
+        "app.api.orders.dispatch_admin_order_action",
+        "app.api.admin_actions.dispatch_admin_order_action",
+        "app.api.returns.dispatch_return_otp",
+        "app.api.returns.dispatch_return_status",
+        "app.api.sellers.dispatch_seller_approved",
+        "app.api.sellers.dispatch_seller_rejected",
+        "app.api.sellers.dispatch_seller_application_submitted",
+        "app.services.seller_emails.dispatch_seller_application_submitted",
+        "app.services.seller_emails.dispatch_customer_welcome",
+        "app.services.seller_emails.dispatch_seller_change_request_submitted",
+        "app.services.seller_emails.dispatch_seller_change_request_approved",
+        "app.services.seller_emails.dispatch_seller_change_request_changes_requested",
+        "app.services.seller_emails.dispatch_seller_change_request_rejected",
+    )
+    # These four are re-exported into the change-request service module and may
+    # not exist as attributes there; create=True keeps the patch tolerant.
+    create_targets = (
+        "app.services.seller_profile_change_requests.dispatch_seller_change_request_submitted",
+        "app.services.seller_profile_change_requests.dispatch_seller_change_request_approved",
+        "app.services.seller_profile_change_requests.dispatch_seller_change_request_changes_requested",
+        "app.services.seller_profile_change_requests.dispatch_seller_change_request_rejected",
+    )
+
+    with ExitStack() as stack:
+        for target in targets:
+            stack.enter_context(patch(target, lambda *a, **kw: None))
+        for target in create_targets:
+            stack.enter_context(patch(target, lambda *a, **kw: None, create=True))
         yield
 
 

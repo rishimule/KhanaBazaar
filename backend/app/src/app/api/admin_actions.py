@@ -1274,7 +1274,9 @@ async def admin_customer_hub(
 ) -> AdminCustomerHub:
     profile, user = await _resolve_customer(session, customer_profile_id)
     assert profile.id is not None and user.id is not None
-    open_orders, credit_accounts = await has_open_obligations(session, profile.id)
+    open_orders, credit_accounts, _open_returns = await has_open_obligations(
+        session, profile.id
+    )
     return AdminCustomerHub(
         customer_profile_id=profile.id,
         user_id=user.id,

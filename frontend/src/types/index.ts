@@ -378,6 +378,8 @@ export interface Order {
   payment: OrderPayment;
   delivery: OrderDelivery;
   review: OrderReview | null;
+  /** Gross `total` minus this is what the customer actually pays. */
+  store_credit_applied?: number;
 }
 
 export interface OrderListResponse {
@@ -971,4 +973,110 @@ export interface SellerOrderAlertSummary {
   pending_count: number;
   latest_pending_order_id: number | null;
   latest_pending_at: string | null;
+}
+
+// ─── Returns ─────────────────────────────────────────────────────────────
+
+export type ReturnStatus =
+  | "awaiting_customer_confirmation"
+  | "active"
+  | "awaiting_payment_confirmation"
+  | "closed"
+  | "rejected"
+  | "withdrawn"
+  | "expired";
+
+export type ReturnInitiator = "customer" | "seller" | "admin";
+
+export type ReturnSettlementChoice = "payment" | "store_credit";
+
+export type ReturnReasonCode =
+  | "damaged"
+  | "wrong_item"
+  | "past_expiry"
+  | "quality_issue"
+  | "not_as_described"
+  | "other";
+
+export interface ReturnItem {
+  order_item_id: number;
+  product_name: string;
+  unit_price: number;
+  quantity: number;
+  line_total: number;
+}
+
+export interface ReturnRequest {
+  id: number;
+  order_id: number;
+  store_id: number;
+  seller_profile_id: number;
+  status: ReturnStatus;
+  initiated_by: ReturnInitiator;
+  is_full_order: boolean;
+  reason_code: ReturnReasonCode;
+  reason_note: string | null;
+  items_amount: number;
+  delivery_fee_amount: number;
+  total_amount: number;
+  settlement_choice: ReturnSettlementChoice;
+  credit_reversal_amount: number;
+  store_credit_amount: number;
+  payment_amount: number;
+  rejection_reason: string | null;
+  agreement_policy_version: number;
+  window_expires_at: string;
+  confirm_expires_at: string;
+  handover_expires_at: string | null;
+  created_at: string;
+  items: ReturnItem[];
+  /** Only present for the owning customer while the return is `active`. */
+  receipt_otp: string | null;
+}
+
+export interface ReturnEligibilityLine {
+  order_item_id: number;
+  product_name: string;
+  unit_price: number;
+  quantity: number;
+  line_total: number;
+  returnable: boolean;
+  lock_reason: string | null;
+}
+
+export interface ReturnEligibility {
+  order_id: number;
+  eligible: boolean;
+  reason_code: string | null;
+  window_expires_at: string | null;
+  delivery_fee: number;
+  full_order_available: boolean;
+  agreement_version: number | null;
+  lines: ReturnEligibilityLine[];
+}
+
+export interface SellerReturnEligibility extends ReturnEligibility {
+  customer_profile_id: number;
+  customer_name: string;
+}
+
+export interface StoreCreditBalance {
+  seller_profile_id: number;
+  /** Present so checkout can match on an id, never a display name. */
+  store_id: number | null;
+  store_name: string;
+  balance: number;
+  lifetime_earned: number;
+  lifetime_spent: number;
+}
+
+export interface StoreCreditEntry {
+  id: number;
+  entry_type: "return_credit" | "order_applied" | "order_reverted" | "admin_adjust";
+  amount: number;
+  balance_after: number;
+  return_request_id: number | null;
+  order_id: number | null;
+  note: string | null;
+  created_at: string;
 }

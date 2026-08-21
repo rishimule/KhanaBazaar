@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-"""Idempotent seed of v1 Privacy + Terms documents from bundled Markdown.
+"""Idempotent seed of v1 Privacy + Terms + Return-agreement documents.
 
 Inserts version 1 of a kind only if that kind has no document yet, so it is
 safe to run on every deploy. Run from `backend/app`:
@@ -17,7 +17,15 @@ from app.models.consent import PolicyDocument, PolicyKind
 from app.services.consent import get_current_version
 
 _SEED_DIR = Path(__file__).parent / "policy_seed"
-_FILES = {PolicyKind.terms: "terms.md", PolicyKind.privacy: "privacy.md"}
+# Every kind that ships with a default document. The return agreement MUST be
+# here: `create_return` refuses with `agreement_unavailable` until one exists,
+# and the prod release runs `seed_database.py --skip-if-seeded`, which skips the
+# dev seed entirely on a populated catalog.
+_FILES = {
+    PolicyKind.terms: "terms.md",
+    PolicyKind.privacy: "privacy.md",
+    PolicyKind.return_agreement: "return_agreement.md",
+}
 
 
 async def seed_policies(session: AsyncSession) -> dict[str, int]:

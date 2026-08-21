@@ -234,7 +234,8 @@
     "deliveryModeTitle": "Delivery method",
     "modeDoor": "Door delivery",
     "modePickup": "Pick up at store",
-    "collectAt": "Collect at"
+    "collectAt": "Collect at",
+    "storeCreditLabel": "Use store credit (₹{balance} available)"
   },
   "Login": {
     "errSendCode": "Failed to send code.",
@@ -890,6 +891,136 @@
       "otpInvalid": "That code is incorrect or expired. Please request a new one.",
       "networkError": "Network error. Please check your connection and try again.",
       "genericError": "Something went wrong. Please try again."
+    },
+    "navReturns": "Returns",
+    "layoutReturnsTitle": "Returns",
+    "returns": {
+      "loading": "Loading…",
+      "loadFailed": "We couldn't load this right now. Please try again.",
+      "empty": "You haven't returned anything yet.",
+      "panelTitle": "Returns",
+      "startReturn": "Return items",
+      "wizardTitle": "Return items from order #{orderId}",
+      "rowTitle": "Return #{id} · order #{orderId}",
+      "itemCount": "{count} items",
+      "stepOf": "Step {step} of {total}",
+      "next": "Continue",
+      "back": "Back",
+      "step1Title": "Which items are you returning?",
+      "wholeLinesOnly": "Whole items only — part of an item can't be returned.",
+      "returnEverything": "Return everything in this order",
+      "feeReturned": "The ₹{amount} delivery fee comes back on a full-order return.",
+      "previewTotal": "Return total so far: ₹{amount}",
+      "step2Title": "Why are you returning them?",
+      "noteRequired": "Tell us what happened (required)",
+      "noteOptional": "Anything else we should know? (optional)",
+      "step3Title": "How would you like the amount back?",
+      "settlementCredit": "Store credit",
+      "settlementCreditHint": "Spend it on future orders from this store.",
+      "settlementPayment": "Money back",
+      "settlementPaymentHint": "The store pays you directly; you confirm here once you receive it.",
+      "reversalNote": "If you owe this store on credit, the amount clears that balance first.",
+      "step4Title": "Review and accept the agreement",
+      "summaryItems": "Items",
+      "summaryDeliveryFee": "Delivery fee",
+      "summaryTotal": "Return total",
+      "acceptAgreement": "I have read and accept the return agreement",
+      "otpLabel": "Enter the 6-digit code we sent you",
+      "otpResend": "Send the code again",
+      "otpResent": "Code sent.",
+      "otpCooldown": "Please wait a moment before asking again.",
+      "otpResendFailed": "We couldn't send the code. Please try again.",
+      "confirmReturn": "Confirm return",
+      "itemsTitle": "Items being returned",
+      "settlementTitle": "How the amount is settled",
+      "settlementReversal": "₹{amount} was taken off what you owe this store.",
+      "settlementStoreCredit": "₹{amount} was added as store credit.",
+      "settlementPaymentDue": "₹{amount} is being paid back to you directly.",
+      "rejectedTitle": "The store did not accept this return",
+      "rejectedSettleOffline": "Settle this directly with the store, as set out in the agreement you accepted.",
+      "confirmPaymentTitle": "Confirm you received the money",
+      "confirmPaymentHint": "Once the store has paid you, confirm it here with a code.",
+      "sendPaymentOtp": "Send me a code",
+      "paymentOtpSent": "Code sent.",
+      "confirmPaymentAction": "Confirm payment received",
+      "handoverCodeTitle": "Your handover code",
+      "handoverCodeHint": "Show this to the store when you hand the items over.",
+      "withdraw": "Withdraw this return",
+      "status": {
+        "awaiting_customer_confirmation": "Awaiting your confirmation",
+        "active": "Ready to hand over",
+        "awaiting_payment_confirmation": "Awaiting your payment confirmation",
+        "closed": "Closed",
+        "rejected": "Not accepted",
+        "withdrawn": "Withdrawn",
+        "expired": "Expired"
+      },
+      "reason": {
+        "damaged": "Damaged",
+        "wrong_item": "Wrong item",
+        "past_expiry": "Past expiry",
+        "quality_issue": "Quality issue",
+        "not_as_described": "Not as described",
+        "other": "Other"
+      },
+      "lock": {
+        "already_in_return": "Already part of another return.",
+        "unknown": "Not available to return."
+      },
+      "ineligible": {
+        "order_not_delivered": "You can return items once the order is delivered.",
+        "return_window_closed": "The return window for this order has closed.",
+        "returns_disabled_for_service": "This store doesn't accept returns for this service.",
+        "items_already_returned": "Every item on this order is already in a return.",
+        "unknown": "This order isn't eligible for a return."
+      },
+      "errors": {
+        "agreement_unavailable": "Returns aren't available right now. Please try later.",
+        "items_already_returned": "One of those items is already in another return.",
+        "return_window_closed": "The return window for this order has closed.",
+        "return_otp_invalid": "That code isn't right. Please check and try again.",
+        "confirmation_expired": "This return expired before it was confirmed. Please start a new one.",
+        "illegal_return_transition": "This return has already moved on.",
+        "reason_note_required": "Please tell us what happened.",
+        "resend_cooldown": "Please wait a moment before asking again.",
+        "unknown": "Something went wrong. Please try again.",
+        "agreement_not_accepted": "Please accept the return agreement to continue.",
+        "returns_disabled_for_service": "This store doesn't accept returns for this service.",
+        "order_not_delivered": "You can return items once the order is delivered.",
+        "not_eligible": "This order isn't eligible for a return.",
+        "no_items_selected": "Choose at least one item to return.",
+        "invalid_order_item": "One of those items isn't on this order. Please reload and try again.",
+        "return_not_found": "We couldn't find that return. It may have been withdrawn or expired.",
+        "return_not_active": "This return is no longer open.",
+        "return_not_awaiting_payment": "This return isn't waiting for a payment confirmation.",
+        "return_not_awaiting_confirmation": "This return has already been confirmed."
+      },
+      "step5Title": "Confirm with your code",
+      "acceptAndSendCode": "Accept and send my code",
+      "notCreatedYet": "Nothing has been submitted yet. Your return is created — and your items reserved — only when you accept and ask for the code.",
+      "savedNote": "Your return is saved and is holding the selected items. If you close this page, resume it from Returns in your account, or withdraw it to release them.",
+      "resumeTitle": "You already started a return for this order",
+      "resumeBody": "It is waiting for your confirmation code and is holding these items. Resume it, or discard it to choose different items.",
+      "resumeCta": "Resume confirmation",
+      "discardCta": "Discard and start over"
+    },
+    "storeCredit": {
+      "heading": "Store credit",
+      "intro": "Credit from accepted returns. Each balance can be spent only with that store.",
+      "empty": "You have no store credit yet.",
+      "loadFailed": "We couldn't load your store credit right now.",
+      "lifetime": "Earned ₹{earned} · spent ₹{spent}",
+      "showHistory": "Show history",
+      "hideHistory": "Hide history",
+      "noHistory": "No entries yet.",
+      "entry": {
+        "return_credit": "Credit from a return",
+        "order_applied": "Spent on an order",
+        "order_reverted": "Returned from a cancelled order",
+        "admin_adjust": "Adjustment"
+      },
+      "loadingHistory": "Loading history…",
+      "historyFailed": "We couldn't load this history right now."
     }
   },
   "Favorites": {
@@ -1005,7 +1136,8 @@
       "referrals": "Referrals",
       "credit": "Credit",
       "storeQr": "Store QR",
-      "devices": "Devices"
+      "devices": "Devices",
+      "returns": "Returns"
     },
     "alerts": {
       "soundOn": "Order sound on",
@@ -1029,7 +1161,8 @@
       "referrals": "Referrals",
       "credit": "Credit customers",
       "storeQr": "Store QR Code",
-      "devices": "Devices & sessions"
+      "devices": "Devices & sessions",
+      "returns": "Returns"
     },
     "common": {
       "save": "Save",
@@ -1255,7 +1388,10 @@
       "total": "Total",
       "payment": "Payment",
       "deliveryTo": "Delivery to",
-      "customerFallback": "Customer"
+      "customerFallback": "Customer",
+      "storeCreditApplied": "Store credit applied",
+      "amountPayable": "Amount payable",
+      "startReturn": "Start a return"
     },
     "settings": {
       "loadStoreError": "Could not load store.",
@@ -1458,6 +1594,109 @@
       "diffYouProposed": "You proposed",
       "diffApplied": "Applied",
       "timeline": "Timeline"
+    },
+    "returns": {
+      "loading": "Loading…",
+      "loadFailed": "We couldn't load returns right now. Please try again.",
+      "empty": "No returns here.",
+      "filterAll": "All",
+      "colReturn": "Return",
+      "colItems": "Items",
+      "colAmount": "Amount",
+      "colStatus": "Status",
+      "orderRef": "Order #{orderId}",
+      "itemCount": "{count} items",
+      "detailTitle": "Return #{id} · order #{orderId}",
+      "itemsTitle": "Items",
+      "totalLine": "Return total ₹{amount}",
+      "reasonLine": "Reason: {reason}",
+      "settlementCredit": "Customer chose store credit.",
+      "settlementPayment": "Customer chose money back.",
+      "acceptTitle": "Accept this return",
+      "acceptHint": "Ask the customer for their 6-digit handover code and enter it here.",
+      "otpLabel": "Handover code",
+      "restockLabel": "Return these to sellable stock",
+      "restockHint": "Leave this off if the items can't be sold again.",
+      "acceptAction": "Accept return",
+      "rejectTitle": "Reject this return",
+      "rejectHint": "Record why. The customer sees this reason and you settle directly with them.",
+      "rejectReasonPlaceholder": "What was wrong with the returned items?",
+      "rejectAction": "Reject return",
+      "rejectConfirm": "This can't be undone.",
+      "rejectConfirmYes": "Yes, reject",
+      "cancel": "Cancel",
+      "rejectedTitle": "Rejection reason",
+      "windowTitle": "Return window",
+      "windowIntro": "How long after delivery customers may return items, per service. 0 turns returns off.",
+      "windowFieldLabel": "Return window for {service}",
+      "windowDays": "days",
+      "windowOff": "returns off",
+      "windowSaved": "Saved.",
+      "save": "Save",
+      "errors": {
+        "receipt_otp_invalid": "That code isn't right.",
+        "receipt_otp_invalid_remaining": "That code isn't right. {remaining} tries left.",
+        "receipt_otp_locked": "Too many wrong codes. An admin has to resolve this return.",
+        "receipt_otp_required": "Enter the customer's handover code.",
+        "illegal_return_transition": "This return has already been decided.",
+        "reason_required": "Please give a reason.",
+        "invalid_return_window": "Enter a number between 0 and 365.",
+        "unknown": "Something went wrong. Please try again.",
+        "agreement_unavailable": "No return agreement has been published yet, so returns can't start. Ask an administrator to publish one.",
+        "items_already_returned": "Those items are already inside a return — the customer may have started one first. Reload to see the current state.",
+        "return_window_closed": "The return window for this order has closed.",
+        "returns_disabled_for_service": "Returns are switched off for this service. Set a return window in Settings.",
+        "order_not_delivered": "A return can only start once the order is delivered.",
+        "no_items_selected": "Select at least one item.",
+        "invalid_order_item": "One of the selected items isn't on this order. Reload and try again.",
+        "reason_note_required": "Add a note describing what happened.",
+        "receipt_otp_not_issued": "This return has no handover code yet — the customer hasn't confirmed it.",
+        "return_not_found": "We couldn't find that return. It may have been withdrawn or expired.",
+        "resend_cooldown": "Please wait a moment before sending another code."
+      },
+      "status": {
+        "awaiting_customer_confirmation": "Awaiting customer",
+        "active": "Awaiting handover",
+        "awaiting_payment_confirmation": "Awaiting payment confirmation",
+        "closed": "Closed",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn",
+        "expired": "Expired"
+      },
+      "reason": {
+        "damaged": "Damaged",
+        "wrong_item": "Wrong item",
+        "past_expiry": "Past expiry",
+        "quality_issue": "Quality issue",
+        "not_as_described": "Not as described",
+        "other": "Other"
+      },
+      "initiate": {
+        "title": "Start a return for a customer",
+        "subtitle": "Order #{orderId}",
+        "loading": "Loading…",
+        "loadFailed": "We couldn't load this order's return options. Please try again.",
+        "consentNote": "{name} must confirm this. Starting a return here sends them a confirmation code — nothing is returned, and no money or credit moves, until they accept the agreement and enter it. It expires after 48 hours.",
+        "itemsTitle": "Which items are coming back?",
+        "wholeLinesOnly": "Whole items only. Items already inside a return can't be selected.",
+        "reasonTitle": "Reason",
+        "noteRequired": "Describe what happened (required)",
+        "noteOptional": "Add a note (optional)",
+        "settlementTitle": "How should it be settled?",
+        "settlementCreditHint": "Usable on future orders with your store.",
+        "settlementPaymentHint": "You settle offline; the customer confirms with a code.",
+        "settlementCustomerNote": "The customer sees this choice on their agreement and can withdraw if they disagree.",
+        "previewTotal": "Return value: ₹{amount}",
+        "submit": "Send to customer for confirmation",
+        "cancel": "Cancel",
+        "ineligible": {
+          "order_not_delivered": "You can start a return once this order is delivered.",
+          "return_window_closed": "The return window for this order has closed.",
+          "returns_disabled_for_service": "Returns are switched off for this service. Set a return window in Settings to accept them.",
+          "items_already_returned": "Every item on this order is already in a return.",
+          "unknown": "This order isn't eligible for a return."
+        }
+      }
     }
   },
   "Admin": {
@@ -1476,7 +1715,8 @@
       "fees": "Fees",
       "feeQueue": "Fee queue",
       "notifications": "Notifications",
-      "customers": "Customers"
+      "customers": "Customers",
+      "returns": "Returns"
     },
     "titles": {
       "dashboard": "Admin Dashboard",
@@ -1810,7 +2050,8 @@
         "activity": "Activity",
         "fees": "Fees / Plans",
         "credits": "Credits",
-        "qr": "QR"
+        "qr": "QR",
+        "returns": "Returns"
       },
       "loadSellerError": "Failed to load seller",
       "loadingSeller": "Loading seller…",
@@ -1928,7 +2169,9 @@
       "confirmPublish": "This will require all users to re-accept the policies. Publish a new version?",
       "published": "Published v{version}.",
       "loadError": "Could not load policies.",
-      "publishError": "Could not publish. Please try again."
+      "publishError": "Could not publish. Please try again.",
+      "returnAgreement": "Return agreement",
+      "unknownKind": "Unknown policy"
     },
     "onboarding": {
       "colStore": "Store",
@@ -2160,6 +2403,77 @@
         "orders": "Orders",
         "addresses": "Addresses",
         "notifications": "Notifications"
+      }
+    },
+    "tab": {
+      "returns": "Returns"
+    },
+    "returns": {
+      "title": "Returns",
+      "loading": "Loading…",
+      "loadFailed": "We couldn't load returns right now. Please try again.",
+      "empty": "No returns match this filter.",
+      "filterAll": "All",
+      "colReturn": "Return",
+      "colOrder": "Order",
+      "colSeller": "Seller",
+      "colAmount": "Amount",
+      "colStatus": "Status",
+      "detailTitle": "Return #{id} · order #{orderId}",
+      "itemsTitle": "Items",
+      "fieldInitiatedBy": "Started by",
+      "fieldReason": "Reason",
+      "fieldSettlement": "Settlement",
+      "fieldReversal": "Credit reversed",
+      "fieldRejectionReason": "Rejection reason",
+      "settlementCredit": "Store credit",
+      "settlementPayment": "Money back",
+      "forceTitle": "Operator actions",
+      "forceHint": "These bypass the seller's handover code, never the customer's consent. Every action is recorded with your reason.",
+      "reasonLabel": "Reason (required)",
+      "reasonMin": "At least {min} characters.",
+      "restockLabel": "Return these to sellable stock",
+      "cancel": "Cancel",
+      "force": {
+        "accept": "Force accept",
+        "reject": "Force reject",
+        "close": "Force close"
+      },
+      "confirm": {
+        "accept": "Accept this return",
+        "reject": "Reject this return",
+        "close": "Close this return"
+      },
+      "storeCreditTitle": "Store credit",
+      "storeCreditEmpty": "This customer has no store credit.",
+      "storeCreditFailed": "We couldn't load store credit right now.",
+      "errors": {
+        "reason_required": "Give a reason of at least 10 characters.",
+        "illegal_return_transition": "This return has already been decided.",
+        "return_not_found": "That return no longer exists.",
+        "unknown": "Something went wrong. Please try again."
+      },
+      "status": {
+        "awaiting_customer_confirmation": "Awaiting customer",
+        "active": "Awaiting handover",
+        "awaiting_payment_confirmation": "Awaiting payment",
+        "closed": "Closed",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn",
+        "expired": "Expired"
+      },
+      "reason": {
+        "damaged": "Damaged",
+        "wrong_item": "Wrong item",
+        "past_expiry": "Past expiry",
+        "quality_issue": "Quality issue",
+        "not_as_described": "Not as described",
+        "other": "Other"
+      },
+      "initiator": {
+        "customer": "Customer",
+        "seller": "Seller",
+        "admin": "Admin"
       }
     }
   },

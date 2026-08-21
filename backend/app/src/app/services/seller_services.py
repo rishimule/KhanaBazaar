@@ -93,14 +93,15 @@ async def list_profile_services_for_many(
             SellerProfileService.is_paused,
             SellerProfileService.pause_reason,
             SellerProfileService.paused_until,
+            SellerProfileService.return_window_days,
         )
         .join(
             SellerProfileService,
-            SellerProfileService.service_id == Service.id,  # type: ignore[arg-type]
+            SellerProfileService.service_id == Service.id,
         )
         .join(
             ServiceTranslation,
-            ServiceTranslation.service_id == Service.id,  # type: ignore[arg-type]
+            ServiceTranslation.service_id == Service.id,
             isouter=True,
         )
         .where(SellerProfileService.seller_profile_id.in_(deduped))  # type: ignore[attr-defined]
@@ -108,7 +109,7 @@ async def list_profile_services_for_many(
             (ServiceTranslation.language_code == language_code)
             | (ServiceTranslation.id.is_(None))  # type: ignore[union-attr]
         )
-        .order_by(Service.sort_order, Service.id)  # type: ignore[arg-type]
+        .order_by(Service.sort_order, Service.id)
     )
     result = await session.exec(stmt)
     grouped: dict[int, list[ServicePayload]] = {sid: [] for sid in deduped}
@@ -124,6 +125,7 @@ async def list_profile_services_for_many(
         is_paused,
         pause_reason,
         paused_until,
+        return_window_days,
     ) in result.all():
         assert service.id is not None
         grouped.setdefault(profile_id, []).append(
@@ -144,6 +146,7 @@ async def list_profile_services_for_many(
                 is_paused=is_paused,
                 pause_reason=pause_reason,
                 paused_until=paused_until.isoformat() if paused_until else None,
+                return_window_days=return_window_days,
             )
         )
     return grouped

@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     DELIVERY_OTP_MAX_ATTEMPTS: int = 5
     DELIVERY_OTP_RESEND_COOLDOWN: int = 60
 
+    # Returns. RETURN_CONFIRM_HOURS bounds the awaiting-customer-confirmation
+    # stage; RETURN_HANDOVER_DAYS bounds an active return waiting for goods.
+    RETURN_CONFIRM_HOURS: int = 48
+    RETURN_HANDOVER_DAYS: int = 7
+    RETURN_OTP_MAX_ATTEMPTS: int = 5
+    RETURN_OTP_RESEND_COOLDOWN: int = 60
+
     # Email: "console" (dev/test) or "resend" (production)
     EMAIL_PROVIDER: str = "console"
     RESEND_API_KEY: str = ""

@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { apiErrorCode, apiErrorKey } from "@/lib/errors";
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import DeliveryOtpPanel from "@/components/orders/DeliveryOtpPanel";
+import ReturnEntryPoint from "@/components/returns/ReturnEntryPoint";
 import OrderItemList from "@/components/orders/OrderItemList";
 import OrderActionButtons from "@/components/orders/OrderActionButtons";
 import ReorderButton from "@/components/orders/ReorderButton";
@@ -80,6 +81,8 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <DeliveryOtpPanel order={order} onChange={setOrder} />
+
+      <ReturnEntryPoint order={order} />
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("items")}</h2>

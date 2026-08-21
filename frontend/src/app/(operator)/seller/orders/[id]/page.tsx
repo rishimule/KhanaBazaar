@@ -13,6 +13,7 @@ import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
 import LoadError from "@/components/LoadError";
+import Link from "next/link";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -73,6 +74,16 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
         <OrderTimeline status={order.status} deliveryMode={order.delivery_mode} />
       </section>
 
+      {/* Returns can only start from a delivered order; the backend enforces
+          the window, so this is an entry point, not the eligibility check. */}
+      {order.status === "delivered" && (
+        <section className={styles.section}>
+          <Link className="btn" href={`/seller/orders/${order.id}/return`}>
+            {t("startReturn")}
+          </Link>
+        </section>
+      )}
+
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("items")}</h2>
         <OrderItemList items={order.items} />
@@ -81,6 +92,14 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
           <div><span>{t("delivery")}</span><span>₹{order.delivery_fee.toFixed(2)}</span></div>
           <div><span>{t("tax")}</span><span>₹{order.tax.toFixed(2)}</span></div>
           <div className={styles.grand}><span>{t("total")}</span><span>₹{order.total.toFixed(2)}</span></div>
+          {(order.store_credit_applied ?? 0) > 0 && (
+            <>
+              <div><span>{t("storeCreditApplied")}</span><span>−₹{(order.store_credit_applied ?? 0).toFixed(2)}</span></div>
+              {/* What to actually collect. Showing only the gross total here
+                  makes a COD agent over-collect by the credit amount. */}
+              <div className={styles.grand}><span>{t("amountPayable")}</span><span>₹{order.payment.amount.toFixed(2)}</span></div>
+            </>
+          )}
         </div>
       </section>
 

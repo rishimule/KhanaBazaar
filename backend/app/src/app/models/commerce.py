@@ -88,6 +88,8 @@ class Order(BaseSchema, table=True):
     tax: float = Field(nullable=False)
     total: float = Field(nullable=False)
     delivery_address_snapshot: str = Field(nullable=False)
+    # Store credit spent on this order; `total` stays the gross goods cost.
+    store_credit_applied: float = Field(default=0.0, nullable=False)
     placed_at: datetime = Field(  # type: ignore[call-overload]
         default_factory=lambda: datetime.now(timezone.utc),
         sa_type=DateTime(timezone=True),

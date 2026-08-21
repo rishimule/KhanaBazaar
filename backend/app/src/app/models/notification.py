@@ -24,6 +24,11 @@ class NotificationType(str, enum.Enum):
     Credit = "credit"
     Announcement = "announcement"
     SellerNewOrder = "seller_new_order"
+    # Named ReturnStatusUpdate, not ReturnStatus, so it cannot be confused with
+    # the ReturnStatus enum in app.models.returns.
+    ReturnStatusUpdate = "return_status_update"
+    ReturnReceiptOtp = "return_receipt_otp"
+    SellerReturnRequest = "seller_return_request"
 
 
 class Notification(BaseSchema, table=True):
@@ -42,6 +47,9 @@ class Notification(BaseSchema, table=True):
         default=None, foreign_key="sellerprofile.id", nullable=True, index=True
     )
     order_id: Optional[int] = Field(default=None, foreign_key="order.id")
+    return_request_id: Optional[int] = Field(
+        default=None, foreign_key="return_request.id", nullable=True
+    )
     campaign_id: Optional[int] = Field(
         default=None, foreign_key="notification_campaign.id", nullable=True
     )

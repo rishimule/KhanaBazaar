@@ -2085,3 +2085,328 @@ def send_account_status_email_async(user_id: int, event_key: str) -> None:
         html=payload.html,
         reply_to=settings.EMAIL_REPLY_TO,
     )
+
+
+def _load_return_otp_context(user_id: int) -> dict[str, Any]:
+    """Email + verified phone for the customer confirming a return.
+
+    Same thread-bridged loader idiom as `_load_order_email_context`: Celery's
+    prefork worker has no ambient loop, and EAGER test mode is already inside
+    one. Returns {} when the user is gone (callers short-circuit).
+    """
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.models.base import User
+    from app.models.profile import CustomerProfile
+
+    async def _load() -> dict[str, Any]:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                user = (
+                    await session.exec(select(User).where(User.id == user_id))
+                ).first()
+                if user is None:
+                    return {}
+                profile = (
+                    await session.exec(
+                        select(CustomerProfile).where(
+                            CustomerProfile.user_id == user_id
+                        )
+                    )
+                ).first()
+                return {
+                    "email": user.email,
+                    "phone": profile.phone if profile else None,
+                    "phone_verified": bool(profile and profile.phone_verified_at),
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+def _return_otp_purpose_text(purpose: str) -> str:
+    return (
+        "confirm your return request"
+        if purpose == "initiate"
+        else "confirm you received your return payment"
+    )
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_return_otp_email_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_return_otp_email_async(
+    user_id: int, return_id: int, code: str, purpose: str
+) -> None:
+    """Email a return confirmation code. `purpose` is 'initiate' or 'payment'."""
+    ctx = _load_return_otp_context(user_id)
+    to = ctx.get("email")
+    if not to or not isinstance(to, str):
+        return
+    subject = f"Code for return #{return_id}"
+    body = (
+        f"Use this code to {_return_otp_purpose_text(purpose)} for return "
+        f"#{return_id}: {code}\n\n"
+        f"It expires in {settings.OTP_TTL_SECONDS // 60} minutes. "
+        "Do not share it with anyone."
+    )
+    _resolve_email(to, subject, body)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_return_otp_phone_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_return_otp_phone_async(
+    user_id: int, return_id: int, code: str, purpose: str
+) -> None:
+    """WhatsApp-preferred, SMS-fallback delivery of a return code.
+
+    No-op without a VERIFIED phone: an unverified number is not a channel we
+    trust with a confirmation code.
+    """
+    import asyncio
+    import concurrent.futures
+
+    from app.core.otp_delivery import deliver_phone_otp
+    from app.core.sms import get_sms_sender
+    from app.core.whatsapp import get_whatsapp_sender
+
+    ctx = _load_return_otp_context(user_id)
+    phone = ctx.get("phone")
+    if not phone or not isinstance(phone, str) or not ctx.get("phone_verified"):
+        return
+    sms_text = (
+        f"{settings.COMPANY_NAME}: your confirmation code for return "
+        f"#{return_id} is {code}. Do not share it with anyone."
+    )
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(
+            lambda: asyncio.run(
+                deliver_phone_otp(
+                    to=phone,
+                    template_name="otp_return",
+                    variables={"return_no": str(return_id), "code": code},
+                    sms_text=sms_text,
+                    sms_sender=get_sms_sender(),
+                    whatsapp_sender=get_whatsapp_sender(),
+                )
+            )
+        ).result()
+
+
+@celery_app.task(name="returns.sweep_expired")  # type: ignore[untyped-decorator]
+def sweep_expired_returns() -> int:
+    """Expire stalled returns at both stages. Returns how many moved."""
+    import asyncio
+    import concurrent.futures
+
+    from app.db.session import async_session_factory
+    from app.services.returns import expire_stale_returns
+
+    async def _run() -> list[int]:
+        async with async_session_factory() as session:
+            expired = await expire_stale_returns(session)
+            await session.commit()
+            return expired
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        expired_ids = executor.submit(lambda: asyncio.run(_run())).result()
+
+    # After commit: a comms failure must not undo the sweep.
+    from app.services.return_comms import dispatch_return_status
+
+    for return_id in expired_ids:
+        dispatch_return_status(return_id, "return_expired")
+    return len(expired_ids)
+
+
+def _load_return_email_context(return_id: int) -> dict[str, Any]:
+    """Everything the return emails/WhatsApp need, in one thread-bridged read."""
+    import asyncio
+    import concurrent.futures
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlmodel import select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.core.config import settings
+    from app.models.base import User
+    from app.models.commerce import Order
+    from app.models.profile import CustomerProfile
+    from app.models.returns import ReturnRequest
+    from app.models.store import Store
+
+    async def _load() -> dict[str, Any]:
+        engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        try:
+            async with AsyncSession(engine) as session:
+                req = (
+                    await session.exec(
+                        select(ReturnRequest).where(ReturnRequest.id == return_id)
+                    )
+                ).first()
+                if req is None:
+                    return {}
+                profile = (
+                    await session.exec(
+                        select(CustomerProfile).where(
+                            CustomerProfile.id == req.customer_profile_id
+                        )
+                    )
+                ).first()
+                user = (
+                    await session.exec(
+                        select(User).where(User.id == profile.user_id)
+                    )
+                ).first() if profile is not None else None
+                store = (
+                    await session.exec(select(Store).where(Store.id == req.store_id))
+                ).first()
+                order = (
+                    await session.exec(select(Order).where(Order.id == req.order_id))
+                ).first()
+                return {
+                    "return_id": req.id,
+                    "order_id": req.order_id,
+                    "store_name": store.name if store else "the store",
+                    "service_name": order.service_name_snapshot if order else "",
+                    "total_amount": f"{req.total_amount:.2f}",
+                    "credit_reversal_amount": req.credit_reversal_amount,
+                    "store_credit_amount": req.store_credit_amount,
+                    "payment_amount": req.payment_amount,
+                    "rejection_reason": req.rejection_reason or "",
+                    "receipt_code": req.receipt_otp or "",
+                    "customer_email": user.email if user else None,
+                    "customer_first_name": profile.first_name if profile else None,
+                    "customer_phone": profile.phone if profile else None,
+                    "customer_phone_verified": bool(
+                        profile and profile.phone_verified_at
+                    ),
+                    "customer_account_status": (
+                        user.account_status.value if user else "active"
+                    ),
+                }
+        finally:
+            await engine.dispose()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_load())).result()
+
+
+def _settlement_line(ctx: dict[str, Any]) -> str:
+    """Plain-English summary of where the money went. English-only, like every
+    other notification string in this codebase."""
+    parts: list[str] = []
+    if float(ctx.get("credit_reversal_amount") or 0) > 0:
+        parts.append(
+            f"{ctx['credit_reversal_amount']:.2f} was taken off what you owe this store"
+        )
+    if float(ctx.get("store_credit_amount") or 0) > 0:
+        parts.append(
+            f"{ctx['store_credit_amount']:.2f} was added as store credit you can "
+            "spend with this store"
+        )
+    if float(ctx.get("payment_amount") or 0) > 0:
+        parts.append(
+            f"{ctx['payment_amount']:.2f} is being paid back to you directly — "
+            "confirm in the app once you receive it"
+        )
+    if not parts:
+        return "No amount was outstanding on this return."
+    return "; ".join(parts).capitalize() + "."
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_return_status_email_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_return_status_email_async(return_id: int, event_key: str) -> None:
+    """One param'd task per return event, mirroring send_account_status_email_async."""
+    from app.core.email_render import render_email
+
+    ctx = _load_return_email_context(return_id)
+    to = ctx.get("customer_email")
+    if not to or not isinstance(to, str):
+        return
+    if ctx.get("customer_account_status") != "active":
+        return
+    payload = render_email(
+        event_key,
+        {
+            **ctx,
+            "currency": "INR ",
+            "confirm_hours": settings.RETURN_CONFIRM_HOURS,
+            "settlement_line": _settlement_line(ctx),
+        },
+        lang="en",
+    )
+    _resolve_email(to, payload.subject, payload.text, html=payload.html)
+
+
+_RETURN_WHATSAPP_TEMPLATES: dict[str, str] = {
+    "return_initiated": "return_initiated",
+    "return_confirmed": "return_confirmed",
+    "return_accepted": "return_accepted",
+    "return_rejected": "return_rejected",
+    "return_closed": "return_closed",
+}
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_return_status_whatsapp_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_return_status_whatsapp_async(return_id: int, event_key: str) -> None:
+    """Best-effort WhatsApp update. No-op when the channel is disabled, the
+    event has no approved template, or the phone is unverified."""
+    import asyncio
+    import concurrent.futures
+
+    from app.core.whatsapp import get_whatsapp_sender
+
+    template = _RETURN_WHATSAPP_TEMPLATES.get(event_key)
+    if template is None:
+        return
+    sender = get_whatsapp_sender()
+    if sender is None:
+        return
+    ctx = _load_return_email_context(return_id)
+    phone = ctx.get("customer_phone")
+    if not phone or not isinstance(phone, str) or not ctx.get("customer_phone_verified"):
+        return
+    if ctx.get("customer_account_status") != "active":
+        return
+
+    variables: dict[str, str] = {"return_no": str(return_id)}
+    if template == "return_initiated":
+        variables["store"] = str(ctx.get("store_name") or "the store")
+    elif template == "return_confirmed":
+        variables["code"] = str(ctx.get("receipt_code") or "")
+    elif template == "return_rejected":
+        variables["reason"] = str(ctx.get("rejection_reason") or "")
+    else:
+        variables["amount"] = str(ctx.get("total_amount") or "")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(
+            lambda: asyncio.run(sender.send_template(phone, template, variables))
+        ).result()

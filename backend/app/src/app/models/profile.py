@@ -116,3 +116,5 @@ class SellerProfileService(BaseSchema, table=True):
     is_paused: bool = Field(default=False, nullable=False)
     pause_reason: Optional[str] = Field(default=None, max_length=200)
     paused_until: Optional[date] = Field(default=None)
+    # 0 disables returns for this service entirely.
+    return_window_days: int = Field(default=0, nullable=False)

@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `b4c1d2e3f5a6`. Regenerate this file when the head changes.
+-- migration head `f4d5e6a7b8c9`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
@@ -14,19 +14,24 @@
 --   paymentstatus                : 'Pending', 'Paid', 'Failed', 'Refunded'
 --   deliverystatus               : 'Pending', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'
 --   locationsource               : 'manual', 'autocomplete', 'pin', 'geocoded'
---   adminactiontargettype        : 'Inventory', 'Order', 'Store', 'SellerProfile'
---   notificationtype             : 'OrderStatus', 'DeliveryOtp', 'FeeActivated', 'FeeExpiring', 'FeeSuspended', 'FeeLowBalance', 'FeeReactivated', 'FeeInvoiceRaised', 'FeeInvoiceOverdue', 'Referral', 'Credit', 'Announcement', 'SellerNewOrder'  (PG value is the enum member NAME; Python values are 'order_status', 'delivery_otp', 'fee_activated', 'fee_expiring', 'fee_suspended', 'fee_low_balance', 'fee_reactivated', 'fee_invoice_raised', 'fee_invoice_overdue', 'referral', 'credit', 'announcement', 'seller_new_order')
+--   adminactiontargettype        : 'Inventory', 'Order', 'Store', 'SellerProfile', 'Return'
+--   notificationtype             : 'OrderStatus', 'DeliveryOtp', 'FeeActivated', 'FeeExpiring', 'FeeSuspended', 'FeeLowBalance', 'FeeReactivated', 'FeeInvoiceRaised', 'FeeInvoiceOverdue', 'Referral', 'Credit', 'Announcement', 'SellerNewOrder', 'ReturnStatusUpdate', 'ReturnReceiptOtp', 'SellerReturnRequest'  (PG value is the enum member NAME; Python values are 'order_status', 'delivery_otp', 'fee_activated', 'fee_expiring', 'fee_suspended', 'fee_low_balance', 'fee_reactivated', 'fee_invoice_raised', 'fee_invoice_overdue', 'referral', 'credit', 'announcement', 'seller_new_order', 'return_status_update', 'return_receipt_otp', 'seller_return_request')
 --   notificationaudience         : 'customers', 'sellers', 'both'  (snake_case values)
 --   campaignstatus               : 'draft', 'sending', 'sent', 'failed'  (snake_case values)
 --   sellerprofilechangegroup     : 'identity', 'address', 'legal', 'banking', 'services', 'store_basics', 'avatar', 'store_logo'
 --   sellerprofilechangestatus    : 'submitted', 'changes_requested', 'approved', 'rejected', 'withdrawn'
 --   sellerprofilechangeeventkind : 'submitted', 'resubmitted', 'changes_requested', 'approved', 'approved_with_edits', 'rejected', 'withdrawn'
---   policykind                   : 'terms', 'privacy'
+--   policykind                   : 'terms', 'privacy', 'return_agreement'
 --   onboardingrequeststatus      : 'new', 'contacted', 'onboarded', 'dismissed'
 --   referralstatus               : 'pending_review', 'approved', 'rejected', 'active', 'expired'
 --   referraltargetrole           : 'customer', 'seller'
 --   creditaccountstatus          : 'active', 'suspended'
 --   creditentrytype              : 'charge', 'repayment', 'reversal'
+--   returnstatus                 : 'awaiting_customer_confirmation', 'active', 'awaiting_payment_confirmation', 'closed', 'rejected', 'withdrawn', 'expired'  (lowercase enum member names)
+--   returninitiator              : 'customer', 'seller', 'admin'  (lowercase enum member names)
+--   returnsettlementchoice       : 'payment', 'store_credit'  (lowercase enum member names)
+--   returnreasoncode             : 'damaged', 'wrong_item', 'past_expiry', 'quality_issue', 'not_as_described', 'other'  (lowercase enum member names)
+--   storecreditentrytype         : 'return_credit', 'order_applied', 'order_reverted', 'admin_adjust'  (lowercase enum member names)
 --   feemodel                     : 'freebie', 'subscription', 'order_value_percent', 'pay_per_transaction'  (PG value is the enum member VALUE, via values_callable)
 --   arrangementstatus            : 'trial', 'pending_activation', 'active', 'grace', 'suspended'  (PG value is the enum member VALUE, via values_callable)
 --   feepaymentkind               : 'subscription_fee', 'security_deposit', 'pay_per_txn_topup', 'order_value_invoice'  (PG value is the enum member VALUE, via values_callable)
@@ -195,7 +200,9 @@ CREATE TABLE "sellerprofile_service" (
   -- Per-service pause (holiday mode); app-level model default governs new rows.
   "is_paused" BOOLEAN NOT NULL,
   "pause_reason" VARCHAR(200),
-  "paused_until" DATE
+  "paused_until" DATE,
+  -- Per-service return window; 0 disables returns for this service.
+  "return_window_days" INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE "category" (
@@ -341,6 +348,8 @@ CREATE TABLE "order" (
   "tax" DOUBLE PRECISION NOT NULL,
   "total" DOUBLE PRECISION NOT NULL,
   "delivery_address_snapshot" VARCHAR NOT NULL,
+  -- Store credit spent on this order; `total` stays the gross goods cost.
+  "store_credit_applied" DOUBLE PRECISION NOT NULL DEFAULT 0,
   "placed_at" TIMESTAMPTZ NOT NULL,
   -- Delivery-ETA window snapshot, frozen at order time.
   "delivery_eta_min_minutes" INTEGER NOT NULL,
@@ -474,7 +483,8 @@ CREATE TABLE "notification" (
   "cta_url" VARCHAR(500),
   "cta_label" VARCHAR(80),
   CONSTRAINT "ck_notification_one_recipient"
-    CHECK ((customer_profile_id IS NOT NULL) <> (seller_profile_id IS NOT NULL))
+    CHECK ((customer_profile_id IS NOT NULL) <> (seller_profile_id IS NOT NULL)),
+  "return_request_id" INTEGER REFERENCES "return_request"("id")
 );
 
 CREATE TABLE "notification_campaign" (
@@ -1325,3 +1335,118 @@ CREATE TABLE "auth_session" (
 CREATE INDEX "ix_auth_session_user_id" ON "auth_session" ("user_id");
 CREATE INDEX "ix_auth_session_refresh_token_hash" ON "auth_session" ("refresh_token_hash");
 CREATE INDEX "ix_auth_session_prev_token_hash" ON "auth_session" ("prev_token_hash");
+
+-- ─── Returns (Return Order Management) ──────────────────────────────────
+-- `order.store_credit_applied` and `sellerprofile_service.return_window_days`
+-- (migration c1a2b3d4e5f6) and `notification.return_request_id`
+-- (f4d5e6a7b8c9) are listed with their parent tables above.
+
+CREATE TABLE "return_request" (
+  "id" SERIAL PRIMARY KEY,
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL,
+  "order_id" INTEGER NOT NULL REFERENCES "order"("id"),
+  "customer_profile_id" INTEGER NOT NULL REFERENCES "customerprofile"("id"),
+  "store_id" INTEGER NOT NULL REFERENCES "store"("id"),
+  "seller_profile_id" INTEGER NOT NULL REFERENCES "sellerprofile"("id"),
+  "service_id" INTEGER NOT NULL REFERENCES "service"("id"),
+  "initiated_by" returninitiator NOT NULL,
+  "initiated_by_user_id" INTEGER NOT NULL,   -- no FK: history survives user deletion
+  "status" returnstatus NOT NULL,
+  "is_full_order" BOOLEAN NOT NULL DEFAULT false,
+  "reason_code" returnreasoncode NOT NULL,
+  "reason_note" VARCHAR(500),
+  "items_amount" DOUBLE PRECISION NOT NULL,
+  "delivery_fee_amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "total_amount" DOUBLE PRECISION NOT NULL,
+  "settlement_choice" returnsettlementchoice NOT NULL,
+  "credit_reversal_amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "store_credit_amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "payment_amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "agreement_policy_version" INTEGER NOT NULL,
+  "agreement_accepted_at" TIMESTAMPTZ,
+  "window_expires_at" TIMESTAMPTZ NOT NULL,
+  "confirm_expires_at" TIMESTAMPTZ NOT NULL,
+  "handover_expires_at" TIMESTAMPTZ,
+  "receipt_otp" VARCHAR(6),                  -- seller-typed handover code
+  "receipt_otp_attempts" INTEGER NOT NULL DEFAULT 0,
+  "receipt_otp_sent_at" TIMESTAMPTZ,
+  "receipt_otp_verified_at" TIMESTAMPTZ,
+  "restock" BOOLEAN NOT NULL DEFAULT false,
+  "rejection_reason" VARCHAR(500),
+  "decided_by_user_id" INTEGER,
+  "closed_by_user_id" INTEGER,
+  "confirmed_at" TIMESTAMPTZ,
+  "decided_at" TIMESTAMPTZ,
+  "closed_at" TIMESTAMPTZ
+);
+CREATE INDEX "ix_return_request_order_id" ON "return_request" ("order_id");
+CREATE INDEX "ix_return_request_customer_profile_id" ON "return_request" ("customer_profile_id");
+CREATE INDEX "ix_return_request_store_id" ON "return_request" ("store_id");
+CREATE INDEX "ix_return_request_seller_profile_id" ON "return_request" ("seller_profile_id");
+CREATE INDEX "ix_return_request_service_id" ON "return_request" ("service_id");
+CREATE INDEX "ix_return_request_status" ON "return_request" ("status");
+CREATE INDEX "ix_return_request_customer_created" ON "return_request" ("customer_profile_id", "created_at");
+CREATE INDEX "ix_return_request_seller_status" ON "return_request" ("seller_profile_id", "status");
+CREATE INDEX "ix_return_request_store_status" ON "return_request" ("store_id", "status");
+
+CREATE TABLE "return_request_item" (
+  "id" SERIAL PRIMARY KEY,
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL,
+  "return_request_id" INTEGER NOT NULL REFERENCES "return_request"("id"),
+  "order_item_id" INTEGER NOT NULL REFERENCES "orderitem"("id"),
+  "quantity" INTEGER NOT NULL,               -- always the full ordered quantity
+  "product_name_snapshot" VARCHAR NOT NULL,
+  "unit_price_snapshot" DOUBLE PRECISION NOT NULL,
+  "line_total" DOUBLE PRECISION NOT NULL,
+  CONSTRAINT "uq_return_item_request_orderitem" UNIQUE ("return_request_id", "order_item_id")
+);
+CREATE INDEX "ix_return_request_item_return_request_id" ON "return_request_item" ("return_request_id");
+CREATE INDEX "ix_return_request_item_order_item_id" ON "return_request_item" ("order_item_id");
+
+CREATE TABLE "return_event" (
+  "id" SERIAL PRIMARY KEY,
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL,
+  "return_request_id" INTEGER NOT NULL REFERENCES "return_request"("id"),
+  "from_status" returnstatus,
+  "to_status" returnstatus NOT NULL,
+  "actor_role" VARCHAR(16) NOT NULL,         -- customer / seller / admin / system
+  "actor_user_id" INTEGER,
+  "note" VARCHAR(500)
+);
+CREATE INDEX "ix_return_event_return_request_id" ON "return_event" ("return_request_id");
+CREATE INDEX "ix_return_event_request_created" ON "return_event" ("return_request_id", "created_at");
+
+-- Seller owes customer. Distinct from credit_account (customer owes seller)
+-- and store.fee_credit_balance (platform owes seller).
+CREATE TABLE "customer_store_credit" (
+  "id" SERIAL PRIMARY KEY,
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL,
+  "seller_profile_id" INTEGER NOT NULL REFERENCES "sellerprofile"("id"),
+  "customer_profile_id" INTEGER NOT NULL REFERENCES "customerprofile"("id"),
+  "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "lifetime_earned" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "lifetime_spent" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  CONSTRAINT "uq_customer_store_credit_pair" UNIQUE ("seller_profile_id", "customer_profile_id")
+);
+CREATE INDEX "ix_customer_store_credit_seller_profile_id" ON "customer_store_credit" ("seller_profile_id");
+CREATE INDEX "ix_customer_store_credit_customer" ON "customer_store_credit" ("customer_profile_id");
+
+CREATE TABLE "customer_store_credit_entry" (
+  "id" SERIAL PRIMARY KEY,
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL,
+  "account_id" INTEGER NOT NULL REFERENCES "customer_store_credit"("id"),
+  "entry_type" storecreditentrytype NOT NULL,
+  "amount" DOUBLE PRECISION NOT NULL,        -- signed
+  "balance_after" DOUBLE PRECISION NOT NULL,
+  "return_request_id" INTEGER REFERENCES "return_request"("id"),
+  "order_id" INTEGER REFERENCES "order"("id"),
+  "note" VARCHAR(300),
+  "actor_user_id" INTEGER
+);
+CREATE INDEX "ix_customer_store_credit_entry_account_id" ON "customer_store_credit_entry" ("account_id");
+CREATE INDEX "ix_customer_store_credit_entry_acct_created" ON "customer_store_credit_entry" ("account_id", "created_at");

@@ -1,0 +1,160 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+/* Seller-side return initiation. Mirrors ReturnWizard's visual language so
+   the two sides of an on-behalf return look like one feature. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 12px);
+  background: var(--color-surface);
+  padding: var(--space-4, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.heading {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: 0.9rem;
+}
+
+.lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.lineName {
+  flex: 1;
+}
+
+.lineTotal {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.lockedLine {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lockNote {
+  margin: 2px 0 0 26px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.feeNote {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-success);
+}
+
+.reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+.chip {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-pill, 999px);
+  padding: 6px 14px;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.chipOn {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-surface);
+  font-weight: 600;
+}
+
+.label {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.textarea {
+  min-height: 84px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  padding: var(--space-2, 8px);
+  font: inherit;
+  resize: vertical;
+}
+
+.choices {
+  display: grid;
+  gap: var(--space-2, 8px);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--color-surface);
+  padding: var(--space-3, 12px);
+  cursor: pointer;
+  font: inherit;
+}
+
+.choiceOn {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary) inset;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2, 8px);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.consent {
+  margin: 0;
+  padding: var(--space-3, 12px);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--color-warning-tint, #fff8e6);
+  color: var(--color-text);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.total {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1rem;
+}

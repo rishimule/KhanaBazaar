@@ -1,0 +1,9 @@
+Hi {{ customer_first_name|default('there') }},
+
+Return #{{ return_id }} is closed.
+
+{{ settlement_line }}
+
+Total returned: {{ currency }}{{ total_amount }}
+
+{{ frontend_base_url }}/account/returns/{{ return_id }}

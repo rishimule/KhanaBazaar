@@ -437,6 +437,7 @@ async def deactivate_account(
                 "error": "open_obligations",
                 "open_orders": exc.open_orders,
                 "credit_accounts": exc.credit_accounts,
+                "open_returns": exc.open_returns,
             },
         ) from exc
     except InvalidTransition as exc:
@@ -503,6 +504,7 @@ async def delete_account(
                 "error": "open_obligations",
                 "open_orders": exc.open_orders,
                 "credit_accounts": exc.credit_accounts,
+                "open_returns": exc.open_returns,
             },
         ) from exc
     except InvalidTransition as exc:

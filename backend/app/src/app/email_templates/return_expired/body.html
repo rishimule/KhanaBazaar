@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi {{ customer_first_name|default('there') }},</p>
+  <p>Return #{{ return_id }} for order #{{ order_id }} expired.</p>
+  <p>It was not completed in time, so the items are free to return again. If the return window on this order is still open you can start a new one.</p>
+  {% set cta_url = frontend_base_url ~ "/account/returns/" ~ return_id|string %}
+  {% set cta_label = "View your orders" %}
+  {% include "_partials/button.html" %}
+{% endblock %}

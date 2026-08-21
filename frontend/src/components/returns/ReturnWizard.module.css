@@ -1,0 +1,260 @@
+/* Copyright (c) 2026 Rishi Mule. All Rights Reserved. */
+.wizard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.stepLabel {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 12px);
+  background: var(--color-surface);
+  padding: var(--space-4, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.heading {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: 0.9rem;
+}
+
+.selectAll,
+.acceptRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.line label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  cursor: pointer;
+}
+
+.lockedLine {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lineName {
+  flex: 1;
+}
+
+.lineTotal {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.lockNote {
+  margin: 2px 0 0 26px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.feeNote {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-success);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2, 8px);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+.chip {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-pill, 999px);
+  padding: 6px 14px;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.chipOn {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-surface);
+  font-weight: 600;
+}
+
+.label {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.textarea {
+  min-height: 84px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  padding: var(--space-2, 8px);
+  font: inherit;
+  resize: vertical;
+}
+
+.choices {
+  display: grid;
+  gap: var(--space-2, 8px);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--color-surface);
+  padding: var(--space-3, 12px);
+  cursor: pointer;
+  font: inherit;
+}
+
+.choice span {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.choiceOn {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary) inset;
+}
+
+.summary {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.summary dt,
+.summary dd {
+  margin: 0;
+}
+
+.summaryTotal {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-2, 8px);
+  font-weight: 700;
+}
+
+.agreement {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  padding: var(--space-3, 12px);
+  background: var(--color-surface-tint);
+}
+
+.agreementBody {
+  margin: 0;
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.otpInput {
+  width: 10rem;
+  font-size: 1.4rem;
+  letter-spacing: 0.4rem;
+  text-align: center;
+  padding: var(--space-2, 8px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+}
+
+.linkButton {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.preview {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+}
+
+/* Resume banner — shown instead of the wizard when an unconfirmed return is
+   already holding this order's lines. */
+.resumeCard {
+  border-color: var(--color-warning, #b26a00);
+  background: var(--color-warning-tint, #fff8e6);
+}
+
+.pendingLines {
+  margin: 0;
+  padding-left: var(--space-5, 20px);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* Reassures the customer that nothing has been submitted yet. */
+.notCreatedNote,
+.savedNote {
+  margin: 0;
+  padding: var(--space-3, 12px);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--color-surface-tint, #f4f6f5);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}

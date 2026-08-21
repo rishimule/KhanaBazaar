@@ -53,6 +53,61 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
             f"{v['code']}. Share it only with your delivery partner at handover."
         ),
     ),
+    "otp_return": WhatsAppTemplate(
+        name="otp_return",
+        category="AUTHENTICATION",
+        variables=("return_no", "code"),
+        render=lambda v: (
+            f"Your {settings.COMPANY_NAME} confirmation code for return "
+            f"#{v['return_no']} is {v['code']}. It expires in 10 minutes. "
+            "Do not share it with anyone."
+        ),
+    ),
+    "return_initiated": WhatsAppTemplate(
+        name="return_initiated",
+        category="UTILITY",
+        variables=("return_no", "store"),
+        render=lambda v: (
+            f"A return (#{v['return_no']}) was started for your order at "
+            f"{v['store']}. Open {settings.COMPANY_NAME} to review the agreement "
+            "and confirm it, or it will expire."
+        ),
+    ),
+    "return_confirmed": WhatsAppTemplate(
+        name="return_confirmed",
+        category="UTILITY",
+        variables=("return_no", "code"),
+        render=lambda v: (
+            f"Return #{v['return_no']} is confirmed. Show handover code "
+            f"{v['code']} to the store when you hand the items over."
+        ),
+    ),
+    "return_accepted": WhatsAppTemplate(
+        name="return_accepted",
+        category="UTILITY",
+        variables=("return_no", "amount"),
+        render=lambda v: (
+            f"Return #{v['return_no']} was accepted. Amount: {v['amount']}. "
+            f"Check {settings.COMPANY_NAME} for the settlement details."
+        ),
+    ),
+    "return_rejected": WhatsAppTemplate(
+        name="return_rejected",
+        category="UTILITY",
+        variables=("return_no", "reason"),
+        render=lambda v: (
+            f"Return #{v['return_no']} was not accepted. Reason: {v['reason']}. "
+            "Please settle this directly with the store."
+        ),
+    ),
+    "return_closed": WhatsAppTemplate(
+        name="return_closed",
+        category="UTILITY",
+        variables=("return_no", "amount"),
+        render=lambda v: (
+            f"Return #{v['return_no']} is closed. Amount: {v['amount']}."
+        ),
+    ),
     "order_placed": WhatsAppTemplate(
         name="order_placed",
         category="UTILITY",

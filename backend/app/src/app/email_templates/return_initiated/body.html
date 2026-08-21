@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block body %}
+  <p>Hi {{ customer_first_name|default('there') }},</p>
+  <p>A return was started for your <strong>{{ service_name }}</strong> order #{{ order_id }} from <strong>{{ store_name }}</strong>.</p>
+  <p>Return total: <strong>{{ currency }}{{ total_amount }}</strong>.</p><p>It is not active yet. Open the app, review the agreement and confirm with the code we sent you. If you do nothing it expires in {{ confirm_hours }} hours.</p>
+  {% set cta_url = frontend_base_url ~ "/account/returns/" ~ return_id|string %}
+  {% set cta_label = "Review this return" %}
+  {% include "_partials/button.html" %}
+{% endblock %}
