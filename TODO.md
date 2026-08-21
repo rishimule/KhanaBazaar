@@ -59,7 +59,9 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 - [x] In-app + email (6 templates) + WhatsApp (5 templates) on every return event.
 - [x] Hourly expiry sweep for both stalled stages.
 - [x] Dev seed: one return per resting state + store-credit balances (`_seed_returns`).
-- [ ] **Figma pass owed** for the return screens that shipped before the connector was available: customer list/detail/store-credit/checkout toggle, seller queue/detail/window config, admin list/detail/hub tab/customer credit viewer. Page `10 · Returns — Wizard & Seller Initiate` now covers the customer wizard (review/agree, code, resume banner) and seller initiation, desktop + mobile.
+- [x] Figma pass complete. Page `10 · Returns — Wizard & Seller Initiate` holds 21 frames: customer wizard (review/agree, code, resume banner), seller initiation, customer list/detail/store-credit/checkout toggle, seller queue/detail/window config, admin list/detail/hub tab/customer store-credit viewer, customer mobile set, and a States & rules frame.
+- [x] Prod gate closed: `return_agreement` is now seeded by `app.db.seed_policies` from `policy_seed/return_agreement.md` (the deploy runs it), and `admin_list_policies` enumerates `PolicyKind` so an admin can revise it. Previously prod had no agreement and no UI to publish one, so every return failed `agreement_unavailable`.
+- [ ] **Deploy note:** the migration sets `sellerprofile_service.return_window_days = 0` for every existing row, so returns stay off until each seller sets a window in Seller → Settings. Intended (D3), but it means the feature ships dark — decide whether to pre-set windows for launch sellers.
 - [ ] Twilio ContentSids for the 5 new WhatsApp templates (`otp_return`, `return_initiated`, `return_confirmed`, `return_accepted`, `return_rejected`, `return_closed`) before `WHATSAPP_PROVIDER=twilio`.
 - [x] Seller **initiate on a customer's behalf** now has a UI: `/seller/orders/[id]/return` (entry point on a delivered order) backed by `GET /sellers/me/returns/eligibility/{order_id}`.
 - [ ] Admin initiate-on-behalf (`POST /admin/returns`) is still API-only — no admin screen.
@@ -67,8 +69,8 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 - [ ] Dev-seed return histories are single-hop and attribute every transition to the customer, so a `return_event` timeline shows a path the state machine would reject. No seeded example of a full-order return (delivery fee) or a credit reversal.
 - [ ] Returns tables are absent from `_COUNT_MODELS`, so `verify_expected_counts` cannot catch a seeding regression.
 - [x] Wizard no longer creates the return before the agreement: steps 1–3 are local state, `POST /returns` fires when the customer accepts. An unconfirmed return on the order now shows a Resume / Discard banner ahead of the eligibility check.
-- [ ] `ReturnTimeline` marks the payment step done for a return whose reversal absorbed the whole amount (`payment_amount == 0`).
-- [ ] Concurrency is guarded by row locks but has no automated test; single-process pytest can't exercise it.
+- [x] `ReturnTimeline` now decides the payment step two-phase: the customer's `settlement_choice` before acceptance (no amounts exist yet), `payment_amount > 0` after, so a reversal-absorbed return no longer shows a step that can never complete.
+- [x] Concurrency covered by `tests/test_returns_concurrency.py` — `asyncio.gather` over the ASGI client yields real overlapping transactions (fresh session per request on a NullPool engine): double-accept settles once, accept-vs-withdraw cannot both win, racing creates cannot double-lock a line.
 - [ ] Platform-fee treatment of returned orders is deliberately out of scope (D11) — fees stand as charged. Revisit post-MVP.
 
 ## Design / UI follow-ups
