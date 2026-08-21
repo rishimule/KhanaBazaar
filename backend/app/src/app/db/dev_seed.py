@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import func
@@ -2989,19 +2990,11 @@ DEMO_RETURNS: list[dict[str, Any]] = [
     },
 ]
 
-RETURN_AGREEMENT_BODY = """\
-Returns are accepted on delivered orders within the window shown for each store.
-
-1. Items must be complete. Part of an item cannot be returned.
-2. You choose, before the return starts, whether the amount comes back as money
-   or as credit with the same store. That choice is recorded with your OTP.
-3. If you owe this store on credit, the amount clears that balance first.
-4. The store inspects the items and either accepts them, confirming with the
-   handover code you show, or rejects them and records a reason.
-5. If the store rejects the return, you and the store settle the matter
-   directly. This application records the decision and the reason only.
-6. Store credit can be spent with the same store and nowhere else.
-"""
+# Single source of truth: the same Markdown the deploy seeds in prod
+# (app/db/policy_seed/return_agreement.md), so dev and prod never diverge.
+RETURN_AGREEMENT_BODY = (
+    Path(__file__).parent / "policy_seed" / "return_agreement.md"
+).read_text(encoding="utf-8")
 
 # Return windows per service slug. Pharmacy stays 0 so the "returns disabled"
 # path has a real example to render.
