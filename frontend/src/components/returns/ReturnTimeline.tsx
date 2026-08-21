@@ -41,12 +41,23 @@ export default function ReturnTimeline({
     );
   }
 
-  // A store-credit or reversal settlement skips the payment-confirmation step
-  // entirely, so don't render a step the return will never reach.
+  // Whether a payment-confirmation step will ever happen is answered by two
+  // different fields depending on how far the return has got:
+  //   * before the seller accepts, no settlement has been computed, so every
+  //     amount is still 0 and only the customer's CHOICE is meaningful;
+  //   * once accepted, `payment_amount` is authoritative — a credit reversal
+  //     can absorb the whole amount, closing the return with nothing to pay
+  //     even though the customer asked for money back.
+  // Keying on the choice alone left a step that could never complete; keying on
+  // the amount alone would hide the step from a customer who is still waiting.
+  const settled =
+    request.status === "awaiting_payment_confirmation" ||
+    request.status === "closed";
+  const expectsPayment = settled
+    ? request.payment_amount > 0
+    : request.settlement_choice === "payment";
   const steps = STEPS.filter(
-    (s) =>
-      s !== "awaiting_payment_confirmation" ||
-      request.settlement_choice === "payment"
+    (s) => s !== "awaiting_payment_confirmation" || expectsPayment
   );
   const currentIndex = steps.indexOf(request.status);
 

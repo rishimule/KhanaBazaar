@@ -983,7 +983,17 @@
         "illegal_return_transition": "This return has already moved on.",
         "reason_note_required": "Please tell us what happened.",
         "resend_cooldown": "Please wait a moment before asking again.",
-        "unknown": "Something went wrong. Please try again."
+        "unknown": "Something went wrong. Please try again.",
+        "agreement_not_accepted": "Please accept the return agreement to continue.",
+        "returns_disabled_for_service": "This store doesn't accept returns for this service.",
+        "order_not_delivered": "You can return items once the order is delivered.",
+        "not_eligible": "This order isn't eligible for a return.",
+        "no_items_selected": "Choose at least one item to return.",
+        "invalid_order_item": "One of those items isn't on this order. Please reload and try again.",
+        "return_not_found": "We couldn't find that return. It may have been withdrawn or expired.",
+        "return_not_active": "This return is no longer open.",
+        "return_not_awaiting_payment": "This return isn't waiting for a payment confirmation.",
+        "return_not_awaiting_confirmation": "This return has already been confirmed."
       },
       "step5Title": "Confirm with your code",
       "acceptAndSendCode": "Accept and send my code",
@@ -1631,7 +1641,18 @@
         "illegal_return_transition": "This return has already been decided.",
         "reason_required": "Please give a reason.",
         "invalid_return_window": "Enter a number between 0 and 365.",
-        "unknown": "Something went wrong. Please try again."
+        "unknown": "Something went wrong. Please try again.",
+        "agreement_unavailable": "No return agreement has been published yet, so returns can't start. Ask an administrator to publish one.",
+        "items_already_returned": "Those items are already inside a return — the customer may have started one first. Reload to see the current state.",
+        "return_window_closed": "The return window for this order has closed.",
+        "returns_disabled_for_service": "Returns are switched off for this service. Set a return window in Settings.",
+        "order_not_delivered": "A return can only start once the order is delivered.",
+        "no_items_selected": "Select at least one item.",
+        "invalid_order_item": "One of the selected items isn't on this order. Reload and try again.",
+        "reason_note_required": "Add a note describing what happened.",
+        "receipt_otp_not_issued": "This return has no handover code yet — the customer hasn't confirmed it.",
+        "return_not_found": "We couldn't find that return. It may have been withdrawn or expired.",
+        "resend_cooldown": "Please wait a moment before sending another code."
       },
       "status": {
         "awaiting_customer_confirmation": "Awaiting customer",

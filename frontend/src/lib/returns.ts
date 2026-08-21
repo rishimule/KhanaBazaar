@@ -320,6 +320,17 @@ const CUSTOMER_ERROR_CODES = new Set([
 ]);
 
 const OPERATOR_ERROR_CODES = new Set([
+  // Creation-time codes: the seller/admin initiate-on-behalf form can hit these
+  // when the customer opened a return first, or when the platform has no
+  // published agreement. Without them every one collapsed to "unknown".
+  "agreement_unavailable",
+  "items_already_returned",
+  "return_window_closed",
+  "returns_disabled_for_service",
+  "order_not_delivered",
+  "no_items_selected",
+  "invalid_order_item",
+  "reason_note_required",
   "receipt_otp_invalid",
   "receipt_otp_locked",
   "receipt_otp_required",
