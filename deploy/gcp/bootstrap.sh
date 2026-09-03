@@ -3,17 +3,29 @@
 # One-time GCP provisioning for the KhanaBazaar MVP. Re-runnable.
 set -euo pipefail
 
-PROJECT_ID=${PROJECT_ID:-khanabazaar-mvp}
+PROJECT_ID=${PROJECT_ID:-sarvaka-prod}
 REGION=${REGION:-asia-south1}
 ZONE=${ZONE:-asia-south1-a}
 REPO_SLUG=${REPO_SLUG:?set REPO_SLUG=owner/repo}
+
+echo "==> 0. Project + billing (idempotent)"
+gcloud projects describe "$PROJECT_ID" >/dev/null 2>&1 || \
+  gcloud projects create "$PROJECT_ID" --name="${PROJECT_NAME:-$PROJECT_ID}"
+if [ -n "${BILLING_ACCOUNT:-}" ]; then
+  gcloud billing projects describe "$PROJECT_ID" \
+    --format='value(billingEnabled)' 2>/dev/null | grep -qi true || \
+    gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT"
+fi
 PROJECT_NUM=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
 gcloud config set project "$PROJECT_ID"
 
 echo "==> 1. Enable APIs"
 gcloud services enable run.googleapis.com sqladmin.googleapis.com compute.googleapis.com \
   artifactregistry.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com \
-  iamcredentials.googleapis.com vpcaccess.googleapis.com
+  iamcredentials.googleapis.com vpcaccess.googleapis.com storage.googleapis.com \
+  apikeys.googleapis.com geocoding-backend.googleapis.com places-backend.googleapis.com \
+  maps-backend.googleapis.com firebase.googleapis.com firebasehosting.googleapis.com \
+  billingbudgets.googleapis.com iap.googleapis.com
 
 echo "==> 2. Artifact Registry"
 gcloud artifacts repositories describe kb --location="$REGION" >/dev/null 2>&1 || \
@@ -135,7 +147,8 @@ gcloud iam service-accounts describe gh-deployer@$PROJECT_ID.iam.gserviceaccount
   gcloud iam service-accounts create gh-deployer --display-name="GitHub Actions deployer"
 for ROLE in roles/run.admin roles/iam.serviceAccountUser roles/artifactregistry.writer \
             roles/cloudsql.client roles/secretmanager.secretAccessor \
-            roles/compute.instanceAdmin.v1 roles/iap.tunnelResourceAccessor; do
+            roles/compute.instanceAdmin.v1 roles/iap.tunnelResourceAccessor \
+            roles/firebasehosting.admin roles/firebase.viewer; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:gh-deployer@$PROJECT_ID.iam.gserviceaccount.com" --role="$ROLE" --condition=None
 done

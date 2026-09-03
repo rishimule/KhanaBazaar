@@ -174,7 +174,7 @@ test suite yet; type checking and ESLint are the safety net.
 Deploy artifacts live in `deploy/gcp/` (bootstrap script, VM docker-compose,
 GitHub Actions workflow); the architecture overview is in
 [`gcp_deployment.md`](gcp_deployment.md) and the command-level runbook in
-[`../deploy/gcp/README.md`](../deploy/gcp/README.md). Project `khanabazaar-mvp`,
+[`../deploy/gcp/README.md`](../deploy/gcp/README.md). Project `sarvaka-prod`,
 region `asia-south1`.
 
 | Resource                        | Service                                  | Purpose                                       |

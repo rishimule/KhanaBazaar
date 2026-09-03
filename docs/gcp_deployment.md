@@ -4,7 +4,7 @@ This code and its associated documentation cannot be copied, modified, or distri
 -->
 # Google Cloud Platform Deployment
 
-**Status: LIVE.** Khana Bazaar's MVP runs on GCP — project `khanabazaar-mvp`,
+**Status: LIVE.** Khana Bazaar's MVP runs on GCP — project `sarvaka-prod`,
 single region **Mumbai (`asia-south1`)**, optimized for low cost on ~$290 of
 free credits (~$49/mo → ~6 months).
 
@@ -23,7 +23,7 @@ the exact provisioning + redeploy commands, see the runbook
 | Meilisearch v1.11 | container on the VM | persistent disk at `/mnt/disks/meili` |
 | cloud-sql-proxy | container on the VM | localhost:5432 for the worker |
 | PostgreSQL 15 + PostGIS | Cloud SQL | `db-f1-micro`, 10 GiB SSD, public IP **with zero authorized networks** (connector-only) |
-| Container images | Artifact Registry | `asia-south1-docker.pkg.dev/khanabazaar-mvp/kb` |
+| Container images | Artifact Registry | `asia-south1-docker.pkg.dev/sarvaka-prod/kb` |
 | Secrets | Secret Manager | JWT, OTP pepper, DB URL, Redis URL, Meili key, VAPID, Maps server key, dev-inbox password |
 | Custom domain | Firebase Hosting (free) | `khanabazaar.rishimule.dev` → rewrites to `khanabazaar-web` |
 
