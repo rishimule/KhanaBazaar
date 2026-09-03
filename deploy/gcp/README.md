@@ -1,6 +1,6 @@
 # KhanaBazaar MVP — GCP deploy runbook
 
-Project `khanabazaar-mvp`, region `asia-south1`. Spec:
+Project `sarvaka-prod`, region `asia-south1`. Spec:
 `docs/superpowers/specs/2026-06-05-gcp-mvp-deploy-design.md`. Plan:
 `docs/superpowers/plans/2026-06-05-gcp-mvp-deploy.md`.
 
@@ -19,7 +19,7 @@ captured in the dev-mailbox (`/dev-emails`, `/dev-sms`) — no real provider.
 ## First-time bootstrap (run once, in order)
 
 ```bash
-export PROJECT_ID=khanabazaar-mvp REGION=asia-south1 ZONE=asia-south1-a
+export PROJECT_ID=sarvaka-prod REGION=asia-south1 ZONE=asia-south1-a
 export REPO_SLUG=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 # strong secrets:
 export DB_PASSWORD=$(openssl rand -base64 30)
@@ -74,7 +74,7 @@ EMAIL_FRONTEND_BASE_URL=https://khanabazaar.rishimule.dev
 SMS_PROVIDER=console
 VAPID_PRIVATE_KEY=$VAPID_PRIVATE_KEY
 VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
-VAPID_SUBJECT=mailto:sarvakadev@gmail.com
+VAPID_SUBJECT=mailto:sarvakaprojects@gmail.com
 EOF
 
 # bring up redis + meili + proxy (worker fails until the api image exists — that's fine):
@@ -106,7 +106,7 @@ full commands. Summary:
 ## Wire GitHub (repo variables + secrets)
 
 ```bash
-gh variable set GCP_PROJECT_ID --body "khanabazaar-mvp"
+gh variable set GCP_PROJECT_ID --body "sarvaka-prod"
 gh variable set GCP_REGION --body "asia-south1"
 gh variable set GCP_ZONE --body "asia-south1-a"
 gh variable set INTERNAL_API_URL --body "$API_URL"
@@ -144,7 +144,7 @@ gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap \
   breaks the live revision. Re-apply with:
   ```bash
   gcloud artifacts repositories set-cleanup-policies kb --location=asia-south1 \
-    --project=khanabazaar-mvp --policy=deploy/gcp/ar-cleanup-policy.json
+    --project=sarvaka-prod --policy=deploy/gcp/ar-cleanup-policy.json
   ```
 
 ## Rollback
@@ -159,9 +159,9 @@ gcloud run services update-traffic khanabazaar-api --region=$REGION --to-revisio
 # NOTE: this billing account's currency is INR — --budget-amount currency must
 # match (USD is rejected with INVALID_ARGUMENT). 20000 INR ≈ $240.
 # Enable the API first: gcloud services enable billingbudgets.googleapis.com
-BILLING=01C02F-FB1938-E2F6B2
+BILLING=0106C2-F8A567-FC4B29
 gcloud billing budgets create --billing-account=$BILLING \
-  --display-name="kb-mvp-budget" --budget-amount=20000INR \
+  --display-name="sarvaka-prod-budget" --budget-amount=20000INR \
   --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
 ```
 
@@ -172,10 +172,15 @@ Hosting (free) rewriting to the `khanabazaar-web` Cloud Run service. Config:
 `firebase.json` + `.firebaserc` at repo root. Spec/plan:
 `docs/superpowers/specs/2026-06-06-custom-domain-firebase-hosting-design.md`.
 
-- Firebase is enabled on the same `khanabazaar-mvp` GCP project (added via the
-  Firebase console — the CLI `projects:addfirebase` 403s on a missing
-  `cloud-platform` OAuth scope).
-- DNS at name.com: a single **CNAME** `khanabazaar` → `khanabazaar-mvp.web.app`.
+- Firebase is enabled on the same `sarvaka-prod` GCP project. The Firebase CLI's
+  `projects:addfirebase` 403s on a missing `cloud-platform` OAuth scope, so call
+  the Management API with a gcloud token instead (gcloud *does* hold that scope):
+  ```bash
+  curl -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+    "https://firebase.googleapis.com/v1beta1/projects/$PROJECT_ID:addFirebase"
+  ```
+  Falling back to the Firebase console still works if that 403s too.
+- DNS at name.com: a single **CNAME** `khanabazaar` → `sarvaka-prod.web.app`.
   Apex/`www` (the GitHub-Pages portfolio, `185.199.108–111.153`) are untouched.
 - Managed TLS cert auto-provisions after the CNAME verifies (took ~20 min here).
 - `FRONTEND_ORIGIN` on `khanabazaar-api` includes `https://khanabazaar.rishimule.dev`;
@@ -185,7 +190,7 @@ Hosting (free) rewriting to the `khanabazaar-web` Cloud Run service. Config:
 Redeploy hosting (only needed if `firebase.json` changes — the rewrite tracks the
 live Cloud Run service automatically):
 ```bash
-firebase deploy --only hosting --project khanabazaar-mvp
+firebase deploy --only hosting --project sarvaka-prod
 ```
 Re-check domain/cert status: Firebase Console → Hosting → domain row (`Connected`).
 
