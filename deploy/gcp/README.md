@@ -90,6 +90,20 @@ printf 'http://%s:7700' "$VM_IP" | gcloud secrets versions add meili-url --data-
 Two-pass because Next bakes the api URL at build time. See plan Task 19 for the
 full commands. Summary:
 
+> **No local Docker?** This repo's dev machine runs the Docker-free native infra
+> stack (`scripts/native_infra.sh`), so `docker build` is unavailable for the
+> first manual deploy. Use Cloud Build instead — same image, same registry:
+> ```bash
+> gcloud builds submit backend/app --tag=$AR_HOST/$PROJECT_ID/kb/api:latest --timeout=1800s
+> ```
+> The web image needs `--build-arg`s, which `builds submit --tag` cannot pass, so
+> it needs an inline `--config` cloudbuild.yaml (see the migration plan
+> `docs/superpowers/plans/2026-09-02-gcp-migrate-sarvaka-prod.md`). A
+> `.gcloudignore` in `backend/app/` and `frontend/` keeps the source upload small
+> — Cloud Build reads that file, **not** `.dockerignore`. CI is unaffected:
+> GitHub Actions runners have Docker and `deploy.yml` still uses `docker build`.
+
+
 1. Build + push `kb/api:latest`; create + run the `kb-migrate` job (migrate + seed + reindex).
 2. `gcloud run deploy khanabazaar-api` (min=1, Direct VPC egress, `--set-secrets`, `ENVIRONMENT=development`, plus image env vars `IMAGE_STORAGE_BACKEND=gcs,GCS_PRODUCT_IMAGES_BUCKET=kb-product-images-$PROJECT_ID,GCS_USER_MEDIA_BUCKET=kb-user-media-$PROJECT_ID`). Capture `API_URL`.
 3. Build `kb/web:latest` with `--build-arg INTERNAL_API_URL=$API_URL`; `gcloud run deploy khanabazaar-web` (min=1, runtime `INTERNAL_API_URL=$API_URL`). Capture `WEB_URL`.

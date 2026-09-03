@@ -1,0 +1,6 @@
+# Upload filter for `gcloud builds submit` (Cloud Build reads this, not
+# .dockerignore). node_modules is reinstalled inside the image build.
+node_modules
+.next
+.env.local
+.env*.local

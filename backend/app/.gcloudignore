@@ -1,0 +1,11 @@
+# Upload filter for `gcloud builds submit` (Cloud Build reads this, not
+# .dockerignore). Keeps the source upload to the ~12MB that actually builds.
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__/
+*.pyc
+.env
+.env.local
+var/uploads
