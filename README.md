@@ -244,7 +244,7 @@ npm run lint
 
 ## Deployment
 
-Google Cloud — Cloud Run runs the **web** and **api** services (always-warm); a single **e2-small VM** runs the Celery worker+beat, Redis, Meilisearch, and a Cloud SQL proxy; **Cloud SQL** hosts Postgres 15 + PostGIS. Cloud Run reaches the VM over Direct VPC egress. Images live in Artifact Registry, secrets in Secret Manager. CI/CD is GitHub Actions (Workload Identity Federation) on merge to `main`. The app is also served at `https://app.sarvakaecommerce.com` via Firebase Hosting. See [`docs/gcp_deployment.md`](docs/gcp_deployment.md) and the runbook [`deploy/gcp/README.md`](deploy/gcp/README.md).
+Google Cloud — Cloud Run runs the **web** and **api** services (always-warm); a single **e2-small VM** runs the Celery worker+beat, Redis, Meilisearch, and a Cloud SQL proxy; **Cloud SQL** hosts Postgres 15 + PostGIS. Cloud Run reaches the VM over Direct VPC egress. Images live in Artifact Registry, secrets in Secret Manager. CI/CD is GitHub Actions (Workload Identity Federation) on merge to `main`. The app is served at `https://app.sarvakaecommerce.com` via Firebase Hosting. See [`docs/gcp_deployment.md`](docs/gcp_deployment.md) and the runbook [`deploy/gcp/README.md`](deploy/gcp/README.md).
 
 ## Documentation
 

@@ -144,9 +144,19 @@ gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap --quiet \
   --command="sudo grep -q '^EMAIL_FRONTEND_BASE_URL=' /opt/kb/.env \
     && sudo sed -i 's#^EMAIL_FRONTEND_BASE_URL=.*#EMAIL_FRONTEND_BASE_URL=https://app.sarvakaecommerce.com#' /opt/kb/.env \
     || echo 'EMAIL_FRONTEND_BASE_URL=https://app.sarvakaecommerce.com' | sudo tee -a /opt/kb/.env; \
-    cd /opt/kb && sudo docker compose up -d worker \
+    cd /opt/kb && sudo docker compose up -d --no-deps --force-recreate worker \
     && sudo docker compose exec -T worker printenv EMAIL_FRONTEND_BASE_URL"
 ```
+
+`--no-deps` is not optional. `worker` declares `depends_on: [redis, cloudsql-proxy]`, so a plain
+`up -d worker` also recreates both — and both are configured by `${...}` interpolation from the same
+`/opt/kb/.env`. If that file is ever truncated or malformed, Compose only *warns* on unset variables
+and proceeds, silently recreating Redis with an empty `--requirepass` published on all interfaces.
+`--force-recreate` guarantees the worker actually picks up the edited file rather than no-opping.
+
+If the trailing `printenv` still prints the **old** value, the file edit did not land — do not re-run
+blindly. Check it by hand (`sudo grep -n EMAIL_FRONTEND_BASE_URL /opt/kb/.env`), fix the file, then
+re-run the command.
 
 ## Deploy hardening
 
@@ -187,6 +197,23 @@ Hosting (free) rewriting to the `khanabazaar-web` Cloud Run service. Config:
 `firebase.json` + `.firebaserc` at repo root. Spec:
 `docs/superpowers/specs/2026-09-12-domain-migration-app-sarvakaecommerce-design.md`.
 
+> # ⚠️ STOP — READ BEFORE EDITING THE `sarvakaecommerce.com` ZONE
+>
+> **The apex and `www` are a LIVE site belonging to a DIFFERENT GCP project.** This
+> zone is not parked. The apex already resolves to `A 199.36.158.100` (Firebase
+> Hosting anycast) with a `TXT "hosting-site=sarvakaecommercewebsite"` ownership
+> record, and `www` is a `CNAME` → apex. `https://sarvakaecommerce.com` serves
+> HTTP 200 today, from a Hosting site that is **not** in `sarvaka-prod`.
+>
+> 1. **Do not edit, delete or "tidy" the apex `A`, the apex `TXT`, or the `www`
+>    `CNAME`.** Any of those takes down someone else's production site.
+> 2. **If the Firebase *Add custom domain* flow asks for a `hosting-site=` TXT at
+>    the apex, ADD a second TXT value alongside the existing one — never overwrite
+>    it.** GoDaddy's UI makes edit-in-place the path of least resistance; that is
+>    the wrong button.
+> 3. The `app` record is a **sibling**, not a replacement. Nothing about this
+>    deployment requires touching the apex.
+
 - Firebase is enabled on the same `sarvaka-prod` GCP project. The Firebase CLI's
   `projects:addfirebase` 403s on a missing `cloud-platform` OAuth scope, so call
   the Management API with a gcloud token instead (gcloud *does* hold that scope):
@@ -195,17 +222,32 @@ Hosting (free) rewriting to the `khanabazaar-web` Cloud Run service. Config:
     "https://firebase.googleapis.com/v1beta1/projects/$PROJECT_ID:addFirebase"
   ```
   Falling back to the Firebase console still works if that 403s too.
-- DNS at **GoDaddy**: a single **CNAME** host `app` → `sarvaka-prod.web.app`.
-  The `Name` field takes the bare label `app`, **not** the FQDN — GoDaddy appends
-  the zone itself, and entering the FQDN silently creates
-  `app.sarvakaecommerce.com.sarvakaecommerce.com`, which never verifies.
-  Apex and `www` are unclaimed and out of scope; leave GoDaddy's default parked
-  records alone.
-- Managed TLS cert auto-provisions after the CNAME verifies (~20 min typical,
+- DNS at **GoDaddy** (`sarvakaecommerce.com` is registered there): create **exactly**
+  the records the Firebase console prints. That is most likely a single **CNAME**
+  host `app` → `sarvaka-prod.web.app`, but do not assume — some flows ask for a
+  `TXT` ownership record first and then two `A` records. The `Name` field takes the
+  bare label `app`, **not** the FQDN — GoDaddy appends the zone itself, and entering
+  the FQDN silently creates `app.sarvakaecommerce.com.sarvakaecommerce.com`, which
+  never verifies. **Leave the apex and `www` records alone — see the warning above.**
+- Managed TLS cert auto-provisions after the DNS record verifies (~20 min typical,
   up to 24 h).
 - `FRONTEND_ORIGIN` on `khanabazaar-api` includes `https://app.sarvakaecommerce.com`;
   the Maps browser key allows `https://app.sarvakaecommerce.com/*` as a referrer.
-- Both the `*.run.app` URL and the custom domain serve the same Cloud Run service.
+- The custom domain and the direct Cloud Run URL serve the same service, but only
+  **one** `*.run.app` form is on the `FRONTEND_ORIGIN` and Maps-referrer allow-lists:
+  `https://khanabazaar-web-382925487269.asia-south1.run.app` (the project-number
+  form). `gcloud run services describe khanabazaar-web` prints the *other* form
+  (`https://khanabazaar-web-<hash>-el.a.run.app`), which resolves but is on neither
+  list — Maps and CORS will fail there. Same for the two permanent Firebase origins
+  `sarvaka-prod.web.app` and `sarvaka-prod.firebaseapp.com`, which also keep serving
+  the full app and cannot be removed. When debugging off-domain, paste the
+  project-number URL above, not whatever gcloud hands you.
+- **Naming:** the Cloud Run services (`khanabazaar-api`, `khanabazaar-web`), GCS
+  buckets and the AR repo deliberately keep their original `khanabazaar-*` names
+  even though the domain, project and brand are `Sarvaka`. Renaming Cloud Run
+  services means recreating them, re-pointing the Hosting rewrite and re-deriving
+  `INTERNAL_API_URL`, for zero user-visible benefit. The mismatch is intentional,
+  not a half-finished rename.
 
 Redeploy hosting (only needed if `firebase.json` changes — the rewrite tracks the
 live Cloud Run service automatically):
