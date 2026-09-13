@@ -57,10 +57,18 @@ class Settings(BaseSettings):
     RETURN_OTP_MAX_ATTEMPTS: int = 5
     RETURN_OTP_RESEND_COOLDOWN: int = 60
 
-    # Email: "console" (dev/test) or "resend" (production)
+    # Email transport. One of: "console" (dev/test), "resend", "brevo", "smtp",
+    # or a "<transport>+console" composite that sends for real AND captures the
+    # message into the dev mailbox (/dev-emails).
     EMAIL_PROVIDER: str = "console"
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = ""
+
+    # Brevo (https://app.brevo.com) transactional email over its HTTP API.
+    # EMAIL_PROVIDER="brevo" or "brevo+console" activates it. The sender name is
+    # EMAIL_BRAND_NAME; BREVO_FROM_EMAIL must be a sender Brevo has verified.
+    BREVO_API_KEY: str = ""
+    BREVO_FROM_EMAIL: str = ""
 
     # SMTP (generic; configured for Gmail in local dev). EMAIL_PROVIDER="smtp"
     # or "smtp+console" activates it. See .env.example / docs/development_guide.md.
@@ -80,6 +88,14 @@ class Settings(BaseSettings):
     EMAIL_BRAND_NAME: str = ""
     # Base URL used to build CTA links inside email templates.
     EMAIL_FRONTEND_BASE_URL: str = "http://localhost:3000"
+    # Directory for dev-only HTML previews of outbound email. Empty = disabled,
+    # which is the default EVERYWHERE — including development. This is opt-in on
+    # purpose: the gate used to be `ENVIRONMENT == "development"`, but the GCP
+    # deployment runs ENVIRONMENT=development so the dev mailbox works, which
+    # silently mirrored every HTML body (OTP codes included) into the Cloud Run
+    # container's in-memory /tmp. /dev-emails already renders the HTML, so this
+    # is only worth setting when you want the files on disk.
+    EMAIL_DEV_PREVIEW_DIR: str = ""
 
     # SMS: "console" (dev/test) or "twilio" (production)
     SMS_PROVIDER: str = "console"

@@ -217,8 +217,9 @@ npm run lint
 | `OTP_MAX_ATTEMPTS` | no | `5` |
 | `OTP_RESEND_COOLDOWN` | no | `60` |
 | `OTP_MAX_PER_HOUR` | no | `5` |
-| `EMAIL_PROVIDER` | no | `console` (`resend` for prod) |
+| `EMAIL_PROVIDER` | no | `console` (`brevo+console` for prod) |
 | `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | only if `resend` | — |
+| `BREVO_API_KEY` / `BREVO_FROM_EMAIL` | only if `brevo` | — (from-address must be verified in Brevo) |
 | `SUPPORT_EMAIL` | no | `support@khanabazaar.example` (destination for `/customers/me/support` messages) |
 | `SMS_PROVIDER` | no | `console` (`twilio` for prod) — drives seller phone OTP |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | only if `twilio` | — |

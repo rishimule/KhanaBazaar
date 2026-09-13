@@ -23,7 +23,7 @@ pieces fit together. Setup commands live in [CLAUDE.md](../CLAUDE.md) and
 | Cache / Broker   | Redis 7 (+ Celery 5.6)                                | OTP rate limits, Celery broker, suggest cache + serviceable-store grid |
 | Search           | Meilisearch v1.11 (Docker locally; on the deploy VM in prod) | Typo-tolerant multi-language autocomplete with synonyms; ~30 ms p95 query; kept in sync via SQLAlchemy `after_commit` hooks → Celery |
 | Auth             | Self-hosted email-OTP + JWT (PyJWT HS256)             | No vendor lock-in, no passwords, low onboarding friction in India |
-| Email            | `EMAIL_PROVIDER=console` (dev) / `resend` (prod)      | Direct httpx POST to Resend REST API; no SDK dependency |
+| Email            | `EMAIL_PROVIDER=console` (dev) / `brevo+console` (prod) | Direct httpx POST to the Brevo REST API; no SDK dependency. The `+console` composite records to `/dev-emails` before sending, so a provider outage degrades to capture-only |
 | Frontend         | Next.js 16.1 (App Router), React 19.2, TypeScript 5   | RSC + streaming, single deploy unit, strong DX |
 | Styling          | CSS Modules + design tokens                           | Scoped styles, zero runtime, no Tailwind tax |
 | PWA              | `frontend/public/sw.js` + `manifest.json`             | Installable on low-end Android, offline shell |
@@ -73,7 +73,8 @@ Local dev mirrors this: `docker-compose up` provisions Postgres, Redis, and Meil
    peppered hash of the OTP in Redis with TTL (`OTP_TTL_SECONDS`, default
    600s) and rate-limits per email and per hour (`OTP_MAX_*`).
 2. Email is sent via `EMAIL_PROVIDER`: `console` logs to stdout in dev;
-   `resend` POSTs directly to `api.resend.com` over httpx (no SDK).
+   `brevo` POSTs directly to `api.brevo.com` over httpx (no SDK), as does
+   `resend` to `api.resend.com`. A `<transport>+console` composite does both.
 3. `/auth/otp/verify` returns a JWT (HS256, `JWT_SECRET`, 24h expiry).
 4. Frontend stores the JWT and sends `Authorization: Bearer <jwt>`.
 5. `app.core.security` decodes the token, loads the `User`, and exposes
