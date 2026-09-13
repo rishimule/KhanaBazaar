@@ -122,7 +122,7 @@ NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY="AIzaSy...your-browser-key..."
 
 ### Production (GCP)
 
-Both keys live in GCP Secret Manager (`google-maps-server-key`, and the browser key as a GitHub repo secret). The browser key is passed to the web Cloud Run build as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` and restricted by HTTP referrer (the `*.run.app` web URL + `https://khanabazaar.rishimule.dev/*`); the server key is injected into the api service via `--set-secrets` and used server-side only.
+Both keys live in GCP Secret Manager (`google-maps-server-key`, and the browser key as a GitHub repo secret). The browser key is passed to the web Cloud Run build as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` and restricted by HTTP referrer (the `*.run.app` web URL + `https://app.sarvakaecommerce.com/*`); the server key is injected into the api service via `--set-secrets` and used server-side only.
 
 ## 8. Verify it works
 

@@ -69,14 +69,14 @@ jobs:
       - name: Deploy api
         run: |
           gcloud run services update khanabazaar-api --region=$REGION --image=$API_IMAGE \
-            --update-env-vars=COMPANY_NAME="Sarvaka",EMAIL_FRONTEND_BASE_URL="https://khanabazaar.rishimule.dev"
+            --update-env-vars=COMPANY_NAME="Sarvaka",EMAIL_FRONTEND_BASE_URL="https://app.sarvakaecommerce.com"
 
       - name: Deploy web (runtime INTERNAL_API_URL too)
         run: |
           gcloud run services update khanabazaar-web --region=$REGION --image=$WEB_IMAGE \
             --update-env-vars=INTERNAL_API_URL="${{ vars.INTERNAL_API_URL }}"
 
-      # Push firebase.json to the custom domain (khanabazaar.rishimule.dev). The
+      # Push firebase.json to the custom domain (app.sarvakaecommerce.com). The
       # Hosting rewrite auto-tracks the latest khanabazaar-web revision, so this
       # is only strictly required when firebase.json changes — but running it
       # every deploy keeps the CDN config in sync and purges the Hosting CDN
