@@ -38,7 +38,7 @@ GCP **Mumbai** (`asia-south1`):
 
 ```
                          Firebase Hosting (managed TLS, CDN)
-   browser ─khanabazaar.rishimule.dev─▶  rewrite "**" → web
+   browser ──app.sarvakaecommerce.com─▶  rewrite "**" → web
         │                                            │
         └────────── *.run.app ────────────────────────┤
                                                        ▼
@@ -186,7 +186,7 @@ region `asia-south1`.
 | `kb` (Artifact Registry repo)   | Artifact Registry                        | Docker image hosting                          |
 | Secret Manager                  | Secret Manager                           | JWT, OTP pepper, DB/Redis URLs, Meili key, VAPID, Maps server key, dev-inbox password |
 | `kb-migrate`                    | Cloud Run Job                            | One-shot migrate → idempotent seed → reindex per deploy |
-| Firebase Hosting                | Firebase Hosting                         | Custom domain `khanabazaar.rishimule.dev` → web |
+| Firebase Hosting                | Firebase Hosting                         | Custom domain `app.sarvakaecommerce.com` → web |
 
 Secrets live in **Secret Manager** and are injected into Cloud Run via
 `--set-secrets` (and into the VM worker via `/opt/kb/.env`). Resend and Twilio

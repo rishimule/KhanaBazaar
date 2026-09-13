@@ -70,7 +70,7 @@ ENVIRONMENT=development
 EMAIL_PROVIDER=console
 # public origin for clickable links in worker-sent comms (order/referral emails
 # + referral SMS); keep in sync with the api EMAIL_FRONTEND_BASE_URL, no trailing slash:
-EMAIL_FRONTEND_BASE_URL=https://khanabazaar.rishimule.dev
+EMAIL_FRONTEND_BASE_URL=https://app.sarvakaecommerce.com
 SMS_PROVIDER=console
 VAPID_PRIVATE_KEY=$VAPID_PRIVATE_KEY
 VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
@@ -140,11 +140,12 @@ public origin for clickable links in worker-sent order/referral emails + referra
 be added to the live file once by hand, then the worker restarted to pick it up:
 
 ```bash
-echo 'EMAIL_FRONTEND_BASE_URL=https://khanabazaar.rishimule.dev' \
-  | gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap \
-      --command='sudo tee -a /opt/kb/.env'
-gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap \
-  --command='cd /opt/kb && sudo docker compose up -d worker'
+gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap --quiet \
+  --command="sudo grep -q '^EMAIL_FRONTEND_BASE_URL=' /opt/kb/.env \
+    && sudo sed -i 's#^EMAIL_FRONTEND_BASE_URL=.*#EMAIL_FRONTEND_BASE_URL=https://app.sarvakaecommerce.com#' /opt/kb/.env \
+    || echo 'EMAIL_FRONTEND_BASE_URL=https://app.sarvakaecommerce.com' | sudo tee -a /opt/kb/.env; \
+    cd /opt/kb && sudo docker compose up -d worker \
+    && sudo docker compose exec -T worker printenv EMAIL_FRONTEND_BASE_URL"
 ```
 
 ## Deploy hardening
@@ -179,12 +180,12 @@ gcloud billing budgets create --billing-account=$BILLING \
   --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
 ```
 
-## Custom domain — khanabazaar.rishimule.dev (Firebase Hosting)
+## Custom domain — app.sarvakaecommerce.com (Firebase Hosting)
 
-The web service is also served at `https://khanabazaar.rishimule.dev` via Firebase
+The web service is served at `https://app.sarvakaecommerce.com` via Firebase
 Hosting (free) rewriting to the `khanabazaar-web` Cloud Run service. Config:
-`firebase.json` + `.firebaserc` at repo root. Spec/plan:
-`docs/superpowers/specs/2026-06-06-custom-domain-firebase-hosting-design.md`.
+`firebase.json` + `.firebaserc` at repo root. Spec:
+`docs/superpowers/specs/2026-09-12-domain-migration-app-sarvakaecommerce-design.md`.
 
 - Firebase is enabled on the same `sarvaka-prod` GCP project. The Firebase CLI's
   `projects:addfirebase` 403s on a missing `cloud-platform` OAuth scope, so call
@@ -194,11 +195,16 @@ Hosting (free) rewriting to the `khanabazaar-web` Cloud Run service. Config:
     "https://firebase.googleapis.com/v1beta1/projects/$PROJECT_ID:addFirebase"
   ```
   Falling back to the Firebase console still works if that 403s too.
-- DNS at name.com: a single **CNAME** `khanabazaar` → `sarvaka-prod.web.app`.
-  Apex/`www` (the GitHub-Pages portfolio, `185.199.108–111.153`) are untouched.
-- Managed TLS cert auto-provisions after the CNAME verifies (took ~20 min here).
-- `FRONTEND_ORIGIN` on `khanabazaar-api` includes `https://khanabazaar.rishimule.dev`;
-  the Maps browser key allows `https://khanabazaar.rishimule.dev/*` as a referrer.
+- DNS at **GoDaddy**: a single **CNAME** host `app` → `sarvaka-prod.web.app`.
+  The `Name` field takes the bare label `app`, **not** the FQDN — GoDaddy appends
+  the zone itself, and entering the FQDN silently creates
+  `app.sarvakaecommerce.com.sarvakaecommerce.com`, which never verifies.
+  Apex and `www` are unclaimed and out of scope; leave GoDaddy's default parked
+  records alone.
+- Managed TLS cert auto-provisions after the CNAME verifies (~20 min typical,
+  up to 24 h).
+- `FRONTEND_ORIGIN` on `khanabazaar-api` includes `https://app.sarvakaecommerce.com`;
+  the Maps browser key allows `https://app.sarvakaecommerce.com/*` as a referrer.
 - Both the `*.run.app` URL and the custom domain serve the same Cloud Run service.
 
 Redeploy hosting (only needed if `firebase.json` changes — the rewrite tracks the
@@ -215,5 +221,5 @@ gcloud run services delete khanabazaar-api khanabazaar-web --region=$REGION
 gcloud run jobs delete kb-migrate --region=$REGION
 gcloud compute instances delete kb-svc --zone=$ZONE
 gcloud sql instances delete kb-pg
-# custom domain: remove in Firebase console + delete the CNAME at name.com
+# custom domain: remove in Firebase console + delete the CNAME at GoDaddy
 ```

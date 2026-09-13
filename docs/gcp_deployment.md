@@ -25,7 +25,7 @@ the exact provisioning + redeploy commands, see the runbook
 | PostgreSQL 15 + PostGIS | Cloud SQL | `db-f1-micro`, 10 GiB SSD, public IP **with zero authorized networks** (connector-only) |
 | Container images | Artifact Registry | `asia-south1-docker.pkg.dev/sarvaka-prod/kb` |
 | Secrets | Secret Manager | JWT, OTP pepper, DB URL, Redis URL, Meili key, VAPID, Maps server key, dev-inbox password |
-| Custom domain | Firebase Hosting (free) | `khanabazaar.rishimule.dev` → rewrites to `khanabazaar-web` |
+| Custom domain | Firebase Hosting (free) | `app.sarvakaecommerce.com` → rewrites to `khanabazaar-web` |
 
 **Why a VM for worker/redis/meili instead of more Cloud Run services:** a Cloud
 Run Celery worker needs "CPU always allocated" (~$45–65/mo for one instance);
@@ -39,7 +39,7 @@ connector socket, and by the VM worker via the local cloud-sql-proxy.
 
 ```
                          Firebase Hosting (free, managed TLS, CDN)
-   Browser ─khanabazaar.rishimule.dev─▶  rewrite "**" → khanabazaar-web
+   Browser ──app.sarvakaecommerce.com─▶  rewrite "**" → khanabazaar-web
         │                                                   │
         └─────────── *.run.app ─────────────────────────────┤
                                                              ▼

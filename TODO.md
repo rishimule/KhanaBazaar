@@ -43,7 +43,7 @@ This file tracks the upcoming features, bug fixes, and general to-dos for the Kh
 - [x] Cloud Run `khanabazaar-web` + `khanabazaar-api` (always-warm, Direct VPC egress, Cloud SQL connector).
 - [x] `kb-migrate` Cloud Run Job — alembic migrate → idempotent seed → `python -m app.search.reindex --all`.
 - [x] CI/CD: `.github/workflows/deploy.yml` — merge to `main` builds + deploys api/web and restarts the worker on the VM (GitHub Actions + WIF).
-- [x] Custom domain `https://khanabazaar.rishimule.dev` via Firebase Hosting; billing budget alert at 20000 INR.
+- [x] Custom domain `https://app.sarvakaecommerce.com` via Firebase Hosting; billing budget alert at 20000 INR.
 - [ ] Real-launch hardening (post-MVP): switch to Resend + Twilio, set `ENVIRONMENT=production` (disables dev-mailbox), rotate secrets, Cloud NAT static egress IP for the Maps server key, wire OpenTelemetry / Cloud Trace in `backend/app/src/app/__init__.py`.
 
 ## Phase 6: Future Enhancements (Payments)
