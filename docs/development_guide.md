@@ -30,9 +30,12 @@ Lives at `backend/app/.env`. Template is `backend/app/.env.example`. Loader is t
 | Var | Default | Purpose |
 |---|---|---|
 | `ENVIRONMENT` | `development` | Free-form tag, used for log/diagnostic context. |
-| `EMAIL_PROVIDER` | `console` | `console` prints OTPs to stdout. `resend` sends real email via raw httpx call. `smtp` / `smtp+console` send via SMTP (Gmail, local-dev only — see below). |
+| `EMAIL_PROVIDER` | `console` | `console` prints OTPs to stdout. `resend` / `brevo` send real email via raw httpx call. `smtp` / `smtp+console` send via SMTP (Gmail, local-dev only — see below). Any `<transport>+console` composite sends **and** captures to `/dev-emails`. |
 | `RESEND_API_KEY` | `""` | Required when `EMAIL_PROVIDER=resend`. |
 | `RESEND_FROM_EMAIL` | `""` | Required when `EMAIL_PROVIDER=resend`. |
+| `BREVO_API_KEY` | `""` | Required when `EMAIL_PROVIDER=brevo`/`brevo+console`. Secret — `.env` / Secret Manager only. |
+| `BREVO_FROM_EMAIL` | `""` | From address; must be verified in Brevo → Senders & Domains or the API returns 400. Sender *name* comes from `EMAIL_BRAND_NAME`. |
+| `EMAIL_DEV_PREVIEW_DIR` | `""` | Directory for dev-only HTML previews of outbound email. Empty = disabled everywhere, including development. |
 | `SMTP_HOST` | `""` | SMTP server host, e.g. `smtp.gmail.com`. Required when `EMAIL_PROVIDER=smtp`/`smtp+console`. |
 | `SMTP_PORT` | `587` | `587` = STARTTLS, `465` = implicit SSL. |
 | `SMTP_USERNAME` | `""` | SMTP login (the Gmail address). |
@@ -224,9 +227,31 @@ A generic SMTP provider, configured for Gmail, lets you send real notification /
    SMTP_USE_TLS="false"             # false = STARTTLS (587), true = implicit SSL (465)
    ```
 
-`EMAIL_PROVIDER` values: `console` (default), `resend`, `resend+console`, `smtp` (send only), `smtp+console` (send + dev-mailbox capture). Restart the backend after changing `.env` — settings are read at startup and `get_email_sender()` is cached.
+`EMAIL_PROVIDER` values: `console` (default), `resend`, `resend+console`, `brevo`, `brevo+console`, `smtp` (send only), `smtp+console` (send + dev-mailbox capture). Restart the backend after changing `.env` — settings are read at startup and `get_email_sender()` is cached.
 
-**Constraints:** the From header must match the authenticated address (Gmail rewrites it otherwise); consumer Gmail caps at ~500 recipients/day (Workspace ~2000); this is a temporary local-dev path — production still uses Resend. Dev-mailbox capture is gated to `ENVIRONMENT=development`, so `smtp+console` only records to `/dev-emails` in dev. Composite dev-mailbox rows are tagged with the real transport (`smtp` / `resend`) in the `provider` column.
+> Unrecognized values fall through to `console` **silently** — a typo like `bervo` stops real mail with no error. Check `/dev-emails`' `provider` column if sends go quiet.
+
+**Constraints:** the From header must match the authenticated address (Gmail rewrites it otherwise); consumer Gmail caps at ~500 recipients/day (Workspace ~2000); this is a temporary local-dev path. Dev-mailbox capture is gated to `ENVIRONMENT=development`, so `smtp+console` only records to `/dev-emails` in dev. Composite dev-mailbox rows are tagged with the real transport (`smtp` / `resend` / `brevo`) in the `provider` column.
+
+### Brevo (HTTP API)
+
+Brevo is the real transactional-email transport. It talks to `POST https://api.brevo.com/v3/smtp/email` over plain httpx — no SDK, same as Resend — but it is **not** a drop-in swap for the Resend sender: Brevo authenticates with an `api-key` header rather than `Authorization: Bearer`, and its payload keys differ throughout (`sender` / `to[{email}]` / `textContent` / `htmlContent` / `replyTo{email}`).
+
+**One-time Brevo setup:**
+
+1. Verify the sending address (or authenticate the domain for DKIM/SPF) under **Senders, Domains & Dedicated IPs**. An unverified sender is rejected with `400`.
+2. Create an API key under **SMTP & API → API keys**.
+3. In `backend/app/.env`:
+
+   ```bash
+   EMAIL_PROVIDER="brevo+console"   # send via Brevo AND capture to /dev-emails
+   BREVO_API_KEY="xkeysib-…"
+   BREVO_FROM_EMAIL="noreply@yourdomain.com"
+   ```
+
+**Prefer the `+console` composite over plain `brevo`.** The composite writes the `/dev-emails` row *first*, then swallows `httpx.HTTPError` — so a bad key, a 4xx, or a Brevo outage degrades the deployment to exactly the old console behaviour instead of locking users out of OTP login. Plain `brevo` lets the failure propagate, which on the worker path means Celery retries it.
+
+Brevo also exposes an SMTP relay (`smtp-relay.brevo.com:587`) that works with the existing `smtp` provider, but the HTTP API is preferred: outbound SMTP ports are commonly blocked on serverless hosts, and API errors are structured rather than opaque.
 
 ### Account lifecycle (deactivate / suspend / delete)
 

@@ -6,15 +6,23 @@ Project `sarvaka-prod`, region `asia-south1`. Spec:
 
 Architecture: Cloud Run `web` + `api` (always-warm, min=1) → Cloud SQL Postgres;
 Celery `worker` + Redis + Meilisearch + cloud-sql-proxy on one `e2-small` VM;
-Cloud Run reaches the VM's internal IP via Direct VPC egress. Email/SMS are
-captured in the dev-mailbox (`/dev-emails`, `/dev-sms`) — no real provider.
+Cloud Run reaches the VM's internal IP via Direct VPC egress. Email goes out via
+Brevo (`EMAIL_PROVIDER=brevo+console`) **and** is captured in the dev-mailbox;
+SMS is still dev-mailbox only (`/dev-emails`, `/dev-sms`) — no real provider.
 
 > **MVP security note:** the deployed app runs with `ENVIRONMENT=development` so
-> the dev-mailbox works (it's the only OTP delivery path without Resend/Twilio).
-> The `/api/v1/dev/*` endpoints are HTTP-Basic gated (`DEV_INBOX_USER` /
-> `DEV_INBOX_PASSWORD`). Anyone with those creds can read login OTPs. This is a
-> demo posture, not a real launch. Redis is bound to the VM internal IP only and
-> requires a password; Meili requires its master key.
+> the dev-mailbox works (it is still the only SMS delivery path, and the email
+> fallback when Brevo is unreachable). The `/api/v1/dev/*` endpoints are
+> HTTP-Basic gated (`DEV_INBOX_USER` / `DEV_INBOX_PASSWORD`). Anyone with those
+> creds can read login OTPs, and `dev_email` stores full message bodies in
+> Cloud SQL with no retention policy. This is a demo posture, not a real launch.
+> Redis is bound to the VM internal IP only and requires a password; Meili
+> requires its master key.
+>
+> Once Brevo deliverability is trusted, dropping the capture is a one-var change:
+> set `EMAIL_PROVIDER=brevo` on both the api and the VM worker. Note that
+> `ENVIRONMENT=development` also un-suppresses full email bodies (OTPs included)
+> in the api's stdout → Cloud Logging; that is unchanged by the Brevo work.
 
 ## First-time bootstrap (run once, in order)
 
@@ -117,6 +125,102 @@ full commands. Summary:
    - `curl -u devuser:$DEV_INBOX_PASSWORD $API_URL/api/v1/dev/emails?limit=1` → JSON (dev-mailbox + Basic auth)
    - If the search/OTP calls hang or 5xx, Cloud Run can't reach the VM — recheck the `kb-allow-internal` firewall and that the api revision attached `kb-subnet` via Direct VPC egress.
 
+## Email via Brevo
+
+`EMAIL_PROVIDER=brevo+console` is pinned in `deploy.yml` for the api and lives in
+`/opt/kb/.env` for the VM worker. Both paths send independently
+(`core/email.get_email_sender()` for OTP, `worker._resolve_email` for
+order/referral/support mail), so **both** need the key.
+
+Prerequisite: verify the sender address (or authenticate the domain) in Brevo →
+**Senders, Domains & Dedicated IPs**. Brevo rejects an unverified sender with 400.
+
+**Also turn OFF Brevo's IP allowlist** (Security → *Authorised IPs*). It is
+incompatible with this deployment and fails in a way you will not notice:
+
+- Cloud Run sends **every login OTP**, and its egress is `private-ranges-only`
+  with no Cloud NAT — public traffic leaves via Google's shared gateway, so
+  there is *no stable IP to allowlist at all*.
+- The VM worker's `35.200.154.88` is **ephemeral** (access config
+  `external-nat`, no reserved address); it survives reboots but changes on
+  stop/start, after which order mail stops.
+- `BrevoWithConsoleSender` swallows `httpx.HTTPError` by design, so an
+  allowlist 401 produces **no error anywhere** — mail silently stops while
+  `/dev-emails` keeps filling with rows that look fine.
+
+Adding single IPs does not fix this; disable the feature. The API key is the
+credential, and it already lives in Secret Manager behind an IAM grant. If the
+allowlist is ever required, it needs a Cloud Router + Cloud NAT on a reserved IP
+plus `--vpc-egress=all-traffic` on the api — which reroutes *all* api egress,
+including the Redis/Meilisearch path to the VM, so plan it separately.
+
+Verify from the **real egress path**, not your laptop — a laptop test passes as
+soon as your own IP is listed and tells you nothing about prod:
+
+```bash
+gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap --command='cd /opt/kb && sudo docker compose exec -T worker python -c "import os,httpx;print(httpx.get(\"https://api.brevo.com/v3/account\",headers={\"api-key\":os.environ[\"BREVO_API_KEY\"]},timeout=20).status_code)"'
+```
+
+```bash
+gcloud secrets create brevo-api-key --replication-policy=automatic --project=$PROJECT_ID
+```
+
+Add the key without putting it in shell history:
+
+```bash
+read -rs BREVO_KEY && printf '%s' "$BREVO_KEY" | gcloud secrets versions add brevo-api-key --data-file=- --project=$PROJECT_ID && unset BREVO_KEY
+```
+
+Grant the runtime SA read access:
+
+```bash
+gcloud secrets add-iam-policy-binding brevo-api-key --member=serviceAccount:kb-runtime@$PROJECT_ID.iam.gserviceaccount.com --role=roles/secretmanager.secretAccessor --project=$PROJECT_ID
+```
+
+Attach it to the api (one-time; `deploy.yml` pins the non-secret vars each run):
+
+```bash
+gcloud run services update khanabazaar-api --region=$REGION --update-secrets=BREVO_API_KEY=brevo-api-key:latest
+```
+
+Then do the same on the VM. `docker-compose.yml` passes the worker
+`env_file: [/opt/kb/.env]`, so every var in that file reaches the container — but
+the deploy only restarts the worker, it never rewrites that `.env` (same as
+`COMPANY_NAME` and `EMAIL_FRONTEND_BASE_URL`). SSH in:
+
+```bash
+gcloud compute ssh kb-svc --zone=$ZONE --tunnel-through-iap
+```
+
+Edit `/opt/kb/.env` — note `EMAIL_PROVIDER` is already there set to `console`, so
+this is a **change plus two additions**, not three appends:
+
+```bash
+sudo sed -i 's/^EMAIL_PROVIDER=.*/EMAIL_PROVIDER=brevo+console/' /opt/kb/.env && sudo tee -a /opt/kb/.env >/dev/null <<'EOF'
+BREVO_API_KEY=
+BREVO_FROM_EMAIL=
+EOF
+```
+
+Fill in the two blank values (`sudo nano /opt/kb/.env`), then recreate the worker
+so it picks up the new env:
+
+```bash
+cd /opt/kb && sudo docker compose up -d --force-recreate worker
+```
+
+Smoke it: request an OTP and confirm the mail actually lands in the inbox **and**
+that the message shows up at `$WEB_URL/dev-emails`. The page does not render the
+transport, so check the tag via the API:
+
+```bash
+curl -su devuser:$DEV_INBOX_PASSWORD "$API_URL/api/v1/dev/emails?limit=1" | python3 -m json.tool
+```
+
+`"provider": "brevo"` with no delivered mail means the send failed and the
+composite swallowed it — look for `[EMAIL] Brevo send failed` in the api logs
+(or the worker's, for order mail).
+
 ## Wire GitHub (repo variables + secrets)
 
 ```bash
@@ -124,6 +228,7 @@ gh variable set GCP_PROJECT_ID --body "sarvaka-prod"
 gh variable set GCP_REGION --body "asia-south1"
 gh variable set GCP_ZONE --body "asia-south1-a"
 gh variable set INTERNAL_API_URL --body "$API_URL"
+gh variable set BREVO_FROM_EMAIL --body "<verified Brevo sender address>"
 gh secret set GCP_WIF_PROVIDER --body "<WIF_PROVIDER printed by bootstrap.sh>"
 gh secret set NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY --body "<browser key>"
 gh secret set NEXT_PUBLIC_VAPID_PUBLIC_KEY --body "<vapid public>"

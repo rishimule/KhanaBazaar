@@ -246,18 +246,22 @@ def send_seller_onboarding_request_email(
     )
 
 
-def _resolve_email(
+_REAL_EMAIL_TRANSPORTS = ("resend", "brevo", "smtp")
+
+
+def _send_email_via_transport(
+    transport: str,
     to: str,
     subject: str,
     body: str,
     *,
-    html: str | None = None,
-    reply_to: str | None = None,
+    html: str | None,
+    reply_to: str | None,
 ) -> None:
-    """Send an email via the configured provider, mirroring the OTP email pattern."""
+    """Hand one message to the configured transport. Raises on failure."""
     from app.core.config import settings
 
-    if settings.EMAIL_PROVIDER == "resend":
+    if transport == "resend":
         import httpx
 
         payload: dict[str, object] = {
@@ -277,21 +281,43 @@ def _resolve_email(
             timeout=10,
         )
         resp.raise_for_status()
-    elif settings.EMAIL_PROVIDER in ("smtp", "smtp+console"):
+    elif transport == "brevo":
+        import asyncio
+        import concurrent.futures
+
+        from app.core.email import BrevoEmailSender
+
+        # Bridge to the async sender rather than re-POSTing here: the Brevo body
+        # shape is fiddly (sender/textContent/htmlContent/replyTo) and would
+        # otherwise live in two places and drift the moment one gains a field.
+        # Same thread + fresh-loop idiom as the smtp branch below. 10s, not the
+        # API path's 5s — worker mail is not on a user request path.
+        brevo_sender = BrevoEmailSender(timeout=10.0)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(
+                lambda: asyncio.run(
+                    brevo_sender.send(
+                        to, subject, text=body, html=html, reply_to=reply_to
+                    )
+                )
+            ).result()
+    elif transport == "smtp":
         import asyncio
         import concurrent.futures
 
         from app.core.email import SmtpEmailSender
 
-        # _resolve_email runs in a sync Celery context; bridge to the async
+        # This runs in a sync Celery context; bridge to the async
         # SmtpEmailSender on a worker thread with its own event loop (same idiom
         # as the dev-mailbox capture below and the order-context loaders). A
         # fresh connection per send is loop-safe under Celery's prefork worker.
-        sender = SmtpEmailSender()
+        smtp_sender = SmtpEmailSender()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             executor.submit(
                 lambda: asyncio.run(
-                    sender.send(to, subject, text=body, html=html, reply_to=reply_to)
+                    smtp_sender.send(
+                        to, subject, text=body, html=html, reply_to=reply_to
+                    )
                 )
             ).result()
     else:
@@ -305,42 +331,101 @@ def _resolve_email(
             logging.getLogger(__name__).info(
                 "EMAIL to=%s subject=%s (body suppressed)", to, subject
             )
-    # Dev-only capture into the dev_email table (best-effort). _resolve_email is
-    # a sync Celery context, so bridge to the async recorder on a worker thread
-    # (same idiom used for the async senders). Never let capture break the send.
-    if settings.ENVIRONMENT == "development":
-        import asyncio
-        import concurrent.futures
 
-        from app.core.dev_mailbox import record_outbound_email
 
-        # Tag the dev-mailbox row with the real transport, matching the API-path
-        # composites (SmtpWithConsoleSender/ResendWithConsoleSender).
-        if settings.EMAIL_PROVIDER == "resend":
-            provider_label = "resend"
-        elif settings.EMAIL_PROVIDER in ("smtp", "smtp+console"):
-            provider_label = "smtp"
-        else:
-            provider_label = "console"
+def _capture_dev_email(
+    to: str,
+    subject: str,
+    body: str,
+    *,
+    html: str | None,
+    reply_to: str | None,
+    provider: str,
+) -> None:
+    """Dev-only capture into the dev_email table (best-effort).
 
-        try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                executor.submit(
-                    lambda: asyncio.run(
-                        record_outbound_email(
-                            to=to,
-                            subject=subject,
-                            text=body,
-                            html=html,
-                            reply_to=reply_to,
-                            provider=provider_label,
-                        )
+    This is a sync Celery context, so bridge to the async recorder on a worker
+    thread (same idiom used for the async senders). Never let capture break the
+    send.
+    """
+    from app.core.config import settings
+
+    if settings.ENVIRONMENT != "development":
+        return
+
+    import asyncio
+    import concurrent.futures
+
+    from app.core.dev_mailbox import record_outbound_email
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(
+                lambda: asyncio.run(
+                    record_outbound_email(
+                        to=to,
+                        subject=subject,
+                        text=body,
+                        html=html,
+                        reply_to=reply_to,
+                        provider=provider,
                     )
-                ).result()
-        except Exception:  # noqa: BLE001
-            logging.getLogger(__name__).exception(
-                "dev_mailbox: worker email capture failed"
-            )
+                )
+            ).result()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).exception(
+            "dev_mailbox: worker email capture failed"
+        )
+
+
+def _resolve_email(
+    to: str,
+    subject: str,
+    body: str,
+    *,
+    html: str | None = None,
+    reply_to: str | None = None,
+) -> None:
+    """Send an email via the configured provider, mirroring the OTP email pattern."""
+    import aiosmtplib
+    import httpx
+
+    from app.core.config import settings
+
+    provider = settings.EMAIL_PROVIDER
+    # "<transport>+console" composites capture to the dev mailbox BEFORE the
+    # send and swallow transport errors, exactly like the API-path composites
+    # (SmtpWithConsoleSender / BrevoWithConsoleSender): /dev-emails must keep the
+    # record even when the provider is down, and retrying a send whose row is
+    # already written would only duplicate it. Plain transports send first and
+    # let failures propagate into Celery's autoretry.
+    capture_first = provider.endswith("+console")
+    transport = provider.removesuffix("+console")
+    # Tag the dev-mailbox row with the real transport, matching the API path.
+    provider_label = transport if transport in _REAL_EMAIL_TRANSPORTS else "console"
+
+    if capture_first:
+        _capture_dev_email(
+            to, subject, body, html=html, reply_to=reply_to, provider=provider_label
+        )
+    try:
+        _send_email_via_transport(
+            transport, to, subject, body, html=html, reply_to=reply_to
+        )
+    except (httpx.HTTPError, aiosmtplib.SMTPException, OSError) as exc:
+        if not capture_first:
+            raise
+        logging.getLogger(__name__).warning(
+            "[EMAIL] %s send failed to=%s error=%r (dev-mailbox row already recorded)",
+            transport,
+            to,
+            exc,
+        )
+        return
+    if not capture_first:
+        _capture_dev_email(
+            to, subject, body, html=html, reply_to=reply_to, provider=provider_label
+        )
 
 
 def _load_order_email_context(order_id: int) -> dict[str, Any]:
