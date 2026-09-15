@@ -90,6 +90,15 @@ class SellerProfile(BaseSchema, table=True):
     business_address_id: int = Field(foreign_key="address.id", nullable=False, index=True)
     avatar_url: Optional[str] = Field(default=None)
     avatar_storage_key: Optional[str] = Field(default=None)
+    # Customer-visible UPI payee. `upi_vpa` is the authoritative payee and the
+    # only thing customers ever scan (we generate the QR from it). The uploaded
+    # image is an admin verification artifact — never rendered to customers,
+    # because its encoded payee is unreadable to us. See the design spec §2.1.
+    upi_vpa: Optional[str] = Field(default=None, max_length=120)
+    upi_qr_url: Optional[str] = Field(default=None, max_length=2048)
+    upi_qr_storage_key: Optional[str] = Field(default=None, max_length=512)
+    # Only ever True alongside a non-empty upi_vpa (enforced at write paths).
+    upi_enabled: bool = Field(default=False, nullable=False)
 
     user: User = Relationship()
     business_address: Address = Relationship()

@@ -22,6 +22,7 @@ class SellerProfileChangeGroup(str, enum.Enum):
     StoreBasics = "store_basics"
     Avatar = "avatar"
     StoreLogo = "store_logo"
+    Payments = "payments"
 
 
 class SellerProfileChangeStatus(str, enum.Enum):

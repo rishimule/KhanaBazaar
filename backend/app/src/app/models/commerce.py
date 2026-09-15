@@ -117,6 +117,13 @@ class Payment(BaseSchema, table=True):
         default=None,
         sa_type=DateTime(timezone=True),
     )
+    # The customer's one-tap "I've paid" assertion for UPI orders. Deliberately
+    # does NOT move `status` — the seller verifies against their own bank app,
+    # and delivery is still what settles the payment.
+    customer_claimed_at: Optional[datetime] = Field(  # type: ignore[call-overload]
+        default=None,
+        sa_type=DateTime(timezone=True),
+    )
 
 
 class Delivery(BaseSchema, table=True):
