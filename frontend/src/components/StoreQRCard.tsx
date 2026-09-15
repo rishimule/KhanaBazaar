@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
+import Modal from "./Modal";
 import styles from "./StoreQRCard.module.css";
 
 interface StoreQRCardProps {
@@ -15,6 +16,7 @@ interface StoreQRCardProps {
 export default function StoreQRCard({ storeId, storeName }: StoreQRCardProps) {
   const t = useTranslations("StoreQR");
   const [mounted, setMounted] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -113,7 +115,15 @@ export default function StoreQRCard({ storeId, storeName }: StoreQRCardProps) {
       <div className={styles.poster}>
         <h2 className={styles.storeName}>{storeName}</h2>
         <p className={styles.cta}>{t("posterCta")}</p>
-        <div className={styles.qrBox}>
+        {/* Button, not a div with onClick: the enlarge affordance has to be
+            reachable by keyboard and announced as actionable. */}
+        <button
+          type="button"
+          className={styles.qrBox}
+          onClick={() => setZoomed(true)}
+          disabled={!mounted}
+          aria-label={t("zoomOpen")}
+        >
           {mounted && (
             <>
               <QRCodeSVG ref={svgRef} value={url} size={256} level="M" />
@@ -126,8 +136,12 @@ export default function StoreQRCard({ storeId, storeName }: StoreQRCardProps) {
               />
             </>
           )}
-        </div>
+          <span className={styles.zoomBadge} aria-hidden>
+            ⤢
+          </span>
+        </button>
         <p className={styles.hint}>{t("posterHint")}</p>
+        <p className={styles.zoomHint}>{t("zoomHint")}</p>
       </div>
       <div className={styles.actions}>
         <button className="btn btn-primary" onClick={printPoster} disabled={!mounted}>
@@ -140,6 +154,22 @@ export default function StoreQRCard({ storeId, storeName }: StoreQRCardProps) {
           {t("downloadSvg")}
         </button>
       </div>
+      {zoomed && (
+        // A fresh QRCodeSVG rather than a scaled copy of the 256px one — it is
+        // vector either way, so the enlarged code stays sharp at any size and
+        // needs no pixel zoom (hence no ProductLightbox here).
+        <Modal title={storeName} size="wide" onClose={() => setZoomed(false)}>
+          <div className={styles.zoomBody}>
+            <QRCodeSVG
+              value={url}
+              size={512}
+              level="M"
+              className={styles.zoomQr}
+            />
+            <p className={styles.cta}>{t("posterCta")}</p>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

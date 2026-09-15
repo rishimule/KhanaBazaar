@@ -38,17 +38,107 @@
   margin: 0;
 }
 
+/* Rendered as a <button> so the enlarge action is keyboard-reachable;
+   these rules strip the native button chrome back to the old card look. */
 .qrBox {
+  position: relative;
   padding: 0.75rem;
   background: var(--color-surface);
+  border: none;
   border-radius: 8px;
   line-height: 0;
+  font: inherit;
+  color: inherit;
+  cursor: zoom-in;
+  transition:
+    transform var(--duration-fast, 150ms) ease,
+    box-shadow var(--duration-fast, 150ms) ease;
+}
+
+.qrBox:hover:not(:disabled),
+.qrBox:focus-visible {
+  transform: scale(1.02);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+}
+
+.qrBox:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.qrBox:disabled {
+  cursor: default;
+}
+
+/* Magnifier affordance; hidden while the QR itself has not mounted yet. */
+.zoomBadge {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.qrBox:disabled .zoomBadge {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qrBox {
+    transition: none;
+  }
+
+  .qrBox:hover:not(:disabled),
+  .qrBox:focus-visible {
+    transform: none;
+  }
 }
 
 .hint {
   font-size: 0.85rem;
   color: var(--color-neutral-500);
   margin: 0;
+}
+
+.zoomHint {
+  font-size: 0.8rem;
+  color: var(--color-neutral-500);
+  margin: -0.5rem 0 0;
+}
+
+/* Enlarged view: the QR fills the dialog width and stays square. */
+.zoomBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.zoomQr {
+  width: 100%;
+  height: auto;
+  max-width: min(70vh, 560px);
+}
+
+/* On a phone the dialog is already near viewport-wide, so the 24px body
+   padding is most of the headroom — reclaim it (stopping 4px short of
+   cancelling it, so sub-pixel rounding can't trip the dialog's overflow-x).
+   Without this, "enlarged" buys only ~15% over the card QR. The code keeps
+   its built-in 2-module quiet zone, so going near-full-bleed is still
+   scannable. */
+@media (max-width: 768px) {
+  .zoomBody {
+    margin: 0 -20px;
+  }
 }
 
 .actions {
