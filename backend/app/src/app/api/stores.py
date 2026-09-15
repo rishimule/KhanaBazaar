@@ -25,6 +25,7 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
+from app.models.commerce import PaymentMethod
 from app.models.platform_fee import ArrangementStatus, FeeArrangement
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.store import Store, StoreInventory
@@ -45,7 +46,7 @@ from app.schemas.store_product_detail import (
     StoreSummary,
 )
 from app.schemas.storefront import StorefrontResponse
-from app.schemas.stores import StoreCreate, StoreRead, StoreUpdate
+from app.schemas.stores import StoreCreate, StoreRead, StoreUpdate, UpiPayeeRead
 from app.services import inventory as services_inventory
 from app.services.fee_gating import is_store_premium, premium_store_ids
 from app.services.inventory import (
@@ -88,6 +89,11 @@ async def _store_read(
         services = await list_profile_services(
             session, store.seller_profile_id, language_code=lang
         )
+    seller = store.seller_profile
+    upi_live = bool(seller.upi_enabled and seller.upi_vpa)
+    accepted = [PaymentMethod.NetBanking, PaymentMethod.Cash, PaymentMethod.PayAtStore]
+    if upi_live:
+        accepted.insert(0, PaymentMethod.Upi)
     return StoreRead(
         id=store.id,
         name=store.name,
@@ -102,6 +108,12 @@ async def _store_read(
         pause_reason=store.pause_reason,
         paused_until=store.paused_until.isoformat() if store.paused_until else None,
         logo_url=store.logo_url,
+        accepted_payment_methods=accepted,
+        upi_payee=(
+            UpiPayeeRead(vpa=seller.upi_vpa or "", display_name=seller.business_name)
+            if upi_live
+            else None
+        ),
         distance_km=distance_km,
         created_at=store.created_at.isoformat(),
         updated_at=store.updated_at.isoformat(),
