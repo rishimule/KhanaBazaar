@@ -419,6 +419,58 @@ async def create_store_logo_change_request(
     )
 
 
+async def create_payments_qr_change_request(
+    *,
+    session: AsyncSession,
+    seller_profile: SellerProfile,
+    raw: bytes,
+    upi_vpa: str,
+    actor_user_id: int,
+    note: Optional[str] = None,
+) -> CRMutationResult:
+    """Upload a pending UPI verification-QR blob and queue a `payments` CR.
+
+    Mirrors `create_store_logo_change_request`: auto-supersedes any open
+    payments CR (re-picking must not 409), then stores the blob and creates the
+    CR carrying (upi_vpa, upi_qr_url, storage_key). Applied on approve by
+    `_apply_payments`.
+
+    The uploaded image is an admin verification artifact only — `upi_vpa` is
+    the authoritative payee. See the design spec §2.1.
+    """
+    if seller_profile.verification_status is not VerificationStatus.Approved:
+        raise HTTPException(status_code=409, detail="seller_not_active")
+    assert seller_profile.id is not None
+
+    existing = await _open_cr_for_group(
+        session, seller_profile.id, SellerProfileChangeGroup.Payments
+    )
+    if existing is not None:
+        await withdraw(session=session, cr=existing, actor_user_id=actor_user_id)
+        await session.flush()
+
+    from app.services.seller_upi_qr import process_and_store
+
+    try:
+        url, key = await process_and_store(raw, seller_profile.id)
+    except ImageValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return await create_change_request(
+        session=session,
+        seller_profile=seller_profile,
+        group=SellerProfileChangeGroup.Payments,
+        proposed={
+            "upi_vpa": upi_vpa,
+            "upi_enabled": True,
+            "upi_qr_url": url,
+            "storage_key": key,
+        },
+        note=note,
+        actor_user_id=actor_user_id,
+    )
+
+
 async def _cleanup_pending_avatar_blob(
     session: AsyncSession, cr: SellerProfileChangeRequest
 ) -> None:

@@ -23,6 +23,7 @@ from app.services import seller_upi_qr
 from app.services.seller_profile_change_requests import (
     approve,
     create_change_request,
+    create_payments_qr_change_request,
 )
 
 
@@ -229,3 +230,75 @@ async def test_payments_cr_removal_clears_payee(
     await session.refresh(bundle.profile)
     assert bundle.profile.upi_vpa is None
     assert bundle.profile.upi_enabled is False
+
+
+# ── C5: QR upload route + forged-image guard ──────────────────────────
+@pytest.mark.asyncio
+async def test_payments_qr_upload_creates_cr_with_vpa_and_key(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Any,
+) -> None:
+    _local_storage(monkeypatch, tmp_path)
+    bundle = approved_seller_with_store
+    res = await create_payments_qr_change_request(
+        session=session,
+        seller_profile=bundle.profile,
+        raw=_png(),
+        upi_vpa="ganesh@okhdfcbank",
+        actor_user_id=bundle.user.id,
+    )
+    await session.commit()
+    assert res.cr.group is SellerProfileChangeGroup.Payments
+    assert res.cr.proposed_json["upi_vpa"] == "ganesh@okhdfcbank"
+    assert res.cr.proposed_json["storage_key"].startswith("seller-upi-qr/")
+    assert res.cr.proposed_json["upi_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_payments_qr_second_upload_supersedes_first(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Any,
+) -> None:
+    _local_storage(monkeypatch, tmp_path)
+    bundle = approved_seller_with_store
+    first = await create_payments_qr_change_request(
+        session=session, seller_profile=bundle.profile, raw=_png(),
+        upi_vpa="ab@okaxis", actor_user_id=bundle.user.id,
+    )
+    await session.commit()
+    second = await create_payments_qr_change_request(
+        session=session, seller_profile=bundle.profile, raw=_png(),
+        upi_vpa="bc@okhdfcbank", actor_user_id=bundle.user.id,
+    )
+    await session.commit()
+    await session.refresh(first.cr)
+    assert first.cr.status is SellerProfileChangeStatus.Withdrawn
+    assert second.cr.status is SellerProfileChangeStatus.Submitted
+
+
+def test_generic_cr_path_rejects_forged_upi_qr_url() -> None:
+    """A seller must not be able to point upi_qr_url at an arbitrary blob."""
+    from fastapi import HTTPException
+
+    from app.api.seller_change_requests import _reject_forged_image
+
+    with pytest.raises(HTTPException) as exc:
+        _reject_forged_image(
+            SellerProfileChangeGroup.Payments,
+            {"upi_vpa": "ab@okaxis", "upi_qr_url": "https://evil/x.webp"},
+        )
+    assert exc.value.detail == "upi_qr_upload_required"
+
+
+def test_generic_cr_path_allows_vpa_only_edit() -> None:
+    """VPA-only edits (no image) must still flow through the generic path."""
+    from app.api.seller_change_requests import _reject_forged_image
+
+    _reject_forged_image(
+        SellerProfileChangeGroup.Payments,
+        {"upi_vpa": "ab@okaxis", "upi_qr_url": ""},
+    )
