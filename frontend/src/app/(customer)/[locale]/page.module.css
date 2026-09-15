@@ -4,7 +4,7 @@
  */
 /* ============================================================
    Home page — KhanaBazaar
-   Hero (Brand Sweep) + Promo Strip + Categories + Stores grid.
+   Hero (light leaf-green surface) + Promo Strip + Categories + Stores grid.
    ============================================================ */
 
 .page {
@@ -30,16 +30,13 @@
   padding: 40px 48px;
   position: relative;
   overflow: hidden;
-  background:
-    linear-gradient(135deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.25) 100%),
-    var(--gradient-brand-sweep);
-  color: var(--white);
+  background: var(--leaf-green-light-1);
+  color: var(--shade-cool-dark-3);
   min-height: 220px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 40%);
   align-items: center;
   gap: 24px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.20);
 }
 .heroText {
   display: flex;
@@ -57,7 +54,7 @@
   max-height: 260px;
   object-fit: contain;
   border-radius: var(--radius-card);
-  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.25));
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.10));
 }
 @media (max-width: 767px) {
   .hero {
@@ -73,7 +70,9 @@
   right: 36px;
   top: 30px;
   font-size: 140px;
-  opacity: 0.18;
+  /* Lower than a dark surface would need: the emoji keeps its own colour at
+     any opacity, so on the light tint it competes with the headline. */
+  opacity: 0.10;
   transform: rotate(-12deg);
   pointer-events: none;
   line-height: 1;
@@ -84,8 +83,8 @@
   font-weight: var(--weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: var(--white);
-  opacity: 1;
+  color: var(--shade-cool-dark-3);
+  opacity: 0.9;
   margin-bottom: 10px;
 }
 
@@ -96,7 +95,7 @@
   line-height: 1;
   margin: 0;
   max-width: 540px;
-  color: var(--white);
+  color: var(--shade-cool-dark-7);
 }
 @media (max-width: 767px) {
   .heroTitle { font-size: 32px; }
@@ -105,7 +104,7 @@
 .heroSub {
   font-size: var(--body-base);
   font-weight: var(--weight-medium);
-  color: var(--white);
+  color: var(--shade-cool-base-7);
   opacity: 1;
   margin-top: 12px;
   max-width: 480px;
@@ -123,8 +122,8 @@
 .heroBtnPrimary {
   display: inline-flex;
   align-items: center;
-  background: var(--white);
-  color: var(--color-primary-1);
+  background: var(--color-primary-1);
+  color: var(--white);
   font-weight: var(--weight-semibold);
   font-size: 15px;
   padding: 12px 22px;
@@ -134,23 +133,23 @@
   text-decoration: none;
   font-family: inherit;
 }
-.heroBtnPrimary:hover { background: var(--shade-cool-light-2); text-decoration: none; }
+.heroBtnPrimary:hover { background: var(--leaf-green-dark-4); text-decoration: none; }
 
 .heroBtnGhost {
   display: inline-flex;
   align-items: center;
   background: transparent;
-  color: var(--white);
+  color: var(--color-primary-1);
   font-weight: var(--weight-medium);
   font-size: 15px;
   padding: 12px 18px;
   border-radius: var(--radius-card);
-  border: 1px solid rgba(255,255,255,0.4);
+  border: 1px solid var(--leaf-green-light-2);
   cursor: pointer;
   text-decoration: none;
   font-family: inherit;
 }
-.heroBtnGhost:hover { background: rgba(255,255,255,0.1); text-decoration: none; }
+.heroBtnGhost:hover { background: var(--leaf-green-light-2); text-decoration: none; }
 
 .promoRow {
   display: grid;
