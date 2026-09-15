@@ -126,6 +126,13 @@ async def _baseline_for_group(
             "bank_account_number": profile.bank_account_number,
             "bank_ifsc": profile.bank_ifsc,
         }
+    if group is SellerProfileChangeGroup.Payments:
+        return {
+            "upi_vpa": profile.upi_vpa,
+            "upi_enabled": profile.upi_enabled,
+            "upi_qr_url": profile.upi_qr_url or "",
+            "storage_key": profile.upi_qr_storage_key,
+        }
     if group is SellerProfileChangeGroup.Services:
         rows = await list_profile_services(session, profile.id or 0)
         return {
@@ -458,6 +465,28 @@ async def _cleanup_pending_store_logo_blob(
         await delete_blob(pending_key)
 
 
+async def _cleanup_pending_payments_blob(
+    session: AsyncSession, cr: SellerProfileChangeRequest
+) -> None:
+    """Delete a payments CR's pending blob when the CR is rejected/withdrawn.
+
+    No-op for non-payments groups. Skips deletion when the pending key equals
+    the seller's current LIVE key (identical re-upload), so the live
+    verification image is kept.
+    """
+    if cr.group is not SellerProfileChangeGroup.Payments:
+        return
+    pending_key = (cr.proposed_json or {}).get("storage_key")
+    if not pending_key:
+        return
+    profile = await session.get(SellerProfile, cr.seller_profile_id)
+    live_key = profile.upi_qr_storage_key if profile else None
+    if pending_key != live_key:
+        from app.services.seller_upi_qr import delete_blob
+
+        await delete_blob(pending_key)
+
+
 async def withdraw(
     *,
     session: AsyncSession,
@@ -473,6 +502,7 @@ async def withdraw(
     session.add(cr)
     await _cleanup_pending_avatar_blob(session, cr)
     await _cleanup_pending_store_logo_blob(session, cr)
+    await _cleanup_pending_payments_blob(session, cr)
     _emit_event(
         session=session, cr=cr,
         kind=SellerProfileChangeEventKind.Withdrawn,
@@ -587,6 +617,7 @@ async def reject(
     session.add(cr)
     await _cleanup_pending_avatar_blob(session, cr)
     await _cleanup_pending_store_logo_blob(session, cr)
+    await _cleanup_pending_payments_blob(session, cr)
     _emit_event(
         session=session, cr=cr,
         kind=SellerProfileChangeEventKind.Rejected,
@@ -776,6 +807,37 @@ async def _apply_store_logo(
         await delete_blob(old_key)
 
 
+async def _apply_payments(
+    session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
+) -> None:
+    """Write the reviewed UPI payee onto the profile.
+
+    Mirrors `_apply_store_logo` for the blob half: an empty `upi_qr_url` means
+    removal, and the superseded live blob is dropped best-effort. The VPA half
+    mirrors `_apply_banking`.
+    """
+    profile.upi_vpa = payload.get("upi_vpa") or None
+    # Defensive: the payload validator already rejects enabled-without-payee,
+    # but re-assert here since this also runs on approve-with-edits.
+    profile.upi_enabled = bool(payload.get("upi_enabled")) and bool(profile.upi_vpa)
+
+    new_url = str(payload.get("upi_qr_url") or "")
+    new_key = payload.get("storage_key") or None
+    old_key = profile.upi_qr_storage_key
+    if new_url:
+        profile.upi_qr_url = new_url
+        profile.upi_qr_storage_key = new_key
+    else:
+        profile.upi_qr_url = None
+        profile.upi_qr_storage_key = None
+    session.add(profile)
+    # Best-effort: drop the superseded live blob (skip when unchanged).
+    if old_key and old_key != new_key:
+        from app.services.seller_upi_qr import delete_blob
+
+        await delete_blob(old_key)
+
+
 GROUP_APPLIERS = {
     SellerProfileChangeGroup.Identity: _apply_identity,
     SellerProfileChangeGroup.Address: _apply_address,
@@ -785,6 +847,7 @@ GROUP_APPLIERS = {
     SellerProfileChangeGroup.StoreBasics: _apply_store_basics,
     SellerProfileChangeGroup.Avatar: _apply_avatar,
     SellerProfileChangeGroup.StoreLogo: _apply_store_logo,
+    SellerProfileChangeGroup.Payments: _apply_payments,
 }
 
 

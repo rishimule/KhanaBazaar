@@ -11,12 +11,19 @@ import pytest
 from PIL import Image
 from pydantic import ValidationError
 
+from sqlmodel.ext.asyncio.session import AsyncSession
+
 from app.core.config import settings
 from app.models.commerce import Payment
 from app.models.profile import SellerProfile
 from app.models.seller_profile_change_request import SellerProfileChangeGroup
 from app.schemas.seller_profile_change_request import validate_group_payload
+from app.models.seller_profile_change_request import SellerProfileChangeStatus
 from app.services import seller_upi_qr
+from app.services.seller_profile_change_requests import (
+    approve,
+    create_change_request,
+)
 
 
 def test_seller_profile_has_upi_columns() -> None:
@@ -119,3 +126,106 @@ async def test_upi_qr_process_and_store_returns_prefixed_key(
 async def test_upi_qr_delete_blob_tolerates_none() -> None:
     """Never raises: a storage error must not abort the caller's transaction."""
     await seller_upi_qr.delete_blob(None)
+
+
+# ── C4: change-request baseline / apply / removal ─────────────────────
+@pytest.mark.asyncio
+async def test_payments_cr_approve_sets_profile(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+    admin_user: Any,
+) -> None:
+    bundle = approved_seller_with_store
+    res = await create_change_request(
+        session=session,
+        seller_profile=bundle.profile,
+        group=SellerProfileChangeGroup.Payments,
+        proposed={"upi_vpa": "ganesh@okhdfcbank", "upi_enabled": True},
+        note=None,
+        actor_user_id=bundle.user.id,
+    )
+    await session.commit()
+    assert res.cr.status is SellerProfileChangeStatus.Submitted
+
+    await approve(session=session, cr=res.cr, admin_user_id=admin_user.id)
+    await session.commit()
+    await session.refresh(bundle.profile)
+    assert bundle.profile.upi_vpa == "ganesh@okhdfcbank"
+    assert bundle.profile.upi_enabled is True
+
+
+@pytest.mark.asyncio
+async def test_payments_cr_keeps_old_payee_live_until_approval(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+) -> None:
+    """A pending VPA change must not disturb the live payee."""
+    bundle = approved_seller_with_store
+    bundle.profile.upi_vpa = "old@okaxis"
+    bundle.profile.upi_enabled = True
+    session.add(bundle.profile)
+    await session.commit()
+
+    await create_change_request(
+        session=session,
+        seller_profile=bundle.profile,
+        group=SellerProfileChangeGroup.Payments,
+        proposed={"upi_vpa": "new@okhdfcbank", "upi_enabled": True},
+        note=None,
+        actor_user_id=bundle.user.id,
+    )
+    await session.commit()
+    await session.refresh(bundle.profile)
+    assert bundle.profile.upi_vpa == "old@okaxis"
+
+
+@pytest.mark.asyncio
+async def test_payments_cr_baseline_snapshots_current_payee(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+) -> None:
+    bundle = approved_seller_with_store
+    bundle.profile.upi_vpa = "old@okaxis"
+    bundle.profile.upi_enabled = True
+    session.add(bundle.profile)
+    await session.commit()
+
+    res = await create_change_request(
+        session=session,
+        seller_profile=bundle.profile,
+        group=SellerProfileChangeGroup.Payments,
+        proposed={"upi_vpa": "new@okhdfcbank", "upi_enabled": True},
+        note=None,
+        actor_user_id=bundle.user.id,
+    )
+    await session.commit()
+    assert res.cr.baseline_json["upi_vpa"] == "old@okaxis"
+    assert res.cr.baseline_json["upi_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_payments_cr_removal_clears_payee(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+    admin_user: Any,
+) -> None:
+    bundle = approved_seller_with_store
+    bundle.profile.upi_vpa = "old@okaxis"
+    bundle.profile.upi_enabled = True
+    session.add(bundle.profile)
+    await session.commit()
+
+    res = await create_change_request(
+        session=session,
+        seller_profile=bundle.profile,
+        group=SellerProfileChangeGroup.Payments,
+        proposed={"upi_vpa": "", "upi_enabled": False},
+        note=None,
+        actor_user_id=bundle.user.id,
+    )
+    await session.commit()
+    await approve(session=session, cr=res.cr, admin_user_id=admin_user.id)
+    await session.commit()
+    await session.refresh(bundle.profile)
+    assert bundle.profile.upi_vpa is None
+    assert bundle.profile.upi_enabled is False
