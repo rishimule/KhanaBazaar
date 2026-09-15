@@ -29,7 +29,14 @@ celery_app.conf.task_always_eager = True
 celery_app.conf.task_eager_propagates = True
 
 # Use a test Postgres database
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar_test"
+# Default matches the documented `khanabazaar_test` DB. Overridable because the
+# suite drops and recreates every table: two worktrees running pytest at once
+# otherwise destroy each other's schema mid-run (one blocks on the other's
+# locks and both produce garbage). Set KB_TEST_DB to give a worktree its own.
+TEST_DATABASE_URL = (
+    "postgresql+asyncpg://postgres:password@localhost:5432/"
+    + os.getenv("KB_TEST_DB", "khanabazaar_test")
+)
 
 test_engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
 
