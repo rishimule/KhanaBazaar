@@ -4,13 +4,19 @@ helper, and the change-request apply flow.
 
 Mirrors the store-logo suite (test_store_logo.py). Uses the local
 image-storage backend against tmp_path so no GCS/network is touched."""
+import io
+from typing import Any
+
 import pytest
+from PIL import Image
 from pydantic import ValidationError
 
+from app.core.config import settings
 from app.models.commerce import Payment
 from app.models.profile import SellerProfile
 from app.models.seller_profile_change_request import SellerProfileChangeGroup
 from app.schemas.seller_profile_change_request import validate_group_payload
+from app.services import seller_upi_qr
 
 
 def test_seller_profile_has_upi_columns() -> None:
@@ -83,3 +89,33 @@ def test_payments_removal_payload() -> None:
     assert out["upi_enabled"] is False
     assert out["upi_qr_url"] == ""
     assert out["storage_key"] is None
+
+
+# ── C3: QR verification-blob storage helper ───────────────────────────
+def _png() -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (256, 256), "black").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _local_storage(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    monkeypatch.setattr(settings, "IMAGE_STORAGE_BACKEND", "local")
+    monkeypatch.setattr(settings, "MEDIA_LOCAL_DIR", str(tmp_path))
+
+
+@pytest.mark.asyncio
+async def test_upi_qr_process_and_store_returns_prefixed_key(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    _local_storage(monkeypatch, tmp_path)
+    url, key = await seller_upi_qr.process_and_store(_png(), seller_profile_id=7)
+    assert key.startswith("seller-upi-qr/7/")
+    assert key.endswith(".webp")
+    assert url
+    assert (tmp_path / key).exists()
+
+
+@pytest.mark.asyncio
+async def test_upi_qr_delete_blob_tolerates_none() -> None:
+    """Never raises: a storage error must not abort the caller's transaction."""
+    await seller_upi_qr.delete_blob(None)
