@@ -13,7 +13,11 @@ from pydantic import ValidationError
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from httpx import ASGITransport, AsyncClient
+
+from app import app
 from app.core.config import settings
+from app.core.security import get_current_seller
 from app.models.commerce import Payment
 from app.models.profile import SellerProfile
 from app.models.seller_profile_change_request import SellerProfileChangeGroup
@@ -302,3 +306,49 @@ def test_generic_cr_path_allows_vpa_only_edit() -> None:
         SellerProfileChangeGroup.Payments,
         {"upi_vpa": "ab@okaxis", "upi_qr_url": ""},
     )
+
+
+# ── C6: immediate disable (deliberately not moderated) ────────────────
+@pytest.mark.asyncio
+async def test_disable_upi_is_immediate_and_keeps_vpa(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+) -> None:
+    bundle = approved_seller_with_store
+    bundle.profile.upi_vpa = "ganesh@okhdfcbank"
+    bundle.profile.upi_enabled = True
+    session.add(bundle.profile)
+    await session.commit()
+
+    app.dependency_overrides[get_current_seller] = lambda: bundle.user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            r = await ac.patch("/api/v1/sellers/me/payments/disable")
+        assert r.status_code == 200
+        assert r.json()["upi_enabled"] is False
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)
+
+    await session.refresh(bundle.profile)
+    assert bundle.profile.upi_enabled is False
+    # VPA survives so re-enabling needs no fresh review.
+    assert bundle.profile.upi_vpa == "ganesh@okhdfcbank"
+
+
+@pytest.mark.asyncio
+async def test_disable_upi_is_idempotent(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+) -> None:
+    bundle = approved_seller_with_store
+    app.dependency_overrides[get_current_seller] = lambda: bundle.user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            first = await ac.patch("/api/v1/sellers/me/payments/disable")
+            second = await ac.patch("/api/v1/sellers/me/payments/disable")
+        assert first.status_code == 200
+        assert second.status_code == 200
+    finally:
+        app.dependency_overrides.pop(get_current_seller, None)

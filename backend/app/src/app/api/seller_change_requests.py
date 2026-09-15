@@ -297,3 +297,24 @@ async def upload_my_payments_qr(
     for cb in res.emails:
         cb()
     return await _attach_events(session, res.cr)
+
+
+@router.patch("/me/payments/disable")
+async def disable_my_upi(
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, bool]:
+    """Turn UPI off immediately — deliberately NOT moderated.
+
+    A compromised UPI handle has to stop receiving money now, not after an
+    admin review. Disabling only removes a payment option, so it carries none
+    of the risk that makes *enabling* reviewable. Modelled on the direct pause
+    routes. `upi_vpa` is retained so re-enabling needs no fresh review.
+
+    Idempotent: disabling an already-disabled payee is a 200 no-op.
+    """
+    profile = await _seller_profile_or_404(session, seller)
+    profile.upi_enabled = False
+    session.add(profile)
+    await session.commit()
+    return {"upi_enabled": False}
