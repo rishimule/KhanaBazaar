@@ -7,12 +7,25 @@ address columns flat and these models expose them as a nested
 `address` object.
 """
 
+import re
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from app.schemas.address import AddressPayload
 from app.schemas.services import ServicePayload
+
+# Same pattern as the payments change-request payload. Declared locally rather
+# than imported so the registration schema does not depend on CR internals.
+_UPI_VPA_RE = re.compile(r"^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,64}$")
+
+
+def _validate_optional_vpa(v: Optional[str]) -> Optional[str]:
+    if v is None or v == "":
+        return None
+    if not _UPI_VPA_RE.match(v):
+        raise ValueError("upi_vpa format invalid")
+    return v
 
 
 class SellerRegisterBody(BaseModel):
@@ -27,6 +40,9 @@ class SellerRegisterBody(BaseModel):
     fssai_license: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    # Optional: a seller without their UPI ID to hand must still be able to
+    # finish signup. "Required" means required to ACCEPT UPI, not to register.
+    upi_vpa: Optional[str] = None
     accept_policies: bool = False
     # "Keep me signed in on this device" — trusted long-term session when true.
     remember: bool = False
@@ -34,6 +50,10 @@ class SellerRegisterBody(BaseModel):
     # referral attribution to the created seller. Optional + best-effort.
     referral_invite_token: Optional[str] = None
 
+    @field_validator("upi_vpa")
+    @classmethod
+    def _upi_vpa(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_optional_vpa(v)
 
 class SellerPhoneOtpRequestBody(BaseModel):
     email_token: str
@@ -69,7 +89,12 @@ class SellerProfileUpdateBody(BaseModel):
     fssai_license: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    upi_vpa: Optional[str] = None
 
+    @field_validator("upi_vpa")
+    @classmethod
+    def _upi_vpa(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_optional_vpa(v)
 
 class SellerProfilePayload(BaseModel):
     id: int
@@ -83,6 +108,7 @@ class SellerProfilePayload(BaseModel):
     fssai_license: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    upi_vpa: Optional[str] = None
     verification_status: str
     rejection_reason: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -100,6 +126,7 @@ class SellerApplicationPayload(BaseModel):
     fssai_license: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    upi_vpa: Optional[str] = None
     verification_status: str
     rejection_reason: Optional[str] = None
     submitted_at: Optional[str] = None

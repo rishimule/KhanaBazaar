@@ -17,7 +17,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app import app
 from app.core.config import settings
-from app.core.security import get_current_seller
+from app.core.security import get_current_admin, get_current_seller
 from app.models.commerce import Payment
 from app.models.profile import SellerProfile
 from app.models.seller_profile_change_request import SellerProfileChangeGroup
@@ -352,3 +352,96 @@ async def test_disable_upi_is_idempotent(
         assert second.status_code == 200
     finally:
         app.dependency_overrides.pop(get_current_seller, None)
+
+
+# ── C7: registration capture + enable-on-approval ─────────────────────
+def test_register_body_accepts_optional_upi_vpa() -> None:
+    """Optional at registration: a seller without their UPI ID to hand must
+    still be able to finish signup (design spec §4.1)."""
+    from app.schemas.sellers import SellerRegisterBody
+
+    assert "upi_vpa" in SellerRegisterBody.model_fields
+    assert SellerRegisterBody.model_fields["upi_vpa"].is_required() is False
+
+
+def test_register_body_rejects_malformed_upi_vpa() -> None:
+    from app.schemas.sellers import SellerRegisterBody
+    from tests._helpers import make_address
+
+    with pytest.raises(ValidationError):
+        SellerRegisterBody.model_validate(
+            {
+                "signup_token": "t",
+                "full_name": "A B",
+                "business_name": "Shop",
+                "service_ids": [1],
+                "address": make_address(),
+                "upi_vpa": "nobank",
+            }
+        )
+
+
+@pytest.mark.asyncio
+async def test_approval_enables_upi_when_vpa_present(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+    admin_user: Any,
+) -> None:
+    """Approving a seller who supplied a VPA at signup turns UPI on, so there
+    is no second gate after onboarding."""
+    from app.models.profile import VerificationStatus
+
+    bundle = approved_seller_with_store
+    # Rewind to pending with a VPA on file, then approve through the route.
+    bundle.profile.verification_status = VerificationStatus.Pending
+    bundle.profile.upi_vpa = "ganesh@okhdfcbank"
+    bundle.profile.upi_enabled = False
+    session.add(bundle.profile)
+    await session.commit()
+
+    app.dependency_overrides[get_current_admin] = lambda: admin_user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            r = await ac.patch(
+                f"/api/v1/sellers/admin/{bundle.profile.id}/verify",
+                json={"action": "approve"},
+            )
+        assert r.status_code == 200, r.text
+    finally:
+        app.dependency_overrides.pop(get_current_admin, None)
+
+    await session.refresh(bundle.profile)
+    assert bundle.profile.upi_enabled is True
+
+
+@pytest.mark.asyncio
+async def test_approval_leaves_upi_off_without_vpa(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+    admin_user: Any,
+) -> None:
+    """No payee means UPI stays off — the invariant holds at approval too."""
+    from app.models.profile import VerificationStatus
+
+    bundle = approved_seller_with_store
+    bundle.profile.verification_status = VerificationStatus.Pending
+    bundle.profile.upi_vpa = None
+    bundle.profile.upi_enabled = False
+    session.add(bundle.profile)
+    await session.commit()
+
+    app.dependency_overrides[get_current_admin] = lambda: admin_user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            r = await ac.patch(
+                f"/api/v1/sellers/admin/{bundle.profile.id}/verify",
+                json={"action": "approve"},
+            )
+        assert r.status_code == 200, r.text
+    finally:
+        app.dependency_overrides.pop(get_current_admin, None)
+
+    await session.refresh(bundle.profile)
+    assert bundle.profile.upi_enabled is False
