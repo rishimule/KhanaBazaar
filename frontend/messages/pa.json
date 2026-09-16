@@ -476,6 +476,7 @@
     "legend": "ਭੁਗਤਾਨ ਦਾ ਤਰੀਕਾ",
     "upiLabel": "UPI",
     "upiHint": "UPI ਐਪ ਰਾਹੀਂ ਭੁਗਤਾਨ ਕਰੋ",
+    "payeePreview": "ਤੁਸੀਂ {vpa} ({name}) ਨੂੰ ₹{amount} ਅਦਾ ਕਰੋਗੇ",
     "cashLabel": "ਡਿਲਿਵਰੀ 'ਤੇ ਨਕਦ",
     "cashHint": "ਮਿਲਣ 'ਤੇ ਭੁਗਤਾਨ ਕਰੋ",
     "creditLabel": "ਕ੍ਰੈਡਿਟ ’ਤੇ ਭੁਗਤਾਨ ਕਰੋ",

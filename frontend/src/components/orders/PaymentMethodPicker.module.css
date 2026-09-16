@@ -71,3 +71,13 @@
   font-size: var(--body-sm);
   color: var(--shade-cool-base-5);
 }
+
+/* Payee preview shown beneath the UPI option once it is selected, so the
+   customer can see who they are paying before the order is created. */
+.payeePreview {
+  margin: -4px 0 0;
+  padding: 0 16px;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-5);
+  word-break: break-word;
+}

@@ -143,6 +143,13 @@ export interface Store extends BaseSchema {
   paused_until?: string | null;
   /** Store logo image (seller-uploaded via CR, or admin direct-apply). */
   logo_url?: string | null;
+  /** Store-level methods the seller accepts. `credit` is never present here —
+   *  it is a per-customer entitlement resolved by the credit-standing call. */
+  accepted_payment_methods?: PaymentMethod[];
+  /** The seller's UPI payee, or null when they accept no UPI. The QR is
+   *  generated from `vpa` client-side; the seller's uploaded image is
+   *  admin-only and never reaches this payload. */
+  upi_payee?: { vpa: string; display_name: string } | null;
   /** Set when the store list was queried with the user's lat/lng. */
   distance_km?: number | null;
   /** True when the store has a live paid (non-Freebie) fee arrangement. */
@@ -332,6 +339,8 @@ export interface OrderPayment {
   status: PaymentStatus;
   amount: number;
   paid_at: string | null;
+  /** Set when the customer tapped "I've paid". An assertion, not a settlement. */
+  customer_claimed_at?: string | null;
 }
 
 export interface OrderDelivery {

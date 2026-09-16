@@ -476,6 +476,7 @@
     "legend": "Payment method",
     "upiLabel": "UPI",
     "upiHint": "Pay via UPI app",
+    "payeePreview": "You'll pay ₹{amount} to {vpa} ({name})",
     "cashLabel": "Cash on delivery",
     "cashHint": "Pay when you receive",
     "creditLabel": "Pay on credit",

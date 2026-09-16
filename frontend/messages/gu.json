@@ -476,6 +476,7 @@
     "legend": "ચૂકવણીની પદ્ધતિ",
     "upiLabel": "UPI",
     "upiHint": "UPI એપ દ્વારા ચૂકવો",
+    "payeePreview": "તમે {vpa} ({name}) ને ₹{amount} ચૂકવશો",
     "cashLabel": "ડિલિવરી પર રોકડ",
     "cashHint": "મળે ત્યારે ચૂકવો",
     "creditLabel": "ક્રેડિટ પર ચૂકવો",
