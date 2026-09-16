@@ -29,6 +29,8 @@ class PaymentRead(BaseModel):
     status: PaymentStatus
     amount: float
     paid_at: Optional[datetime]
+    # The customer's one-tap "I've paid" assertion. Never implies `status`.
+    customer_claimed_at: Optional[datetime] = None
 
 
 class DeliveryRead(BaseModel):

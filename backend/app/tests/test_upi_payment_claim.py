@@ -142,3 +142,219 @@ async def test_validate_upi_payee_rejects_disabled_payee(
     with pytest.raises(HTTPException) as exc:
         await _validate_upi_payee_for_store(session, bundle.store.id)
     assert exc.value.detail == "upi_unavailable"
+
+
+# ── "I've paid" claim endpoint ────────────────────────────────────────
+class _OrderBundle:
+    def __init__(self, user: Any, order: Any) -> None:
+        self.user = user
+        self.order = order
+
+
+async def _make_order(
+    session: AsyncSession, bundle: Any, *, method: str
+) -> _OrderBundle:
+    """Insert a customer + a minimal Order/Payment pair directly.
+
+    The claim endpoint only needs an owned order and its payment row, so this
+    deliberately skips the cart/checkout path — those are covered elsewhere.
+    """
+    import uuid as _uuid
+
+    from app.models.address import Address
+    from app.models.base import User, UserRole
+    from app.models.commerce import (
+        Delivery,
+        DeliveryStatus,
+        Order,
+        Payment,
+        PaymentMethod,
+        PaymentStatus,
+    )
+    from app.models.profile import CustomerProfile
+    from tests._helpers import make_address
+
+    user = User(
+        email=f"c-{_uuid.uuid4().hex[:8]}@x.test",
+        role=UserRole.Customer,
+        is_active=True,
+    )
+    session.add(user)
+    await session.flush()
+    profile = CustomerProfile(user_id=user.id, first_name="Cust")
+    session.add(profile)
+    addr = Address(**make_address())
+    session.add(addr)
+    await session.flush()
+
+    order = Order(
+        customer_profile_id=profile.id,
+        store_id=bundle.store.id,
+        service_id=bundle.service_id,
+        service_name_snapshot="Grocery",
+        delivery_address_id=addr.id,
+        subtotal=1247.50,
+        delivery_fee=0.0,
+        tax=0.0,
+        total=1247.50,
+        delivery_address_snapshot="somewhere",
+    )
+    session.add(order)
+    await session.flush()
+    session.add(
+        Payment(
+            order_id=order.id,
+            amount=order.total,
+            method=PaymentMethod(method),
+            status=PaymentStatus.Pending,
+        )
+    )
+    # _serialize_order 500s on an order with no delivery row, so a realistic
+    # order needs one even though the claim endpoint never reads it.
+    session.add(Delivery(order_id=order.id, status=DeliveryStatus.Pending))
+    await session.commit()
+    await session.refresh(order)
+    return _OrderBundle(user, order)
+
+
+@pytest.mark.asyncio
+async def test_claim_sets_timestamp_without_touching_status(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+) -> None:
+    """The claim is a customer assertion, never evidence — status must stay
+    pending so the existing delivery-settles-payment machinery is untouched."""
+    from sqlmodel import select
+
+    from app.core.security import get_current_user
+    from app.models.commerce import Payment, PaymentStatus
+
+    ob = await _make_order(session, approved_seller_with_store, method="upi")
+    app.dependency_overrides[get_current_user] = lambda: ob.user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            r = await ac.post(f"/api/v1/orders/{ob.order.id}/payment/claim")
+        assert r.status_code == 200, r.text
+        assert r.json()["payment"]["customer_claimed_at"] is not None
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    payment = (
+        await session.exec(select(Payment).where(Payment.order_id == ob.order.id))
+    ).first()
+    assert payment is not None
+    assert payment.customer_claimed_at is not None
+    assert payment.status is PaymentStatus.Pending
+
+
+@pytest.mark.asyncio
+async def test_claim_is_idempotent(
+    approved_seller_with_store: Any, session: AsyncSession
+) -> None:
+    from app.core.security import get_current_user
+
+    ob = await _make_order(session, approved_seller_with_store, method="upi")
+    app.dependency_overrides[get_current_user] = lambda: ob.user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            first = await ac.post(f"/api/v1/orders/{ob.order.id}/payment/claim")
+            second = await ac.post(f"/api/v1/orders/{ob.order.id}/payment/claim")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    # Re-tapping must not move the timestamp.
+    assert (
+        first.json()["payment"]["customer_claimed_at"]
+        == second.json()["payment"]["customer_claimed_at"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_claim_rejects_other_customers_order(
+    approved_seller_with_store: Any, session: AsyncSession
+) -> None:
+    """403, not 404: `_load_order_for_user` reserves 404 for a missing order
+    and raises 403 when the order exists but belongs to someone else."""
+    from app.core.security import get_current_user
+
+    ob = await _make_order(session, approved_seller_with_store, method="upi")
+    intruder = await _make_order(session, approved_seller_with_store, method="upi")
+
+    app.dependency_overrides[get_current_user] = lambda: intruder.user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            r = await ac.post(f"/api/v1/orders/{ob.order.id}/payment/claim")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_claim_rejects_non_upi_order(
+    approved_seller_with_store: Any, session: AsyncSession
+) -> None:
+    from app.core.security import get_current_user
+
+    ob = await _make_order(session, approved_seller_with_store, method="cash")
+    app.dependency_overrides[get_current_user] = lambda: ob.user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            r = await ac.post(f"/api/v1/orders/{ob.order.id}/payment/claim")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+    assert r.status_code == 409
+    assert r.json()["detail"] == "not_upi_order"
+
+
+@pytest.mark.asyncio
+async def test_claim_rejects_settled_payment(
+    approved_seller_with_store: Any, session: AsyncSession
+) -> None:
+    from sqlmodel import select
+
+    from app.core.security import get_current_user
+    from app.models.commerce import Payment, PaymentStatus
+
+    ob = await _make_order(session, approved_seller_with_store, method="upi")
+    payment = (
+        await session.exec(select(Payment).where(Payment.order_id == ob.order.id))
+    ).first()
+    assert payment is not None
+    payment.status = PaymentStatus.Paid
+    session.add(payment)
+    await session.commit()
+
+    app.dependency_overrides[get_current_user] = lambda: ob.user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            r = await ac.post(f"/api/v1/orders/{ob.order.id}/payment/claim")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+    assert r.status_code == 409
+    assert r.json()["detail"] == "payment_settled"
+
+
+@pytest.mark.asyncio
+async def test_claim_rejects_seller_acting_for_customer(
+    approved_seller_with_store: Any, session: AsyncSession
+) -> None:
+    """A seller must not be able to fabricate the customer's assertion — that
+    is the very claim the seller is supposed to be verifying independently."""
+    from app.core.security import get_current_user
+
+    bundle = approved_seller_with_store
+    ob = await _make_order(session, bundle, method="upi")
+    app.dependency_overrides[get_current_user] = lambda: bundle.user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            r = await ac.post(f"/api/v1/orders/{ob.order.id}/payment/claim")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+    assert r.status_code == 403

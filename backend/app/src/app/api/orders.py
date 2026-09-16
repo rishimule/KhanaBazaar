@@ -36,6 +36,7 @@ from app.models.commerce import (
     OrderStatus,
     Payment,
     PaymentMethod,
+    PaymentStatus,
     Review,
 )
 from app.models.profile import CustomerProfile, SellerProfile, SellerProfileService
@@ -281,6 +282,7 @@ async def _serialize_order(
         ) for i in items],
         payment=PaymentRead(
             method=payment.method, status=payment.status, amount=payment.amount, paid_at=payment.paid_at,
+            customer_claimed_at=payment.customer_claimed_at,
         ),
         delivery=DeliveryRead(
             status=delivery.status,
@@ -861,4 +863,47 @@ async def reorder(
         store_id=order.store_id, store_name=store_name,
         service_id=order.service_id, service_name=order.service_name_snapshot,
         items=items, adjustments=adjustments,
+    )
+
+
+@router.post("/{order_id}/payment/claim", response_model=OrderRead)
+async def claim_upi_payment(
+    order_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> OrderRead:
+    """Record the customer's "I've paid" tap on a UPI order.
+
+    Writes `Payment.customer_claimed_at` and nothing else — the claim is an
+    assertion, not evidence. The seller verifies against their own bank app and
+    delivery still settles the payment, so `status` is deliberately untouched.
+
+    Idempotent: re-tapping returns 200 without moving the timestamp.
+    """
+    # Only the owning customer may assert payment. `_load_order_for_user` also
+    # admits the store's seller and any admin, which must NOT be able to claim
+    # on a customer's behalf — that would fabricate the very assertion the
+    # seller is supposed to be verifying.
+    if user.role is not UserRole.Customer:
+        raise HTTPException(status_code=403, detail="forbidden")
+    order, include_customer_name = await _load_order_for_user(session, order_id, user)
+    payment = (
+        await session.exec(select(Payment).where(Payment.order_id == order.id))
+    ).first()
+    if payment is None:
+        raise HTTPException(status_code=404, detail="payment_not_found")
+    if payment.method is not PaymentMethod.Upi:
+        raise HTTPException(status_code=409, detail="not_upi_order")
+    if payment.status is not PaymentStatus.Pending:
+        raise HTTPException(status_code=409, detail="payment_settled")
+    if payment.customer_claimed_at is None:
+        payment.customer_claimed_at = datetime.now(timezone.utc)
+        session.add(payment)
+        await session.commit()
+        # commit() expires the loaded instances; _serialize_order reads
+        # `order` attributes, and a lazy reload in async context raises
+        # MissingGreenlet. Refresh explicitly before serializing.
+        await session.refresh(order)
+    return await _serialize_order(
+        session, order, include_customer_name=include_customer_name
     )
