@@ -2848,6 +2848,8 @@
   "StoreQR": {
     "posterCta": "Scan to shop with us on {brand}",
     "posterHint": "Point your phone camera here",
+    "zoomOpen": "Enlarge QR code",
+    "zoomHint": "Tap the code to enlarge it",
     "downloadPng": "Download PNG",
     "downloadSvg": "Download SVG",
     "print": "Print",
