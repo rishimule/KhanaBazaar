@@ -2827,6 +2827,8 @@
   "StoreQR": {
     "posterCta": "{brand} ਉੱਤੇ ਸਾਡੇ ਨਾਲ ਖਰੀਦਦਾਰੀ ਲਈ ਸਕੈਨ ਕਰੋ",
     "posterHint": "ਆਪਣੇ ਫ਼ੋਨ ਦਾ ਕੈਮਰਾ ਇੱਥੇ ਰੱਖੋ",
+    "zoomOpen": "QR ਕੋਡ ਵੱਡਾ ਕਰੋ",
+    "zoomHint": "ਕੋਡ ਵੱਡਾ ਕਰਨ ਲਈ ਇਸ ਉੱਤੇ ਟੈਪ ਕਰੋ",
     "downloadPng": "PNG ਡਾਊਨਲੋਡ ਕਰੋ",
     "downloadSvg": "SVG ਡਾਊਨਲੋਡ ਕਰੋ",
     "print": "ਪ੍ਰਿੰਟ ਕਰੋ",
