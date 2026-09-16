@@ -358,3 +358,66 @@ async def test_claim_rejects_seller_acting_for_customer(
     finally:
         app.dependency_overrides.pop(get_current_user, None)
     assert r.status_code == 403
+
+
+# ── Order-placed email UPI block ──────────────────────────────────────
+def test_order_placed_email_renders_upi_block() -> None:
+    """The emailed amount must be the NET payable, not the gross total."""
+    from app.core.email_render import render_email
+
+    payload = render_email(
+        "order_placed_customer",
+        {
+            "orders": [
+                {
+                    "order_id": 42,
+                    "service_name": "Grocery",
+                    "store_name": "Ganesh Stores",
+                    "line_items": [],
+                    "order_total": 1247.50,
+                    "subtotal": 1247.50,
+                    "delivery_fee": 0.0,
+                    "delivery_eta": None,
+                    "preferred_delivery": None,
+                    "upi_vpa": "ganesh@okhdfcbank",
+                    "upi_payable": 1047.50,
+                }
+            ],
+            "grand_total": 1247.50,
+            "customer_first_name": "Asha",
+        },
+        lang="en",
+    )
+    assert "ganesh@okhdfcbank" in payload.html
+    assert "1047.50" in payload.html
+    # The gross must NOT be presented as the amount to transfer.
+    assert "Pay ₹1247.50" not in payload.html
+
+
+def test_order_placed_email_omits_upi_block_for_cash() -> None:
+    from app.core.email_render import render_email
+
+    payload = render_email(
+        "order_placed_customer",
+        {
+            "orders": [
+                {
+                    "order_id": 43,
+                    "service_name": "Grocery",
+                    "store_name": "Ganesh Stores",
+                    "line_items": [],
+                    "order_total": 500.0,
+                    "subtotal": 500.0,
+                    "delivery_fee": 0.0,
+                    "delivery_eta": None,
+                    "preferred_delivery": None,
+                    "upi_vpa": None,
+                    "upi_payable": None,
+                }
+            ],
+            "grand_total": 500.0,
+            "customer_first_name": "Asha",
+        },
+        lang="en",
+    )
+    assert "by UPI" not in payload.html

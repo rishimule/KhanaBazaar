@@ -16,6 +16,15 @@
       {% with items=o.line_items, order_total=o.order_total, subtotal=o.subtotal, delivery_fee=o.delivery_fee %}
         {% include "_partials/line_items.html" %}
       {% endwith %}
+      {% if o.upi_vpa and o.upi_payable %}
+        <div style="margin-top:12px;padding:12px;background:#f9fafb;border-radius:6px;">
+          <div style="font-size:14px;font-weight:600;">Pay &#8377;{{ '%.2f'|format(o.upi_payable) }} by UPI</div>
+          <div style="font-size:14px;color:#374151;margin-top:4px;">To: {{ o.upi_vpa }}</div>
+          <div style="font-size:13px;color:#6b7280;margin-top:6px;">
+            <a href="{{ frontend_base_url }}/account/orders/{{ o.order_id|string }}">Open the payment page to scan the QR</a>
+          </div>
+        </div>
+      {% endif %}
     </div>
   {% endfor %}
 
