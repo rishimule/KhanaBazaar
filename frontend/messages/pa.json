@@ -1377,7 +1377,8 @@
       "next": "Next ›",
       "showing": "Showing {from}–{to} of {total}",
       "loadFailedTitle": "ਤੁਹਾਡੇ ਆਰਡਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੇ",
-      "loadFailedBody": "ਇਸ ਦਾ ਮਤਲਬ ਇਹ ਨਹੀਂ ਕਿ ਤੁਹਾਡੇ ਕੋਲ ਕੋਈ ਆਰਡਰ ਨਹੀਂ ਹੈ — ਅਸੀਂ ਸਰਵਰ ਤੱਕ ਨਹੀਂ ਪਹੁੰਚ ਸਕੇ।"
+      "loadFailedBody": "ਇਸ ਦਾ ਮਤਲਬ ਇਹ ਨਹੀਂ ਕਿ ਤੁਹਾਡੇ ਕੋਲ ਕੋਈ ਆਰਡਰ ਨਹੀਂ ਹੈ — ਅਸੀਂ ਸਰਵਰ ਤੱਕ ਨਹੀਂ ਪਹੁੰਚ ਸਕੇ।",
+      "customerSaysPaid": "ਗਾਹਕ ਕਹਿੰਦਾ ਹੈ ਅਦਾ ਕੀਤਾ"
     },
     "orderDetail": {
       "loadError": "ਆਰਡਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।",
@@ -1393,7 +1394,8 @@
       "customerFallback": "ਗਾਹਕ",
       "storeCreditApplied": "ਸਟੋਰ ਕ੍ਰੈਡਿਟ ਲਾਗੂ",
       "amountPayable": "ਦੇਣਯੋਗ ਰਕਮ",
-      "startReturn": "ਵਾਪਸੀ ਸ਼ੁਰੂ ਕਰੋ"
+      "startReturn": "ਵਾਪਸੀ ਸ਼ੁਰੂ ਕਰੋ",
+      "customerSaysPaidAt": "ਗਾਹਕ ਕਹਿੰਦਾ ਹੈ ਕਿ ਉਹਨਾਂ ਨੇ {when} ਨੂੰ ਅਦਾ ਕੀਤਾ। ਭੇਜਣ ਤੋਂ ਪਹਿਲਾਂ ਆਪਣੀ ਬੈਂਕ ਐਪ ਜਾਂਚੋ।"
     },
     "settings": {
       "loadStoreError": "ਸਟੋਰ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।",

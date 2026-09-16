@@ -1377,7 +1377,8 @@
       "next": "Next ›",
       "showing": "Showing {from}–{to} of {total}",
       "loadFailedTitle": "તમારા ઓર્ડર લોડ થઈ શક્યા નહીં",
-      "loadFailedBody": "આનો અર્થ એ નથી કે તમારી પાસે કોઈ ઓર્ડર નથી — અમે સર્વર સુધી પહોંચી શક્યા નહીં."
+      "loadFailedBody": "આનો અર્થ એ નથી કે તમારી પાસે કોઈ ઓર્ડર નથી — અમે સર્વર સુધી પહોંચી શક્યા નહીં.",
+      "customerSaysPaid": "ગ્રાહક કહે છે ચૂકવ્યું"
     },
     "orderDetail": {
       "loadError": "ઓર્ડર લોડ થઈ શક્યો નહીં.",
@@ -1393,7 +1394,8 @@
       "customerFallback": "ગ્રાહક",
       "storeCreditApplied": "સ્ટોર ક્રેડિટ લાગુ",
       "amountPayable": "ચૂકવવાની રકમ",
-      "startReturn": "રિટર્ન શરૂ કરો"
+      "startReturn": "રિટર્ન શરૂ કરો",
+      "customerSaysPaidAt": "ગ્રાહક કહે છે કે તેમણે {when} પર ચૂકવ્યું. મોકલતાં પહેલાં તમારી બેંક એપ તપાસો."
     },
     "settings": {
       "loadStoreError": "સ્ટોર લોડ થઈ શક્યો નહીં.",

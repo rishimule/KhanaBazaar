@@ -1377,7 +1377,8 @@
       "next": "Next ›",
       "showing": "Showing {from}–{to} of {total}",
       "loadFailedTitle": "तुमच्या ऑर्डर लोड होऊ शकल्या नाहीत",
-      "loadFailedBody": "याचा अर्थ तुमच्याकडे ऑर्डर नाहीत असा नाही — आम्ही सर्व्हरपर्यंत पोहोचू शकलो नाही."
+      "loadFailedBody": "याचा अर्थ तुमच्याकडे ऑर्डर नाहीत असा नाही — आम्ही सर्व्हरपर्यंत पोहोचू शकलो नाही.",
+      "customerSaysPaid": "ग्राहक म्हणतो पैसे भरले"
     },
     "orderDetail": {
       "loadError": "ऑर्डर लोड होऊ शकली नाही.",
@@ -1393,7 +1394,8 @@
       "customerFallback": "ग्राहक",
       "storeCreditApplied": "स्टोअर क्रेडिट लागू",
       "amountPayable": "देय रक्कम",
-      "startReturn": "परतावा सुरू करा"
+      "startReturn": "परतावा सुरू करा",
+      "customerSaysPaidAt": "ग्राहक म्हणतो की त्यांनी {when} रोजी पैसे भरले. पाठवण्यापूर्वी तुमचे बँक अॅप तपासा."
     },
     "settings": {
       "loadStoreError": "स्टोअर लोड होऊ शकले नाही.",

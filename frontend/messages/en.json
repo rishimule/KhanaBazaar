@@ -1376,7 +1376,8 @@
       "next": "Next ›",
       "showing": "Showing {from}–{to} of {total}",
       "loadFailedTitle": "Couldn't load your orders",
-      "loadFailedBody": "This does not mean you have no orders — we couldn't reach the server."
+      "loadFailedBody": "This does not mean you have no orders — we couldn't reach the server.",
+      "customerSaysPaid": "Customer says paid"
     },
     "orderDetail": {
       "loadError": "Could not load order.",
@@ -1392,7 +1393,8 @@
       "customerFallback": "Customer",
       "storeCreditApplied": "Store credit applied",
       "amountPayable": "Amount payable",
-      "startReturn": "Start a return"
+      "startReturn": "Start a return",
+      "customerSaysPaidAt": "Customer says they paid on {when}. Check your own bank app before dispatching."
     },
     "settings": {
       "loadStoreError": "Could not load store.",

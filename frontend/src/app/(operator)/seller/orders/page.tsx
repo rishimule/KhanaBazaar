@@ -126,7 +126,14 @@ export default function SellerOrdersPage() {
     {
       key: "payment",
       label: t("col.payment"),
-      render: (o) => <PaymentStatusPill payment={o.payment} />,
+      render: (o) => (
+        <>
+          <PaymentStatusPill payment={o.payment} />
+          {o.payment.customer_claimed_at && (
+            <span className={styles.claimBadge}>{t("customerSaysPaid")}</span>
+          )}
+        </>
+      ),
     },
     {
       key: "status",

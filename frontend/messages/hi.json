@@ -1377,7 +1377,8 @@
       "next": "Next ›",
       "showing": "Showing {from}–{to} of {total}",
       "loadFailedTitle": "आपके ऑर्डर लोड नहीं हो सके",
-      "loadFailedBody": "इसका मतलब यह नहीं कि आपके पास कोई ऑर्डर नहीं है — हम सर्वर तक नहीं पहुँच सके।"
+      "loadFailedBody": "इसका मतलब यह नहीं कि आपके पास कोई ऑर्डर नहीं है — हम सर्वर तक नहीं पहुँच सके।",
+      "customerSaysPaid": "ग्राहक ने भुगतान बताया"
     },
     "orderDetail": {
       "loadError": "ऑर्डर लोड नहीं हो सका।",
@@ -1393,7 +1394,8 @@
       "customerFallback": "ग्राहक",
       "storeCreditApplied": "स्टोर क्रेडिट लागू",
       "amountPayable": "देय राशि",
-      "startReturn": "वापसी शुरू करें"
+      "startReturn": "वापसी शुरू करें",
+      "customerSaysPaidAt": "ग्राहक का कहना है कि उन्होंने {when} को भुगतान किया। भेजने से पहले अपना बैंक ऐप जाँच लें।"
     },
     "settings": {
       "loadStoreError": "स्टोर लोड नहीं हो सका।",

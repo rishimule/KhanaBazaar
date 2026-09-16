@@ -91,3 +91,11 @@
   .header { align-items: flex-start; }
   .section { padding: 14px; }
 }
+
+/* See .claimBadge in the orders list: an unverified assertion, so neutral
+   tone rather than a success colour. */
+.claimNote {
+  margin: var(--space-1) 0 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
