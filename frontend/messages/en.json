@@ -2320,7 +2320,8 @@
       "requestChangesFailed": "Request changes failed",
       "rejectTitle": "Reject change request",
       "rejectDesc": "The seller will see this reason. Rejection is final — they would need to open a new request.",
-      "rejectFailed": "Reject failed"
+      "rejectFailed": "Reject failed",
+      "upiVerifyHint": "Check that the QR image resolves to the same UPI ID shown above. If they differ, reject — customers pay the ID, not the image."
     },
     "customers": {
       "col": {

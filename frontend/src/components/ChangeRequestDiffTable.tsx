@@ -41,6 +41,7 @@ const ALLOWED_KEYS: Partial<Record<SellerProfileChangeGroup, Set<string>>> = {
   services: new Set(["services"]),
   store_basics: new Set(["delivery_radius_km"]),
   store_logo: new Set(["logo_url"]),
+  payments: new Set(["upi_vpa", "upi_enabled", "upi_qr_url"]),
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -71,6 +72,10 @@ const FIELD_LABELS: Record<string, string> = {
   delivery_radius_km: "Delivery radius",
   // store_logo
   logo_url: "Store logo",
+  // payments
+  upi_vpa: "UPI ID",
+  upi_enabled: "Accepting UPI",
+  upi_qr_url: "Verification QR",
 };
 
 function maskAccount(n: string): string {
@@ -148,6 +153,38 @@ function formatValue(
         style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8 }}
       />
     );
+  }
+  if (group === "payments" && key === "upi_qr_url" && typeof value === "string") {
+    return (
+      // Rendered large and with objectFit:contain — a reviewer has to actually
+      // read this QR to compare it against the declared UPI ID. The 64px
+      // `cover` treatment used for logos would crop the code and make it
+      // unreadable, defeating the entire point of collecting the image.
+      <img
+        src={value}
+        alt="Seller-supplied payment QR, for verification against the UPI ID"
+        referrerPolicy="no-referrer"
+        style={{
+          width: 180,
+          height: 180,
+          objectFit: "contain",
+          borderRadius: 8,
+          background: "#ffffff",
+          padding: 4,
+        }}
+      />
+    );
+  }
+  if (group === "payments" && key === "upi_vpa" && typeof value === "string") {
+    // Large mono: the reviewer compares this character by character.
+    return (
+      <span className={styles.mono} style={{ fontSize: "1.05rem" }}>
+        {value}
+      </span>
+    );
+  }
+  if (group === "payments" && key === "upi_enabled") {
+    return <>{value ? "Yes" : "No"}</>;
   }
   if (group === "banking" && key === "bank_account_number" && typeof value === "string") {
     return <span className={styles.mono}>{maskAccount(value)}</span>;
