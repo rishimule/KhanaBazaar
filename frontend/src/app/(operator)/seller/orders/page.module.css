@@ -125,3 +125,21 @@
   .title { font-size: var(--body-2xl); }
   .search { min-width: 100%; }
 }
+
+/*
+ * Unverified customer assertion that they have paid — deliberately styled in a
+ * neutral/informational tone, never a success green. A green tick here would
+ * read as "payment confirmed" and get orders dispatched against money that
+ * never arrived.
+ */
+.claimBadge {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 2px 8px;
+  font-size: var(--font-xs);
+  border-radius: var(--radius-pill);
+  background: var(--shade-cool-light-2);
+  color: var(--shade-cool-dark-7);
+  border: 1px solid var(--hairline);
+  white-space: nowrap;
+}

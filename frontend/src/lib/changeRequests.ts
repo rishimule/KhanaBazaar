@@ -27,6 +27,7 @@ export const GROUP_LABEL: Record<SellerProfileChangeGroup, string> = {
   store_basics: "Delivery settings",
   avatar: "Profile picture",
   store_logo: "Store logo",
+  payments: "Payments",
 };
 
 /** Maps a CR status to a UI tone bucket — used by badges/banners. */

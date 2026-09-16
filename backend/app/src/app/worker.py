@@ -453,7 +453,7 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
     from app.models.store import Store
 
     async def _load() -> dict[str, Any]:
-        from app.models.commerce import OrderItem
+        from app.models.commerce import OrderItem, Payment
 
         engine = create_async_engine(settings.DATABASE_URL, echo=False)
         try:
@@ -495,6 +495,11 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                             select(User).where(User.id == customer_profile.user_id)
                         )
                     ).first()
+                payment_row = (
+                    await session.exec(
+                        select(Payment).where(Payment.order_id == order_id)
+                    )
+                ).first()
                 items_rows = (
                     await session.exec(
                         select(OrderItem).where(OrderItem.order_id == order_id)
@@ -514,6 +519,15 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     "order_total": order.total,
                     "subtotal": order.subtotal,
                     "delivery_fee": order.delivery_fee,
+                    "store_credit_applied": order.store_credit_applied,
+                    "payment_method": (
+                        payment_row.method.value if payment_row else None
+                    ),
+                    "seller_upi_vpa": (
+                        seller_profile.upi_vpa
+                        if seller_profile is not None and seller_profile.upi_enabled
+                        else None
+                    ),
                     "order_status": order.status.value,
                     "service_name": order.service_name_snapshot,
                     "delivery_eta": format_delivery_eta(
@@ -642,6 +656,24 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
                 "delivery_fee": ctx["delivery_fee"],
                 "delivery_eta": ctx.get("delivery_eta"),
                 "preferred_delivery": ctx.get("preferred_delivery"),
+                "upi_vpa": (
+                    ctx.get("seller_upi_vpa")
+                    if ctx.get("payment_method") == "upi"
+                    else None
+                ),
+                # NET payable. `order_total` is the GROSS goods cost; store
+                # credit is deducted from it. Emailing the gross would tell a
+                # customer with credit to overpay by exactly their balance.
+                "upi_payable": (
+                    round(
+                        float(ctx["order_total"])
+                        - float(ctx.get("store_credit_applied") or 0.0),
+                        2,
+                    )
+                    if ctx.get("payment_method") == "upi"
+                    and ctx.get("seller_upi_vpa")
+                    else None
+                ),
             }
         )
         grand_total += float(ctx["order_total"])

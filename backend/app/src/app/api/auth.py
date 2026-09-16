@@ -541,6 +541,9 @@ async def seller_register(
         fssai_license=body.fssai_license or None,
         bank_account_number=body.bank_account_number or None,
         bank_ifsc=body.bank_ifsc or None,
+        # upi_enabled stays False here — it flips at admin approval, where the
+        # VPA is reviewed as part of onboarding (design spec §4.1).
+        upi_vpa=body.upi_vpa or None,
         business_address_id=address.id,
     )
     session.add(profile)

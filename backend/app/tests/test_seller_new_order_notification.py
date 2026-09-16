@@ -57,7 +57,7 @@ async def order_seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], No
     )
     session.add(cust_address)
 
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=_SELLER.id,
         first_name="S1",
         phone="+919800009110",
@@ -144,7 +144,7 @@ async def test_record_seller_notification_persists_order_id(
     biz_addr = Address(**make_address(pincode="560077"))
     session.add(biz_addr)
     await session.flush()
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id,
         first_name="Snoa",
         business_name="Test Store",

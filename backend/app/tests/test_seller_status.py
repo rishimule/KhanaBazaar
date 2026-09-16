@@ -33,7 +33,7 @@ async def seed_seller_with_profile(session: AsyncSession) -> AsyncGenerator[None
     address = Address(**make_address())
     session.add(address)
     await session.flush()
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=mock_seller.id,
         first_name="Status",
         last_name="Seller",

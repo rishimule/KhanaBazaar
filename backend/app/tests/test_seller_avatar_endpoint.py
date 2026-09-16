@@ -26,7 +26,7 @@ async def seed_approved_seller(session: AsyncSession) -> AsyncGenerator[None, No
     addr = Address(**make_address())
     session.add(addr)
     await session.flush()
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=mock_seller.id,
         first_name="Ava",
         business_name="Ava Store",

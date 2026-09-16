@@ -7,6 +7,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.models.commerce import PaymentMethod
 from app.schemas.address import AddressPayload
 from app.schemas.services import ServicePayload
 
@@ -24,6 +25,19 @@ class StoreUpdate(BaseModel):
     pin_confirmed: Optional[bool] = None
 
 
+class UpiPayeeRead(BaseModel):
+    """The seller's customer-visible UPI payee.
+
+    `vpa` is the authoritative payee and the only thing the customer ever
+    scans — the QR is generated from it client-side. The seller's uploaded
+    verification image is deliberately absent here: it is admin-only, because
+    its encoded payee is unreadable to us. See the design spec §2.1.
+    """
+
+    vpa: str
+    display_name: str
+
+
 class StoreRead(BaseModel):
     id: int
     name: str
@@ -38,6 +52,10 @@ class StoreRead(BaseModel):
     pause_reason: Optional[str] = None
     paused_until: Optional[str] = None
     logo_url: Optional[str] = None
+    # Store-level methods only. `credit` is intentionally excluded — it is a
+    # per-customer entitlement, resolved by the separate credit-standing call.
+    accepted_payment_methods: list[PaymentMethod] = []
+    upi_payee: Optional[UpiPayeeRead] = None
     distance_km: Optional[float] = None
     created_at: str
     updated_at: str

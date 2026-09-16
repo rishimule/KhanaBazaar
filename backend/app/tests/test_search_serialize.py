@@ -32,7 +32,7 @@ async def _seed_chain(session: AsyncSession, *, with_inventory: bool = True):
     addr = Address(**make_address(pincode="560210"))
     session.add(addr)
     await session.flush()
-    seller = SellerProfile(
+    seller = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id, first_name="S", phone="+919811000999",
         business_name="X", bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved,

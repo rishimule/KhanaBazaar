@@ -2,6 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
@@ -1850,6 +1851,18 @@ async def _upsert_seller_profile_services(
     await session.flush()
 
 
+
+def _seed_upi_vpa(business_name: str) -> str:
+    """Derive a plausible per-seller VPA from the business name.
+
+    Matches the real VPA shape (`handle@bank`) so dev QR codes and deep links
+    look and validate like production ones.
+    """
+    handle = re.sub(r"[^a-z0-9]", "", business_name.lower())[:24] or "seller"
+    if len(handle) < 2:
+        handle = f"{handle}x"
+    return f"{handle}@okaxis"
+
 async def _upsert_seller_profile(
     session: AsyncSession, user: User, data: Mapping[str, Any]
 ) -> SellerProfile:
@@ -1874,6 +1887,11 @@ async def _upsert_seller_profile(
             verification_status=data["status"],
             rejection_reason=data["rejection_reason"],
             business_address_id=address.id,
+            # Seeded sellers accept UPI so the ~40 seeded UPI orders remain
+            # placeable and the dev storefront actually offers the option.
+            # `upi_enabled` follows approval, as in production.
+            upi_vpa=_seed_upi_vpa(data["business_name"]),
+            upi_enabled=data["status"] is VerificationStatus.Approved,
         )
     else:
         existing_address = await session.get(Address, profile.business_address_id)
@@ -1888,6 +1906,10 @@ async def _upsert_seller_profile(
         profile.bank_ifsc = data["bank_ifsc"]
         profile.verification_status = data["status"]
         profile.rejection_reason = data["rejection_reason"]
+        # Re-seed path: keep the payee in sync too, otherwise sellers seeded
+        # before the payee existed stay unable to take UPI on a re-run.
+        profile.upi_vpa = _seed_upi_vpa(data["business_name"])
+        profile.upi_enabled = data["status"] is VerificationStatus.Approved
     session.add(profile)
     await session.flush()
     await _upsert_seller_profile_services(session, profile, data["service_slugs"])

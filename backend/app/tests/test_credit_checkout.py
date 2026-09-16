@@ -44,7 +44,7 @@ async def _seed(session, *, credit_limit=2000.0, outstanding=0.0,
     saddr = Address(**make_address())
     session.add(saddr)
     await session.flush()
-    sprof = SellerProfile(user_id=su.id, first_name="S", phone=f"+9198{uuid.uuid4().int % 10**8:08d}",
+    sprof = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True, user_id=su.id, first_name="S", phone=f"+9198{uuid.uuid4().int % 10**8:08d}",
                           business_name="S Store", verification_status=VerificationStatus.Approved,
                           business_address_id=saddr.id)
     session.add(sprof)

@@ -260,6 +260,14 @@
   margin-top: var(--space-1);
 }
 
+/* Explanatory note under a field, for inputs whose purpose is not obvious
+   from the label alone (e.g. why we want the seller's UPI ID). */
+.fieldHint {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+  margin-top: var(--space-1);
+}
+
 /* Select — same as input but with chevron arrow */
 .select {
   padding: var(--space-3) var(--space-4);

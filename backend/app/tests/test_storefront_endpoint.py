@@ -71,7 +71,7 @@ async def _seed_storefront(
     session.add(biz_address)
     await session.flush()
 
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_user.id,
         first_name="Test",
         last_name="Seller",

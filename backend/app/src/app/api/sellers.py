@@ -476,6 +476,7 @@ async def get_seller_profile(
         fssai_license=profile.fssai_license,
         bank_account_number=profile.bank_account_number,
         bank_ifsc=profile.bank_ifsc,
+        upi_vpa=profile.upi_vpa,
         verification_status=profile.verification_status.value,
         rejection_reason=profile.rejection_reason,
         avatar_url=profile.avatar_url,
@@ -519,6 +520,10 @@ async def update_seller_profile(
     profile.fssai_license = body.fssai_license or None
     profile.bank_account_number = body.bank_account_number or None
     profile.bank_ifsc = body.bank_ifsc or None
+    # Safe to write directly: this endpoint 409s approved sellers, so only
+    # Pending/Rejected sellers reach here and their payee is reviewed at
+    # approval anyway. Approved sellers must use the payments change request.
+    profile.upi_vpa = body.upi_vpa or None
 
     address = profile.business_address
     for key, value in address_from_payload(body.address).items():
@@ -737,6 +742,10 @@ async def admin_verify_seller(
 
         profile.verification_status = VerificationStatus.Approved
         profile.rejection_reason = None
+        # A VPA supplied during signup was reviewed as part of onboarding, so
+        # UPI can go live at approval with no second gate (design spec §4.1).
+        if profile.upi_vpa:
+            profile.upi_enabled = True
 
         assert profile.id is not None
         # Idempotent store provisioning
@@ -849,6 +858,7 @@ async def _application_payload(
         fssai_license=profile.fssai_license,
         bank_account_number=profile.bank_account_number,
         bank_ifsc=profile.bank_ifsc,
+        upi_vpa=profile.upi_vpa,
         verification_status=profile.verification_status.value,
         rejection_reason=profile.rejection_reason,
         submitted_at=profile.created_at.isoformat() if profile.created_at else None,

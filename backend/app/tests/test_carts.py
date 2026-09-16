@@ -85,7 +85,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     seller_addr = Address(**make_address(pincode="560001"))
     session.add(seller_addr)
     await session.flush()
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=mock_seller.id, first_name="Sel", phone="+919800000001",
         business_name="S",
         bank_account_number="1", bank_ifsc="HDFC0000001",
@@ -224,7 +224,7 @@ async def test_add_item_inventory_not_in_store(override_as_customer: Any, sessio
     seller2_biz_addr = Address(**make_address(pincode="560004"))
     session.add(seller2_biz_addr)
     await session.flush()
-    seller2_profile = SellerProfile(
+    seller2_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller2_user.id, first_name="S2", phone="+919800000099",
         business_name="S2 Biz",
         bank_account_number="9", bank_ifsc="HDFC0000009",

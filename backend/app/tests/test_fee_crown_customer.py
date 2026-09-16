@@ -155,12 +155,12 @@ async def test_find_alternatives_marks_premium(session: AsyncSession) -> None:
     session.add_all([addr_x, addr_y])
     await session.flush()
 
-    sp_x = SellerProfile(
+    sp_x = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_x.id, first_name="X", phone="+919811000701", business_name="CrownX",
         bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved, business_address_id=addr_x.id,
     )
-    sp_y = SellerProfile(
+    sp_y = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_y.id, first_name="Y", phone="+919811000702", business_name="CrownY",
         bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved, business_address_id=addr_y.id,

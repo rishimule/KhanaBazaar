@@ -65,6 +65,10 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
   // Services group uses a different sub-form (see profile services card), not
   // handled by this generic modal.
   services: [],
+  // Payments group is edited from the profile's Payments card, which also
+  // handles the optional verification-QR upload and the immediate-disable
+  // action. Not reachable through this generic modal.
+  payments: [],
   store_basics: [
     {
       name: "delivery_radius_km",

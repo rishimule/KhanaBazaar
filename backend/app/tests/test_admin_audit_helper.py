@@ -26,7 +26,7 @@ async def _seed_admin_and_seller(
     address = Address(**make_address())
     session.add(address)
     await session.flush()
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_user.id,
         first_name="A",
         business_name="Audit Helper Test Store",

@@ -38,7 +38,7 @@ async def _seed_two_sellers(session: AsyncSession) -> dict[str, int]:
     session.add_all(addrs)
     await session.flush()
 
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=_SELLER.id,
         first_name="S1",
         phone="+919800009210",
@@ -46,7 +46,7 @@ async def _seed_two_sellers(session: AsyncSession) -> dict[str, int]:
         verification_status=VerificationStatus.Approved,
         business_address_id=addrs[0].id,
     )
-    other_seller_profile = SellerProfile(
+    other_seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=_OTHER_SELLER.id,
         first_name="S2",
         phone="+919800009220",

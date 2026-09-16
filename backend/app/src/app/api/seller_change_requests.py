@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -35,6 +35,7 @@ from app.services.seller_profile_change_requests import (
     OPEN_STATUSES,
     create_avatar_change_request,
     create_change_request,
+    create_payments_qr_change_request,
     create_store_logo_change_request,
     resubmit,
     withdraw,
@@ -79,9 +80,10 @@ async def _cr_owned_by(
 
 
 def _reject_forged_image(group: SellerProfileChangeGroup, proposed: dict) -> None:
-    """Guard the generic JSON CR path: avatar / store-logo *uploads* must go
-    through their dedicated multipart routes (`POST /me/avatar`,
-    `POST /me/store/logo`), which produce a trusted, owner-scoped storage_key.
+    """Guard the generic JSON CR path: avatar / store-logo / payments-QR
+    *uploads* must go through their dedicated multipart routes
+    (`POST /me/avatar`, `POST /me/store/logo`, `POST /me/payments/qr`), which
+    produce a trusted, owner-scoped storage_key.
 
     The generic endpoint only permits *removal* (empty url). This blocks a
     seller from forging an image CR with an arbitrary url or a storage_key
@@ -91,6 +93,10 @@ def _reject_forged_image(group: SellerProfileChangeGroup, proposed: dict) -> Non
         raise HTTPException(status_code=422, detail="avatar_upload_required")
     if group is SellerProfileChangeGroup.StoreLogo and (proposed.get("logo_url") or ""):
         raise HTTPException(status_code=422, detail="store_logo_upload_required")
+    if group is SellerProfileChangeGroup.Payments and (
+        proposed.get("upi_qr_url") or ""
+    ):
+        raise HTTPException(status_code=422, detail="upi_qr_upload_required")
 
 
 async def _attach_events(
@@ -261,3 +267,54 @@ async def upload_my_store_logo(
     for cb in res.emails:
         cb()
     return await _attach_events(session, res.cr)
+
+
+@router.post("/me/payments/qr", response_model=ChangeRequestRead, status_code=201)
+async def upload_my_payments_qr(
+    upi_vpa: str = Form(...),
+    file: UploadFile = File(...),
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> ChangeRequestRead:
+    """Submit a UPI payee with a verification QR image for admin review.
+
+    `upi_vpa` is the authoritative payee; the image is only so the reviewer can
+    confirm the two agree. Format validation happens inside the CR payload
+    schema, so a malformed VPA 422s before the blob is stored.
+    """
+    assert seller.id is not None
+    profile = await _seller_profile_or_404(session, seller)
+    raw = await file.read()
+    res = await create_payments_qr_change_request(
+        session=session,
+        seller_profile=profile,
+        raw=raw,
+        upi_vpa=upi_vpa,
+        actor_user_id=seller.id,
+    )
+    await session.commit()
+    await session.refresh(res.cr)
+    for cb in res.emails:
+        cb()
+    return await _attach_events(session, res.cr)
+
+
+@router.patch("/me/payments/disable")
+async def disable_my_upi(
+    seller: User = Depends(get_current_seller),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, bool]:
+    """Turn UPI off immediately — deliberately NOT moderated.
+
+    A compromised UPI handle has to stop receiving money now, not after an
+    admin review. Disabling only removes a payment option, so it carries none
+    of the risk that makes *enabling* reviewable. Modelled on the direct pause
+    routes. `upi_vpa` is retained so re-enabling needs no fresh review.
+
+    Idempotent: disabling an already-disabled payee is a 200 no-op.
+    """
+    profile = await _seller_profile_or_404(session, seller)
+    profile.upi_enabled = False
+    session.add(profile)
+    await session.commit()
+    return {"upi_enabled": False}

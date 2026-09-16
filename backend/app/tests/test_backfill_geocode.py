@@ -54,7 +54,7 @@ async def test_backfill_only_touches_store_and_business_addresses(
     )
     session.add(biz_addr)
     await session.flush()
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_user.id, first_name="S", business_name="S",
         phone="+919811119999",
         bank_account_number="1", bank_ifsc="HDFC0000001",
@@ -87,10 +87,13 @@ async def test_backfill_only_touches_store_and_business_addresses(
     # Backfill task creates its own engine via settings.DATABASE_URL — point
     # it at the test DB so we don't write to the dev database.
     from app.core.config import settings
-    monkeypatch.setattr(
-        settings, "DATABASE_URL",
-        "postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar_test",
-    )
+
+    # Read the URL from conftest rather than hardcoding it: the test database
+    # name is overridable via KB_TEST_DB, and a literal here silently points
+    # the backfill's own engine at a database with no schema.
+    from tests.conftest import TEST_DATABASE_URL
+
+    monkeypatch.setattr(settings, "DATABASE_URL", TEST_DATABASE_URL)
 
     result = worker_module.backfill_store_addresses_geocode.delay().get()
     assert result["filled"] == 2  # biz + store
@@ -129,7 +132,7 @@ async def test_backfill_low_confidence_result_skipped(
     )
     session.add(biz_addr)
     await session.flush()
-    session.add(SellerProfile(
+    session.add(SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_user.id, first_name="S2", business_name="S2",
         phone="+919811118888",
         bank_account_number="2", bank_ifsc="HDFC0000002",
@@ -144,10 +147,13 @@ async def test_backfill_low_confidence_result_skipped(
 
     monkeypatch.setattr(worker_module, "_forward_geocode_one", fake_returns_none)
     from app.core.config import settings
-    monkeypatch.setattr(
-        settings, "DATABASE_URL",
-        "postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar_test",
-    )
+
+    # Read the URL from conftest rather than hardcoding it: the test database
+    # name is overridable via KB_TEST_DB, and a literal here silently points
+    # the backfill's own engine at a database with no schema.
+    from tests.conftest import TEST_DATABASE_URL
+
+    monkeypatch.setattr(settings, "DATABASE_URL", TEST_DATABASE_URL)
 
     result = worker_module.backfill_store_addresses_geocode.delay().get()
     assert result["filled"] == 0

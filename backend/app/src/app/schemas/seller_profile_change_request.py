@@ -29,6 +29,9 @@ _GST_RE = re.compile(r"^[0-9A-Z]{15}$")
 _FSSAI_RE = re.compile(r"^[0-9]{14}$")
 _IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
 _BANK_ACCOUNT_RE = re.compile(r"^[0-9]{9,18}$")
+# UPI VPA (virtual payment address), e.g. `ganesh@okhdfcbank`. The bank handle
+# must start with a letter; the local part allows dot/hyphen/underscore.
+_UPI_VPA_RE = re.compile(r"^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,64}$")
 
 
 def _opt_match(value: Optional[str], pattern: re.Pattern[str], label: str) -> Optional[str]:
@@ -96,6 +99,29 @@ class BankingPayload(BaseModel):
     @classmethod
     def _ifsc(cls, v: Optional[str]) -> Optional[str]:
         return _opt_match(v, _IFSC_RE, "bank_ifsc")
+
+
+class PaymentsPayload(BaseModel):
+    # `upi_qr_url` + `storage_key` are produced server-side by the dedicated
+    # upload route, so no format validation here — mirrors StoreLogoPayload.
+    # The image is an ADMIN VERIFICATION ARTIFACT, never shown to customers:
+    # its encoded payee is unreadable to us, so showing it alongside the
+    # generated QR would put a second, unapproved payee in the pay panel.
+    upi_vpa: Optional[str] = None
+    upi_enabled: bool = False
+    upi_qr_url: str = Field(default="", max_length=2048)
+    storage_key: Optional[str] = Field(default=None, max_length=512)
+
+    @field_validator("upi_vpa")
+    @classmethod
+    def _vpa(cls, v: Optional[str]) -> Optional[str]:
+        return _opt_match(v, _UPI_VPA_RE, "upi_vpa")
+
+    @model_validator(mode="after")
+    def _enabled_needs_payee(self) -> "PaymentsPayload":
+        if self.upi_enabled and not self.upi_vpa:
+            raise ValueError("upi_enabled requires upi_vpa")
+        return self
 
 
 class ServiceRowPayload(BaseModel):
@@ -233,6 +259,7 @@ GROUP_PAYLOAD_SCHEMA: dict[SellerProfileChangeGroup, type[BaseModel]] = {
     SellerProfileChangeGroup.StoreBasics: StoreBasicsPayload,
     SellerProfileChangeGroup.Avatar: AvatarPayload,
     SellerProfileChangeGroup.StoreLogo: StoreLogoPayload,
+    SellerProfileChangeGroup.Payments: PaymentsPayload,
 }
 
 

@@ -75,14 +75,14 @@ async def test_find_alternatives_excludes_suspended_store(session: AsyncSession)
     session.add_all([addr_x, addr_y])
     await session.flush()
 
-    seller_profile_x = SellerProfile(
+    seller_profile_x = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_x.id, first_name="X",
         phone="+919811000601", business_name="SellerX",
         bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved,
         business_address_id=addr_x.id,
     )
-    seller_profile_y = SellerProfile(
+    seller_profile_y = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_y.id, first_name="Y",
         phone="+919811000602", business_name="SellerY",
         bank_account_number="1", bank_ifsc="HDFC0000001",

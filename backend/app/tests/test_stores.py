@@ -29,7 +29,7 @@ async def seed_mock_users(session: AsyncSession) -> AsyncGenerator[None, None]:
     address = Address(**make_address())
     session.add(address)
     await session.flush()
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=mock_seller.id,
         first_name="Seller",
         last_name=None,
@@ -248,7 +248,7 @@ async def _seed_second_seller_with_services(
     await session.flush()
     assert addr.id is not None
 
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=new_user.id,
         first_name="Seller",
         last_name=None,

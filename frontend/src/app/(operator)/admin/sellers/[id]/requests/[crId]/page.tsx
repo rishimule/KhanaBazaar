@@ -276,6 +276,15 @@ export default function AdminCRDetailPage() {
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("sellerProposed")}</h2>
+        {/*
+          The whole reason the seller uploads a QR image is so a human can
+          check it against the declared VPA — the platform cannot read the
+          payee out of the image itself. A reviewer cannot infer that duty
+          from the diff table alone, so state it here.
+        */}
+        {cr.group === "payments" && (
+          <div className={styles.mutedBanner}>{t("upiVerifyHint")}</div>
+        )}
         <ChangeRequestDiffTable
           before={cr.baseline_json}
           after={cr.proposed_json}

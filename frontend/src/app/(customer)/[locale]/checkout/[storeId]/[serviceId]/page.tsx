@@ -83,14 +83,31 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, serviceId]);
 
-  // Keep the selected payment method valid for the chosen delivery mode:
-  // cash (COD) is door-only, pay-at-store is pickup-only.
+  // Keep the selected payment method valid for BOTH the delivery mode (cash is
+  // door-only, pay-at-store is pickup-only) and what this store actually
+  // accepts. A store whose seller has no UPI payee does not offer `upi` at
+  // all, yet `upi` is the initial default — so this cannot just fall back to
+  // "upi" the way it used to.
   useEffect(() => {
-    if (deliveryMode === "pickup" && paymentMethod === "cash") setPaymentMethod("upi");
-    if (deliveryMode === "door_delivery" && paymentMethod === "pay_at_store") {
-      setPaymentMethod("upi");
-    }
-  }, [deliveryMode, paymentMethod]);
+    // `credit` is a per-customer entitlement and is deliberately absent from
+    // the store's method list; never auto-correct away from it.
+    if (paymentMethod === "credit") return;
+    const accepted = storeDetails?.accepted_payment_methods;
+    // Absent/empty means the store payload has not loaded — leave the
+    // selection alone rather than bouncing it around during load.
+    const storeAccepts = (m: PaymentMethod) =>
+      !accepted || accepted.length === 0 || accepted.includes(m);
+    const modeOk =
+      !(deliveryMode === "pickup" && paymentMethod === "cash") &&
+      !(deliveryMode === "door_delivery" && paymentMethod === "pay_at_store");
+    if (modeOk && storeAccepts(paymentMethod)) return;
+    const preference: PaymentMethod[] =
+      deliveryMode === "pickup"
+        ? ["upi", "pay_at_store", "net_banking"]
+        : ["upi", "cash", "net_banking"];
+    const next = preference.find(storeAccepts);
+    if (next && next !== paymentMethod) setPaymentMethod(next);
+  }, [deliveryMode, paymentMethod, storeDetails?.accepted_payment_methods]);
 
   const cart = useMemo(
     () =>
@@ -363,6 +380,9 @@ export default function CheckoutPage() {
             value={paymentMethod}
             onChange={setPaymentMethod}
             deliveryMode={deliveryMode}
+            acceptedMethods={storeDetails?.accepted_payment_methods}
+            upiPayee={storeDetails?.upi_payee ?? null}
+            previewAmount={total}
             credit={
               hasCredit
                 ? { available: creditStanding!.available, eligible: creditEligible }

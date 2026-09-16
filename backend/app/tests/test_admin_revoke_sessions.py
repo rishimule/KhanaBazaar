@@ -38,7 +38,7 @@ async def seller_with_sessions(session: AsyncSession) -> AsyncGenerator[User, No
     session.add(addr)
     await session.flush()
     session.add(
-        SellerProfile(
+        SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
             user_id=user.id,
             first_name="S",
             last_name="P",

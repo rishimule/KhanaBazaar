@@ -29,7 +29,14 @@ celery_app.conf.task_always_eager = True
 celery_app.conf.task_eager_propagates = True
 
 # Use a test Postgres database
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:password@localhost:5432/khanabazaar_test"
+# Default matches the documented `khanabazaar_test` DB. Overridable because the
+# suite drops and recreates every table: two worktrees running pytest at once
+# otherwise destroy each other's schema mid-run (one blocks on the other's
+# locks and both produce garbage). Set KB_TEST_DB to give a worktree its own.
+TEST_DATABASE_URL = (
+    "postgresql+asyncpg://postgres:password@localhost:5432/"
+    + os.getenv("KB_TEST_DB", "khanabazaar_test")
+)
 
 test_engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
 
@@ -464,6 +471,13 @@ async def _make_seller(
         business_name="Anita Stores",
         verification_status=status,
         business_address_id=addr.id,
+        # Fixture sellers carry a UPI payee so they can take UPI orders, which
+        # is what every order test assumed implicitly before the payee existed
+        # (UPI used to be unconditionally available). `upi_enabled` follows
+        # approval, mirroring the real enable-at-approval rule. Tests that need
+        # the no-payee case clear these explicitly.
+        upi_vpa="anita@okaxis",
+        upi_enabled=status is VerificationStatus.Approved,
     )
     session.add(profile)
     await session.commit()

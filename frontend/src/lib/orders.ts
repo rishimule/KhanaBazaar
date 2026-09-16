@@ -120,6 +120,15 @@ export async function cancelOrder(token: string, orderId: number): Promise<Order
   return post<Order>(`/api/v1/orders/${orderId}/cancel`, {}, token);
 }
 
+/** Record the customer's "I've paid" tap on a UPI order. Idempotent server-side:
+ *  re-tapping does not move the recorded timestamp. */
+export async function claimUpiPayment(
+  token: string,
+  orderId: number
+): Promise<Order> {
+  return post<Order>(`/api/v1/orders/${orderId}/payment/claim`, {}, token);
+}
+
 export async function getCustomerStats(token: string): Promise<CustomerStats> {
   return get<CustomerStats>("/api/v1/customers/me/stats", token);
 }

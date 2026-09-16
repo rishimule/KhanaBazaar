@@ -628,7 +628,7 @@ async def test_approve_identity_duplicate_phone_returns_409(
     session.add(other_user)
     await session.flush()
     session.add(
-        SellerProfile(
+        SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
             user_id=other_user.id,
             first_name="Other",
             last_name="S",

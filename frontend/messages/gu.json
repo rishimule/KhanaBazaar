@@ -476,6 +476,7 @@
     "legend": "ચૂકવણીની પદ્ધતિ",
     "upiLabel": "UPI",
     "upiHint": "UPI એપ દ્વારા ચૂકવો",
+    "payeePreview": "તમે {vpa} ({name}) ને ₹{amount} ચૂકવશો",
     "cashLabel": "ડિલિવરી પર રોકડ",
     "cashHint": "મળે ત્યારે ચૂકવો",
     "creditLabel": "ક્રેડિટ પર ચૂકવો",
@@ -1376,7 +1377,8 @@
       "next": "Next ›",
       "showing": "Showing {from}–{to} of {total}",
       "loadFailedTitle": "તમારા ઓર્ડર લોડ થઈ શક્યા નહીં",
-      "loadFailedBody": "આનો અર્થ એ નથી કે તમારી પાસે કોઈ ઓર્ડર નથી — અમે સર્વર સુધી પહોંચી શક્યા નહીં."
+      "loadFailedBody": "આનો અર્થ એ નથી કે તમારી પાસે કોઈ ઓર્ડર નથી — અમે સર્વર સુધી પહોંચી શક્યા નહીં.",
+      "customerSaysPaid": "ગ્રાહક કહે છે ચૂકવ્યું"
     },
     "orderDetail": {
       "loadError": "ઓર્ડર લોડ થઈ શક્યો નહીં.",
@@ -1392,7 +1394,8 @@
       "customerFallback": "ગ્રાહક",
       "storeCreditApplied": "સ્ટોર ક્રેડિટ લાગુ",
       "amountPayable": "ચૂકવવાની રકમ",
-      "startReturn": "રિટર્ન શરૂ કરો"
+      "startReturn": "રિટર્ન શરૂ કરો",
+      "customerSaysPaidAt": "ગ્રાહક કહે છે કે તેમણે {when} પર ચૂકવ્યું. મોકલતાં પહેલાં તમારી બેંક એપ તપાસો."
     },
     "settings": {
       "loadStoreError": "સ્ટોર લોડ થઈ શક્યો નહીં.",
@@ -1459,7 +1462,22 @@
       "etaUnit": "અંદાજિત સમય",
       "minUnit": "મિનિટ",
       "etaMinAria": "{name} માટે લઘુત્તમ ડિલિવરી મિનિટ",
-      "etaMaxAria": "{name} માટે મહત્તમ ડિલિવરી મિનિટ"
+      "etaMaxAria": "{name} માટે મહત્તમ ડિલિવરી મિનિટ",
+      "sectionPayments": "ચૂકવણી",
+      "upiIdLabel": "UPI ID",
+      "upiStatusLabel": "UPI સ્વીકારી રહ્યા છો",
+      "upiOn": "હા — ગ્રાહકો તમને UPI થી ચૂકવી શકે છે",
+      "upiOff": "ના — તમારી દુકાને UPI ઉપલબ્ધ નથી",
+      "upiSubmit": "સમીક્ષા માટે મોકલો",
+      "upiSubmitted": "સમીક્ષા માટે મોકલ્યું. મંજૂરી મળે ત્યાં સુધી તમારી હાલની UPI ID ચાલુ રહેશે.",
+      "upiSubmitFailed": "મોકલી શકાયું નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
+      "upiInvalid": "માન્ય UPI ID દાખલ કરો, જેમ કે yourname@okhdfcbank",
+      "upiDisable": "UPI લેવાનું બંધ કરો (તરત લાગુ)",
+      "upiDisableConfirm": "UPI તરત બંધ કરવું? ગ્રાહકોને તે ચેકઆઉટ પર દેખાશે નહીં. ફરી ચાલુ કરવા માટે સમીક્ષા જરૂરી બનશે.",
+      "upiDisabled": "UPI બંધ છે. ફરી ચાલુ કરવા માટે તમારી UPI ID સાચવી રાખી છે.",
+      "upiQrLabel": "ચૂકવણી QR છબિ (વૈકલ્પિક)",
+      "upiQrHint": "અમારી ટીમ તેને તમારી UPI ID સાથે સરખાવે છે. ગ્રાહકો આ છબિ કદી જોતા નથી — તેઓ ID પરથી અમે બનાવેલો QR સ્કૅન કરે છે.",
+      "upiReviewHint": "ગ્રાહકોને દેખાય તે પહેલાં ફેરફારોની સમીક્ષા થાય છે."
     },
     "signup": {
       "stepCounter": "પગલું {current} / {total}",
@@ -1540,11 +1558,14 @@
         "dropPin": "તમારા સ્ટોરનું સ્થાન ચિહ્નિત કરવા નકશા પર પિન મૂકો",
         "invalidGst": "માન્ય 15-અક્ષરનો GST નંબર દાખલ કરો (દા.ત., 27AAPFU0939F1ZV)",
         "invalidBankAccount": "માન્ય બેંક ખાતા નંબર દાખલ કરો (9–18 અંક)",
-        "invalidIfsc": "માન્ય 11-અક્ષરનો IFSC કોડ દાખલ કરો (દા.ત., HDFC0001234)"
+        "invalidIfsc": "માન્ય 11-અક્ષરનો IFSC કોડ દાખલ કરો (દા.ત., HDFC0001234)",
+        "invalidUpiVpa": "માન્ય UPI ID દાખલ કરો, જેમ કે yourname@okhdfcbank"
       },
       "resendIn": "{seconds}s માં કોડ ફરી મોકલો",
       "consent": "હું <terms>સેવાની શરતો</terms> અને <privacy>ગોપનીયતા નીતિ</privacy> સાથે સંમત છું",
-      "keepSignedIn": "આ ડિવાઇસ પર સાઇન ઇન રહો"
+      "keepSignedIn": "આ ડિવાઇસ પર સાઇન ઇન રહો",
+      "upiVpaLabel": "UPI ID (વૈકલ્પિક)",
+      "upiVpaHint": "ગ્રાહકો સીધા આ UPI ID પર ચૂકવશે. તમે તે પછીથી પણ ઉમેરી શકો છો."
     },
     "pending": {
       "rejectedTitle": "અરજી મંજૂર થઈ નથી",
@@ -2300,7 +2321,8 @@
       "requestChangesFailed": "ફેરફાર વિનંતી નિષ્ફળ",
       "rejectTitle": "ફેરફાર વિનંતી નકારો",
       "rejectDesc": "વિક્રેતાને આ કારણ દેખાશે. નકાર અંતિમ છે — તેમને નવી વિનંતી ખોલવી પડશે.",
-      "rejectFailed": "નકાર નિષ્ફળ"
+      "rejectFailed": "નકાર નિષ્ફળ",
+      "upiVerifyHint": "તપાસો કે QR છબિ ઉપર દર્શાવેલી એ જ UPI ID પર જાય છે. જો બંને અલગ હોય તો નકારો — ગ્રાહકો ID પર ચૂકવે છે, છબિ પર નહીં."
     },
     "customers": {
       "col": {
@@ -2834,5 +2856,19 @@
     "print": "પ્રિન્ટ કરો",
     "noStoreTitle": "હજી સુધી કોઈ સ્ટોર નથી",
     "noStoreBody": "તમારો સ્ટોર સેટ અપ અને મંજૂર થયા પછી અહીં તમારો સ્ટોર QR કોડ દેખાશે."
+  },
+  "UpiPay": {
+    "title": "UPI થી ₹{amount} ચૂકવો",
+    "payTo": "{name} ને",
+    "scanHint": "કોઈપણ UPI એપથી QR સ્કૅન કરો, અથવા નીચેનું બટન દબાવો.",
+    "scanHintIos": "તમારા ફોન પર કોઈપણ UPI એપથી આ QR સ્કૅન કરો.",
+    "copyVpa": "UPI ID કૉપિ કરો",
+    "copied": "કૉપિ થયું",
+    "copyFailed": "કૉપિ થઈ શક્યું નહીં — કૃપા કરીને UPI ID લખી લો.",
+    "payWithApp": "UPI એપથી ચૂકવો",
+    "ivePaid": "મેં ચૂકવી દીધું",
+    "claimedAt": "તમે આને {when} પર ચૂકવેલું ચિહ્નિત કર્યું",
+    "claimFailed": "નોંધી શકાયું નહીં — કૃપા કરીને ફરી પ્રયાસ કરો.",
+    "disclaimer": "ચૂકવણી મળતાં દુકાન તેની પુષ્ટિ કરે છે."
   }
 }

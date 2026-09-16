@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
+import { Fragment } from "react";
 import { useTranslations } from "next-intl";
 import type { DeliveryMode, PaymentMethod } from "@/types";
 import styles from "./PaymentMethodPicker.module.css";
@@ -18,6 +19,15 @@ interface Props {
   onChange: (method: PaymentMethod) => void;
   deliveryMode?: DeliveryMode;
   credit?: CreditOption | null;
+  /** Store-level methods from `Store.accepted_payment_methods`, intersected
+   *  with the delivery-mode rules below. Undefined while the store payload is
+   *  still loading — every method is shown rather than flashing an empty list. */
+  acceptedMethods?: PaymentMethod[];
+  /** Shown under the UPI option once selected, so the customer knows who they
+   *  are paying before the order exists. */
+  upiPayee?: { vpa: string; display_name: string } | null;
+  /** Net payable (total minus applied store credit), for the preview line. */
+  previewAmount?: number;
 }
 
 const BASE_OPTIONS: {
@@ -37,29 +47,51 @@ export default function PaymentMethodPicker({
   onChange,
   deliveryMode = "door_delivery",
   credit,
+  acceptedMethods,
+  upiPayee,
+  previewAmount,
 }: Props) {
   const t = useTranslations("Payment");
-  const options = BASE_OPTIONS.filter((opt) => opt.modes.includes(deliveryMode));
+  // An empty/absent list means "not loaded yet" — fall back to showing all
+  // methods rather than rendering a picker with nothing in it.
+  const storeAccepts = (m: PaymentMethod) =>
+    !acceptedMethods || acceptedMethods.length === 0 || acceptedMethods.includes(m);
+  const options = BASE_OPTIONS.filter(
+    (opt) => opt.modes.includes(deliveryMode) && storeAccepts(opt.value),
+  );
   return (
     <fieldset className={styles.fieldset}>
       <legend className={styles.legend}>{t("legend")}</legend>
       <div className={styles.options}>
         {options.map((opt) => (
-          <label
-            key={opt.value}
-            className={`${styles.option} ${value === opt.value ? styles.selected : ""}`}
-          >
-            <input
-              type="radio"
-              name="payment_method"
-              value={opt.value}
-              checked={value === opt.value}
-              onChange={() => onChange(opt.value)}
-              className={styles.radio}
-            />
-            <span className={styles.label}>{t(opt.labelKey)}</span>
-            <span className={styles.hint}>{t(opt.hintKey)}</span>
-          </label>
+          <Fragment key={opt.value}>
+            <label
+              className={`${styles.option} ${value === opt.value ? styles.selected : ""}`}
+            >
+              <input
+                type="radio"
+                name="payment_method"
+                value={opt.value}
+                checked={value === opt.value}
+                onChange={() => onChange(opt.value)}
+                className={styles.radio}
+              />
+              <span className={styles.label}>{t(opt.labelKey)}</span>
+              <span className={styles.hint}>{t(opt.hintKey)}</span>
+            </label>
+            {opt.value === "upi" &&
+              value === "upi" &&
+              upiPayee &&
+              previewAmount != null && (
+                <p className={styles.payeePreview}>
+                  {t("payeePreview", {
+                    amount: previewAmount.toFixed(2),
+                    vpa: upiPayee.vpa,
+                    name: upiPayee.display_name,
+                  })}
+                </p>
+              )}
+          </Fragment>
         ))}
         {credit != null && (
           <label

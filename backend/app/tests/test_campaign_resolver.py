@@ -70,7 +70,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     x_addr = Address(**make_address(pincode="411002", state=STATE, city="Pune"))
     session.add(x_addr)
     await session.flush()
-    seller_x = SellerProfile(
+    seller_x = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=sell_u1.id, first_name="X", phone="+919811010001", business_name="X Shop",
         verification_status=VerificationStatus.Approved, business_address_id=x_addr.id,
     )
@@ -107,7 +107,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     y_addr = Address(**make_address(pincode="560001", state="Karnataka", city="Bengaluru"))
     session.add(y_addr)
     await session.flush()
-    seller_y = SellerProfile(
+    seller_y = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=sell_u2.id, first_name="Y", phone="+919811010002", business_name="Y Shop",
         verification_status=VerificationStatus.Approved, business_address_id=y_addr.id,
     )

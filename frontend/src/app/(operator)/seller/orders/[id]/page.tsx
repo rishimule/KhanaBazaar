@@ -106,6 +106,15 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("payment")}</h2>
         <p>{tpm(order.payment.method)} · {tp(order.payment.status)}</p>
+        {order.payment.customer_claimed_at && (
+          <p className={styles.claimNote}>
+            {t("customerSaysPaidAt", {
+              when: new Date(order.payment.customer_claimed_at).toLocaleString(
+                "en-IN",
+              ),
+            })}
+          </p>
+        )}
       </section>
 
       <section className={styles.section}>
