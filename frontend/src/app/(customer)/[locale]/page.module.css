@@ -254,6 +254,7 @@
   margin-inline: auto;
   --hex-w: 156px;
   --hex-h: 135px; /* ≈ hex-w × √3/2 for a regular flat-top hexagon */
+  --hex-ring: 3px; /* white separator between interlocking tiles */
   padding: 2px 2px 6px;
 }
 
@@ -274,11 +275,16 @@
   justify-content: flex-start;
 }
 
+/* The outer hex is a white separator ring and .hexInner carries the service
+   colour: a plain `border` is cropped away by clip-path on the diagonal edges,
+   so the ring has to be a second, slightly smaller hexagon nested inside. */
 .hexCell {
   flex: 0 0 auto;
   width: var(--hex-w);
   height: var(--hex-h);
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  padding: var(--hex-ring);
+  background: var(--white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -293,12 +299,15 @@ a.hexCell { transition: transform var(--duration-fast) var(--ease-default); }
 }
 /* clip-path crops a normal outline, so focus is shown with an inset ring
    that follows the hex edges. */
-a.hexCell:focus-visible {
-  outline: none;
+a.hexCell:focus-visible { outline: none; }
+a.hexCell:focus-visible .hexInner {
   box-shadow: inset 0 0 0 3px var(--white), inset 0 0 0 6px rgba(0, 0, 0, 0.35);
 }
 
 .hexInner {
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -322,12 +331,12 @@ a.hexCell:focus-visible {
 
 /* Green-dominant palette, biased to the darker ramps so white labels stay
    AA-legible (the text-shadow covers the single mid-green, .hexC4). */
-.hexC0 { background: var(--leaf-green-dark-1); }
-.hexC1 { background: var(--leaf-green-base-7); }
-.hexC2 { background: var(--jade-green-dark-1); }
-.hexC3 { background: var(--leaf-green-dark-4); }
-.hexC4 { background: var(--leaf-green-base-4); }
-.hexC5 { background: var(--chive-green-dark-1); }
+.hexC0 .hexInner { background: var(--leaf-green-dark-1); }
+.hexC1 .hexInner { background: var(--leaf-green-base-7); }
+.hexC2 .hexInner { background: var(--jade-green-dark-1); }
+.hexC3 .hexInner { background: var(--leaf-green-dark-4); }
+.hexC4 .hexInner { background: var(--leaf-green-base-4); }
+.hexC5 .hexInner { background: var(--chive-green-dark-1); }
 
 .storesGrid {
   display: grid;
