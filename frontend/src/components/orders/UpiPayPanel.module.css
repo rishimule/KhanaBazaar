@@ -1,0 +1,88 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.panel {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  margin-top: var(--space-4);
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  font-family: var(--font-family-sans);
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--body-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-dark-7);
+}
+
+.payee {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-5);
+}
+
+/*
+ * Always a white plate, in every theme. A QR rendered dark-on-dark does not
+ * scan, and this is the one element in the panel that must survive a camera.
+ */
+.qrWrap {
+  padding: var(--space-3);
+  background: #ffffff;
+  border: 1px solid var(--shade-cool-light-4);
+  border-radius: var(--radius-card);
+  line-height: 0;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-5);
+  max-width: 34ch;
+}
+
+.vpaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.vpa {
+  padding: var(--space-1-5) var(--space-3);
+  background: var(--shade-cool-light-2);
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+  word-break: break-all;
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--body-sm);
+  color: var(--tomato-red-dark-1);
+  background: var(--tomato-red-light-1);
+  border: 1px solid var(--tomato-red-light-2);
+  border-radius: var(--radius-card);
+}
+
+.claimed {
+  margin: 0;
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-dark-7);
+}
+
+.disclaimer {
+  margin: 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-5);
+}

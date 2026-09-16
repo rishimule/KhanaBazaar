@@ -8,6 +8,7 @@ import { getOrder } from "@/lib/orders";
 import { formatDeliveryEta } from "@/lib/deliveryEta";
 import { useAuth } from "@/lib/AuthContext";
 import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
+import UpiPayPanel from "@/components/orders/UpiPayPanel";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -55,6 +56,8 @@ export default function OrderConfirmedPage({ params }: { params: Promise<{ id: s
           <span className={styles.total}>₹{Number(order.total).toFixed(2)}</span>
         </div>
       </div>
+
+      <UpiPayPanel order={order} onChange={setOrder} />
 
       <div className={styles.actions}>
         <Link href={`/account/orders/${order.id}`} className="btn btn-primary">{t("trackOrder")}</Link>

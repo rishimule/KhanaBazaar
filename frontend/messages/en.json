@@ -2832,5 +2832,19 @@
     "print": "Print",
     "noStoreTitle": "No store yet",
     "noStoreBody": "Your store QR code appears here once your store is set up and approved."
+  },
+  "UpiPay": {
+    "title": "Pay ₹{amount} by UPI",
+    "payTo": "To {name}",
+    "scanHint": "Scan the QR with any UPI app, or tap the button below.",
+    "scanHintIos": "Scan this QR with any UPI app on your phone.",
+    "copyVpa": "Copy UPI ID",
+    "copied": "Copied",
+    "copyFailed": "Couldn't copy — please note the UPI ID down.",
+    "payWithApp": "Pay with UPI app",
+    "ivePaid": "I've paid",
+    "claimedAt": "You marked this paid on {when}",
+    "claimFailed": "Couldn't record that — please try again.",
+    "disclaimer": "The store confirms payment when they receive it."
   }
 }
