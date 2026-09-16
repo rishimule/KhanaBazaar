@@ -866,7 +866,8 @@ export type SellerProfileChangeGroup =
   | "services"
   | "store_basics"
   | "avatar"
-  | "store_logo";
+  | "store_logo"
+  | "payments";
 
 export type SellerProfileChangeStatus =
   | "submitted"

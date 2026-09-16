@@ -1459,7 +1459,22 @@
       "etaUnit": "ETA",
       "minUnit": "min",
       "etaMinAria": "Minimum delivery minutes for {name}",
-      "etaMaxAria": "Maximum delivery minutes for {name}"
+      "etaMaxAria": "Maximum delivery minutes for {name}",
+      "sectionPayments": "Payments",
+      "upiIdLabel": "UPI ID",
+      "upiStatusLabel": "Accepting UPI",
+      "upiOn": "Yes — customers can pay you by UPI",
+      "upiOff": "No — UPI is not offered at your store",
+      "upiSubmit": "Submit for review",
+      "upiSubmitted": "Sent for review. Your current UPI ID stays active until it is approved.",
+      "upiSubmitFailed": "Could not submit that. Please try again.",
+      "upiInvalid": "Enter a valid UPI ID, like yourname@okhdfcbank",
+      "upiDisable": "Stop accepting UPI (takes effect now)",
+      "upiDisableConfirm": "Stop accepting UPI straight away? Customers will no longer see it at checkout. Turning it back on needs another review.",
+      "upiDisabled": "UPI is off. Your UPI ID is saved for when you turn it back on.",
+      "upiQrLabel": "Payment QR image (optional)",
+      "upiQrHint": "For our team to check against your UPI ID. Customers never see this image — they scan a QR we generate from the ID itself.",
+      "upiReviewHint": "Changes are reviewed before customers see them."
     },
     "signup": {
       "stepCounter": "Step {current} of {total}",
