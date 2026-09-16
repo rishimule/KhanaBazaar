@@ -22,6 +22,8 @@ import styles from "./seller-signup.module.css";
 const GST_REGEX =
   /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+// Mirrors the backend `_UPI_VPA_RE`: the bank handle must start with a letter.
+const UPI_VPA_REGEX = /^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,64}$/;
 const PHONE_REGEX = /^[6-9]\d{9}$/;
 
 /* ------------------------------------------------------------------ */
@@ -104,6 +106,7 @@ function SellerSignupPageInner() {
   const [fssaiLicense, setFssaiLicense] = useState("");
   const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [bankIfsc, setBankIfsc] = useState("");
+  const [upiVpa, setUpiVpa] = useState("");
 
   /* ---- UI state ---- */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -159,6 +162,7 @@ function SellerSignupPageInner() {
         setFssaiLicense(profile.fssai_license ?? "");
         setBankAccountNumber(profile.bank_account_number ?? "");
         setBankIfsc(profile.bank_ifsc ?? "");
+        setUpiVpa(profile.upi_vpa ?? "");
       })
       .catch(() => {
         // Benign: prefill is a convenience for resubmitting sellers. A failure
@@ -397,6 +401,7 @@ function SellerSignupPageInner() {
           fssai_license: fssaiLicense,
           bank_account_number: bankAccountNumber,
           bank_ifsc: bankIfsc,
+          upi_vpa: upiVpa || null,
         }, token);
       } else {
         const data = await post<{
@@ -416,6 +421,7 @@ function SellerSignupPageInner() {
             fssai_license: fssaiLicense,
             bank_account_number: bankAccountNumber,
             bank_ifsc: bankIfsc,
+          upi_vpa: upiVpa || null,
             accept_policies: agreed,
             remember,
             referral_invite_token: referralInviteToken,
@@ -1098,6 +1104,37 @@ function SellerSignupPageInner() {
                 {fieldErrors.bankIfsc && (
                   <span className={styles.fieldError}>
                     {fieldErrors.bankIfsc}
+                  </span>
+                )}
+              </div>
+              <div className={styles.inputGroup}>
+                <label className={styles.label} htmlFor="upi-vpa">
+                  {t("upiVpaLabel")}
+                </label>
+                <input
+                  id="upi-vpa"
+                  type="text"
+                  className={
+                    fieldErrors.upiVpa
+                      ? `${styles.input} ${styles.inputError}`
+                      : styles.input
+                  }
+                  value={upiVpa}
+                  onChange={(e) => setUpiVpa(e.target.value.trim())}
+                  onBlur={() => {
+                    if (upiVpa && !UPI_VPA_REGEX.test(upiVpa))
+                      setFieldErrors((p) => ({
+                        ...p,
+                        upiVpa: t("errors.invalidUpiVpa"),
+                      }));
+                    else clearError("upiVpa");
+                  }}
+                  placeholder="yourname@okhdfcbank"
+                />
+                <span className={styles.fieldHint}>{t("upiVpaHint")}</span>
+                {fieldErrors.upiVpa && (
+                  <span className={styles.fieldError}>
+                    {fieldErrors.upiVpa}
                   </span>
                 )}
               </div>

@@ -1540,11 +1540,14 @@
         "dropPin": "Drop a pin on the map to mark your store location",
         "invalidGst": "Enter a valid 15-character GST number (e.g., 27AAPFU0939F1ZV)",
         "invalidBankAccount": "Enter a valid bank account number (9–18 digits)",
-        "invalidIfsc": "Enter a valid 11-character IFSC code (e.g., HDFC0001234)"
+        "invalidIfsc": "Enter a valid 11-character IFSC code (e.g., HDFC0001234)",
+        "invalidUpiVpa": "Enter a valid UPI ID, like yourname@okhdfcbank"
       },
       "resendIn": "Resend code in {seconds}s",
       "consent": "I agree to the <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>",
-      "keepSignedIn": "Keep me signed in on this device"
+      "keepSignedIn": "Keep me signed in on this device",
+      "upiVpaLabel": "UPI ID (optional)",
+      "upiVpaHint": "Customers pay you directly at this UPI ID. You can add it later."
     },
     "pending": {
       "rejectedTitle": "Application not approved",

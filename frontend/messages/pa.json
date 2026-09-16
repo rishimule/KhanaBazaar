@@ -1541,11 +1541,14 @@
         "dropPin": "ਆਪਣੇ ਸਟੋਰ ਦਾ ਟਿਕਾਣਾ ਚਿੰਨ੍ਹਿਤ ਕਰਨ ਲਈ ਨਕਸ਼ੇ 'ਤੇ ਪਿੰਨ ਰੱਖੋ",
         "invalidGst": "ਵੈਧ 15-ਅੱਖਰ ਦਾ GST ਨੰਬਰ ਦਰਜ ਕਰੋ (ਜਿਵੇਂ, 27AAPFU0939F1ZV)",
         "invalidBankAccount": "ਵੈਧ ਬੈਂਕ ਖਾਤਾ ਨੰਬਰ ਦਰਜ ਕਰੋ (9–18 ਅੰਕ)",
-        "invalidIfsc": "ਵੈਧ 11-ਅੱਖਰ ਦਾ IFSC ਕੋਡ ਦਰਜ ਕਰੋ (ਜਿਵੇਂ, HDFC0001234)"
+        "invalidIfsc": "ਵੈਧ 11-ਅੱਖਰ ਦਾ IFSC ਕੋਡ ਦਰਜ ਕਰੋ (ਜਿਵੇਂ, HDFC0001234)",
+        "invalidUpiVpa": "ਜਾਇਜ਼ UPI ID ਦਾਖਲ ਕਰੋ, ਜਿਵੇਂ yourname@okhdfcbank"
       },
       "resendIn": "{seconds}s ਵਿੱਚ ਕੋਡ ਮੁੜ ਭੇਜੋ",
       "consent": "ਮੈਂ <terms>ਸੇਵਾ ਦੀਆਂ ਸ਼ਰਤਾਂ</terms> ਅਤੇ <privacy>ਪਰਾਈਵੇਸੀ ਨੀਤੀ</privacy> ਨਾਲ ਸਹਿਮਤ ਹਾਂ",
-      "keepSignedIn": "ਇਸ ਡਿਵਾਈਸ ‘ਤੇ ਸਾਈਨ ਇਨ ਰਹੋ"
+      "keepSignedIn": "ਇਸ ਡਿਵਾਈਸ ‘ਤੇ ਸਾਈਨ ਇਨ ਰਹੋ",
+      "upiVpaLabel": "UPI ID (ਵਿਕਲਪਿਕ)",
+      "upiVpaHint": "ਗਾਹਕ ਸਿੱਧੇ ਇਸ UPI ID ਉੱਤੇ ਅਦਾ ਕਰਨਗੇ। ਤੁਸੀਂ ਇਸਨੂੰ ਬਾਅਦ ਵਿੱਚ ਵੀ ਜੋੜ ਸਕਦੇ ਹੋ।"
     },
     "pending": {
       "rejectedTitle": "ਅਰਜ਼ੀ ਮਨਜ਼ੂਰ ਨਹੀਂ ਹੋਈ",

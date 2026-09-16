@@ -1541,11 +1541,14 @@
         "dropPin": "तुमच्या स्टोअरचे स्थान चिन्हांकित करण्यासाठी नकाशावर पिन ठेवा",
         "invalidGst": "वैध 15-अक्षरी GST क्रमांक टाका (उदा., 27AAPFU0939F1ZV)",
         "invalidBankAccount": "वैध बँक खाते क्रमांक टाका (9–18 अंक)",
-        "invalidIfsc": "वैध 11-अक्षरी IFSC कोड टाका (उदा., HDFC0001234)"
+        "invalidIfsc": "वैध 11-अक्षरी IFSC कोड टाका (उदा., HDFC0001234)",
+        "invalidUpiVpa": "वैध UPI ID टाका, जसे yourname@okhdfcbank"
       },
       "resendIn": "{seconds}s मध्ये कोड पुन्हा पाठवा",
       "consent": "मी <terms>सेवा अटी</terms> आणि <privacy>गोपनीयता धोरण</privacy> यांना सहमती देतो",
-      "keepSignedIn": "या डिव्हाइसवर साइन इन राहा"
+      "keepSignedIn": "या डिव्हाइसवर साइन इन राहा",
+      "upiVpaLabel": "UPI ID (ऐच्छिक)",
+      "upiVpaHint": "ग्राहक थेट या UPI ID वर पैसे भरतील. तुम्ही ते नंतरही जोडू शकता."
     },
     "pending": {
       "rejectedTitle": "अर्ज मंजूर झाला नाही",

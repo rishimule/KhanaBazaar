@@ -287,6 +287,10 @@ export interface SellerProfile extends BaseSchema {
   fssai_license: string | null;
   bank_account_number: string | null;
   bank_ifsc: string | null;
+  /** Customer-visible UPI payee. The uploaded verification QR is admin-only
+   *  and deliberately absent from these reads. */
+  upi_vpa?: string | null;
+  upi_enabled?: boolean;
   verification_status: VerificationStatus;
   rejection_reason?: string;
   avatar_url: string | null;
@@ -305,6 +309,10 @@ export interface SellerApplication {
   fssai_license: string | null;
   bank_account_number: string | null;
   bank_ifsc: string | null;
+  /** Customer-visible UPI payee. The uploaded verification QR is admin-only
+   *  and deliberately absent from these reads. */
+  upi_vpa?: string | null;
+  upi_enabled?: boolean;
   verification_status: VerificationStatus;
   rejection_reason: string | null;
   submitted_at: string;
