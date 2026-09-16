@@ -37,7 +37,7 @@ async def _seed_store(
     biz_addr = Address(**make_address(pincode="100001"))
     session.add(biz_addr)
     await session.flush()
-    seller = SellerProfile(
+    seller = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id, first_name="S", phone=f"+9198{uid:06d}",
         business_name="X", bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved,

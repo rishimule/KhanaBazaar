@@ -63,7 +63,7 @@ async def _seed(
     biz_address = Address(**make_address())
     session.add(biz_address)
     await session.flush()
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id,
         first_name="Seller",
         last_name=None,

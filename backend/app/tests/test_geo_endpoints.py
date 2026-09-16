@@ -196,7 +196,7 @@ async def test_serviceability_per_store_true_when_inside_radius(
     )
     session.add(addr)
     await session.flush()
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id, first_name="A", business_name="B",
         phone="+919811110000", gst_number="G", fssai_license="F",
         bank_account_number="ACC", bank_ifsc="IFSC",
@@ -240,7 +240,7 @@ async def test_serviceability_per_store_false_when_outside_radius(
     )
     session.add(addr)
     await session.flush()
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id, first_name="A", business_name="B",
         phone="+919811110000", gst_number="G", fssai_license="F",
         bank_account_number="ACC", bank_ifsc="IFSC",

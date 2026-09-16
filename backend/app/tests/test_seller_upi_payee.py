@@ -8,21 +8,21 @@ import io
 from typing import Any
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 from PIL import Image
 from pydantic import ValidationError
-
 from sqlmodel.ext.asyncio.session import AsyncSession
-
-from httpx import ASGITransport, AsyncClient
 
 from app import app
 from app.core.config import settings
 from app.core.security import get_current_admin, get_current_seller
 from app.models.commerce import Payment
 from app.models.profile import SellerProfile
-from app.models.seller_profile_change_request import SellerProfileChangeGroup
+from app.models.seller_profile_change_request import (
+    SellerProfileChangeGroup,
+    SellerProfileChangeStatus,
+)
 from app.schemas.seller_profile_change_request import validate_group_payload
-from app.models.seller_profile_change_request import SellerProfileChangeStatus
 from app.services import seller_upi_qr
 from app.services.seller_profile_change_requests import (
     approve,

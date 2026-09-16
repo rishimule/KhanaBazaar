@@ -53,12 +53,12 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     sa, sb = _addr(), _addr()
     session.add_all([sa, sb])
     await session.flush()
-    sp_a = SellerProfile(
+    sp_a = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=mock_seller_a.id, first_name="A", phone="+919811000111",
         business_name="SA", bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved, business_address_id=sa.id,
     )
-    sp_b = SellerProfile(
+    sp_b = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=mock_seller_b.id, first_name="B", phone="+919811000112",
         business_name="SB", bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved, business_address_id=sb.id,

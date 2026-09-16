@@ -450,6 +450,13 @@ async def _make_seller(
         business_name="Anita Stores",
         verification_status=status,
         business_address_id=addr.id,
+        # Fixture sellers carry a UPI payee so they can take UPI orders, which
+        # is what every order test assumed implicitly before the payee existed
+        # (UPI used to be unconditionally available). `upi_enabled` follows
+        # approval, mirroring the real enable-at-approval rule. Tests that need
+        # the no-payee case clear these explicitly.
+        upi_vpa="anita@okaxis",
+        upi_enabled=status is VerificationStatus.Approved,
     )
     session.add(profile)
     await session.commit()

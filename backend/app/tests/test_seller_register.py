@@ -126,7 +126,7 @@ async def test_seller_register_duplicate_phone(
     await session.flush()
     assert user.id is not None and address.id is not None
     session.add(
-        SellerProfile(
+        SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
             user_id=user.id,
             first_name="A",
             last_name="B",

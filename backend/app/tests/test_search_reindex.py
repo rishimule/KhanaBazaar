@@ -33,7 +33,7 @@ async def _seed(session: AsyncSession, n_products: int = 3) -> dict[str, int]:
     biz = Address(**make_address())
     session.add(biz)
     await session.flush()
-    seller = SellerProfile(
+    seller = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id, first_name="S", phone="+919811555444",
         business_name="X", bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved,

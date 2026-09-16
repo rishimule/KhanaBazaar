@@ -54,7 +54,7 @@ async def test_backfill_only_touches_store_and_business_addresses(
     )
     session.add(biz_addr)
     await session.flush()
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_user.id, first_name="S", business_name="S",
         phone="+919811119999",
         bank_account_number="1", bank_ifsc="HDFC0000001",
@@ -129,7 +129,7 @@ async def test_backfill_low_confidence_result_skipped(
     )
     session.add(biz_addr)
     await session.flush()
-    session.add(SellerProfile(
+    session.add(SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_user.id, first_name="S2", business_name="S2",
         phone="+919811118888",
         bank_account_number="2", bank_ifsc="HDFC0000002",

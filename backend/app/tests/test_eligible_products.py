@@ -44,7 +44,7 @@ async def fixt(session: AsyncSession) -> AsyncGenerator[dict[str, Any], None]:
     session.add(addr)
     await session.flush()
 
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id,
         first_name="S",
         business_name="S Store",

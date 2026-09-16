@@ -145,7 +145,7 @@ async def _make_store_with_loc(
     assert seller_user.id is not None
     biz_addr = await _make_address(session)
     assert biz_addr.id is not None
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_user.id,
         first_name="S",
         phone=f"+91999{seller_user.id:07d}",

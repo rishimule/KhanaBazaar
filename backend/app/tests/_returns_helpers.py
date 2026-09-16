@@ -131,7 +131,7 @@ async def seed_delivered_order(
     session.add(seller_user)
     await session.flush()
     assert seller_user.id is not None
-    seller = SellerProfile(
+    seller = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_user.id, first_name="Anil",
         phone=f"+9177{int(tag[:4]):04d}0000"[:13],
         business_name="Anil Stores",

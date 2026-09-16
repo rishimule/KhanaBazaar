@@ -14,8 +14,15 @@ from app import app
 @pytest.mark.asyncio
 async def test_store_read_omits_upi_without_payee(
     approved_seller_with_store: Any,
+    session: AsyncSession,
 ) -> None:
     bundle = approved_seller_with_store
+    # Explicitly clear the fixture's default payee: this test is *about* the
+    # no-payee case, so it must not silently inherit one.
+    bundle.profile.upi_vpa = None
+    bundle.profile.upi_enabled = False
+    session.add(bundle.profile)
+    await session.commit()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         r = await ac.get(f"/api/v1/stores/{bundle.store.id}")
@@ -77,3 +84,61 @@ async def test_accepted_methods_never_include_credit(
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         r = await ac.get(f"/api/v1/stores/{bundle.store.id}")
     assert "credit" not in r.json()["accepted_payment_methods"]
+
+
+# ── Checkout enforcement ──────────────────────────────────────────────
+@pytest.mark.asyncio
+async def test_validate_upi_payee_rejects_payeeless_store(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+) -> None:
+    from fastapi import HTTPException
+
+    from app.services.checkout import _validate_upi_payee_for_store
+
+    bundle = approved_seller_with_store
+    # Explicitly clear the fixture's default payee: this test is *about* the
+    # no-payee case, so it must not silently inherit one.
+    bundle.profile.upi_vpa = None
+    bundle.profile.upi_enabled = False
+    session.add(bundle.profile)
+    await session.commit()
+    with pytest.raises(HTTPException) as exc:
+        await _validate_upi_payee_for_store(session, bundle.store.id)
+    assert exc.value.status_code == 409
+    assert exc.value.detail == "upi_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_validate_upi_payee_passes_with_live_payee(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+) -> None:
+    from app.services.checkout import _validate_upi_payee_for_store
+
+    bundle = approved_seller_with_store
+    bundle.profile.upi_vpa = "ganesh@okhdfcbank"
+    bundle.profile.upi_enabled = True
+    session.add(bundle.profile)
+    await session.commit()
+    await _validate_upi_payee_for_store(session, bundle.store.id)
+
+
+@pytest.mark.asyncio
+async def test_validate_upi_payee_rejects_disabled_payee(
+    approved_seller_with_store: Any,
+    session: AsyncSession,
+) -> None:
+    """Disabled-but-stored VPA must not allow a UPI order through."""
+    from fastapi import HTTPException
+
+    from app.services.checkout import _validate_upi_payee_for_store
+
+    bundle = approved_seller_with_store
+    bundle.profile.upi_vpa = "ganesh@okhdfcbank"
+    bundle.profile.upi_enabled = False
+    session.add(bundle.profile)
+    await session.commit()
+    with pytest.raises(HTTPException) as exc:
+        await _validate_upi_payee_for_store(session, bundle.store.id)
+    assert exc.value.detail == "upi_unavailable"

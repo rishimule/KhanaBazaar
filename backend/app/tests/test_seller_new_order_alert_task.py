@@ -64,7 +64,7 @@ async def _seed_order(
     session.add_all(addrs)
     await session.flush()
 
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller.id,
         first_name="Alert",
         phone=phone,

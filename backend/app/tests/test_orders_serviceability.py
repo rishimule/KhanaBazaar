@@ -63,7 +63,7 @@ async def _seed(
     )
     session.add(seller_biz_addr)
     await session.flush()
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller_user.id, first_name="S", business_name="S",
         phone="+919811119999",
         bank_account_number="1", bank_ifsc="HDFC0000001",

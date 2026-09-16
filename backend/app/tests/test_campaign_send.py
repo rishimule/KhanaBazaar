@@ -44,7 +44,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     saddr = Address(**make_address())
     session.add(saddr)
     await session.flush()
-    seller = SellerProfile(
+    seller = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=su.id, first_name="S", phone="+919811020003", business_name="S",
         verification_status=VerificationStatus.Approved, business_address_id=saddr.id,
     )

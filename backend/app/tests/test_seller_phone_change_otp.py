@@ -81,7 +81,7 @@ async def test_otp_request_rejects_phone_taken_by_other_seller(
     session.add(other)
     await session.flush()
     session.add(
-        SellerProfile(
+        SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
             user_id=other.id, first_name="O", last_name="S", phone=taken,
             business_name="Other", verification_status=VerificationStatus.Approved,
             business_address_id=addr.id,

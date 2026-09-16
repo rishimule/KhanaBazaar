@@ -39,7 +39,7 @@ async def _seed_full(session: AsyncSession):
     biz_addr = Address(**make_address(pincode="500001"))
     session.add(biz_addr)
     await session.flush()
-    seller = SellerProfile(
+    seller = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id, first_name="S", phone="+919811222333",
         business_name="X", bank_account_number="1", bank_ifsc="HDFC0000001",
         verification_status=VerificationStatus.Approved,

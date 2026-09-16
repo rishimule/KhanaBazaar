@@ -127,7 +127,7 @@ async def seed_users_and_profiles(
     session.add(seller_address)
     await session.flush()
     session.add(
-        SellerProfile(
+        SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
             user_id=mock_seller.id,
             first_name="Seller",
             last_name="User",

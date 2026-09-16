@@ -51,7 +51,7 @@ async def _seed_preview(session: AsyncSession) -> PreviewSeed:
     session.add(biz)
     await session.flush()
 
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=seller.id,
         first_name="Prev",
         last_name="Seller",

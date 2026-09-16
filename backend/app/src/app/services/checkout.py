@@ -248,6 +248,31 @@ async def _validate_service_active_for_store(
         )
 
 
+
+async def _validate_upi_payee_for_store(
+    session: AsyncSession, store_id: int
+) -> None:
+    """Raise 409 upi_unavailable when the store's seller has no live UPI payee.
+
+    The checkout UI hides UPI for these stores, but hiding a radio button is
+    not enforcement — a crafted request must not be able to create an order
+    the customer has no way to pay.
+    """
+    from app.models.profile import SellerProfile
+
+    row = (
+        await session.exec(
+            select(SellerProfile.upi_vpa, SellerProfile.upi_enabled)
+            .join(
+                Store,
+                Store.seller_profile_id == SellerProfile.id,  # type: ignore[arg-type]
+            )
+            .where(Store.id == store_id)
+        )
+    ).first()
+    if row is None or not (row[1] and row[0]):
+        raise HTTPException(status_code=409, detail="upi_unavailable")
+
 async def _compute_delivery_fee(
     session: AsyncSession, store_id: int, service_id: int, subtotal: float
 ) -> float:
@@ -531,6 +556,8 @@ async def place_order_for_sub_basket(
         raise HTTPException(status_code=422, detail="payment_method_not_allowed")
 
     await _validate_service_active_for_store(session, store_id, service_id)
+    if payment_method is PaymentMethod.Upi:
+        await _validate_upi_payee_for_store(session, store_id)
 
     # Resolve the delivery/pickup location. Pickup reuses the delivery_address
     # slot with the STORE address (the collect-here location) and skips the

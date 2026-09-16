@@ -29,7 +29,7 @@ async def _seed_store(
     )
     session.add(addr)
     await session.flush()
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id, first_name=name, business_name=f"{name} Business",
         phone=f"+91981111{user.id:04d}",
         gst_number=f"G{user.id:020d}", fssai_license=f"F{user.id:013d}",
@@ -128,7 +128,7 @@ async def test_list_stores_skips_stores_with_null_geo(
     )
     session.add(addr)
     await session.flush()
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user.id, first_name="N", business_name="N",
         phone="+919811119999", gst_number="GG", fssai_license="FF",
         bank_account_number="ACC", bank_ifsc="HDFC0000001",

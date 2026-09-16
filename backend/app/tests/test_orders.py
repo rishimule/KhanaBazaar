@@ -62,7 +62,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     seller_business_addr = Address(**make_address(pincode="560100"))
     session.add(seller_business_addr)
     await session.flush()
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=mock_seller.id, first_name="S1", phone="+919800000010",
         business_name="S1 Store",
         bank_account_number="1", bank_ifsc="HDFC0000001",
@@ -74,7 +74,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     other_seller_business_addr = Address(**make_address(pincode="560101"))
     session.add(other_seller_business_addr)
     await session.flush()
-    other_seller_profile = SellerProfile(
+    other_seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=mock_other_seller.id, first_name="S2", phone="+919800000020",
         business_name="S2 Store",
         bank_account_number="2", bank_ifsc="HDFC0000002",

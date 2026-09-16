@@ -47,7 +47,7 @@ async def _make_profile(
     address = Address(**make_address())
     session.add(address)
     await session.flush()
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=user_id,
         first_name=first_name,
         last_name=last_name,

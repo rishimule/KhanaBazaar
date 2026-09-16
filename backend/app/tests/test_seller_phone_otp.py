@@ -110,7 +110,7 @@ async def test_phone_request_rejects_duplicate_phone(
     assert user.id is not None
     assert address.id is not None
     session.add(
-        SellerProfile(
+        SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
             user_id=user.id,
             first_name="A",
             last_name="B",

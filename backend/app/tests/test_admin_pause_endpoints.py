@@ -33,7 +33,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     addr = Address(**make_address())
     session.add(addr)
     await session.flush()
-    profile = SellerProfile(
+    profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=APPROVED_SELLER_UID, first_name="A", business_name="AP Store",
         phone="+919811117502", verification_status=VerificationStatus.Approved,
         business_address_id=addr.id,
@@ -42,7 +42,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     p_addr = Address(**make_address())
     session.add(p_addr)
     await session.flush()
-    session.add(SellerProfile(
+    session.add(SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=PENDING_SELLER_UID, first_name="P", business_name="Pen Store",
         phone="+919811117503", verification_status=VerificationStatus.Pending,
         business_address_id=p_addr.id,

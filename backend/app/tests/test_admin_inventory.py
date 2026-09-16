@@ -51,7 +51,7 @@ async def seed_admin_inventory(session: AsyncSession) -> AsyncGenerator[dict, No
     session.add(store_address)
     await session.flush()
 
-    seller_profile = SellerProfile(
+    seller_profile = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=mock_seller.id,
         first_name="Inv",
         business_name="Inv Test Store",
