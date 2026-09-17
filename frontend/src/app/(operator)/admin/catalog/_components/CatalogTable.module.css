@@ -213,3 +213,55 @@
     font-size: 0.85rem;
   }
 }
+
+/* ─── Multi-select bulk bar ─── */
+
+.checkCol {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.checkCol input {
+  cursor: pointer;
+}
+
+.rowSelected {
+  background: var(--shade-cool-light-1, #f3f4f6);
+}
+
+.bulkBar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--shade-cool-light-6, #ddd);
+  border-radius: 6px;
+  background: var(--shade-cool-light-1, #fafafa);
+}
+
+.bulkCount {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-right: auto;
+}
+
+.bulkClear {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.4rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--color-link, #2563eb);
+  cursor: pointer;
+}
+
+.bulkClear:hover {
+  text-decoration: underline;
+}
+
+.bulkNote {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--shade-cool-dark-3, #555);
+}

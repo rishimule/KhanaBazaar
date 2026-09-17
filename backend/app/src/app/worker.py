@@ -2527,3 +2527,26 @@ def send_return_status_whatsapp_async(return_id: int, event_key: str) -> None:
         executor.submit(
             lambda: asyncio.run(sender.send_template(phone, template, variables))
         ).result()
+
+
+@celery_app.task(name="catalog.apply_catalog_import")  # type: ignore[untyped-decorator]
+def apply_catalog_import(job_id: int) -> None:
+    """Write a staged CSV catalog import into the catalog.
+
+    Runs on the worker rather than in the request because a few-thousand-row
+    file commits in chunks and each commit fans out Meilisearch sync tasks.
+    `apply_job` records its own failure on the job row before re-raising, so a
+    crash is visible in the admin UI and not only in the Celery log.
+    """
+    import asyncio
+    import concurrent.futures
+
+    from app.db.session import async_session_factory
+    from app.services.catalog_import import apply_job
+
+    async def _run() -> None:
+        async with async_session_factory() as session:
+            await apply_job(session, job_id)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        ex.submit(lambda: asyncio.run(_run())).result()

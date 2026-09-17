@@ -16,6 +16,12 @@ from .catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
+from .catalog_import import (
+    CatalogImportJob,
+    CatalogImportRow,
+    CatalogImportRowAction,
+    CatalogImportStatus,
+)
 from .commerce import (
     Cart,
     CartItem,
@@ -115,6 +121,10 @@ __all__ = [
     "BaseSchema",
     "Cart",
     "CartItem",
+    "CatalogImportJob",
+    "CatalogImportRow",
+    "CatalogImportRowAction",
+    "CatalogImportStatus",
     "Category",
     "CategoryTranslation",
     "CreditAccount",

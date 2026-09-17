@@ -1959,7 +1959,22 @@
         "apply": "લાગુ કરો",
         "zoom": "ઝૂમ",
         "rotate": "ફેરવો"
-      }
+      },
+      "selectAllAria": "આ પૃષ્ઠની બધી પંક્તિઓ પસંદ કરો",
+      "selectRowAria": "{name} પસંદ કરો",
+      "nSelected": "{count} પસંદ કરેલ",
+      "clearSelection": "સાફ કરો",
+      "bulkDeactivate": "નિષ્ક્રિય કરો",
+      "bulkActivate": "ફરી સક્રિય કરો",
+      "bulkConfirmDeactivateTitle": "{count} પસંદ કરેલ નિષ્ક્રિય કરવા?",
+      "bulkConfirmActivateTitle": "{count} પસંદ કરેલ ફરી સક્રિય કરવા?",
+      "bulkConfirmDeactivateBody": "આથી {count} પસંદ કરેલ પંક્તિઓ ગ્રાહકોથી છુપાઈ જશે. તમે તેમને પછી ફરી સક્રિય કરી શકો છો.",
+      "bulkConfirmActivateBody": "આથી {count} પસંદ કરેલ પંક્તિઓ ગ્રાહકોને ફરી દેખાશે.",
+      "bulkChildWarning": "તેમની {count} સક્રિય {children} સક્રિય રહેશે અને છુપાવવામાં આવશે નહીં.",
+      "bulkResult": "{updated} અપડેટ, {unchanged} પહેલેથી તે સ્થિતિમાં.",
+      "bulkFailed": "સામૂહિક અપડેટ નિષ્ફળ.",
+      "importCsv": "CSV આયાત કરો",
+      "exportCsv": "CSV નિર્યાત કરો"
     },
     "sellers": {
       "col": {

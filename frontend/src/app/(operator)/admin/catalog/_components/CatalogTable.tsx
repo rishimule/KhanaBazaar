@@ -2,11 +2,15 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useAuth } from "@/lib/AuthContext";
+import { bulkSetActive, downloadCatalogExport } from "@/lib/catalogImport";
 import type { CatalogEntity, EntityKind } from "@/types";
 import { useCatalogList } from "../_hooks/useCatalogList";
 import { useEntityMutation } from "../_hooks/useEntityMutation";
+import { BulkStatusConfirm } from "./BulkStatusConfirm";
 import { DeactivateConfirm } from "./DeactivateConfirm";
 import { EditModal } from "./EditModal";
 import styles from "./CatalogTable.module.css";
@@ -41,7 +45,12 @@ export function CatalogTable({
     { mode: "create" } | { mode: "edit"; row: CatalogEntity } | null
   >(null);
   const [confirmRow, setConfirmRow] = useState<CatalogEntity | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkTarget, setBulkTarget] = useState<boolean | null>(null);
+  const [bulkPending, setBulkPending] = useState(false);
+  const [bulkNote, setBulkNote] = useState<string | null>(null);
   const mut = useEntityMutation(entity);
+  const { token } = useAuth();
 
   const isActive =
     activeFilter === "all" ? null : activeFilter === "true";
@@ -58,6 +67,65 @@ export function CatalogTable({
 
   const { data, loading, error, refetch } = useCatalogList(entity, params);
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+
+  // Selection is per-view: changing level, parent, page, query or status filter
+  // would otherwise leave ids selected that are no longer on screen, and the
+  // bulk bar would act on rows the operator cannot see.
+  useEffect(() => {
+    setSelected(new Set());
+    setBulkNote(null);
+  }, [entity, parentId, page, q, activeFilter]);
+
+  const visibleIds = useMemo(
+    () => (data?.items ?? []).map((r) => r.id),
+    [data],
+  );
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+  const selectedRows = (data?.items ?? []).filter((r) => selected.has(r.id));
+  const selectedChildCount = selectedRows.reduce(
+    (sum, r) => sum + (r.child_count ?? 0),
+    0,
+  );
+
+  function toggleRow(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    setSelected(allVisibleSelected ? new Set() : new Set(visibleIds));
+  }
+
+  async function runBulk(nextActive: boolean) {
+    setBulkPending(true);
+    setBulkNote(null);
+    try {
+      const result = await bulkSetActive(
+        entity,
+        [...selected],
+        nextActive,
+        token,
+      );
+      setBulkNote(
+        t("bulkResult", {
+          updated: result.updated,
+          unchanged: result.unchanged.length,
+        }),
+      );
+      setSelected(new Set());
+      setBulkTarget(null);
+      refetch();
+    } catch {
+      setBulkNote(t("bulkFailed"));
+    } finally {
+      setBulkPending(false);
+    }
+  }
 
   return (
     <div className={styles.wrap}>
@@ -91,7 +159,62 @@ export function CatalogTable({
         >
           {t("addEntity", { entity: entityName })}
         </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => {
+            void downloadCatalogExport(
+              {
+                serviceId: entity === "category" ? parentId : serviceContext,
+                categoryId: entity === "subcategory" ? parentId : undefined,
+                subcategoryId: entity === "product" ? parentId : undefined,
+                includeInactive: activeFilter !== "true",
+              },
+              token,
+            );
+          }}
+        >
+          {t("exportCsv")}
+        </button>
+        <Link href="/admin/catalog/import" className="btn btn-secondary">
+          {t("importCsv")}
+        </Link>
       </header>
+
+      {selected.size > 0 && (
+        <div className={styles.bulkBar}>
+          <span className={styles.bulkCount}>
+            {t("nSelected", { count: selected.size })}
+          </span>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setBulkTarget(false)}
+          >
+            {t("bulkDeactivate")}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setBulkTarget(true)}
+          >
+            {t("bulkActivate")}
+          </button>
+          <button
+            type="button"
+            className={styles.bulkClear}
+            onClick={() => setSelected(new Set())}
+          >
+            {t("clearSelection")}
+          </button>
+        </div>
+      )}
+
+      {bulkNote && (
+        <p role="status" className={styles.bulkNote}>
+          {bulkNote}
+        </p>
+      )}
 
       {error && (
         <div role="alert" className={styles.error}>
@@ -103,6 +226,15 @@ export function CatalogTable({
         <table className={styles.table}>
           <thead>
             <tr>
+              <th className={styles.checkCol}>
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  disabled={visibleIds.length === 0}
+                  onChange={toggleAllVisible}
+                  aria-label={t("selectAllAria")}
+                />
+              </th>
               <th aria-label={t("colImage")} />
               <th>{t("colName")}</th>
               <th>{t("colSlug")}</th>
@@ -115,21 +247,29 @@ export function CatalogTable({
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className={styles.muted}>
+                <td colSpan={8} className={styles.muted}>
                   {tc("loading")}
                 </td>
               </tr>
             )}
             {!loading && data && data.items.length === 0 && (
               <tr>
-                <td colSpan={7} className={styles.muted}>
+                <td colSpan={8} className={styles.muted}>
                   {t("emptyEntity", { entity: entityNamePlural })}
                 </td>
               </tr>
             )}
             {!loading &&
               data?.items.map((row) => (
-                <tr key={row.id}>
+                <tr key={row.id} className={selected.has(row.id) ? styles.rowSelected : ""}>
+                  <td className={styles.checkCol}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(row.id)}
+                      onChange={() => toggleRow(row.id)}
+                      aria-label={t("selectRowAria", { name: row.name })}
+                    />
+                  </td>
                   <td className={styles.imgCell}>
                     {row.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -250,6 +390,18 @@ export function CatalogTable({
           serviceContext={serviceContext}
           onClose={() => setModalState(null)}
           onSaved={refetch}
+        />
+      )}
+
+      {bulkTarget !== null && (
+        <BulkStatusConfirm
+          entity={entity}
+          count={selected.size}
+          childCount={selectedChildCount}
+          nextActive={bulkTarget}
+          pending={bulkPending}
+          onCancel={() => setBulkTarget(null)}
+          onConfirm={() => void runBulk(bulkTarget)}
         />
       )}
 

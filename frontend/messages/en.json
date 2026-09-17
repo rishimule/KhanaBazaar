@@ -1958,7 +1958,22 @@
         "apply": "Apply",
         "zoom": "Zoom",
         "rotate": "Rotate"
-      }
+      },
+      "selectAllAria": "Select all rows on this page",
+      "selectRowAria": "Select {name}",
+      "nSelected": "{count} selected",
+      "clearSelection": "Clear",
+      "bulkDeactivate": "Deactivate",
+      "bulkActivate": "Reactivate",
+      "bulkConfirmDeactivateTitle": "Deactivate {count} selected?",
+      "bulkConfirmActivateTitle": "Reactivate {count} selected?",
+      "bulkConfirmDeactivateBody": "This will hide {count} selected rows from customers. You can re-activate them later.",
+      "bulkConfirmActivateBody": "This will make {count} selected rows visible to customers again.",
+      "bulkChildWarning": "Their {count} active {children} stay active and are not hidden.",
+      "bulkResult": "{updated} updated, {unchanged} already in that state.",
+      "bulkFailed": "Bulk update failed.",
+      "importCsv": "Import CSV",
+      "exportCsv": "Export CSV"
     },
     "sellers": {
       "col": {
