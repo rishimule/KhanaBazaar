@@ -241,6 +241,31 @@ class _Stub:
             setattr(self, k, v)
 
 
+@pytest.fixture(name="persisted_admin")
+async def persisted_admin_fixture(session: AsyncSession) -> _Stub:
+    """Insert the `user` row that `admin_auth_headers` impersonates.
+
+    `admin_auth_headers` builds an in-memory `User(id=99001)` and only overrides
+    the auth dependency — it never writes the row. Any endpoint that stores a FK
+    to `user.id` (bulk catalog imports, notification campaigns) needs the row to
+    actually exist, so request both fixtures together.
+    """
+    from app.models.base import User, UserRole
+
+    existing = await session.get(User, 99001)
+    if existing is None:
+        session.add(
+            User(
+                id=99001,
+                email="admin-test@kb.com",
+                role=UserRole.Admin,
+                is_active=True,
+            )
+        )
+        await session.commit()
+    return _Stub(id=99001)
+
+
 @pytest.fixture(name="seeded_service")
 async def seeded_service_fixture(session: AsyncSession) -> _Stub:
     from app.models.catalog import Service, ServiceTranslation
