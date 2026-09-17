@@ -687,6 +687,81 @@ export interface CatalogEntityWrite {
   unit?: string | null;
 }
 
+// ─── Admin bulk catalog import (see api/catalog_bulk.py) ───────
+
+export type ImportJobStatus =
+  | "validated"
+  | "applying"
+  | "applied"
+  | "failed"
+  | "cancelled";
+
+export type ImportRowAction = "create" | "update" | "noop" | "error";
+
+export interface ImportLevelCounts {
+  create: number;
+  update: number;
+  noop: number;
+}
+
+/** Per-level counts of DISTINCT paths, not rows: every row under one new
+ *  category reports `category.create`, but the category is created once. */
+export interface ImportPlan {
+  service: ImportLevelCounts;
+  category: ImportLevelCounts;
+  subcategory: ImportLevelCounts;
+  product: ImportLevelCounts;
+}
+
+export interface ImportJob {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  filename: string;
+  status: ImportJobStatus;
+  created_by_admin_id: number;
+  total_rows: number;
+  error_rows: number;
+  plan: ImportPlan;
+  /** Null until Apply has run. */
+  applied: ImportPlan | null;
+  failure_reason: string | null;
+  applied_at: string | null;
+}
+
+export interface ImportRowError {
+  column: string;
+  code: string;
+  message: string;
+}
+
+export interface ImportRow {
+  id: number;
+  line_number: number;
+  action: ImportRowAction;
+  data: Record<string, string | number>;
+  errors: ImportRowError[];
+  level_plan: Partial<Record<EntityKind, string>>;
+  applied_at: string | null;
+  apply_error: string | null;
+}
+
+/** File-level rejection (bad encoding, missing/unknown columns, row cap).
+ *  Arrives as the `detail` of a 422/413 — nothing is staged. */
+export interface ImportFileError {
+  code: string;
+  message: string;
+  columns?: string[];
+}
+
+export interface BulkStatusResult {
+  updated: number;
+  /** Already in the requested state — reported so "12 selected, 9 updated"
+   *  is explainable rather than looking like a partial failure. */
+  unchanged: number[];
+  not_found: number[];
+}
+
 // ---------------------------------------------------------------------------
 // Admin supervisor (see backend/app/src/app/api/admin_actions.py).
 // ---------------------------------------------------------------------------

@@ -1959,7 +1959,22 @@
         "apply": "ਲਾਗੂ ਕਰੋ",
         "zoom": "ਜ਼ੂਮ",
         "rotate": "ਘੁਮਾਓ"
-      }
+      },
+      "selectAllAria": "ਇਸ ਪੰਨੇ ਦੀਆਂ ਸਾਰੀਆਂ ਕਤਾਰਾਂ ਚੁਣੋ",
+      "selectRowAria": "{name} ਚੁਣੋ",
+      "nSelected": "{count} ਚੁਣੇ ਗਏ",
+      "clearSelection": "ਸਾਫ਼ ਕਰੋ",
+      "bulkDeactivate": "ਅਕਿਰਿਆਸ਼ੀਲ ਕਰੋ",
+      "bulkActivate": "ਦੁਬਾਰਾ ਸਰਗਰਮ ਕਰੋ",
+      "bulkConfirmDeactivateTitle": "{count} ਚੁਣੇ ਗਏ ਅਕਿਰਿਆਸ਼ੀਲ ਕਰਨੇ ਹਨ?",
+      "bulkConfirmActivateTitle": "{count} ਚੁਣੇ ਗਏ ਦੁਬਾਰਾ ਸਰਗਰਮ ਕਰਨੇ ਹਨ?",
+      "bulkConfirmDeactivateBody": "ਇਸ ਨਾਲ {count} ਚੁਣੀਆਂ ਕਤਾਰਾਂ ਗਾਹਕਾਂ ਤੋਂ ਲੁਕ ਜਾਣਗੀਆਂ। ਤੁਸੀਂ ਬਾਅਦ ਵਿੱਚ ਉਨ੍ਹਾਂ ਨੂੰ ਦੁਬਾਰਾ ਸਰਗਰਮ ਕਰ ਸਕਦੇ ਹੋ।",
+      "bulkConfirmActivateBody": "ਇਸ ਨਾਲ {count} ਚੁਣੀਆਂ ਕਤਾਰਾਂ ਗਾਹਕਾਂ ਨੂੰ ਦੁਬਾਰਾ ਦਿਖਣਗੀਆਂ।",
+      "bulkChildWarning": "ਉਨ੍ਹਾਂ ਦੀਆਂ {count} ਸਰਗਰਮ {children} ਸਰਗਰਮ ਰਹਿਣਗੀਆਂ ਅਤੇ ਲੁਕਾਈਆਂ ਨਹੀਂ ਜਾਣਗੀਆਂ।",
+      "bulkResult": "{updated} ਅੱਪਡੇਟ, {unchanged} ਪਹਿਲਾਂ ਹੀ ਉਸੇ ਸਥਿਤੀ ਵਿੱਚ।",
+      "bulkFailed": "ਸਮੂਹਿਕ ਅੱਪਡੇਟ ਅਸਫਲ।",
+      "importCsv": "CSV ਆਯਾਤ ਕਰੋ",
+      "exportCsv": "CSV ਨਿਰਯਾਤ ਕਰੋ"
     },
     "sellers": {
       "col": {
