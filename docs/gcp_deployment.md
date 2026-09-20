@@ -112,6 +112,20 @@ alerts at 20000 INR (≈ $240). Firebase Hosting is free (Spark/Blaze free tier)
 
 - Switch `EMAIL_PROVIDER=resend` + `SMS_PROVIDER=twilio`, set
   `ENVIRONMENT=production` (disables the dev-mailbox + `/api/v1/dev/*`).
+- **Re-enable phone OTP in the same change as buying the SMS plan.** Prod runs
+  `PHONE_OTP_ENABLED=false` (set in `deploy.yml`'s api `--update-env-vars`)
+  because `SMS_PROVIDER=console` + `WHATSAPP_PROVIDER=none` send codes nowhere,
+  which would make seller signup, customer phone verification, and seller
+  phone changes impossible to complete. Until then every phone number is
+  accepted as verified without proof of ownership. Turning it back on is a
+  runtime env change — drop the var (the default is `true`) or set it to
+  `"true"` and redeploy the api; **no frontend rebuild is needed**, the
+  clients read the switch from `GET /api/v1/meta/public-config` and branch on
+  each OTP response's `otp_required` field.
+  - Numbers accepted during the window are indistinguishable from genuinely
+    verified ones except by `customerprofile.phone_verified_at` falling inside
+    it — deliberately no extra column. If you want those users to re-prove
+    ownership, null out `phone_verified_at` for that date range at cutover.
 - Rotate all secrets; lock the Maps server key to a Cloud NAT static egress IP.
 - Add observability (OpenTelemetry / Cloud Trace) — not yet wired in
   `backend/app/src/app/__init__.py`.

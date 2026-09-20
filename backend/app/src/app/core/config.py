@@ -46,6 +46,16 @@ class Settings(BaseSettings):
     OTP_RESEND_COOLDOWN: int = 60
     OTP_MAX_PER_HOUR: int = 5
 
+    # Phone-ownership verification (seller signup, customer profile phone,
+    # seller phone change). `False` short-circuits those three OTP chains:
+    # the number is accepted as verified and the token the verify step would
+    # have minted is returned by the *request* call instead. Set false only
+    # while there is no working SMS/WhatsApp transport to deliver a code with
+    # — it removes proof of phone ownership. Default True: secure unless
+    # explicitly opted out. Does NOT affect email OTP, the delivery-handover
+    # OTP, or return OTPs.
+    PHONE_OTP_ENABLED: bool = True
+
     # Delivery-handover OTP (separate from auth OTP; no TTL — valid until delivered)
     DELIVERY_OTP_MAX_ATTEMPTS: int = 5
     DELIVERY_OTP_RESEND_COOLDOWN: int = 60

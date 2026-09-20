@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useResendCountdown } from "@/lib/useResendCountdown";
+import { usePhoneOtpEnabled } from "@/lib/publicConfig";
 import { ApiError, get, patch, post } from "@/lib/api";
 import { setTokens } from "@/lib/authTokens";
 import { formatAddress } from "@/lib/format-address";
@@ -26,35 +27,55 @@ const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 const UPI_VPA_REGEX = /^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,64}$/;
 const PHONE_REGEX = /^[6-9]\d{9}$/;
 
+/** `/auth/seller/phone/otp/request`. `otp_required: false` means phone OTP
+ *  is off server-side: no code was sent and the signup token is already here. */
+interface PhoneOtpRequest {
+  otp_required: boolean;
+  signup_token?: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Step indicator                                                       */
 /* ------------------------------------------------------------------ */
 
 const TOTAL_STEPS = 8;
+/** The phone-code screen. It disappears when the server reports
+ *  `otp_required: false` (no SMS transport), so the dots renumber past it. */
+const PHONE_OTP_STEP = 4;
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({
+  current,
+  skipPhoneOtp,
+}: {
+  current: number;
+  skipPhoneOtp: boolean;
+}) {
   const t = useTranslations("Seller.signup");
+  const total = skipPhoneOtp ? TOTAL_STEPS - 1 : TOTAL_STEPS;
+  // Wizard state keeps the original step numbers; only the display shifts.
+  const shown =
+    skipPhoneOtp && current > PHONE_OTP_STEP ? current - 1 : current;
   return (
     <>
       <div className={styles.stepIndicator}>
-        {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((n, i) => (
+        {Array.from({ length: total }, (_, i) => i + 1).map((n, i) => (
           <React.Fragment key={n}>
             <div
               className={[
                 styles.stepDot,
-                n < current ? styles.stepDotCompleted : "",
-                n === current ? styles.stepDotActive : "",
+                n < shown ? styles.stepDotCompleted : "",
+                n === shown ? styles.stepDotActive : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
             >
-              {n < current ? "✓" : n}
+              {n < shown ? "✓" : n}
             </div>
-            {i < TOTAL_STEPS - 1 && (
+            {i < total - 1 && (
               <div
                 className={[
                   styles.stepConnector,
-                  n < current ? styles.stepConnectorCompleted : "",
+                  n < shown ? styles.stepConnectorCompleted : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -63,7 +84,7 @@ function StepIndicator({ current }: { current: number }) {
           </React.Fragment>
         ))}
       </div>
-      <p className={styles.stepLabel}>{t("stepCounter", { current, total: TOTAL_STEPS })}</p>
+      <p className={styles.stepLabel}>{t("stepCounter", { current: shown, total })}</p>
     </>
   );
 }
@@ -84,6 +105,9 @@ function SellerSignupPageInner() {
   const { token, dbUser, logout } = useAuth();
   const emailResend = useResendCountdown();
   const phoneResend = useResendCountdown();
+  // Labels + step numbering only — the server's `otp_required` response
+  // still decides the flow.
+  const phoneOtpEnabled = usePhoneOtpEnabled();
 
   /* ---- wizard data state ---- */
   const [currentStep, setCurrentStep] = useState(1);
@@ -93,6 +117,12 @@ function SellerSignupPageInner() {
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("");
   const [signupToken, setSignupToken] = useState("");
+  /** Server reported `otp_required: false` — the phone-code screen (step 4)
+   *  is not part of this run and the indicator renumbers around it. */
+  const [phoneOtpSkipped, setPhoneOtpSkipped] = useState(false);
+  // Renumber the dots from the first render rather than jumping from
+  // "3 of 8" to "4 of 7" mid-wizard. The OR covers a failed config fetch.
+  const skipPhoneOtp = phoneOtpSkipped || !phoneOtpEnabled;
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [serviceIds, setServiceIds] = useState<number[]>([]);
@@ -285,15 +315,17 @@ function SellerSignupPageInner() {
     }
   };
 
-  const handleSendPhoneCode = async (): Promise<boolean> => {
+  const handleSendPhoneCode = async (): Promise<PhoneOtpRequest | null> => {
     setSubmitting(true);
     setToast(null);
     try {
-      await post("/api/v1/auth/seller/phone/otp/request", {
-        email_token: emailToken,
-        phone: `+91${phone}`,
-      });
-      return true;
+      return await post<PhoneOtpRequest>(
+        "/api/v1/auth/seller/phone/otp/request",
+        {
+          email_token: emailToken,
+          phone: `+91${phone}`,
+        },
+      );
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       const code = (apiErr.detail as { error?: string } | string | undefined);
@@ -316,7 +348,7 @@ function SellerSignupPageInner() {
       } else {
         setToast({ message: t("errors.sendCodeFailed"), type: "error" });
       }
-      return false;
+      return null;
     } finally {
       setSubmitting(false);
     }
@@ -331,16 +363,24 @@ function SellerSignupPageInner() {
       setFieldErrors((p) => ({ ...p, ...errs }));
       return;
     }
-    const ok = await handleSendPhoneCode();
-    if (ok) {
-      setCurrentStep(4);
-      phoneResend.start();
+    const res = await handleSendPhoneCode();
+    if (!res) return;
+    if (res.otp_required === false && res.signup_token) {
+      // Phone OTP is disabled server-side (no SMS transport): no code was
+      // sent and the signup token arrived with the request. Skip step 4.
+      setSignupToken(res.signup_token);
+      setPhoneOtpSkipped(true);
+      setCurrentStep(5);
+      return;
     }
+    setPhoneOtpSkipped(false);
+    setCurrentStep(4);
+    phoneResend.start();
   };
 
   const handleResendPhoneCode = async () => {
-    const ok = await handleSendPhoneCode();
-    if (ok) {
+    const res = await handleSendPhoneCode();
+    if (res) {
       setToast({ message: t("toast.codeResentPhone"), type: "success" });
       phoneResend.start();
     }
@@ -509,7 +549,7 @@ function SellerSignupPageInner() {
         </div>
 
         {/* Step indicator */}
-        <StepIndicator current={currentStep} />
+        <StepIndicator current={currentStep} skipPhoneOtp={skipPhoneOtp} />
 
         {/* Banner: customer-account session active — step 1 only (relevant before email is locked in) */}
         {dbUser && !isResubmit && currentStep === 1 && (
@@ -705,7 +745,11 @@ function SellerSignupPageInner() {
                 onClick={handlePhoneNext}
                 disabled={submitting || !PHONE_REGEX.test(phone)}
               >
-                {submitting ? t("sendingCode") : t("sendCode")}
+                {submitting
+                  ? t("sendingCode")
+                  : phoneOtpEnabled
+                    ? t("sendCode")
+                    : t("next")}
               </button>
             </div>
           </>
@@ -834,7 +878,9 @@ function SellerSignupPageInner() {
                 <button
                   type="button"
                   className={styles.backBtn}
-                  onClick={() => setCurrentStep(4)}
+                  // Step 4 does not exist in this run when the phone code
+                  // screen was skipped — go back to phone entry instead.
+                  onClick={() => setCurrentStep(skipPhoneOtp ? 3 : 4)}
                 >
                   {tc("back")}
                 </button>

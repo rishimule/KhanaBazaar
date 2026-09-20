@@ -87,7 +87,37 @@ The phone is normalized to E.164 `+91[6-9]XXXXXXXXX` server-side; non-Indian / n
 
 Error codes in `detail.error`: `rate_limited`, `invalid_code`, `too_many_attempts`, `code_expired_or_used`, `invalid_phone`, `phone_already_registered`, `email_token_expired`, `invalid_email_token`, `signup_token_expired`, `invalid_signup_token`. Wizard maps each to a toast or inline field error.
 
-### 3.3 SMS provider switch
+### 3.3 Phone-OTP bypass (`PHONE_OTP_ENABLED=false`) — **active in production**
+
+With no SMS plan bought, `SMS_PROVIDER=console` + `WHATSAPP_PROVIDER=none` mean a
+phone code only ever reaches the server's stdout, so steps 3-4 could never be
+completed. `PHONE_OTP_ENABLED=false` (set on the api in `deploy.yml`) collapses
+them into one: `POST /auth/seller/phone/otp/request` still normalizes the number
+and still rejects `invalid_phone` / `phone_already_registered`, but instead of
+dispatching an SMS it returns
+
+```json
+{ "ok": true, "otp_required": false, "signup_token": "…" }
+```
+
+— the same token step 4 would have produced. The wizard sees `otp_required:
+false`, stores the token, and jumps from step 3 straight to personal info; the
+indicator drops to 7 steps and renumbers around the missing one (it learns the
+switch up-front from `GET /api/v1/meta/public-config`, so the count never
+changes mid-flow, and the step-3 button reads "Next" rather than "Send code").
+`POST /auth/seller/phone/otp/verify` short-circuits the same way, so a stale
+client that ignores `otp_required` still completes rather than failing on
+`code_expired_or_used`.
+
+The bypass still charges the 5/hour budget (`core.otp.enforce_hourly_budget`):
+skipping `request_otp` would otherwise leave the `409 phone_already_registered`
+response as an unthrottled way to test which numbers are registered.
+
+**This means the phone is unproven** — the seller's number is taken on trust
+until the flag goes back to `true`. See the re-enable checklist in
+`docs/gcp_deployment.md`.
+
+### 3.4 SMS provider switch
 
 `SMS_PROVIDER` env var: `console` (default; logs `[SMS] to=… code=…` to stdout, used in dev/test/CI) or `twilio` (production). The Twilio path is a raw `httpx.post` to `https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json` — no SDK, mirrors the Resend integration. See `core/sms.py`.
 

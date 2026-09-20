@@ -50,6 +50,18 @@ async def get_indian_states() -> dict[str, list[str]]:
     return {"states": INDIAN_STATES}
 
 
+@router.get("/public-config")
+async def public_config() -> dict[str, bool]:
+    """Server switches a client must know about *before* it renders.
+
+    Advisory only — every one of these is still enforced server-side on the
+    request that acts on it. `phone_otp_enabled` exists so the phone screens
+    can avoid promising a code that will never be sent; the OTP endpoints'
+    own `otp_required` field remains the authority on what actually happened.
+    """
+    return {"phone_otp_enabled": settings.PHONE_OTP_ENABLED}
+
+
 _HEALTH_CACHE_KEY = "search:health:cached"
 _HEALTH_CACHE_TTL_SECONDS = 30
 

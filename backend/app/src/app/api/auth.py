@@ -20,6 +20,7 @@ from app.core.otp import (
     RateLimited,
     TooManyAttempts,
     consume_otp_key,
+    enforce_hourly_budget,
     normalize_email,
     normalize_phone,
     request_otp,
@@ -629,7 +630,7 @@ async def seller_phone_otp_request(
     sender: SMSSender = Depends(get_sms_sender),
     whatsapp_sender: WhatsAppSender | None = Depends(get_whatsapp_sender),
 ) -> dict:  # type: ignore[type-arg]
-    decode_seller_email_token(body.email_token)
+    email = decode_seller_email_token(body.email_token)
 
     try:
         phone = normalize_phone(body.phone)
@@ -645,6 +646,24 @@ async def seller_phone_otp_request(
         raise HTTPException(
             status_code=409, detail={"error": "phone_already_registered"}
         )
+
+    if not settings.PHONE_OTP_ENABLED:
+        # No SMS/WhatsApp transport to deliver a code with, so the number is
+        # taken on trust and this call hands back the token the verify step
+        # would have minted. The client skips its code-entry screen on
+        # `otp_required: false`.
+        try:
+            await enforce_hourly_budget(phone, redis, namespace="phone")
+        except RateLimited as exc:
+            raise HTTPException(
+                status_code=429,
+                detail={"error": "rate_limited", "retry_after": exc.retry_after},
+            ) from exc
+        return {
+            "ok": True,
+            "otp_required": False,
+            "signup_token": create_seller_signup_token(email, phone),
+        }
 
     try:
         code = await request_otp(phone, redis, namespace="phone")
@@ -665,7 +684,11 @@ async def seller_phone_otp_request(
         sms_sender=sender,
         whatsapp_sender=whatsapp_sender,
     )
-    return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
+    return {
+        "ok": True,
+        "otp_required": True,
+        "expires_in": settings.OTP_TTL_SECONDS,
+    }
 
 
 @router.post("/seller/phone/otp/verify")
@@ -681,6 +704,12 @@ async def seller_phone_otp_verify(
         raise HTTPException(
             status_code=400, detail={"error": "invalid_phone"}
         ) from None
+
+    if not settings.PHONE_OTP_ENABLED:
+        # Nothing was ever stored to check the code against. Short-circuit so
+        # a client that ignored `otp_required` still completes instead of
+        # dying on `code_expired_or_used`.
+        return {"signup_token": create_seller_signup_token(email, phone)}
 
     try:
         await verify_otp(phone, body.code, redis, namespace="phone")
