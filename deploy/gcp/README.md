@@ -80,6 +80,9 @@ EMAIL_PROVIDER=console
 # + referral SMS); keep in sync with the api EMAIL_FRONTEND_BASE_URL, no trailing slash:
 EMAIL_FRONTEND_BASE_URL=https://app.sarvakaecommerce.com
 SMS_PROVIDER=console
+# No SMS plan bought yet, so phone codes would go nowhere. The api sets
+# PHONE_OTP_ENABLED=false (deploy.yml) to accept numbers as verified; the
+# worker sends no phone-ownership OTPs, so it needs no equivalent here.
 VAPID_PRIVATE_KEY=$VAPID_PRIVATE_KEY
 VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
 VAPID_SUBJECT=mailto:sarvakaprojects@gmail.com

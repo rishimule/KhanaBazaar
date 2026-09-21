@@ -66,10 +66,16 @@ jobs:
             --command=bash --args=scripts/deploy_release.sh
           gcloud run jobs execute kb-migrate --region=$REGION --wait
 
+      # PHONE_OTP_ENABLED=false: no SMS plan is bought yet, so SMS_PROVIDER is
+      # `console` and WHATSAPP_PROVIDER is `none` — a phone code would only
+      # reach Cloud Run's stdout, leaving seller signup and phone verification
+      # impossible to complete. Numbers are accepted as verified until then.
+      # Flip to "true" (or drop the var — the default is secure) in the same
+      # breath as configuring a real SMS/WhatsApp transport; no rebuild needed.
       - name: Deploy api
         run: |
           gcloud run services update khanabazaar-api --region=$REGION --image=$API_IMAGE \
-            --update-env-vars=COMPANY_NAME="Sarvaka",EMAIL_FRONTEND_BASE_URL="https://app.sarvakaecommerce.com",EMAIL_PROVIDER="brevo+console",BREVO_FROM_EMAIL="${{ vars.BREVO_FROM_EMAIL }}"
+            --update-env-vars=COMPANY_NAME="Sarvaka",EMAIL_FRONTEND_BASE_URL="https://app.sarvakaecommerce.com",EMAIL_PROVIDER="brevo+console",BREVO_FROM_EMAIL="${{ vars.BREVO_FROM_EMAIL }}",PHONE_OTP_ENABLED="false"
 
       - name: Deploy web (runtime INTERNAL_API_URL too)
         run: |

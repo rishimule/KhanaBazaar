@@ -6,6 +6,7 @@ import Modal from "@/components/Modal";
 import { post } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { useResendCountdown } from "@/lib/useResendCountdown";
+import { usePhoneOtpEnabled } from "@/lib/publicConfig";
 import type { CustomerProfile } from "@/types";
 import styles from "./PhoneVerifyModal.module.css";
 
@@ -56,6 +57,8 @@ export default function PhoneVerifyModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const resend = useResendCountdown();
+  // Labels only — the request response's `otp_required` decides the flow.
+  const phoneOtpEnabled = usePhoneOtpEnabled();
 
   const errorKey = (e: unknown): string => {
     const detail = (e as { detail?: { error?: string } }).detail;
@@ -67,7 +70,18 @@ export default function PhoneVerifyModal({
     setBusy(true);
     setError(null);
     try {
-      await post("/api/v1/customers/me/phone/otp/request", { phone }, token);
+      const res = await post<{
+        otp_required?: boolean;
+        profile?: CustomerProfile;
+      }>("/api/v1/customers/me/phone/otp/request", { phone }, token);
+      if (res.otp_required === false && res.profile) {
+        // Phone OTP disabled server-side — no code was sent, the number is
+        // already saved as verified and the updated profile came back with
+        // the request. Nothing left for the user to type.
+        onVerified(res.profile);
+        onClose();
+        return;
+      }
       setStep("code");
       resend.start();
     } catch (e) {
@@ -100,7 +114,9 @@ export default function PhoneVerifyModal({
     <Modal title={t("title")} onClose={onClose}>
       {step === "confirm" && (
         <div className={styles.body}>
-          <p className={styles.muted}>{t("confirmPrompt")}</p>
+          <p className={styles.muted}>
+            {t(phoneOtpEnabled ? "confirmPrompt" : "confirmPromptNoOtp")}
+          </p>
           <div className={styles.phoneRow}>
             <span className={styles.phoneValue}>{phone}</span>
             <button
@@ -118,7 +134,7 @@ export default function PhoneVerifyModal({
             disabled={busy}
             onClick={requestOtp}
           >
-            {t("sendCode")}
+            {t(phoneOtpEnabled ? "sendCode" : "verify")}
           </button>
           {error && <div className={styles.error}>{error}</div>}
         </div>
@@ -151,7 +167,7 @@ export default function PhoneVerifyModal({
             disabled={busy || digitsFromIntl(phone).length !== 10}
             onClick={requestOtp}
           >
-            {t("sendCode")}
+            {t(phoneOtpEnabled ? "sendCode" : "verify")}
           </button>
           {error && <div className={styles.error}>{error}</div>}
         </div>

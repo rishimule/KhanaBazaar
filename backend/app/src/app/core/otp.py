@@ -72,6 +72,23 @@ class InvalidPhoneNumber(Exception):
     pass
 
 
+async def enforce_hourly_budget(
+    identifier: str, redis: aioredis.Redis, *, namespace: str = "email"
+) -> None:
+    """Charge the per-identifier hourly OTP budget. Raises RateLimited past it.
+
+    Split out of `request_otp` so the `PHONE_OTP_ENABLED=False` path — which
+    issues no code at all — still pays the same toll. Those endpoints answer
+    "is this phone already taken?" with a 409, which without a budget would
+    be a free enumeration oracle. No resend cooldown is charged: the caller
+    is not waiting on a code, so making them wait 60s would only stall a
+    legitimate retry.
+    """
+    key = _key_hourly(identifier, namespace)
+    if await incr_with_ttl(redis, key, 3600) > settings.OTP_MAX_PER_HOUR:
+        raise RateLimited(retry_after=await seconds_until(redis, key))
+
+
 async def request_otp(
     identifier: str, redis: aioredis.Redis, *, namespace: str = "email"
 ) -> str:
@@ -80,11 +97,7 @@ async def request_otp(
     if cooldown > 0:
         raise RateLimited(retry_after=cooldown)
 
-    hourly = await incr_with_ttl(redis, _key_hourly(identifier, namespace), 3600)
-    if hourly > settings.OTP_MAX_PER_HOUR:
-        raise RateLimited(
-            retry_after=await seconds_until(redis, _key_hourly(identifier, namespace))
-        )
+    await enforce_hourly_budget(identifier, redis, namespace=namespace)
 
     code = generate_code()
     pipe = redis.pipeline()

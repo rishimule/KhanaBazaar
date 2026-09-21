@@ -63,11 +63,26 @@ export function phoneOtpErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : "Something went wrong";
 }
 
+/**
+ * Response of the OTP-request call. `otp_required: false` means the server
+ * has phone-OTP verification switched off (no SMS transport bought yet): no
+ * code was sent, the number was accepted on trust, and `phone_change_token`
+ * is already present — skip the code-entry step entirely.
+ */
+export interface SellerPhoneOtpRequestResult {
+  otp_required: boolean;
+  phone_change_token?: string;
+}
+
 export async function requestSellerPhoneOtp(
   token: string,
   phone: string,
-): Promise<void> {
-  await post("/api/v1/sellers/me/phone/otp/request", { phone }, token);
+): Promise<SellerPhoneOtpRequestResult> {
+  return post<SellerPhoneOtpRequestResult>(
+    "/api/v1/sellers/me/phone/otp/request",
+    { phone },
+    token,
+  );
 }
 
 export async function verifySellerPhoneOtp(

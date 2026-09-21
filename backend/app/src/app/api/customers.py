@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -20,6 +21,7 @@ from app.core.otp import (
     RateLimited,
     TooManyAttempts,
     consume_otp_key,
+    enforce_hourly_budget,
     normalize_phone,
     request_otp,
     verify_otp,
@@ -193,10 +195,25 @@ async def update_customer_profile(
     if "phone" in body.model_fields_set:
         # Editing the phone via the profile form invalidates any prior
         # verification — the user must re-verify the new number through
-        # the OTP flow before it's marked verified again.
+        # the OTP flow before it's marked verified again. With PHONE_OTP
+        # disabled there is no such flow, so the number is taken on trust —
+        # but only if it actually parses as an Indian mobile, and then stored
+        # in the canonical form the OTP path writes. This route has never
+        # validated `phone` (any string up to 20 chars), and marking junk
+        # "verified" would feed it to every verified-phone gate.
+        new_phone = body.phone
         if body.phone != profile.phone:
-            profile.phone_verified_at = None
-        profile.phone = body.phone
+            assumed_verified = False
+            if body.phone and not settings.PHONE_OTP_ENABLED:
+                try:
+                    new_phone = normalize_phone(body.phone)
+                    assumed_verified = True
+                except InvalidPhoneNumber:
+                    pass
+            profile.phone_verified_at = (
+                datetime.now(timezone.utc) if assumed_verified else None
+            )
+        profile.phone = new_phone
     if "date_of_birth" in body.model_fields_set:
         profile.date_of_birth = body.date_of_birth
 
@@ -342,13 +359,35 @@ async def _phone_in_use_by_other(
     return result.first() is not None
 
 
+async def _mark_phone_verified(
+    session: AsyncSession,
+    current_user: User,
+    profile: CustomerProfile,
+    phone: str,
+) -> CustomerProfileRead:
+    """Persist `phone` as this customer's verified number."""
+    profile.phone = phone
+    profile.phone_verified_at = datetime.now(timezone.utc)
+    session.add(profile)
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        # Lost a race against another profile claiming the same number.
+        await session.rollback()
+        raise HTTPException(
+            status_code=409, detail={"error": "phone_already_in_use"}
+        ) from exc
+    await session.refresh(profile)
+    return await _profile_response(session, current_user, profile)
+
+
 @router.post("/me/phone/otp/request")
 async def request_customer_phone_otp(
     body: PhoneOtpRequest,
     current_user: User = Depends(get_current_customer),
     session: AsyncSession = Depends(get_db_session),
     sms_sender: SMSSender = Depends(get_sms_sender),
-) -> dict[str, bool]:
+) -> dict[str, Any]:
     assert current_user.id is not None
     try:
         phone = normalize_phone(body.phone)
@@ -363,6 +402,25 @@ async def request_customer_phone_otp(
             status_code=409, detail={"error": "phone_already_in_use"}
         )
     redis = await get_redis()
+
+    if not settings.PHONE_OTP_ENABLED:
+        # No SMS transport to deliver a code with — accept the number as
+        # verified and return the profile the verify step would have returned.
+        try:
+            await enforce_hourly_budget(phone, redis, namespace="customer_phone")
+        except RateLimited as exc:
+            raise HTTPException(
+                status_code=429,
+                detail={"error": "rate_limited", "retry_after": exc.retry_after},
+            ) from exc
+        return {
+            "sent": False,
+            "otp_required": False,
+            "profile": await _mark_phone_verified(
+                session, current_user, profile, phone
+            ),
+        }
+
     try:
         code = await request_otp(phone, redis, namespace="customer_phone")
     except RateLimited as exc:
@@ -371,7 +429,7 @@ async def request_customer_phone_otp(
             detail={"error": "rate_limited", "retry_after": exc.retry_after},
         ) from exc
     await sms_sender.send(phone, f"Your verification code is {code}")
-    return {"sent": True}
+    return {"sent": True, "otp_required": True}
 
 
 @router.post("/me/phone/otp/verify", response_model=CustomerProfileRead)
@@ -393,6 +451,11 @@ async def verify_customer_phone_otp(
         raise HTTPException(
             status_code=409, detail={"error": "phone_already_in_use"}
         )
+    if not settings.PHONE_OTP_ENABLED:
+        # Nothing was stored to check the code against — short-circuit so a
+        # client that ignored `otp_required` still completes.
+        return await _mark_phone_verified(session, current_user, profile, phone)
+
     redis = await get_redis()
     try:
         await verify_otp(phone, body.code, redis, namespace="customer_phone")
@@ -400,19 +463,9 @@ async def verify_customer_phone_otp(
         raise HTTPException(
             status_code=422, detail={"error": "otp_invalid"}
         ) from exc
-    profile.phone = phone
-    profile.phone_verified_at = datetime.now(timezone.utc)
-    session.add(profile)
-    try:
-        await session.commit()
-    except IntegrityError as exc:
-        await session.rollback()
-        raise HTTPException(
-            status_code=409, detail={"error": "phone_already_in_use"}
-        ) from exc
-    await session.refresh(profile)
+    read = await _mark_phone_verified(session, current_user, profile, phone)
     await consume_otp_key(phone, redis, namespace="customer_phone")
-    return await _profile_response(session, current_user, profile)
+    return read
 
 
 @router.post("/me/deactivate")

@@ -25,3 +25,26 @@ async def test_meta_health_endpoint_returns_ok() -> None:
     body = resp.json()
     assert body["status"] == "ok"
     assert "environment" in body
+
+
+@pytest.mark.asyncio
+async def test_public_config_reports_phone_otp_enabled_by_default() -> None:
+    """Unauthenticated: clients need it before any OTP call to label the
+    'Send code' button honestly."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/meta/public-config")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["phone_otp_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_public_config_reflects_disabled_phone_otp(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "PHONE_OTP_ENABLED", False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/meta/public-config")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["phone_otp_enabled"] is False

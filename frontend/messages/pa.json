@@ -709,6 +709,7 @@
           "rate_limited": "ਬਹੁਤ ਜ਼ਿਆਦਾ ਕੋਸ਼ਿਸ਼ਾਂ. ਬਾਅਦ ‘ਚ ਕੋਸ਼ਿਸ਼ ਕਰੋ."
         },
         "confirmPrompt": "ਅਸੀਂ 6-ਅੰਕੀ ਕੋਡ ਭੇਜਾਂਗੇ:",
+        "confirmPromptNoOtp": "ਇਸ ਨੰਬਰ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ:",
         "editPhone": "ਬਦਲੋ",
         "changePhone": "ਨੰਬਰ ਬਦਲੋ",
         "resendCode": "ਕੋਡ ਮੁੜ ਭੇਜੋ",

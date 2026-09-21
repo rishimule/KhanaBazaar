@@ -711,6 +711,7 @@
           "rate_limited": "Too many attempts. Try again later."
         },
         "confirmPrompt": "We'll send a 6-digit code to:",
+        "confirmPromptNoOtp": "Confirm this number:",
         "editPhone": "Change",
         "changePhone": "Change number",
         "resendCode": "Resend code",

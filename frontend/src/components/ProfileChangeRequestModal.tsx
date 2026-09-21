@@ -13,6 +13,7 @@ import {
   requestSellerPhoneOtp,
   verifySellerPhoneOtp,
 } from "@/lib/sellerPhone";
+import { usePhoneOtpEnabled } from "@/lib/publicConfig";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import { GROUP_LABEL } from "@/lib/changeRequests";
 import {
@@ -242,6 +243,8 @@ export default function ProfileChangeRequestModal({
   const [phoneChangeToken, setPhoneChangeToken] = useState<string | undefined>();
   const [verifiedPhone, setVerifiedPhone] = useState<string | undefined>();
   const [otpBusy, setOtpBusy] = useState(false);
+  // Label only — the request response's `otp_required` decides the flow.
+  const phoneOtpEnabled = usePhoneOtpEnabled();
 
   // Editing the phone after verifying invalidates the token.
   useEffect(() => {
@@ -262,7 +265,14 @@ export default function ProfileChangeRequestModal({
     setError(null);
     setOtpBusy(true);
     try {
-      await requestSellerPhoneOtp(authToken, phoneInputNorm);
+      const res = await requestSellerPhoneOtp(authToken, phoneInputNorm);
+      if (!res.otp_required && res.phone_change_token) {
+        // Phone OTP disabled server-side — the number is accepted as-is and
+        // the token arrived with the request. No code to enter.
+        setPhoneChangeToken(res.phone_change_token);
+        setVerifiedPhone(phoneInputNorm);
+        return;
+      }
       setOtpSent(true);
     } catch (e) {
       setError(phoneOtpErrorMessage(e));
@@ -625,7 +635,15 @@ export default function ProfileChangeRequestModal({
                 disabled={otpBusy || phoneInput.length === 0}
                 onClick={handleSendOtp}
               >
-                {otpBusy ? "Sending…" : "Send code"}
+                {/* With phone OTP disabled this confirms the number
+                    outright, so promising a code would be a lie. */}
+                {phoneOtpEnabled
+                  ? otpBusy
+                    ? "Sending…"
+                    : "Send code"
+                  : otpBusy
+                    ? "Verifying…"
+                    : "Verify number"}
               </button>
             ) : (
               <>

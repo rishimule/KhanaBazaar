@@ -22,6 +22,7 @@ from app.core.otp import (
     RateLimited,
     TooManyAttempts,
     consume_otp_key,
+    enforce_hourly_budget,
     normalize_phone,
     request_otp,
     verify_otp,
@@ -90,6 +91,26 @@ async def request_phone_change_otp(
     ).first()
     if clash is not None:
         raise HTTPException(status_code=409, detail={"error": "phone_taken"})
+
+    if not settings.PHONE_OTP_ENABLED:
+        # No SMS/WhatsApp transport to deliver a code with — take the number
+        # on trust and hand back the token the verify step would have minted.
+        try:
+            await enforce_hourly_budget(phone, redis, namespace=_NAMESPACE)
+        except RateLimited as exc:
+            raise HTTPException(
+                status_code=429,
+                detail={"error": "rate_limited", "retry_after": exc.retry_after},
+            ) from exc
+        assert seller.id is not None
+        return {
+            "ok": True,
+            "otp_required": False,
+            "phone_change_token": create_seller_phone_change_token(
+                seller.id, phone
+            ),
+        }
+
     try:
         code = await request_otp(phone, redis, namespace=_NAMESPACE)
     except RateLimited as exc:
@@ -108,7 +129,11 @@ async def request_phone_change_otp(
         sms_sender=sender,
         whatsapp_sender=whatsapp_sender,
     )
-    return {"ok": True, "expires_in": settings.OTP_TTL_SECONDS}
+    return {
+        "ok": True,
+        "otp_required": True,
+        "expires_in": settings.OTP_TTL_SECONDS,
+    }
 
 
 @router.post("/me/phone/otp/verify")
@@ -123,6 +148,16 @@ async def verify_phone_change_otp(
         raise HTTPException(
             status_code=400, detail={"error": "invalid_phone"}
         ) from None
+    assert seller.id is not None
+    if not settings.PHONE_OTP_ENABLED:
+        # Nothing was stored to check the code against — short-circuit so a
+        # client that ignored `otp_required` still completes.
+        return {
+            "phone_change_token": create_seller_phone_change_token(
+                seller.id, phone
+            )
+        }
+
     try:
         await verify_otp(phone, body.code, redis, namespace=_NAMESPACE)
     except CodeExpired:
@@ -138,6 +173,5 @@ async def verify_phone_change_otp(
             status_code=400, detail={"error": "invalid_code"}
         ) from None
     await consume_otp_key(phone, redis, namespace=_NAMESPACE)
-    assert seller.id is not None
     token = create_seller_phone_change_token(seller.id, phone)
     return {"phone_change_token": token}
