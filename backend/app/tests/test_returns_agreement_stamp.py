@@ -78,7 +78,7 @@ async def test_confirmation_without_an_agreement_keeps_the_code_usable(
     await publish_return_agreement(session, version=1)
     as_customer(seed.customer_user)
     rid = await _create(client, seed)
-    await session.exec(  # type: ignore[call-overload]
+    await session.exec(
         delete(PolicyDocument).where(
             PolicyDocument.kind == PolicyKind.return_agreement  # type: ignore[arg-type]
         )
