@@ -477,6 +477,10 @@ async def confirm_return_request(
             409, "illegal_return_transition",
             **{"from": request.status.value, "to": "active"},
         )
+    # The customer is accepting whatever agreement is published now — the
+    # return page renders the current one. Checked before the OTP so a missing
+    # agreement never burns the code.
+    agreement_version = await _require_agreement_version(session)
 
     redis = await get_redis()
     identifier = f"{user.id}:{return_id}"
@@ -485,7 +489,10 @@ async def confirm_return_request(
     except (CodeExpired, InvalidCode, TooManyAttempts) as exc:
         raise returns_svc.ReturnError(422, "return_otp_invalid") from exc
 
-    await returns_svc.confirm_return(session, request, actor_user_id=_pk(user.id))
+    await returns_svc.confirm_return(
+        session, request, actor_user_id=_pk(user.id),
+        agreement_version=agreement_version,
+    )
     await session.commit()
     await session.refresh(request)
     await consume_otp_key(identifier, redis, namespace="return_initiate")

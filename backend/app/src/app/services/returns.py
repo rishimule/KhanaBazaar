@@ -351,7 +351,11 @@ async def create_return(
 
 
 async def confirm_return(
-    session: AsyncSession, request: ReturnRequest, *, actor_user_id: int
+    session: AsyncSession,
+    request: ReturnRequest,
+    *,
+    actor_user_id: int,
+    agreement_version: Optional[int] = None,
 ) -> ReturnRequest:
     """Activate a confirmed return and issue the handover code the seller will
     type. Flushes; caller commits.
@@ -370,6 +374,11 @@ async def confirm_return(
         raise ReturnError(409, "confirmation_expired")
 
     request.agreement_accepted_at = now
+    if agreement_version is not None:
+        # The agreement accepted is the one on screen at confirmation, which
+        # can be newer than the one published when the return was created — a
+        # seller-started return may wait days for the customer.
+        request.agreement_policy_version = agreement_version
     request.confirmed_at = now
     request.handover_expires_at = now + timedelta(days=settings.RETURN_HANDOVER_DAYS)
     request.receipt_otp = generate_code()
