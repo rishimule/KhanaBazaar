@@ -48,6 +48,7 @@ async def get_notifications(
             NotificationRead(
                 id=n.id if n.id is not None else 0,
                 order_id=n.order_id,
+                return_request_id=n.return_request_id,
                 type=n.type.value,
                 title=n.title,
                 body=n.body,
@@ -145,6 +146,7 @@ async def get_seller_notifications(
             NotificationRead(
                 id=n.id if n.id is not None else 0,
                 order_id=n.order_id,
+                return_request_id=n.return_request_id,
                 type=n.type.value,
                 title=n.title,
                 body=n.body,

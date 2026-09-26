@@ -9,6 +9,9 @@ from pydantic import BaseModel, Field
 class NotificationRead(BaseModel):
     id: int
     order_id: Optional[int]
+    # Set on return notifications, which carry no order id; the bells use it
+    # to deep-link to the return.
+    return_request_id: Optional[int] = None
     type: str
     title: str
     body: str
