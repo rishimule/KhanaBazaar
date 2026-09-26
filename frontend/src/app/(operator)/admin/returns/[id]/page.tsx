@@ -3,7 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { use, useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import AdminReturnActions from "@/components/returns/AdminReturnActions";
 import ReturnStatusBadge from "@/components/returns/ReturnStatusBadge";
 import { useAuth } from "@/lib/AuthContext";
@@ -19,6 +19,7 @@ export default function AdminReturnDetailPage({
   const { id } = use(params);
   const returnId = Number(id);
   const t = useTranslations("Admin.returns");
+  const locale = useLocale();
   const { token } = useAuth();
   const [request, setRequest] = useState<ReturnRequest | null>(null);
   const [failed, setFailed] = useState(false);
@@ -82,6 +83,32 @@ export default function AdminReturnDetailPage({
             <>
               <dt>{t("fieldReversal")}</dt>
               <dd>₹{request.credit_reversal_amount.toFixed(2)}</dd>
+            </>
+          )}
+          {request.store_credit_amount > 0 && (
+            <>
+              <dt>{t("fieldStoreCredit")}</dt>
+              <dd>₹{request.store_credit_amount.toFixed(2)}</dd>
+            </>
+          )}
+          {request.payment_amount > 0 && (
+            <>
+              <dt>{t("fieldPayment")}</dt>
+              <dd>
+                ₹{request.payment_amount.toFixed(2)}
+                {request.payment_lapsed ? ` · ${t("paymentLapsed")}` : ""}
+              </dd>
+            </>
+          )}
+          {request.payment_confirm_expires_at && (
+            <>
+              <dt>{t("fieldPaymentDeadline")}</dt>
+              <dd>
+                {new Intl.DateTimeFormat(locale, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(request.payment_confirm_expires_at))}
+              </dd>
             </>
           )}
           {request.rejection_reason && (
