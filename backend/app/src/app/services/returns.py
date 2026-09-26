@@ -592,7 +592,9 @@ async def expire_stale_returns(
 
     Two deadlines, one pass: a return the customer never confirmed, and a
     confirmed return whose goods never arrived. Both hold item lines locked,
-    which is why neither can be left open indefinitely.
+    which is why neither can be left open indefinitely. The third stalled
+    stage — an unconfirmed cash payment — is `close_lapsed_payments`, because
+    it ends in `closed` rather than here.
     """
     moment = now or datetime.now(timezone.utc)
     # skip_locked: a return currently being accepted or withdrawn is somebody
@@ -642,8 +644,86 @@ async def expire_stale_returns(
             status_value="expired",
             customer_profile_id=request.customer_profile_id,
         )
+        await record_return_notification(
+            session,
+            return_request_id=_pk(request.id),
+            type=NotificationType.SellerReturnRequest,
+            title=f"Return #{request.id} expired",
+            body="It wasn't completed in time and no longer holds the items.",
+            status_value="expired",
+            seller_profile_id=request.seller_profile_id,
+        )
         expired_ids.append(_pk(request.id))
     return expired_ids
+
+
+async def close_lapsed_payments(
+    session: AsyncSession, *, now: Optional[datetime] = None
+) -> list[int]:
+    """Close cash returns whose payment was never confirmed. Flushes; caller commits.
+
+    The third stalled stage, beside `expire_stale_returns`. It lands in
+    `closed`, not `expired`: the goods came back and the settlement already
+    ran, so the item lines must stay locked. `closed_by_user_id` stays NULL —
+    that is how `payment_lapsed` tells this close apart from every human one.
+    """
+    moment = now or datetime.now(timezone.utc)
+    # skip_locked, as in the expiry sweep: a return the customer is confirming
+    # right now is theirs to close.
+    lapsed = list(
+        (
+            await session.exec(
+                select(ReturnRequest)
+                .with_for_update(skip_locked=True)
+                .where(
+                    col(ReturnRequest.status)
+                    == ReturnStatus.awaiting_payment_confirmation,
+                    col(ReturnRequest.payment_confirm_expires_at).is_not(None),
+                    col(ReturnRequest.payment_confirm_expires_at) < moment,
+                )
+            )
+        ).all()
+    )
+    closed_ids: list[int] = []
+    for request in lapsed:
+        request.closed_at = moment
+        request.closed_by_user_id = None
+        await record_transition(
+            session, request, to_status=ReturnStatus.closed,
+            actor_role="system", actor_user_id=None,
+            note="payment confirmation lapsed",
+        )
+        amount = f"₹{request.payment_amount:.2f}"
+        # In-app rows inside the sweep's transaction; email is fired by the
+        # caller after commit, exactly as for expiry.
+        await record_return_notification(
+            session,
+            return_request_id=_pk(request.id),
+            type=NotificationType.ReturnStatusUpdate,
+            title=f"Return #{request.id} closed",
+            body=(
+                f"You didn't confirm receiving the {amount} payment in time, so "
+                "this return closed automatically. If the store hasn't paid "
+                "you, contact support."
+            ),
+            status_value="closed",
+            customer_profile_id=request.customer_profile_id,
+        )
+        await record_return_notification(
+            session,
+            return_request_id=_pk(request.id),
+            type=NotificationType.SellerReturnRequest,
+            title=f"Return #{request.id} closed",
+            body=(
+                f"The customer didn't confirm receiving {amount} within "
+                f"{settings.RETURN_PAYMENT_CONFIRM_DAYS} days, so the return "
+                "closed automatically."
+            ),
+            status_value="closed",
+            seller_profile_id=request.seller_profile_id,
+        )
+        closed_ids.append(_pk(request.id))
+    return closed_ids
 
 
 async def reissue_receipt_otp(
