@@ -61,9 +61,12 @@ class Settings(BaseSettings):
     DELIVERY_OTP_RESEND_COOLDOWN: int = 60
 
     # Returns. RETURN_CONFIRM_HOURS bounds the awaiting-customer-confirmation
-    # stage; RETURN_HANDOVER_DAYS bounds an active return waiting for goods.
+    # stage; RETURN_HANDOVER_DAYS bounds an active return waiting for goods;
+    # RETURN_PAYMENT_CONFIRM_DAYS bounds a cash return waiting for the
+    # customer to confirm the money arrived, after which it closes on its own.
     RETURN_CONFIRM_HOURS: int = 48
     RETURN_HANDOVER_DAYS: int = 7
+    RETURN_PAYMENT_CONFIRM_DAYS: int = 7
     RETURN_OTP_MAX_ATTEMPTS: int = 5
     RETURN_OTP_RESEND_COOLDOWN: int = 60
 

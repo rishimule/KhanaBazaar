@@ -514,6 +514,10 @@ async def accept_return(
     request.receipt_otp = None  # consume the code
 
     result = await settle(session, request, actor_user_id=actor_user_id)
+    if result.next_status == ReturnStatus.awaiting_payment_confirmation:
+        request.payment_confirm_expires_at = now + timedelta(
+            days=settings.RETURN_PAYMENT_CONFIRM_DAYS
+        )
     if restock:
         await restock_items(session, request)
 

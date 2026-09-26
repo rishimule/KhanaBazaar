@@ -137,6 +137,20 @@ def _pk(value: int | None) -> int:
     return value
 
 
+def _payment_lapsed(request: ReturnRequest) -> bool:
+    """A cash return the sweep closed because the payment was never confirmed.
+
+    Derived, not stored: the sweep is the only path into `closed` that records
+    no acting user — customer confirmation, seller/admin acceptance and admin
+    force-close all set `closed_by_user_id`.
+    """
+    return (
+        request.status == ReturnStatus.closed
+        and request.payment_amount > 0
+        and request.closed_by_user_id is None
+    )
+
+
 def _serialize(
     request: ReturnRequest,
     items: list[ReturnRequestItem],
@@ -160,6 +174,8 @@ def _serialize(
         window_expires_at=request.window_expires_at,
         confirm_expires_at=request.confirm_expires_at,
         handover_expires_at=request.handover_expires_at,
+        payment_confirm_expires_at=request.payment_confirm_expires_at,
+        payment_lapsed=_payment_lapsed(request),
         created_at=request.created_at,
         items=[
             ReturnItemRead(
