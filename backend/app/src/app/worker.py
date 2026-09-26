@@ -759,6 +759,11 @@ _ACTION_LABELS = {
     "order.cancel": "Cancelled",
     "order.address_override": "Delivery address updated",
     "order.transition": "Status changed",
+    # Return force paths reuse the order-action email; the return id rides in
+    # the reason line because the template is order-centric.
+    "return.force_accept": "Return accepted by an admin",
+    "return.force_reject": "Return rejected by an admin",
+    "return.force_close": "Return closed by an admin",
 }
 
 

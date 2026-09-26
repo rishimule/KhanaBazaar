@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.core.otp import (
     CodeExpired,
     InvalidCode,
@@ -69,6 +70,7 @@ from app.services import returns as returns_svc
 from app.services.admin_audit import log as audit_log
 from app.services.consent import get_current_version
 from app.services.notifications import record_return_notification
+from app.services.order_emails import dispatch_admin_order_action
 from app.services.return_comms import dispatch_return_otp, dispatch_return_status
 
 router = APIRouter()
@@ -263,10 +265,21 @@ def _return_copy(
             NotificationType.ReturnReceiptOtp,
         )
     if event_key == "return_accepted":
+        if request.status == ReturnStatus.awaiting_payment_confirmation:
+            body = (
+                "The store received your items and will pay you "
+                f"₹{request.payment_amount:.2f} directly. Confirm in the app "
+                "once you're paid — it closes automatically after "
+                f"{settings.RETURN_PAYMENT_CONFIRM_DAYS} days."
+            )
+        else:
+            body = (
+                "The store received your items. Check the app for how the "
+                "amount is being settled."
+            )
         return (
             f"Return #{rid} accepted",
-            "The store received your items. Check the app for how the amount "
-            "is being settled.",
+            body,
             request.status.value,
             NotificationType.ReturnStatusUpdate,
         )
@@ -302,11 +315,54 @@ def _return_copy(
     )
 
 
+_ADMIN_SELLER_TITLES = {
+    "return_accepted": "An admin accepted return #{rid}",
+    "return_rejected": "An admin rejected return #{rid}",
+    "return_closed": "An admin closed return #{rid}",
+    "return_withdrawn": "An admin withdrew return #{rid}",
+}
+
+
+def _seller_return_copy(
+    request: ReturnRequest, event_key: str, *, admin_reason: Optional[str]
+) -> tuple[str, str]:
+    """Seller-facing (title, body). `admin_reason` marks an admin force path —
+    the seller did not act, so they are told who did and why."""
+    rid = request.id
+    if admin_reason is not None:
+        return (
+            _ADMIN_SELLER_TITLES[event_key].format(rid=rid),
+            f"Reason: {admin_reason}",
+        )
+    if event_key == "return_confirmed":
+        return (
+            f"Return #{rid} confirmed",
+            "A customer confirmed a return. Collect the items and enter their "
+            "handover code to accept it.",
+        )
+    if event_key == "return_closed":
+        return (
+            f"Return #{rid} closed",
+            f"The customer confirmed receiving ₹{request.payment_amount:.2f}.",
+        )
+    raise ValueError(f"no seller copy for {event_key}")
+
+
 async def _notify_return(
-    session: AsyncSession, request: ReturnRequest, event_key: str
+    session: AsyncSession,
+    request: ReturnRequest,
+    event_key: str,
+    *,
+    notify_seller: bool = False,
+    admin_reason: Optional[str] = None,
 ) -> None:
     """Best-effort in-app + email + WhatsApp. Never raises into the request
     path — a notification outage must not fail a return that already committed.
+
+    The customer part is skipped for a non-active account, matching
+    record_and_dispatch_notification in api/orders.py. The seller part is not:
+    a suspended or deleted customer's return still concerns the seller, and
+    the admin force paths exist for exactly those returns.
     """
     # Capture before any commit: commit expires ORM attributes, and reading
     # request.id afterwards triggers a sync lazy load -> MissingGreenlet.
@@ -319,8 +375,6 @@ async def _notify_return(
                 .where(CustomerProfile.id == request.customer_profile_id)
             )
         ).first()
-        # Skip all comms for a non-active account, matching
-        # record_and_dispatch_notification in api/orders.py.
         if owner is not None and owner.account_status == AccountStatus.active:
             title, body, status_value, notif_type = _return_copy(request, event_key)
             await record_return_notification(
@@ -328,19 +382,18 @@ async def _notify_return(
                 title=title, body=body, status_value=status_value,
                 customer_profile_id=request.customer_profile_id,
             )
-            if event_key == "return_confirmed":
-                await record_return_notification(
-                    session, return_request_id=return_id,
-                    type=NotificationType.SellerReturnRequest,
-                    title=f"Return #{request.id} confirmed",
-                    body=(
-                        "A customer confirmed a return. Collect the items and "
-                        "enter their handover code to accept it."
-                    ),
-                    status_value="active",
-                    seller_profile_id=request.seller_profile_id,
-                )
-            await session.commit()
+        if notify_seller:
+            seller_title, seller_body = _seller_return_copy(
+                request, event_key, admin_reason=admin_reason
+            )
+            await record_return_notification(
+                session, return_request_id=return_id,
+                type=NotificationType.SellerReturnRequest,
+                title=seller_title, body=seller_body,
+                status_value=request.status.value,
+                seller_profile_id=request.seller_profile_id,
+            )
+        await session.commit()
     except Exception:  # noqa: BLE001 - notifications are never load-bearing
         logger.exception("return notification failed return_id=%s", return_id)
         await session.rollback()
@@ -438,7 +491,7 @@ async def confirm_return_request(
     await consume_otp_key(identifier, redis, namespace="return_initiate")
     # Fires before the code is hidden from later payloads — the notification and
     # the WhatsApp message both carry it.
-    await _notify_return(session, request, "return_confirmed")
+    await _notify_return(session, request, "return_confirmed", notify_seller=True)
     return _serialize(
         request, await _load_items(session, return_id), include_receipt_otp=True
     )
@@ -471,6 +524,8 @@ async def resend_receipt_otp(
     await returns_svc.reissue_receipt_otp(session, request)
     await session.commit()
     await session.refresh(request)
+    # Customer-only: the seller was told when the return was confirmed, and a
+    # fresh code is not a fresh return.
     await _notify_return(session, request, "return_confirmed")
     return _serialize(
         request, await _load_items(session, return_id), include_receipt_otp=True
@@ -527,7 +582,7 @@ async def confirm_payment_received(
     await session.commit()
     await session.refresh(request)
     await consume_otp_key(identifier, redis, namespace="return_payment")
-    await _notify_return(session, request, "return_closed")
+    await _notify_return(session, request, "return_closed", notify_seller=True)
     return _serialize(request, await _load_items(session, return_id))
 
 
@@ -997,6 +1052,7 @@ async def admin_force_accept(
 ) -> ReturnRead:
     request = await _load_return(session, return_id, lock=True)
     reason = _require_reason(body.reason)
+    order_id = request.order_id
     before = {"status": request.status.value}
     await returns_svc.accept_return(
         session, request, actor_role="admin", actor_user_id=_pk(admin.id),
@@ -1009,7 +1065,12 @@ async def admin_force_accept(
     )
     await session.commit()
     await session.refresh(request)
-    await _notify_return(session, request, "return_accepted")
+    await _notify_return(
+        session, request, "return_accepted", notify_seller=True, admin_reason=reason
+    )
+    dispatch_admin_order_action(
+        order_id, "return.force_accept", f"Return #{return_id}: {reason}"
+    )
     return _serialize(request, await _load_items(session, return_id))
 
 
@@ -1022,6 +1083,7 @@ async def admin_force_reject(
 ) -> ReturnRead:
     request = await _load_return(session, return_id, lock=True)
     reason = _require_reason(body.reason)
+    order_id = request.order_id
     before = {"status": request.status.value}
     await returns_svc.reject_return(
         session, request, actor_role="admin", actor_user_id=_pk(admin.id),
@@ -1033,7 +1095,12 @@ async def admin_force_reject(
     )
     await session.commit()
     await session.refresh(request)
-    await _notify_return(session, request, "return_rejected")
+    await _notify_return(
+        session, request, "return_rejected", notify_seller=True, admin_reason=reason
+    )
+    dispatch_admin_order_action(
+        order_id, "return.force_reject", f"Return #{return_id}: {reason}"
+    )
     return _serialize(request, await _load_items(session, return_id))
 
 
@@ -1055,6 +1122,7 @@ async def admin_force_close(
     """
     request = await _load_return(session, return_id, lock=True)
     reason = _require_reason(body.reason)
+    order_id = request.order_id
     if request.status == ReturnStatus.awaiting_payment_confirmation:
         target = ReturnStatus.closed
     elif request.status in (
@@ -1082,7 +1150,17 @@ async def admin_force_close(
     )
     await session.commit()
     await session.refresh(request)
-    await _notify_return(session, request, "return_closed")
+    # Nothing was settled on the withdrawn branch, so it must not say the
+    # return is complete.
+    event_key = (
+        "return_withdrawn" if target == ReturnStatus.withdrawn else "return_closed"
+    )
+    await _notify_return(
+        session, request, event_key, notify_seller=True, admin_reason=reason
+    )
+    dispatch_admin_order_action(
+        order_id, "return.force_close", f"Return #{return_id}: {reason}"
+    )
     return _serialize(request, await _load_items(session, return_id))
 
 
