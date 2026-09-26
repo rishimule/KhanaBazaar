@@ -3,7 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { use, useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import ReturnStatusBadge from "@/components/returns/ReturnStatusBadge";
 import { useAuth } from "@/lib/AuthContext";
 import { apiErrorCode } from "@/lib/errors";
@@ -35,6 +35,7 @@ export default function SellerReturnDetailPage({
   const { id } = use(params);
   const returnId = Number(id);
   const t = useTranslations("Seller.returns");
+  const locale = useLocale();
   const { token } = useAuth();
 
   const [request, setRequest] = useState<ReturnRequest | null>(null);
@@ -78,6 +79,33 @@ export default function SellerReturnDetailPage({
   if (!request) return <p className={styles.muted}>{t("loading")}</p>;
 
   const decidable = request.status === "active";
+  const settled =
+    request.status === "awaiting_payment_confirmation" ||
+    request.status === "closed";
+  const hasSettlement =
+    request.credit_reversal_amount > 0 ||
+    request.store_credit_amount > 0 ||
+    request.payment_amount > 0;
+  const paymentDeadline = request.payment_confirm_expires_at
+    ? new Intl.DateTimeFormat(locale, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(request.payment_confirm_expires_at))
+    : "—";
+
+  /** A locked code is replaced by the customer, which also resets the attempt
+   *  counter server-side; drop the local lock and pull the row fresh. */
+  const retryAfterLock = async () => {
+    if (!token) return;
+    setLocked(false);
+    setError(null);
+    setOtp("");
+    try {
+      setRequest(await getSellerReturn(token, request.id));
+    } catch {
+      setFailed(true);
+    }
+  };
 
   const doAccept = async () => {
     if (!token) return;
@@ -158,6 +186,53 @@ export default function SellerReturnDetailPage({
         </p>
       </section>
 
+      {request.status === "awaiting_payment_confirmation" &&
+        request.payment_amount > 0 && (
+          <section className={`${styles.card} ${styles.payCard}`}>
+            <h3 className={styles.heading}>{t("payTitle")}</h3>
+            <p className={styles.payBody}>
+              {t("payBody", {
+                amount: request.payment_amount.toFixed(2),
+                date: paymentDeadline,
+              })}
+            </p>
+          </section>
+        )}
+
+      {settled && hasSettlement && (
+        <section className={styles.card}>
+          <h3 className={styles.heading}>{t("settlementTitle")}</h3>
+          <ul className={styles.settlement}>
+            {request.credit_reversal_amount > 0 && (
+              <li>
+                {t("settlementReversal", {
+                  amount: request.credit_reversal_amount.toFixed(2),
+                })}
+              </li>
+            )}
+            {request.store_credit_amount > 0 && (
+              <li>
+                {t("settlementStoreCredit", {
+                  amount: request.store_credit_amount.toFixed(2),
+                })}
+              </li>
+            )}
+            {request.payment_amount > 0 && (
+              <li>
+                {t(
+                  request.payment_lapsed
+                    ? "paymentLapsed"
+                    : request.status === "closed"
+                      ? "settlementPaymentDone"
+                      : "settlementPaymentDue",
+                  { amount: request.payment_amount.toFixed(2) }
+                )}
+              </li>
+            )}
+          </ul>
+        </section>
+      )}
+
       {decidable && (
         <section className={styles.card}>
           <h3 className={styles.heading}>{t("acceptTitle")}</h3>
@@ -188,6 +263,11 @@ export default function SellerReturnDetailPage({
           >
             {t("acceptAction")}
           </button>
+          {locked && (
+            <button type="button" className="btn" onClick={retryAfterLock}>
+              {t("retryAction")}
+            </button>
+          )}
         </section>
       )}
 
