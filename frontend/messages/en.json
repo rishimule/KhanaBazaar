@@ -1004,7 +1004,26 @@
       "resumeTitle": "You already started a return for this order",
       "resumeBody": "It is waiting for your confirmation code and is holding these items. Resume it, or discard it to choose different items.",
       "resumeCta": "Resume confirmation",
-      "discardCta": "Discard and start over"
+      "discardCta": "Discard and start over",
+      "confirmTitle": "Confirm this return",
+      "startedBySelf": "You started this return.",
+      "startedByStore": "The store started this return for you. Check the details and the agreement before you confirm.",
+      "startedBySupport": "Our support team started this return for you. Check the details and the agreement before you confirm.",
+      "reasonLine": "Reason: {reason}",
+      "choiceCredit": "You'll get store credit to spend at this store.",
+      "choicePayment": "The store will pay you back directly.",
+      "confirmBy": "Confirm by {date}, or this return expires.",
+      "agreementTitle": "Return agreement",
+      "agreementLoadFailed": "We couldn't load the return agreement. Please try again.",
+      "handoverResend": "Get a new code",
+      "handoverResendDone": "Here's your new code. Show it to the store.",
+      "handoverResendCooldown": "Please wait {seconds}s before asking again.",
+      "handoverResendFailed": "We couldn't get a new code. Please try again.",
+      "handoverLockedHint": "If the store says the code is locked, get a new one here.",
+      "paymentDeadline": "Confirm by {date}. If you don't, this return closes automatically.",
+      "paymentSupport": "Not paid yet? Contact support",
+      "settlementPaymentDone": "₹{amount} was paid back to you directly.",
+      "paymentLapsed": "This return closed automatically because receipt of the ₹{amount} payment wasn't confirmed in time. If the store hasn't paid you, contact support."
     },
     "storeCredit": {
       "heading": "Store credit",
@@ -1658,7 +1677,7 @@
       "errors": {
         "receipt_otp_invalid": "That code isn't right.",
         "receipt_otp_invalid_remaining": "That code isn't right. {remaining} tries left.",
-        "receipt_otp_locked": "Too many wrong codes. An admin has to resolve this return.",
+        "receipt_otp_locked": "Too many wrong codes. Ask the customer to get a new code in their app, then tap Try again.",
         "receipt_otp_required": "Enter the customer's handover code.",
         "illegal_return_transition": "This return has already been decided.",
         "reason_required": "Please give a reason.",
@@ -1718,7 +1737,16 @@
           "items_already_returned": "Every item on this order is already in a return.",
           "unknown": "This order isn't eligible for a return."
         }
-      }
+      },
+      "settlementTitle": "How it was settled",
+      "settlementReversal": "₹{amount} taken off what the customer owes you.",
+      "settlementStoreCredit": "₹{amount} added to the customer's store credit with you.",
+      "settlementPaymentDue": "₹{amount} to pay the customer directly.",
+      "settlementPaymentDone": "₹{amount} paid to the customer.",
+      "payTitle": "Pay the customer",
+      "payBody": "Pay ₹{amount} to the customer directly. They confirm receipt in their app; if they don't, this return closes automatically on {date}.",
+      "paymentLapsed": "Closed automatically — the customer didn't confirm receiving ₹{amount}.",
+      "retryAction": "Try again"
     }
   },
   "Admin": {
@@ -2512,7 +2540,11 @@
         "customer": "Customer",
         "seller": "Seller",
         "admin": "Admin"
-      }
+      },
+      "fieldStoreCredit": "Store credit granted",
+      "fieldPayment": "Cash to the customer",
+      "fieldPaymentDeadline": "Payment confirm-by",
+      "paymentLapsed": "Closed automatically — payment not confirmed"
     }
   },
   "Shared": {

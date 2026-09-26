@@ -18,6 +18,12 @@ import type {
   StoreCreditEntry,
 } from "@/types";
 
+/** The published return agreement, as `/policies/return_agreement` serves it. */
+export interface ReturnAgreement {
+  version: number;
+  body: string;
+}
+
 export interface CreateReturnOnBehalfBody extends CreateReturnBody {
   customer_profile_id: number;
 }
@@ -78,6 +84,29 @@ export async function withdrawReturn(
     undefined,
     token
   );
+}
+
+/**
+ * Reissue the handover code the seller types. Customer-only — they hold it.
+ * The way out when a seller mistypes it until it locks.
+ */
+export async function resendReceiptOtp(
+  token: string,
+  returnId: number
+): Promise<ReturnRequest> {
+  return post<ReturnRequest>(
+    `/api/v1/returns/${returnId}/receipt-otp/resend`,
+    undefined,
+    token
+  );
+}
+
+/**
+ * The published return agreement. 404s when none is published — the backend
+ * then refuses confirmation with `agreement_unavailable` anyway.
+ */
+export async function getReturnAgreement(): Promise<ReturnAgreement> {
+  return get<ReturnAgreement>("/api/v1/policies/return_agreement");
 }
 
 export async function requestPaymentOtp(
