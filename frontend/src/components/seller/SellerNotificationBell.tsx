@@ -85,7 +85,12 @@ export default function SellerNotificationBell() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const onItem = (id: number, orderId: number | null, wasUnread: boolean) => {
+  const onItem = (
+    id: number,
+    orderId: number | null,
+    returnId: number | null,
+    wasUnread: boolean
+  ) => {
     setOpen(false);
     // The local state below is optimistic. If the write failed, re-reading the
     // feed is what keeps the badge honest — swallowing left the count claiming
@@ -93,6 +98,11 @@ export default function SellerNotificationBell() {
     if (token) void markSellerNotificationRead(token, id).catch(() => void load());
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     if (wasUnread) setUnread((u) => Math.max(0, u - 1));
+    // Return notifications carry no order id; they used to land on /seller/plan.
+    if (returnId) {
+      router.push(`/seller/returns/${returnId}`);
+      return;
+    }
     router.push(orderId ? `/seller/orders/${orderId}` : "/seller/plan");
   };
 
@@ -153,7 +163,7 @@ export default function SellerNotificationBell() {
                   <button
                     type="button"
                     className={`${styles.item} ${n.read ? "" : styles.unread}`}
-                    onClick={() => onItem(n.id, n.order_id, !n.read)}
+                    onClick={() => onItem(n.id, n.order_id, n.return_request_id ?? null, !n.read)}
                   >
                     {n.image_url && (
                       // eslint-disable-next-line @next/next/no-img-element

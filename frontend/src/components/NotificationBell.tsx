@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useNotifications } from "@/lib/NotificationContext";
 import { usePushOptIn } from "@/components/pwa/usePushOptIn";
+import type { OrderNotification } from "@/types";
 import styles from "./NotificationBell.module.css";
 
 function BellIcon() {
@@ -33,10 +34,16 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const onItem = (id: number, orderId: number | null) => {
-    void markRead(id);
+  const onItem = (n: OrderNotification) => {
+    void markRead(n.id);
     setOpen(false);
-    router.push(orderId ? `/account/orders/${orderId}` : "/account/orders");
+    // Return notifications carry no order id, so without this they all fell
+    // through to the orders list instead of the return they are about.
+    if (n.return_request_id) {
+      router.push(`/account/returns/${n.return_request_id}`);
+      return;
+    }
+    router.push(n.order_id ? `/account/orders/${n.order_id}` : "/account/orders");
   };
 
   const showBanner =
@@ -96,7 +103,7 @@ export default function NotificationBell() {
                   <button
                     type="button"
                     className={`${styles.item} ${n.read ? "" : styles.unread}`}
-                    onClick={() => onItem(n.id, n.order_id)}
+                    onClick={() => onItem(n)}
                   >
                     {n.image_url && (
                       // eslint-disable-next-line @next/next/no-img-element
