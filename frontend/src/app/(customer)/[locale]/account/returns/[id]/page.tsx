@@ -5,6 +5,7 @@
 import { use, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import ReceiptCodePanel from "@/components/returns/ReceiptCodePanel";
+import ReturnConfirmPanel from "@/components/returns/ReturnConfirmPanel";
 import ReturnStatusBadge from "@/components/returns/ReturnStatusBadge";
 import ReturnTimeline from "@/components/returns/ReturnTimeline";
 import { useAuth } from "@/lib/AuthContext";
@@ -119,6 +120,16 @@ export default function ReturnDetailPage({
       </header>
 
       <ReturnTimeline request={request} />
+
+      {/* The one place a waiting return is confirmed — including returns the
+          store or support started for the customer. */}
+      {request.status === "awaiting_customer_confirmation" && (
+        <ReturnConfirmPanel
+          request={request}
+          variant="page"
+          onConfirmed={setRequest}
+        />
+      )}
 
       <ReceiptCodePanel request={request} />
 
