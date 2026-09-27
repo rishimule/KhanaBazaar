@@ -594,6 +594,28 @@ async def close_after_payment(
     return request
 
 
+def payment_deadline(request: ReturnRequest) -> Optional[datetime]:
+    """When a parked cash return closes on its own, or None if it never will.
+
+    Acceptance stamps `payment_confirm_expires_at`. A return parked by code
+    that predates the column has none — the migration runs before the new API
+    rolls out, so the old API can still accept cash returns for a few minutes
+    — and falls back to decision time plus the window, so it cannot become the
+    never-closing return the deadline exists to prevent. The sweep and the API
+    both read this, so the date a customer is shown is the date the sweep uses.
+    """
+    if request.payment_confirm_expires_at is not None:
+        return request.payment_confirm_expires_at
+    if (
+        request.status == ReturnStatus.awaiting_payment_confirmation
+        and request.decided_at is not None
+    ):
+        return request.decided_at + timedelta(
+            days=settings.RETURN_PAYMENT_CONFIRM_DAYS
+        )
+    return None
+
+
 async def expire_stale_returns(
     session: AsyncSession, *, now: Optional[datetime] = None
 ) -> list[int]:
@@ -677,6 +699,10 @@ async def close_lapsed_payments(
     that is how `payment_lapsed` tells this close apart from every human one.
     """
     moment = now or datetime.now(timezone.utc)
+    # Mirrors `payment_deadline`: a stamped deadline, or — for a return parked
+    # before the column existed — decision time plus the window.
+    unstamped_cutoff = moment - timedelta(days=settings.RETURN_PAYMENT_CONFIRM_DAYS)
+    deadline = col(ReturnRequest.payment_confirm_expires_at)
     # skip_locked, as in the expiry sweep: a return the customer is confirming
     # right now is theirs to close.
     lapsed = list(
@@ -687,14 +713,22 @@ async def close_lapsed_payments(
                 .where(
                     col(ReturnRequest.status)
                     == ReturnStatus.awaiting_payment_confirmation,
-                    col(ReturnRequest.payment_confirm_expires_at).is_not(None),
-                    col(ReturnRequest.payment_confirm_expires_at) < moment,
+                    or_(
+                        and_(deadline.is_not(None), deadline < moment),
+                        and_(
+                            deadline.is_(None),
+                            col(ReturnRequest.decided_at).is_not(None),
+                            col(ReturnRequest.decided_at) < unstamped_cutoff,
+                        ),
+                    ),
                 )
             )
         ).all()
     )
     closed_ids: list[int] = []
     for request in lapsed:
+        # Record the deadline it was judged by, even for an unstamped row.
+        request.payment_confirm_expires_at = payment_deadline(request)
         request.closed_at = moment
         request.closed_by_user_id = None
         await record_transition(

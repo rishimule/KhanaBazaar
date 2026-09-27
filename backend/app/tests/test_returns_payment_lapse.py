@@ -125,20 +125,16 @@ async def test_lapse_notifies_customer_and_seller(session: AsyncSession) -> None
     assert seller[0].return_request_id == pk(req.id)
 
 
-async def test_future_and_missing_deadlines_are_untouched(
-    session: AsyncSession,
-) -> None:
+async def test_future_deadline_is_untouched(session: AsyncSession) -> None:
+    """A missing deadline has its own rules — tests/test_returns_hardening.py."""
     seed = await seed_delivered_order(session)
     pending = await _parked(session, seed, deadline=timedelta(days=1))
-    other = await seed_delivered_order(session)
-    legacy = await _parked(session, other, deadline=None)
 
     assert await close_lapsed_payments(session) == []
     await session.commit()
 
-    for rid in (pk(pending.id), pk(legacy.id)):
-        row = await _reload(session, rid)
-        assert row.status == ReturnStatus.awaiting_payment_confirmation
+    row = await _reload(session, pk(pending.id))
+    assert row.status == ReturnStatus.awaiting_payment_confirmation
 
 
 async def test_lapse_keeps_the_item_lines_locked(session: AsyncSession) -> None:

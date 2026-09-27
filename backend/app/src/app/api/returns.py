@@ -176,7 +176,7 @@ def _serialize(
         window_expires_at=request.window_expires_at,
         confirm_expires_at=request.confirm_expires_at,
         handover_expires_at=request.handover_expires_at,
-        payment_confirm_expires_at=request.payment_confirm_expires_at,
+        payment_confirm_expires_at=returns_svc.payment_deadline(request),
         payment_lapsed=_payment_lapsed(request),
         created_at=request.created_at,
         items=[
@@ -325,15 +325,16 @@ _ADMIN_SELLER_TITLES = {
 
 def _seller_return_copy(
     request: ReturnRequest, event_key: str, *, admin_reason: Optional[str]
-) -> tuple[str, str]:
-    """Seller-facing (title, body). `admin_reason` marks an admin force path —
-    the seller did not act, so they are told who did and why."""
+) -> Optional[tuple[str, str]]:
+    """Seller-facing (title, body), or None when the event has no seller copy.
+    `admin_reason` marks an admin force path — the seller did not act, so they
+    are told who did and why."""
     rid = request.id
     if admin_reason is not None:
-        return (
-            _ADMIN_SELLER_TITLES[event_key].format(rid=rid),
-            f"Reason: {admin_reason}",
-        )
+        title = _ADMIN_SELLER_TITLES.get(event_key)
+        if title is None:
+            return None
+        return title.format(rid=rid), f"Reason: {admin_reason}"
     if event_key == "return_confirmed":
         return (
             f"Return #{rid} confirmed",
@@ -345,7 +346,7 @@ def _seller_return_copy(
             f"Return #{rid} closed",
             f"The customer confirmed receiving ₹{request.payment_amount:.2f}.",
         )
-    raise ValueError(f"no seller copy for {event_key}")
+    return None
 
 
 async def _notify_return(
@@ -382,16 +383,25 @@ async def _notify_return(
                 title=title, body=body, status_value=status_value,
                 customer_profile_id=request.customer_profile_id,
             )
-        if notify_seller:
-            seller_title, seller_body = _seller_return_copy(
-                request, event_key, admin_reason=admin_reason
-            )
+        seller_copy = (
+            _seller_return_copy(request, event_key, admin_reason=admin_reason)
+            if notify_seller
+            else None
+        )
+        if seller_copy is not None:
             await record_return_notification(
                 session, return_request_id=return_id,
                 type=NotificationType.SellerReturnRequest,
-                title=seller_title, body=seller_body,
+                title=seller_copy[0], body=seller_copy[1],
                 status_value=request.status.value,
                 seller_profile_id=request.seller_profile_id,
+            )
+        elif notify_seller:
+            # A caller asked for a seller row this event has no copy for. Log
+            # it, but never let it cost the customer the row already written.
+            logger.warning(
+                "no seller copy for return event %s return_id=%s",
+                event_key, return_id,
             )
         await session.commit()
     except Exception:  # noqa: BLE001 - notifications are never load-bearing

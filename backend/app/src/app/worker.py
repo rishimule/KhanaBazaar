@@ -2336,31 +2336,37 @@ def sweep_expired_returns() -> int:
     """Resolve returns stalled at any of the three stages. Returns how many moved.
 
     Unconfirmed and undelivered returns expire; a cash return whose payment
-    was never confirmed closes. One transaction for both, then comms.
+    was never confirmed closes. Each stage commits and announces on its own, so
+    a failure in one never rolls back the other — the task still raises, so
+    the broken stage shows up in the worker log.
     """
     import asyncio
     import concurrent.futures
+    from collections.abc import Awaitable, Callable
 
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    import app.services.returns as returns_svc
     from app.db.session import async_session_factory
-    from app.services.returns import close_lapsed_payments, expire_stale_returns
-
-    async def _run() -> tuple[list[int], list[int]]:
-        async with async_session_factory() as session:
-            expired = await expire_stale_returns(session)
-            lapsed = await close_lapsed_payments(session)
-            await session.commit()
-            return expired, lapsed
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        expired_ids, lapsed_ids = executor.submit(
-            lambda: asyncio.run(_run())
-        ).result()
-
-    # After commit: a comms failure must not undo the sweep.
     from app.services.return_comms import dispatch_return_status
 
+    def _run_stage(
+        stage: Callable[[AsyncSession], Awaitable[list[int]]],
+    ) -> list[int]:
+        async def _run() -> list[int]:
+            async with async_session_factory() as session:
+                moved = await stage(session)
+                await session.commit()
+                return moved
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            return executor.submit(lambda: asyncio.run(_run())).result()
+
+    # Comms after each commit: an outage there must not undo the sweep.
+    expired_ids = _run_stage(returns_svc.expire_stale_returns)
     for return_id in expired_ids:
         dispatch_return_status(return_id, "return_expired")
+    lapsed_ids = _run_stage(returns_svc.close_lapsed_payments)
     for return_id in lapsed_ids:
         dispatch_return_status(return_id, "return_payment_lapsed")
     return len(expired_ids) + len(lapsed_ids)
