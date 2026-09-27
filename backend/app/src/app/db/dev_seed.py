@@ -3034,6 +3034,8 @@ async def _seed_returns(session: AsyncSession) -> None:
 
     Idempotent — skipped entirely once any ReturnRequest exists.
     """
+    from app.core.config import settings as app_settings
+
     existing = await session.exec(select(func.count()).select_from(ReturnRequest))
     if int(existing.one()) > 0:
         return
@@ -3153,6 +3155,9 @@ async def _seed_returns(session: AsyncSession) -> None:
             request.store_credit_amount = total
         elif state == ReturnStatus.awaiting_payment_confirmation:
             request.payment_amount = total
+            request.payment_confirm_expires_at = now + timedelta(
+                days=app_settings.RETURN_PAYMENT_CONFIRM_DAYS
+            )
         session.add(request)
         await session.flush()
         assert request.id is not None

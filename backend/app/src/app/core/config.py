@@ -2,7 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import logging
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -61,9 +61,14 @@ class Settings(BaseSettings):
     DELIVERY_OTP_RESEND_COOLDOWN: int = 60
 
     # Returns. RETURN_CONFIRM_HOURS bounds the awaiting-customer-confirmation
-    # stage; RETURN_HANDOVER_DAYS bounds an active return waiting for goods.
-    RETURN_CONFIRM_HOURS: int = 48
-    RETURN_HANDOVER_DAYS: int = 7
+    # stage; RETURN_HANDOVER_DAYS bounds an active return waiting for goods;
+    # RETURN_PAYMENT_CONFIRM_DAYS bounds a cash return waiting for the
+    # customer to confirm the money arrived, after which it closes on its own.
+    # ge=1: a 0 here would make the hourly sweep expire or close every return
+    # on sight, so a typo in an env file fails startup instead.
+    RETURN_CONFIRM_HOURS: int = Field(default=48, ge=1)
+    RETURN_HANDOVER_DAYS: int = Field(default=7, ge=1)
+    RETURN_PAYMENT_CONFIRM_DAYS: int = Field(default=7, ge=1)
     RETURN_OTP_MAX_ATTEMPTS: int = 5
     RETURN_OTP_RESEND_COOLDOWN: int = 60
 

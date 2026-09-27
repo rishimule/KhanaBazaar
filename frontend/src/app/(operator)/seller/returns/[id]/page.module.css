@@ -122,3 +122,23 @@
   margin: 0;
   color: var(--color-error);
 }
+
+.payCard {
+  border-color: var(--color-warning, #b26a00);
+  background: var(--color-warning-tint, #fff8e6);
+}
+
+.payBody {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.settlement {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  font-size: 0.9rem;
+}

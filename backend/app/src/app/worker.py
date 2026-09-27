@@ -759,6 +759,11 @@ _ACTION_LABELS = {
     "order.cancel": "Cancelled",
     "order.address_override": "Delivery address updated",
     "order.transition": "Status changed",
+    # Return force paths reuse the order-action email; the return id rides in
+    # the reason line because the template is order-centric.
+    "return.force_accept": "Return accepted by an admin",
+    "return.force_reject": "Return rejected by an admin",
+    "return.force_close": "Return closed by an admin",
 }
 
 
@@ -2328,28 +2333,43 @@ def send_return_otp_phone_async(
 
 @celery_app.task(name="returns.sweep_expired")  # type: ignore[untyped-decorator]
 def sweep_expired_returns() -> int:
-    """Expire stalled returns at both stages. Returns how many moved."""
+    """Resolve returns stalled at any of the three stages. Returns how many moved.
+
+    Unconfirmed and undelivered returns expire; a cash return whose payment
+    was never confirmed closes. Each stage commits and announces on its own, so
+    a failure in one never rolls back the other — the task still raises, so
+    the broken stage shows up in the worker log.
+    """
     import asyncio
     import concurrent.futures
+    from collections.abc import Awaitable, Callable
 
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    import app.services.returns as returns_svc
     from app.db.session import async_session_factory
-    from app.services.returns import expire_stale_returns
-
-    async def _run() -> list[int]:
-        async with async_session_factory() as session:
-            expired = await expire_stale_returns(session)
-            await session.commit()
-            return expired
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        expired_ids = executor.submit(lambda: asyncio.run(_run())).result()
-
-    # After commit: a comms failure must not undo the sweep.
     from app.services.return_comms import dispatch_return_status
 
+    def _run_stage(
+        stage: Callable[[AsyncSession], Awaitable[list[int]]],
+    ) -> list[int]:
+        async def _run() -> list[int]:
+            async with async_session_factory() as session:
+                moved = await stage(session)
+                await session.commit()
+                return moved
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            return executor.submit(lambda: asyncio.run(_run())).result()
+
+    # Comms after each commit: an outage there must not undo the sweep.
+    expired_ids = _run_stage(returns_svc.expire_stale_returns)
     for return_id in expired_ids:
         dispatch_return_status(return_id, "return_expired")
-    return len(expired_ids)
+    lapsed_ids = _run_stage(returns_svc.close_lapsed_payments)
+    for return_id in lapsed_ids:
+        dispatch_return_status(return_id, "return_payment_lapsed")
+    return len(expired_ids) + len(lapsed_ids)
 
 
 def _load_return_email_context(return_id: int) -> dict[str, Any]:
@@ -2403,6 +2423,8 @@ def _load_return_email_context(return_id: int) -> dict[str, Any]:
                     "store_name": store.name if store else "the store",
                     "service_name": order.service_name_snapshot if order else "",
                     "total_amount": f"{req.total_amount:.2f}",
+                    "status": req.status.value,
+                    "payment_amount_display": f"{req.payment_amount:.2f}",
                     "credit_reversal_amount": req.credit_reversal_amount,
                     "store_credit_amount": req.store_credit_amount,
                     "payment_amount": req.payment_amount,
@@ -2439,10 +2461,23 @@ def _settlement_line(ctx: dict[str, Any]) -> str:
             "spend with this store"
         )
     if float(ctx.get("payment_amount") or 0) > 0:
-        parts.append(
-            f"{ctx['payment_amount']:.2f} is being paid back to you directly — "
-            "confirm in the app once you receive it"
-        )
+        amount = f"{ctx['payment_amount']:.2f}"
+        # The same line is used before and after the customer confirms; only
+        # a parked return should still ask them to.
+        status = ctx.get("status")
+        if status == "closed":
+            parts.append(f"{amount} was paid back to you directly")
+        elif status == "awaiting_payment_confirmation":
+            parts.append(
+                f"{amount} is being paid back to you directly — confirm in the "
+                "app once you receive it, within "
+                f"{settings.RETURN_PAYMENT_CONFIRM_DAYS} days"
+            )
+        else:
+            parts.append(
+                f"{amount} is being paid back to you directly — confirm in the "
+                "app once you receive it"
+            )
     if not parts:
         return "No amount was outstanding on this return."
     return "; ".join(parts).capitalize() + "."
@@ -2470,6 +2505,7 @@ def send_return_status_email_async(return_id: int, event_key: str) -> None:
             **ctx,
             "currency": "INR ",
             "confirm_hours": settings.RETURN_CONFIRM_HOURS,
+            "payment_confirm_days": settings.RETURN_PAYMENT_CONFIRM_DAYS,
             "settlement_line": _settlement_line(ctx),
         },
         lang="en",

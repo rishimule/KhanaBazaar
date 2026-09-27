@@ -3,16 +3,15 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import ReturnConfirmPanel from "@/components/returns/ReturnConfirmPanel";
+import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { apiErrorCode } from "@/lib/errors";
 import {
-  confirmReturn,
   createReturn,
   getReturnEligibility,
   listReturns,
-  resendReturnOtp,
   returnErrorKey,
   withdrawReturn,
 } from "@/lib/returns";
@@ -56,7 +55,6 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
   const [settlement, setSettlement] =
     useState<ReturnSettlementChoice>("store_credit");
   const [accepted, setAccepted] = useState(false);
-  const [otp, setOtp] = useState("");
   const [created, setCreated] = useState<ReturnRequest | null>(null);
   /** An unconfirmed return already open on this order, found on mount. It
    *  holds item locks, so the customer must resume or discard it before
@@ -64,7 +62,6 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
   const [pending, setPending] = useState<ReturnRequest | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -88,13 +85,12 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
     };
   }, [token, orderId]);
 
-  /** Resume the unconfirmed return found on mount — straight to the code step. */
+  /** Resume the unconfirmed return found on mount on its own page, which asks
+   *  for the agreement again: a seller- or admin-started return was never
+   *  shown it, so pre-accepting it here would confirm without consent. */
   const resumePending = () => {
     if (!pending) return;
-    setCreated(pending);
-    setPending(null);
-    setAccepted(true);
-    setStep(5);
+    router.push(`/account/returns/${pending.id}`);
   };
 
   /** Discard it, releasing its item lines so a fresh selection is possible. */
@@ -233,35 +229,6 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
       setError(t(`errors.${returnErrorKey(apiErrorCode(e), "customer")}`));
     } finally {
       setBusy(false);
-    }
-  };
-
-  const submitOtp = async () => {
-    if (!token || !created) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const done = await confirmReturn(token, created.id, otp.trim());
-      router.push(`/account/returns/${done.id}`);
-    } catch (e) {
-      setError(t(`errors.${returnErrorKey(apiErrorCode(e), "customer")}`));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const resend = async () => {
-    if (!token || !created) return;
-    setNotice(null);
-    try {
-      await resendReturnOtp(token, created.id);
-      setNotice(t("otpResent"));
-    } catch (e) {
-      setNotice(
-        apiErrorCode(e) === "resend_cooldown"
-          ? t("otpCooldown")
-          : t("otpResendFailed")
-      );
     }
   };
 
@@ -478,40 +445,22 @@ export default function ReturnWizard({ orderId, agreementBody }: Props) {
               <dd>₹{created.total_amount.toFixed(2)}</dd>
             </div>
           </dl>
-          <label className={styles.label} htmlFor="return-otp">
-            {t("otpLabel")}
-          </label>
-          <input
-            id="return-otp"
-            className={styles.otpInput}
-            inputMode="numeric"
-            maxLength={6}
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-          />
-          <button type="button" className={styles.linkButton} onClick={resend}>
-            {t("otpResend")}
-          </button>
-          {notice && <p className={styles.muted}>{notice}</p>}
           <p className={styles.savedNote}>{t("savedNote")}</p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={otp.length !== 6 || busy}
-              onClick={submitOtp}
-            >
-              {t("confirmReturn")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={withdrawCurrent}
-              disabled={busy}
-            >
-              {t("withdraw")}
-            </button>
-          </div>
+          <ReturnConfirmPanel
+            request={created}
+            variant="wizard"
+            onConfirmed={(done) => router.push(`/account/returns/${done.id}`)}
+            extraActions={
+              <button
+                type="button"
+                className="btn"
+                onClick={withdrawCurrent}
+                disabled={busy}
+              >
+                {t("withdraw")}
+              </button>
+            }
+          />
           {error && (
             <p role="alert" className={styles.error}>
               {error}

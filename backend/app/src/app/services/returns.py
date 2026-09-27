@@ -351,7 +351,11 @@ async def create_return(
 
 
 async def confirm_return(
-    session: AsyncSession, request: ReturnRequest, *, actor_user_id: int
+    session: AsyncSession,
+    request: ReturnRequest,
+    *,
+    actor_user_id: int,
+    agreement_version: Optional[int] = None,
 ) -> ReturnRequest:
     """Activate a confirmed return and issue the handover code the seller will
     type. Flushes; caller commits.
@@ -370,6 +374,11 @@ async def confirm_return(
         raise ReturnError(409, "confirmation_expired")
 
     request.agreement_accepted_at = now
+    if agreement_version is not None:
+        # The agreement accepted is the one on screen at confirmation, which
+        # can be newer than the one published when the return was created — a
+        # seller-started return may wait days for the customer.
+        request.agreement_policy_version = agreement_version
     request.confirmed_at = now
     request.handover_expires_at = now + timedelta(days=settings.RETURN_HANDOVER_DAYS)
     request.receipt_otp = generate_code()
@@ -514,6 +523,10 @@ async def accept_return(
     request.receipt_otp = None  # consume the code
 
     result = await settle(session, request, actor_user_id=actor_user_id)
+    if result.next_status == ReturnStatus.awaiting_payment_confirmation:
+        request.payment_confirm_expires_at = now + timedelta(
+            days=settings.RETURN_PAYMENT_CONFIRM_DAYS
+        )
     if restock:
         await restock_items(session, request)
 
@@ -581,6 +594,28 @@ async def close_after_payment(
     return request
 
 
+def payment_deadline(request: ReturnRequest) -> Optional[datetime]:
+    """When a parked cash return closes on its own, or None if it never will.
+
+    Acceptance stamps `payment_confirm_expires_at`. A return parked by code
+    that predates the column has none — the migration runs before the new API
+    rolls out, so the old API can still accept cash returns for a few minutes
+    — and falls back to decision time plus the window, so it cannot become the
+    never-closing return the deadline exists to prevent. The sweep and the API
+    both read this, so the date a customer is shown is the date the sweep uses.
+    """
+    if request.payment_confirm_expires_at is not None:
+        return request.payment_confirm_expires_at
+    if (
+        request.status == ReturnStatus.awaiting_payment_confirmation
+        and request.decided_at is not None
+    ):
+        return request.decided_at + timedelta(
+            days=settings.RETURN_PAYMENT_CONFIRM_DAYS
+        )
+    return None
+
+
 async def expire_stale_returns(
     session: AsyncSession, *, now: Optional[datetime] = None
 ) -> list[int]:
@@ -588,7 +623,9 @@ async def expire_stale_returns(
 
     Two deadlines, one pass: a return the customer never confirmed, and a
     confirmed return whose goods never arrived. Both hold item lines locked,
-    which is why neither can be left open indefinitely.
+    which is why neither can be left open indefinitely. The third stalled
+    stage — an unconfirmed cash payment — is `close_lapsed_payments`, because
+    it ends in `closed` rather than here.
     """
     moment = now or datetime.now(timezone.utc)
     # skip_locked: a return currently being accepted or withdrawn is somebody
@@ -638,8 +675,98 @@ async def expire_stale_returns(
             status_value="expired",
             customer_profile_id=request.customer_profile_id,
         )
+        await record_return_notification(
+            session,
+            return_request_id=_pk(request.id),
+            type=NotificationType.SellerReturnRequest,
+            title=f"Return #{request.id} expired",
+            body="It wasn't completed in time and no longer holds the items.",
+            status_value="expired",
+            seller_profile_id=request.seller_profile_id,
+        )
         expired_ids.append(_pk(request.id))
     return expired_ids
+
+
+async def close_lapsed_payments(
+    session: AsyncSession, *, now: Optional[datetime] = None
+) -> list[int]:
+    """Close cash returns whose payment was never confirmed. Flushes; caller commits.
+
+    The third stalled stage, beside `expire_stale_returns`. It lands in
+    `closed`, not `expired`: the goods came back and the settlement already
+    ran, so the item lines must stay locked. `closed_by_user_id` stays NULL —
+    that is how `payment_lapsed` tells this close apart from every human one.
+    """
+    moment = now or datetime.now(timezone.utc)
+    # Mirrors `payment_deadline`: a stamped deadline, or — for a return parked
+    # before the column existed — decision time plus the window.
+    unstamped_cutoff = moment - timedelta(days=settings.RETURN_PAYMENT_CONFIRM_DAYS)
+    deadline = col(ReturnRequest.payment_confirm_expires_at)
+    # skip_locked, as in the expiry sweep: a return the customer is confirming
+    # right now is theirs to close.
+    lapsed = list(
+        (
+            await session.exec(
+                select(ReturnRequest)
+                .with_for_update(skip_locked=True)
+                .where(
+                    col(ReturnRequest.status)
+                    == ReturnStatus.awaiting_payment_confirmation,
+                    or_(
+                        and_(deadline.is_not(None), deadline < moment),
+                        and_(
+                            deadline.is_(None),
+                            col(ReturnRequest.decided_at).is_not(None),
+                            col(ReturnRequest.decided_at) < unstamped_cutoff,
+                        ),
+                    ),
+                )
+            )
+        ).all()
+    )
+    closed_ids: list[int] = []
+    for request in lapsed:
+        # Record the deadline it was judged by, even for an unstamped row.
+        request.payment_confirm_expires_at = payment_deadline(request)
+        request.closed_at = moment
+        request.closed_by_user_id = None
+        await record_transition(
+            session, request, to_status=ReturnStatus.closed,
+            actor_role="system", actor_user_id=None,
+            note="payment confirmation lapsed",
+        )
+        amount = f"₹{request.payment_amount:.2f}"
+        # In-app rows inside the sweep's transaction; email is fired by the
+        # caller after commit, exactly as for expiry.
+        await record_return_notification(
+            session,
+            return_request_id=_pk(request.id),
+            type=NotificationType.ReturnStatusUpdate,
+            title=f"Return #{request.id} closed",
+            body=(
+                f"You didn't confirm receiving the {amount} payment in time, so "
+                "this return closed automatically. If the store hasn't paid "
+                "you, contact support."
+            ),
+            status_value="closed",
+            customer_profile_id=request.customer_profile_id,
+        )
+        await record_return_notification(
+            session,
+            return_request_id=_pk(request.id),
+            type=NotificationType.SellerReturnRequest,
+            title=f"Return #{request.id} closed",
+            body=(
+                f"The customer didn't confirm receiving {amount} within "
+                f"{settings.RETURN_PAYMENT_CONFIRM_DAYS} days, so the return "
+                "closed automatically."
+            ),
+            status_value="closed",
+            seller_profile_id=request.seller_profile_id,
+        )
+        closed_ids.append(_pk(request.id))
+    return closed_ids
 
 
 async def reissue_receipt_otp(

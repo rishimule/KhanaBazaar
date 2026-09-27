@@ -139,6 +139,11 @@ class ReturnRequest(BaseSchema, table=True):
     handover_expires_at: Optional[datetime] = Field(  # type: ignore[call-overload]
         default=None, sa_type=DateTime(timezone=True)
     )
+    # Set only when acceptance parks a cash settlement; the sweep closes the
+    # return once it passes (services/returns.close_lapsed_payments).
+    payment_confirm_expires_at: Optional[datetime] = Field(  # type: ignore[call-overload]
+        default=None, sa_type=DateTime(timezone=True)
+    )
 
     receipt_otp: Optional[str] = Field(default=None, max_length=6)
     receipt_otp_attempts: int = Field(default=0, nullable=False)

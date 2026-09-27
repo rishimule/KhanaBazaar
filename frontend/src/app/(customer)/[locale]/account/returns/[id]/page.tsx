@@ -3,10 +3,12 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { use, useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import ReceiptCodePanel from "@/components/returns/ReceiptCodePanel";
+import ReturnConfirmPanel from "@/components/returns/ReturnConfirmPanel";
 import ReturnStatusBadge from "@/components/returns/ReturnStatusBadge";
 import ReturnTimeline from "@/components/returns/ReturnTimeline";
+import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { apiErrorCode } from "@/lib/errors";
 import {
@@ -27,6 +29,7 @@ export default function ReturnDetailPage({
   const { id } = use(params);
   const returnId = Number(id);
   const t = useTranslations("Account.returns");
+  const locale = useLocale();
   const { token } = useAuth();
 
   const [request, setRequest] = useState<ReturnRequest | null>(null);
@@ -69,6 +72,12 @@ export default function ReturnDetailPage({
   const canWithdraw =
     request.status === "awaiting_customer_confirmation" ||
     request.status === "active";
+
+  const formatWhen = (iso: string) =>
+    new Intl.DateTimeFormat(locale, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(iso));
 
   const sendOtp = async () => {
     if (!token) return;
@@ -120,7 +129,17 @@ export default function ReturnDetailPage({
 
       <ReturnTimeline request={request} />
 
-      <ReceiptCodePanel request={request} />
+      {/* The one place a waiting return is confirmed — including returns the
+          store or support started for the customer. */}
+      {request.status === "awaiting_customer_confirmation" && (
+        <ReturnConfirmPanel
+          request={request}
+          variant="page"
+          onConfirmed={setRequest}
+        />
+      )}
+
+      <ReceiptCodePanel request={request} onChange={setRequest} />
 
       <section className={styles.card}>
         <h2 className={styles.heading}>{t("itemsTitle")}</h2>
@@ -172,14 +191,29 @@ export default function ReturnDetailPage({
                 })}
               </li>
             )}
-            {request.payment_amount > 0 && (
+            {request.payment_amount > 0 && !request.payment_lapsed && (
               <li>
-                {t("settlementPaymentDue", {
-                  amount: request.payment_amount.toFixed(2),
-                })}
+                {t(
+                  request.status === "closed"
+                    ? "settlementPaymentDone"
+                    : "settlementPaymentDue",
+                  { amount: request.payment_amount.toFixed(2) }
+                )}
               </li>
             )}
           </ul>
+          {request.payment_lapsed && (
+            <>
+              <p className={styles.muted}>
+                {t("paymentLapsed", {
+                  amount: request.payment_amount.toFixed(2),
+                })}
+              </p>
+              <Link href="/account/support" className={styles.supportLink}>
+                {t("paymentSupport")}
+              </Link>
+            </>
+          )}
         </section>
       )}
 
@@ -195,6 +229,13 @@ export default function ReturnDetailPage({
         <section className={styles.card}>
           <h2 className={styles.heading}>{t("confirmPaymentTitle")}</h2>
           <p className={styles.muted}>{t("confirmPaymentHint")}</p>
+          {request.payment_confirm_expires_at && (
+            <p className={styles.deadline}>
+              {t("paymentDeadline", {
+                date: formatWhen(request.payment_confirm_expires_at),
+              })}
+            </p>
+          )}
           <button type="button" className={styles.linkButton} onClick={sendOtp}>
             {t("sendPaymentOtp")}
           </button>
@@ -214,6 +255,9 @@ export default function ReturnDetailPage({
           >
             {t("confirmPaymentAction")}
           </button>
+          <Link href="/account/support" className={styles.supportLink}>
+            {t("paymentSupport")}
+          </Link>
         </section>
       )}
 

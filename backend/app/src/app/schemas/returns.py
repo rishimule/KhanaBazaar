@@ -74,6 +74,9 @@ class ReturnRead(BaseModel):
     window_expires_at: datetime
     confirm_expires_at: datetime
     handover_expires_at: Optional[datetime] = None
+    payment_confirm_expires_at: Optional[datetime] = None
+    # A cash return the sweep closed because receipt was never confirmed.
+    payment_lapsed: bool = False
     created_at: datetime
     items: list[ReturnItemRead] = []
     # Present only for the owning customer while the return is `active`.

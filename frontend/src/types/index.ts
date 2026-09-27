@@ -409,6 +409,8 @@ export interface OrderListResponse {
 export interface OrderNotification {
   id: number;
   order_id: number | null;
+  /** Set on return notifications; the bells deep-link to the return. */
+  return_request_id?: number | null;
   type: string;
   title: string;
   body: string;
@@ -1121,6 +1123,11 @@ export interface ReturnRequest {
   window_expires_at: string;
   confirm_expires_at: string;
   handover_expires_at: string | null;
+  /** Set when acceptance parks a cash settlement; the return closes on its
+   *  own once this passes without the customer confirming the payment. */
+  payment_confirm_expires_at: string | null;
+  /** True for a cash return that closed because receipt was never confirmed. */
+  payment_lapsed: boolean;
   created_at: string;
   items: ReturnItem[];
   /** Only present for the owning customer while the return is `active`. */

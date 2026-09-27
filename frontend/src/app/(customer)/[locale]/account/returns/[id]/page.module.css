@@ -122,3 +122,16 @@
   margin: 0;
   color: var(--color-error);
 }
+
+.deadline {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.supportLink {
+  align-self: flex-start;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  text-decoration: underline;
+}

@@ -220,9 +220,15 @@ async def test_expiry_sweep_writes_a_notification(session: AsyncSession) -> None
     await expire_stale_returns(session)
     await session.commit()
 
+    # The seller row is original spec §11 — it was never built until the
+    # payment-deadline work.
     rows = await _notifications(session)
-    assert len(rows) == 1
-    assert rows[0].status_value == "expired"
+    customer = [n for n in rows if n.customer_profile_id is not None]
+    seller = [n for n in rows if n.seller_profile_id is not None]
+    assert len(customer) == 1 and len(seller) == 1
+    assert customer[0].status_value == "expired"
+    assert seller[0].status_value == "expired"
+    assert seller[0].type == NotificationType.SellerReturnRequest
 
 
 def test_every_return_email_template_renders() -> None:
@@ -236,10 +242,12 @@ def test_every_return_email_template_renders() -> None:
         "confirm_hours": 48, "receipt_code": "483920",
         "rejection_reason": "Seal broken", "customer_first_name": "Riya",
         "settlement_line": "870.00 was added as store credit.",
+        "payment_amount_display": "870.00", "payment_confirm_days": 7,
     }
     for event in (
         "return_initiated", "return_confirmed", "return_accepted",
         "return_rejected", "return_closed", "return_expired",
+        "return_withdrawn", "return_payment_lapsed",
     ):
         payload = render_email(event, ctx, lang="en")
         assert payload.subject and payload.html and payload.text, event
@@ -280,3 +288,16 @@ def test_settlement_line_covers_every_split() -> None:
         {"credit_reversal_amount": 0.0, "store_credit_amount": 0.0, "payment_amount": 0.0}
     )
     assert "No amount was outstanding" in nothing
+
+
+def test_settlement_line_words_cash_by_status() -> None:
+    """A closed return must not keep asking the customer to confirm."""
+    from app.worker import _settlement_line
+
+    cash = {"credit_reversal_amount": 0.0, "store_credit_amount": 0.0, "payment_amount": 250.0}
+    parked = _settlement_line({**cash, "status": "awaiting_payment_confirmation"})
+    assert "is being paid back" in parked and "within 7 days" in parked
+
+    closed = _settlement_line({**cash, "status": "closed"})
+    assert "was paid back" in closed
+    assert "confirm in the app" not in closed
