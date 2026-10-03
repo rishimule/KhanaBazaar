@@ -526,3 +526,5 @@ A store can ship beyond its local delivery radius, up to its courier radius, for
 
 Courier orders are not returnable, the admin delivery-address override is refused for them, and admin rewinds never go back before the customer's acceptance.
 
+Full reference — money rules, cancel/refund matrix, API, error codes, the frontend screens and deploy notes: [`courier_delivery.md`](courier_delivery.md).
+
