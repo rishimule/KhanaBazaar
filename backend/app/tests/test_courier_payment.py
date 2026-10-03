@@ -28,7 +28,7 @@ async def _accepted(world: CourierWorld) -> int:
     order = await place_courier_order(world)
     quote = (await send_quote(order["id"])).json()["courier"]["quotes"][0]
     assert (await accept_quote(order["id"], quote["id"])).status_code == 200
-    return order["id"]
+    return int(order["id"])
 
 
 async def _statuses(session: AsyncSession, order_id: int) -> list[str]:

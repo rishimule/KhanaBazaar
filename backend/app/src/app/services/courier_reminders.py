@@ -101,7 +101,7 @@ async def _candidate_ids() -> list[int]:
                     col(Order.status).in_(
                         [OrderStatus.Pending, OrderStatus.Quoted, OrderStatus.Accepted, OrderStatus.Dispatched]
                     ),
-                    and_(Order.status == OrderStatus.Cancelled, col(Order.id).in_(refund_due)),
+                    and_(col(Order.status) == OrderStatus.Cancelled, col(Order.id).in_(refund_due)),
                 ),
             )
             .order_by(col(Order.id))

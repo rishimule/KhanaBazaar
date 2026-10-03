@@ -600,7 +600,8 @@ async def cancel_order(
     payment_received: Optional[bool] = None,
 ) -> Order:
     assert order.id is not None
-    order = await lock_order(session, order.id)
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
     if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
         raise HTTPException(status_code=409, detail="terminal_status")
 
@@ -711,7 +712,7 @@ async def cancel_order(
             session,
             store_id=order.store_id,
             customer_profile_id=order.customer_profile_id,
-            order_id=order.id,
+            order_id=order_id,
             amount=borrowed,
         )
 

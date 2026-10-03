@@ -318,7 +318,8 @@ async def place_courier_order(
             "apply_store_credit": apply_store_credit,
         })
     assert resp.status_code == 201, resp.text
-    return resp.json()
+    data: dict[str, Any] = resp.json()
+    return data
 
 
 import httpx  # noqa: E402
@@ -345,7 +346,8 @@ async def get_order(order_id: int, *, as_user: User = CUSTOMER) -> dict[str, Any
     async with client_as(as_user) as ac:
         resp = await ac.get(f"/api/v1/orders/{order_id}")
     assert resp.status_code == 200, resp.text
-    return resp.json()
+    data: dict[str, Any] = resp.json()
+    return data
 
 
 async def accept_quote(
@@ -392,7 +394,8 @@ async def order_at_paid(world: CourierWorld, *, fee: float = 120.0) -> dict[str,
     assert (await accept_quote(order["id"], quote["id"])).status_code == 200
     resp = await confirm_payment(order["id"])
     assert resp.status_code == 200, resp.text
-    return resp.json()
+    data: dict[str, Any] = resp.json()
+    return data
 
 
 async def order_at_dispatched(world: CourierWorld, **tracking: str) -> dict[str, Any]:
@@ -405,4 +408,5 @@ async def order_at_dispatched(world: CourierWorld, **tracking: str) -> dict[str,
             f"/api/v1/orders/{order['id']}/transition", json={"to": "dispatched", **tracking},
         )
     assert shipped.status_code == 200, shipped.text
-    return shipped.json()
+    data: dict[str, Any] = shipped.json()
+    return data

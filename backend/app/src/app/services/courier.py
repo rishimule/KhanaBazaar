@@ -124,17 +124,18 @@ async def send_quote(
     _require_courier(order)
     await _require_owning_seller(session, actor, order)
     assert order.id is not None and actor.id is not None
-    order = await lock_order(session, order.id)
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
     if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
         raise HTTPException(status_code=409, detail={"code": "terminal_status"})
     if order.status not in (OrderStatus.Pending, OrderStatus.Quoted):
         raise HTTPException(status_code=409, detail={"code": "quote_locked"})
-    previous = await latest_quote(session, order.id)
+    previous = await latest_quote(session, order_id)
     version = (previous.version if previous else 0) + 1
     if version > settings.COURIER_MAX_QUOTE_VERSIONS:
         raise HTTPException(status_code=409, detail={"code": "too_many_quote_versions"})
     quote = CourierQuote(
-        order_id=order.id,
+        order_id=order_id,
         version=version,
         courier_fee=round(courier_fee, 2),
         eta_min_days=eta_min_days,
@@ -256,21 +257,22 @@ async def accept_quote(
     if actor.role != UserRole.Customer:
         raise HTTPException(status_code=403, detail="forbidden")
     assert order.id is not None
-    order = await lock_order(session, order.id)
-    row = await order_courier(session, order.id)
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
+    row = await order_courier(session, order_id)
     if row.accepted_quote_id == quote_id and order.status in (
         OrderStatus.Accepted, OrderStatus.Paid,
     ):
         return AcceptResult(order=order, auto_paid=False, already_accepted=True)
     if order.status != OrderStatus.Quoted:
         raise HTTPException(status_code=409, detail={"code": "illegal_transition"})
-    latest = await latest_quote(session, order.id)
+    latest = await latest_quote(session, order_id)
     if latest is None or latest.id != quote_id:
         raise HTTPException(status_code=409, detail={"code": "quote_superseded"})
     seller = await store_seller(session, order.store_id)
     if not courier_payment_methods(seller):
         raise CourierPayeeMissing()
-    payment = await _payment(session, order.id)
+    payment = await _payment(session, order_id)
     now = _now()
 
     order.delivery_fee = round(latest.courier_fee, 2)
@@ -288,7 +290,7 @@ async def accept_quote(
                     session,
                     account,
                     min(account.balance, remaining),
-                    order_id=order.id,
+                    order_id=order_id,
                     actor_user_id=actor.id,
                 )
                 order.store_credit_applied = round(order.store_credit_applied + applied, 2)
@@ -324,8 +326,9 @@ async def claim_payment(
     keeps the first timestamp. Returns (order, newly_claimed)."""
     _require_courier(order)
     assert order.id is not None
-    order = await lock_order(session, order.id)
-    payment = await _payment(session, order.id)
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
+    payment = await _payment(session, order_id)
     if order.status != OrderStatus.Accepted:
         raise HTTPException(status_code=409, detail="not_awaiting_payment")
     if payment.status is not PaymentStatus.Pending:
@@ -344,7 +347,7 @@ async def claim_payment(
             status_code=409,
             detail="upi_unavailable" if method is PaymentMethod.Upi else "bank_transfer_unavailable",
         )
-    row = await order_courier(session, order.id)
+    row = await order_courier(session, order_id)
     newly_claimed = payment.customer_claimed_at is None or payment.method != method
     payment.method = method
     if payment.customer_claimed_at is None:
@@ -362,13 +365,14 @@ async def confirm_payment(session: AsyncSession, order: Order, actor: User) -> O
     _require_courier(order)
     await _require_owning_seller(session, actor, order)
     assert order.id is not None
-    order = await lock_order(session, order.id)
-    payment = await _payment(session, order.id)
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
+    payment = await _payment(session, order_id)
     if payment.status is PaymentStatus.Paid or order.status is OrderStatus.Paid:
         raise HTTPException(status_code=409, detail={"code": "payment_settled"})
     if order.status != OrderStatus.Accepted:
         raise HTTPException(status_code=409, detail={"code": "illegal_transition"})
-    row = await order_courier(session, order.id)
+    row = await order_courier(session, order_id)
     quote = await session.get(CourierQuote, row.accepted_quote_id) if row.accepted_quote_id else None
     if quote is None:
         raise HTTPException(status_code=500, detail="accepted_quote_missing")
@@ -391,13 +395,14 @@ async def reject_payment_claim(
     _require_courier(order)
     await _require_owning_seller(session, actor, order)
     assert order.id is not None
-    order = await lock_order(session, order.id)
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
     if order.status != OrderStatus.Accepted:
         raise HTTPException(status_code=409, detail={"code": "illegal_transition"})
-    payment = await _payment(session, order.id)
+    payment = await _payment(session, order_id)
     if payment.customer_claimed_at is None:
         raise HTTPException(status_code=409, detail={"code": "no_claim"})
-    row = await order_courier(session, order.id)
+    row = await order_courier(session, order_id)
     payment.customer_claimed_at = None
     row.payment_claim_rejected_at = _now()
     row.payment_claim_rejected_note = clean_text(note, max_len=300)
@@ -415,14 +420,15 @@ async def update_tracking(
     _require_courier(order)
     await _require_owning_seller(session, actor, order)
     assert order.id is not None
-    order = await lock_order(session, order.id)
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
     if order.status != OrderStatus.Dispatched:
         raise HTTPException(status_code=409, detail={"code": "not_dispatched"})
     try:
         validate_tracking_url(tracking.tracking_url)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail={"code": "invalid_tracking_url"}) from exc
-    row = await order_courier(session, order.id)
+    row = await order_courier(session, order_id)
     changed = apply_tracking(row, tracking)
     if changed:
         row.tracking_updated_at = _now()
@@ -438,15 +444,16 @@ async def mark_received(session: AsyncSession, order: Order, actor: User) -> Ord
     if actor.role != UserRole.Customer:
         raise HTTPException(status_code=403, detail="forbidden")
     assert order.id is not None
-    order = await lock_order(session, order.id)
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
     if order.status == OrderStatus.Delivered:
         raise HTTPException(status_code=409, detail={"code": "already_delivered"})
     if order.status != OrderStatus.Dispatched:
         raise HTTPException(status_code=409, detail={"code": "illegal_transition"})
-    delivery = (await session.exec(select(Delivery).where(Delivery.order_id == order.id))).first()
+    delivery = (await session.exec(select(Delivery).where(Delivery.order_id == order_id))).first()
     if delivery is None:
         raise HTTPException(status_code=500, detail="delivery_missing")
-    row = await order_courier(session, order.id)
+    row = await order_courier(session, order_id)
     now = _now()
     order.status = OrderStatus.Delivered
     delivery.status = DeliveryStatus.Delivered
@@ -465,8 +472,9 @@ async def mark_refund_sent(
     _require_courier(order)
     await _require_owning_seller(session, actor, order)
     assert order.id is not None
-    order = await lock_order(session, order.id)
-    payment = await _payment(session, order.id)
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
+    payment = await _payment(session, order_id)
     if payment.status is PaymentStatus.Refunded:
         raise HTTPException(status_code=409, detail={"code": "already_refunded"})
     if order.status != OrderStatus.Cancelled or payment.status is not PaymentStatus.Paid:
@@ -488,24 +496,35 @@ def stale_courier_clause(now: datetime, today: date) -> ColumnElement[bool]:
     cutoff = now - timedelta(days=settings.COURIER_STALE_DAYS)
     overdue_before = today - timedelta(days=settings.COURIER_ARRIVAL_GRACE_DAYS)
     latest_quote_at = (
-        sa_select(func.max(CourierQuote.created_at))
-        .where(CourierQuote.order_id == Order.id)
+        sa_select(func.max(col(CourierQuote.created_at)))
+        .where(col(CourierQuote.order_id) == col(Order.id))
         .scalar_subquery()
     )
     # GREATEST ignores NULLs in Postgres: the later of acceptance, rejection
     # and claim is when the accepted stage last moved.
     accepted_moved = (
-        sa_select(func.greatest(OrderCourier.accepted_at, OrderCourier.payment_claim_rejected_at))
-        .where(OrderCourier.order_id == Order.id)
+        sa_select(
+            func.greatest(
+                col(OrderCourier.accepted_at), col(OrderCourier.payment_claim_rejected_at)
+            )
+        )
+        .where(col(OrderCourier.order_id) == col(Order.id))
         .scalar_subquery()
     )
     claimed_at = (
-        sa_select(Payment.customer_claimed_at).where(Payment.order_id == Order.id).scalar_subquery()
+        sa_select(col(Payment.customer_claimed_at))
+        .where(col(Payment.order_id) == col(Order.id))
+        .scalar_subquery()
     )
-    eta_to = sa_select(OrderCourier.eta_to).where(OrderCourier.order_id == Order.id).scalar_subquery()
+    eta_to = (
+        sa_select(col(OrderCourier.eta_to))
+        .where(col(OrderCourier.order_id) == col(Order.id))
+        .scalar_subquery()
+    )
+    status = col(Order.status)
     return or_(
-        and_(Order.status == OrderStatus.Pending, Order.placed_at < cutoff),
-        and_(Order.status == OrderStatus.Quoted, latest_quote_at < cutoff),
-        and_(Order.status == OrderStatus.Accepted, func.greatest(accepted_moved, claimed_at) < cutoff),
-        and_(Order.status == OrderStatus.Dispatched, eta_to < overdue_before),
+        and_(status == OrderStatus.Pending, col(Order.placed_at) < cutoff),
+        and_(status == OrderStatus.Quoted, latest_quote_at < cutoff),
+        and_(status == OrderStatus.Accepted, func.greatest(accepted_moved, claimed_at) < cutoff),
+        and_(status == OrderStatus.Dispatched, eta_to < overdue_before),
     )

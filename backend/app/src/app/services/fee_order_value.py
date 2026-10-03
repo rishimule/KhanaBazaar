@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import case
 from sqlalchemy import func as safunc
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.commerce import DeliveryMode, Order, OrderStatus
@@ -82,8 +82,11 @@ async def compute_order_value_sales(
                         # company, so it is not fee-able (spec D14); local
                         # delivery fees stay in, as the order-value spec decided.
                         case(
-                            (Order.delivery_mode == DeliveryMode.Courier, Order.total - Order.delivery_fee),
-                            else_=Order.total,
+                            (
+                                col(Order.delivery_mode) == DeliveryMode.Courier,
+                                col(Order.total) - col(Order.delivery_fee),
+                            ),
+                            else_=col(Order.total),
                         )
                     ),
                     0.0,

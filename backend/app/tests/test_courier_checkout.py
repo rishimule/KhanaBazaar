@@ -2,6 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from typing import Any
 
+import httpx
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -33,7 +34,7 @@ def _body(world: CourierWorld, **overrides: Any) -> dict[str, Any]:
     return {k: v for k, v in body.items() if v is not None}
 
 
-async def _post(world: CourierWorld, **overrides: Any):
+async def _post(world: CourierWorld, **overrides: Any) -> httpx.Response:
     async with client_as(CUSTOMER) as ac:
         return await ac.post("/api/v1/orders", json=_body(world, **overrides))
 

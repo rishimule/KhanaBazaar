@@ -2,6 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from typing import Any
 
+import httpx
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -28,7 +29,7 @@ from tests._courier_helpers import (
 REASON = "No courier serves this PIN code"
 
 
-async def _cancel(order_id: int, user: Any, **body: Any):
+async def _cancel(order_id: int, user: Any, **body: Any) -> httpx.Response:
     async with client_as(user) as ac:
         return await ac.post(f"/api/v1/orders/{order_id}/cancel", json=body or None)
 
@@ -37,7 +38,7 @@ async def _accepted(world: CourierWorld) -> int:
     order = await place_courier_order(world)
     quote = (await send_quote(order["id"])).json()["courier"]["quotes"][0]
     assert (await accept_quote(order["id"], quote["id"])).status_code == 200
-    return order["id"]
+    return int(order["id"])
 
 
 async def _stock(session: AsyncSession, world: CourierWorld) -> int:

@@ -7,27 +7,34 @@ from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.profile import SellerProfile, SellerProfileService
-from app.models.seller_profile_change_request import SellerProfileChangeGroup
+from app.models.seller_profile_change_request import (
+    SellerProfileChangeGroup,
+    SellerProfileChangeRequest,
+)
 from app.models.store import Store
 from app.services.seller_profile_change_requests import approve, create_change_request
 from tests._courier_helpers import ADMIN, SELLER, CourierWorld, seed_courier_world
 
 G = SellerProfileChangeGroup
+SELLER_ID = int(SELLER.id or 0)
+ADMIN_ID = int(ADMIN.id or 0)
 
 
-async def _create(session: AsyncSession, world: CourierWorld, group: G, proposed: dict[str, Any]):
+async def _create(
+    session: AsyncSession, world: CourierWorld, group: G, proposed: dict[str, Any]
+) -> SellerProfileChangeRequest:
     profile = await session.get(SellerProfile, world.seller_profile_id)
     assert profile is not None
     result = await create_change_request(
         session=session, seller_profile=profile, group=group,
-        proposed=proposed, note=None, actor_user_id=SELLER.id,
+        proposed=proposed, note=None, actor_user_id=SELLER_ID,
     )
     await session.commit()
     return result.cr
 
 
 async def _approve(session: AsyncSession, cr: Any, applied: dict[str, Any] | None = None) -> None:
-    await approve(session=session, cr=cr, admin_user_id=ADMIN.id, applied=applied)
+    await approve(session=session, cr=cr, admin_user_id=ADMIN_ID, applied=applied)
     await session.commit()
 
 
@@ -75,7 +82,7 @@ async def test_courier_radius_rechecked_at_approval(session: AsyncSession) -> No
     cr = await _create(session, world, G.StoreBasics, {"delivery_radius_km": 5, "courier_radius_km": 600})
     with pytest.raises(HTTPException) as exc:
         await approve(
-            session=session, cr=cr, admin_user_id=ADMIN.id,
+            session=session, cr=cr, admin_user_id=ADMIN_ID,
             applied={"delivery_radius_km": 40, "courier_radius_km": 20},
         )
     assert exc.value.detail == "courier_radius_not_larger"

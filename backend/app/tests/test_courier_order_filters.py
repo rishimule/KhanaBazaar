@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models.base import User
 from app.models.commerce import Order, OrderStatus, PaymentStatus
 from tests._courier_helpers import (
     ADMIN,
@@ -15,7 +16,7 @@ from tests._courier_helpers import (
 )
 
 
-async def _ids(user, query: str) -> set[int]:
+async def _ids(user: User, query: str) -> set[int]:
     async with client_as(user) as ac:
         resp = await ac.get(f"/api/v1/orders?{query}")
     assert resp.status_code == 200, resp.text

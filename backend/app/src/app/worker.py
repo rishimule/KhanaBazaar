@@ -2004,13 +2004,9 @@ async def seller_new_order_alert(order_id: int) -> None:
     async with async_session_factory() as session:
         row = (
             await session.exec(
-                select(
-                    SellerProfile.id,
-                    SellerProfile.phone,
-                    Order.total,
-                    User.account_status,
-                    Order.delivery_mode,
-                )
+                # Four entities at most: sqlmodel's typed `select` overloads stop
+                # there, so the order's total and mode ride on the Order row.
+                select(SellerProfile.id, SellerProfile.phone, Order, User.account_status)
                 .select_from(Order)
                 .join(Store, Store.id == Order.store_id)  # type: ignore[arg-type]
                 .join(SellerProfile, SellerProfile.id == Store.seller_profile_id)  # type: ignore[arg-type]
@@ -2020,7 +2016,8 @@ async def seller_new_order_alert(order_id: int) -> None:
         ).first()
     if row is None:
         return
-    seller_profile_id, phone, total, account_status, delivery_mode = row
+    seller_profile_id, phone, order_row, account_status = row
+    total, delivery_mode = order_row.total, order_row.delivery_mode
     if not phone or account_status != AccountStatus.active:
         return
     if await _seller_alert_quota_exceeded(seller_profile_id):

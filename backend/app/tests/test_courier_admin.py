@@ -2,6 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 from datetime import timedelta
 
+import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.commerce import DeliveryMode, Order, OrderStatus
@@ -23,7 +24,7 @@ from tests._courier_helpers import (
 )
 
 
-async def _rewind(order_id: int, to_status: str):
+async def _rewind(order_id: int, to_status: str) -> httpx.Response:
     async with client_as(ADMIN) as ac:
         return await ac.post(f"/api/v1/admin/orders/{order_id}/rewind", json={
             "to_status": to_status, "reason": "Corrected by support after a call",

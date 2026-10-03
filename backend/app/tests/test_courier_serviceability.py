@@ -8,6 +8,7 @@ from app.models.commerce import PaymentMethod
 from app.models.profile import SellerProfile, SellerProfileService
 from app.models.store import Store
 from app.services.serviceability import (
+    StoreZone,
     courier_payment_methods,
     is_courier_destination,
     zone_for_point,
@@ -25,7 +26,9 @@ from tests._courier_helpers import (
 from tests._helpers import make_address
 
 
-async def _zone(session: AsyncSession, world: CourierWorld, point: tuple[float, float], **kw: object):
+async def _zone(
+    session: AsyncSession, world: CourierWorld, point: tuple[float, float], **kw: object
+) -> StoreZone:
     return await zone_for_point(
         session, store_id=world.store_id, lat=point[0], lng=point[1], **kw  # type: ignore[arg-type]
     )
