@@ -51,6 +51,10 @@ from app.schemas.sellers import (
 from app.schemas.services import ServicePayload
 from app.schemas.stores import StorePauseBody, StoreRead
 from app.services import admin_audit
+from app.services.courier_settings import (
+    apply_bank_fields,
+    assert_bank_transfer_complete,
+)
 from app.services.eligible_products import list_eligible_products
 from app.services.fee_gating import is_store_premium, should_gate_reports
 from app.services.fee_lifecycle import sync_store_arrangements
@@ -476,6 +480,8 @@ async def get_seller_profile(
         fssai_license=profile.fssai_license,
         bank_account_number=profile.bank_account_number,
         bank_ifsc=profile.bank_ifsc,
+        bank_account_name=profile.bank_account_name,
+        bank_transfer_enabled=profile.bank_transfer_enabled,
         upi_vpa=profile.upi_vpa,
         verification_status=profile.verification_status.value,
         rejection_reason=profile.rejection_reason,
@@ -520,6 +526,10 @@ async def update_seller_profile(
     profile.fssai_license = body.fssai_license or None
     profile.bank_account_number = body.bank_account_number or None
     profile.bank_ifsc = body.bank_ifsc or None
+    apply_bank_fields(
+        profile, name=body.bank_account_name, enabled=body.bank_transfer_enabled
+    )
+    assert_bank_transfer_complete(profile)
     # Safe to write directly: this endpoint 409s approved sellers, so only
     # Pending/Rejected sellers reach here and their payee is reviewed at
     # approval anyway. Approved sellers must use the payments change request.
@@ -578,6 +588,8 @@ async def set_my_service_delivery_settings(
         row.delivery_eta_max_minutes = body.delivery_eta_max_minutes
     if body.pickup_enabled is not None:
         row.pickup_enabled = body.pickup_enabled
+    if body.courier_enabled is not None:
+        row.courier_enabled = body.courier_enabled
     session.add(row)
     await session.commit()
     services = await list_profile_services(session, profile_id)
@@ -858,6 +870,8 @@ async def _application_payload(
         fssai_license=profile.fssai_license,
         bank_account_number=profile.bank_account_number,
         bank_ifsc=profile.bank_ifsc,
+        bank_account_name=profile.bank_account_name,
+        bank_transfer_enabled=profile.bank_transfer_enabled,
         upi_vpa=profile.upi_vpa,
         verification_status=profile.verification_status.value,
         rejection_reason=profile.rejection_reason,
@@ -1011,6 +1025,7 @@ async def admin_set_service_delivery_settings(
         "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
         "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
         "pickup_enabled": row.pickup_enabled,
+        "courier_enabled": row.courier_enabled,
     }
     row.free_delivery_threshold = body.free_delivery_threshold
     row.delivery_fee = body.delivery_fee
@@ -1019,6 +1034,8 @@ async def admin_set_service_delivery_settings(
         row.delivery_eta_max_minutes = body.delivery_eta_max_minutes
     if body.pickup_enabled is not None:
         row.pickup_enabled = body.pickup_enabled
+    if body.courier_enabled is not None:
+        row.courier_enabled = body.courier_enabled
     session.add(row)
     await admin_audit.log(
         session=session,
@@ -1035,6 +1052,7 @@ async def admin_set_service_delivery_settings(
             "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
             "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
             "pickup_enabled": row.pickup_enabled,
+            "courier_enabled": row.courier_enabled,
         },
     )
     await session.commit()

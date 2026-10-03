@@ -22,6 +22,9 @@ class StoreCreate(BaseModel):
 class StoreUpdate(BaseModel):
     name: Optional[str] = None
     delivery_radius_km: Optional[float] = Field(default=None, ge=0.5, le=50.0)
+    # None = unchanged, 0 = turn courier off, otherwise the new courier ring
+    # (validated against the local radius + COURIER_MAX_RADIUS_KM in the route).
+    courier_radius_km: Optional[float] = Field(default=None, ge=0.0)
     pin_confirmed: Optional[bool] = None
 
 
@@ -47,6 +50,10 @@ class StoreRead(BaseModel):
     seller_id: int
     services: list[ServicePayload] = []
     delivery_radius_km: float
+    courier_radius_km: Optional[float] = None
+    # Live prepaid methods for a courier order (spec D6/D7) — names only; the
+    # bank details themselves appear only on an accepted courier order.
+    courier_payment_methods: list[PaymentMethod] = []
     pin_confirmed: bool
     is_paused: bool = False
     pause_reason: Optional[str] = None

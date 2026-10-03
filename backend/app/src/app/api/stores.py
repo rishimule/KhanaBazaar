@@ -48,6 +48,7 @@ from app.schemas.store_product_detail import (
 from app.schemas.storefront import StorefrontResponse
 from app.schemas.stores import StoreCreate, StoreRead, StoreUpdate, UpiPayeeRead
 from app.services import inventory as services_inventory
+from app.services.courier_settings import assert_courier_radius, resolve_courier_radius
 from app.services.fee_gating import is_store_premium, premium_store_ids
 from app.services.inventory import (
     assert_products_in_seller_services,
@@ -57,6 +58,7 @@ from app.services.seller_services import (
     list_profile_services,
     list_profile_services_for_many,
 )
+from app.services.serviceability import courier_payment_methods
 from app.services.storefront import _translation_map, build_storefront
 
 _BULK_ROW_LIMIT = 200
@@ -103,6 +105,8 @@ async def _store_read(
         seller_id=store.seller_profile.user_id,
         services=services,
         delivery_radius_km=store.delivery_radius_km,
+        courier_radius_km=store.courier_radius_km,
+        courier_payment_methods=courier_payment_methods(seller),
         pin_confirmed=store.pin_confirmed,
         is_paused=store.is_paused,
         pause_reason=store.pause_reason,
@@ -356,13 +360,24 @@ async def update_store(
     # — it's not a profile edit, it's the seller acknowledging their map pin).
     if (
         store.seller_profile.verification_status is VerificationStatus.Approved
-        and (payload.name is not None or payload.delivery_radius_km is not None)
+        and (
+            payload.name is not None
+            or payload.delivery_radius_km is not None
+            or payload.courier_radius_km is not None
+        )
     ):
         raise HTTPException(status_code=409, detail="use_change_request")
+    new_local = (
+        payload.delivery_radius_km
+        if payload.delivery_radius_km is not None
+        else store.delivery_radius_km
+    )
+    new_courier = resolve_courier_radius(store.courier_radius_km, payload.courier_radius_km)
+    assert_courier_radius(new_local, new_courier)
     if payload.name is not None:
         store.name = payload.name
-    if payload.delivery_radius_km is not None:
-        store.delivery_radius_km = payload.delivery_radius_km
+    store.delivery_radius_km = new_local
+    store.courier_radius_km = new_courier
     if payload.pin_confirmed is not None:
         store.pin_confirmed = payload.pin_confirmed
     session.add(store)
