@@ -223,7 +223,14 @@ async def test_serviceability_per_store_true_when_inside_radius(
             json={"lat": 18.9220, "lng": 72.8347, "store_id": store.id},
         )
     assert r.status_code == 200
-    assert r.json() == {"serviceable": True, "store_count": None}
+    assert r.json() == {
+        "serviceable": True,
+        "store_count": None,
+        # Additive since the courier work (spec §12): the store-scoped zone,
+        # and which services can ship by courier to the point (none here).
+        "zone": "local",
+        "courier_service_ids": [],
+    }
 
 
 @pytest.mark.asyncio

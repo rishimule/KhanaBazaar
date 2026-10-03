@@ -35,6 +35,7 @@ from app.schemas.geo import (
     ServiceabilityRequest,
     ServiceabilityResponse,
 )
+from app.services.serviceability import zone_for_point
 
 router = APIRouter()
 
@@ -196,24 +197,18 @@ async def serviceability_endpoint(
     session: AsyncSession = Depends(get_db_session),
 ) -> ServiceabilityResponse:
     if body.store_id is not None:
-        sql = text(
-            "SELECT EXISTS ("
-            "  SELECT 1 FROM store s "
-            "  JOIN address a ON a.id = s.address_id "
-            "  WHERE s.id = :store_id AND s.is_active "
-            "    AND a.geo IS NOT NULL "
-            "    AND ST_DWithin("
-            "      a.geo, "
-            "      ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, "
-            "      s.delivery_radius_km * 1000"
-            "    )"
-            ") AS ok"
+        zone = await zone_for_point(
+            session,
+            store_id=body.store_id,
+            lat=body.lat,
+            lng=body.lng,
+            service_id=body.service_id,
         )
-        result = await session.exec(  # type: ignore[call-overload]
-            sql.bindparams(lat=body.lat, lng=body.lng, store_id=body.store_id)
+        return ServiceabilityResponse(
+            serviceable=zone.zone == "local",
+            zone=zone.zone,
+            courier_service_ids=list(zone.courier_service_ids),
         )
-        ok = bool(result.scalar_one())
-        return ServiceabilityResponse(serviceable=ok)
 
     sql = text(
         "SELECT COUNT(*) FROM store s "

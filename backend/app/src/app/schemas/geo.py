@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Pydantic schemas for /api/v1/geo/* endpoints."""
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -33,8 +33,14 @@ class ServiceabilityRequest(BaseModel):
     lat: float = Field(ge=-90.0, le=90.0)
     lng: float = Field(ge=-180.0, le=180.0)
     store_id: Optional[int] = None
+    # With store_id: courier counts only when THIS service can ship.
+    service_id: Optional[int] = None
 
 
 class ServiceabilityResponse(BaseModel):
+    # Local door delivery only — unchanged meaning for existing callers.
     serviceable: bool
     store_count: Optional[int] = None
+    # Set only when store_id was given (spec §12).
+    zone: Optional[Literal["local", "courier", "none"]] = None
+    courier_service_ids: list[int] = []
