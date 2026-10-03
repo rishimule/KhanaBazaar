@@ -193,3 +193,28 @@ async def test_cancel_returns_both_store_credit_spends(session: AsyncSession) ->
     ))).one()
     await session.refresh(account)
     assert account.balance == 250.0
+
+
+async def test_cancelling_a_store_credit_paid_order_owes_no_refund(session: AsyncSession) -> None:
+    # Store credit covered goods + courier, so acceptance auto-paid ₹0. The
+    # cancel hands the credit back; no cash refund is owed (spec §10.3).
+    world = await seed_courier_world(session)
+    await grant_store_credit(session, world, 400.0)
+    order = await place_courier_order(world)
+    quote = (await send_quote(order["id"])).json()["courier"]["quotes"][0]
+    accepted = (await accept_quote(order["id"], quote["id"])).json()
+    assert (accepted["status"], accepted["payment"]["amount"]) == ("paid", 0.0)
+
+    resp = await _cancel(order["id"], SELLER, reason=REASON)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["courier"]["refund_due"] is False
+
+    async with client_as(SELLER) as ac:
+        listed = (await ac.get("/api/v1/orders", params={"needs": "refund"})).json()["orders"]
+        sent = await ac.post(f"/api/v1/orders/{order['id']}/payment/refund-sent", json={})
+    assert order["id"] not in [o["id"] for o in listed]
+    assert sent.status_code == 409 and sent.json()["detail"]["code"] == "refund_not_due"
+
+    rows = (await session.exec(select(Notification).where(Notification.order_id == order["id"]))).all()
+    told = [r for r in rows if r.status_value == "cancelled" and r.customer_profile_id is not None]
+    assert told and "refund" not in told[0].body.lower()

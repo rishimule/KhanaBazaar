@@ -26,6 +26,7 @@ OLD = NOW - timedelta(hours=25)
 def _state(**overrides: Any) -> dict[str, Any]:
     base: dict[str, Any] = {
         "status": OrderStatus.Pending, "payment_status": PaymentStatus.Pending,
+        "payment_amount": 320.0,
         "placed_at": OLD, "latest_quote_version": None, "latest_quote_at": None,
         "accepted_at": None, "claimed_at": None, "rejected_at": None,
         "rejection_count": 0, "eta_to": None, "cancelled_at": None, "now": NOW,
@@ -56,6 +57,11 @@ def test_due_reminder_rules() -> None:
     ))
     assert refund is not None and refund.key == "refund:3"
     assert due_reminder(**_state(status=S.Cancelled, cancelled_at=NOW - timedelta(days=4))) is None
+    # A ₹0 payment (all store credit) was handed back as credit: nothing to chase.
+    assert due_reminder(**_state(
+        status=S.Cancelled, payment_status=PaymentStatus.Paid, payment_amount=0.0,
+        cancelled_at=NOW - timedelta(days=4),
+    )) is None
 
 
 def test_send_window_is_daytime_ist() -> None:

@@ -66,7 +66,7 @@ from app.services import courier as courier_svc
 from app.services import courier_comms
 from app.services.checkout import place_order_for_sub_basket
 from app.services.courier_copy import load_courier_vars, render_status
-from app.services.courier_rules import TrackingInput
+from app.services.courier_rules import TrackingInput, refund_owed_order_ids
 from app.services.notification_push import dispatch_notification_push
 from app.services.notifications import (
     record_delivery_otp_notification,
@@ -467,9 +467,7 @@ async def list_orders(
     elif needs == "refund":
         stmt = stmt.where(
             Order.status == OrderStatus.Cancelled,
-            col(Order.id).in_(
-                select(Payment.order_id).where(Payment.status == PaymentStatus.Paid)
-            ),
+            col(Order.id).in_(refund_owed_order_ids()),
         )
     if stale:
         stmt = stmt.where(
@@ -716,7 +714,7 @@ async def courier_send_quote(
 ) -> OrderRead:
     """The store's seller sends (or revises) the courier charge + transit."""
     order, include_customer = await _load_order_for_user(session, order_id, user)
-    order, _quote, revised = await courier_svc.send_quote(
+    result = await courier_svc.send_quote(
         session,
         order,
         user,
@@ -726,9 +724,11 @@ async def courier_send_quote(
         carrier_name=body.carrier_name,
         note=body.note,
     )
-    await courier_comms.notify_customer(
-        session, order, "quote_revised" if revised else "quote_ready"
-    )
+    order = result.order
+    if not result.duplicate:
+        await courier_comms.notify_customer(
+            session, order, "quote_revised" if result.revised else "quote_ready"
+        )
     return await _serialize_order(
         session,
         order,

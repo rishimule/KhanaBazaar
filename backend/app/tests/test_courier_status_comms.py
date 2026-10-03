@@ -126,3 +126,17 @@ def test_status_whatsapp_uses_courier_templates() -> None:
         worker.send_order_status_whatsapp_async(7, "dispatched")
         worker.send_order_status_whatsapp_async(7, "pending")
     assert sent == ["courier_shipped"]
+
+
+def test_status_email_tells_the_seller_they_owe_the_refund() -> None:
+    # The seller's own copy of the cancellation must not say their store owes
+    # them money.
+    payload = render_email("order_status_changed", {
+        "order_id": 7, "service_name": "Sweets", "store_name": "Ravi Sweets",
+        "current": "cancelled", "reason": "No courier to your PIN", "recipient": "seller",
+        "mode": "courier", "status_label": "cancelled",
+        "tracking_line": None, "refund_due_amount": 320.0,
+    })
+    assert "You owe the customer a refund of" in payload.html
+    assert "You owe the customer a refund of" in payload.text
+    assert "Refund due" not in payload.html and "Refund due" not in payload.text

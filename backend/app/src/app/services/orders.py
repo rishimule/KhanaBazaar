@@ -350,6 +350,12 @@ async def rewind_order(
     the customer's acceptance (spec §9.7). Terminal statuses reject. Reason
     >=10 chars required.
     """
+    # Validate against the locked row: a seller cancel or a customer's
+    # "received" racing this rewind would otherwise be silently overwritten
+    # (credit already reverted, stock already restocked, refund-due erased).
+    assert order.id is not None
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
     if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
         raise HTTPException(status_code=409, detail={"code": "terminal_status"})
     is_courier = order.delivery_mode == DeliveryMode.Courier
@@ -447,6 +453,11 @@ async def refund_order(
     in the same transaction. Does NOT integrate with a real refund gateway
     (manual ledger marker for MVP).
     """
+    # Locked like every other payment write, so it serialises with the
+    # seller's "Refund sent" and a concurrent cancel.
+    assert order.id is not None
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
     if order.status not in (OrderStatus.Cancelled, OrderStatus.Delivered):
         raise HTTPException(
             status_code=409, detail={"code": "order_not_final"}

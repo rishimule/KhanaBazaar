@@ -302,7 +302,8 @@ def render_status(status: str, v: CourierVars) -> CourierMessage | None:
     if status == "delivered":
         return CourierMessage(f"Order #{oid} delivered", "Your courier order has been delivered. Enjoy!")
     if status == "cancelled":
-        if v.payment_status == "paid":
+        # Same rule as courier_rules.refund_owed: ₹0 (all store credit) owes nothing.
+        if v.payment_status == "paid" and v.payable > 0:
             return CourierMessage(
                 f"Order #{oid} cancelled",
                 f"{v.store_name} owes you a refund of {_money(v.payable)}. "

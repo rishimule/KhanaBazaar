@@ -21,6 +21,7 @@ from app.db import session as db_session
 from app.models.commerce import DeliveryMode, Order, OrderStatus, Payment, PaymentStatus
 from app.models.courier import CourierQuote, OrderCourier
 from app.services.courier_comms import notify_customer, notify_seller
+from app.services.courier_rules import refund_owed, refund_owed_order_ids
 from app.utils.delivery_window import IST
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ def due_reminder(
     *,
     status: OrderStatus,
     payment_status: PaymentStatus,
+    payment_amount: float,
     placed_at: datetime,
     latest_quote_version: int | None,
     latest_quote_at: datetime | None,
@@ -72,11 +74,7 @@ def due_reminder(
         return DueReminder(
             "overdue", customer_event="reminder_arrival", seller_event="reminder_overdue"
         )
-    if (
-        status is OrderStatus.Cancelled
-        and payment_status is PaymentStatus.Paid
-        and cancelled_at is not None
-    ):
+    if refund_owed(status, payment_status, payment_amount) and cancelled_at is not None:
         age = now - cancelled_at
         reached = [d for d in settings.COURIER_REFUND_REMINDER_DAYS if age >= timedelta(days=d)]
         if reached:
@@ -92,7 +90,7 @@ def in_send_window(now: datetime) -> bool:
 
 async def _candidate_ids() -> list[int]:
     async with db_session.async_session_factory() as session:
-        refund_due = select(Payment.order_id).where(Payment.status == PaymentStatus.Paid)
+        refund_due = refund_owed_order_ids()
         rows = await session.exec(
             select(Order.id)
             .where(
@@ -132,6 +130,7 @@ async def _remind_one(order_id: int, now: datetime) -> bool:
         due = due_reminder(
             status=order.status,
             payment_status=payment.status,
+            payment_amount=payment.amount,
             placed_at=order.placed_at,
             latest_quote_version=quote.version if quote else None,
             latest_quote_at=quote.created_at if quote else None,

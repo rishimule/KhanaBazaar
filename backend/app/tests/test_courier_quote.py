@@ -56,9 +56,10 @@ async def test_quote_versions_are_capped(session: AsyncSession, monkeypatch: pyt
     monkeypatch.setattr(settings, "COURIER_MAX_QUOTE_VERSIONS", 2)
     world = await seed_courier_world(session)
     order = await place_courier_order(world)
-    assert (await send_quote(order["id"])).status_code == 200
-    assert (await send_quote(order["id"])).status_code == 200
-    third = await send_quote(order["id"])
+    # Different fees: an identical quote seconds later is a retry (see below).
+    assert (await send_quote(order["id"], fee=120.0)).status_code == 200
+    assert (await send_quote(order["id"], fee=130.0)).status_code == 200
+    third = await send_quote(order["id"], fee=140.0)
     assert third.status_code == 409 and third.json()["detail"]["code"] == "too_many_quote_versions"
 
 
@@ -107,3 +108,18 @@ async def test_courier_orders_cannot_skip_the_quote(session: AsyncSession) -> No
         resp = await ac.post(f"/api/v1/orders/{order['id']}/transition", json={"to": "packed"})
     assert resp.status_code == 409
     assert resp.json()["detail"]["detail"] == "illegal_transition"
+
+
+async def test_repeating_the_latest_quote_seconds_later_is_a_no_op(session: AsyncSession) -> None:
+    # A double tap / retried request must not burn a version, tell the
+    # customer the quote was "updated", or supersede the copy they may accept.
+    world = await seed_courier_world(session)
+    order = await place_courier_order(world)
+    first = (await send_quote(order["id"])).json()["courier"]["quotes"][0]
+    again = await send_quote(order["id"])
+    assert again.status_code == 200, again.text
+    quotes = again.json()["courier"]["quotes"]
+    assert [(q["id"], q["version"]) for q in quotes] == [(first["id"], 1)]
+    statuses = await _statuses(session, order["id"])
+    assert statuses.count("courier_quote_ready") == 1
+    assert "courier_quote_revised" not in statuses

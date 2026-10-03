@@ -42,6 +42,7 @@ from app.services.courier_rules import (
     clean_text,
     eta_window,
     lock_order,
+    refund_owed,
     validate_tracking_url,
 )
 from app.services.orders import _seller_owns_store
@@ -49,6 +50,20 @@ from app.services.serviceability import bank_transfer_live, courier_payment_meth
 from app.utils.delivery_window import ist_today
 
 Viewer = Literal["customer", "seller", "admin"]
+
+# An identical quote this soon after the last one is a double tap or a retried
+# request, not a revision.
+QUOTE_RETRY_WINDOW = timedelta(seconds=60)
+
+
+@dataclass(frozen=True)
+class QuoteResult:
+    order: Order
+    quote: CourierQuote
+    revised: bool
+    # True when the request repeated the latest quote seconds later: nothing
+    # was written, so nobody should be told anything.
+    duplicate: bool = False
 
 
 def _now() -> datetime:
@@ -118,9 +133,8 @@ async def send_quote(
     eta_max_days: int,
     carrier_name: str | None,
     note: str | None,
-) -> tuple[Order, CourierQuote, bool]:
-    """Insert the next quote version and move the order to `quoted`.
-    Returns (order, quote, is_revision)."""
+) -> QuoteResult:
+    """Insert the next quote version and move the order to `quoted`."""
     _require_courier(order)
     await _require_owning_seller(session, actor, order)
     assert order.id is not None and actor.id is not None
@@ -131,17 +145,34 @@ async def send_quote(
     if order.status not in (OrderStatus.Pending, OrderStatus.Quoted):
         raise HTTPException(status_code=409, detail={"code": "quote_locked"})
     previous = await latest_quote(session, order_id)
+    fee = round(courier_fee, 2)
+    carrier = clean_text(carrier_name, max_len=80)
+    cleaned_note = clean_text(note, max_len=300)
+    if (
+        previous is not None
+        and order.status == OrderStatus.Quoted
+        and (previous.courier_fee, previous.eta_min_days, previous.eta_max_days)
+        == (fee, eta_min_days, eta_max_days)
+        and (previous.carrier_name, previous.note) == (carrier, cleaned_note)
+        and _now() - previous.created_at < QUOTE_RETRY_WINDOW
+    ):
+        # Don't burn a version, tell the customer it was "updated", or make a
+        # customer accepting the first copy hit quote_superseded.
+        revised = previous.version > 1  # read before commit expires it
+        await session.commit()  # release the row lock; nothing changed
+        await session.refresh(order)
+        return QuoteResult(order, previous, revised=revised, duplicate=True)
     version = (previous.version if previous else 0) + 1
     if version > settings.COURIER_MAX_QUOTE_VERSIONS:
         raise HTTPException(status_code=409, detail={"code": "too_many_quote_versions"})
     quote = CourierQuote(
         order_id=order_id,
         version=version,
-        courier_fee=round(courier_fee, 2),
+        courier_fee=fee,
         eta_min_days=eta_min_days,
         eta_max_days=eta_max_days,
-        carrier_name=clean_text(carrier_name, max_len=80),
-        note=clean_text(note, max_len=300),
+        carrier_name=carrier,
+        note=cleaned_note,
         created_by_user_id=actor.id,
     )
     session.add(quote)
@@ -150,7 +181,7 @@ async def send_quote(
     await session.commit()
     await session.refresh(order)
     await session.refresh(quote)
-    return order, quote, version > 1
+    return QuoteResult(order, quote, revised=version > 1)
 
 
 async def build_courier_read(
@@ -227,9 +258,8 @@ async def build_courier_read(
         cancelled_at=row.cancelled_at,
         payment_reported_missing_at=row.payment_reported_missing_at,
         refund_due=(
-            order.status == OrderStatus.Cancelled
-            and payment is not None
-            and payment.status == PaymentStatus.Paid
+            payment is not None
+            and refund_owed(order.status, payment.status, payment.amount)
         ),
         payable_methods=courier_payment_methods(seller) if seller is not None else [],
         bank_transfer=bank,
@@ -477,7 +507,7 @@ async def mark_refund_sent(
     payment = await _payment(session, order_id)
     if payment.status is PaymentStatus.Refunded:
         raise HTTPException(status_code=409, detail={"code": "already_refunded"})
-    if order.status != OrderStatus.Cancelled or payment.status is not PaymentStatus.Paid:
+    if not refund_owed(order.status, payment.status, payment.amount):
         raise HTTPException(status_code=409, detail={"code": "refund_not_due"})
     payment.status = PaymentStatus.Refunded
     payment.refunded_at = _now()

@@ -12,10 +12,17 @@ from datetime import date, timedelta
 from urllib.parse import urlsplit
 
 from fastapi import HTTPException
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.sql.expression import SelectOfScalar
 
-from app.models.commerce import DeliveryStatus, Order, OrderStatus
+from app.models.commerce import (
+    DeliveryStatus,
+    Order,
+    OrderStatus,
+    Payment,
+    PaymentStatus,
+)
 from app.models.courier import OrderCourier
 
 S = OrderStatus
@@ -47,6 +54,24 @@ def delivery_status_for(status: OrderStatus) -> DeliveryStatus:
     if status in _PRE_FULFILMENT:
         return DeliveryStatus.Pending
     return DeliveryStatus(status.value)
+
+
+def refund_owed(status: OrderStatus, payment_status: PaymentStatus, amount: float) -> bool:
+    """Cancelled with the customer's money still with the seller (spec §10.3).
+
+    A ₹0 payment — store credit covered everything, and that credit comes back
+    on its own at cancel (revert_order) — owes nothing: no "refund due" badge,
+    no "Refunds due" listing, no refund reminders, no "Refund sent" to tap.
+    """
+    return status == S.Cancelled and payment_status == PaymentStatus.Paid and amount > 0
+
+
+def refund_owed_order_ids() -> SelectOfScalar[int]:
+    """SQL twin of refund_owed's payment half: order ids whose payment is Paid
+    and non-zero. Callers add the Cancelled (+ courier) conditions on Order."""
+    return select(Payment.order_id).where(
+        Payment.status == PaymentStatus.Paid, col(Payment.amount) > 0
+    )
 
 
 def eta_window(min_days: int, max_days: int, *, today: date) -> tuple[date, date]:

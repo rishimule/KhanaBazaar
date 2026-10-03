@@ -7,7 +7,11 @@
   {% endif %}
   {% if refund_due_amount is defined and refund_due_amount %}
     <div style="background:#fff7ed;border-left:4px solid #c2410c;padding:12px 16px;margin:16px 0;border-radius:4px;">
+      {% if recipient == 'seller' %}
+      <div style="font-size:15px;color:#1f2937;">You owe the customer a refund of <strong>{{ refund_due_amount|inr }}</strong>. Send it back, then tap “Refund sent” on the order.</div>
+      {% else %}
       <div style="font-size:15px;color:#1f2937;">Refund due: <strong>{{ refund_due_amount|inr }}</strong> from {{ store_name }}. We'll let you know when they send it.</div>
+      {% endif %}
     </div>
   {% endif %}
   {% if current == 'cancelled' and reason %}
