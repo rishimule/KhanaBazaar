@@ -45,7 +45,7 @@ def test_order_templates_are_utility_category():
         assert TEMPLATES[name].category == "UTILITY"
 
 
-def test_courier_templates_are_utility_category():
+def test_courier_templates_are_utility_category() -> None:
     for name in ("courier_quote_ready", "courier_shipped"):
         assert TEMPLATES[name].category == "UTILITY"
 
