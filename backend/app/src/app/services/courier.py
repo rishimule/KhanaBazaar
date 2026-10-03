@@ -8,6 +8,7 @@ job (api/orders.py) and run after the commit.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -28,9 +29,11 @@ from app.models.courier import CourierQuote, OrderCourier
 from app.models.profile import SellerProfile
 from app.models.store import Store
 from app.schemas.orders import BankTransferRead, CourierQuoteRead, CourierRead
-from app.services.courier_rules import clean_text, lock_order
+from app.services import customer_store_credit as store_credit_svc
+from app.services.courier_rules import clean_text, eta_window, lock_order
 from app.services.orders import _seller_owns_store
 from app.services.serviceability import bank_transfer_live, courier_payment_methods
+from app.utils.delivery_window import ist_today
 
 Viewer = Literal["customer", "seller", "admin"]
 
@@ -217,3 +220,82 @@ async def build_courier_read(
         payable_methods=courier_payment_methods(seller) if seller is not None else [],
         bank_transfer=bank,
     )
+
+
+class CourierPayeeMissing(Exception):
+    """The seller has no live prepaid payee, so the customer could not pay."""
+
+
+@dataclass(frozen=True)
+class AcceptResult:
+    order: Order
+    auto_paid: bool
+    already_accepted: bool
+
+
+async def accept_quote(
+    session: AsyncSession, order: Order, actor: User, *, quote_id: int
+) -> AcceptResult:
+    """Lock in the latest quote: the charge becomes the delivery fee, totals
+    are recalculated, store credit tops up, and ₹0 payable goes straight to
+    `paid` (spec §9.4, §10.1)."""
+    _require_courier(order)
+    if actor.role != UserRole.Customer:
+        raise HTTPException(status_code=403, detail="forbidden")
+    assert order.id is not None
+    order = await lock_order(session, order.id)
+    row = await order_courier(session, order.id)
+    if row.accepted_quote_id == quote_id and order.status in (
+        OrderStatus.Accepted, OrderStatus.Paid,
+    ):
+        return AcceptResult(order=order, auto_paid=False, already_accepted=True)
+    if order.status != OrderStatus.Quoted:
+        raise HTTPException(status_code=409, detail={"code": "illegal_transition"})
+    latest = await latest_quote(session, order.id)
+    if latest is None or latest.id != quote_id:
+        raise HTTPException(status_code=409, detail={"code": "quote_superseded"})
+    seller = await store_seller(session, order.store_id)
+    if not courier_payment_methods(seller):
+        raise CourierPayeeMissing()
+    payment = await _payment(session, order.id)
+    now = _now()
+
+    order.delivery_fee = round(latest.courier_fee, 2)
+    order.total = round(order.subtotal + order.delivery_fee + order.tax, 2)
+    if row.apply_store_credit:
+        remaining = round(order.total - order.store_credit_applied, 2)
+        if remaining > 0:
+            account = await store_credit_svc.lock_account(
+                session,
+                seller_profile_id=seller.id or 0,
+                customer_profile_id=order.customer_profile_id,
+            )
+            if account is not None and account.balance > 0:
+                applied = await store_credit_svc.spend(
+                    session,
+                    account,
+                    min(account.balance, remaining),
+                    order_id=order.id,
+                    actor_user_id=actor.id,
+                )
+                order.store_credit_applied = round(order.store_credit_applied + applied, 2)
+    payment.amount = round(order.total - order.store_credit_applied, 2)
+    row.accepted_quote_id = latest.id
+    row.accepted_at = now
+
+    auto_paid = payment.amount <= 0
+    if auto_paid:
+        # No money moves, so no seller confirmation is needed.
+        payment.amount = 0.0
+        payment.status = PaymentStatus.Paid
+        payment.paid_at = now
+        order.status = OrderStatus.Paid
+        row.eta_from, row.eta_to = eta_window(
+            latest.eta_min_days, latest.eta_max_days, today=ist_today()
+        )
+    else:
+        order.status = OrderStatus.Accepted
+    session.add_all([order, payment, row])
+    await session.commit()
+    await session.refresh(order)
+    return AcceptResult(order=order, auto_paid=auto_paid, already_accepted=False)

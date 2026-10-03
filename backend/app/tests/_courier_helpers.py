@@ -346,3 +346,27 @@ async def get_order(order_id: int, *, as_user: User = CUSTOMER) -> dict[str, Any
         resp = await ac.get(f"/api/v1/orders/{order_id}")
     assert resp.status_code == 200, resp.text
     return resp.json()
+
+
+async def accept_quote(
+    order_id: int, quote_id: int, *, as_user: User = CUSTOMER
+) -> httpx.Response:
+    async with client_as(as_user) as ac:
+        return await ac.post(
+            f"/api/v1/orders/{order_id}/courier/accept", json={"quote_id": quote_id}
+        )
+
+
+async def grant_store_credit(session: AsyncSession, world: CourierWorld, amount: float) -> None:
+    """Give the customer `amount` of store credit with the courier seller."""
+    from app.models.returns import StoreCreditEntryType
+    from app.services import customer_store_credit as store_credit
+
+    account = await store_credit.get_or_create_account(
+        session, seller_profile_id=world.seller_profile_id,
+        customer_profile_id=world.customer_profile_id, for_update=True,
+    )
+    await store_credit.grant(
+        session, account, amount, entry_type=StoreCreditEntryType.admin_adjust, note="test",
+    )
+    await session.commit()

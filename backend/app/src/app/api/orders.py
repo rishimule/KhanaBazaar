@@ -43,6 +43,7 @@ from app.models.commerce import (
 from app.models.profile import CustomerProfile, SellerProfile, SellerProfileService
 from app.models.store import Store, StoreInventory
 from app.schemas.orders import (
+    CourierAcceptRequest,
     CourierQuoteRequest,
     DeliveryRead,
     OrderItemRead,
@@ -688,6 +689,40 @@ async def courier_send_quote(
     await courier_comms.notify_customer(
         session, order, "quote_revised" if revised else "quote_ready"
     )
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=user.role == UserRole.Admin,
+    )
+
+
+@router.post("/{order_id}/courier/accept", response_model=OrderRead)
+async def courier_accept_quote(
+    order_id: int,
+    body: CourierAcceptRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The owning customer accepts the quote they were shown."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    try:
+        result = await courier_svc.accept_quote(session, order, user, quote_id=body.quote_id)
+    except courier_svc.CourierPayeeMissing as exc:
+        # Nothing was written; release the row lock, then tell the seller once.
+        await session.rollback()
+        await session.refresh(order)
+        await courier_comms.notify_seller(session, order, "payee_missing", once=True)
+        raise HTTPException(
+            status_code=409, detail={"code": "courier_payment_unavailable"}
+        ) from exc
+    order = result.order
+    if not result.already_accepted:
+        if result.auto_paid:
+            await courier_comms.notify_customer(session, order, "auto_paid")
+            await courier_comms.notify_seller(session, order, "accepted_paid")
+        else:
+            await courier_comms.notify_seller(session, order, "accepted")
     return await _serialize_order(
         session,
         order,

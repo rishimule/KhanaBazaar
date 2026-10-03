@@ -112,6 +112,11 @@ class CourierQuoteRequest(BaseModel):
         return self
 
 
+class CourierAcceptRequest(BaseModel):
+    # Names the version the customer saw, so a revision mid-tap is caught.
+    quote_id: int = Field(gt=0)
+
+
 class OrderRead(BaseModel):
     id: int
     store_id: int
