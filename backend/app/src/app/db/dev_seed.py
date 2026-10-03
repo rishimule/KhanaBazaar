@@ -2305,6 +2305,36 @@ async def _upsert_inventory(
     return inventory
 
 
+_COURIER_DEMO_STORE = "Krishna Supermart"
+_COURIER_DEMO_RADIUS_KM = 1500.0
+
+
+async def _seed_courier_demo(session: AsyncSession, stores_by_name: dict[str, Store]) -> None:
+    """One Mumbai store ships by courier, so the seeded "Pune Trip" address
+    (~125 km away) can walk the courier flow locally (spec 2026-10-02)."""
+    store = stores_by_name.get(_COURIER_DEMO_STORE)
+    if store is None:
+        return
+    store.courier_radius_km = _COURIER_DEMO_RADIUS_KM
+    session.add(store)
+    seller = await session.get(SellerProfile, store.seller_profile_id)
+    if seller is not None:
+        seller.bank_account_name = seller.bank_account_name or seller.business_name
+        seller.bank_transfer_enabled = bool(seller.bank_account_number and seller.bank_ifsc)
+        session.add(seller)
+    rows = (
+        await session.exec(
+            select(SellerProfileService).where(
+                SellerProfileService.seller_profile_id == store.seller_profile_id
+            )
+        )
+    ).all()
+    for row in rows:
+        row.courier_enabled = True
+        session.add(row)
+    await session.flush()
+
+
 async def _seed_demo_orders(session: AsyncSession) -> None:
     """Build the DEMO_ORDERS roster: Order + OrderItem + Payment + Delivery
     rows, with status-appropriate timestamps and stock decrements. Idempotent
@@ -3301,6 +3331,7 @@ async def seed_demo_data(session: AsyncSession) -> None:
             inventory_item["stock"],
         )
 
+    await _seed_courier_demo(session, stores_by_name)
     await _seed_demo_orders(session)
     await _seed_favorites(session)
     await _seed_customer_account_states(session, users_by_email)
