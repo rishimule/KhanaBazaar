@@ -1344,6 +1344,7 @@ async def admin_customer_orders(
             status=o.status.value,
             total=o.total,
             placed_at=o.placed_at,
+            delivery_mode=o.delivery_mode.value,
         )
         for o in rows
         if o.id is not None

@@ -130,3 +130,13 @@ async def test_order_value_fee_excludes_the_courier_charge(session: AsyncSession
         today - timedelta(days=1), today + timedelta(days=1),
     )
     assert total == 430.0  # courier goods 200 + door 230 (its fee stays in)
+
+
+async def test_admin_customer_orders_carry_the_delivery_mode(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    order = await place_courier_order(world)
+    async with client_as(ADMIN) as ac:
+        resp = await ac.get(f"/api/v1/admin/customers/{world.customer_profile_id}/orders")
+    assert resp.status_code == 200, resp.text
+    row = next(o for o in resp.json() if o["id"] == order["id"])
+    assert (row["delivery_mode"], row["status"]) == ("courier", "pending")
