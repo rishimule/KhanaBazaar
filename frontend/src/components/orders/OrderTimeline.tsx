@@ -49,7 +49,7 @@ export default function OrderTimeline({
   const steps = isCourier ? COURIER_STEPS : LOCAL_STEPS;
   const current = (isCourier ? COURIER_INDEX : LOCAL_INDEX)[status];
   return (
-    <ol className={styles.timeline}>
+    <ol className={`${styles.timeline} ${isCourier ? styles.dense : ""}`}>
       {steps.map((step) => {
         const completed = step.reachedAt <= current;
         const labelKey =
