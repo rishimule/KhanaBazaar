@@ -26,7 +26,7 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
-from app.models.commerce import Delivery, Order, OrderStatus
+from app.models.commerce import ACTIVE_ORDER_STATUSES, Delivery, Order, OrderStatus
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.seller_profile_change_request import (
     SellerProfileChangeGroup,
@@ -154,7 +154,7 @@ async def get_seller_metrics(
         now_ist.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         .astimezone(timezone.utc)
     )
-    active = (OrderStatus.Pending, OrderStatus.Packed, OrderStatus.Dispatched)
+    active = ACTIVE_ORDER_STATUSES
 
     active_orders = (await session.exec(
         select(func.count())  # type: ignore[arg-type]

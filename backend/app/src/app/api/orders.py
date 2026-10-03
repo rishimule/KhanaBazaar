@@ -29,6 +29,7 @@ from app.models.catalog import (
     Subcategory,
 )
 from app.models.commerce import (
+    ACTIVE_ORDER_STATUSES,
     Delivery,
     DeliveryMode,
     Order,
@@ -192,7 +193,7 @@ async def _send_delivery_otp(session: AsyncSession, order: Order, code: str) -> 
 
 REORDER_LANG = "en"
 
-ACTIVE_STATUSES = (OrderStatus.Pending, OrderStatus.Packed, OrderStatus.Dispatched)
+ACTIVE_STATUSES = ACTIVE_ORDER_STATUSES
 HISTORY_STATUSES = (OrderStatus.Delivered, OrderStatus.Cancelled)
 
 

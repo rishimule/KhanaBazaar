@@ -72,6 +72,20 @@ class Settings(BaseSettings):
     RETURN_OTP_MAX_ATTEMPTS: int = 5
     RETURN_OTP_RESEND_COOLDOWN: int = 60
 
+    # Courier delivery (spec 2026-10-02 §6.5). ge=1 wherever a 0 would break the
+    # rule — a zero cap forbids every courier radius, a zero reminder interval
+    # messages every waiting order on each sweep — so a typo fails startup.
+    COURIER_MAX_RADIUS_KM: float = Field(default=3500.0, ge=1)
+    COURIER_MAX_QUOTE_VERSIONS: int = Field(default=5, ge=1)
+    COURIER_REMINDER_HOURS: int = Field(default=24, ge=1)
+    COURIER_ARRIVAL_GRACE_DAYS: int = Field(default=1, ge=1)
+    # Seller refund reminders, in days since the cancellation. Env form: [1,3,7]
+    COURIER_REFUND_REMINDER_DAYS: list[int] = Field(default_factory=lambda: [1, 3, 7])
+    COURIER_STALE_DAYS: int = Field(default=3, ge=1)
+    # Reminders go out only from END to START, IST 24h clock (09:00–21:00).
+    COURIER_QUIET_START_HOUR: int = Field(default=21, ge=0, le=23)
+    COURIER_QUIET_END_HOUR: int = Field(default=9, ge=0, le=23)
+
     # Email transport. One of: "console" (dev/test), "resend", "brevo", "smtp",
     # or a "<transport>+console" composite that sends for real AND captures the
     # message into the dev mailbox (/dev-emails).
@@ -216,6 +230,13 @@ class Settings(BaseSettings):
                 self.SUPPORT_EMAIL,
             )
         return self
+
+    @field_validator("COURIER_REFUND_REMINDER_DAYS", mode="after")
+    @classmethod
+    def _courier_refund_days(cls, v: list[int]) -> list[int]:
+        if not v or any(day < 1 for day in v):
+            raise ValueError("COURIER_REFUND_REMINDER_DAYS needs one or more days >= 1")
+        return sorted(set(v))
 
     @field_validator("DATABASE_URL", mode="after")
     @classmethod

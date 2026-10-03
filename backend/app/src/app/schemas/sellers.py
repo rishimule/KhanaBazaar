@@ -163,6 +163,10 @@ class OrderStatusCounts(BaseModel):
     pending: int = 0
     cancelled: int = 0
     paid: int = 0  # dormant OrderStatus value; captured so the donut total never under-reports
+    # Courier stages (spec 2026-10-02). The dashboard fills these with
+    # hasattr(), so a missing field would silently drop those orders.
+    quoted: int = 0
+    accepted: int = 0
 
 
 class InventoryServiceStat(BaseModel):
