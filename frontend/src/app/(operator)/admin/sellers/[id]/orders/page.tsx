@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusBadge from "@/components/orders/PaymentStatusBadge";
+import OrderTotal from "@/components/orders/OrderTotal";
 import { useAuth } from "@/lib/AuthContext";
 import { post } from "@/lib/api";
 import {
@@ -27,6 +28,9 @@ interface PendingAction {
 
 const REWIND_PATH: Record<Order["status"], "pending" | "packed" | null> = {
   pending: null,
+  quoted: null,
+  accepted: null,
+  paid: null,
   packed: "pending",
   dispatched: "packed",
   delivered: null,
@@ -156,10 +160,12 @@ export default function AdminOrdersTab({
                 </td>
                 <td style={cell}><OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} /></td>
                 <td style={cell}>
-                  <PaymentStatusBadge status={o.payment.status} />
+                  <PaymentStatusBadge status={o.payment.status} refundDue={o.courier?.refund_due} />
                 </td>
                 <td style={cell}>{o.customer_name ?? "—"}</td>
-                <td style={cell}>₹{o.total.toFixed(2)}</td>
+                <td style={cell}>
+                  <OrderTotal order={o} />
+                </td>
                 <td style={cell}>
                   {!terminal && (
                     <button

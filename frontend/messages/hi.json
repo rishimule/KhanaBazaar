@@ -399,7 +399,37 @@
     "boundaryRef": "संदर्भ: {digest}",
     "illegal_rewind": "इस ऑर्डर को उस चरण पर वापस नहीं ले जाया जा सकता।",
     "boundaryBodyShop": "पेज लोड होना रुक गया। आपकी कार्ट में कुछ भी नहीं खोया। दोबारा कोशिश करें, या होम पेज पर लौटें।",
-    "boundaryShopHome": "होम पेज पर लौटें"
+    "boundaryShopHome": "होम पेज पर लौटें",
+    "courier_unavailable": "यह दुकान अब यह सेवा कूरियर से नहीं भेजती।",
+    "courier_destination_unsupported": "कूरियर डिलीवरी के लिए भारत का पता और 6 अंकों का पिन कोड ज़रूरी है।",
+    "address_within_local_area": "इस पते पर अब लोकल डिलीवरी होती है। बदली हुई डिलीवरी जानकारी देखें और फिर से ऑर्डर दें।",
+    "outside_courier_area": "यह पता अब दुकान के कूरियर क्षेत्र से बाहर है। कोई दूसरा पता चुनें।",
+    "recipient_name_required": "पाने वाले का नाम लिखें।",
+    "invalid_recipient_phone": "पाने वाले का सही 10 अंकों का भारतीय मोबाइल नंबर लिखें।",
+    "courier_fields_not_allowed": "पाने वाले और ट्रैकिंग की जानकारी सिर्फ़ कूरियर ऑर्डर के लिए है।",
+    "preferred_window_not_allowed": "कूरियर ऑर्डर में पसंदीदा डिलीवरी समय नहीं चुना जा सकता।",
+    "bank_transfer_unavailable": "यह दुकान अभी बैंक ट्रांसफ़र नहीं ले रही है।",
+    "upi_unavailable": "यह दुकान अभी UPI से भुगतान नहीं ले रही है।",
+    "courier_payment_unavailable": "यह दुकान अभी भुगतान नहीं ले सकती। हमने उन्हें बता दिया है।",
+    "quote_superseded": "दुकान ने अभी कोटेशन बदला है। कृपया नया कोटेशन देखें।",
+    "quote_locked": "ग्राहक के स्वीकार करने के बाद कोटेशन नहीं बदला जा सकता।",
+    "too_many_quote_versions": "इस ऑर्डर के लिए अधिकतम कोटेशन भेजे जा चुके हैं।",
+    "not_awaiting_payment": "यह ऑर्डर भुगतान का इंतज़ार नहीं कर रहा है।",
+    "payment_method_required": "बताएँ कि आपने कैसे भुगतान किया।",
+    "payment_settled": "भुगतान की पुष्टि पहले ही हो चुकी है।",
+    "no_claim": "ग्राहक ने अभी तक भुगतान करने की बात नहीं कही है।",
+    "invalid_tracking_url": "पूरा https:// ट्रैकिंग लिंक डालें।",
+    "already_delivered": "यह ऑर्डर पहले ही पहुँचाया गया दर्ज है।",
+    "payment_received_required": "बताएँ कि ग्राहक का भुगतान आप तक पहुँचा या नहीं।",
+    "refund_not_due": "इस ऑर्डर पर कोई रिफ़ंड बाकी नहीं है।",
+    "already_refunded": "रिफ़ंड पहले ही दर्ज हो चुका है।",
+    "not_returnable_courier": "कूरियर ऑर्डर ऐप में वापस नहीं किए जा सकते।",
+    "not_applicable_for_courier": "यह कूरियर ऑर्डर के लिए उपलब्ध नहीं है।",
+    "courier_radius_not_larger": "कूरियर दायरा लोकल डिलीवरी दायरे से बड़ा होना चाहिए।",
+    "courier_radius_too_large": "कूरियर दायरा बहुत बड़ा है।",
+    "bank_transfer_incomplete": "बैंक ट्रांसफ़र के लिए खाते का नाम, नंबर और IFSC ज़रूरी हैं।",
+    "reason_required": "कृपया कम से कम 10 अक्षरों का कारण लिखें।",
+    "cancel_not_allowed": "यह ऑर्डर अब यहाँ से रद्द नहीं किया जा सकता।"
   },
   "Footer": {
     "tagline": "स्थानीय विक्रेताओं को डिजिटल पहचान दें। मिलकर हम एक मज़बूत, आपस में जुड़ा हुआ इकोसिस्टम बनाते हैं।",
@@ -508,7 +538,16 @@
       "delivered": "पहुँचाया गया",
       "cancelled": "रद्द",
       "pickup_dispatched": "पिकअप के लिए तैयार",
-      "pickup_delivered": "लिया गया"
+      "pickup_delivered": "लिया गया",
+      "courier_pending": "कोटेशन का इंतज़ार",
+      "courier_quoted": "कोटेशन भेजा गया",
+      "courier_quoted_customer": "कोटेशन तैयार",
+      "courier_accepted": "भुगतान का इंतज़ार",
+      "courier_paid": "भुगतान हो गया",
+      "courier_dispatched": "कूरियर से भेजा गया",
+      "quoted": "कोटेशन दिया गया",
+      "accepted": "स्वीकार किया गया",
+      "paid": "भुगतान हो गया"
     },
     "timeline": {
       "placed": "ऑर्डर दिया गया",
@@ -517,14 +556,20 @@
       "delivered": "पहुँचाया गया",
       "cancelled": "ऑर्डर रद्द किया गया",
       "pickup_dispatched": "पिकअप के लिए तैयार",
-      "pickup_delivered": "लिया गया"
+      "pickup_delivered": "लिया गया",
+      "courier_requested": "अनुरोध किया",
+      "courier_quote": "कोटेशन",
+      "courier_paid": "भुगतान हो गया",
+      "courier_shipped": "कूरियर से भेजा गया"
     },
     "card": {
       "forCustomer": "{name} के लिए",
       "secondsAgo": "{count} सेकंड पहले",
       "minutesAgo": "{count} मिनट पहले",
       "hoursAgo": "{count} घंटे पहले",
-      "daysAgo": "{count} दिन पहले"
+      "daysAgo": "{count} दिन पहले",
+      "totalPlusCourier": "₹{amount} + कूरियर",
+      "actionNeeded": "आपकी कार्रवाई ज़रूरी"
     },
     "actions": {
       "markPacked": "पैक चिह्नित करें",
@@ -561,7 +606,8 @@
         "pending": "लंबित",
         "paid": "भुगतान किया",
         "failed": "विफल",
-        "refunded": "वापस"
+        "refunded": "वापस",
+        "refund_due": "रिफ़ंड बाकी"
       },
       "method": {
         "upi": "UPI",
@@ -2630,7 +2676,8 @@
       "pending": "भुगतान लंबित",
       "paid": "भुगतान हो गया",
       "failed": "भुगतान विफल",
-      "refunded": "वापस किया गया"
+      "refunded": "वापस किया गया",
+      "refund_due": "रिफ़ंड बाकी"
     },
     "localeSwitcher": {
       "changeLanguage": "भाषा बदलें"

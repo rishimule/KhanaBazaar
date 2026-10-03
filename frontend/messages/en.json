@@ -399,7 +399,37 @@
     "boundaryRef": "Reference: {digest}",
     "illegal_rewind": "This order cannot be moved back to that stage.",
     "boundaryBodyShop": "The page stopped loading. Nothing in your cart was lost. Try again, or head back to the home page.",
-    "boundaryShopHome": "Back to home"
+    "boundaryShopHome": "Back to home",
+    "courier_unavailable": "This store doesn't send this service by courier any more.",
+    "courier_destination_unsupported": "Courier delivery needs an address in India with a 6-digit PIN code.",
+    "address_within_local_area": "This address now gets local delivery. Check the updated delivery details and place the order again.",
+    "outside_courier_area": "This address is now outside the store's courier area. Choose another address.",
+    "recipient_name_required": "Enter the recipient's name.",
+    "invalid_recipient_phone": "Enter a valid 10-digit Indian mobile number for the recipient.",
+    "courier_fields_not_allowed": "Recipient and tracking details are only for courier orders.",
+    "preferred_window_not_allowed": "Courier orders don't take a preferred delivery time.",
+    "bank_transfer_unavailable": "This store isn't accepting bank transfers right now.",
+    "upi_unavailable": "This store isn't accepting UPI right now.",
+    "courier_payment_unavailable": "This store can't take payments right now. We've let them know.",
+    "quote_superseded": "The store just updated the quote. Please review the new one.",
+    "quote_locked": "The quote can't change after the customer accepted it.",
+    "too_many_quote_versions": "This order has had the maximum number of quotes.",
+    "not_awaiting_payment": "This order isn't waiting for payment.",
+    "payment_method_required": "Choose how you paid.",
+    "payment_settled": "The payment is already confirmed.",
+    "no_claim": "The customer hasn't said they paid yet.",
+    "invalid_tracking_url": "Use a full https:// tracking link.",
+    "already_delivered": "This order is already marked delivered.",
+    "payment_received_required": "Say whether the customer's payment reached you.",
+    "refund_not_due": "There's no refund owed on this order.",
+    "already_refunded": "The refund is already recorded.",
+    "not_returnable_courier": "Courier orders can't be returned in the app.",
+    "not_applicable_for_courier": "This isn't available for courier orders.",
+    "courier_radius_not_larger": "The courier radius must be larger than the local delivery radius.",
+    "courier_radius_too_large": "The courier radius is too large.",
+    "bank_transfer_incomplete": "Bank transfer needs the account name, number and IFSC.",
+    "reason_required": "Please give a reason of at least 10 characters.",
+    "cancel_not_allowed": "This order can no longer be cancelled from here."
   },
   "Footer": {
     "tagline": "Empower local sellers with a digital presence. Together, we grow a stronger, connected ecosystem.",
@@ -508,7 +538,16 @@
       "delivered": "Delivered",
       "cancelled": "Cancelled",
       "pickup_dispatched": "Ready for pickup",
-      "pickup_delivered": "Collected"
+      "pickup_delivered": "Collected",
+      "courier_pending": "Awaiting quote",
+      "courier_quoted": "Quote sent",
+      "courier_quoted_customer": "Quote ready",
+      "courier_accepted": "Awaiting payment",
+      "courier_paid": "Paid",
+      "courier_dispatched": "Shipped",
+      "quoted": "Quoted",
+      "accepted": "Accepted",
+      "paid": "Paid"
     },
     "timeline": {
       "placed": "Order placed",
@@ -517,14 +556,20 @@
       "delivered": "Delivered",
       "cancelled": "Order cancelled",
       "pickup_dispatched": "Ready for pickup",
-      "pickup_delivered": "Collected"
+      "pickup_delivered": "Collected",
+      "courier_requested": "Requested",
+      "courier_quote": "Quote",
+      "courier_paid": "Paid",
+      "courier_shipped": "Shipped"
     },
     "card": {
       "forCustomer": "For {name}",
       "secondsAgo": "{count}s ago",
       "minutesAgo": "{count}m ago",
       "hoursAgo": "{count}h ago",
-      "daysAgo": "{count}d ago"
+      "daysAgo": "{count}d ago",
+      "totalPlusCourier": "₹{amount} + courier",
+      "actionNeeded": "Action needed"
     },
     "actions": {
       "markPacked": "Mark Packed",
@@ -561,7 +606,8 @@
         "pending": "Pending",
         "paid": "Paid",
         "failed": "Failed",
-        "refunded": "Refunded"
+        "refunded": "Refunded",
+        "refund_due": "Refund due"
       },
       "method": {
         "upi": "UPI",
@@ -2629,7 +2675,8 @@
       "pending": "Payment pending",
       "paid": "Paid",
       "failed": "Payment failed",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "refund_due": "Refund due"
     },
     "localeSwitcher": {
       "changeLanguage": "Change language"

@@ -9,6 +9,7 @@ import Skeleton from "@/components/Skeleton";
 import Pager from "@/components/Pager";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
+import OrderTotal from "@/components/orders/OrderTotal";
 import { listOrdersPaged } from "@/lib/orders";
 import { usePagedList } from "@/lib/usePagedList";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
@@ -111,9 +112,9 @@ export default function AdminOrdersPage() {
     {
       key: "total",
       label: t("colTotal"),
-      render: (o) => <span className={styles.right}>₹{o.total.toFixed(2)}</span>,
+      render: (o) => <OrderTotal order={o} className={styles.right} />,
     },
-    { key: "payment", label: t("colPayment"), render: (o) => <PaymentStatusPill payment={o.payment} /> },
+    { key: "payment", label: t("colPayment"), render: (o) => <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} /> },
     { key: "status", label: t("colStatus"), render: (o) => <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} /> },
   ];
 
@@ -232,8 +233,8 @@ export default function AdminOrdersPage() {
                     {o.store_name} · {o.service_name}
                   </div>
                   <div className={styles.mobileBot}>
-                    <span>₹{o.total.toFixed(2)}</span>
-                    <PaymentStatusPill payment={o.payment} />
+                    <OrderTotal order={o} />
+                    <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} />
                   </div>
                 </a>
               )}

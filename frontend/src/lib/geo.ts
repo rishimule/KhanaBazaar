@@ -28,9 +28,16 @@ export interface GeoPlace {
   components: GeoComponent[];
 }
 
+export type DeliveryZone = "local" | "courier" | "none";
+
 export interface ServiceabilityResult {
+  /** Local door delivery only (unchanged meaning). */
   serviceable: boolean;
   store_count?: number | null;
+  /** Set when a store was given. */
+  zone?: DeliveryZone | null;
+  /** With a store: its services that can ship by courier to this point. */
+  courier_service_ids?: number[];
 }
 
 /** Generate a fresh Google Places session token. Call once per address-entry
@@ -75,12 +82,13 @@ export async function forwardGeocode(address: string): Promise<GeoPlace> {
 }
 
 export async function checkServiceability(
-  lat: number, lng: number, storeId?: number,
+  lat: number, lng: number, storeId?: number, serviceId?: number,
 ): Promise<ServiceabilityResult> {
   return post("/api/v1/geo/serviceability", {
     lat,
     lng,
     ...(storeId !== undefined ? { store_id: storeId } : {}),
+    ...(serviceId !== undefined ? { service_id: serviceId } : {}),
   });
 }
 

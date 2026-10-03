@@ -13,12 +13,19 @@ const STATUS_KEY: Record<Status, string> = {
   refunded: "refunded",
 };
 
-export default function PaymentStatusBadge({ status }: { status: string }) {
+export default function PaymentStatusBadge({
+  status,
+  refundDue = false,
+}: {
+  status: string;
+  /** Courier: cancelled after payment, refund not yet recorded. */
+  refundDue?: boolean;
+}) {
   const t = useTranslations("Shared");
   const s = (status as Status) in STATUS_KEY ? (status as Status) : "pending";
   return (
-    <span className={`${styles.badge} ${styles[s]}`}>
-      {t(`paymentStatus.${STATUS_KEY[s]}`)}
+    <span className={`${styles.badge} ${refundDue ? styles.refundDue : styles[s]}`}>
+      {refundDue ? t("paymentStatus.refund_due") : t(`paymentStatus.${STATUS_KEY[s]}`)}
     </span>
   );
 }

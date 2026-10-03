@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-import { get, post } from "@/lib/api";
+import { get, patch, post } from "@/lib/api";
 import type {
   CustomerStats,
   DeliveryMode,
@@ -28,6 +28,10 @@ export interface PagedOrdersParams {
   sort?: string; // date_desc | date_asc | total_desc | total_asc
   page: number;
   page_size: number;
+  /** Courier stage filters (A1 Task 15). */
+  delivery_mode?: DeliveryMode;
+  needs?: "quote" | "payment_check" | "refund";
+  stale?: boolean;
 }
 
 // Server-side filtered + paginated order listing against /api/v1/orders. The
@@ -44,6 +48,9 @@ export async function listOrdersPaged(
   if (params.from_date) sp.set("from_date", params.from_date);
   if (params.to_date) sp.set("to_date", params.to_date);
   if (params.sort) sp.set("sort", params.sort);
+  if (params.delivery_mode) sp.set("delivery_mode", params.delivery_mode);
+  if (params.needs) sp.set("needs", params.needs);
+  if (params.stale) sp.set("stale", "true");
   sp.set("page", String(params.page));
   sp.set("page_size", String(params.page_size));
   return get<OrderListResponse>(`/api/v1/orders?${sp.toString()}`, token);
@@ -70,12 +77,16 @@ export interface PlaceOrderArgs {
   preferredDeliveryWindow?: string | null;
   /** Store credit auto-applies; pass false when the customer opts out. */
   applyStoreCredit?: boolean;
+  /** Courier only: who the courier hands the parcel to (+91 mobile). */
+  recipientName?: string | null;
+  recipientPhone?: string | null;
 }
 
 export async function placeOrder(
   token: string,
   args: PlaceOrderArgs,
 ): Promise<Order> {
+  const mode = args.deliveryMode ?? "door_delivery";
   return post<Order>(
     "/api/v1/orders",
     {
@@ -83,20 +94,31 @@ export async function placeOrder(
       store_id: args.storeId,
       service_id: args.serviceId,
       payment_method: args.paymentMethod,
-      delivery_mode: args.deliveryMode ?? "door_delivery",
-      preferred_delivery_date: args.preferredDeliveryDate ?? null,
-      preferred_delivery_window: args.preferredDeliveryWindow ?? null,
+      delivery_mode: mode,
+      // A courier order has no preferred window; the server rejects one.
+      preferred_delivery_date: mode === "courier" ? null : args.preferredDeliveryDate ?? null,
+      preferred_delivery_window: mode === "courier" ? null : args.preferredDeliveryWindow ?? null,
       apply_store_credit: args.applyStoreCredit ?? true,
+      // The server rejects recipient fields on non-courier orders.
+      ...(mode === "courier"
+        ? { recipient_name: args.recipientName ?? null, recipient_phone: args.recipientPhone ?? null }
+        : {}),
     },
     token,
   );
+}
+
+export interface TrackingInput {
+  carrier_name?: string;
+  tracking_number?: string;
+  tracking_url?: string;
 }
 
 export async function transitionOrder(
   token: string,
   orderId: number,
   to: "packed" | "dispatched" | "delivered",
-  opts?: { otp?: string; reason?: string }
+  opts?: { otp?: string; reason?: string } & TrackingInput,
 ): Promise<Order> {
   return post<Order>(
     `/api/v1/orders/${orderId}/transition`,
@@ -116,9 +138,21 @@ export async function resendDeliveryOtp(
   );
 }
 
-export async function cancelOrder(token: string, orderId: number): Promise<Order> {
-  return post<Order>(`/api/v1/orders/${orderId}/cancel`, {}, token);
+export async function cancelOrder(
+  token: string,
+  orderId: number,
+  opts?: { reason?: string; paymentReceived?: boolean },
+): Promise<Order> {
+  return post<Order>(
+    `/api/v1/orders/${orderId}/cancel`,
+    {
+      ...(opts?.reason ? { reason: opts.reason } : {}),
+      ...(opts?.paymentReceived !== undefined ? { payment_received: opts.paymentReceived } : {}),
+    },
+    token,
+  );
 }
+
 
 /** Record the customer's "I've paid" tap on a UPI order. Idempotent server-side:
  *  re-tapping does not move the recorded timestamp. */
@@ -127,6 +161,77 @@ export async function claimUpiPayment(
   orderId: number
 ): Promise<Order> {
   return post<Order>(`/api/v1/orders/${orderId}/payment/claim`, {}, token);
+}
+
+export interface CourierQuoteInput {
+  courierFee: number;
+  etaMinDays: number;
+  etaMaxDays: number;
+  carrierName?: string | null;
+  note?: string | null;
+}
+
+export async function sendCourierQuote(
+  token: string, orderId: number, q: CourierQuoteInput,
+): Promise<Order> {
+  return post<Order>(
+    `/api/v1/orders/${orderId}/courier/quote`,
+    {
+      courier_fee: q.courierFee,
+      eta_min_days: q.etaMinDays,
+      eta_max_days: q.etaMaxDays,
+      carrier_name: q.carrierName ?? null,
+      note: q.note ?? null,
+    },
+    token,
+  );
+}
+
+export async function acceptCourierQuote(
+  token: string, orderId: number, quoteId: number,
+): Promise<Order> {
+  return post<Order>(`/api/v1/orders/${orderId}/courier/accept`, { quote_id: quoteId }, token);
+}
+
+/** The customer's "I've paid" on a courier order, naming the method used. */
+export async function claimCourierPayment(
+  token: string, orderId: number, method: "upi" | "net_banking",
+): Promise<Order> {
+  return post<Order>(`/api/v1/orders/${orderId}/payment/claim`, { method }, token);
+}
+
+export async function confirmCourierPayment(token: string, orderId: number): Promise<Order> {
+  return post<Order>(`/api/v1/orders/${orderId}/payment/confirm`, undefined, token);
+}
+
+export async function rejectCourierPayment(
+  token: string, orderId: number, note?: string,
+): Promise<Order> {
+  return post<Order>(
+    `/api/v1/orders/${orderId}/payment/not-received`,
+    note ? { note } : {},
+    token,
+  );
+}
+
+export async function updateCourierTracking(
+  token: string, orderId: number, tracking: TrackingInput,
+): Promise<Order> {
+  return patch<Order>(`/api/v1/orders/${orderId}/courier/tracking`, tracking, token);
+}
+
+export async function markCourierReceived(token: string, orderId: number): Promise<Order> {
+  return post<Order>(`/api/v1/orders/${orderId}/courier/received`, undefined, token);
+}
+
+export async function markRefundSent(
+  token: string, orderId: number, reference?: string,
+): Promise<Order> {
+  return post<Order>(
+    `/api/v1/orders/${orderId}/payment/refund-sent`,
+    reference ? { reference } : {},
+    token,
+  );
 }
 
 export async function getCustomerStats(token: string): Promise<CustomerStats> {

@@ -9,6 +9,7 @@ import LoadError from "@/components/LoadError";
 import Pager from "@/components/Pager";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
+import OrderTotal from "@/components/orders/OrderTotal";
 import { listOrdersPaged } from "@/lib/orders";
 import { usePagedList } from "@/lib/usePagedList";
 import { useVisibilityRefresh } from "@/lib/useVisibilityRefresh";
@@ -121,14 +122,14 @@ export default function SellerOrdersPage() {
     {
       key: "total",
       label: t("col.total"),
-      render: (o) => <span className={styles.right}>₹{o.total.toFixed(2)}</span>,
+      render: (o) => <OrderTotal order={o} className={styles.right} />,
     },
     {
       key: "payment",
       label: t("col.payment"),
       render: (o) => (
         <>
-          <PaymentStatusPill payment={o.payment} />
+          <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} />
           {o.payment.customer_claimed_at && (
             <span className={styles.claimBadge}>{t("customerSaysPaid")}</span>
           )}
@@ -267,8 +268,8 @@ export default function SellerOrdersPage() {
                     {o.customer_name ?? "—"} · {o.service_name}
                   </div>
                   <div className={styles.mobileBot}>
-                    <span>₹{o.total.toFixed(2)}</span>
-                    <PaymentStatusPill payment={o.payment} />
+                    <OrderTotal order={o} />
+                    <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} />
                   </div>
                 </a>
               )}

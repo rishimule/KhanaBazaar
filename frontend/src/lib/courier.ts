@@ -1,0 +1,118 @@
+// Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+// This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+/**
+ * Pure courier helpers (spec 2026-10-02). No React, no fetches — every screen
+ * that branches on courier state reads it through these, so the rules live in
+ * one place.
+ */
+import type { ServiceabilityResult } from "@/lib/geo";
+import type {
+  Address,
+  CourierQuote,
+  DeliveryMode,
+  Order,
+  OrderStatus,
+  PaymentMethod,
+} from "@/types";
+
+/** Why a saved address can or cannot take this sub-basket at checkout.
+ *  `no_pin` = the saved address has no map coordinates, so no zone exists.
+ *  `check_failed` = the serviceability call failed (network, 429) — never
+ *  shown as "outside the area", which would be a confident wrong answer. */
+export type AddressCourierZone =
+  | "local"
+  | "courier"
+  | "none"
+  | "no_pin"
+  | "check_failed"
+  | "service_no_courier"
+  | "destination_unsupported";
+
+export const COURIER_PREPAID_METHODS: PaymentMethod[] = ["upi", "net_banking"];
+
+const INDIA_PIN = /^[1-9]\d{5}$/;
+
+/** Couriers deliver to Indian addresses with a 6-digit PIN (mirrors the
+ *  server's checkout rule, so the picker explains before the 422). */
+export function isCourierDestination(address: Pick<Address, "country" | "pincode">): boolean {
+  return address.country === "India" && INDIA_PIN.test(address.pincode ?? "");
+}
+
+/** Classify one saved address for a (store, service) from a store-scoped
+ *  serviceability result (called WITHOUT service_id, so `courier_service_ids`
+ *  says which services ship). */
+export function classifyAddressZone(
+  result: ServiceabilityResult,
+  serviceId: number,
+  address: Pick<Address, "country" | "pincode">,
+): AddressCourierZone {
+  if (result.zone === "local") return "local";
+  if (result.zone !== "courier") return "none";
+  if (!(result.courier_service_ids ?? []).includes(serviceId)) return "service_no_courier";
+  if (!isCourierDestination(address)) return "destination_unsupported";
+  return "courier";
+}
+
+export function isOrderableZone(zone: AddressCourierZone | null | undefined): boolean {
+  return zone === "local" || zone === "courier";
+}
+
+/** "4 Oct" in the viewer's locale. Accepts YYYY-MM-DD or a Date. */
+export function formatShortDate(value: string | Date, locale: string): string {
+  const d = typeof value === "string" ? new Date(`${value}T00:00:00`) : value;
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short" });
+}
+
+/** Today's calendar day in IST as a local-midnight Date (display only). */
+function istToday(now: Date): Date {
+  const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  return new Date(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate());
+}
+
+function addDays(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+}
+
+/** Arrival window if the customer paid today — the quote's days counted from
+ *  today in IST, exactly how the server fixes the dates on confirmation. */
+export function previewEtaWindow(
+  quote: Pick<CourierQuote, "eta_min_days" | "eta_max_days">,
+  now: Date = new Date(),
+): { from: Date; to: Date } {
+  const today = istToday(now);
+  return { from: addDays(today, quote.eta_min_days), to: addDays(today, quote.eta_max_days) };
+}
+
+export function latestQuote(order: Order): CourierQuote | null {
+  return order.courier?.quotes[0] ?? null;
+}
+
+/** The fields the courier status predicates read; list rows that carry less
+ *  than a full Order (admin customer orders) satisfy it too. */
+export type CourierStatusFields = { status: OrderStatus; delivery_mode?: DeliveryMode };
+
+/** Before acceptance the courier charge is not in `order.total`. */
+export function courierChargePending(order: CourierStatusFields): boolean {
+  return (
+    order.delivery_mode === "courier" &&
+    (order.status === "pending" || order.status === "quoted")
+  );
+}
+
+/** True when the customer — not the seller — must act next. */
+export function customerActionNeeded(order: Order): boolean {
+  if (order.delivery_mode !== "courier") return false;
+  if (order.status === "quoted") return true;
+  return order.status === "accepted" && !order.payment.customer_claimed_at;
+}
+
+/** The link's domain, shown next to a tracking link so a customer can see
+ *  where it goes before tapping it. */
+export function trackingHost(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}

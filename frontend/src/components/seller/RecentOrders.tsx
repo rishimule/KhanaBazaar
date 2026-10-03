@@ -11,6 +11,7 @@ import { useVisibilityRefresh } from "@/lib/useVisibilityRefresh";
 import type { OrderListResponse } from "@/types";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
+import OrderTotal from "@/components/orders/OrderTotal";
 import Skeleton from "@/components/Skeleton";
 import styles from "./RecentOrders.module.css";
 
@@ -176,9 +177,11 @@ export default function RecentOrders() {
                   <span className={styles.serviceChip}>{o.service_name}</span>
                 </td>
                 <td>{o.items.length}</td>
-                <td className={styles.total}>₹{o.total.toFixed(2)}</td>
+                <td className={styles.total}>
+                  <OrderTotal order={o} />
+                </td>
                 <td>
-                  <PaymentStatusPill payment={o.payment} />
+                  <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} />
                 </td>
                 <td>
                   <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />

@@ -26,3 +26,5 @@
   background: rgba(109, 40, 217, 0.12);
   color: #6d28d9;
 }
+
+.refundDue { background: var(--saffron-light-1); color: var(--saffron-dark-1); }
