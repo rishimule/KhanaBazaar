@@ -1450,7 +1450,12 @@
       "reasonPlaceholder": "e.g. Diwali holidays",
       "metricsFailedTitle": "Couldn't load your numbers",
       "metricsFailedBody": "This does not mean you earned nothing — we couldn't reach the server. Check your connection and try again.",
-      "pauseFailed": "Couldn't change your store status. Nothing was changed."
+      "pauseFailed": "Couldn't change your store status. Nothing was changed.",
+      "donutQuoted": "Quote sent",
+      "donutAccepted": "Awaiting payment",
+      "donutPaid": "Paid, to pack",
+      "attnAccepted": "{count} awaiting payment",
+      "attnPaid": "{count} paid and waiting to be packed"
     },
     "inventory": {
       "categoriesAria": "Categories",
@@ -1671,7 +1676,13 @@
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
       "deliveryFeeInputLabel": "Delivery fee for {service}",
-      "allowPickup": "Allow pickup at store"
+      "allowPickup": "Allow pickup at store",
+      "allowCourier": "Ship by courier (long distance)",
+      "courierRadius": "Courier radius",
+      "courierRadiusValue": "Up to {km} km",
+      "courierRadiusOff": "Off",
+      "courierRadiusCaption": "Customers beyond your delivery radius but within this distance can order by courier. You set the courier charge per order. Change it with Edit.",
+      "courierNoPayee": "Courier orders are off until you can be paid: turn on UPI in Payments, or bank transfer in Banking."
     },
     "profile": {
       "heading": "Profile",
@@ -1727,7 +1738,11 @@
       "upiDisabled": "UPI is off. Your UPI ID is saved for when you turn it back on.",
       "upiQrLabel": "Payment QR image (optional)",
       "upiQrHint": "For our team to check against your UPI ID. Customers never see this image — they scan a QR we generate from the ID itself.",
-      "upiReviewHint": "Changes are reviewed before customers see them."
+      "upiReviewHint": "Changes are reviewed before customers see them.",
+      "accountNameLabel": "Account holder",
+      "bankTransferLabel": "Bank transfer for courier orders",
+      "bankTransferOn": "On",
+      "bankTransferOff": "Off"
     },
     "signup": {
       "stepCounter": "Step {current} of {total}",
@@ -2405,7 +2420,8 @@
         "etaLabel": "ETA",
         "minutesSuffix": "min",
         "etaMinAriaLabel": "Minimum delivery minutes for {name}",
-        "etaMaxAriaLabel": "Maximum delivery minutes for {name}"
+        "etaMaxAriaLabel": "Maximum delivery minutes for {name}",
+        "allowCourier": "Ship by courier"
       },
       "orders": {
         "loadError": "Failed to load orders",

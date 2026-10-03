@@ -37,9 +37,14 @@ const ALLOWED_KEYS: Partial<Record<SellerProfileChangeGroup, Set<string>>> = {
     "longitude",
   ]),
   legal: new Set(["gst_number", "fssai_license"]),
-  banking: new Set(["bank_account_number", "bank_ifsc"]),
+  banking: new Set([
+    "bank_account_number",
+    "bank_ifsc",
+    "bank_account_name",
+    "bank_transfer_enabled",
+  ]),
   services: new Set(["services"]),
-  store_basics: new Set(["delivery_radius_km"]),
+  store_basics: new Set(["delivery_radius_km", "courier_radius_km"]),
   store_logo: new Set(["logo_url"]),
   payments: new Set(["upi_vpa", "upi_enabled", "upi_qr_url"]),
 };
@@ -65,11 +70,14 @@ const FIELD_LABELS: Record<string, string> = {
   // banking
   bank_account_number: "Account number",
   bank_ifsc: "IFSC code",
+  bank_account_name: "Account holder name",
+  bank_transfer_enabled: "Bank transfer (courier orders)",
   // services
   services: "Services",
   // store_basics
   store_name: "Store name",
   delivery_radius_km: "Delivery radius",
+  courier_radius_km: "Courier radius",
   // store_logo
   logo_url: "Store logo",
   // payments
@@ -77,6 +85,15 @@ const FIELD_LABELS: Record<string, string> = {
   upi_enabled: "Accepting UPI",
   upi_qr_url: "Verification QR",
 };
+
+/** Optional CR fields whose canonical proposal stores null for "leave as is"
+ *  (A1 Task 5). A null proposal shows the current value instead of reading as
+ *  "cleared", and is not marked changed. */
+const UNCHANGED_WHEN_NULL = new Set([
+  "courier_radius_km",
+  "bank_account_name",
+  "bank_transfer_enabled",
+]);
 
 function maskAccount(n: string): string {
   if (n.length < 4) return n;
@@ -92,6 +109,7 @@ interface ServiceEntry {
   delivery_eta_min_minutes?: number;
   delivery_eta_max_minutes?: number;
   pickup_enabled?: boolean;
+  courier_enabled?: boolean | null;
 }
 
 function isServiceList(v: unknown): v is ServiceEntry[] {
@@ -124,6 +142,7 @@ function renderServiceChips(
                 r.delivery_eta_max_minutes != null &&
                 ` · ETA ${formatDeliveryEta(r.delivery_eta_min_minutes, r.delivery_eta_max_minutes)}`}
               {r.pickup_enabled != null && ` · pickup ${r.pickup_enabled ? "on" : "off"}`}
+              {r.courier_enabled != null && ` · courier ${r.courier_enabled ? "on" : "off"}`}
             </span>
           </li>
         );
@@ -138,6 +157,10 @@ function formatValue(
   value: unknown,
   serviceNames: Map<number, string> | undefined,
 ): ReactNode {
+  // Before the empty check: a courier radius of null or 0 means "Off", not "—".
+  if (key === "courier_radius_km") {
+    return typeof value === "number" && value > 0 ? <>{value} km</> : <>Off</>;
+  }
   if (value === null || value === undefined || value === "") {
     return <span className={styles.muted}>—</span>;
   }
@@ -186,6 +209,9 @@ function formatValue(
   if (group === "payments" && key === "upi_enabled") {
     return <>{value ? "Yes" : "No"}</>;
   }
+  if (group === "banking" && key === "bank_transfer_enabled") {
+    return <>{value ? "Yes" : "No"}</>;
+  }
   if (group === "banking" && key === "bank_account_number" && typeof value === "string") {
     return <span className={styles.mono}>{maskAccount(value)}</span>;
   }
@@ -224,12 +250,15 @@ export default function ChangeRequestDiffTable({
   const keys = Array.from(
     new Set([...Object.keys(before), ...Object.keys(after)]),
   ).filter((k) => (allowed ? allowed.has(k) : true));
-  const rows = keys.map((k) => ({
-    key: k,
-    before: before[k],
-    after: after[k],
-    changed: JSON.stringify(before[k]) !== JSON.stringify(after[k]),
-  }));
+  const rows = keys.map((k) => {
+    const afterValue = UNCHANGED_WHEN_NULL.has(k) && after[k] == null ? before[k] : after[k];
+    return {
+      key: k,
+      before: before[k],
+      after: afterValue,
+      changed: JSON.stringify(before[k]) !== JSON.stringify(afterValue),
+    };
+  });
   const visible = showUnchanged ? rows : rows.filter((r) => r.changed);
   const hasUnchanged = rows.some((r) => !r.changed);
 

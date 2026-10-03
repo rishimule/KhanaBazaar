@@ -1451,7 +1451,12 @@
       "reasonPlaceholder": "દા.ત. દિવાળીની રજાઓ",
       "metricsFailedTitle": "તમારા આંકડા લોડ થઈ શક્યા નહીં",
       "metricsFailedBody": "આનો અર્થ એ નથી કે તમારી કોઈ કમાણી થઈ નથી — અમે સર્વર સુધી પહોંચી શક્યા નહીં. કનેક્શન તપાસીને ફરી પ્રયાસ કરો.",
-      "pauseFailed": "દુકાનની સ્થિતિ બદલી શકાઈ નહીં. કશું બદલાયું નથી."
+      "pauseFailed": "દુકાનની સ્થિતિ બદલી શકાઈ નહીં. કશું બદલાયું નથી.",
+      "donutQuoted": "ક્વોટેશન મોકલ્યું",
+      "donutAccepted": "ચુકવણી બાકી",
+      "donutPaid": "ચૂકવાયું, પૅક કરવાનું",
+      "attnAccepted": "{count} ચુકવણીની રાહમાં",
+      "attnPaid": "{count} ચૂકવાયા, પૅક થવાની રાહમાં"
     },
     "inventory": {
       "categoriesAria": "શ્રેણીઓ",
@@ -1672,7 +1677,13 @@
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
       "deliveryFeeInputLabel": "Delivery fee for {service}",
-      "allowPickup": "સ્ટોરથી પિકઅપની મંજૂરી આપો"
+      "allowPickup": "સ્ટોરથી પિકઅપની મંજૂરી આપો",
+      "allowCourier": "કુરિયરથી મોકલો (દૂરના ઓર્ડર)",
+      "courierRadius": "કુરિયર ત્રિજ્યા",
+      "courierRadiusValue": "{km} કિમી સુધી",
+      "courierRadiusOff": "બંધ",
+      "courierRadiusCaption": "તમારી ડિલિવરી ત્રિજ્યાની બહાર પણ આ અંતરની અંદરના ગ્રાહકો કુરિયરથી ઓર્ડર કરી શકે છે. કુરિયર ચાર્જ તમે દરેક ઓર્ડર માટે નક્કી કરો છો. તેને “ફેરફાર કરો”થી બદલો.",
+      "courierNoPayee": "તમને ચુકવણી મળી શકે ત્યાં સુધી કુરિયર ઓર્ડર બંધ છે: “ચૂકવણી”માં UPI ચાલુ કરો, અથવા “બેંકિંગ”માં બેંક ટ્રાન્સફર."
     },
     "profile": {
       "heading": "પ્રોફાઇલ",
@@ -1728,7 +1739,11 @@
       "upiDisabled": "UPI બંધ છે. ફરી ચાલુ કરવા માટે તમારી UPI ID સાચવી રાખી છે.",
       "upiQrLabel": "ચૂકવણી QR છબિ (વૈકલ્પિક)",
       "upiQrHint": "અમારી ટીમ તેને તમારી UPI ID સાથે સરખાવે છે. ગ્રાહકો આ છબિ કદી જોતા નથી — તેઓ ID પરથી અમે બનાવેલો QR સ્કૅન કરે છે.",
-      "upiReviewHint": "ગ્રાહકોને દેખાય તે પહેલાં ફેરફારોની સમીક્ષા થાય છે."
+      "upiReviewHint": "ગ્રાહકોને દેખાય તે પહેલાં ફેરફારોની સમીક્ષા થાય છે.",
+      "accountNameLabel": "ખાતાધારક",
+      "bankTransferLabel": "કુરિયર ઓર્ડર માટે બેંક ટ્રાન્સફર",
+      "bankTransferOn": "ચાલુ",
+      "bankTransferOff": "બંધ"
     },
     "signup": {
       "stepCounter": "પગલું {current} / {total}",
@@ -2406,7 +2421,8 @@
         "etaLabel": "અંદાજિત સમય",
         "minutesSuffix": "મિનિટ",
         "etaMinAriaLabel": "{name} માટે લઘુત્તમ ડિલિવરી મિનિટ",
-        "etaMaxAriaLabel": "{name} માટે મહત્તમ ડિલિવરી મિનિટ"
+        "etaMaxAriaLabel": "{name} માટે મહત્તમ ડિલિવરી મિનિટ",
+        "allowCourier": "કુરિયરથી મોકલો"
       },
       "orders": {
         "loadError": "ઓર્ડર લોડ કરવામાં નિષ્ફળ",

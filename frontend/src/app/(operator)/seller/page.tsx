@@ -36,7 +36,16 @@ const EMPTY: SellerMetrics = {
   is_premium: false,
   pin_confirmed: false,
   store_name: "",
-  order_status_counts: { delivered: 0, packed: 0, dispatched: 0, pending: 0, cancelled: 0 },
+  order_status_counts: {
+    delivered: 0,
+    packed: 0,
+    dispatched: 0,
+    pending: 0,
+    cancelled: 0,
+    paid: 0,
+    quoted: 0,
+    accepted: 0,
+  },
   inventory_by_service: [],
   top_subcategory: null,
 };

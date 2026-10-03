@@ -1451,7 +1451,12 @@
       "reasonPlaceholder": "जैसे दिवाली की छुट्टियाँ",
       "metricsFailedTitle": "आपके आँकड़े लोड नहीं हो सके",
       "metricsFailedBody": "इसका मतलब यह नहीं कि आपकी कोई कमाई नहीं हुई — हम सर्वर तक नहीं पहुँच सके। कनेक्शन जाँचकर फिर कोशिश करें।",
-      "pauseFailed": "दुकान की स्थिति नहीं बदली जा सकी। कुछ भी नहीं बदला।"
+      "pauseFailed": "दुकान की स्थिति नहीं बदली जा सकी। कुछ भी नहीं बदला।",
+      "donutQuoted": "कोटेशन भेजा",
+      "donutAccepted": "भुगतान बाकी",
+      "donutPaid": "भुगतान हुआ, पैक करना है",
+      "attnAccepted": "{count} भुगतान की प्रतीक्षा में",
+      "attnPaid": "{count} भुगतान हो चुका, पैक होने के इंतज़ार में"
     },
     "inventory": {
       "categoriesAria": "श्रेणियाँ",
@@ -1672,7 +1677,13 @@
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
       "deliveryFeeInputLabel": "Delivery fee for {service}",
-      "allowPickup": "स्टोर से पिकअप की अनुमति दें"
+      "allowPickup": "स्टोर से पिकअप की अनुमति दें",
+      "allowCourier": "कूरियर से भेजें (दूर के ऑर्डर)",
+      "courierRadius": "कूरियर दायरा",
+      "courierRadiusValue": "{km} किमी तक",
+      "courierRadiusOff": "बंद",
+      "courierRadiusCaption": "आपके डिलीवरी दायरे से बाहर लेकिन इस दूरी के भीतर के ग्राहक कूरियर से ऑर्डर कर सकते हैं। कूरियर शुल्क आप हर ऑर्डर पर तय करते हैं। इसे “संपादित करें” से बदलें।",
+      "courierNoPayee": "जब तक आपको भुगतान नहीं मिल सकता, कूरियर ऑर्डर बंद हैं: “भुगतान” में UPI चालू करें, या “बैंकिंग” में बैंक ट्रांसफ़र।"
     },
     "profile": {
       "heading": "प्रोफाइल",
@@ -1728,7 +1739,11 @@
       "upiDisabled": "UPI बंद है। दोबारा चालू करने के लिए आपकी UPI ID सुरक्षित रखी गई है।",
       "upiQrLabel": "भुगतान QR छवि (वैकल्पिक)",
       "upiQrHint": "हमारी टीम इसे आपकी UPI ID से मिलाकर जाँचती है। ग्राहक यह छवि कभी नहीं देखते — वे उस QR को स्कैन करते हैं जो हम ID से बनाते हैं।",
-      "upiReviewHint": "ग्राहकों को दिखने से पहले बदलावों की समीक्षा होती है।"
+      "upiReviewHint": "ग्राहकों को दिखने से पहले बदलावों की समीक्षा होती है।",
+      "accountNameLabel": "खाताधारक",
+      "bankTransferLabel": "कूरियर ऑर्डर के लिए बैंक ट्रांसफ़र",
+      "bankTransferOn": "चालू",
+      "bankTransferOff": "बंद"
     },
     "signup": {
       "stepCounter": "चरण {current} / {total}",
@@ -2406,7 +2421,8 @@
         "etaLabel": "अनुमानित समय",
         "minutesSuffix": "मिनट",
         "etaMinAriaLabel": "{name} के लिए न्यूनतम डिलीवरी मिनट",
-        "etaMaxAriaLabel": "{name} के लिए अधिकतम डिलीवरी मिनट"
+        "etaMaxAriaLabel": "{name} के लिए अधिकतम डिलीवरी मिनट",
+        "allowCourier": "कूरियर से भेजें"
       },
       "orders": {
         "loadError": "ऑर्डर लोड करने में विफल",

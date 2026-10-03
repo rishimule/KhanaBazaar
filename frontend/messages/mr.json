@@ -1451,7 +1451,12 @@
       "reasonPlaceholder": "उदा. दिवाळीच्या सुट्ट्या",
       "metricsFailedTitle": "तुमचे आकडे लोड होऊ शकले नाहीत",
       "metricsFailedBody": "याचा अर्थ तुमची काहीच कमाई झाली नाही असा नाही — आम्ही सर्व्हरपर्यंत पोहोचू शकलो नाही. कनेक्शन तपासून पुन्हा प्रयत्न करा.",
-      "pauseFailed": "दुकानाची स्थिती बदलता आली नाही. काहीही बदलले नाही."
+      "pauseFailed": "दुकानाची स्थिती बदलता आली नाही. काहीही बदलले नाही.",
+      "donutQuoted": "कोटेशन पाठवले",
+      "donutAccepted": "पेमेंट बाकी",
+      "donutPaid": "पेमेंट झाले, पॅक करायचे",
+      "attnAccepted": "{count} पेमेंटच्या प्रतीक्षेत",
+      "attnPaid": "{count} पेमेंट झाले, पॅक होण्याच्या प्रतीक्षेत"
     },
     "inventory": {
       "categoriesAria": "श्रेणी",
@@ -1672,7 +1677,13 @@
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
       "deliveryFeeInputLabel": "Delivery fee for {service}",
-      "allowPickup": "दुकानातून पिकअपला परवानगी द्या"
+      "allowPickup": "दुकानातून पिकअपला परवानगी द्या",
+      "allowCourier": "कुरिअरने पाठवा (लांबच्या ऑर्डर)",
+      "courierRadius": "कुरिअर त्रिज्या",
+      "courierRadiusValue": "{km} किमीपर्यंत",
+      "courierRadiusOff": "बंद",
+      "courierRadiusCaption": "तुमच्या डिलिव्हरी त्रिज्येबाहेरील पण या अंतराच्या आतील ग्राहक कुरिअरने ऑर्डर करू शकतात. कुरिअर शुल्क तुम्ही प्रत्येक ऑर्डरसाठी ठरवता. हे “संपादित करा” वापरून बदला.",
+      "courierNoPayee": "तुम्हाला पेमेंट मिळू शकेपर्यंत कुरिअर ऑर्डर बंद आहेत: “देयके” मध्ये UPI सुरू करा, किंवा “बँकिंग” मध्ये बँक ट्रान्सफर."
     },
     "profile": {
       "heading": "प्रोफाइल",
@@ -1728,7 +1739,11 @@
       "upiDisabled": "UPI बंद आहे. पुन्हा चालू करण्यासाठी तुमची UPI ID जपून ठेवली आहे.",
       "upiQrLabel": "देयक QR प्रतिमा (ऐच्छिक)",
       "upiQrHint": "आमची टीम ती तुमच्या UPI ID शी ताडून पाहते. ग्राहक ही प्रतिमा कधीच पाहत नाहीत — ते आम्ही ID वरून तयार केलेला QR स्कॅन करतात.",
-      "upiReviewHint": "ग्राहकांना दिसण्यापूर्वी बदलांचे पुनरावलोकन होते."
+      "upiReviewHint": "ग्राहकांना दिसण्यापूर्वी बदलांचे पुनरावलोकन होते.",
+      "accountNameLabel": "खातेदार",
+      "bankTransferLabel": "कुरिअर ऑर्डरसाठी बँक ट्रान्सफर",
+      "bankTransferOn": "सुरू",
+      "bankTransferOff": "बंद"
     },
     "signup": {
       "stepCounter": "पायरी {current} / {total}",
@@ -2406,7 +2421,8 @@
         "etaLabel": "अंदाजित वेळ",
         "minutesSuffix": "मिनिटे",
         "etaMinAriaLabel": "{name} साठी किमान वितरण मिनिटे",
-        "etaMaxAriaLabel": "{name} साठी कमाल वितरण मिनिटे"
+        "etaMaxAriaLabel": "{name} साठी कमाल वितरण मिनिटे",
+        "allowCourier": "कुरिअरने पाठवा"
       },
       "orders": {
         "loadError": "ऑर्डर लोड करण्यात अयशस्वी",

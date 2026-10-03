@@ -1066,6 +1066,12 @@ export interface OrderStatusCounts {
   dispatched: number;
   pending: number;
   cancelled: number;
+  /** Courier: payment confirmed, waiting to be packed. */
+  paid: number;
+  /** Courier: quote sent, waiting on the customer. */
+  quoted: number;
+  /** Courier: quote accepted, waiting for payment. */
+  accepted: number;
 }
 
 export interface InventoryServiceStat {

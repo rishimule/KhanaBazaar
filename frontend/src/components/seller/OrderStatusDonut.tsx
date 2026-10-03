@@ -9,13 +9,26 @@ interface Props {
   counts: OrderStatusCounts;
 }
 
-const SEGMENTS: { key: keyof OrderStatusCounts; label: string; color: string }[] = [
+const SEGMENTS: {
+  key: keyof OrderStatusCounts;
+  label: string;
+  color: string;
+  /** Courier-only stage: listed in the legend only while it has orders, so a
+   *  store that never ships by courier sees the same five rows as before. */
+  courier?: boolean;
+}[] = [
   { key: "delivered", label: "donutDelivered", color: "var(--color-success)" },
   { key: "packed", label: "donutPacked", color: "var(--color-info)" },
   { key: "dispatched", label: "donutDispatched", color: "var(--color-accent-500)" },
   { key: "pending", label: "donutPending", color: "var(--color-warning)" },
+  { key: "quoted", label: "donutQuoted", color: "var(--turmeric-base-4)", courier: true },
+  { key: "accepted", label: "donutAccepted", color: "var(--saffron-base-4)", courier: true },
+  { key: "paid", label: "donutPaid", color: "var(--color-primary-300)", courier: true },
   { key: "cancelled", label: "donutCancelled", color: "var(--color-neutral-400)" },
 ];
+
+/** `?? 0`: a stale API response without the courier keys must not yield NaN. */
+const countOf = (counts: OrderStatusCounts, key: keyof OrderStatusCounts) => counts[key] ?? 0;
 
 const R = 54;
 const STROKE = 16;
@@ -23,7 +36,7 @@ const C = 2 * Math.PI * R;
 
 export default function OrderStatusDonut({ counts }: Props) {
   const t = useTranslations("Seller.dashboard");
-  const total = SEGMENTS.reduce((s, seg) => s + counts[seg.key], 0);
+  const total = SEGMENTS.reduce((s, seg) => s + countOf(counts, seg.key), 0);
   let offset = 0;
 
   return (
@@ -34,7 +47,7 @@ export default function OrderStatusDonut({ counts }: Props) {
           <circle cx="70" cy="70" r={R} fill="none" stroke="var(--color-neutral-100)" strokeWidth={STROKE} />
           {total > 0 &&
             SEGMENTS.map((seg) => {
-              const val = counts[seg.key];
+              const val = countOf(counts, seg.key);
               if (val === 0) return null;
               const len = (val / total) * C;
               const dash = `${len} ${C - len}`;
@@ -63,11 +76,11 @@ export default function OrderStatusDonut({ counts }: Props) {
           </text>
         </svg>
         <ul className={styles.legend}>
-          {SEGMENTS.map((seg) => (
+          {SEGMENTS.filter((seg) => !seg.courier || countOf(counts, seg.key) > 0).map((seg) => (
             <li key={seg.key} className={styles.legendItem}>
               <span className={styles.dot} style={{ background: seg.color }} />
               <span className={styles.legendLabel}>{t(seg.label)}</span>
-              <span className={styles.legendVal}>{counts[seg.key]}</span>
+              <span className={styles.legendVal}>{countOf(counts, seg.key)}</span>
             </li>
           ))}
         </ul>

@@ -73,6 +73,8 @@ function buildCurrentValues(
       return {
         bank_account_number: profile.bank_account_number ?? "",
         bank_ifsc: profile.bank_ifsc ?? "",
+        bank_account_name: profile.bank_account_name ?? "",
+        bank_transfer_enabled: profile.bank_transfer_enabled ?? false,
       };
     case "payments":
       return {
@@ -83,6 +85,7 @@ function buildCurrentValues(
       if (!store) return null;
       return {
         delivery_radius_km: store.delivery_radius_km,
+        courier_radius_km: store.courier_radius_km ?? "",
       };
     case "services":
       return {
@@ -94,6 +97,7 @@ function buildCurrentValues(
           delivery_eta_min_minutes: s.delivery_eta_min_minutes ?? 30,
           delivery_eta_max_minutes: s.delivery_eta_max_minutes ?? 60,
           pickup_enabled: s.pickup_enabled ?? false,
+          courier_enabled: s.courier_enabled ?? false,
         })),
       };
     default:
@@ -358,6 +362,7 @@ export default function SellerProfilePage() {
       delivery_eta_min_minutes: number;
       delivery_eta_max_minutes: number;
       pickup_enabled: boolean;
+      courier_enabled: boolean;
     },
   ) => {
     if (!token) return;
@@ -410,6 +415,7 @@ export default function SellerProfilePage() {
           delivery_eta_min_minutes: etaMin,
           delivery_eta_max_minutes: etaMax,
           pickup_enabled: svc.pickup_enabled ?? false,
+          courier_enabled: svc.courier_enabled ?? false,
         });
       }
     }, 400);
@@ -452,6 +458,20 @@ export default function SellerProfilePage() {
             ...prev,
             services: prev.services.map((s) =>
               s.id === serviceId ? { ...s, pickup_enabled: value } : s,
+            ),
+          }
+        : prev,
+    );
+    schedulePersist(serviceId);
+  };
+
+  const updateCourier = (serviceId: number, value: boolean) => {
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            services: prev.services.map((s) =>
+              s.id === serviceId ? { ...s, courier_enabled: value } : s,
             ),
           }
         : prev,
@@ -747,6 +767,14 @@ export default function SellerProfilePage() {
                 {profile.bank_ifsc ?? t("notAdded")}
               </span>
             </div>
+            <div className={styles.kvRow}>
+              <span className={styles.kvLabel}>{t("accountNameLabel")}:</span>
+              <span>{profile.bank_account_name ?? t("notAdded")}</span>
+            </div>
+            <div className={styles.kvRow}>
+              <span className={styles.kvLabel}>{t("bankTransferLabel")}:</span>
+              <span>{profile.bank_transfer_enabled ? t("bankTransferOn") : t("bankTransferOff")}</span>
+            </div>
           </ProfileSectionCard>
         );
       })()}
@@ -921,6 +949,17 @@ export default function SellerProfilePage() {
                       />
                       {tSettings("allowPickup")}
                     </label>
+                    {/* Like pickup: approved sellers change it through the
+                        services change request. */}
+                    <label className={styles.pickupToggle}>
+                      <input
+                        type="checkbox"
+                        checked={svc.courier_enabled ?? false}
+                        onChange={(e) => updateCourier(svc.id, e.target.checked)}
+                        disabled={isApproved}
+                      />
+                      {tSettings("allowCourier")}
+                    </label>
                   </div>
                 ))}
               </>
@@ -989,6 +1028,28 @@ export default function SellerProfilePage() {
                   <span className={styles.savingChip}>{tc("saving")}</span>
                 )}
               </div>
+              {/* The courier ring is edited through this card's store-basics
+                  change request, so it is shown, not edited, here. */}
+              <div className={styles.kvRow}>
+                <span className={styles.kvLabel}>{tSettings("courierRadius")}:</span>
+                <span>
+                  {store.courier_radius_km
+                    ? tSettings("courierRadiusValue", { km: store.courier_radius_km })
+                    : tSettings("courierRadiusOff")}
+                </span>
+              </div>
+              <p className={styles.cardCaption}>{tSettings("courierRadiusCaption")}</p>
+              {/* Courier configured but nothing can take the money: courier
+                  orders are silently impossible (spec §7.3). An older API that
+                  omits courier_payment_methods must not raise a false alarm. */}
+              {Boolean(store.courier_radius_km) &&
+                profile.services.some((s) => s.courier_enabled) &&
+                store.courier_payment_methods !== undefined &&
+                store.courier_payment_methods.length === 0 && (
+                  <div className={`${styles.crBanner} ${styles.crBannerWarn}`} role="status">
+                    <span>{tSettings("courierNoPayee")}</span>
+                  </div>
+                )}
             </ProfileSectionCard>
           );
         })()}
