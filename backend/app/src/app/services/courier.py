@@ -19,7 +19,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.models.base import User, UserRole
 from app.models.commerce import (
+    Delivery,
     DeliveryMode,
+    DeliveryStatus,
     Order,
     OrderStatus,
     Payment,
@@ -31,7 +33,14 @@ from app.models.profile import SellerProfile
 from app.models.store import Store
 from app.schemas.orders import BankTransferRead, CourierQuoteRead, CourierRead
 from app.services import customer_store_credit as store_credit_svc
-from app.services.courier_rules import clean_text, eta_window, lock_order
+from app.services.courier_rules import (
+    TrackingInput,
+    apply_tracking,
+    clean_text,
+    eta_window,
+    lock_order,
+    validate_tracking_url,
+)
 from app.services.orders import _seller_owns_store
 from app.services.serviceability import bank_transfer_live, courier_payment_methods
 from app.utils.delivery_window import ist_today
@@ -391,6 +400,56 @@ async def reject_payment_claim(
     row.payment_claim_rejected_note = clean_text(note, max_len=300)
     row.payment_claim_rejection_count += 1
     session.add_all([payment, row])
+    await session.commit()
+    await session.refresh(order)
+    return order
+
+
+async def update_tracking(
+    session: AsyncSession, order: Order, actor: User, tracking: TrackingInput
+) -> tuple[Order, bool]:
+    """Edit tracking after shipping. Returns (order, changed)."""
+    _require_courier(order)
+    await _require_owning_seller(session, actor, order)
+    assert order.id is not None
+    order = await lock_order(session, order.id)
+    if order.status != OrderStatus.Dispatched:
+        raise HTTPException(status_code=409, detail={"code": "not_dispatched"})
+    try:
+        validate_tracking_url(tracking.tracking_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"code": "invalid_tracking_url"}) from exc
+    row = await order_courier(session, order.id)
+    changed = apply_tracking(row, tracking)
+    if changed:
+        row.tracking_updated_at = _now()
+        session.add(row)
+        await session.commit()
+    await session.refresh(order)
+    return order, changed
+
+
+async def mark_received(session: AsyncSession, order: Order, actor: User) -> Order:
+    """The customer's "I've received it" (spec D9)."""
+    _require_courier(order)
+    if actor.role != UserRole.Customer:
+        raise HTTPException(status_code=403, detail="forbidden")
+    assert order.id is not None
+    order = await lock_order(session, order.id)
+    if order.status == OrderStatus.Delivered:
+        raise HTTPException(status_code=409, detail={"code": "already_delivered"})
+    if order.status != OrderStatus.Dispatched:
+        raise HTTPException(status_code=409, detail={"code": "illegal_transition"})
+    delivery = (await session.exec(select(Delivery).where(Delivery.order_id == order.id))).first()
+    if delivery is None:
+        raise HTTPException(status_code=500, detail="delivery_missing")
+    row = await order_courier(session, order.id)
+    now = _now()
+    order.status = OrderStatus.Delivered
+    delivery.status = DeliveryStatus.Delivered
+    delivery.delivered_at = now
+    row.delivered_by = "customer"
+    session.add_all([order, delivery, row])
     await session.commit()
     await session.refresh(order)
     return order

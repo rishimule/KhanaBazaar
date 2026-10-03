@@ -45,6 +45,7 @@ from app.models.store import Store, StoreInventory
 from app.schemas.orders import (
     CourierAcceptRequest,
     CourierQuoteRequest,
+    CourierTrackingRequest,
     DeliveryRead,
     OrderItemRead,
     OrderListResponse,
@@ -64,6 +65,7 @@ from app.services import courier as courier_svc
 from app.services import courier_comms
 from app.services.checkout import place_order_for_sub_basket
 from app.services.courier_copy import load_courier_vars, render_status
+from app.services.courier_rules import TrackingInput
 from app.services.notification_push import dispatch_notification_push
 from app.services.notifications import (
     record_delivery_otp_notification,
@@ -73,6 +75,7 @@ from app.services.order_emails import (
     dispatch_admin_order_action,
     dispatch_delivery_otp,
     dispatch_order_placed,
+    dispatch_order_review_request,
     dispatch_order_status_changed,
 )
 from app.services.order_whatsapp import dispatch_order_status_whatsapp
@@ -643,8 +646,14 @@ async def transition_order(
     if user.role not in (UserRole.Seller, UserRole.Admin):
         raise HTTPException(status_code=403, detail="forbidden")
     order, include_customer = await _load_order_for_user(session, order_id, user)
+    tracking = TrackingInput(
+        carrier_name=payload.carrier_name,
+        tracking_number=payload.tracking_number,
+        tracking_url=payload.tracking_url,
+    )
     order = await transition_order_status(
-        session, order, payload.to, user, otp=payload.otp, reason=payload.reason
+        session, order, payload.to, user, otp=payload.otp, reason=payload.reason,
+        tracking=tracking if tracking.any() else None,
     )
     if order.id is not None:
         dispatch_order_status_changed(order.id, order.status.value)
@@ -731,6 +740,45 @@ async def courier_accept_quote(
         include_customer_name=include_customer,
         viewer_is_admin=user.role == UserRole.Admin,
     )
+
+
+@router.patch("/{order_id}/courier/tracking", response_model=OrderRead)
+async def courier_update_tracking(
+    order_id: int,
+    body: CourierTrackingRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The store's seller edits tracking on a shipped courier order."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order, changed = await courier_svc.update_tracking(
+        session,
+        order,
+        user,
+        TrackingInput(
+            carrier_name=body.carrier_name,
+            tracking_number=body.tracking_number,
+            tracking_url=body.tracking_url,
+        ),
+    )
+    if changed:
+        await courier_comms.notify_customer(session, order, "tracking_updated")
+    return await _serialize_order(session, order, include_customer_name=include_customer)
+
+
+@router.post("/{order_id}/courier/received", response_model=OrderRead)
+async def courier_mark_received(
+    order_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The owning customer confirms the parcel arrived."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order = await courier_svc.mark_received(session, order, user)
+    if order.id is not None:
+        dispatch_order_review_request(order.id)
+    await courier_comms.notify_seller(session, order, "customer_received")
+    return await _serialize_order(session, order, include_customer_name=include_customer)
 
 
 @router.post("/{order_id}/delivery-otp/resend", response_model=OrderRead)

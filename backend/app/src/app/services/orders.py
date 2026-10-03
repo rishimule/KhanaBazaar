@@ -27,11 +27,18 @@ from app.models.commerce import (
     PaymentMethod,
     PaymentStatus,
 )
+from app.models.courier import CourierQuote, OrderCourier
 from app.models.profile import CustomerProfile, SellerProfile, VerificationStatus
 from app.models.store import Store
 from app.schemas.address import AddressPayload, address_from_payload
 from app.services.admin_audit import log as audit_log
-from app.services.courier_rules import COURIER_TRANSITIONS, lock_order
+from app.services.courier_rules import (
+    COURIER_TRANSITIONS,
+    TrackingInput,
+    apply_tracking,
+    lock_order,
+    validate_tracking_url,
+)
 from app.services.inventory import lock_inventory_rows, restock
 from app.utils.address import format_address
 
@@ -93,6 +100,30 @@ async def _seller_owns_store(session: AsyncSession, user: User, store_id: int) -
     return store_result.first() is not None
 
 
+async def _order_courier_row(session: AsyncSession, order_id: Optional[int]) -> OrderCourier:
+    row = (
+        await session.exec(select(OrderCourier).where(OrderCourier.order_id == order_id))
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=500, detail="order_courier_missing")
+    return row
+
+
+async def _apply_courier_dispatch(
+    session: AsyncSession, order: Order, tracking: Optional[TrackingInput], now: datetime
+) -> None:
+    """Record optional tracking on "Shipped"; default the carrier to the one
+    named on the accepted quote. No OTP for courier orders (spec D9)."""
+    row = await _order_courier_row(session, order.id)
+    if tracking is not None and apply_tracking(row, tracking):
+        row.tracking_updated_at = now
+    if row.carrier_name is None and row.accepted_quote_id is not None:
+        quote = await session.get(CourierQuote, row.accepted_quote_id)
+        if quote is not None and quote.carrier_name:
+            row.carrier_name = quote.carrier_name
+    session.add(row)
+
+
 async def transition_order_status(
     session: AsyncSession,
     order: Order,
@@ -101,21 +132,32 @@ async def transition_order_status(
     *,
     otp: Optional[str] = None,
     reason: Optional[str] = None,
+    tracking: Optional[TrackingInput] = None,
 ) -> Order:
     target = TARGET_BY_STR[target_str]
     assert order.id is not None
     order = await lock_order(session, order.id)
+    is_courier = order.delivery_mode == DeliveryMode.Courier
+    # Seller and customer can both mark a courier order delivered; whoever is
+    # second gets a precise code instead of a generic illegal transition.
+    if is_courier and order.status == OrderStatus.Delivered and target == OrderStatus.Delivered:
+        raise HTTPException(status_code=409, detail={"code": "already_delivered"})
     # Courier orders follow their own table (pending → quoted → accepted →
     # paid → packed → …); door and pickup keep LEGAL_TRANSITIONS unchanged.
     table: Mapping[OrderStatus, AbstractSet[OrderStatus]] = (
-        COURIER_TRANSITIONS
-        if order.delivery_mode == DeliveryMode.Courier
-        else LEGAL_TRANSITIONS
+        COURIER_TRANSITIONS if is_courier else LEGAL_TRANSITIONS
     )
     if target not in table.get(order.status, frozenset()):
         raise HTTPException(status_code=409, detail={
             "detail": "illegal_transition", "from": order.status.value, "to": target.value,
         })
+    if tracking is not None and tracking.any():
+        if not (is_courier and target == OrderStatus.Dispatched):
+            raise HTTPException(status_code=422, detail={"code": "courier_fields_not_allowed"})
+        try:
+            validate_tracking_url(tracking.tracking_url)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_tracking_url"}) from exc
 
     # Authorization: seller owns store or admin.
     if actor.role == UserRole.Seller:
@@ -148,7 +190,9 @@ async def transition_order_status(
                 raise HTTPException(
                     status_code=422, detail={"code": "reason_required"}
                 )
-        else:
+        elif not is_courier:
+            # Courier orders have no handover code (spec D9); admins above
+            # still need a reason.
             if delivery.delivery_otp is None:
                 raise HTTPException(
                     status_code=409, detail={"code": "delivery_otp_not_issued"}
@@ -185,21 +229,30 @@ async def transition_order_status(
     elif target == OrderStatus.Dispatched:
         delivery.status = DeliveryStatus.Dispatched
         delivery.dispatched_at = now
-        delivery.delivery_otp = generate_code()
-        delivery.delivery_otp_attempts = 0
-        delivery.delivery_otp_sent_at = now
-        delivery.delivery_otp_verified_at = None
+        if is_courier:
+            await _apply_courier_dispatch(session, order, tracking, now)
+        else:
+            delivery.delivery_otp = generate_code()
+            delivery.delivery_otp_attempts = 0
+            delivery.delivery_otp_sent_at = now
+            delivery.delivery_otp_verified_at = None
     elif target == OrderStatus.Delivered:
         delivery.status = DeliveryStatus.Delivered
         delivery.delivered_at = now
-        if actor.role != UserRole.Admin:
-            delivery.delivery_otp_verified_at = now
-        delivery.delivery_otp = None  # consume the code (also clears it for admin force)
-        # Credit orders are NOT paid on delivery — the customer still owes on
-        # credit; the credit ledger, not Payment.status, tracks what's owed.
-        if payment is not None and payment.method != PaymentMethod.Credit:
-            payment.status = PaymentStatus.Paid
-            payment.paid_at = now
+        if is_courier:
+            # No OTP, and the payment was settled at confirmation (spec §9.5).
+            row = await _order_courier_row(session, order.id)
+            row.delivered_by = "admin" if actor.role == UserRole.Admin else "seller"
+            session.add(row)
+        else:
+            if actor.role != UserRole.Admin:
+                delivery.delivery_otp_verified_at = now
+            delivery.delivery_otp = None  # consume the code (also clears it for admin force)
+            # Credit orders are NOT paid on delivery — the customer still owes on
+            # credit; the credit ledger, not Payment.status, tracks what's owed.
+            if payment is not None and payment.method != PaymentMethod.Credit:
+                payment.status = PaymentStatus.Paid
+                payment.paid_at = now
 
     if acting_admin_id is not None:
         target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)

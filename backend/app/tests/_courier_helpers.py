@@ -393,3 +393,16 @@ async def order_at_paid(world: CourierWorld, *, fee: float = 120.0) -> dict[str,
     resp = await confirm_payment(order["id"])
     assert resp.status_code == 200, resp.text
     return resp.json()
+
+
+async def order_at_dispatched(world: CourierWorld, **tracking: str) -> dict[str, Any]:
+    """…→ paid → packed → dispatched (shipped) with optional tracking fields."""
+    order = await order_at_paid(world)
+    async with client_as(SELLER) as ac:
+        packed = await ac.post(f"/api/v1/orders/{order['id']}/transition", json={"to": "packed"})
+        assert packed.status_code == 200, packed.text
+        shipped = await ac.post(
+            f"/api/v1/orders/{order['id']}/transition", json={"to": "dispatched", **tracking},
+        )
+    assert shipped.status_code == 200, shipped.text
+    return shipped.json()

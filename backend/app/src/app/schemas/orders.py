@@ -196,6 +196,19 @@ class TransitionRequest(BaseModel):
     to: Literal["packed", "dispatched", "delivered"]
     otp: Optional[str] = None
     reason: Optional[str] = None
+    # Courier "Shipped" only; validated in services/orders.py so the error
+    # carries a code. Generous max_length so our validator, not Pydantic, speaks.
+    carrier_name: Optional[str] = Field(default=None, max_length=200)
+    tracking_number: Optional[str] = Field(default=None, max_length=200)
+    tracking_url: Optional[str] = Field(default=None, max_length=2000)
+
+
+class CourierTrackingRequest(BaseModel):
+    """Per field: omitted = leave alone, "" = clear."""
+
+    carrier_name: Optional[str] = Field(default=None, max_length=200)
+    tracking_number: Optional[str] = Field(default=None, max_length=200)
+    tracking_url: Optional[str] = Field(default=None, max_length=2000)
 
 
 class SellerOrderAlertSummary(BaseModel):

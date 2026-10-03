@@ -408,6 +408,7 @@ def _patch_email_dispatch(request: pytest.FixtureRequest) -> Generator[None, Non
         "app.services.courier_comms.dispatch_courier_email",
         "app.services.courier_comms.dispatch_courier_whatsapp",
         "app.services.courier_comms.dispatch_notification_push",
+        "app.api.orders.dispatch_order_review_request",
         "app.api.admin_actions.dispatch_admin_order_action",
         "app.api.returns.dispatch_return_otp",
         "app.api.returns.dispatch_return_status",
