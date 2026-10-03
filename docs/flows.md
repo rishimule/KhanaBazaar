@@ -508,11 +508,11 @@ A store can ship beyond its local delivery radius, up to its courier radius, for
    - The order becomes `accepted`, or `paid` straight away when ₹0 is payable.
    - With no live payee left → `409 courier_payment_unavailable`, and the seller is told once.
 5. **Pay.** The customer pays off-platform. Bank details appear in `OrderRead.courier.bank_transfer` only while `accepted`, only for the customer.
-   - "I've paid" is `POST /orders/{id}/payment/claim` with `{method}`; the seller is notified once per claim.
+   - "I've paid" is `POST /orders/{id}/payment/claim` with `{method}`; the seller is notified once per claim round (switching method afterwards is silent).
    - The seller answers with `POST /orders/{id}/payment/confirm`, which sets `paid` and fixes the ETA dates (IST today + quoted days).
    - Or `POST /orders/{id}/payment/not-received` with `{note?}` clears the claim so the customer can check and pay again.
 6. **Ship.** `transition` to `packed`, then to `dispatched` with optional `carrier_name` / `tracking_number` / `tracking_url` (https only).
-   - No delivery OTP is issued. The carrier defaults to the one on the accepted quote.
+   - No delivery OTP is issued. A carrier left out defaults to the one on the accepted quote (`""` means none).
    - Tracking stays editable via `PATCH /orders/{id}/courier/tracking` (omitted = unchanged, `""` = clear).
 7. **Deliver.** The seller transitions to `delivered` (no OTP), or the customer calls `POST /orders/{id}/courier/received`, or an admin force-delivers with a reason.
    - The second attempt → `409 already_delivered`. `order_courier.delivered_by` records who.
@@ -521,8 +521,8 @@ A store can ship beyond its local delivery radius, up to its courier radius, for
    - **Seller:** up to `packed`, with a reason of at least 10 characters.
    - **Admin:** anything non-terminal; after shipping nothing is restocked.
    - A claimed-but-unconfirmed payment must be answered with `payment_received` on cancel.
-   - A cancel after money moved leaves the payment `Paid` (= refund due) until `POST /orders/{id}/payment/refund-sent` with `{reference?}` or the admin refund marker.
-9. **Reminders.** `courier.send_reminders` runs hourly (minute 17) and sends only between 09:00 and 21:00 IST. It nudges whoever is holding things up — one reminder per stage — and never changes state.
+   - A cancel after money moved leaves the payment `Paid` (= refund due when the amount is above ₹0) until `POST /orders/{id}/payment/refund-sent` with `{reference?}` or the admin refund marker.
+9. **Reminders.** `courier.send_reminders` runs hourly (minute 17 UTC, :47 IST) outside the quiet hours (21:00–09:00 IST by default). It nudges whoever is holding things up — one reminder per stage — and never changes state.
 
 Courier orders are not returnable, the admin delivery-address override is refused for them, and admin rewinds never go back before the customer's acceptance.
 

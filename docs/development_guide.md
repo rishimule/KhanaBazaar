@@ -78,8 +78,8 @@ Lives at `backend/app/.env`. Template is `backend/app/.env.example`. Loader is t
 | `COURIER_REMINDER_HOURS` | `24` | Hours a courier stage may wait before the sweep sends its one reminder. `ge=1`. |
 | `COURIER_ARRIVAL_GRACE_DAYS` | `1` | Days after `eta_to` before a shipped courier order counts as overdue. `ge=1`. |
 | `COURIER_REFUND_REMINDER_DAYS` | `[1,3,7]` | JSON list of days since cancellation on which the seller is reminded of a refund still owed. Sorted and de-duplicated; every value `>= 1`. |
-| `COURIER_STALE_DAYS` | `3` | Admin "Waiting 3+ days" list filter (`GET /orders?stale=true`). `ge=1`. |
-| `COURIER_QUIET_START_HOUR` / `COURIER_QUIET_END_HOUR` | `21` / `9` | Courier reminders go out only between END and START, IST. |
+| `COURIER_STALE_DAYS` | `3` | Admin "Stalled" list filter (`GET /orders?stale=true`); also sent to the frontend via `/meta/public-config`. `ge=1`. |
+| `COURIER_QUIET_START_HOUR` / `COURIER_QUIET_END_HOUR` | `21` / `9` | Quiet hours for courier reminders, `[START, END)` IST. The window may wrap midnight (21 → 9) or not (0 → 7); equal values mean no quiet hours. |
 
 ### Frontend `.env.local`
 
