@@ -5,6 +5,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
+import CourierCancelDialog from "@/components/orders/courier/CourierCancelDialog";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusBadge from "@/components/orders/PaymentStatusBadge";
 import OrderTotal from "@/components/orders/OrderTotal";
@@ -215,21 +216,36 @@ export default function AdminOrdersTab({
       </table>
       </div>
 
-      {pending && (
-        <AdminReasonModal
-          title={modalTitle(pending, t)}
-          description={modalDescription(pending, t)}
-          confirmLabel={
-            pending.kind === "cancel"
-              ? t("orders.confirm.cancel")
-              : pending.kind === "rewind"
-                ? t("orders.confirm.rewind")
-                : t("orders.confirm.refund")
-          }
-          destructive
-          onConfirm={performAction}
+      {/* The plain reason modal can't ask whether a claimed payment arrived,
+          so a courier force-cancel would 422 on payment_received_required. */}
+      {pending && pending.kind === "cancel" && pending.order.delivery_mode === "courier" ? (
+        <CourierCancelDialog
+          order={pending.order}
+          role="admin"
           onClose={() => setPending(null)}
+          onRefresh={() => void load()}
+          onDone={() => {
+            setPending(null);
+            void load();
+          }}
         />
+      ) : (
+        pending && (
+          <AdminReasonModal
+            title={modalTitle(pending, t)}
+            description={modalDescription(pending, t)}
+            confirmLabel={
+              pending.kind === "cancel"
+                ? t("orders.confirm.cancel")
+                : pending.kind === "rewind"
+                  ? t("orders.confirm.rewind")
+                  : t("orders.confirm.refund")
+            }
+            destructive
+            onConfirm={performAction}
+            onClose={() => setPending(null)}
+          />
+        )
       )}
     </div>
   );
@@ -245,19 +261,10 @@ function modalTitle(p: PendingAction, t: Translator): string {
 }
 
 function modalDescription(p: PendingAction, t: Translator): string {
-  if (p.kind === "cancel") {
-    const o = p.order;
-    if (o.delivery_mode !== "courier") return t("orders.modal.cancelDesc");
-    // A shipped courier parcel is not restocked, and money already taken
-    // becomes a refund due (spec §10.3) — the generic copy would mislead.
-    const base =
-      o.status === "dispatched"
-        ? t("orders.modal.cancelDescShipped")
-        : t("orders.modal.cancelDesc");
-    return o.payment.status === "paid"
-      ? `${base} ${t("orders.modal.cancelRefundDue")}`
-      : base;
-  }
+  // Courier cancels never get here: they open CourierCancelDialog, which
+  // states its own consequences (no restock once shipped, refund due).
+  if (p.kind === "cancel")
+    return t("orders.modal.cancelDesc");
   if (p.kind === "rewind")
     return t("orders.modal.rewindDesc", { from: p.order.status, to: p.to ?? "" });
   return t("orders.modal.refundDesc");
