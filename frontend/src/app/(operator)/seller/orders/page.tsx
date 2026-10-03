@@ -19,7 +19,14 @@ import { useAuth } from "@/lib/AuthContext";
 import type { Order, OrderListResponse, Service } from "@/types";
 import styles from "./page.module.css";
 
-type StatusFilter = "all" | "active" | "delivered" | "cancelled";
+type StatusFilter =
+  | "all"
+  | "active"
+  | "delivered"
+  | "cancelled"
+  | "needs_quote"
+  | "check_payment"
+  | "refunds_due";
 type SortKey = "date_desc" | "date_asc" | "total_desc" | "total_asc";
 const PAGE_SIZE = 20;
 
@@ -56,7 +63,19 @@ export default function SellerOrdersPage() {
       });
     }
     return listOrdersPaged(token, {
-      status: statusFilter,
+      // The three courier chips are stage filters, not statuses (A1 Task 15).
+      status:
+        statusFilter === "needs_quote" || statusFilter === "check_payment" || statusFilter === "refunds_due"
+          ? "all"
+          : statusFilter,
+      needs:
+        statusFilter === "needs_quote"
+          ? "quote"
+          : statusFilter === "check_payment"
+            ? "payment_check"
+            : statusFilter === "refunds_due"
+              ? "refund"
+              : undefined,
       service_id: serviceId,
       q: debouncedQuery,
       from_date: fromDate,
@@ -149,7 +168,17 @@ export default function SellerOrdersPage() {
 
       <div className={styles.controls}>
         <div className={styles.chips} role="tablist">
-          {(["all", "active", "delivered", "cancelled"] as StatusFilter[]).map((s) => (
+          {(
+            [
+              "all",
+              "active",
+              "needs_quote",
+              "check_payment",
+              "refunds_due",
+              "delivered",
+              "cancelled",
+            ] as StatusFilter[]
+          ).map((s) => (
             <button
               key={s}
               type="button"

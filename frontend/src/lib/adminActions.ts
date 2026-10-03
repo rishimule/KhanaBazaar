@@ -75,7 +75,7 @@ export function fetchSellerOrders(sellerId: number, token: string) {
 
 export function adminRewindOrder(
   orderId: number,
-  body: { to_status: "pending" | "packed"; reason: string },
+  body: { to_status: "pending" | "packed" | "paid" | "accepted"; reason: string },
   token: string,
 ) {
   return post<{ status: string }>(

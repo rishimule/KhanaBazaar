@@ -20,22 +20,27 @@ import type { Order, SellerHubSummary } from "@/types";
 
 type ActionKind = "cancel" | "rewind" | "refund";
 
+type RewindTarget = "pending" | "packed" | "paid" | "accepted";
+
 interface PendingAction {
   order: Order;
   kind: ActionKind;
-  to?: "pending" | "packed";
+  to?: RewindTarget;
 }
 
-const REWIND_PATH: Record<Order["status"], "pending" | "packed" | null> = {
-  pending: null,
-  quoted: null,
-  accepted: null,
-  paid: null,
-  packed: "pending",
-  dispatched: "packed",
-  delivered: null,
-  cancelled: null,
-};
+/** One step back, never before the customer's acceptance on a courier order
+ *  (spec §9.7). Mirrors the backend's REWIND tables. */
+function rewindTarget(order: Order): RewindTarget | null {
+  if (order.delivery_mode === "courier") {
+    if (order.status === "paid") return "accepted";
+    if (order.status === "packed") return "paid";
+    if (order.status === "dispatched") return "packed";
+    return null;
+  }
+  if (order.status === "packed") return "pending";
+  if (order.status === "dispatched") return "packed";
+  return null;
+}
 
 export default function AdminOrdersTab({
   params,
@@ -149,7 +154,7 @@ export default function AdminOrdersTab({
         <tbody>
           {orders.map((o) => {
             const terminal = o.status === "delivered" || o.status === "cancelled";
-            const rewindTo = REWIND_PATH[o.status];
+            const rewindTo = rewindTarget(o);
             const refundable =
               (o.status === "cancelled" || o.status === "delivered") &&
               o.payment.status === "paid";
@@ -240,8 +245,19 @@ function modalTitle(p: PendingAction, t: Translator): string {
 }
 
 function modalDescription(p: PendingAction, t: Translator): string {
-  if (p.kind === "cancel")
-    return t("orders.modal.cancelDesc");
+  if (p.kind === "cancel") {
+    const o = p.order;
+    if (o.delivery_mode !== "courier") return t("orders.modal.cancelDesc");
+    // A shipped courier parcel is not restocked, and money already taken
+    // becomes a refund due (spec §10.3) — the generic copy would mislead.
+    const base =
+      o.status === "dispatched"
+        ? t("orders.modal.cancelDescShipped")
+        : t("orders.modal.cancelDesc");
+    return o.payment.status === "paid"
+      ? `${base} ${t("orders.modal.cancelRefundDue")}`
+      : base;
+  }
   if (p.kind === "rewind")
     return t("orders.modal.rewindDesc", { from: p.order.status, to: p.to ?? "" });
   return t("orders.modal.refundDesc");

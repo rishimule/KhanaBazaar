@@ -18,13 +18,23 @@ import { useAuth } from "@/lib/AuthContext";
 import type { Order, OrderListResponse, Service } from "@/types";
 import styles from "./page.module.css";
 
-type StatusFilter = "all" | "active" | "delivered" | "cancelled";
+type StatusFilter =
+  | "all"
+  | "active"
+  | "courier"
+  | "waiting"
+  | "refunds_due"
+  | "delivered"
+  | "cancelled";
 type SortKey = "date_desc" | "date_asc" | "total_desc" | "total_asc";
 const PAGE_SIZE = 20;
 
 const STATUS_FILTER_KEYS: Record<StatusFilter, string> = {
   all: "filterAll",
   active: "filterActive",
+  courier: "filterCourier",
+  waiting: "filterWaiting",
+  refunds_due: "filterRefundsDue",
   delivered: "filterDelivered",
   cancelled: "filterCancelled",
 };
@@ -60,8 +70,14 @@ export default function AdminOrdersPage() {
         page_size: PAGE_SIZE,
       });
     }
+    // The three courier chips are stage filters, not statuses (A1 Task 15).
+    const courierChip =
+      statusFilter === "courier" || statusFilter === "waiting" || statusFilter === "refunds_due";
     return listOrdersPaged(token, {
-      status: statusFilter,
+      status: courierChip ? "all" : statusFilter,
+      delivery_mode: statusFilter === "courier" ? "courier" : undefined,
+      stale: statusFilter === "waiting",
+      needs: statusFilter === "refunds_due" ? "refund" : undefined,
       service_id: serviceId,
       q: debouncedQuery,
       from_date: fromDate,
@@ -124,7 +140,17 @@ export default function AdminOrdersPage() {
 
       <div className={styles.controls}>
         <div className={styles.chips} role="tablist">
-          {(["all", "active", "delivered", "cancelled"] as StatusFilter[]).map((s) => (
+          {(
+            [
+              "all",
+              "active",
+              "courier",
+              "waiting",
+              "refunds_due",
+              "delivered",
+              "cancelled",
+            ] as StatusFilter[]
+          ).map((s) => (
             <button
               key={s}
               type="button"

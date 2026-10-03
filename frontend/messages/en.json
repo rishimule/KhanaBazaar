@@ -1414,7 +1414,10 @@
         "all": "All",
         "active": "Active",
         "delivered": "Delivered",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "needs_quote": "Needs quote",
+        "check_payment": "Check payment",
+        "refunds_due": "Refunds due"
       },
       "allServices": "All services",
       "fromDate": "From date",
@@ -1930,7 +1933,10 @@
       "loadMore": "Load more",
       "prev": "‹ Prev",
       "next": "Next ›",
-      "showing": "Showing {from}–{to} of {total}"
+      "showing": "Showing {from}–{to} of {total}",
+      "filterCourier": "Courier",
+      "filterWaiting": "Waiting 3+ days",
+      "filterRefundsDue": "Refunds due"
     },
     "orderDetail": {
       "loadError": "Could not load order.",
@@ -2232,7 +2238,9 @@
           "refundTitle": "Mark payment refunded on order #{id}?",
           "cancelDesc": "Cancellation restocks items. Seller is emailed.",
           "rewindDesc": "Status moves backward from {from} to {to}. Seller is emailed.",
-          "refundDesc": "Payment status flips to refunded (manual ledger marker — MVP has no real refund gateway). Seller is emailed."
+          "refundDesc": "Payment status flips to refunded (manual ledger marker — MVP has no real refund gateway). Seller is emailed.",
+          "cancelDescShipped": "The parcel has already shipped, so nothing is restocked. Seller is emailed.",
+          "cancelRefundDue": "The customer has already paid, so the order shows a refund due until it is recorded."
         }
       },
       "products": {
