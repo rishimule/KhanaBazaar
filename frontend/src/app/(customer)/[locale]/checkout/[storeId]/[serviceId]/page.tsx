@@ -4,7 +4,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
@@ -71,6 +71,11 @@ export default function CheckoutPage() {
   const [storeLoadFailed, setStoreLoadFailed] = useState(false);
   // Bumped when the server says the address's zone changed (spec §8.5).
   const [zoneRecheck, setZoneRecheck] = useState(0);
+  // Set once the order is placed, for the life of this page. Placing empties
+  // this sub-basket, and while the confirmation route loads useParams()
+  // already reports its params (storeId/serviceId → NaN), so the "no cart →
+  // /cart" redirect below would otherwise replace the confirmation push.
+  const placedRef = useRef(false);
   // Courier mode follows the picked address (spec §8.1). A plain value, not a
   // hook; computed here because the payment-method effect depends on it.
   const courierModeActive = deliveryMode !== "pickup" && pickerState.zone === "courier";
@@ -180,6 +185,7 @@ export default function CheckoutPage() {
   const isCustomer = dbUser?.role === "customer";
 
   useEffect(() => {
+    if (placedRef.current) return;
     if (!authLoading && !cartLoading && isCustomer && !cart && !switching) {
       router.replace("/cart");
     }
@@ -286,6 +292,7 @@ export default function CheckoutPage() {
         recipientName: isCourier ? recipient.name.trim() : null,
         recipientPhone: isCourier ? recipient.phone : null,
       });
+      placedRef.current = true;
       // Placing the order clears this sub-basket server-side. Refresh cart
       // state so the navbar count + cart pages reflect it immediately instead
       // of after a manual reload. Guarded: the order already succeeded, so a
