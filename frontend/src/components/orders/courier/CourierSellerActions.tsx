@@ -2,11 +2,11 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import CourierCancelDialog from "@/components/orders/courier/CourierCancelDialog";
 import { useAuth } from "@/lib/AuthContext";
-import { latestQuote } from "@/lib/courier";
+import { formatDateTime, latestQuote } from "@/lib/courier";
 import { errorsKey } from "@/lib/errors";
 import {
   confirmCourierPayment,
@@ -22,9 +22,10 @@ import { netPayable } from "@/lib/upi";
 import type { Order } from "@/types";
 import styles from "./courier.module.css";
 
-/** Mirrors COURIER_MAX_QUOTE_VERSIONS (A1 Task 2). The server stays the
- *  authority (`too_many_quote_versions`); this only hides a dead button. */
-const MAX_QUOTE_VERSIONS = 5;
+/** Fallback for responses that predate `courier.max_quote_versions`. The
+ *  server stays the authority (`too_many_quote_versions`); the cap only hides
+ *  a dead button. */
+const DEFAULT_MAX_QUOTE_VERSIONS = 5;
 
 type Dialog = "quote" | "notReceived" | "ship" | "tracking" | "refund" | "cancel" | null;
 
@@ -52,6 +53,7 @@ export default function CourierSellerActions({
   const t = useTranslations("Seller.orderDetail.courier");
   const tc = useTranslations("Order.courier");
   const tErr = useTranslations("Errors");
+  const locale = useLocale();
   const { token } = useAuth();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [busy, setBusy] = useState(false);
@@ -95,22 +97,38 @@ export default function CourierSellerActions({
     }
   }
 
+  /** Every dialog opens and closes with a clean slate, so a failed action's
+   *  message never resurfaces under the bar once its dialog is gone. */
+  function open(kind: Exclude<Dialog, null>) {
+    setError(null);
+    setDialog(kind);
+  }
+
+  function close() {
+    setError(null);
+    setDialog(null);
+  }
+
   function openQuote() {
     setFee(latest ? String(latest.courier_fee) : "");
     setEtaMin(latest ? String(latest.eta_min_days) : "");
     setEtaMax(latest ? String(latest.eta_max_days) : "");
     setCarrier(latest?.carrier_name ?? "");
     setNote("");
-    setError(null);
-    setDialog("quote");
+    open("quote");
   }
 
   function openTracking(kind: "ship" | "tracking") {
-    setTrackCarrier(courier.carrier_name ?? latest?.carrier_name ?? "");
+    // Only shipping suggests the quote's courier company; editing shows what
+    // is saved, so a carrier the seller cleared stays cleared.
+    setTrackCarrier(
+      kind === "ship"
+        ? (courier.carrier_name ?? latest?.carrier_name ?? "")
+        : (courier.carrier_name ?? ""),
+    );
     setTrackNumber(courier.tracking_number ?? "");
     setTrackUrl(courier.tracking_url ?? "");
-    setError(null);
-    setDialog(kind);
+    open(kind);
   }
 
   const feeNum = Number(fee);
@@ -136,7 +154,7 @@ export default function CourierSellerActions({
     hint = claimedAt
       ? t("hintClaimed", {
           method: methodLabel,
-          when: new Date(claimedAt).toLocaleString("en-IN"),
+          when: formatDateTime(claimedAt, locale),
         })
       : courier.payment_claim_rejected_at
         ? t("hintRejected")
@@ -147,8 +165,9 @@ export default function CourierSellerActions({
   else if (order.status === "cancelled" && courier.refund_due) hint = t("hintRefund", { amount });
 
   const canQuote = order.status === "pending" || order.status === "quoted";
+  const maxQuoteVersions = courier.max_quote_versions ?? DEFAULT_MAX_QUOTE_VERSIONS;
   const quoteLimitReached =
-    order.status === "quoted" && courier.quotes.length >= MAX_QUOTE_VERSIONS;
+    order.status === "quoted" && courier.quotes.length >= maxQuoteVersions;
   const canCancel = !["dispatched", "delivered", "cancelled"].includes(order.status);
 
   const trackingFields = (
@@ -200,7 +219,7 @@ export default function CourierSellerActions({
           </button>
         )}
         {quoteLimitReached && (
-          <p className={styles.hint}>{t("quoteLimit", { max: MAX_QUOTE_VERSIONS })}</p>
+          <p className={styles.hint}>{t("quoteLimit", { max: maxQuoteVersions })}</p>
         )}
         {order.status === "accepted" && (
           <button
@@ -223,8 +242,7 @@ export default function CourierSellerActions({
             disabled={busy}
             onClick={() => {
               setRejectNote("");
-              setError(null);
-              setDialog("notReceived");
+              open("notReceived");
             }}
           >
             {t("notReceived")}
@@ -281,8 +299,7 @@ export default function CourierSellerActions({
             disabled={busy}
             onClick={() => {
               setRefundRef("");
-              setError(null);
-              setDialog("refund");
+              open("refund");
             }}
           >
             {t("refundSent")}
@@ -293,7 +310,7 @@ export default function CourierSellerActions({
             type="button"
             className="btn btn-danger"
             disabled={busy}
-            onClick={() => setDialog("cancel")}
+            onClick={() => open("cancel")}
           >
             {t("cancel")}
           </button>
@@ -308,7 +325,7 @@ export default function CourierSellerActions({
       {dialog === "quote" && (
         <Modal
           title={t("quoteTitle")}
-          onClose={() => setDialog(null)}
+          onClose={close}
           footer={
             <button
               type="button"
@@ -404,7 +421,7 @@ export default function CourierSellerActions({
       {(dialog === "ship" || dialog === "tracking") && (
         <Modal
           title={dialog === "ship" ? t("shipTitle") : t("trackingTitle")}
-          onClose={() => setDialog(null)}
+          onClose={close}
           footer={
             <button
               type="button"
@@ -412,9 +429,9 @@ export default function CourierSellerActions({
               disabled={busy || !urlValid}
               onClick={() => {
                 if (dialog === "ship") {
-                  // Dispatch sends only what was filled in; nothing is cleared.
-                  const tracking: TrackingInput = {};
-                  if (trackCarrier.trim()) tracking.carrier_name = trackCarrier.trim();
+                  // The carrier is always sent ("" = none, so the server does
+                  // not fall back to the quote's); the rest only when filled.
+                  const tracking: TrackingInput = { carrier_name: trackCarrier.trim() };
                   if (trackNumber.trim()) tracking.tracking_number = trackNumber.trim();
                   if (trackUrl.trim()) tracking.tracking_url = trackUrl.trim();
                   void run((tok) => transitionOrder(tok, order.id, "dispatched", tracking));
@@ -448,7 +465,7 @@ export default function CourierSellerActions({
       {dialog === "notReceived" && (
         <Modal
           title={t("notReceivedTitle")}
-          onClose={() => setDialog(null)}
+          onClose={close}
           footer={
             <button
               type="button"
@@ -487,7 +504,7 @@ export default function CourierSellerActions({
       {dialog === "refund" && (
         <Modal
           title={t("refundTitle")}
-          onClose={() => setDialog(null)}
+          onClose={close}
           footer={
             <button
               type="button"
@@ -524,7 +541,7 @@ export default function CourierSellerActions({
         <CourierCancelDialog
           order={order}
           role="seller"
-          onClose={() => setDialog(null)}
+          onClose={close}
           onRefresh={onChange}
           onDone={(next) => {
             onChange(next);

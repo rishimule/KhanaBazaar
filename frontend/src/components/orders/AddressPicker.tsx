@@ -700,7 +700,11 @@ export default function AddressPicker({
             })}
             {outsideOptions.length > 0 && (
               <li role="presentation" className={styles.sectionHeader}>
-                {t("outsideDeliveryAreaHeader")}
+                {/* "Outside" only when every one really is out of range; a
+                    failed check or missing pin must never read that way. */}
+                {outsideOptions.every((a) => serviceability[a.id] === "none")
+                  ? t("outsideDeliveryAreaHeader")
+                  : t("unavailableHeader")}
               </li>
             )}
             {outsideOptions.map((a, i) => {

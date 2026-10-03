@@ -16,7 +16,16 @@ import { useAuth } from "@/lib/AuthContext";
 import type { Order, OrderStatus, Service } from "@/types";
 import styles from "./page.module.css";
 
-const ACTIVE: OrderStatus[] = ["pending", "packed", "dispatched"];
+// Mirrors the backend's ACTIVE_ORDER_STATUSES: everything not yet delivered or
+// cancelled, including the courier-only quoted/accepted/paid stages.
+const ACTIVE: OrderStatus[] = [
+  "pending",
+  "quoted",
+  "accepted",
+  "paid",
+  "packed",
+  "dispatched",
+];
 type StatusFilter = "all" | "active" | "delivered" | "cancelled";
 type SortKey = "date_desc" | "date_asc" | "total_desc" | "total_asc";
 const PAGE_SIZE = 20;

@@ -156,9 +156,17 @@ export default function AdminOrdersTab({
           {orders.map((o) => {
             const terminal = o.status === "delivered" || o.status === "cancelled";
             const rewindTo = rewindTarget(o);
+            // A cancelled courier order owes a refund only with money paid
+            // (`refund_due`: a ₹0 store-credit order owes nothing).
             const refundable =
-              (o.status === "cancelled" || o.status === "delivered") &&
-              o.payment.status === "paid";
+              o.payment.status === "paid" &&
+              (o.status === "delivered" ||
+                (o.status === "cancelled" &&
+                  (o.delivery_mode !== "courier" || Boolean(o.courier?.refund_due))));
+            // Courier: the admin must still be able to cancel and record the
+            // refund after the seller lost approval (spec §9.9); the backend
+            // allows exactly these two. Rewinds stay blocked.
+            const courierEscape = o.delivery_mode === "courier";
             return (
               <tr key={o.id}>
                 <td style={cell}>
@@ -176,7 +184,7 @@ export default function AdminOrdersTab({
                   {!terminal && (
                     <button
                       className="btn btn-danger"
-                      disabled={writesBlocked}
+                      disabled={writesBlocked && !courierEscape}
                       onClick={() =>
                         setPending({ order: o, kind: "cancel" })
                       }
@@ -200,7 +208,7 @@ export default function AdminOrdersTab({
                   {refundable && (
                     <button
                       className="btn btn-outline"
-                      disabled={writesBlocked}
+                      disabled={writesBlocked && !courierEscape}
                       onClick={() =>
                         setPending({ order: o, kind: "refund" })
                       }
@@ -223,7 +231,12 @@ export default function AdminOrdersTab({
           order={pending.order}
           role="admin"
           onClose={() => setPending(null)}
-          onRefresh={() => void load()}
+          onRefresh={(next) => {
+            // Keep the open dialog on the fresh order (e.g. the customer just
+            // said they paid, so it must now ask whether the money arrived).
+            setPending((p) => (p ? { ...p, order: next } : p));
+            void load();
+          }}
           onDone={() => {
             setPending(null);
             void load();
@@ -265,8 +278,16 @@ function modalDescription(p: PendingAction, t: Translator): string {
   // states its own consequences (no restock once shipped, refund due).
   if (p.kind === "cancel")
     return t("orders.modal.cancelDesc");
-  if (p.kind === "rewind")
-    return t("orders.modal.rewindDesc", { from: p.order.status, to: p.to ?? "" });
+  if (p.kind === "rewind") {
+    const base = t("orders.modal.rewindDesc", { from: p.order.status, to: p.to ?? "" });
+    if (p.order.delivery_mode !== "courier") return base;
+    // What a courier rewind also undoes (services/orders.rewind_order).
+    const extra = [
+      p.to === "accepted" ? t("orders.modal.rewindCourierPayment") : null,
+      p.order.status === "dispatched" ? t("orders.modal.rewindCourierTracking") : null,
+    ].filter(Boolean);
+    return [base, ...extra].join(" ");
+  }
   return t("orders.modal.refundDesc");
 }
 

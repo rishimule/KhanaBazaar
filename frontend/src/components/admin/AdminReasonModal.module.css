@@ -29,3 +29,9 @@
   font-size: 0.8rem;
   color: var(--color-neutral-500);
 }
+
+.error {
+  margin: 0.6rem 0 0;
+  color: var(--color-error);
+  font-size: 0.9rem;
+}

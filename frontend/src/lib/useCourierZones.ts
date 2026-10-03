@@ -5,6 +5,36 @@ import { useEffect, useState } from "react";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { checkServiceability, type ServiceabilityResult } from "@/lib/geo";
 
+const TTL_MS = 2 * 60 * 1000;
+const MAX_ENTRIES = 100;
+const cache = new Map<string, { at: number; result: Promise<ServiceabilityResult> }>();
+
+/** Store pages and the cart ask the same question on every visit. Sharing an
+ *  answer for a couple of minutes keeps browsing from eating the per-IP geo
+ *  budget (30/min) that checkout's address checks draw on too. Failures are
+ *  never cached, so the next visit simply asks again. */
+function cachedServiceability(
+  lat: number,
+  lng: number,
+  storeId: number,
+): Promise<ServiceabilityResult> {
+  const key = `${lat},${lng}|${storeId}`;
+  const now = Date.now();
+  const hit = cache.get(key);
+  if (hit && now - hit.at < TTL_MS) return hit.result;
+  const result = checkServiceability(lat, lng, storeId);
+  cache.delete(key);
+  cache.set(key, { at: now, result });
+  if (cache.size > MAX_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  result.catch(() => {
+    if (cache.get(key)?.result === result) cache.delete(key);
+  });
+  return result;
+}
+
 /**
  * Each store's zone for the navbar delivery location (store-page banner, cart
  * hint). Only for a location the customer actually chose — the Mumbai
@@ -30,7 +60,7 @@ export function useCourierZones(storeIds: number[]): Record<number, Serviceabili
     const ids = idsKey.split(",").map(Number);
     Promise.all(
       ids.map((id) =>
-        checkServiceability(location.lat, location.lng, id)
+        cachedServiceability(location.lat, location.lng, id)
           .then((r) => [id, r] as const)
           .catch(() => null),
       ),

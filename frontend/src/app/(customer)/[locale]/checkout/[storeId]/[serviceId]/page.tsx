@@ -334,6 +334,7 @@ export default function CheckoutPage() {
       if (
         zoneCode === "address_within_local_area" ||
         zoneCode === "outside_courier_area" ||
+        zoneCode === "outside_delivery_area" ||
         zoneCode === "courier_unavailable" ||
         zoneCode === "courier_destination_unsupported" ||
         zoneCode === "upi_unavailable" ||

@@ -13,7 +13,7 @@ import {
   requestSellerPhoneOtp,
   verifySellerPhoneOtp,
 } from "@/lib/sellerPhone";
-import { usePhoneOtpEnabled } from "@/lib/publicConfig";
+import { useCourierLimits, usePhoneOtpEnabled } from "@/lib/publicConfig";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import { GROUP_LABEL } from "@/lib/changeRequests";
 import {
@@ -91,7 +91,7 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
       name: "courier_radius_km",
       label: "Courier radius (km)",
       type: "number",
-      hint: "Leave empty for no courier delivery. It must be larger than the delivery radius, up to 3,500 km.",
+      hint: "Leave empty for no courier delivery. It must be larger than the delivery radius.",
     },
   ],
   // Avatar changes are driven by <AvatarUploader> on the seller profile page,
@@ -121,6 +121,14 @@ interface Props {
    * a phone change can skip the verify step and dead-end at a 422.
    */
   currentPhone?: string;
+  /**
+   * The live values the "omitted = unchanged" rules compare against (courier
+   * radius, bank account name). Defaults to `currentValues`. The resubmit flow
+   * seeds `currentValues` from the earlier proposal, so it passes
+   * `cr.baseline_json` here — else an earlier "clear" is silently dropped and
+   * an emptied radius shows up as a phantom "Off → Off" change.
+   */
+  baselineValues?: Record<string, unknown>;
 }
 
 /**
@@ -137,6 +145,7 @@ export default function ProfileChangeRequestModal({
   onSubmit,
   submitLabel,
   currentPhone,
+  baselineValues,
 }: Props) {
   const tCR = useTranslations("Seller.changeRequests");
   const resolvedSubmitLabel = submitLabel ?? tCR("submitForReview");
@@ -263,6 +272,12 @@ export default function ProfileChangeRequestModal({
   const [otpBusy, setOtpBusy] = useState(false);
   // Label only — the request response's `otp_required` decides the flow.
   const phoneOtpEnabled = usePhoneOtpEnabled();
+  // COURIER_MAX_RADIUS_KM from the server; null until known (server decides).
+  const { maxRadiusKm } = useCourierLimits();
+  const hintFor = (f: FieldDef): string | undefined =>
+    f.name === "courier_radius_km" && f.hint && maxRadiusKm !== null
+      ? `${f.hint} Up to ${maxRadiusKm.toLocaleString("en-IN")} km.`
+      : f.hint;
 
   // Editing the phone after verifying invalidates the token.
   useEffect(() => {
@@ -336,8 +351,8 @@ export default function ProfileChangeRequestModal({
       }
     }
     // These mirror the server rules so the seller sees the reason before a
-    // round trip; the server stays the authority. 3,500 km mirrors the default
-    // COURIER_MAX_RADIUS_KM — if ops raise it, courier_radius_too_large decides.
+    // round trip; the server stays the authority. The cap comes from
+    // /meta/public-config, so it follows COURIER_MAX_RADIUS_KM.
     if (group === "store_basics") {
       const raw = (values["courier_radius_km"] ?? "").trim();
       const courier = Number(raw);
@@ -346,8 +361,10 @@ export default function ProfileChangeRequestModal({
           setError("The courier radius must be larger than the delivery radius.");
           return;
         }
-        if (courier > 3500) {
-          setError("The courier radius can be at most 3,500 km.");
+        if (maxRadiusKm !== null && courier > maxRadiusKm) {
+          setError(
+            `The courier radius can be at most ${maxRadiusKm.toLocaleString("en-IN")} km.`,
+          );
           return;
         }
       }
@@ -411,10 +428,10 @@ export default function ProfileChangeRequestModal({
       // Omitted means unchanged (A1 Task 5). An emptied courier radius means
       // "off" only when there was one, so an untouched empty field never
       // shows up as a change in the review diff.
+      const live = baselineValues ?? currentValues;
       if (group === "store_basics") {
-        const had = currentValues["courier_radius_km"];
-        // On resubmit `had` is the earlier proposal, where 0 = "turn off".
-        const hadCourier = had !== null && had !== undefined && had !== "";
+        const had = live["courier_radius_km"];
+        const hadCourier = typeof had === "number" ? had > 0 : had !== null && had !== undefined && had !== "";
         const proposed = payload["courier_radius_km"];
         if (proposed === null || proposed === 0) {
           if (hadCourier) payload["courier_radius_km"] = 0;
@@ -424,7 +441,7 @@ export default function ProfileChangeRequestModal({
       if (
         group === "banking" &&
         payload["bank_account_name"] === "" &&
-        (currentValues["bank_account_name"] ?? "") === ""
+        (live["bank_account_name"] ?? "") === ""
       ) {
         // Never set, still empty: omit it (unchanged) rather than "clear".
         delete payload["bank_account_name"];
@@ -696,7 +713,7 @@ export default function ProfileChangeRequestModal({
                     />
                     <span>{f.label}</span>
                   </label>
-                  {f.hint && <span className={styles.subtitle}>{f.hint}</span>}
+                  {hintFor(f) && <span className={styles.subtitle}>{hintFor(f)}</span>}
                 </div>
               );
             }
@@ -720,7 +737,7 @@ export default function ProfileChangeRequestModal({
                     setErrors((es) => ({ ...es, [f.name]: validateField(f.name, v) }));
                   }}
                 />
-                {f.hint && <span className={styles.subtitle}>{f.hint}</span>}
+                {hintFor(f) && <span className={styles.subtitle}>{hintFor(f)}</span>}
                 {errors[f.name] && (
                   <span
                     id={`${f.name}-error`}

@@ -413,6 +413,8 @@ export interface CourierInfo {
   /** Seller/admin: every version, newest first. Customer: the latest only. */
   quotes: CourierQuote[];
   revised: boolean;
+  /** COURIER_MAX_QUOTE_VERSIONS on the server (older responses omit it). */
+  max_quote_versions?: number;
   accepted_quote_id: number | null;
   accepted_at: string | null;
   /** Fixed when the seller confirms payment (YYYY-MM-DD, IST). */
@@ -1104,6 +1106,8 @@ export interface SellerMetrics {
   order_status_counts: OrderStatusCounts;
   inventory_by_service: InventoryServiceStat[];
   top_subcategory: TopSubcategory | null;
+  /** Courier orders whose customer says they paid, awaiting the seller's check. */
+  courier_payment_checks?: number;
 }
 
 export interface RevenueSeriesPoint {

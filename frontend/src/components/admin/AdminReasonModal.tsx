@@ -14,6 +14,8 @@ interface Props {
   destructive?: boolean;
   onConfirm: (reason: string) => Promise<void> | void;
   onClose: () => void;
+  /** Shown inside the modal, so a failed action keeps the typed reason. */
+  error?: string | null;
 }
 
 export default function AdminReasonModal({
@@ -23,6 +25,7 @@ export default function AdminReasonModal({
   destructive = true,
   onConfirm,
   onClose,
+  error,
 }: Props) {
   const t = useTranslations("Shared");
   const [reason, setReason] = useState("");
@@ -74,6 +77,11 @@ export default function AdminReasonModal({
       <div className={styles.counter}>
         {trimmedLen} / 500 ({trimmedLen < 10 ? t("reasonModal.needMore") : t("reasonModal.ok")})
       </div>
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
     </Modal>
   );
 }

@@ -153,16 +153,28 @@ export default function SellerOrdersPage() {
             refundDue={o.courier?.refund_due}
             courier={o.delivery_mode === "courier"}
           />
-          {o.payment.customer_claimed_at && (
-            <span className={styles.claimBadge}>{t("customerSaysPaid")}</span>
-          )}
+          {/* Only while it is an open question: the claim timestamp outlives
+              the payment, and cancelling a courier order already answered it
+              (refund due, or reported as not received). */}
+          {o.payment.customer_claimed_at &&
+            o.payment.status === "pending" &&
+            !(o.delivery_mode === "courier" && o.status === "cancelled") && (
+              <span className={styles.claimBadge}>{t("customerSaysPaid")}</span>
+            )}
         </>
       ),
     },
     {
       key: "status",
       label: t("col.status"),
-      render: (o) => <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />,
+      render: (o) => (
+        <>
+          <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
+          {o.delivery_mode === "courier" && (
+            <span className={styles.claimBadge}>{t("courierTag")}</span>
+          )}
+        </>
+      ),
     },
   ];
 
@@ -189,6 +201,8 @@ export default function SellerOrdersPage() {
               className={statusFilter === s ? styles.chipActive : styles.chip}
               onClick={() => {
                 setStatusFilter(s);
+                // Oldest debts first (by order date: cancellation time isn't sortable).
+                if (s === "refunds_due") setSortKey("date_asc");
                 setPage(1);
               }}
             >
@@ -295,7 +309,12 @@ export default function SellerOrdersPage() {
                 <a href={`/seller/orders/${o.id}`} className={styles.mobileLink}>
                   <div className={styles.mobileTop}>
                     <span className={styles.mono}>#{o.id}</span>
-                    <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
+                    <span>
+                      <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
+                      {o.delivery_mode === "courier" && (
+                        <span className={styles.claimBadge}>{t("courierTag")}</span>
+                      )}
+                    </span>
                   </div>
                   <div>
                     {o.customer_name ?? "—"} · {o.service_name}

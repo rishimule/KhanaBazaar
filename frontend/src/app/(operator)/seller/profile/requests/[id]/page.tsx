@@ -255,6 +255,7 @@ export default function SellerRequestDetailPage() {
           currentPhone={String(
             (cr.baseline_json as Record<string, unknown>)?.["phone"] ?? "",
           )}
+          baselineValues={cr.baseline_json}
           open
           onClose={() => setEditing(false)}
           submitLabel={tCR("editAndResubmit")}

@@ -95,6 +95,15 @@ const UNCHANGED_WHEN_NULL = new Set([
   "bank_transfer_enabled",
 ]);
 
+/** A courier radius of 0 and none both mean "Off", so they are not a change. */
+function sameValue(key: string, a: unknown, b: unknown): boolean {
+  if (key === "courier_radius_km") {
+    const off = (v: unknown) => v === null || v === undefined || v === 0 || v === "";
+    if (off(a) && off(b)) return true;
+  }
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function maskAccount(n: string): string {
   if (n.length < 4) return n;
   const last4 = n.slice(-4);
@@ -256,7 +265,7 @@ export default function ChangeRequestDiffTable({
       key: k,
       before: before[k],
       after: afterValue,
-      changed: JSON.stringify(before[k]) !== JSON.stringify(afterValue),
+      changed: !sameValue(k, before[k], afterValue),
     };
   });
   const visible = showUnchanged ? rows : rows.filter((r) => r.changed);

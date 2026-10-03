@@ -2,10 +2,11 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import UpiQrBlock from "@/components/orders/UpiQrBlock";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { formatDateTime } from "@/lib/courier";
 import { errorsKey } from "@/lib/errors";
 import { claimCourierPayment, refetchIfStale } from "@/lib/orders";
 import { netPayable } from "@/lib/upi";
@@ -27,6 +28,7 @@ export default function CourierPayPanel({
   const t = useTranslations("Account.orderDetail.courier");
   const tUpi = useTranslations("UpiPay");
   const tErr = useTranslations("Errors");
+  const locale = useLocale();
   const { token } = useAuth();
   const courier = order.courier;
   const methods = (courier?.payable_methods ?? []).filter(
@@ -68,18 +70,33 @@ export default function CourierPayPanel({
   }, [visible, upiLive, order.store_id]);
 
   if (!visible || !courier) return null;
+  const claimed = order.payment.customer_claimed_at;
+  // In the page language (not a fixed en-IN) and the viewer's time zone.
+  const claimedLine = claimed
+    ? t("claimedAt", {
+        when: formatDateTime(claimed, locale),
+        store: order.store_name,
+      })
+    : null;
   if (methods.length === 0) {
+    // Once the customer has said they paid, cancelling is no longer theirs to
+    // do, so "can't take payments — cancel" would mislead: show the claim.
     return (
       <section className={styles.card}>
-        <p className={styles.error} role="alert">
-          {t("payeeUnavailable")}
-        </p>
+        {claimedLine ? (
+          <p className={styles.claimed} role="status">
+            {claimedLine}
+          </p>
+        ) : (
+          <p className={styles.error} role="alert">
+            {t("payeeUnavailable")}
+          </p>
+        )}
       </section>
     );
   }
 
   const amount = netPayable(order);
-  const claimed = order.payment.customer_claimed_at;
 
   async function claim() {
     if (!token) return;
@@ -110,7 +127,7 @@ export default function CourierPayPanel({
   const bank = courier.bank_transfer;
   return (
     <section className={`${styles.card} ${styles.center}`} aria-labelledby="courier-pay-title">
-      <h2 id="courier-pay-title" className={styles.title}>
+      <h2 id="courier-pay-title" className={styles.title} tabIndex={-1}>
         {t("payTitle", { amount: amount.toFixed(2) })}
       </h2>
       {tab === "upi" && payee && (
@@ -123,14 +140,14 @@ export default function CourierPayPanel({
             : t("claimRejected")}
         </p>
       )}
+      {/* Toggle buttons, not ARIA tabs: there is no tab panel to control. */}
       {methods.length > 1 && (
-        <div className={styles.tabs} role="tablist">
+        <div className={styles.tabs} role="group" aria-labelledby="courier-pay-title">
           {methods.map((m) => (
             <button
               key={m}
               type="button"
-              role="tab"
-              aria-selected={tab === m}
+              aria-pressed={tab === m}
               className={tab === m ? styles.tabActive : styles.tab}
               onClick={() => setPicked(m)}
             >
@@ -195,12 +212,9 @@ export default function CourierPayPanel({
           {error}
         </p>
       )}
-      {claimed ? (
+      {claimedLine ? (
         <p className={styles.claimed} role="status">
-          {t("claimedAt", {
-            when: new Date(claimed).toLocaleString("en-IN"),
-            store: order.store_name,
-          })}
+          {claimedLine}
         </p>
       ) : (
         <button type="button" className="btn btn-primary" disabled={busy} onClick={claim}>

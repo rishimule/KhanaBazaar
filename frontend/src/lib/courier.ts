@@ -57,10 +57,24 @@ export function isOrderableZone(zone: AddressCourierZone | null | undefined): bo
   return zone === "local" || zone === "courier";
 }
 
+/** The Intl tag for an app locale: English reads Indian-style ("4 Oct",
+ *  "3 Oct 2026, 3:49 pm"); the Indian languages are used as they are. */
+function intlLocale(locale: string): string {
+  return locale === "en" ? "en-IN" : locale;
+}
+
 /** "4 Oct" in the viewer's locale. Accepts YYYY-MM-DD or a Date. */
 export function formatShortDate(value: string | Date, locale: string): string {
   const d = typeof value === "string" ? new Date(`${value}T00:00:00`) : value;
-  return d.toLocaleDateString(locale, { day: "numeric", month: "short" });
+  return d.toLocaleDateString(intlLocale(locale), { day: "numeric", month: "short" });
+}
+
+/** A timestamp in the page's language and the viewer's own (browser) time
+ *  zone. Not next-intl's formatter: it inherits the server's zone, which is
+ *  UTC on Cloud Run, so Indian customers would see times 5½ hours off. */
+export function formatDateTime(value: string | Date, locale: string): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  return d.toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" });
 }
 
 /** Today's calendar day in IST as a local-midnight Date (display only). */

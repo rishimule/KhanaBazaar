@@ -15,6 +15,7 @@ import { usePagedList } from "@/lib/usePagedList";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { useCourierLimits } from "@/lib/publicConfig";
 import type { Order, OrderListResponse, Service } from "@/types";
 import styles from "./page.module.css";
 
@@ -42,6 +43,8 @@ const STATUS_FILTER_KEYS: Record<StatusFilter, string> = {
 export default function AdminOrdersPage() {
   const t = useTranslations("Admin.orders");
   const { token } = useAuth();
+  // COURIER_STALE_DAYS, for the "Stalled" chip's tooltip.
+  const { staleDays } = useCourierLimits();
   const router = useRouter();
 
   const [services, setServices] = useState<Service[]>([]);
@@ -165,8 +168,15 @@ export default function AdminOrdersPage() {
               key={s}
               type="button"
               className={statusFilter === s ? styles.chipActive : styles.chip}
+              title={
+                s === "waiting" && staleDays !== null
+                  ? t("filterWaitingHint", { days: staleDays })
+                  : undefined
+              }
               onClick={() => {
                 setStatusFilter(s);
+                // Oldest debts first (by order date: cancellation time isn't sortable).
+                if (s === "refunds_due") setSortKey("date_asc");
                 setPage(1);
               }}
             >

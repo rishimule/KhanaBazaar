@@ -33,39 +33,50 @@ export default function CourierAdminActions({
   const terminal = order.status === "delivered" || order.status === "cancelled";
   const refundable = order.status === "cancelled" && order.courier.refund_due;
 
+  function open(next: "cancel" | "deliver" | "refund") {
+    setError(null);
+    setDialog(next);
+  }
+
+  function close() {
+    setError(null);
+    setDialog(null);
+  }
+
+  /** On failure the reason modal stays open with the message, so the typed
+   *  reason isn't lost; the page still catches up on a stale order. */
   async function act(action: (tok: string) => Promise<Order>) {
     if (!token) return;
     setError(null);
     try {
       onChange(await action(token));
+      setDialog(null);
     } catch (e) {
       const fresh = await refetchIfStale(token, order.id, e);
       if (fresh) onChange(fresh);
       const key = errorsKey(e);
       setError(key ? tErr(key) : t("actionFailed"));
-    } finally {
-      setDialog(null);
     }
   }
 
   return (
     <div className={styles.actions}>
       {order.status === "dispatched" && (
-        <button type="button" className="btn btn-primary" onClick={() => setDialog("deliver")}>
+        <button type="button" className="btn btn-primary" onClick={() => open("deliver")}>
           {t("forceDeliver")}
         </button>
       )}
       {refundable && (
-        <button type="button" className="btn btn-outline" onClick={() => setDialog("refund")}>
+        <button type="button" className="btn btn-outline" onClick={() => open("refund")}>
           {t("markRefunded")}
         </button>
       )}
       {!terminal && (
-        <button type="button" className="btn btn-danger" onClick={() => setDialog("cancel")}>
+        <button type="button" className="btn btn-danger" onClick={() => open("cancel")}>
           {t("cancel")}
         </button>
       )}
-      {error && (
+      {error && dialog === null && (
         <p className={styles.error} role="alert">
           {error}
         </p>
@@ -74,7 +85,7 @@ export default function CourierAdminActions({
         <CourierCancelDialog
           order={order}
           role="admin"
-          onClose={() => setDialog(null)}
+          onClose={close}
           onRefresh={onChange}
           onDone={(next) => {
             onChange(next);
@@ -91,7 +102,8 @@ export default function CourierAdminActions({
           onConfirm={(reason) =>
             act((tok) => transitionOrder(tok, order.id, "delivered", { reason }))
           }
-          onClose={() => setDialog(null)}
+          onClose={close}
+          error={error}
         />
       )}
       {dialog === "refund" && (
@@ -107,7 +119,8 @@ export default function CourierAdminActions({
               return getOrder(tok, order.id);
             })
           }
-          onClose={() => setDialog(null)}
+          onClose={close}
+          error={error}
         />
       )}
     </div>

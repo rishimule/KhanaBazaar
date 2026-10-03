@@ -72,6 +72,7 @@ const COURIER_ERROR_CODES = new Set([
   "too_many_quote_versions",
   "not_awaiting_payment",
   "payment_method_required",
+  "payment_method_not_allowed",
   "payment_settled",
   "no_claim",
   "invalid_tracking_url",
@@ -115,6 +116,8 @@ export function apiErrorKey(err: unknown): string | null {
   if (lower === "seller_not_active") return "Errors.seller_not_active";
   if (lower === "order_not_mutable") return "Errors.order_not_mutable";
   if (lower === "not_dispatched") return "Errors.not_dispatched";
+  // Door delivery: the store's local radius shrank under an open checkout.
+  if (lower === "outside_delivery_area") return "Errors.outside_delivery_area";
   if (COURIER_ERROR_CODES.has(lower)) return `Errors.${lower}`;
 
   switch (err.status) {

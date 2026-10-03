@@ -456,7 +456,9 @@
     "courier_radius_too_large": "The courier radius is too large.",
     "bank_transfer_incomplete": "Bank transfer needs the account name, number and IFSC.",
     "reason_required": "Please give a reason of at least 10 characters.",
-    "cancel_not_allowed": "This order can no longer be cancelled from here."
+    "cancel_not_allowed": "This order can no longer be cancelled from here.",
+    "payment_method_not_allowed": "That payment method can't be used for this order.",
+    "outside_delivery_area": "This address is now outside the store's delivery area. Choose another address."
   },
   "Footer": {
     "tagline": "Empower local sellers with a digital presence. Together, we grow a stronger, connected ecosystem.",
@@ -533,7 +535,8 @@
     "courierNeedsPinBadge": "Needs an Indian PIN code",
     "noPinBadge": "Needs a map pin",
     "checkFailedBadge": "Couldn't check",
-    "checkFailedNotice": "We couldn't check some addresses just now. Reload the page to try again."
+    "checkFailedNotice": "We couldn't check some addresses just now. Reload the page to try again.",
+    "unavailableHeader": "Not available for this order"
   },
   "Payment": {
     "legend": "Payment method",
@@ -1462,8 +1465,8 @@
       "donutQuoted": "Quote sent",
       "donutAccepted": "Awaiting payment",
       "donutPaid": "Paid, to pack",
-      "attnAccepted": "{count} awaiting payment",
-      "attnPaid": "{count} paid and waiting to be packed"
+      "attnPaid": "{count} paid and waiting to be packed",
+      "attnPaymentCheck": "{count} with a payment to confirm"
     },
     "inventory": {
       "categoriesAria": "Categories",
@@ -1586,7 +1589,8 @@
       "showing": "Showing {from}–{to} of {total}",
       "loadFailedTitle": "Couldn't load your orders",
       "loadFailedBody": "This does not mean you have no orders — we couldn't reach the server.",
-      "customerSaysPaid": "Customer says paid"
+      "customerSaysPaid": "Customer says paid",
+      "courierTag": "Courier"
     },
     "orderDetail": {
       "loadError": "Could not load order.",
@@ -2141,7 +2145,8 @@
       "next": "Next ›",
       "showing": "Showing {from}–{to} of {total}",
       "filterCourier": "Courier",
-      "filterWaiting": "Waiting 3+ days",
+      "filterWaiting": "Stalled",
+      "filterWaitingHint": "Waiting {days}+ days for a quote, acceptance or payment, or shipped and past the delivery date.",
       "filterRefundsDue": "Refunds due"
     },
     "orderDetail": {
@@ -2460,7 +2465,9 @@
           "refundTitle": "Mark payment refunded on order #{id}?",
           "cancelDesc": "Cancellation restocks items. Seller is emailed.",
           "rewindDesc": "Status moves backward from {from} to {to}. Seller is emailed.",
-          "refundDesc": "Payment status flips to refunded (manual ledger marker — MVP has no real refund gateway). Seller is emailed."
+          "refundDesc": "Payment status flips to refunded (manual ledger marker — MVP has no real refund gateway). Seller is emailed.",
+          "rewindCourierPayment": "The payment goes back to unconfirmed and the delivery dates are cleared, so the seller must confirm the money again.",
+          "rewindCourierTracking": "The carrier and tracking details are cleared."
         }
       },
       "products": {

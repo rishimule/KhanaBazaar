@@ -5,8 +5,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
-import { errorsKey } from "@/lib/errors";
-import { cancelOrder, refetchIfStale } from "@/lib/orders";
+import { apiErrorCode, errorsKey } from "@/lib/errors";
+import { cancelOrder, getOrder, refetchIfStale } from "@/lib/orders";
 import { netPayable } from "@/lib/upi";
 import type { Order } from "@/types";
 import styles from "./courier.module.css";
@@ -26,7 +26,8 @@ export default function CourierCancelDialog({
   role: "seller" | "admin";
   onClose: () => void;
   onDone: (next: Order) => void;
-  /** Called with a fresh order when the cancel hit a stale page (403/409). */
+  /** Called with a fresh order when the cancel hit a stale page (403/409) or
+   *  a payment claim that arrived while the dialog was open. */
   onRefresh?: (next: Order) => void;
 }) {
   const t = useTranslations("Order.courierCancel");
@@ -57,7 +58,13 @@ export default function CourierCancelDialog({
         }),
       );
     } catch (e) {
-      const fresh = await refetchIfStale(token, order.id, e);
+      // 422 payment_received_required: the customer tapped "I've paid" after
+      // this dialog opened. Reload it so the "did ₹X reach you?" question
+      // appears instead of the same error on every retry.
+      const fresh =
+        apiErrorCode(e) === "payment_received_required"
+          ? await getOrder(token, order.id).catch(() => null)
+          : await refetchIfStale(token, order.id, e);
       if (fresh) onRefresh?.(fresh);
       const key = errorsKey(e);
       setError(key ? tErr(key) : t("failed"));

@@ -183,7 +183,10 @@ export default function SellerDashboardPage() {
         />
       ) : (
         <>
-      <AttentionBanner activeOrders={m.active_orders} counts={m.order_status_counts} />
+      <AttentionBanner
+        counts={m.order_status_counts}
+        paymentChecks={m.courier_payment_checks}
+      />
 
       <div className={styles.statsGrid}>
         <StatsCard

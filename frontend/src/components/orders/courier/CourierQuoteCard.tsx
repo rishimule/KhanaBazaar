@@ -11,6 +11,20 @@ import { acceptCourierQuote, cancelOrder, refetchIfStale } from "@/lib/orders";
 import type { Order } from "@/types";
 import styles from "./courier.module.css";
 
+/** The card unmounts once the customer decides; hand keyboard focus to what
+ *  replaced it (the pay panel's heading, else the page heading) instead of
+ *  letting it fall back to <body>. Runs after React commits the new order. */
+function moveFocusAfterDecision() {
+  window.setTimeout(() => {
+    const target =
+      document.getElementById("courier-pay-title") ??
+      document.querySelector<HTMLElement>("main h1");
+    if (!target) return;
+    if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+    target.focus();
+  }, 0);
+}
+
 /** The customer's decision point: the latest quote, Accept or Decline. */
 export default function CourierQuoteCard({
   order,
@@ -42,6 +56,7 @@ export default function CourierQuoteCard({
     setError(null);
     try {
       onChange(await acceptCourierQuote(token, order.id, quote.id));
+      moveFocusAfterDecision();
     } catch (e) {
       // A revision mid-tap, a cancel in another tab: catch the page up first.
       const fresh = await refetchIfStale(token, order.id, e);
@@ -64,6 +79,7 @@ export default function CourierQuoteCard({
     try {
       onChange(await cancelOrder(token, order.id, { reason: reason.trim() || undefined }));
       setDeclineOpen(false);
+      moveFocusAfterDecision();
     } catch (e) {
       const fresh = await refetchIfStale(token, order.id, e);
       if (fresh) onChange(fresh);

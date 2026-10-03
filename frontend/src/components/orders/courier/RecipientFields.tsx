@@ -16,6 +16,17 @@ export interface RecipientValue {
 
 const PHONE = /^\+91[6-9]\d{9}$/;
 
+/** The local digits of an Indian mobile however it was typed, pasted or
+ *  autofilled: "+91 98765 43210", "919876543210" and "09876543210" all give
+ *  "9876543210". Any other long run is kept whole, so the field shows it as
+ *  invalid instead of silently cutting it down to a wrong but valid number. */
+export function localMobileDigits(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1);
+  return digits;
+}
+
 /** Mirrors the server's checkout rule (+91 mobile, non-empty name). */
 export function isRecipientValid(value: RecipientValue): boolean {
   return value.name.trim().length > 0 && PHONE.test(value.phone);
@@ -60,7 +71,7 @@ export default function RecipientFields({
   // Complain once the field is left or all 10 digits are in — not on the
   // first keystroke of a number still being typed.
   const phoneInvalid =
-    value.phone !== "" && !PHONE.test(value.phone) && (phoneTouched || local.length === 10);
+    value.phone !== "" && !PHONE.test(value.phone) && (phoneTouched || local.length >= 10);
   return (
     <fieldset className={styles.fieldset}>
       <legend className={styles.legend}>{t("recipientTitle")}</legend>
@@ -83,13 +94,14 @@ export default function RecipientFields({
             type="tel"
             inputMode="numeric"
             autoComplete="tel-national"
-            maxLength={10}
             placeholder={t("phonePlaceholder")}
             value={local}
             aria-invalid={phoneInvalid || undefined}
             onBlur={() => setPhoneTouched(true)}
             onChange={(e) => {
-              const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+              // No maxLength: it would cut a pasted "+91 98765 43210" before
+              // this handler could normalise it.
+              const digits = localMobileDigits(e.target.value);
               onChange({ ...value, phone: digits ? `+91${digits}` : "" });
             }}
           />
