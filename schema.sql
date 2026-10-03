@@ -2,23 +2,23 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `f4d5e6a7b8c9`. Regenerate this file when the head changes.
+-- migration head `4675f7be7055`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
 --   accountstatus                : 'active', 'deactivated', 'suspended', 'deleted'  (lowercase enum member names)
 --   verificationstatus           : 'Pending', 'Approved', 'Rejected'
---   orderstatus                  : 'Pending', 'Paid', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'
+--   orderstatus                  : 'Pending', 'Paid', 'Packed', 'Dispatched', 'Delivered', 'Cancelled', 'Quoted', 'Accepted'  ('Quoted'/'Accepted' are courier-only stages)
 --   paymentmethod                : 'Upi', 'Cash', 'Credit', 'NetBanking', 'PayAtStore'  (Python values: 'upi', 'cash', 'credit', 'net_banking', 'pay_at_store')
---   deliverymode                 : 'DoorDelivery', 'Pickup'  (Python values: 'door_delivery', 'pickup')
+--   deliverymode                 : 'DoorDelivery', 'Pickup', 'Courier'  (Python values: 'door_delivery', 'pickup', 'courier')
 --   paymentstatus                : 'Pending', 'Paid', 'Failed', 'Refunded'
 --   deliverystatus               : 'Pending', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'
 --   locationsource               : 'manual', 'autocomplete', 'pin', 'geocoded'
 --   adminactiontargettype        : 'Inventory', 'Order', 'Store', 'SellerProfile', 'Return'
---   notificationtype             : 'OrderStatus', 'DeliveryOtp', 'FeeActivated', 'FeeExpiring', 'FeeSuspended', 'FeeLowBalance', 'FeeReactivated', 'FeeInvoiceRaised', 'FeeInvoiceOverdue', 'Referral', 'Credit', 'Announcement', 'SellerNewOrder', 'ReturnStatusUpdate', 'ReturnReceiptOtp', 'SellerReturnRequest'  (PG value is the enum member NAME; Python values are 'order_status', 'delivery_otp', 'fee_activated', 'fee_expiring', 'fee_suspended', 'fee_low_balance', 'fee_reactivated', 'fee_invoice_raised', 'fee_invoice_overdue', 'referral', 'credit', 'announcement', 'seller_new_order', 'return_status_update', 'return_receipt_otp', 'seller_return_request')
+--   notificationtype             : 'OrderStatus', 'DeliveryOtp', 'FeeActivated', 'FeeExpiring', 'FeeSuspended', 'FeeLowBalance', 'FeeReactivated', 'FeeInvoiceRaised', 'FeeInvoiceOverdue', 'Referral', 'Credit', 'Announcement', 'SellerNewOrder', 'ReturnStatusUpdate', 'ReturnReceiptOtp', 'SellerReturnRequest', 'SellerOrderUpdate'  (PG value is the enum member NAME; Python values are 'order_status', 'delivery_otp', 'fee_activated', 'fee_expiring', 'fee_suspended', 'fee_low_balance', 'fee_reactivated', 'fee_invoice_raised', 'fee_invoice_overdue', 'referral', 'credit', 'announcement', 'seller_new_order', 'return_status_update', 'return_receipt_otp', 'seller_return_request', 'seller_order_update')
 --   notificationaudience         : 'customers', 'sellers', 'both'  (snake_case values)
 --   campaignstatus               : 'draft', 'sending', 'sent', 'failed'  (snake_case values)
---   sellerprofilechangegroup     : 'identity', 'address', 'legal', 'banking', 'services', 'store_basics', 'avatar', 'store_logo'
+--   sellerprofilechangegroup     : 'identity', 'address', 'legal', 'banking', 'services', 'store_basics', 'avatar', 'store_logo', 'payments'
 --   sellerprofilechangestatus    : 'submitted', 'changes_requested', 'approved', 'rejected', 'withdrawn'
 --   sellerprofilechangeeventkind : 'submitted', 'resubmitted', 'changes_requested', 'approved', 'approved_with_edits', 'rejected', 'withdrawn'
 --   policykind                   : 'terms', 'privacy', 'return_agreement'
@@ -39,6 +39,8 @@
 --   invoicestatus                : 'pending', 'paid', 'overdue', 'waived', 'cancelled'  (PG value is the enum member VALUE, via values_callable)
 --   feeeventtype                 : 'arrangement_created', 'model_changed', 'activated', 'extended', 'renewed', 'trial_held', 'reminder_sent', 'grace_started', 'suspended', 'reactivated', 'terminated', 'payment_recorded', 'payment_confirmed', 'payment_rejected', 'deposit_recorded', 'deposit_forfeited', 'deposit_refunded', 'balance_topup', 'balance_deducted', 'balance_refunded', 'invoice_issued', 'invoice_paid', 'invoice_waived'  (PG value is the enum member VALUE, via values_callable)
 --   storecreditreason            : 'granted_on_exit', 'applied_to_fee', 'admin_cash_out', 'admin_adjust'  (PG value is the enum member VALUE, via values_callable)
+--   catalogimportstatus          : 'validated', 'applying', 'applied', 'failed', 'cancelled'  (PG value is the enum member VALUE, via values_callable)
+--   catalogimportrowaction       : 'create', 'update', 'noop', 'error'  (PG value is the enum member VALUE, via values_callable)
 --
 -- Required extensions:
 --   postgis (geography column on address)
@@ -153,7 +155,17 @@ CREATE TABLE "sellerprofile" (
   "rejection_reason" VARCHAR,
   "business_address_id" INTEGER NOT NULL,
   "avatar_url" VARCHAR,
-  "avatar_storage_key" VARCHAR
+  "avatar_storage_key" VARCHAR,
+  -- Customer-visible UPI payee (admin-reviewed via the `payments` CR group).
+  -- upi_enabled is only ever true alongside a non-empty upi_vpa.
+  "upi_vpa" VARCHAR(120),
+  "upi_qr_url" VARCHAR(2048),
+  "upi_qr_storage_key" VARCHAR(512),
+  "upi_enabled" BOOLEAN NOT NULL DEFAULT false,
+  -- Courier bank transfer (spec 2026-10-02): shown only to the owning
+  -- customer of an accepted courier order; on only with name + number + IFSC.
+  "bank_account_name" VARCHAR(140),
+  "bank_transfer_enabled" BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE "customeraddress" (
@@ -197,6 +209,8 @@ CREATE TABLE "sellerprofile_service" (
   "delivery_eta_min_minutes" INTEGER NOT NULL,
   "delivery_eta_max_minutes" INTEGER NOT NULL,
   "pickup_enabled" BOOLEAN NOT NULL DEFAULT false,
+  -- Courier opt-in for this service; the radius lives on store.
+  "courier_enabled" BOOLEAN NOT NULL DEFAULT false,
   -- Per-service pause (holiday mode); app-level model default governs new rows.
   "is_paused" BOOLEAN NOT NULL,
   "pause_reason" VARCHAR(200),
@@ -290,6 +304,8 @@ CREATE TABLE "store" (
   "seller_profile_id" INTEGER NOT NULL,
   "address_id" INTEGER NOT NULL,
   "delivery_radius_km" DOUBLE PRECISION NOT NULL DEFAULT 5.0,
+  -- NULL = no courier; when set, larger than delivery_radius_km (spec 2026-10-02)
+  "courier_radius_km" DOUBLE PRECISION,
   "pin_confirmed" BOOLEAN NOT NULL DEFAULT false,
   -- Store-wide pause (holiday mode); app-level model default governs new rows.
   "is_paused" BOOLEAN NOT NULL,
@@ -380,7 +396,13 @@ CREATE TABLE "payment" (
   "method" paymentmethod NOT NULL,
   "status" paymentstatus NOT NULL,
   "gateway_txn_id" VARCHAR,
-  "paid_at" TIMESTAMPTZ
+  "paid_at" TIMESTAMPTZ,
+  -- The customer's "I've paid" tap; an assertion, never a settlement.
+  "customer_claimed_at" TIMESTAMPTZ,
+  -- Courier refunds: stamped by the seller's "Refund sent" or the admin marker.
+  "refunded_at" TIMESTAMPTZ,
+  "refund_reference" VARCHAR(60),
+  "refunded_by_user_id" INTEGER REFERENCES "user"(id)
 );
 
 CREATE TABLE "delivery" (
@@ -398,6 +420,55 @@ CREATE TABLE "delivery" (
   "delivery_otp_sent_at" TIMESTAMPTZ,
   "delivery_otp_verified_at" TIMESTAMPTZ
 );
+
+-- Courier orders (spec 2026-10-02). Append-only: every send or revision is a
+-- new version, so the record shows exactly what the customer was offered.
+CREATE TABLE "courier_quote" (
+  "id" INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL,
+  "order_id" INTEGER NOT NULL REFERENCES "order"(id),
+  "version" INTEGER NOT NULL,
+  "courier_fee" DOUBLE PRECISION NOT NULL,
+  "eta_min_days" INTEGER NOT NULL,           -- transit, counted from payment confirmation
+  "eta_max_days" INTEGER NOT NULL,
+  "carrier_name" VARCHAR(80),
+  "note" VARCHAR(300),
+  "created_by_user_id" INTEGER NOT NULL REFERENCES "user"(id),
+  CONSTRAINT "uq_courier_quote_order_version" UNIQUE ("order_id", "version")
+);
+CREATE INDEX "ix_courier_quote_order_id" ON "courier_quote" ("order_id");
+
+-- One row per courier order: recipient, acceptance, ETA, tracking, delivery,
+-- cancellation and reminder state that has no home on order/delivery/payment.
+CREATE TABLE "order_courier" (
+  "id" INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL,
+  "order_id" INTEGER NOT NULL REFERENCES "order"(id),
+  "recipient_name" VARCHAR(120) NOT NULL,
+  "recipient_phone" VARCHAR(20) NOT NULL,
+  "apply_store_credit" BOOLEAN NOT NULL DEFAULT true,
+  "accepted_quote_id" INTEGER REFERENCES "courier_quote"(id),
+  "accepted_at" TIMESTAMPTZ,
+  "eta_from" DATE,                           -- fixed at payment confirmation (IST)
+  "eta_to" DATE,
+  "payment_claim_rejected_at" TIMESTAMPTZ,
+  "payment_claim_rejected_note" VARCHAR(300),
+  "payment_claim_rejection_count" INTEGER NOT NULL DEFAULT 0,
+  "carrier_name" VARCHAR(80),
+  "tracking_number" VARCHAR(60),
+  "tracking_url" VARCHAR(500),               -- https only, no embedded credentials
+  "tracking_updated_at" TIMESTAMPTZ,
+  "delivered_by" VARCHAR(16),                -- seller / customer / admin
+  "cancel_reason" VARCHAR(300),
+  "cancelled_by" VARCHAR(16),
+  "cancelled_at" TIMESTAMPTZ,
+  "payment_reported_missing_at" TIMESTAMPTZ,
+  "last_reminder_key" VARCHAR(40),
+  "last_reminder_at" TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX "ix_order_courier_order_id" ON "order_courier" ("order_id");
 
 CREATE TABLE "review" (
   "id" INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -1378,7 +1449,9 @@ CREATE TABLE "return_request" (
   "closed_by_user_id" INTEGER,
   "confirmed_at" TIMESTAMPTZ,
   "decided_at" TIMESTAMPTZ,
-  "closed_at" TIMESTAMPTZ
+  "closed_at" TIMESTAMPTZ,
+  -- Cash-return payment deadline, stamped at acceptance only when cash parks.
+  "payment_confirm_expires_at" TIMESTAMPTZ
 );
 CREATE INDEX "ix_return_request_order_id" ON "return_request" ("order_id");
 CREATE INDEX "ix_return_request_customer_profile_id" ON "return_request" ("customer_profile_id");
@@ -1450,3 +1523,38 @@ CREATE TABLE "customer_store_credit_entry" (
 );
 CREATE INDEX "ix_customer_store_credit_entry_account_id" ON "customer_store_credit_entry" ("account_id");
 CREATE INDEX "ix_customer_store_credit_entry_acct_created" ON "customer_store_credit_entry" ("account_id", "created_at");
+
+-- Bulk catalog CSV import (two-phase: validate + stage, then apply in Celery).
+-- The job row doubles as the audit record for catalog-wide admin edits.
+CREATE TABLE "catalog_import_job" (
+  "id" INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL,
+  "filename" VARCHAR(255) NOT NULL,
+  "status" catalogimportstatus NOT NULL DEFAULT 'validated',
+  "created_by_admin_id" INTEGER NOT NULL REFERENCES "user"(id),
+  "total_rows" INTEGER NOT NULL DEFAULT 0,
+  "error_rows" INTEGER NOT NULL DEFAULT 0,
+  "plan" JSONB NOT NULL,
+  "applied" JSONB NOT NULL,
+  "failure_reason" VARCHAR(500),
+  "applied_at" TIMESTAMPTZ
+);
+CREATE INDEX "ix_catalog_import_job_status" ON "catalog_import_job" ("status");
+CREATE INDEX "ix_catalog_import_job_created_by_admin_id" ON "catalog_import_job" ("created_by_admin_id");
+
+CREATE TABLE "catalog_import_row" (
+  "id" INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  "created_at" TIMESTAMPTZ NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL,
+  "job_id" INTEGER NOT NULL REFERENCES "catalog_import_job"(id),
+  "line_number" INTEGER NOT NULL,
+  "action" catalogimportrowaction NOT NULL,
+  "data" JSONB NOT NULL,
+  "errors" JSONB NOT NULL,
+  "level_plan" JSONB NOT NULL,
+  "applied_at" TIMESTAMPTZ,
+  "apply_error" VARCHAR(500)
+);
+CREATE INDEX "ix_catalog_import_row_job_line" ON "catalog_import_row" ("job_id", "line_number");
+CREATE INDEX "ix_catalog_import_row_job_action" ON "catalog_import_row" ("job_id", "action");

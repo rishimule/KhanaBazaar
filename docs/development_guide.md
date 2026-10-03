@@ -73,6 +73,13 @@ Lives at `backend/app/.env`. Template is `backend/app/.env.example`. Loader is t
 | `SEARCH_RATE_LIMIT_PRODUCTS_PER_MIN` | `30` | Per-IP rate limit on `/search/products`. |
 | `SEARCH_SUGGEST_CACHE_TTL_SECONDS` | `60` | Redis TTL for suggest cache. |
 | `SEARCH_SERVICEABLE_GRID_TTL_SECONDS` | `60` | Redis TTL for the ~500 m serviceable-store grid cache. |
+| `COURIER_MAX_RADIUS_KM` | `3500` | Cap on a store's courier radius (km). `ge=1`. |
+| `COURIER_MAX_QUOTE_VERSIONS` | `5` | Quote versions (first send + revisions) allowed per courier order. `ge=1`. |
+| `COURIER_REMINDER_HOURS` | `24` | Hours a courier stage may wait before the sweep sends its one reminder. `ge=1`. |
+| `COURIER_ARRIVAL_GRACE_DAYS` | `1` | Days after `eta_to` before a shipped courier order counts as overdue. `ge=1`. |
+| `COURIER_REFUND_REMINDER_DAYS` | `[1,3,7]` | JSON list of days since cancellation on which the seller is reminded of a refund still owed. Sorted and de-duplicated; every value `>= 1`. |
+| `COURIER_STALE_DAYS` | `3` | Admin "Waiting 3+ days" list filter (`GET /orders?stale=true`). `ge=1`. |
+| `COURIER_QUIET_START_HOUR` / `COURIER_QUIET_END_HOUR` | `21` / `9` | Courier reminders go out only between END and START, IST. |
 
 ### Frontend `.env.local`
 

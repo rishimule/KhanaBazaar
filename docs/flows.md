@@ -488,3 +488,41 @@ Admin can drill into any approved seller's store and act on the seller's behalf 
 **Out of scope** (MVP): real UPI refund gateway (manual ledger marker only), per-admin granular permissions, seller-side visibility of the activity log, audit-log filtering UI.
 
 See spec: `docs/superpowers/specs/2026-05-16-admin-seller-supervisor-design.md`. Implementation plan: `docs/superpowers/plans/2026-05-16-admin-seller-supervisor.md`.
+
+## 13. Courier orders (long-distance delivery)
+
+A store can ship beyond its local delivery radius, up to its courier radius, for the services it switches on. The seller quotes the courier charge after the order is placed; the customer accepts and pays off-platform (UPI or bank transfer) before anything ships.
+
+1. **Zone.** At checkout the address picker asks `POST /geo/serviceability` with `store_id` for each saved address and reads `zone` + `courier_service_ids`.
+   - `zone: "courier"` means the address is beyond the local radius and inside the store's courier radius, at least one service ships, and the seller has a live UPI or bank-transfer payee. The page treats the address as courier only when *this* service is in `courier_service_ids`.
+   - `serviceable` keeps its local-only meaning, so older callers are unaffected.
+2. **Place.** `POST /orders` with `delivery_mode: "courier"`, `recipient_name` and `recipient_phone` (+91 mobile, normalised).
+   - Prepaid only: `payment_method` is `upi` or `net_banking` (bank transfer); the chosen payee must be live.
+   - The address must be in India with a 6-digit PIN and inside the courier ring (`address_within_local_area` / `outside_courier_area` otherwise).
+   - The order is `pending` with `delivery_fee = 0`; stock is reserved and store credit covers the goods. Nothing is payable yet.
+3. **Quote.** The store's seller calls `POST /orders/{id}/courier/quote` with `{courier_fee, eta_min_days, eta_max_days, carrier_name?, note?}`. The order becomes `quoted`.
+   - Each revision is a new version (append-only, up to `COURIER_MAX_QUOTE_VERSIONS`), and the customer is re-notified. Customers see only the latest version.
+4. **Accept.** The customer calls `POST /orders/{id}/courier/accept` with `{quote_id}`.
+   - If that version is no longer the latest → `409 quote_superseded`. A repeat accept of the same version is a no-op.
+   - The charge becomes the delivery fee, totals are recalculated, and store credit tops up.
+   - The order becomes `accepted`, or `paid` straight away when ₹0 is payable.
+   - With no live payee left → `409 courier_payment_unavailable`, and the seller is told once.
+5. **Pay.** The customer pays off-platform. Bank details appear in `OrderRead.courier.bank_transfer` only while `accepted`, only for the customer.
+   - "I've paid" is `POST /orders/{id}/payment/claim` with `{method}`; the seller is notified once per claim.
+   - The seller answers with `POST /orders/{id}/payment/confirm`, which sets `paid` and fixes the ETA dates (IST today + quoted days).
+   - Or `POST /orders/{id}/payment/not-received` with `{note?}` clears the claim so the customer can check and pay again.
+6. **Ship.** `transition` to `packed`, then to `dispatched` with optional `carrier_name` / `tracking_number` / `tracking_url` (https only).
+   - No delivery OTP is issued. The carrier defaults to the one on the accepted quote.
+   - Tracking stays editable via `PATCH /orders/{id}/courier/tracking` (omitted = unchanged, `""` = clear).
+7. **Deliver.** The seller transitions to `delivered` (no OTP), or the customer calls `POST /orders/{id}/courier/received`, or an admin force-delivers with a reason.
+   - The second attempt → `409 already_delivered`. `order_courier.delivered_by` records who.
+8. **Cancel or refund.**
+   - **Customer:** up to `accepted`, until they claim payment (`403 cancel_not_allowed` after).
+   - **Seller:** up to `packed`, with a reason of at least 10 characters.
+   - **Admin:** anything non-terminal; after shipping nothing is restocked.
+   - A claimed-but-unconfirmed payment must be answered with `payment_received` on cancel.
+   - A cancel after money moved leaves the payment `Paid` (= refund due) until `POST /orders/{id}/payment/refund-sent` with `{reference?}` or the admin refund marker.
+9. **Reminders.** `courier.send_reminders` runs hourly (minute 17) and sends only between 09:00 and 21:00 IST. It nudges whoever is holding things up — one reminder per stage — and never changes state.
+
+Courier orders are not returnable, the admin delivery-address override is refused for them, and admin rewinds never go back before the customer's acceptance.
+
