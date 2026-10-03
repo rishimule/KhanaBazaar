@@ -291,3 +291,31 @@ async def insert_courier_order(
         ))
     await session.commit()
     return order.id
+
+
+from typing import Any  # noqa: E402
+
+
+async def place_courier_order(
+    world: CourierWorld,
+    *,
+    payment_method: str = "upi",
+    address_id: int | None = None,
+    recipient_name: str = "Asha Rao",
+    recipient_phone: str = "+919900000001",
+    apply_store_credit: bool = True,
+) -> dict[str, Any]:
+    """Place the seeded cart as a courier order to the Mysuru address."""
+    async with client_as(CUSTOMER) as ac:
+        resp = await ac.post("/api/v1/orders", json={
+            "customer_address_id": address_id or world.courier_address_id,
+            "store_id": world.store_id,
+            "service_id": world.service_id,
+            "payment_method": payment_method,
+            "delivery_mode": "courier",
+            "recipient_name": recipient_name,
+            "recipient_phone": recipient_phone,
+            "apply_store_credit": apply_store_credit,
+        })
+    assert resp.status_code == 201, resp.text
+    return resp.json()

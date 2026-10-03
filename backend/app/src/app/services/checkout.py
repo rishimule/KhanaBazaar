@@ -7,6 +7,7 @@ from sqlalchemy import and_, text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.otp import InvalidPhoneNumber, normalize_phone
 from app.models.address import Address
 from app.models.base import User
 from app.models.catalog import MasterProduct, MasterProductTranslation
@@ -23,10 +24,16 @@ from app.models.commerce import (
     PaymentMethod,
     PaymentStatus,
 )
+from app.models.courier import OrderCourier
 from app.models.profile import CustomerAddress, CustomerProfile
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_to_payload
 from app.services.inventory import decrement_stock, lock_inventory_rows
+from app.services.serviceability import (
+    bank_transfer_live,
+    is_courier_destination,
+    zone_for_address,
+)
 from app.utils.address import format_address
 
 # MVP pricing constant. Delivery fee is now per-(store, service) — computed by
@@ -47,6 +54,11 @@ _ALLOWED_METHODS: dict[DeliveryMode, set[PaymentMethod]] = {
         PaymentMethod.NetBanking,
         PaymentMethod.PayAtStore,
         PaymentMethod.Credit,
+    },
+    # Prepaid only (spec D5): no COD, pay-at-store or postpaid credit.
+    DeliveryMode.Courier: {
+        PaymentMethod.Upi,
+        PaymentMethod.NetBanking,
     },
 }
 
@@ -272,6 +284,74 @@ async def _validate_upi_payee_for_store(
     ).first()
     if row is None or not (row[1] and row[0]):
         raise HTTPException(status_code=409, detail="upi_unavailable")
+
+
+async def _assert_courier_enabled(
+    session: AsyncSession, store_id: int, service_id: int
+) -> None:
+    """409 courier_unavailable unless the store has a courier radius AND this
+    service has courier switched on (the payee is checked separately)."""
+    from app.models.profile import SellerProfile, SellerProfileService
+
+    row = (
+        await session.exec(
+            select(Store.courier_radius_km, SellerProfileService.courier_enabled)
+            .join(SellerProfile, SellerProfile.id == Store.seller_profile_id)  # type: ignore[arg-type]
+            .join(
+                SellerProfileService,
+                SellerProfileService.seller_profile_id == SellerProfile.id,  # type: ignore[arg-type]
+            )
+            .where(Store.id == store_id, SellerProfileService.service_id == service_id)
+        )
+    ).first()
+    if row is None or row[0] is None or row[1] is not True:
+        raise HTTPException(
+            status_code=409,
+            detail={"detail": "courier_unavailable", "store_id": store_id, "service_id": service_id},
+        )
+
+
+async def _validate_bank_transfer_for_store(session: AsyncSession, store_id: int) -> None:
+    """409 bank_transfer_unavailable unless the seller's bank transfer is on
+    and fully specified — a courier customer must know where to send money."""
+    from app.models.profile import SellerProfile
+
+    seller = (
+        await session.exec(
+            select(SellerProfile)
+            .join(Store, Store.seller_profile_id == SellerProfile.id)  # type: ignore[arg-type]
+            .where(Store.id == store_id)
+        )
+    ).first()
+    if seller is None or not bank_transfer_live(seller):
+        raise HTTPException(status_code=409, detail="bank_transfer_unavailable")
+
+
+async def _assert_courier_destination(
+    session: AsyncSession, *, store_id: int, service_id: int, address_id: int
+) -> None:
+    """The saved address must be an Indian 6-digit-PIN address inside the
+    courier ring (beyond the local radius)."""
+    address = await session.get(Address, address_id)
+    if address is None or not is_courier_destination(address):
+        raise HTTPException(status_code=422, detail="courier_destination_unsupported")
+    zone = await zone_for_address(
+        session, store_id=store_id, address_id=address_id, service_id=service_id
+    )
+    if zone.zone == "local":
+        raise HTTPException(status_code=422, detail="address_within_local_area")
+    if zone.zone != "courier":
+        raise HTTPException(status_code=422, detail="outside_courier_area")
+
+
+def _courier_recipient(name: str | None, phone: str | None) -> tuple[str, str]:
+    clean_name = (name or "").strip()
+    if not clean_name or len(clean_name) > 120:
+        raise HTTPException(status_code=422, detail="recipient_name_required")
+    try:
+        return clean_name, normalize_phone(phone or "")
+    except InvalidPhoneNumber as exc:
+        raise HTTPException(status_code=422, detail="invalid_recipient_phone") from exc
 
 async def _compute_delivery_fee(
     session: AsyncSession, store_id: int, service_id: int, subtotal: float
@@ -548,14 +628,28 @@ async def place_order_for_sub_basket(
     preferred_delivery_date: date | None = None,
     preferred_delivery_window: str | None = None,
     apply_store_credit: bool = True,
+    recipient_name: str | None = None,
+    recipient_phone: str | None = None,
 ) -> Order:
     profile = await _customer_profile(session, user)
     assert profile.id is not None
+
+    is_courier = delivery_mode == DeliveryMode.Courier
+    # Schema-level rules first: courier-only fields never ride other modes,
+    # and a courier order has no preferred delivery window (spec §8.3).
+    if not is_courier and (recipient_name is not None or recipient_phone is not None):
+        raise HTTPException(status_code=422, detail="courier_fields_not_allowed")
+    if is_courier and (preferred_delivery_date is not None or preferred_delivery_window is not None):
+        raise HTTPException(status_code=422, detail="preferred_window_not_allowed")
 
     if payment_method not in _ALLOWED_METHODS[delivery_mode]:
         raise HTTPException(status_code=422, detail="payment_method_not_allowed")
 
     await _validate_service_active_for_store(session, store_id, service_id)
+    if is_courier:
+        await _assert_courier_enabled(session, store_id, service_id)
+        if payment_method is PaymentMethod.NetBanking:
+            await _validate_bank_transfer_for_store(session, store_id)
     if payment_method is PaymentMethod.Upi:
         await _validate_upi_payee_for_store(session, store_id)
 
@@ -573,6 +667,13 @@ async def place_order_for_sub_basket(
         address_id, address_snapshot = await _resolve_address(
             session, customer_address_id, profile.id
         )
+
+    recipient: tuple[str, str] | None = None
+    if is_courier:
+        await _assert_courier_destination(
+            session, store_id=store_id, service_id=service_id, address_id=address_id
+        )
+        recipient = _courier_recipient(recipient_name, recipient_phone)
 
     cart, cart_items = await _load_cart_for_sub_basket(
         session, profile.id, store_id, service_id
@@ -592,9 +693,10 @@ async def place_order_for_sub_basket(
     await _assert_locked_inventory_matches_service(session, inv_ids, service_id)
 
     subtotal = sum(inv_by_id[i.inventory_id].price * i.quantity for i in cart_items)
+    # Pickup is free; a courier charge is quoted after placement (spec §10.1).
     delivery_fee = (
         0.0
-        if delivery_mode == DeliveryMode.Pickup
+        if delivery_mode in (DeliveryMode.Pickup, DeliveryMode.Courier)
         else await _compute_delivery_fee(session, store_id, service_id, subtotal)
     )
 
@@ -688,6 +790,15 @@ async def place_order_for_sub_basket(
     delivery.order_id = order.id
     session.add(payment)
     session.add(delivery)
+    if recipient is not None:
+        session.add(
+            OrderCourier(
+                order_id=order.id,
+                recipient_name=recipient[0],
+                recipient_phone=recipient[1],
+                apply_store_credit=apply_store_credit,
+            )
+        )
 
     # Pay-Per-Transaction: charge the flat platform fee against the seller's
     # prepaid balance (row-locked, atomic with the order). No-op for other

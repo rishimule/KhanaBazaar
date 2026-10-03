@@ -96,6 +96,10 @@ class PlaceOrderRequest(BaseModel):
     preferred_delivery_window: Optional[str] = None
     # Store credit auto-applies; the checkout page offers an opt-out.
     apply_store_credit: bool = True
+    # Courier only (spec §8.3): who the courier hands the parcel to. Validated
+    # and normalized in services/checkout.py so the error codes stay strings.
+    recipient_name: Optional[str] = Field(default=None, max_length=200)
+    recipient_phone: Optional[str] = Field(default=None, max_length=40)
 
     @model_validator(mode="after")
     def _check_preferred_window(self) -> "PlaceOrderRequest":

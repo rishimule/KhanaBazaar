@@ -594,6 +594,8 @@ async def place_order(
         customer_address_id=payload.customer_address_id,
         preferred_delivery_date=payload.preferred_delivery_date,
         preferred_delivery_window=payload.preferred_delivery_window,
+        recipient_name=payload.recipient_name,
+        recipient_phone=payload.recipient_phone,
     )
     if order.id is not None:
         dispatch_order_placed([order.id])
