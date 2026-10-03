@@ -57,6 +57,7 @@ from app.schemas.price_comparison import ReplaceAdjustment
 from app.schemas.reorder import ReorderResolveResponse, ResolvedReorderItem
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
 from app.services.checkout import place_order_for_sub_basket
+from app.services.courier_copy import load_courier_vars, render_status
 from app.services.notification_push import dispatch_notification_push
 from app.services.notifications import (
     record_delivery_otp_notification,
@@ -139,12 +140,20 @@ async def record_and_dispatch_notification(
                 f"{body} Requested delivery: "
                 f"{format_delivery_window(order.preferred_delivery_date, order.preferred_delivery_window)}."
             )
+        title = title_tpl.format(oid=order.id)
+        if order.delivery_mode == DeliveryMode.Courier and order.id is not None:
+            courier_vars = await load_courier_vars(session, order.id)
+            courier_message = (
+                render_status(status_value, courier_vars) if courier_vars is not None else None
+            )
+            if courier_message is not None:
+                title, body = courier_message.title, courier_message.body
         notif = await record_order_status_notification(
             session,
             customer_profile_id=order.customer_profile_id,
             order_id=order.id,
             status=status_value,
-            title=title_tpl.format(oid=order.id),
+            title=title,
             body=body,
         )
         if notif.id is not None:

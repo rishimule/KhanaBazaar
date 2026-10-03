@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 {% block body %}
-  <p>Order <strong>#{{ order_id }}</strong> — {{ service_name }} at {{ store_name }} — is now <strong style="text-transform:capitalize;">{{ current }}</strong>.</p>
+  <p>Order <strong>#{{ order_id }}</strong> — {{ service_name }} at {{ store_name }} — is now <strong style="text-transform:capitalize;">{{ status_label|default(current) }}</strong>.</p>
   {% include "_partials/progress_bar.html" %}
+  {% if tracking_line is defined and tracking_line %}
+    <p style="font-size:15px;">Tracking: <strong>{{ tracking_line }}</strong></p>
+  {% endif %}
+  {% if refund_due_amount is defined and refund_due_amount %}
+    <div style="background:#fff7ed;border-left:4px solid #c2410c;padding:12px 16px;margin:16px 0;border-radius:4px;">
+      <div style="font-size:15px;color:#1f2937;">Refund due: <strong>{{ refund_due_amount|inr }}</strong> from {{ store_name }}. We'll let you know when they send it.</div>
+    </div>
+  {% endif %}
   {% if current == 'cancelled' and reason %}
     <div style="background:#fef2f2;border-left:4px solid #b91c1c;padding:12px 16px;margin:16px 0;border-radius:4px;">
       <div style="font-size:13px;color:#7f1d1d;font-weight:600;margin-bottom:4px;">Cancellation reason</div>

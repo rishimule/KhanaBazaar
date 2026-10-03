@@ -1,1 +1,1 @@
-{{ items|length }} item(s) — total {{ order_total|inr }}. Prepare for packing.
+{% if courier is defined and courier %}Courier order — send a quote. {{ items|length }} item(s), goods {{ order_total|inr }}.{% else %}{{ items|length }} item(s) — total {{ order_total|inr }}. Prepare for packing.{% endif %}

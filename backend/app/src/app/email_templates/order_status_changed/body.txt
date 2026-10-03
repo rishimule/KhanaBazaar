@@ -1,7 +1,13 @@
-Order #{{ order_id }} — {{ service_name }} at {{ store_name }} — is now {{ current }}.
+Order #{{ order_id }} — {{ service_name }} at {{ store_name }} — is now {{ status_label|default(current) }}.
 
 {% if current == 'cancelled' and reason -%}
 Cancellation reason: {{ reason }}
 
+{% endif -%}
+{% if tracking_line is defined and tracking_line -%}
+Tracking: {{ tracking_line }}
+{% endif -%}
+{% if refund_due_amount is defined and refund_due_amount -%}
+Refund due: {{ refund_due_amount|inr }} from {{ store_name }}.
 {% endif -%}
 View order: {{ frontend_base_url }}{{ '/seller/orders/' if recipient == 'seller' else '/account/orders/' }}{{ order_id }}

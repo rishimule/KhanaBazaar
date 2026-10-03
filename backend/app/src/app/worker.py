@@ -90,15 +90,21 @@ def send_order_status_whatsapp_async(order_id: int, status: str) -> None:
     import concurrent.futures
 
     from app.core.whatsapp import get_whatsapp_sender
-    from app.core.whatsapp_templates import STATUS_TEMPLATES
+    from app.core.whatsapp_templates import COURIER_STATUS_TEMPLATES, STATUS_TEMPLATES
 
     sender = get_whatsapp_sender()
     if sender is None:
         return
-    template = STATUS_TEMPLATES.get(status)
-    if template is None:
+    # No template in either map → no message, and no DB read either.
+    if status not in STATUS_TEMPLATES and status not in COURIER_STATUS_TEMPLATES:
         return
     ctx = _load_order_email_context(order_id)
+    templates = (
+        COURIER_STATUS_TEMPLATES if ctx.get("delivery_mode") == "courier" else STATUS_TEMPLATES
+    )
+    template = templates.get(status)
+    if template is None:
+        return
     phone = ctx.get("customer_phone")
     if not phone or not ctx.get("customer_phone_verified"):
         return
@@ -514,6 +520,16 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     }
                     for row in items_rows
                 ]
+                from app.models.commerce import DeliveryMode
+                from app.models.courier import OrderCourier
+
+                courier_row = None
+                if order.delivery_mode == DeliveryMode.Courier:
+                    courier_row = (
+                        await session.exec(
+                            select(OrderCourier).where(OrderCourier.order_id == order_id)
+                        )
+                    ).first()
                 return {
                     "order_id": order.id,
                     "order_total": order.total,
@@ -570,6 +586,12 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                         seller_user.preferred_language if seller_user else "en"
                     ),
                     "delivery_address_snapshot": order.delivery_address_snapshot,
+                    "delivery_mode": order.delivery_mode.value,
+                    "payment_status": payment_row.status.value if payment_row else None,
+                    "payment_amount": payment_row.amount if payment_row else None,
+                    "courier_carrier": courier_row.carrier_name if courier_row else None,
+                    "courier_tracking_number": courier_row.tracking_number if courier_row else None,
+                    "courier_tracking_url": courier_row.tracking_url if courier_row else None,
                 }
         finally:
             await engine.dispose()
@@ -603,6 +625,7 @@ def send_order_placed_seller_async(order_id: int) -> None:
             "subtotal": ctx["subtotal"],
             "delivery_fee": ctx["delivery_fee"],
             "preferred_delivery": ctx.get("preferred_delivery"),
+            "courier": ctx.get("delivery_mode") == "courier",
         },
         lang=ctx.get("seller_lang") or "en",
     )
@@ -656,9 +679,13 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
                 "delivery_fee": ctx["delivery_fee"],
                 "delivery_eta": ctx.get("delivery_eta"),
                 "preferred_delivery": ctx.get("preferred_delivery"),
+                "courier": ctx.get("delivery_mode") == "courier",
+                # Nothing is payable on a courier order until its quote is
+                # accepted, so no UPI block in the placement email.
                 "upi_vpa": (
                     ctx.get("seller_upi_vpa")
                     if ctx.get("payment_method") == "upi"
+                    and ctx.get("delivery_mode") != "courier"
                     else None
                 ),
                 # NET payable. `order_total` is the GROSS goods cost; store
@@ -671,6 +698,7 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
                         2,
                     )
                     if ctx.get("payment_method") == "upi"
+                    and ctx.get("delivery_mode") != "courier"
                     and ctx.get("seller_upi_vpa")
                     else None
                 ),
@@ -697,6 +725,24 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
         html=payload.html,
         reply_to=settings.EMAIL_REPLY_TO,
     )
+
+
+def _courier_status_extras(ctx: dict[str, Any], new_status: str) -> dict[str, Any]:
+    """Template keys the order-status email needs for a courier order."""
+    courier = ctx.get("delivery_mode") == "courier"
+    tracking = " · ".join(
+        p for p in (ctx.get("courier_carrier"), ctx.get("courier_tracking_number")) if p
+    )
+    return {
+        "mode": ctx.get("delivery_mode") or "door_delivery",
+        "status_label": "shipped" if courier and new_status == "dispatched" else new_status,
+        "tracking_line": tracking if courier and new_status == "dispatched" and tracking else None,
+        "refund_due_amount": (
+            ctx.get("payment_amount")
+            if courier and new_status == "cancelled" and ctx.get("payment_status") == "paid"
+            else None
+        ),
+    }
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
@@ -741,6 +787,7 @@ def send_order_status_changed_async(
             "current": new_status,
             "reason": reason,
             "recipient": recipient,
+            **_courier_status_extras(ctx, new_status),
         },
         lang=lang,
     )
@@ -1958,7 +2005,11 @@ async def seller_new_order_alert(order_id: int) -> None:
         row = (
             await session.exec(
                 select(
-                    SellerProfile.id, SellerProfile.phone, Order.total, User.account_status
+                    SellerProfile.id,
+                    SellerProfile.phone,
+                    Order.total,
+                    User.account_status,
+                    Order.delivery_mode,
                 )
                 .select_from(Order)
                 .join(Store, Store.id == Order.store_id)  # type: ignore[arg-type]
@@ -1969,7 +2020,7 @@ async def seller_new_order_alert(order_id: int) -> None:
         ).first()
     if row is None:
         return
-    seller_profile_id, phone, total, account_status = row
+    seller_profile_id, phone, total, account_status, delivery_mode = row
     if not phone or account_status != AccountStatus.active:
         return
     if await _seller_alert_quota_exceeded(seller_profile_id):
@@ -1979,9 +2030,14 @@ async def seller_new_order_alert(order_id: int) -> None:
     # whole message to UCS-2 (70-char segments instead of 160) and doubles
     # the cost of the highest-volume transactional SMS we send — one per
     # order. The WhatsApp template keeps ₹; that path isn't segment-billed.
+    from app.models.commerce import DeliveryMode
+
+    next_step = (
+        "send a courier quote" if delivery_mode == DeliveryMode.Courier else "pack it"
+    )
     sms_text = (
         f"New order #{order_id} for Rs.{amount} on your "
-        f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
+        f"{settings.COMPANY_NAME} store. Open your seller dashboard to {next_step}."
     )
     try:
         await deliver_phone_message(
