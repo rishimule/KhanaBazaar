@@ -23,6 +23,7 @@ from app.models.commerce import (
     Order,
     OrderStatus,
     Payment,
+    PaymentMethod,
     PaymentStatus,
 )
 from app.models.courier import CourierQuote, OrderCourier
@@ -299,3 +300,97 @@ async def accept_quote(
     await session.commit()
     await session.refresh(order)
     return AcceptResult(order=order, auto_paid=auto_paid, already_accepted=False)
+
+
+_COURIER_METHODS = (PaymentMethod.Upi, PaymentMethod.NetBanking)
+
+
+async def claim_payment(
+    session: AsyncSession, order: Order, actor: User, *, method: PaymentMethod | None
+) -> tuple[Order, bool]:
+    """The customer's "I've paid", recording which method they used. A repeat
+    keeps the first timestamp. Returns (order, newly_claimed)."""
+    _require_courier(order)
+    assert order.id is not None
+    order = await lock_order(session, order.id)
+    payment = await _payment(session, order.id)
+    if order.status != OrderStatus.Accepted:
+        raise HTTPException(status_code=409, detail="not_awaiting_payment")
+    if payment.status is not PaymentStatus.Pending:
+        raise HTTPException(status_code=409, detail="payment_settled")
+    if method is None:
+        raise HTTPException(status_code=422, detail="payment_method_required")
+    if method not in _COURIER_METHODS:
+        raise HTTPException(status_code=422, detail="payment_method_not_allowed")
+    seller = await store_seller(session, order.store_id)
+    live = courier_payment_methods(seller)
+    if not live:
+        # Every payee is gone: the route tells the seller (spec §9.9).
+        raise CourierPayeeMissing()
+    if method not in live:
+        raise HTTPException(
+            status_code=409,
+            detail="upi_unavailable" if method is PaymentMethod.Upi else "bank_transfer_unavailable",
+        )
+    row = await order_courier(session, order.id)
+    newly_claimed = payment.customer_claimed_at is None or payment.method != method
+    payment.method = method
+    if payment.customer_claimed_at is None:
+        payment.customer_claimed_at = _now()
+    row.payment_claim_rejected_at = None
+    row.payment_claim_rejected_note = None
+    session.add_all([payment, row])
+    await session.commit()
+    await session.refresh(order)
+    return order, newly_claimed
+
+
+async def confirm_payment(session: AsyncSession, order: Order, actor: User) -> Order:
+    """The seller's "Payment received": Paid now, delivery dates fixed now."""
+    _require_courier(order)
+    await _require_owning_seller(session, actor, order)
+    assert order.id is not None
+    order = await lock_order(session, order.id)
+    payment = await _payment(session, order.id)
+    if payment.status is PaymentStatus.Paid or order.status is OrderStatus.Paid:
+        raise HTTPException(status_code=409, detail={"code": "payment_settled"})
+    if order.status != OrderStatus.Accepted:
+        raise HTTPException(status_code=409, detail={"code": "illegal_transition"})
+    row = await order_courier(session, order.id)
+    quote = await session.get(CourierQuote, row.accepted_quote_id) if row.accepted_quote_id else None
+    if quote is None:
+        raise HTTPException(status_code=500, detail="accepted_quote_missing")
+    now = _now()
+    payment.status = PaymentStatus.Paid
+    payment.paid_at = now
+    order.status = OrderStatus.Paid
+    row.eta_from, row.eta_to = eta_window(quote.eta_min_days, quote.eta_max_days, today=ist_today())
+    session.add_all([order, payment, row])
+    await session.commit()
+    await session.refresh(order)
+    return order
+
+
+async def reject_payment_claim(
+    session: AsyncSession, order: Order, actor: User, *, note: str | None
+) -> Order:
+    """The seller's "Payment not received": clears the claim so the customer
+    can check and pay again; the note is shown to them."""
+    _require_courier(order)
+    await _require_owning_seller(session, actor, order)
+    assert order.id is not None
+    order = await lock_order(session, order.id)
+    if order.status != OrderStatus.Accepted:
+        raise HTTPException(status_code=409, detail={"code": "illegal_transition"})
+    payment = await _payment(session, order.id)
+    if payment.customer_claimed_at is None:
+        raise HTTPException(status_code=409, detail={"code": "no_claim"})
+    row = await order_courier(session, order.id)
+    payment.customer_claimed_at = None
+    row.payment_claim_rejected_at = _now()
+    row.payment_claim_rejected_note = clean_text(note, max_len=300)
+    row.payment_claim_rejection_count += 1
+    session.add_all([payment, row])
+    await session.commit()
+    await session.refresh(order)
+    return order

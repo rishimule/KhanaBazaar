@@ -370,3 +370,26 @@ async def grant_store_credit(session: AsyncSession, world: CourierWorld, amount:
         session, account, amount, entry_type=StoreCreditEntryType.admin_adjust, note="test",
     )
     await session.commit()
+
+
+async def claim_payment(order_id: int, method: str | None = "upi") -> httpx.Response:
+    async with client_as(CUSTOMER) as ac:
+        return await ac.post(
+            f"/api/v1/orders/{order_id}/payment/claim",
+            json={"method": method} if method is not None else {},
+        )
+
+
+async def confirm_payment(order_id: int, *, as_user: User = SELLER) -> httpx.Response:
+    async with client_as(as_user) as ac:
+        return await ac.post(f"/api/v1/orders/{order_id}/payment/confirm")
+
+
+async def order_at_paid(world: CourierWorld, *, fee: float = 120.0) -> dict[str, Any]:
+    """Place → quote → accept → seller confirms. Returns the paid OrderRead."""
+    order = await place_courier_order(world)
+    quote = (await send_quote(order["id"], fee=fee)).json()["courier"]["quotes"][0]
+    assert (await accept_quote(order["id"], quote["id"])).status_code == 200
+    resp = await confirm_payment(order["id"])
+    assert resp.status_code == 200, resp.text
+    return resp.json()

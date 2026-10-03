@@ -117,6 +117,16 @@ class CourierAcceptRequest(BaseModel):
     quote_id: int = Field(gt=0)
 
 
+class PaymentClaimRequest(BaseModel):
+    # Courier orders must say how they paid (spec D7); local UPI claims send
+    # no body at all, as before.
+    method: Optional[PaymentMethod] = None
+
+
+class PaymentNotReceivedRequest(BaseModel):
+    note: Optional[str] = Field(default=None, max_length=300)
+
+
 class OrderRead(BaseModel):
     id: int
     store_id: int

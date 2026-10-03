@@ -50,6 +50,8 @@ from app.schemas.orders import (
     OrderListResponse,
     OrderRead,
     OrderReviewInOrder,
+    PaymentClaimRequest,
+    PaymentNotReceivedRequest,
     PaymentRead,
     PlaceOrderRequest,
     SellerOrderAlertSummary,
@@ -957,6 +959,7 @@ async def reorder(
 @router.post("/{order_id}/payment/claim", response_model=OrderRead)
 async def claim_upi_payment(
     order_id: int,
+    body: Optional[PaymentClaimRequest] = Body(default=None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> OrderRead:
@@ -975,6 +978,23 @@ async def claim_upi_payment(
     if user.role is not UserRole.Customer:
         raise HTTPException(status_code=403, detail="forbidden")
     order, include_customer_name = await _load_order_for_user(session, order_id, user)
+    if order.delivery_mode == DeliveryMode.Courier:
+        try:
+            order, newly_claimed = await courier_svc.claim_payment(
+                session, order, user, method=body.method if body is not None else None
+            )
+        except courier_svc.CourierPayeeMissing as exc:
+            await session.rollback()
+            await session.refresh(order)
+            await courier_comms.notify_seller(session, order, "payee_missing", once=True)
+            raise HTTPException(
+                status_code=409, detail={"code": "courier_payment_unavailable"}
+            ) from exc
+        if newly_claimed:
+            await courier_comms.notify_seller(session, order, "payment_claimed")
+        return await _serialize_order(
+            session, order, include_customer_name=include_customer_name
+        )
     payment = (
         await session.exec(select(Payment).where(Payment.order_id == order.id))
     ).first()
@@ -995,3 +1015,32 @@ async def claim_upi_payment(
     return await _serialize_order(
         session, order, include_customer_name=include_customer_name
     )
+
+
+@router.post("/{order_id}/payment/confirm", response_model=OrderRead)
+async def courier_confirm_payment(
+    order_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The store's seller confirms the money reached them (courier only)."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order = await courier_svc.confirm_payment(session, order, user)
+    await courier_comms.notify_customer(session, order, "payment_confirmed")
+    return await _serialize_order(session, order, include_customer_name=include_customer)
+
+
+@router.post("/{order_id}/payment/not-received", response_model=OrderRead)
+async def courier_payment_not_received(
+    order_id: int,
+    body: Optional[PaymentNotReceivedRequest] = Body(default=None),
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The store's seller reports the claimed payment never arrived."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order = await courier_svc.reject_payment_claim(
+        session, order, user, note=body.note if body is not None else None
+    )
+    await courier_comms.notify_customer(session, order, "payment_not_received")
+    return await _serialize_order(session, order, include_customer_name=include_customer)
