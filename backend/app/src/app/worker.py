@@ -2517,6 +2517,19 @@ def sweep_expired_returns() -> int:
     return len(expired_ids) + len(lapsed_ids)
 
 
+@celery_app.task(name="courier.send_reminders")  # type: ignore[untyped-decorator]
+def send_courier_reminders() -> int:
+    """Hourly courier reminders (services.courier_reminders). Thread-bridged
+    like the returns sweep, so it runs under prefork and in eager tests."""
+    import asyncio
+    import concurrent.futures
+
+    from app.services.courier_reminders import run_courier_reminder_sweep
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(run_courier_reminder_sweep())).result()
+
+
 def _load_return_email_context(return_id: int) -> dict[str, Any]:
     """Everything the return emails/WhatsApp need, in one thread-bridged read."""
     import asyncio
