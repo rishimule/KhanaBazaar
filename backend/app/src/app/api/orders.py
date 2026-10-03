@@ -2,7 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_
@@ -88,6 +88,7 @@ from app.services.orders import (
 from app.services.seller_order_notifications import (
     record_seller_new_order_notification,
 )
+from app.utils.delivery_window import ist_today
 
 router = APIRouter()
 
@@ -383,6 +384,9 @@ async def list_orders(
     status: Optional[str] = Query(default=None),
     service_id: Optional[int] = Query(default=None, gt=0),
     seller_id: Optional[int] = Query(default=None, gt=0),
+    delivery_mode: Optional[DeliveryMode] = Query(default=None),
+    needs: Optional[Literal["quote", "payment_check", "refund"]] = Query(default=None),
+    stale: bool = Query(default=False),
     q: Optional[str] = Query(default=None),
     from_date: Optional[str] = Query(default=None),
     to_date: Optional[str] = Query(default=None),
@@ -447,6 +451,30 @@ async def list_orders(
     else:
         raise HTTPException(status_code=403, detail="forbidden")
 
+    if delivery_mode is not None:
+        stmt = stmt.where(Order.delivery_mode == delivery_mode)
+    if needs is not None or stale:
+        stmt = stmt.where(Order.delivery_mode == DeliveryMode.Courier)
+    if needs == "quote":
+        stmt = stmt.where(Order.status == OrderStatus.Pending)
+    elif needs == "payment_check":
+        stmt = stmt.where(
+            Order.status == OrderStatus.Accepted,
+            col(Order.id).in_(
+                select(Payment.order_id).where(col(Payment.customer_claimed_at).is_not(None))
+            ),
+        )
+    elif needs == "refund":
+        stmt = stmt.where(
+            Order.status == OrderStatus.Cancelled,
+            col(Order.id).in_(
+                select(Payment.order_id).where(Payment.status == PaymentStatus.Paid)
+            ),
+        )
+    if stale:
+        stmt = stmt.where(
+            courier_svc.stale_courier_clause(datetime.now(timezone.utc), ist_today())
+        )
     if statuses is not None:
         stmt = stmt.where(Order.status.in_(statuses))  # type: ignore[attr-defined]
 

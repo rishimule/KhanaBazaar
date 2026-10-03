@@ -9,10 +9,13 @@ job (api/orders.py) and run after the commit.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import HTTPException
+from sqlalchemy import and_, func, or_
+from sqlalchemy import select as sa_select
+from sqlalchemy.sql.elements import ColumnElement
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -476,3 +479,33 @@ async def mark_refund_sent(
     await session.commit()
     await session.refresh(order)
     return order
+
+
+def stale_courier_clause(now: datetime, today: date) -> ColumnElement[bool]:
+    """Courier orders whose current stage is older than COURIER_STALE_DAYS, or
+    shipped and past eta_to + grace — the admin backstop once reminders are
+    spent (spec §11.2)."""
+    cutoff = now - timedelta(days=settings.COURIER_STALE_DAYS)
+    overdue_before = today - timedelta(days=settings.COURIER_ARRIVAL_GRACE_DAYS)
+    latest_quote_at = (
+        sa_select(func.max(CourierQuote.created_at))
+        .where(CourierQuote.order_id == Order.id)
+        .scalar_subquery()
+    )
+    # GREATEST ignores NULLs in Postgres: the later of acceptance, rejection
+    # and claim is when the accepted stage last moved.
+    accepted_moved = (
+        sa_select(func.greatest(OrderCourier.accepted_at, OrderCourier.payment_claim_rejected_at))
+        .where(OrderCourier.order_id == Order.id)
+        .scalar_subquery()
+    )
+    claimed_at = (
+        sa_select(Payment.customer_claimed_at).where(Payment.order_id == Order.id).scalar_subquery()
+    )
+    eta_to = sa_select(OrderCourier.eta_to).where(OrderCourier.order_id == Order.id).scalar_subquery()
+    return or_(
+        and_(Order.status == OrderStatus.Pending, Order.placed_at < cutoff),
+        and_(Order.status == OrderStatus.Quoted, latest_quote_at < cutoff),
+        and_(Order.status == OrderStatus.Accepted, func.greatest(accepted_moved, claimed_at) < cutoff),
+        and_(Order.status == OrderStatus.Dispatched, eta_to < overdue_before),
+    )
