@@ -8,6 +8,7 @@ import { get, post } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { checkServiceability } from "@/lib/geo";
 import { apiErrorKey } from "@/lib/errors";
+import { classifyAddressZone, isOrderableZone, type AddressCourierZone } from "@/lib/courier";
 import Modal from "@/components/Modal";
 import {
   AddressFields,
@@ -21,8 +22,13 @@ export interface PickerState {
   selectedId: number | null;
   latitude: number | null;
   longitude: number | null;
-  /** True when storeId is undefined OR the picked address is in-radius. */
+  /** True when storeId is undefined OR the picked address can be ordered to
+   *  (local delivery or courier). */
   serviceable: boolean;
+  /** The picked address's zone for this store + service; null without storeId. */
+  zone: AddressCourierZone | null;
+  /** The picked address's city, for the courier explainer. */
+  city: string | null;
   /** True while profile is loading OR any serviceability check unresolved. */
   loading: boolean;
 }
@@ -37,10 +43,15 @@ interface Props {
    *  (never null) so parents can gate on `loading` even before a selection
    *  exists (e.g. zero-serviceable). */
   onStateChange?: (state: PickerState) => void;
+  /** With storeId: classify courier addresses for this service. */
+  serviceId?: number;
+  /** Bump to re-run every zone check — the checkout page does this when the
+   *  server says a zone changed under it (spec §8.5). */
+  recheckKey?: number;
 }
 
 export default function AddressPicker({
-  value, onChange, storeId, onStateChange,
+  value, onChange, storeId, onStateChange, serviceId, recheckKey,
 }: Props) {
   const t = useTranslations("Address");
   const tAcc = useTranslations("Account.addresses");
@@ -48,8 +59,11 @@ export default function AddressPicker({
   const { token } = useAuth();
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
-  /** id → serviceable? Missing entry means "still checking" or "no lat/lng". */
-  const [serviceability, setServiceability] = useState<Record<number, boolean>>({});
+  /** id → zone. Missing entry means "still checking". */
+  const [serviceability, setServiceability] = useState<Record<number, AddressCourierZone>>({});
+  /** The recheckKey the current results were computed for; a newer key reads
+   *  as "still checking" without a synchronous setState inside the effect. */
+  const [checkedFor, setCheckedFor] = useState(0);
   const didAutoSelect = useRef(false);
 
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -82,29 +96,38 @@ export default function AddressPicker({
 
     const checks = addresses.map(async (a) => {
       if (a.address.latitude == null || a.address.longitude == null) {
-        return [a.id, false] as const;
+        return [a.id, "no_pin" as AddressCourierZone] as const;
       }
       try {
+        // Called WITHOUT service_id so courier_service_ids says which services
+        // ship — that's how "not sent by courier" gets its own badge.
         const r = await checkServiceability(
           a.address.latitude, a.address.longitude, storeId,
         );
-        return [a.id, r.serviceable] as const;
+        const zone: AddressCourierZone =
+          serviceId === undefined
+            ? r.serviceable ? "local" : "none"
+            : classifyAddressZone(r, serviceId, a.address);
+        return [a.id, zone] as const;
       } catch {
-        return [a.id, false] as const;
+        return [a.id, "check_failed" as AddressCourierZone] as const;
       }
     });
 
     Promise.all(checks).then((entries) => {
       if (cancelled) return;
       setServiceability(Object.fromEntries(entries));
+      setCheckedFor(recheckKey ?? 0);
     });
 
     return () => { cancelled = true; };
-  }, [addresses, storeId]);
+  }, [addresses, storeId, serviceId, recheckKey]);
 
   const allSettled =
     !profileLoading &&
-    (storeId === undefined || addresses.every((a) => a.id in serviceability));
+    (storeId === undefined ||
+      addresses.length === 0 ||
+      ((recheckKey ?? 0) === checkedFor && addresses.every((a) => a.id in serviceability)));
 
   useEffect(() => {
     if (!allSettled) return;
@@ -113,11 +136,13 @@ export default function AddressPicker({
     if (addresses.length === 0) { didAutoSelect.current = true; return; }
 
     const isOk = (id: number) =>
-      storeId === undefined || serviceability[id] === true;
+      storeId === undefined || isOrderableZone(serviceability[id]);
 
     const def = addresses.find((a) => a.is_default);
+    // Default first (if orderable), then any local address, then any courier one.
     const pick =
       (def && isOk(def.id) ? def : null) ??
+      addresses.find((a) => storeId === undefined || serviceability[a.id] === "local") ??
       addresses.find((a) => isOk(a.id)) ??
       null;
 
@@ -135,9 +160,9 @@ export default function AddressPicker({
       serviceable:
         picked === undefined
           ? false
-          : storeId === undefined
-            ? true
-            : serviceability[picked.id] === true,
+          : storeId === undefined || isOrderableZone(serviceability[picked.id]),
+      zone: picked === undefined || storeId === undefined ? null : serviceability[picked.id] ?? null,
+      city: picked?.address.city ?? null,
       loading: !allSettled,
     });
   }, [value, addresses, serviceability, storeId, allSettled, onStateChange]);
@@ -355,10 +380,10 @@ export default function AddressPicker({
 
     const deliverable = !allSettled || storeId === undefined
       ? [...addresses]
-      : addresses.filter((a) => serviceability[a.id] === true);
+      : addresses.filter((a) => isOrderableZone(serviceability[a.id]));
     const outside = !allSettled || storeId === undefined
       ? []
-      : addresses.filter((a) => serviceability[a.id] === false);
+      : addresses.filter((a) => a.id in serviceability && !isOrderableZone(serviceability[a.id]));
 
     const deliverableOrdered = def && deliverable.includes(def)
       ? [def, ...deliverable.filter((a) => a.id !== def.id)]
@@ -556,8 +581,11 @@ export default function AddressPicker({
 
   const hasAnyServiceable =
     storeId === undefined ||
-    addresses.some((a) => serviceability[a.id] === true);
-  const showNoServiceableNotice = allSettled && !hasAnyServiceable;
+    addresses.some((a) => isOrderableZone(serviceability[a.id]));
+  // A failed check must not read as "no saved address is within this store's
+  // delivery area" — that would be a confident wrong answer.
+  const anyCheckFailed = addresses.some((a) => serviceability[a.id] === "check_failed");
+  const showNoServiceableNotice = allSettled && !hasAnyServiceable && !anyCheckFailed;
 
   const activeOptionId =
     isOpen &&
@@ -588,6 +616,11 @@ export default function AddressPicker({
         {showNoServiceableNotice && (
           <div className={styles.notice} role="status">
             {t("noServiceableTitle")}
+          </div>
+        )}
+        {allSettled && anyCheckFailed && (
+          <div className={styles.notice} role="status">
+            {t("checkFailedNotice")}
           </div>
         )}
         <button
@@ -659,6 +692,9 @@ export default function AddressPicker({
                   <span className={styles.optionAddress}>
                     {a.address.address_line1}, {a.address.city} {a.address.pincode}
                   </span>
+                  {serviceability[a.id] === "courier" && (
+                    <span className={styles.optionCourier}>{t("courierBadge")}</span>
+                  )}
                 </li>
               );
             })}
@@ -695,7 +731,15 @@ export default function AddressPicker({
                     {a.address.address_line1}, {a.address.city} {a.address.pincode}
                   </span>
                   <span className={styles.optionBadge}>
-                    {t("outsideAreaBadge")}
+                    {serviceability[a.id] === "service_no_courier"
+                      ? t("noCourierForServiceBadge")
+                      : serviceability[a.id] === "destination_unsupported"
+                        ? t("courierNeedsPinBadge")
+                        : serviceability[a.id] === "no_pin"
+                          ? t("noPinBadge")
+                          : serviceability[a.id] === "check_failed"
+                            ? t("checkFailedBadge")
+                            : t("outsideAreaBadge")}
                   </span>
                 </li>
               );

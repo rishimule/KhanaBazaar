@@ -235,7 +235,30 @@
     "modeDoor": "Door delivery",
     "modePickup": "Pick up at store",
     "collectAt": "Collect at",
-    "storeCreditLabel": "Use store credit (₹{balance} available)"
+    "storeCreditLabel": "Use store credit (₹{balance} available)",
+    "modeDelivery": "Delivery",
+    "courier": {
+      "title": "Long-distance order · ships by courier",
+      "body": "{store} will send this by courier. It may take a few days to arrive.",
+      "bodyCity": "{city} is outside {store}'s local delivery area, so they'll send it by courier. It may take a few days to arrive.",
+      "pointCharge": "The courier charge isn't included yet — {store} sends you the charge and delivery dates after you order.",
+      "pointPayLater": "You pay only after you accept them.",
+      "pointNoReturns": "Courier orders can't be returned in the app.",
+      "recipientTitle": "Who receives it",
+      "recipientHint": "The courier calls this number. You can send it to someone else.",
+      "recipientName": "Recipient name",
+      "recipientPhone": "Recipient phone",
+      "phonePlaceholder": "10-digit mobile",
+      "phoneInvalid": "Enter a valid 10-digit mobile number.",
+      "chargeQuoted": "Quoted by the store",
+      "totalSoFar": "Total so far",
+      "totalPlusCourier": "₹{total} + courier",
+      "placeOrder": "Place courier order",
+      "nothingToPay": "Nothing to pay now",
+      "noPayee": "This store can't take courier payments right now.",
+      "storeLoadError": "Couldn't load the store's payment details. Reload the page to try again.",
+      "recipientNeeded": "Add who receives the parcel to place the order."
+    }
   },
   "Login": {
     "errSendCode": "Failed to send code.",
@@ -500,7 +523,13 @@
     "verifyMissingFields": "Fill address line 1, city, state and a 6-digit pincode first.",
     "verifyNotFound": "Couldn't locate that address on the map. Edit it and try again, or pin manually.",
     "verifyFailed": "Address lookup failed. Please try again.",
-    "verifyRequired": "Verification required to continue."
+    "verifyRequired": "Verification required to continue.",
+    "courierBadge": "Courier · few days",
+    "noCourierForServiceBadge": "Not sent by courier",
+    "courierNeedsPinBadge": "Needs an Indian PIN code",
+    "noPinBadge": "Needs a map pin",
+    "checkFailedBadge": "Couldn't check",
+    "checkFailedNotice": "We couldn't check some addresses just now. Reload the page to try again."
   },
   "Payment": {
     "legend": "Payment method",
@@ -516,7 +545,12 @@
     "netBankingLabel": "Net Banking",
     "netBankingHint": "Pay via your bank portal",
     "payAtStoreLabel": "Pay at store",
-    "payAtStoreHint": "Pay at the counter when you collect"
+    "payAtStoreHint": "Pay at the counter when you collect",
+    "courierLegend": "How you'll pay after accepting",
+    "courierPayLaterHint": "Pay after you accept the quote",
+    "bankTransferLabel": "Bank transfer",
+    "bankTransferHint": "NEFT or IMPS to the store's bank account",
+    "courierCreditNote": "Credit isn't available for courier orders."
   },
   "Order": {
     "delivery": {
@@ -2733,7 +2767,9 @@
     "trackOrder": "Track order",
     "continueShopping": "Continue shopping",
     "loading": "Loading your order…",
-    "loadError": "Couldn't load this order. Check your orders list."
+    "loadError": "Couldn't load this order. Check your orders list.",
+    "courierTitle": "Order sent to the store",
+    "courierSubtitle": "{store} will send you the courier charge and delivery time. Nothing to pay yet."
   },
   "PolicyConsent": {
     "title": "We've updated our policies",

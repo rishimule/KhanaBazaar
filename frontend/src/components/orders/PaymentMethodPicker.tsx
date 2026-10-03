@@ -28,6 +28,8 @@ interface Props {
   upiPayee?: { vpa: string; display_name: string } | null;
   /** Net payable (total minus applied store credit), for the preview line. */
   previewAmount?: number;
+  /** Live courier methods from `Store.courier_payment_methods`. */
+  courierMethods?: PaymentMethod[];
 }
 
 const BASE_OPTIONS: {
@@ -50,8 +52,46 @@ export default function PaymentMethodPicker({
   acceptedMethods,
   upiPayee,
   previewAmount,
+  courierMethods,
 }: Props) {
   const t = useTranslations("Payment");
+  if (deliveryMode === "courier") {
+    // Prepaid only (spec D5): UPI and/or bank transfer, whichever is live.
+    // Paid after acceptance, so this is a preference, changeable on the
+    // order page (D7). Postpaid credit never applies.
+    const live = (m: PaymentMethod) => !courierMethods || courierMethods.includes(m);
+    const courierOptions = (
+      [
+        { value: "upi", labelKey: "upiLabel", hintKey: "courierPayLaterHint" },
+        { value: "net_banking", labelKey: "bankTransferLabel", hintKey: "bankTransferHint" },
+      ] as { value: PaymentMethod; labelKey: string; hintKey: string }[]
+    ).filter((o) => live(o.value));
+    return (
+      <fieldset className={styles.fieldset}>
+        <legend className={styles.legend}>{t("courierLegend")}</legend>
+        <div className={styles.options}>
+          {courierOptions.map((opt) => (
+            <label
+              key={opt.value}
+              className={`${styles.option} ${value === opt.value ? styles.selected : ""}`}
+            >
+              <input
+                type="radio"
+                name="payment_method"
+                value={opt.value}
+                checked={value === opt.value}
+                onChange={() => onChange(opt.value)}
+                className={styles.radio}
+              />
+              <span className={styles.label}>{t(opt.labelKey)}</span>
+              <span className={styles.hint}>{t(opt.hintKey)}</span>
+            </label>
+          ))}
+        </div>
+        {credit != null && <p className={styles.note}>{t("courierCreditNote")}</p>}
+      </fieldset>
+    );
+  }
   // An empty/absent list means "not loaded yet" — fall back to showing all
   // methods rather than rendering a picker with nothing in it.
   const storeAccepts = (m: PaymentMethod) =>

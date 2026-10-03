@@ -9,6 +9,7 @@ import { formatDeliveryEta } from "@/lib/deliveryEta";
 import { useAuth } from "@/lib/AuthContext";
 import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
 import UpiPayPanel from "@/components/orders/UpiPayPanel";
+import OrderTotal from "@/components/orders/OrderTotal";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -32,19 +33,25 @@ export default function OrderConfirmedPage({ params }: { params: Promise<{ id: s
     return <div className={styles.state} role="status" aria-busy="true">{t("loading")}</div>;
 
   const itemCount = order.items.reduce((n, it) => n + it.quantity, 0);
+  // Courier: the store quotes the charge and dates next, nothing is payable yet.
+  const isCourier = order.delivery_mode === "courier";
 
   return (
     <div className={styles.wrap}>
       <div className={styles.check} aria-hidden>✓</div>
-      <h1 className={styles.title}>{t("title")}</h1>
-      <p className={styles.subtitle}>{t("subtitle")}</p>
+      <h1 className={styles.title}>{isCourier ? t("courierTitle") : t("title")}</h1>
+      <p className={styles.subtitle}>
+        {isCourier ? t("courierSubtitle", { store: order.store_name }) : t("subtitle")}
+      </p>
 
       <div className={styles.card}>
         <div className={styles.orderNo}>{t("orderNumber", { id: order.id })}</div>
         <div className={styles.store}>
           {order.store_name} · {order.service_name}
         </div>
-        {order.delivery_eta_min_minutes != null && order.delivery_eta_max_minutes != null && (
+        {!isCourier &&
+          order.delivery_eta_min_minutes != null &&
+          order.delivery_eta_max_minutes != null && (
           <div className={styles.row}>
             <span>{t("estimatedDelivery")}</span>
             <span>{formatDeliveryEta(order.delivery_eta_min_minutes, order.delivery_eta_max_minutes)}</span>
@@ -53,7 +60,7 @@ export default function OrderConfirmedPage({ params }: { params: Promise<{ id: s
         <RequestedDeliveryLine order={order} className={styles.requested} />
         <div className={styles.row}>
           <span>{t("itemsCount", { count: itemCount })}</span>
-          <span className={styles.total}>₹{Number(order.total).toFixed(2)}</span>
+          <OrderTotal order={order} className={styles.total} />
         </div>
       </div>
 

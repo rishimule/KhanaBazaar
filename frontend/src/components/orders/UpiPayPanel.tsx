@@ -37,8 +37,12 @@ export default function UpiPayPanel({ order, onChange }: Props) {
   const [copied, setCopied] = useState(false);
   const [ios, setIos] = useState(false);
 
+  // Courier orders pay through CourierPayPanel once the quote is accepted
+  // (UPI or bank tabs); this panel is for local UPI orders only.
   const isUpiPending =
-    order.payment.method === "upi" && order.payment.status === "pending";
+    order.delivery_mode !== "courier" &&
+    order.payment.method === "upi" &&
+    order.payment.status === "pending";
 
   // Resolved in an effect rather than during render: the UA is unavailable
   // server-side, and branching on it mid-render risks a hydration mismatch.
