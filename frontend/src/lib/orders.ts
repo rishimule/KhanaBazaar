@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-import { get, patch, post } from "@/lib/api";
+import { ApiError, get, patch, post } from "@/lib/api";
 import type {
   CustomerStats,
   DeliveryMode,
@@ -249,4 +249,18 @@ export async function submitOrderReview(
     { rating, comment: comment ?? null },
     token,
   );
+}
+
+/** After a 403/409 on an order action the screen is usually stale: another
+ *  tab, or the other party acted first. Re-read the order so the page catches
+ *  up, keeping the error message on screen. Null when this read fails too. */
+export async function refetchIfStale(
+  token: string, orderId: number, err: unknown,
+): Promise<Order | null> {
+  if (!(err instanceof ApiError) || (err.status !== 409 && err.status !== 403)) return null;
+  try {
+    return await getOrder(token, orderId);
+  } catch {
+    return null;
+  }
 }

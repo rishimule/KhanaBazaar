@@ -116,3 +116,22 @@ export function trackingHost(url: string | null | undefined): string | null {
     return null;
   }
 }
+
+/** Straight-line km between the store and the delivery pin — a rough guide
+ *  for booking the courier (spec §14 "distance"), not a road distance. */
+export function straightLineKm(
+  order: Pick<Order, "store_latitude" | "store_longitude" | "delivery_latitude" | "delivery_longitude">,
+): number | null {
+  const {
+    store_latitude: lat1,
+    store_longitude: lng1,
+    delivery_latitude: lat2,
+    delivery_longitude: lng2,
+  } = order;
+  if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return null;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const h =
+    Math.sin(rad(lat2 - lat1) / 2) ** 2 +
+    Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
