@@ -55,6 +55,7 @@ from app.schemas.orders import (
     PaymentNotReceivedRequest,
     PaymentRead,
     PlaceOrderRequest,
+    RefundSentRequest,
     SellerOrderAlertSummary,
     TransitionRequest,
 )
@@ -781,6 +782,22 @@ async def courier_mark_received(
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 
+@router.post("/{order_id}/payment/refund-sent", response_model=OrderRead)
+async def courier_refund_sent(
+    order_id: int,
+    body: Optional[RefundSentRequest] = Body(default=None),
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The store's seller records that they refunded a cancelled courier order."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order = await courier_svc.mark_refund_sent(
+        session, order, user, reference=body.reference if body is not None else None
+    )
+    await courier_comms.notify_customer(session, order, "refund_sent")
+    return await _serialize_order(session, order, include_customer_name=include_customer)
+
+
 @router.post("/{order_id}/delivery-otp/resend", response_model=OrderRead)
 async def resend_delivery_otp_route(
     order_id: int,
@@ -817,12 +834,21 @@ async def cancel(
     ``{"reason": "..."}`` (>=10 chars) when the order is not pending.
     """
     reason = None
+    payment_received: Optional[bool] = None
     if body and isinstance(body, dict):
         raw = body.get("reason")
         if isinstance(raw, str):
             reason = raw
+        raw_received = body.get("payment_received")
+        if isinstance(raw_received, bool):
+            payment_received = raw_received
     order, include_customer = await _load_order_for_user(session, order_id, user)
-    order = await cancel_order(session, order, user, reason=reason)
+    courier_customer_cancel = (
+        order.delivery_mode == DeliveryMode.Courier and user.role == UserRole.Customer
+    )
+    order = await cancel_order(
+        session, order, user, reason=reason, payment_received=payment_received
+    )
     if order.id is not None:
         if user.role == UserRole.Admin:
             # Admin emails (admin_order_action_*) deliver the cancellation
@@ -836,6 +862,8 @@ async def cancel(
                 order.id, "cancelled", notify_seller=True, reason=reason
             )
         await record_and_dispatch_notification(session, order, "cancelled")
+        if courier_customer_cancel:
+            await courier_comms.notify_seller(session, order, "customer_cancelled")
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 

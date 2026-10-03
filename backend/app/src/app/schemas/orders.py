@@ -127,6 +127,11 @@ class PaymentNotReceivedRequest(BaseModel):
     note: Optional[str] = Field(default=None, max_length=300)
 
 
+class RefundSentRequest(BaseModel):
+    # e.g. the UPI/NEFT UTR, so the customer can find it in their bank app.
+    reference: Optional[str] = Field(default=None, max_length=60)
+
+
 class OrderRead(BaseModel):
     id: int
     store_id: int

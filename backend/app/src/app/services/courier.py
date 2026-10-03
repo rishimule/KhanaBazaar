@@ -453,3 +453,26 @@ async def mark_received(session: AsyncSession, order: Order, actor: User) -> Ord
     await session.commit()
     await session.refresh(order)
     return order
+
+
+async def mark_refund_sent(
+    session: AsyncSession, order: Order, actor: User, *, reference: str | None
+) -> Order:
+    """The seller's "Refund sent" on a cancelled, paid courier order (§10.3)."""
+    _require_courier(order)
+    await _require_owning_seller(session, actor, order)
+    assert order.id is not None
+    order = await lock_order(session, order.id)
+    payment = await _payment(session, order.id)
+    if payment.status is PaymentStatus.Refunded:
+        raise HTTPException(status_code=409, detail={"code": "already_refunded"})
+    if order.status != OrderStatus.Cancelled or payment.status is not PaymentStatus.Paid:
+        raise HTTPException(status_code=409, detail={"code": "refund_not_due"})
+    payment.status = PaymentStatus.Refunded
+    payment.refunded_at = _now()
+    payment.refund_reference = clean_text(reference, max_len=60)
+    payment.refunded_by_user_id = actor.id
+    session.add(payment)
+    await session.commit()
+    await session.refresh(order)
+    return order
