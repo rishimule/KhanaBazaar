@@ -28,6 +28,8 @@ def test_registry_has_all_templates():
         "seller_new_order",
         "return_initiated", "return_confirmed", "return_accepted",
         "return_rejected", "return_closed",
+        # Courier orders (spec 2026-10-02): the quote, and shipped-by-courier.
+        "courier_quote_ready", "courier_shipped",
     }
     assert set(TEMPLATES) == expected
 
@@ -40,6 +42,11 @@ def test_auth_templates_are_authentication_category():
 def test_order_templates_are_utility_category():
     for name in ("order_placed", "order_packed", "order_dispatched",
                  "order_delivered", "order_cancelled"):
+        assert TEMPLATES[name].category == "UTILITY"
+
+
+def test_courier_templates_are_utility_category():
+    for name in ("courier_quote_ready", "courier_shipped"):
         assert TEMPLATES[name].category == "UTILITY"
 
 
