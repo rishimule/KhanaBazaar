@@ -121,7 +121,10 @@
     "noFilterMatch": "No products match this filter.",
     "storeClosedBadge": "Closed",
     "storeClosedUntil": "Closed — back {date}",
-    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now.",
+    "courierBannerTitle": "Ships to {place} by courier",
+    "courierBannerSub": "Delivery takes a few days. The store quotes the courier charge after you order, and you pay only once you accept it.",
+    "courierBannerNotShipping": "Not sent by courier: {services}"
   },
   "Cart": {
     "errClear": "Could not clear cart. Please try again.",
@@ -152,7 +155,8 @@
     "deliveryFee": "Delivery fee",
     "railCheckout": "Check out",
     "railAria": "Cart preview",
-    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now.",
+    "courierHint": "Ships by courier. The courier charge is quoted after you order."
   },
   "Checkout": {
     "loading": "Loading…",

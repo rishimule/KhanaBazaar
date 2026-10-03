@@ -28,6 +28,8 @@ import CrownBadge from "@/components/CrownBadge";
 import StoreAvatar from "@/components/StoreAvatar";
 import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
 import { ScrollRail } from "@/components/ScrollRail";
+import { useCourierZones } from "@/lib/useCourierZones";
+import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import styles from "./page.module.css";
 
@@ -155,6 +157,11 @@ export default function StoreDetailPage({ params }: Props) {
     [storefront],
   );
   const store = storefront?.store ?? null;
+  // Courier preview for the navbar delivery location (spec §12); the
+  // checkout address decides the real mode.
+  const { location: deliveryLocation } = useDeliveryLocation();
+  const courierZones = useCourierZones(Number.isFinite(storeId) ? [storeId] : []);
+  const zoneHere = courierZones[storeId];
 
   useEffect(() => {
     if (seedRef.current) return;
@@ -365,6 +372,35 @@ export default function StoreDetailPage({ params }: Props) {
               </div>
             </div>
           )}
+
+          {/* Names the services that don't ship, so nobody fills a basket
+              checkout will refuse (spec §12). */}
+          {!store.is_paused &&
+            zoneHere?.zone === "courier" &&
+            (() => {
+              const shipping = new Set(zoneHere.courier_service_ids ?? []);
+              const notShipping = store.services
+                .filter((s) => !shipping.has(s.id))
+                .map((s) => s.name);
+              return (
+                <div className={styles.courierBanner} role="status">
+                  <span className={styles.closedBannerIcon} aria-hidden="true">
+                    📦
+                  </span>
+                  <div className={styles.closedBannerText}>
+                    <strong className={styles.courierBannerTitle}>
+                      {t("courierBannerTitle", { place: deliveryLocation.label })}
+                    </strong>
+                    <span className={styles.closedBannerSub}>{t("courierBannerSub")}</span>
+                    {notShipping.length > 0 && (
+                      <span className={styles.closedBannerSub}>
+                        {t("courierBannerNotShipping", { services: notShipping.join(", ") })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
           <FavoritesHere
             storeId={Number(storeId)}

@@ -121,7 +121,10 @@
     "noFilterMatch": "આ ફિલ્ટરથી મેળ ખાતું કોઈ ઉત્પાદન નથી.",
     "storeClosedBadge": "Closed",
     "storeClosedUntil": "Closed — back {date}",
-    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now.",
+    "courierBannerTitle": "{place} સુધી કુરિયરથી મોકલાય છે",
+    "courierBannerSub": "ડિલિવરીમાં થોડા દિવસ લાગે છે. ઓર્ડર પછી દુકાન કુરિયર ચાર્જ જણાવે છે, અને તમે તે સ્વીકાર્યા પછી જ ચૂકવો છો.",
+    "courierBannerNotShipping": "કુરિયરથી મોકલાતું નથી: {services}"
   },
   "Cart": {
     "errClear": "કાર્ટ ખાલી કરી શકાયું નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
@@ -152,7 +155,8 @@
     "deliveryFee": "Delivery fee",
     "railCheckout": "ચેક આઉટ",
     "railAria": "કાર્ટ પૂર્વાવલોકન",
-    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now.",
+    "courierHint": "કુરિયરથી મોકલાશે. કુરિયર ચાર્જ ઓર્ડર પછી જણાવાશે."
   },
   "Checkout": {
     "loading": "લોડ થઈ રહ્યું છે…",

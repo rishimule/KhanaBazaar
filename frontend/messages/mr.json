@@ -121,7 +121,10 @@
     "noFilterMatch": "या फिल्टरशी जुळणारे कोणतेही उत्पादन नाही.",
     "storeClosedBadge": "Closed",
     "storeClosedUntil": "Closed — back {date}",
-    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now.",
+    "courierBannerTitle": "{place} पर्यंत कुरिअरने पाठवले जाते",
+    "courierBannerSub": "डिलिव्हरीला काही दिवस लागतात. ऑर्डरनंतर दुकान कुरिअर शुल्क कळवते, आणि ते स्वीकारल्यानंतरच तुम्ही पेमेंट करता.",
+    "courierBannerNotShipping": "कुरिअरने पाठवले जात नाही: {services}"
   },
   "Cart": {
     "errClear": "कार्ट साफ करता आला नाही. कृपया पुन्हा प्रयत्न करा.",
@@ -152,7 +155,8 @@
     "deliveryFee": "Delivery fee",
     "railCheckout": "चेक आउट",
     "railAria": "कार्ट पूर्वावलोकन",
-    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now.",
+    "courierHint": "कुरिअरने पाठवले जाईल. कुरिअर शुल्क ऑर्डरनंतर कळवले जाईल."
   },
   "Checkout": {
     "loading": "लोड होत आहे…",
