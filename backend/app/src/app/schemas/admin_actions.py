@@ -12,7 +12,8 @@ from app.schemas.services import ServicePayload
 
 
 class RewindOrderRequest(BaseModel):
-    to_status: Literal["pending", "packed"]
+    # "paid" / "accepted" exist only on the courier rewind table (spec §9.7).
+    to_status: Literal["pending", "packed", "paid", "accepted"]
     reason: str = Field(min_length=10, max_length=500)
 
 

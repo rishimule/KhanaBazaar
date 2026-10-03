@@ -15,11 +15,12 @@ Service functions FLUSH; the caller COMMITS (mirrors fee_lifecycle)."""
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from sqlalchemy import case
 from sqlalchemy import func as safunc
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.commerce import Order, OrderStatus
+from app.models.commerce import DeliveryMode, Order, OrderStatus
 from app.models.notification import NotificationType
 from app.models.platform_fee import (
     ArrangementStatus,
@@ -66,14 +67,28 @@ async def compute_order_value_sales(
     period_start: date,
     period_end: date,
 ) -> float:
-    """Sum the grand total (`Order.total`) of DELIVERED orders for a
-    (store, service) whose `placed_at` falls within [period_start, period_end]
-    (inclusive), interpreting the date bounds in IST."""
+    """Sum the fee-able grand total of DELIVERED orders — Order.total, minus the
+    courier charge on courier orders — for a (store, service) whose `placed_at`
+    falls within [period_start, period_end] (inclusive), interpreting the date
+    bounds in IST."""
     start_utc = datetime.combine(period_start, time.min, tzinfo=IST)
     end_utc = datetime.combine(period_end + timedelta(days=1), time.min, tzinfo=IST)
     total = (
         await session.exec(
-            select(safunc.coalesce(safunc.sum(Order.total), 0.0)).where(
+            select(
+                safunc.coalesce(
+                    safunc.sum(
+                        # The courier charge is passed through to the courier
+                        # company, so it is not fee-able (spec D14); local
+                        # delivery fees stay in, as the order-value spec decided.
+                        case(
+                            (Order.delivery_mode == DeliveryMode.Courier, Order.total - Order.delivery_fee),
+                            else_=Order.total,
+                        )
+                    ),
+                    0.0,
+                )
+            ).where(
                 Order.store_id == store_id,
                 Order.service_id == service_id,
                 Order.status == OrderStatus.Delivered,

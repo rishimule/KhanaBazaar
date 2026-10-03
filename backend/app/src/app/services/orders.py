@@ -33,9 +33,11 @@ from app.models.store import Store
 from app.schemas.address import AddressPayload, address_from_payload
 from app.services.admin_audit import log as audit_log
 from app.services.courier_rules import (
+    COURIER_REWIND_TARGETS,
     COURIER_TRANSITIONS,
     TrackingInput,
     apply_tracking,
+    delivery_status_for,
     lock_order,
     validate_tracking_url,
 )
@@ -343,12 +345,16 @@ async def rewind_order(
 ) -> Order:
     """Admin-only backward transition.
 
-    Allowed: Packed→Pending, Dispatched→{Pending, Packed}. Terminal statuses
-    (Delivered, Cancelled) reject. Reason >=10 chars required.
+    Door/pickup: Packed→Pending, Dispatched→{Pending, Packed}. Courier:
+    Paid→Accepted, Packed→Paid, Dispatched→{Paid, Packed} — never back before
+    the customer's acceptance (spec §9.7). Terminal statuses reject. Reason
+    >=10 chars required.
     """
     if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
         raise HTTPException(status_code=409, detail={"code": "terminal_status"})
-    if to_status not in REWIND_TARGETS.get(order.status, set()):
+    is_courier = order.delivery_mode == DeliveryMode.Courier
+    targets = COURIER_REWIND_TARGETS if is_courier else REWIND_TARGETS
+    if to_status not in targets.get(order.status, set()):
         raise HTTPException(
             status_code=409,
             detail={
@@ -364,25 +370,45 @@ async def rewind_order(
 
     await _assert_seller_active_for_store(session, order.store_id)
 
-    delivery_result = await session.exec(
-        select(Delivery).where(Delivery.order_id == order.id)
-    )
-    delivery = delivery_result.first()
-    payment_result = await session.exec(
-        select(Payment).where(Payment.order_id == order.id)
-    )
-    payment = payment_result.first()
+    delivery = (
+        await session.exec(select(Delivery).where(Delivery.order_id == order.id))
+    ).first()
+    payment = (
+        await session.exec(select(Payment).where(Payment.order_id == order.id))
+    ).first()
 
     before = _order_snapshot(order, payment)
+    previous_status = order.status
 
     order.status = to_status
     if delivery is not None:
-        delivery.status = DeliveryStatus(to_status.value)
-        if to_status == OrderStatus.Pending:
+        # DeliveryStatus has no "paid"/"accepted"; delivery_status_for maps
+        # every pre-packing status to Pending.
+        delivery.status = delivery_status_for(to_status)
+        if delivery.status == DeliveryStatus.Pending:
             delivery.packed_at = None
             delivery.dispatched_at = None
         elif to_status == OrderStatus.Packed:
             delivery.dispatched_at = None
+    if is_courier:
+        row = (
+            await session.exec(select(OrderCourier).where(OrderCourier.order_id == order.id))
+        ).first()
+        if row is not None:
+            if previous_status == OrderStatus.Dispatched:
+                # Not shipped after all: stale tracking would mislead.
+                row.carrier_name = None
+                row.tracking_number = None
+                row.tracking_url = None
+                row.tracking_updated_at = None
+            if to_status == OrderStatus.Accepted:
+                # "Payment received" was tapped by mistake.
+                row.eta_from = None
+                row.eta_to = None
+                if payment is not None:
+                    payment.status = PaymentStatus.Pending
+                    payment.paid_at = None
+            session.add(row)
 
     target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)
     await audit_log(
@@ -485,6 +511,12 @@ async def override_delivery_address(
     if order.delivery_mode == DeliveryMode.Pickup:
         raise HTTPException(
             status_code=409, detail={"detail": "not_applicable_for_pickup"}
+        )
+    if order.delivery_mode == DeliveryMode.Courier:
+        # The quote was priced to this address; before payment the customer
+        # can cancel and re-order (spec §9.7).
+        raise HTTPException(
+            status_code=409, detail={"detail": "not_applicable_for_courier"}
         )
     if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
         raise HTTPException(
