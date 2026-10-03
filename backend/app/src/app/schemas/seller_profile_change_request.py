@@ -89,6 +89,11 @@ class StoreLogoPayload(BaseModel):
 class BankingPayload(BaseModel):
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    # Omitted (None) leaves the stored value untouched so a stale client cannot
+    # wipe it; "" clears the name. Completeness is checked against the merged
+    # profile in services/seller_profile_change_requests.py.
+    bank_account_name: Optional[str] = Field(default=None, max_length=140)
+    bank_transfer_enabled: Optional[bool] = None
 
     @field_validator("bank_account_number")
     @classmethod
@@ -135,6 +140,8 @@ class ServiceRowPayload(BaseModel):
     # submitted before this field existed valid.
     delivery_eta_min_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
     delivery_eta_max_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
+    # Omitted (None) = unchanged, like the ETA pair above.
+    courier_enabled: Optional[bool] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -173,6 +180,10 @@ class ServicesPayload(BaseModel):
 
 class StoreBasicsPayload(BaseModel):
     delivery_radius_km: float = Field(gt=0.0, le=50.0)
+    # None = unchanged, 0 = turn courier off, else the new courier ring. The
+    # "larger than local" and cap rules need the stored values, so they run in
+    # the service at submission and again at approval.
+    courier_radius_km: Optional[float] = Field(default=None, ge=0.0)
     # Accepted optionally for older clients; current FE omits it (no rename UI).
     store_name: Optional[str] = Field(default=None, min_length=1, max_length=120)
 

@@ -41,6 +41,12 @@ from app.schemas.seller_profile_change_request import (
     validate_group_payload,
 )
 from app.services import admin_audit
+from app.services.courier_settings import (
+    apply_bank_fields,
+    assert_bank_transfer_complete,
+    assert_courier_radius,
+    resolve_courier_radius,
+)
 from app.services.fee_lifecycle import sync_store_arrangements
 from app.services.image_processing import ImageValidationError
 from app.services.profiles import compose_full_name, split_full_name
@@ -125,6 +131,8 @@ async def _baseline_for_group(
         return {
             "bank_account_number": profile.bank_account_number,
             "bank_ifsc": profile.bank_ifsc,
+            "bank_account_name": profile.bank_account_name,
+            "bank_transfer_enabled": profile.bank_transfer_enabled,
         }
     if group is SellerProfileChangeGroup.Payments:
         return {
@@ -144,6 +152,7 @@ async def _baseline_for_group(
                     "delivery_eta_min_minutes": row.delivery_eta_min_minutes,
                     "delivery_eta_max_minutes": row.delivery_eta_max_minutes,
                     "pickup_enabled": row.pickup_enabled,
+                    "courier_enabled": row.courier_enabled,
                 }
                 for row in rows
             ],
@@ -158,6 +167,7 @@ async def _baseline_for_group(
             raise HTTPException(status_code=404, detail="store_not_found")
         return {
             "delivery_radius_km": store.delivery_radius_km,
+            "courier_radius_km": store.courier_radius_km,
         }
     if group is SellerProfileChangeGroup.Avatar:
         return {
@@ -261,6 +271,35 @@ async def _require_phone_verification(
         raise HTTPException(status_code=409, detail="phone_taken")
 
 
+async def _check_courier_rules(
+    session: AsyncSession,
+    profile: SellerProfile,
+    group: SellerProfileChangeGroup,
+    canonical: dict[str, Any],
+) -> None:
+    """Merged-state courier checks at submission. The appliers repeat them at
+    approval, because the stored values can change in between (spec §7.3)."""
+    if group is SellerProfileChangeGroup.StoreBasics:
+        store = (
+            await session.exec(select(Store).where(Store.seller_profile_id == profile.id))
+        ).first()
+        if store is None:
+            raise HTTPException(status_code=404, detail="store_not_found")
+        courier = resolve_courier_radius(
+            store.courier_radius_km, canonical.get("courier_radius_km")
+        )
+        assert_courier_radius(float(canonical["delivery_radius_km"]), courier)
+    elif group is SellerProfileChangeGroup.Banking:
+        name = canonical.get("bank_account_name")
+        enabled = canonical.get("bank_transfer_enabled")
+        merged_name = profile.bank_account_name if name is None else (name.strip() or None)
+        merged_enabled = profile.bank_transfer_enabled if enabled is None else bool(enabled)
+        if merged_enabled and not (
+            merged_name and canonical.get("bank_account_number") and canonical.get("bank_ifsc")
+        ):
+            raise HTTPException(status_code=422, detail="bank_transfer_incomplete")
+
+
 async def create_change_request(
     *,
     session: AsyncSession,
@@ -280,6 +319,7 @@ async def create_change_request(
     await _require_phone_verification(
         session, seller_profile, group, canonical, phone_change_token
     )
+    await _check_courier_rules(session, seller_profile, group, canonical)
 
     existing = await _open_cr_for_group(session, seller_profile.id, group)
     if existing is not None:
@@ -580,6 +620,7 @@ async def resubmit(
     await _require_phone_verification(
         session, seller_profile, cr.group, canonical, phone_change_token
     )
+    await _check_courier_rules(session, seller_profile, cr.group, canonical)
     cr.proposed_json = canonical
     cr.submission_count += 1
     cr.status = SellerProfileChangeStatus.Submitted
@@ -755,6 +796,12 @@ async def _apply_banking(
 ) -> None:
     profile.bank_account_number = payload.get("bank_account_number") or None
     profile.bank_ifsc = payload.get("bank_ifsc") or None
+    apply_bank_fields(
+        profile,
+        name=payload.get("bank_account_name"),
+        enabled=payload.get("bank_transfer_enabled"),
+    )
+    assert_bank_transfer_complete(profile)
     session.add(profile)
 
 
@@ -790,6 +837,8 @@ async def _apply_services(
             by_id[sid].pickup_enabled = bool(
                 r.get("pickup_enabled", by_id[sid].pickup_enabled)
             )
+            if r.get("courier_enabled") is not None:
+                by_id[sid].courier_enabled = bool(r["courier_enabled"])
             session.add(by_id[sid])
     assert profile.id is not None
     await sync_store_arrangements(session, profile.id)
@@ -805,9 +854,13 @@ async def _apply_store_basics(
     ).first()
     if store is None:
         raise HTTPException(status_code=404, detail="store_not_found")
+    local = float(payload["delivery_radius_km"])
+    courier = resolve_courier_radius(store.courier_radius_km, payload.get("courier_radius_km"))
+    assert_courier_radius(local, courier)
     if payload.get("store_name"):
         store.name = str(payload["store_name"])
-    store.delivery_radius_km = float(payload["delivery_radius_km"])
+    store.delivery_radius_km = local
+    store.courier_radius_km = courier
     session.add(store)
 
 
