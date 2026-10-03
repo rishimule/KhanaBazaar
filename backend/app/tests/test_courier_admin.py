@@ -6,7 +6,12 @@ import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.commerce import DeliveryMode, Order, OrderStatus
-from app.models.profile import CustomerAddress, SellerProfileService
+from app.models.profile import (
+    CustomerAddress,
+    SellerProfile,
+    SellerProfileService,
+    VerificationStatus,
+)
 from app.services import returns as returns_svc
 from app.services.fee_order_value import compute_order_value_sales
 from app.utils.delivery_window import ist_today
@@ -140,3 +145,32 @@ async def test_admin_customer_orders_carry_the_delivery_mode(session: AsyncSessi
     assert resp.status_code == 200, resp.text
     row = next(o for o in resp.json() if o["id"] == order["id"])
     assert (row["delivery_mode"], row["status"]) == ("courier", "pending")
+
+
+async def test_admin_can_cancel_and_refund_after_the_seller_lost_approval(
+    session: AsyncSession,
+) -> None:
+    # Spec §9.9: the seller can no longer act, so the admin cancels — and must
+    # be able to record the refund the customer is owed.
+    world = await seed_courier_world(session)
+    order = await order_at_paid(world)
+    profile = await session.get(SellerProfile, world.seller_profile_id)
+    assert profile is not None
+    profile.verification_status = VerificationStatus.Rejected
+    await session.commit()
+    async with client_as(ADMIN) as ac:
+        cancelled = await ac.post(f"/api/v1/orders/{order['id']}/cancel", json={
+            "reason": "Seller removed from the platform",
+        })
+        assert cancelled.status_code == 200, cancelled.text
+        assert cancelled.json()["courier"]["refund_due"] is True
+        refunded = await ac.post(f"/api/v1/admin/orders/{order['id']}/refund", json={
+            "reason": "Refunded by support via UPI",
+        })
+        assert refunded.status_code == 200, refunded.text
+        rewound = await ac.post(f"/api/v1/admin/orders/{order['id']}/rewind", json={
+            "to_status": "accepted", "reason": "Trying to reopen the payment",
+        })
+    # Fulfilment-side admin actions stay blocked for an unapproved seller.
+    assert rewound.status_code == 409
+

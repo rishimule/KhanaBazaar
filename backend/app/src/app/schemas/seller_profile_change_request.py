@@ -280,3 +280,17 @@ def validate_group_payload(
     """Validate a payload against the group's schema; return the canonical dict."""
     cls = GROUP_PAYLOAD_SCHEMA[group]
     return cls.model_validate(payload).model_dump(mode="json")
+
+
+def normalize_group_payload(
+    group: SellerProfileChangeGroup, payload: dict[str, Any]
+) -> dict[str, Any]:
+    """`payload` in today's canonical shape, for comparisons. A request stored
+    before a field existed lacks its key, while the same request re-validated
+    carries it as None; both must compare equal or an untouched approval reads
+    as "approved with edits". A payload that no longer validates is returned
+    unchanged."""
+    try:
+        return validate_group_payload(group, payload)
+    except ValueError:
+        return payload

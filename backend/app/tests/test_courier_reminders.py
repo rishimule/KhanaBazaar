@@ -71,6 +71,27 @@ def test_send_window_is_daytime_ist() -> None:
     assert not in_send_window(datetime(2026, 10, 2, 15, 30, tzinfo=timezone.utc))  # 21:00
 
 
+def _at_ist_hour(hour: int) -> datetime:
+    """UTC instant on 2026-10-02 that is `hour`:00 IST (UTC+5:30)."""
+    return datetime(2026, 10, 2, tzinfo=timezone.utc) + timedelta(hours=hour - 5.5)
+
+
+def test_send_window_handles_every_quiet_hours_shape(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.config import settings
+
+    # A quiet window that doesn't wrap midnight: quiet 00:00–06:59 only.
+    monkeypatch.setattr(settings, "COURIER_QUIET_START_HOUR", 0)
+    monkeypatch.setattr(settings, "COURIER_QUIET_END_HOUR", 7)
+    assert not in_send_window(_at_ist_hour(0))
+    assert not in_send_window(_at_ist_hour(6))
+    assert in_send_window(_at_ist_hour(7))
+    assert in_send_window(_at_ist_hour(23))
+    # START == END: no quiet hours at all (it used to mute every reminder).
+    monkeypatch.setattr(settings, "COURIER_QUIET_START_HOUR", 5)
+    monkeypatch.setattr(settings, "COURIER_QUIET_END_HOUR", 5)
+    assert all(in_send_window(_at_ist_hour(h)) for h in range(24))
+
+
 async def _backdate_order(session: AsyncSession, order_id: int, placed_at: datetime) -> None:
     order = await session.get(Order, order_id)
     assert order is not None
@@ -176,6 +197,21 @@ async def test_one_failure_does_not_stop_the_rest(
 def test_beat_schedule_runs_hourly() -> None:
     entry = celery_app.conf.beat_schedule["courier-reminders-hourly"]
     assert entry["task"] == "courier.send_reminders"
+    # Minute 17 UTC is :47 IST; docs/courier_delivery.md §8 states it.
+    assert entry["schedule"].minute == {17}
+
+
+async def test_a_row_held_by_a_live_request_is_skipped(session: AsyncSession) -> None:
+    from app.services.courier_rules import lock_order
+    from tests.conftest import test_engine
+
+    world = await seed_courier_world(session)
+    order_id = await insert_courier_order(session, world)
+    await _backdate_order(session, order_id, OLD)
+    async with AsyncSession(test_engine) as live_request:
+        await lock_order(live_request, order_id)
+        assert await run_courier_reminder_sweep(now=NOW) == 0
+    assert await run_courier_reminder_sweep(now=NOW) == 1  # the next sweep catches it
 
 
 async def test_payment_rows_are_untouched(session: AsyncSession) -> None:
@@ -189,3 +225,24 @@ async def test_payment_rows_are_untouched(session: AsyncSession) -> None:
     assert await run_courier_reminder_sweep(now=NOW) == 1
     await session.refresh(payment)
     assert payment.status is PaymentStatus.Pending and payment.customer_claimed_at is not None
+
+
+async def test_no_pay_now_reminder_while_the_store_cannot_be_paid(session: AsyncSession) -> None:
+    from app.models.profile import SellerProfile
+
+    world = await seed_courier_world(session)
+    order_id = await insert_courier_order(session, world, status=OrderStatus.Accepted)
+    row = (await session.exec(select(OrderCourier).where(OrderCourier.order_id == order_id))).one()
+    row.accepted_at = OLD
+    seller = await session.get(SellerProfile, world.seller_profile_id)
+    assert seller is not None
+    seller.upi_enabled = False
+    seller.bank_transfer_enabled = False
+    await session.commit()
+    assert await run_courier_reminder_sweep(now=NOW) == 0
+    assert await _reminders(session, order_id) == []
+    # Unstamped, so it goes out as soon as a payee is back.
+    seller.upi_enabled = True
+    await session.commit()
+    assert await run_courier_reminder_sweep(now=NOW) == 1
+    assert await _reminders(session, order_id) == ["courier_reminder_payment"]

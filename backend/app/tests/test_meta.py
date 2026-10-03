@@ -48,3 +48,17 @@ async def test_public_config_reflects_disabled_phone_otp(
         resp = await ac.get("/api/v1/meta/public-config")
     assert resp.status_code == 200, resp.text
     assert resp.json()["phone_otp_enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_public_config_carries_the_courier_limits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "COURIER_STALE_DAYS", 4)
+    monkeypatch.setattr(settings, "COURIER_MAX_RADIUS_KM", 1200.0)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/meta/public-config")
+    body = resp.json()
+    assert (body["courier_stale_days"], body["courier_max_radius_km"]) == (4, 1200.0)

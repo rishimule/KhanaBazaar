@@ -22,14 +22,19 @@ def resolve_courier_radius(current: float | None, proposed: float | None) -> flo
     return float(proposed)
 
 
-def assert_courier_radius(local_km: float, courier_km: float | None) -> None:
+def assert_courier_radius(
+    local_km: float, courier_km: float | None, *, check_cap: bool = True
+) -> None:
     """A courier ring, when set, must be larger than the local radius and
-    within the configured cap."""
+    within the configured cap. Callers pass `check_cap=False` when the request
+    leaves the ring alone, so lowering COURIER_MAX_RADIUS_KM never blocks an
+    unrelated edit (a pin confirmation, a local-radius change) on a store whose
+    existing ring is now above it."""
     if courier_km is None:
         return
     if courier_km <= local_km:
         raise HTTPException(status_code=422, detail="courier_radius_not_larger")
-    if courier_km > settings.COURIER_MAX_RADIUS_KM:
+    if check_cap and courier_km > settings.COURIER_MAX_RADIUS_KM:
         raise HTTPException(status_code=422, detail="courier_radius_too_large")
 
 

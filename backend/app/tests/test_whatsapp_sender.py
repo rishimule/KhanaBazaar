@@ -28,8 +28,9 @@ def test_registry_has_all_templates():
         "seller_new_order",
         "return_initiated", "return_confirmed", "return_accepted",
         "return_rejected", "return_closed",
-        # Courier orders (spec 2026-10-02): the quote, and shipped-by-courier.
-        "courier_quote_ready", "courier_shipped",
+        # Courier orders (spec 2026-10-02): the quote, shipped-by-courier, and
+        # the seller's new-order alert.
+        "courier_quote_ready", "courier_shipped", "seller_new_courier_order",
     }
     assert set(TEMPLATES) == expected
 
@@ -46,7 +47,7 @@ def test_order_templates_are_utility_category():
 
 
 def test_courier_templates_are_utility_category() -> None:
-    for name in ("courier_quote_ready", "courier_shipped"):
+    for name in ("courier_quote_ready", "courier_shipped", "seller_new_courier_order"):
         assert TEMPLATES[name].category == "UTILITY"
 
 

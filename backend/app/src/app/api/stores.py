@@ -373,7 +373,10 @@ async def update_store(
         else store.delivery_radius_km
     )
     new_courier = resolve_courier_radius(store.courier_radius_km, payload.courier_radius_km)
-    assert_courier_radius(new_local, new_courier)
+    if payload.delivery_radius_km is not None or payload.courier_radius_km is not None:
+        assert_courier_radius(
+            new_local, new_courier, check_cap=payload.courier_radius_km is not None
+        )
     if payload.name is not None:
         store.name = payload.name
     store.delivery_radius_km = new_local

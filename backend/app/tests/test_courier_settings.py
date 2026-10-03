@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -122,3 +123,23 @@ async def test_pending_seller_bank_transfer_needs_complete_details(session: Asyn
     assert ok.status_code == 200, ok.text
     assert profile.json()["bank_account_name"] == "Ravi Sweets"
     assert profile.json()["bank_transfer_enabled"] is True
+
+
+async def test_a_lowered_cap_only_binds_a_ring_the_request_sets(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ops lowering COURIER_MAX_RADIUS_KM below a store's existing ring must
+    not block unrelated edits; a new ring above the cap is still refused."""
+    from app.core.config import settings
+
+    world = await seed_courier_world(session, seller_status=PENDING)  # ring 500 km
+    monkeypatch.setattr(settings, "COURIER_MAX_RADIUS_KM", 300.0)
+    url = f"/api/v1/stores/{world.store_id}"
+    async with client_as(SELLER) as ac:
+        pin = await ac.patch(url, json={"pin_confirmed": True})
+        local = await ac.patch(url, json={"delivery_radius_km": 8})
+        too_big = await ac.patch(url, json={"courier_radius_km": 400})
+    assert pin.status_code == 200, pin.text
+    assert local.status_code == 200, local.text
+    assert local.json()["courier_radius_km"] == 500
+    assert too_big.status_code == 422 and too_big.json()["detail"] == "courier_radius_too_large"

@@ -242,6 +242,7 @@ async def build_courier_read(
             for q in visible
         ],
         revised=bool(quotes) and quotes[0].version > 1,
+        max_quote_versions=settings.COURIER_MAX_QUOTE_VERSIONS,
         accepted_quote_id=row.accepted_quote_id,
         accepted_at=row.accepted_at,
         eta_from=row.eta_from,
@@ -378,7 +379,9 @@ async def claim_payment(
             detail="upi_unavailable" if method is PaymentMethod.Upi else "bank_transfer_unavailable",
         )
     row = await order_courier(session, order_id)
-    newly_claimed = payment.customer_claimed_at is None or payment.method != method
+    # One seller message per claim round; switching method is recorded silently
+    # (the seller's screen shows the current method).
+    newly_claimed = payment.customer_claimed_at is None
     payment.method = method
     if payment.customer_claimed_at is None:
         payment.customer_claimed_at = _now()

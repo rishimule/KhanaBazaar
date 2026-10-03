@@ -7,6 +7,9 @@ Cancellation reason: {{ reason }}
 {% if tracking_line is defined and tracking_line -%}
 Tracking: {{ tracking_line }}
 {% endif -%}
+{% if tracking_url is defined and tracking_url -%}
+Track your parcel: {{ tracking_url }}
+{% endif -%}
 {% if refund_due_amount is defined and refund_due_amount -%}
 {% if recipient == 'seller' -%}
 You owe the customer a refund of {{ refund_due_amount|inr }}. Send it back, then tap "Refund sent" on the order.

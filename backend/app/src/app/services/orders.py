@@ -114,12 +114,14 @@ async def _order_courier_row(session: AsyncSession, order_id: Optional[int]) -> 
 async def _apply_courier_dispatch(
     session: AsyncSession, order: Order, tracking: Optional[TrackingInput], now: datetime
 ) -> None:
-    """Record optional tracking on "Shipped"; default the carrier to the one
-    named on the accepted quote. No OTP for courier orders (spec D9)."""
+    """Record optional tracking on "Shipped". A carrier the request leaves out
+    defaults to the one named on the accepted quote; an explicit "" means none.
+    No OTP for courier orders (spec D9)."""
     row = await _order_courier_row(session, order.id)
     if tracking is not None and apply_tracking(row, tracking):
         row.tracking_updated_at = now
-    if row.carrier_name is None and row.accepted_quote_id is not None:
+    carrier_named = tracking is not None and tracking.carrier_name is not None
+    if not carrier_named and row.carrier_name is None and row.accepted_quote_id is not None:
         quote = await session.get(CourierQuote, row.accepted_quote_id)
         if quote is not None and quote.carrier_name:
             row.carrier_name = quote.carrier_name
@@ -474,7 +476,10 @@ async def refund_order(
             status_code=422, detail={"code": "reason_required"}
         )
 
-    await _assert_seller_active_for_store(session, order.store_id)
+    if order.delivery_mode != DeliveryMode.Courier:
+        await _assert_seller_active_for_store(session, order.store_id)
+    # Courier: recording a refund is bookkeeping for money that already moved,
+    # and must still work after the seller lost approval (spec §9.9).
 
     before = _order_snapshot(order, payment)
     payment.status = PaymentStatus.Refunded
@@ -631,7 +636,11 @@ async def cancel_order(
 
     # Admin cancelling a non-Pending order must supply a reason >= 10 chars.
     if acting_admin_id is not None:
-        await _assert_seller_active_for_store(session, order.store_id)
+        # Courier: a seller who lost approval can no longer finish or cancel the
+        # order, and the customer may already have paid — the admin is the one
+        # who cancels (spec §9.9). Door/pickup keep the supervisor rule.
+        if not is_courier:
+            await _assert_seller_active_for_store(session, order.store_id)
         if order.status != OrderStatus.Pending:
             if not reason or len(reason.strip()) < 10:
                 raise HTTPException(

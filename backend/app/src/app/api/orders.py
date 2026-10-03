@@ -121,6 +121,7 @@ async def record_and_dispatch_notification(
     Order state is already committed by the caller; this opens a fresh write on
     the same session and never raises into the request path.
     """
+    order_id = order.id
     # Skip all comms for non-active accounts (e.g. an admin-deleted customer
     # with a still-open order the seller is finishing) — no in-app row, no push,
     # no WhatsApp.
@@ -174,17 +175,23 @@ async def record_and_dispatch_notification(
         # Best-effort: roll back the failed notification write so the shared
         # request session is usable for the subsequent _serialize_order read
         # (otherwise a notify hiccup would surface as a 500 on the order path).
+        # The rollback expires every loaded object, so `order` is reloaded
+        # before anyone reads it again.
         try:
             await session.rollback()
         except Exception:
             logger.exception("Rollback after notification failure also failed")
+        try:
+            await session.refresh(order)
+        except Exception:
+            logger.exception("Refresh after notification rollback failed")
         logger.exception(
-            "Failed to record/dispatch notification for order_id=%s", order.id
+            "Failed to record/dispatch notification for order_id=%s", order_id
         )
     # Best-effort, additive customer WhatsApp (outside the try so a notification
     # hiccup doesn't skip it, and vice versa). Phone-verified gate is in the task.
-    if get_whatsapp_sender() is not None and order.id is not None:
-        dispatch_order_status_whatsapp(order.id, status_value)
+    if get_whatsapp_sender() is not None and order_id is not None:
+        dispatch_order_status_whatsapp(order_id, status_value)
 
 
 async def _send_delivery_otp(session: AsyncSession, order: Order, code: str) -> None:
@@ -672,6 +679,9 @@ async def transition_order(
 ) -> OrderRead:
     if user.role not in (UserRole.Seller, UserRole.Admin):
         raise HTTPException(status_code=403, detail="forbidden")
+    # Read now: a failed notification write rolls the session back, which
+    # expires `user` too, and a lazy reload in async code raises.
+    is_admin = user.role == UserRole.Admin
     order, include_customer = await _load_order_for_user(session, order_id, user)
     tracking = TrackingInput(
         carrier_name=payload.carrier_name,
@@ -684,7 +694,7 @@ async def transition_order(
     )
     if order.id is not None:
         dispatch_order_status_changed(order.id, order.status.value)
-        if user.role == UserRole.Admin:
+        if is_admin:
             dispatch_admin_order_action(
                 order.id, "order.transition", f"to {order.status.value}"
             )
@@ -701,7 +711,7 @@ async def transition_order(
         session,
         order,
         include_customer_name=include_customer,
-        viewer_is_admin=user.role == UserRole.Admin,
+        viewer_is_admin=is_admin,
     )
 
 
@@ -713,6 +723,7 @@ async def courier_send_quote(
     user: User = Depends(get_current_user),
 ) -> OrderRead:
     """The store's seller sends (or revises) the courier charge + transit."""
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
     order, include_customer = await _load_order_for_user(session, order_id, user)
     result = await courier_svc.send_quote(
         session,
@@ -733,7 +744,7 @@ async def courier_send_quote(
         session,
         order,
         include_customer_name=include_customer,
-        viewer_is_admin=user.role == UserRole.Admin,
+        viewer_is_admin=is_admin,
     )
 
 
@@ -745,6 +756,7 @@ async def courier_accept_quote(
     user: User = Depends(get_current_user),
 ) -> OrderRead:
     """The owning customer accepts the quote they were shown."""
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
     order, include_customer = await _load_order_for_user(session, order_id, user)
     try:
         result = await courier_svc.accept_quote(session, order, user, quote_id=body.quote_id)
@@ -767,7 +779,7 @@ async def courier_accept_quote(
         session,
         order,
         include_customer_name=include_customer,
-        viewer_is_admin=user.role == UserRole.Admin,
+        viewer_is_admin=is_admin,
     )
 
 
@@ -860,6 +872,11 @@ async def cancel(
     Customer: only on pending orders. Seller: any non-terminal order on a
     store they own. Admin: any non-terminal order — must supply
     ``{"reason": "..."}`` (>=10 chars) when the order is not pending.
+
+    Courier orders follow their own rules (services/orders.cancel_order): the
+    customer may cancel up to ``accepted`` until they claim payment; the seller
+    always needs a reason and cannot cancel once shipped; a claimed but
+    unconfirmed payment requires ``{"payment_received": true|false}``.
     """
     reason = None
     payment_received: Optional[bool] = None
@@ -870,6 +887,7 @@ async def cancel(
         raw_received = body.get("payment_received")
         if isinstance(raw_received, bool):
             payment_received = raw_received
+    is_admin = user.role == UserRole.Admin
     order, include_customer = await _load_order_for_user(session, order_id, user)
     courier_customer_cancel = (
         order.delivery_mode == DeliveryMode.Courier and user.role == UserRole.Customer
@@ -878,7 +896,7 @@ async def cancel(
         session, order, user, reason=reason, payment_received=payment_received
     )
     if order.id is not None:
-        if user.role == UserRole.Admin:
+        if is_admin:
             # Admin emails (admin_order_action_*) deliver the cancellation
             # notice to both audiences with reason + admin context, so the
             # generic status-changed email would just duplicate them.

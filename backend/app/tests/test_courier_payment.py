@@ -5,6 +5,7 @@ from datetime import timedelta
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models.commerce import OrderStatus
 from app.models.notification import Notification
 from app.models.profile import SellerProfile
 from app.utils.delivery_window import ist_today
@@ -18,6 +19,7 @@ from tests._courier_helpers import (
     client_as,
     confirm_payment,
     get_order,
+    insert_courier_order,
     place_courier_order,
     seed_courier_world,
     send_quote,
@@ -45,6 +47,16 @@ async def test_claim_records_the_method_and_tells_the_seller_once(session: Async
     payment = again.json()["payment"]
     assert payment["method"] == "net_banking" and payment["customer_claimed_at"] is not None
     assert payment["status"] == "pending"
+    assert (await _statuses(session, order_id)).count("courier_payment_claimed") == 1
+
+
+async def test_switching_method_after_claiming_is_silent(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    order_id = await _accepted(world)
+    assert (await claim_payment(order_id, "upi")).status_code == 200
+    switched = await claim_payment(order_id, "net_banking")
+    assert switched.status_code == 200, switched.text
+    assert switched.json()["payment"]["method"] == "net_banking"
     assert (await _statuses(session, order_id)).count("courier_payment_claimed") == 1
 
 
@@ -126,3 +138,16 @@ async def test_only_the_owning_seller_confirms(session: AsyncSession) -> None:
     order_id = await _accepted(world)
     assert (await confirm_payment(order_id, as_user=CUSTOMER)).status_code == 403
     assert (await confirm_payment(order_id, as_user=ADMIN)).status_code == 403
+
+
+async def test_dashboard_counts_claims_waiting_on_the_seller(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    await insert_courier_order(session, world, status=OrderStatus.Accepted, claimed=True)
+    # Accepted but not claimed: the customer's turn, not the seller's.
+    await insert_courier_order(session, world, status=OrderStatus.Accepted)
+    async with client_as(SELLER) as ac:
+        resp = await ac.get("/api/v1/sellers/me/metrics")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["courier_payment_checks"] == 1
+    assert body["order_status_counts"]["accepted"] == 2

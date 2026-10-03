@@ -168,7 +168,7 @@ async def _assert_serviceable(
     ok = bool(result.scalar_one())
     if not ok:
         raise HTTPException(
-            status_code=422, detail="Address outside store delivery area"
+            status_code=422, detail="outside_delivery_area"
         )
 
 

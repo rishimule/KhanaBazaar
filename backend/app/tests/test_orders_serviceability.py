@@ -191,6 +191,6 @@ async def test_order_rejected_when_address_outside_radius(
                 },
             )
         assert r.status_code == 422
-        assert "outside" in r.json()["detail"].lower()
+        assert r.json()["detail"] == "outside_delivery_area"
     finally:
         app.dependency_overrides.pop(get_current_user, None)

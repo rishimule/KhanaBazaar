@@ -1,11 +1,13 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.base import User
-from app.models.commerce import Order, OrderStatus, PaymentStatus
+from app.models.commerce import Order, OrderStatus, Payment, PaymentStatus
+from app.models.courier import OrderCourier
 from tests._courier_helpers import (
     ADMIN,
     CUSTOMER,
@@ -55,6 +57,37 @@ async def test_stale_filter(session: AsyncSession) -> None:
     await session.commit()
     ids = await _ids(ADMIN, "stale=true")
     assert old in ids and fresh not in ids
+
+
+async def test_stale_filter_covers_accepted_and_overdue_shipments(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    now = datetime.now(timezone.utc)
+    accepted_old = await insert_courier_order(session, world, status=OrderStatus.Accepted)
+    accepted_claimed = await insert_courier_order(session, world, status=OrderStatus.Accepted)
+    overdue = await insert_courier_order(
+        session, world, status=OrderStatus.Dispatched, payment_status=PaymentStatus.Paid,
+    )
+    paid_old = await insert_courier_order(
+        session, world, status=OrderStatus.Paid, payment_status=PaymentStatus.Paid,
+    )
+    rows = {
+        r.order_id: r
+        for r in (await session.exec(select(OrderCourier))).all()
+    }
+    rows[accepted_old].accepted_at = now - timedelta(days=4)
+    # Accepted long ago, but the customer claimed yesterday: the stage moved.
+    rows[accepted_claimed].accepted_at = now - timedelta(days=4)
+    claimed = (await session.exec(select(Payment).where(Payment.order_id == accepted_claimed))).one()
+    claimed.customer_claimed_at = now - timedelta(days=1)
+    rows[overdue].eta_to = date.today() - timedelta(days=5)
+    paid_order = await session.get(Order, paid_old)
+    assert paid_order is not None
+    paid_order.placed_at = now - timedelta(days=10)
+    await session.commit()
+    ids = await _ids(ADMIN, "stale=true")
+    assert accepted_old in ids and overdue in ids
+    assert accepted_claimed not in ids
+    assert paid_old not in ids  # the seller holds the money: not a stall (documented gap)
 
 
 async def test_invalid_needs_is_rejected(session: AsyncSession) -> None:

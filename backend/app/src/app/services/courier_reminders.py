@@ -20,8 +20,10 @@ from app.core.config import settings
 from app.db import session as db_session
 from app.models.commerce import DeliveryMode, Order, OrderStatus, Payment, PaymentStatus
 from app.models.courier import CourierQuote, OrderCourier
+from app.services.courier import store_seller
 from app.services.courier_comms import notify_customer, notify_seller
 from app.services.courier_rules import refund_owed, refund_owed_order_ids
+from app.services.serviceability import courier_payment_methods
 from app.utils.delivery_window import IST
 
 logger = logging.getLogger(__name__)
@@ -83,9 +85,18 @@ def due_reminder(
 
 
 def in_send_window(now: datetime) -> bool:
-    """Reminders only go out between QUIET_END and QUIET_START, IST."""
+    """False during the quiet hours [QUIET_START, QUIET_END), IST.
+
+    The quiet window may wrap past midnight (21 → 9, the default) or not
+    (0 → 7); START == END means there are no quiet hours at all.
+    """
     hour = now.astimezone(IST).hour
-    return settings.COURIER_QUIET_END_HOUR <= hour < settings.COURIER_QUIET_START_HOUR
+    start, end = settings.COURIER_QUIET_START_HOUR, settings.COURIER_QUIET_END_HOUR
+    if start == end:
+        return True
+    if start > end:
+        return end <= hour < start
+    return not start <= hour < end
 
 
 async def _candidate_ids() -> list[int]:
@@ -143,6 +154,12 @@ async def _remind_one(order_id: int, now: datetime) -> bool:
             now=now,
         )
         if due is None or due.key == row.last_reminder_key:
+            return False
+        if due.customer_event == "reminder_payment" and not courier_payment_methods(
+            await store_seller(session, order.store_id)
+        ):
+            # Telling the customer to pay when they can't would only confuse
+            # them; left unstamped, it goes out once a payee is back.
             return False
         row.last_reminder_key = due.key
         row.last_reminder_at = now

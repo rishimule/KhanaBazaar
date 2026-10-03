@@ -26,7 +26,15 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
-from app.models.commerce import ACTIVE_ORDER_STATUSES, Delivery, Order, OrderStatus
+from app.models.commerce import (
+    ACTIVE_ORDER_STATUSES,
+    Delivery,
+    DeliveryMode,
+    Order,
+    OrderStatus,
+    Payment,
+    PaymentStatus,
+)
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.seller_profile_change_request import (
     SellerProfileChangeGroup,
@@ -237,6 +245,18 @@ async def get_seller_metrics(
         key = st.value if hasattr(st, "value") else str(st)
         if hasattr(counts, key):
             setattr(counts, key, int(cnt))
+    courier_payment_checks = (await session.exec(
+        select(func.count())
+        .select_from(Order)
+        .join(Payment, Payment.order_id == Order.id)  # type: ignore[arg-type]
+        .where(
+            Order.store_id == store.id,
+            Order.delivery_mode == DeliveryMode.Courier,
+            Order.status == OrderStatus.Accepted,
+            Payment.status == PaymentStatus.Pending,
+            Payment.customer_claimed_at.is_not(None),  # type: ignore[union-attr]
+        )
+    )).one()
 
     # Inventory grouped by service.
     in_stock_expr = func.coalesce(
@@ -379,6 +399,7 @@ async def get_seller_metrics(
         order_status_counts=counts,
         inventory_by_service=inventory_by_service,
         top_subcategory=top_subcategory,
+        courier_payment_checks=int(courier_payment_checks),
     )
 
 

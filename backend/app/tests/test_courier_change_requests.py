@@ -132,3 +132,52 @@ async def test_banking_rejects_an_incomplete_bank_transfer(session: AsyncSession
             "bank_account_name": "", "bank_transfer_enabled": True,
         })
     assert exc.value.status_code == 422 and exc.value.detail == "bank_transfer_incomplete"
+
+
+async def test_lowered_cap_does_not_block_a_local_only_change(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core.config import settings
+
+    world = await seed_courier_world(session)  # ring 500 km
+    monkeypatch.setattr(settings, "COURIER_MAX_RADIUS_KM", 300.0)
+    cr = await _create(session, world, G.StoreBasics, {"delivery_radius_km": 7})
+    await _approve(session, cr)
+    store = await _store(session, world)
+    assert (store.delivery_radius_km, store.courier_radius_km) == (7, 500)
+    with pytest.raises(HTTPException) as exc:
+        await _create(session, world, G.StoreBasics, {"delivery_radius_km": 7, "courier_radius_km": 400})
+    assert exc.value.detail == "courier_radius_too_large"
+
+
+async def test_untouched_pre_deploy_request_is_a_plain_approval(session: AsyncSession) -> None:
+    """A banking request stored before the courier fields existed lacks their
+    keys; approving it unchanged must not read as "approved with edits"."""
+    from sqlmodel import select
+
+    from app.models.seller_profile_change_request import (
+        SellerProfileChangeEventKind,
+        SellerProfileChangeRequestEvent,
+    )
+
+    world = await seed_courier_world(session)
+    cr = await _create(session, world, G.Banking, {
+        "bank_account_number": "999988887777", "bank_ifsc": "ICIC0004321",
+    })
+    old_shape = {
+        k: v for k, v in cr.proposed_json.items()
+        if k not in ("bank_account_name", "bank_transfer_enabled")
+    }
+    cr.proposed_json = old_shape
+    session.add(cr)
+    await session.commit()
+    await _approve(session, cr)
+    kinds = (
+        await session.exec(
+            select(SellerProfileChangeRequestEvent.kind).where(
+                SellerProfileChangeRequestEvent.change_request_id == cr.id
+            )
+        )
+    ).all()
+    assert SellerProfileChangeEventKind.Approved in kinds
+    assert SellerProfileChangeEventKind.ApprovedWithEdits not in kinds

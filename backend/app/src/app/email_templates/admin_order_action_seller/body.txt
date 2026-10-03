@@ -4,5 +4,9 @@ An admin updated your order #{{ order_id }} ({{ service_name }}) at {{ store_nam
 
 Action : {{ action_label }}
 Reason : {{ reason|default('(none provided)', true) }}
+{% if refund_due_amount is defined and refund_due_amount %}
+
+You owe the customer a refund of {{ refund_due_amount|inr }}. Send it back, then tap "Refund sent" on the order.
+{% endif %}
 
 View order: {{ frontend_base_url }}/seller/orders/{{ order_id }}

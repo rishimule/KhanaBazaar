@@ -213,6 +213,16 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
             f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
         ),
     ),
+    # Courier orders start with a quote, and their total is goods only until then.
+    "seller_new_courier_order": WhatsAppTemplate(
+        name="seller_new_courier_order",
+        category="UTILITY",
+        variables=("order_id", "amount"),
+        render=lambda v: (
+            f"New courier order #{v['order_id']} for ₹{v['amount']} + courier on your "
+            f"{settings.COMPANY_NAME} store. Open your seller dashboard to send a courier quote."
+        ),
+    ),
 }
 
 

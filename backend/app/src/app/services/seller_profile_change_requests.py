@@ -38,6 +38,7 @@ from app.models.seller_profile_change_request import (
 from app.models.store import Store
 from app.schemas.address import AddressPayload, address_from_payload
 from app.schemas.seller_profile_change_request import (
+    normalize_group_payload,
     validate_group_payload,
 )
 from app.services import admin_audit
@@ -285,10 +286,11 @@ async def _check_courier_rules(
         ).first()
         if store is None:
             raise HTTPException(status_code=404, detail="store_not_found")
-        courier = resolve_courier_radius(
-            store.courier_radius_km, canonical.get("courier_radius_km")
+        proposed = canonical.get("courier_radius_km")
+        courier = resolve_courier_radius(store.courier_radius_km, proposed)
+        assert_courier_radius(
+            float(canonical["delivery_radius_km"]), courier, check_cap=proposed is not None
         )
-        assert_courier_radius(float(canonical["delivery_radius_km"]), courier)
     elif group is SellerProfileChangeGroup.Banking:
         name = canonical.get("bank_account_name")
         enabled = canonical.get("bank_transfer_enabled")
@@ -855,8 +857,9 @@ async def _apply_store_basics(
     if store is None:
         raise HTTPException(status_code=404, detail="store_not_found")
     local = float(payload["delivery_radius_km"])
-    courier = resolve_courier_radius(store.courier_radius_km, payload.get("courier_radius_km"))
-    assert_courier_radius(local, courier)
+    proposed = payload.get("courier_radius_km")
+    courier = resolve_courier_radius(store.courier_radius_km, proposed)
+    assert_courier_radius(local, courier, check_cap=proposed is not None)
     if payload.get("store_name"):
         store.name = str(payload["store_name"])
     store.delivery_radius_km = local
@@ -996,7 +999,7 @@ async def approve(
     applier = GROUP_APPLIERS[cr.group]
     await applier(session, profile, canonical_applied)
 
-    has_edits = canonical_applied != cr.proposed_json
+    has_edits = canonical_applied != normalize_group_payload(cr.group, cr.proposed_json)
     cr.status = SellerProfileChangeStatus.Approved
     cr.applied_json = canonical_applied
     cr.admin_note = note

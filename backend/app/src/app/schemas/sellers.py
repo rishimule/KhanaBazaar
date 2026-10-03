@@ -208,6 +208,9 @@ class SellerMetricsRead(BaseModel):
     order_status_counts: OrderStatusCounts
     inventory_by_service: list[InventoryServiceStat]
     top_subcategory: TopSubcategory | None = None
+    # Courier orders whose customer says they paid and the seller hasn't
+    # confirmed: the only `accepted` orders that wait on the seller.
+    courier_payment_checks: int = 0
 
 
 class RevenueSeriesPoint(BaseModel):

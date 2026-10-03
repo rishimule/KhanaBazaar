@@ -737,6 +737,9 @@ def _courier_status_extras(ctx: dict[str, Any], new_status: str) -> dict[str, An
         "mode": ctx.get("delivery_mode") or "door_delivery",
         "status_label": "shipped" if courier and new_status == "dispatched" else new_status,
         "tracking_line": tracking if courier and new_status == "dispatched" and tracking else None,
+        "tracking_url": (
+            ctx.get("courier_tracking_url") if courier and new_status == "dispatched" else None
+        ),
         "refund_due_amount": (
             ctx.get("payment_amount")
             if courier and new_status == "cancelled" and ctx.get("payment_status") == "paid"
@@ -907,6 +910,15 @@ def _action_label(action: str) -> str:
     return _ACTION_LABELS.get(action, action)
 
 
+def _admin_cancel_refund(ctx: dict[str, Any], action: str) -> float | None:
+    """What the seller owes the customer after an admin cancel of a paid
+    courier order (the money went to the seller, so the seller refunds it)."""
+    if action != "order.cancel":
+        return None
+    amount = _courier_status_extras(ctx, "cancelled")["refund_due_amount"]
+    return float(amount) if amount is not None else None
+
+
 @celery_app.task(  # type: ignore[untyped-decorator]
     name="send_admin_order_action_email",
     autoretry_for=(Exception,),
@@ -931,6 +943,7 @@ def send_admin_order_action_seller_async(
             "store_name": ctx.get("store_name") or "your store",
             "action_label": _action_label(action),
             "reason": reason or "",
+            "refund_due_amount": _admin_cancel_refund(ctx, action),
         },
         lang=ctx.get("seller_lang") or "en",
     )
@@ -1048,11 +1061,14 @@ def send_admin_order_action_customer_async(
         {
             "order_id": ctx["order_id"],
             "service_name": ctx["service_name"],
+            "store_name": ctx.get("store_name") or "the store",
             "customer_first_name": ctx.get("customer_first_name"),
             "action": action,
             "action_label": _action_label(action),
             "reason": reason or "",
             "delivery_address_snapshot": ctx.get("delivery_address_snapshot") or "",
+            "mode": ctx.get("delivery_mode") or "door_delivery",
+            "refund_due_amount": _admin_cancel_refund(ctx, action),
         },
         lang=ctx.get("customer_lang") or "en",
     )
@@ -1467,12 +1483,18 @@ def send_seller_change_request_approved_async(cr_id_str: str) -> None:
     Picks the with-edits or no-edits template based on whether the admin's
     `applied_json` differs from the seller's `proposed_json`.
     """
+    from app.models.seller_profile_change_request import SellerProfileChangeGroup
+    from app.schemas.seller_profile_change_request import normalize_group_payload
+
     ctx = _load_seller_change_request_context(cr_id_str)
     if not ctx:
         return
+    proposed = ctx.get("proposed")
+    if isinstance(proposed, dict):
+        proposed = normalize_group_payload(SellerProfileChangeGroup(ctx["group"]), proposed)
     has_edits = (
         ctx.get("applied") is not None
-        and ctx["applied"] != ctx.get("proposed")
+        and ctx["applied"] != proposed
     )
     ctx["has_edits"] = has_edits
     template = (
@@ -2029,17 +2051,19 @@ async def seller_new_order_alert(order_id: int) -> None:
     # order. The WhatsApp template keeps ₹; that path isn't segment-billed.
     from app.models.commerce import DeliveryMode
 
-    next_step = (
-        "send a courier quote" if delivery_mode == DeliveryMode.Courier else "pack it"
-    )
+    courier = delivery_mode == DeliveryMode.Courier
+    # A courier order's total is goods only until the seller quotes the charge.
     sms_text = (
-        f"New order #{order_id} for Rs.{amount} on your "
-        f"{settings.COMPANY_NAME} store. Open your seller dashboard to {next_step}."
+        f"New courier order #{order_id} for Rs.{amount} + courier on your "
+        f"{settings.COMPANY_NAME} store. Open your seller dashboard to send a courier quote."
+        if courier
+        else f"New order #{order_id} for Rs.{amount} on your "
+        f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
     )
     try:
         await deliver_phone_message(
             to=phone,
-            template_name="seller_new_order",
+            template_name="seller_new_courier_order" if courier else "seller_new_order",
             variables={"order_id": str(order_id), "amount": amount},
             sms_text=sms_text,
             sms_sender=get_sms_sender(),

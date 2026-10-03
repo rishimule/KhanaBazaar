@@ -77,6 +77,8 @@ class CourierRead(BaseModel):
     # Seller/admin: every version, newest first. Customer: the latest only.
     quotes: List[CourierQuoteRead] = []
     revised: bool = False
+    # COURIER_MAX_QUOTE_VERSIONS, so the seller's "Revise" button tracks the env.
+    max_quote_versions: int = 5
     accepted_quote_id: Optional[int] = None
     accepted_at: Optional[datetime] = None
     eta_from: Optional[date] = None

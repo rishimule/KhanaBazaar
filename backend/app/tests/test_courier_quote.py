@@ -123,3 +123,50 @@ async def test_repeating_the_latest_quote_seconds_later_is_a_no_op(session: Asyn
     statuses = await _statuses(session, order["id"])
     assert statuses.count("courier_quote_ready") == 1
     assert "courier_quote_revised" not in statuses
+
+
+async def test_order_carries_the_quote_version_cap(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    order = await place_courier_order(world)
+    body = (await send_quote(order["id"])).json()
+    assert body["courier"]["max_quote_versions"] == settings.COURIER_MAX_QUOTE_VERSIONS
+
+
+async def test_a_failed_notification_does_not_fail_a_saved_quote(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The notify helper rolls the request session back on failure, which
+    expires every object loaded through it — including the user, as it is in
+    production (client_as injects a detached one, so load it via the session)."""
+    from fastapi import Depends
+
+    from app import app
+    from app.core.security import get_current_user
+    from app.db.session import get_db_session
+    from app.models.base import User
+    from app.services import courier_comms
+
+    world = await seed_courier_world(session)
+    order = await place_courier_order(world)
+
+    async def _boom(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("notification store down")
+
+    async def _session_user(db: AsyncSession = Depends(get_db_session)) -> User:
+        user = await db.get(User, SELLER.id)
+        assert user is not None
+        return user
+
+    monkeypatch.setattr(courier_comms, "record_order_status_notification", _boom)
+    app.dependency_overrides[get_current_user] = _session_user
+    try:
+        from httpx import ASGITransport, AsyncClient
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            resp = await ac.post(f"/api/v1/orders/{order['id']}/courier/quote", json={
+                "courier_fee": 120, "eta_min_days": 3, "eta_max_days": 5,
+            })
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "quoted"

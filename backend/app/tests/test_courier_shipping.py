@@ -51,6 +51,12 @@ async def test_carrier_defaults_to_the_quote(session: AsyncSession) -> None:
     assert order["courier"]["carrier_name"] == "DTDC"
 
 
+async def test_a_blanked_carrier_on_shipping_stays_blank(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    order = await order_at_dispatched(world, carrier_name="")
+    assert order["courier"]["carrier_name"] is None
+
+
 async def test_tracking_url_must_be_https_without_credentials(session: AsyncSession) -> None:
     world = await seed_courier_world(session)
     order = await order_at_paid(world)
