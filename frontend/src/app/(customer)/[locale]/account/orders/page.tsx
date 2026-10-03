@@ -128,7 +128,13 @@ export default function CustomerOrdersPage() {
     {
       key: "payment",
       label: t("colPayment"),
-      render: (o) => <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} />,
+      render: (o) => (
+        <PaymentStatusPill
+          payment={o.payment}
+          refundDue={o.courier?.refund_due}
+          courier={o.delivery_mode === "courier"}
+        />
+      ),
     },
     {
       key: "status",
@@ -255,7 +261,11 @@ export default function CustomerOrdersPage() {
                   </div>
                   <div className={styles.mobileBot}>
                     <OrderTotal order={o} />
-                    <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} />
+                    <PaymentStatusPill
+                      payment={o.payment}
+                      refundDue={o.courier?.refund_due}
+                      courier={o.delivery_mode === "courier"}
+                    />
                   </div>
                 </a>
               )}

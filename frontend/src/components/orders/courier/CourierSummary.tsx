@@ -31,6 +31,12 @@ export default function CourierSummary({
   const amount = netPayable(order).toFixed(2);
   const km = viewer === "customer" ? null : straightLineKm(order);
   const trackingNumber = c.tracking_number;
+  // Arrival rows mean nothing on a cancelled order, and while a quote waits
+  // the customer's quote card already says how long it takes.
+  const showArrival =
+    order.status !== "cancelled" && !(viewer === "customer" && order.status === "quoted");
+  const claimedAt = order.payment.customer_claimed_at;
+  const methodLabel = order.payment.method === "net_banking" ? t("methodBank") : t("methodUpi");
 
   async function copyTracking() {
     if (!trackingNumber) return;
@@ -47,8 +53,10 @@ export default function CourierSummary({
     <section className={styles.card} aria-label={t("summaryLabel")}>
       <dl className={styles.rows}>
         <dt>{t("recipient")}</dt>
+        {/* `.rows dd` is a grid, so name and phone stack — no separator. */}
         <dd>
-          {c.recipient_name} · <a href={`tel:${c.recipient_phone}`}>{c.recipient_phone}</a>
+          <span>{c.recipient_name}</span>
+          <a href={`tel:${c.recipient_phone}`}>{c.recipient_phone}</a>
         </dd>
         {km !== null && (
           <>
@@ -56,7 +64,19 @@ export default function CourierSummary({
             <dd>{t("distanceKm", { km: Math.round(km) })}</dd>
           </>
         )}
-        {c.eta_from && c.eta_to ? (
+        {/* The seller's action bar says this already; admins see it here. */}
+        {viewer === "admin" && order.status === "accepted" && claimedAt && (
+          <>
+            <dt>{t("claimedRow")}</dt>
+            <dd>
+              {t("claimedValue", {
+                method: methodLabel,
+                when: new Date(claimedAt).toLocaleString("en-IN"),
+              })}
+            </dd>
+          </>
+        )}
+        {!showArrival ? null : c.eta_from && c.eta_to ? (
           <>
             <dt>{t("estimatedArrival")}</dt>
             <dd>
@@ -139,9 +159,11 @@ export default function CourierSummary({
       )}
       {c.payment_reported_missing_at && (
         <p className={styles.warning}>
-          {viewer === "customer"
-            ? t("reportedMissingCustomer", { store: order.store_name })
-            : t("reportedMissingOperator")}
+          {viewer !== "customer"
+            ? t("reportedMissingOperator")
+            : c.cancelled_by === "admin"
+              ? t("reportedMissingCustomerSupport", { store: order.store_name })
+              : t("reportedMissingCustomer", { store: order.store_name })}
         </p>
       )}
     </section>

@@ -148,7 +148,11 @@ export default function SellerOrdersPage() {
       label: t("col.payment"),
       render: (o) => (
         <>
-          <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} />
+          <PaymentStatusPill
+            payment={o.payment}
+            refundDue={o.courier?.refund_due}
+            courier={o.delivery_mode === "courier"}
+          />
           {o.payment.customer_claimed_at && (
             <span className={styles.claimBadge}>{t("customerSaysPaid")}</span>
           )}
@@ -298,7 +302,11 @@ export default function SellerOrdersPage() {
                   </div>
                   <div className={styles.mobileBot}>
                     <OrderTotal order={o} />
-                    <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} />
+                    <PaymentStatusPill
+                      payment={o.payment}
+                      refundDue={o.courier?.refund_due}
+                      courier={o.delivery_mode === "courier"}
+                    />
                   </div>
                 </a>
               )}

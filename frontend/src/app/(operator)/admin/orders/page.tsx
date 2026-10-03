@@ -130,7 +130,17 @@ export default function AdminOrdersPage() {
       label: t("colTotal"),
       render: (o) => <OrderTotal order={o} className={styles.right} />,
     },
-    { key: "payment", label: t("colPayment"), render: (o) => <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} /> },
+    {
+      key: "payment",
+      label: t("colPayment"),
+      render: (o) => (
+        <PaymentStatusPill
+          payment={o.payment}
+          refundDue={o.courier?.refund_due}
+          courier={o.delivery_mode === "courier"}
+        />
+      ),
+    },
     { key: "status", label: t("colStatus"), render: (o) => <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} /> },
   ];
 
@@ -260,7 +270,11 @@ export default function AdminOrdersPage() {
                   </div>
                   <div className={styles.mobileBot}>
                     <OrderTotal order={o} />
-                    <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} />
+                    <PaymentStatusPill
+                      payment={o.payment}
+                      refundDue={o.courier?.refund_due}
+                      courier={o.delivery_mode === "courier"}
+                    />
                   </div>
                 </a>
               )}

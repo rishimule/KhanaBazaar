@@ -24,7 +24,7 @@ import CourierCustomerActions from "@/components/orders/courier/CourierCustomerA
 import CourierPayPanel from "@/components/orders/courier/CourierPayPanel";
 import CourierQuoteCard from "@/components/orders/courier/CourierQuoteCard";
 import CourierSummary from "@/components/orders/courier/CourierSummary";
-import { courierChargePending } from "@/lib/courier";
+import { courierChargePending, latestQuote } from "@/lib/courier";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -34,6 +34,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
   const t = useTranslations("Account.orderDetail");
   const tErr = useTranslations("Errors");
   const tpm = useTranslations("Order.payment.method");
+  const tco = useTranslations("Order.courier");
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,7 +125,9 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
             <span>{isCourier ? t("courierCharge") : t("delivery")}</span>
             <span>
               {courierChargePending(order)
-                ? t("courierToBeQuoted")
+                ? order.status === "quoted" && latestQuote(order)
+                  ? t("courierQuotedCharge", { amount: latestQuote(order)!.courier_fee.toFixed(2) })
+                  : t("courierToBeQuoted")
                 : t("amount", { amount: order.delivery_fee.toFixed(2) })}
             </span>
           </div>
@@ -143,7 +146,10 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("payment")}</h2>
         <p>
-          {tpm(order.payment.method)} ·{" "}
+          {isCourier && order.payment.method === "net_banking"
+            ? tco("methodBank")
+            : tpm(order.payment.method)}{" "}
+          ·{" "}
           <PaymentStatusBadge status={order.payment.status} refundDue={order.courier?.refund_due} />
         </p>
       </section>

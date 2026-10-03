@@ -693,7 +693,10 @@
       "reportedMissingCustomer": "{store} reported that your payment didn't arrive. Contact support if you paid.",
       "reportedMissingOperator": "Cancelled with the payment reported as not received.",
       "methodUpi": "UPI",
-      "methodBank": "Bank transfer"
+      "methodBank": "Bank transfer",
+      "reportedMissingCustomerSupport": "Our support team recorded that your payment didn't reach {store}. Contact support if you paid.",
+      "claimedRow": "Customer says paid",
+      "claimedValue": "{method} · {when}"
     },
     "courierCancel": {
       "title": "Cancel order #{id}?",
@@ -839,7 +842,8 @@
         "confirmCancel": "Cancel order",
         "cancelAfterClaim": "You've said you paid. To cancel now, contact {store}.",
         "actionFailed": "Something went wrong. Please try again."
-      }
+      },
+      "courierQuotedCharge": "₹{amount} quoted · not accepted yet"
     },
     "profile": {
       "loading": "Loading profile…",
@@ -1653,7 +1657,8 @@
         "refundTitle": "Record the refund",
         "refundRef": "Payment reference (optional)",
         "refundHint": "Record this after you send ₹{amount} back. Add the UPI or bank reference so the customer can find it.",
-        "refundSubmit": "Record refund"
+        "refundSubmit": "Record refund",
+        "quotedCharge": "₹{amount} quoted · waiting for the customer"
       }
     },
     "settings": {
@@ -2170,7 +2175,8 @@
         "forceDeliverDesc": "Marks the courier order delivered. The seller and the customer are told.",
         "markRefunded": "Mark refunded",
         "refundTitle": "Record the refund on order #{id}?",
-        "refundDesc": "Records that the customer got ₹{amount} back. Use this only once the seller confirms it."
+        "refundDesc": "Records that the customer got ₹{amount} back. Use this only once the seller confirms it.",
+        "quotedCharge": "₹{amount} quoted · waiting for the customer"
       }
     },
     "catalog": {

@@ -16,7 +16,7 @@ import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
 import LoadError from "@/components/LoadError";
 import CourierAdminActions from "@/components/orders/courier/CourierAdminActions";
 import CourierSummary from "@/components/orders/courier/CourierSummary";
-import { courierChargePending } from "@/lib/courier";
+import { courierChargePending, latestQuote } from "@/lib/courier";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -96,7 +96,13 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
           <div><span>{t("subtotal")}</span><span>₹{order.subtotal.toFixed(2)}</span></div>
           <div>
             <span>{isCourier ? tcs("charge") : t("delivery")}</span>
-            <span>{pendingCharge ? tcs("toBeQuoted") : `₹${order.delivery_fee.toFixed(2)}`}</span>
+            <span>
+              {!pendingCharge
+                ? `₹${order.delivery_fee.toFixed(2)}`
+                : order.status === "quoted" && latestQuote(order)
+                  ? tcs("quotedCharge", { amount: latestQuote(order)!.courier_fee.toFixed(2) })
+                  : tcs("toBeQuoted")}
+            </span>
           </div>
           <div><span>{t("tax")}</span><span>₹{order.tax.toFixed(2)}</span></div>
           <div className={styles.grand}>

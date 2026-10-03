@@ -113,6 +113,9 @@ export default function CourierPayPanel({
       <h2 id="courier-pay-title" className={styles.title}>
         {t("payTitle", { amount: amount.toFixed(2) })}
       </h2>
+      {tab === "upi" && payee && (
+        <p className={styles.sub}>{tUpi("payTo", { name: payee.display_name })}</p>
+      )}
       {courier.payment_claim_rejected_at && (
         <p className={styles.warning} role="status">
           {courier.payment_claim_rejected_note

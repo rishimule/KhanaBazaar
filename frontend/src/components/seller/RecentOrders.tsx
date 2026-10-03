@@ -181,7 +181,11 @@ export default function RecentOrders() {
                   <OrderTotal order={o} />
                 </td>
                 <td>
-                  <PaymentStatusPill payment={o.payment} refundDue={o.courier?.refund_due} />
+                  <PaymentStatusPill
+                    payment={o.payment}
+                    refundDue={o.courier?.refund_due}
+                    courier={o.delivery_mode === "courier"}
+                  />
                 </td>
                 <td>
                   <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
