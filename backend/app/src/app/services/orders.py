@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import hmac
+from collections.abc import Mapping
+from collections.abc import Set as AbstractSet
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
@@ -29,6 +31,7 @@ from app.models.profile import CustomerProfile, SellerProfile, VerificationStatu
 from app.models.store import Store
 from app.schemas.address import AddressPayload, address_from_payload
 from app.services.admin_audit import log as audit_log
+from app.services.courier_rules import COURIER_TRANSITIONS, lock_order
 from app.services.inventory import lock_inventory_rows, restock
 from app.utils.address import format_address
 
@@ -100,7 +103,16 @@ async def transition_order_status(
     reason: Optional[str] = None,
 ) -> Order:
     target = TARGET_BY_STR[target_str]
-    if target not in LEGAL_TRANSITIONS.get(order.status, set()):
+    assert order.id is not None
+    order = await lock_order(session, order.id)
+    # Courier orders follow their own table (pending → quoted → accepted →
+    # paid → packed → …); door and pickup keep LEGAL_TRANSITIONS unchanged.
+    table: Mapping[OrderStatus, AbstractSet[OrderStatus]] = (
+        COURIER_TRANSITIONS
+        if order.delivery_mode == DeliveryMode.Courier
+        else LEGAL_TRANSITIONS
+    )
+    if target not in table.get(order.status, frozenset()):
         raise HTTPException(status_code=409, detail={
             "detail": "illegal_transition", "from": order.status.value, "to": target.value,
         })

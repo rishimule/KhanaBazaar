@@ -31,6 +31,9 @@ class PaymentRead(BaseModel):
     paid_at: Optional[datetime]
     # The customer's one-tap "I've paid" assertion. Never implies `status`.
     customer_claimed_at: Optional[datetime] = None
+    # Courier refunds (spec §10.3): when the refund was recorded, and its UTR.
+    refunded_at: Optional[datetime] = None
+    refund_reference: Optional[str] = None
 
 
 class DeliveryRead(BaseModel):
@@ -46,6 +49,67 @@ class DeliveryRead(BaseModel):
 class OrderReviewInOrder(BaseModel):
     rating: int
     comment: Optional[str] = None
+
+
+class CourierQuoteRead(BaseModel):
+    id: int
+    version: int
+    courier_fee: float
+    eta_min_days: int
+    eta_max_days: int
+    carrier_name: Optional[str] = None
+    note: Optional[str] = None
+    created_at: datetime
+
+
+class BankTransferRead(BaseModel):
+    """The seller's bank details — only on an accepted courier order, only to
+    its customer (spec D6)."""
+
+    account_name: str
+    account_number: str
+    ifsc: str
+
+
+class CourierRead(BaseModel):
+    recipient_name: str
+    recipient_phone: str
+    # Seller/admin: every version, newest first. Customer: the latest only.
+    quotes: List[CourierQuoteRead] = []
+    revised: bool = False
+    accepted_quote_id: Optional[int] = None
+    accepted_at: Optional[datetime] = None
+    eta_from: Optional[date] = None
+    eta_to: Optional[date] = None
+    payment_claim_rejected_at: Optional[datetime] = None
+    payment_claim_rejected_note: Optional[str] = None
+    carrier_name: Optional[str] = None
+    tracking_number: Optional[str] = None
+    tracking_url: Optional[str] = None
+    tracking_updated_at: Optional[datetime] = None
+    delivered_by: Optional[str] = None
+    cancel_reason: Optional[str] = None
+    cancelled_by: Optional[str] = None
+    cancelled_at: Optional[datetime] = None
+    payment_reported_missing_at: Optional[datetime] = None
+    refund_due: bool = False
+    # Prepaid methods the seller can be paid by right now (pay-panel tabs).
+    payable_methods: List[PaymentMethod] = []
+    bank_transfer: Optional[BankTransferRead] = None
+
+
+class CourierQuoteRequest(BaseModel):
+    courier_fee: float = Field(ge=0, le=100000)
+    eta_min_days: int = Field(ge=1, le=60)
+    eta_max_days: int = Field(ge=1, le=60)
+    carrier_name: Optional[str] = Field(default=None, max_length=80)
+    note: Optional[str] = Field(default=None, max_length=300)
+
+    @model_validator(mode="after")
+    def _window(self) -> "CourierQuoteRequest":
+        if self.eta_min_days > self.eta_max_days:
+            raise ValueError("eta_min_days must be <= eta_max_days")
+        return self
 
 
 class OrderRead(BaseModel):
@@ -77,6 +141,8 @@ class OrderRead(BaseModel):
     payment: PaymentRead
     delivery: DeliveryRead
     review: Optional[OrderReviewInOrder] = None
+    # Courier orders only (spec §13); None for door delivery and pickup.
+    courier: Optional[CourierRead] = None
 
 
 class OrderListResponse(BaseModel):

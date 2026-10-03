@@ -43,6 +43,7 @@ from app.models.commerce import (
 from app.models.profile import CustomerProfile, SellerProfile, SellerProfileService
 from app.models.store import Store, StoreInventory
 from app.schemas.orders import (
+    CourierQuoteRequest,
     DeliveryRead,
     OrderItemRead,
     OrderListResponse,
@@ -56,6 +57,8 @@ from app.schemas.orders import (
 from app.schemas.price_comparison import ReplaceAdjustment
 from app.schemas.reorder import ReorderResolveResponse, ResolvedReorderItem
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
+from app.services import courier as courier_svc
+from app.services import courier_comms
 from app.services.checkout import place_order_for_sub_basket
 from app.services.courier_copy import load_courier_vars, render_status
 from app.services.notification_push import dispatch_notification_push
@@ -258,6 +261,11 @@ async def _serialize_order(
         if cust is not None:
             parts = [p for p in (cust.first_name, cust.last_name) if p]
             customer_name = " ".join(parts) if parts else None
+    courier_read = await courier_svc.build_courier_read(
+        session,
+        order,
+        viewer="admin" if viewer_is_admin else ("seller" if include_customer_name else "customer"),
+    )
     return OrderRead(
         id=order.id,
         store_id=order.store_id,
@@ -293,6 +301,8 @@ async def _serialize_order(
         payment=PaymentRead(
             method=payment.method, status=payment.status, amount=payment.amount, paid_at=payment.paid_at,
             customer_claimed_at=payment.customer_claimed_at,
+            refunded_at=payment.refunded_at,
+            refund_reference=payment.refund_reference,
         ),
         delivery=DeliveryRead(
             status=delivery.status,
@@ -319,6 +329,7 @@ async def _serialize_order(
         review=OrderReviewInOrder(rating=review.rating, comment=review.comment)
         if review is not None
         else None,
+        courier=courier_read,
     )
 
 
@@ -647,6 +658,36 @@ async def transition_order(
             ).first()
             if delivery is not None and delivery.delivery_otp is not None:
                 await _send_delivery_otp(session, order, delivery.delivery_otp)
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=user.role == UserRole.Admin,
+    )
+
+
+@router.post("/{order_id}/courier/quote", response_model=OrderRead)
+async def courier_send_quote(
+    order_id: int,
+    body: CourierQuoteRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The store's seller sends (or revises) the courier charge + transit."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order, _quote, revised = await courier_svc.send_quote(
+        session,
+        order,
+        user,
+        courier_fee=body.courier_fee,
+        eta_min_days=body.eta_min_days,
+        eta_max_days=body.eta_max_days,
+        carrier_name=body.carrier_name,
+        note=body.note,
+    )
+    await courier_comms.notify_customer(
+        session, order, "quote_revised" if revised else "quote_ready"
+    )
     return await _serialize_order(
         session,
         order,

@@ -319,3 +319,30 @@ async def place_courier_order(
         })
     assert resp.status_code == 201, resp.text
     return resp.json()
+
+
+import httpx  # noqa: E402
+
+
+async def send_quote(
+    order_id: int,
+    *,
+    fee: float = 120.0,
+    min_days: int = 3,
+    max_days: int = 5,
+    carrier: str | None = "DTDC",
+    note: str | None = None,
+    as_user: User = SELLER,
+) -> httpx.Response:
+    async with client_as(as_user) as ac:
+        return await ac.post(f"/api/v1/orders/{order_id}/courier/quote", json={
+            "courier_fee": fee, "eta_min_days": min_days, "eta_max_days": max_days,
+            "carrier_name": carrier, "note": note,
+        })
+
+
+async def get_order(order_id: int, *, as_user: User = CUSTOMER) -> dict[str, Any]:
+    async with client_as(as_user) as ac:
+        resp = await ac.get(f"/api/v1/orders/{order_id}")
+    assert resp.status_code == 200, resp.text
+    return resp.json()
