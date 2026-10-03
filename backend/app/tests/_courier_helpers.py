@@ -231,3 +231,63 @@ async def client_as(user: User) -> AsyncIterator[AsyncClient]:
             yield ac
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+from datetime import datetime, timezone  # noqa: E402
+
+from app.models.commerce import (  # noqa: E402
+    Delivery,
+    DeliveryMode,
+    Order,
+    OrderStatus,
+    Payment,
+    PaymentMethod,
+    PaymentStatus,
+)
+from app.models.courier import CourierQuote, OrderCourier  # noqa: E402
+
+
+async def insert_courier_order(
+    session: AsyncSession,
+    world: CourierWorld,
+    *,
+    status: OrderStatus = OrderStatus.Pending,
+    subtotal: float = 200.0,
+    delivery_fee: float = 0.0,
+    payment_status: PaymentStatus = PaymentStatus.Pending,
+    payment_method: PaymentMethod = PaymentMethod.Upi,
+    quote_fee: float | None = None,
+    quote_days: tuple[int, int] = (3, 5),
+    claimed: bool = False,
+) -> int:
+    """Insert a courier order straight into the DB, bypassing checkout — for
+    the comms and reminder tests, which only need the rows."""
+    link = await session.get(CustomerAddress, world.courier_address_id)
+    assert link is not None
+    order = Order(
+        customer_profile_id=world.customer_profile_id, store_id=world.store_id,
+        service_id=world.service_id, service_name_snapshot="Sweets",
+        delivery_address_id=link.address_id, delivery_address_snapshot="Mysuru 570001",
+        delivery_mode=DeliveryMode.Courier, status=status,
+        subtotal=subtotal, delivery_fee=delivery_fee, tax=0.0, total=subtotal + delivery_fee,
+    )
+    session.add(order)
+    await session.flush()
+    assert order.id is not None
+    session.add(Payment(
+        order_id=order.id, amount=subtotal + delivery_fee, method=payment_method,
+        status=payment_status,
+        customer_claimed_at=datetime.now(timezone.utc) if claimed else None,
+    ))
+    session.add(Delivery(order_id=order.id))
+    session.add(OrderCourier(
+        order_id=order.id, recipient_name="Asha Rao", recipient_phone="+919900000001",
+    ))
+    if quote_fee is not None:
+        session.add(CourierQuote(
+            order_id=order.id, version=1, courier_fee=quote_fee,
+            eta_min_days=quote_days[0], eta_max_days=quote_days[1],
+            carrier_name="DTDC", created_by_user_id=SELLER.id,
+        ))
+    await session.commit()
+    return order.id

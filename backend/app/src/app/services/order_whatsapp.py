@@ -7,8 +7,12 @@ the order path. Additive alongside email — fired from the notification
 chokepoint in api/orders.record_and_dispatch_notification.
 """
 from app.services.order_emails import _safe_delay
-from app.worker import send_order_status_whatsapp_async
+from app.worker import send_courier_whatsapp_async, send_order_status_whatsapp_async
 
 
 def dispatch_order_status_whatsapp(order_id: int, status: str) -> None:
     _safe_delay(send_order_status_whatsapp_async, order_id, status)
+
+
+def dispatch_courier_whatsapp(order_id: int, event: str) -> None:
+    _safe_delay(send_courier_whatsapp_async, order_id, event)

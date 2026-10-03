@@ -753,6 +753,95 @@ def send_order_status_changed_async(
     )
 
 
+async def courier_email(order_id: int, event: str, recipient: str) -> None:
+    """Body of `send_courier_email_async`, awaitable in-loop for tests. Reads
+    via async_session_factory so tests hit the test DB, not the dev one."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+    from app.db.session import async_session_factory
+    from app.services.courier_copy import (
+        load_courier_vars,
+        render_customer,
+        render_seller,
+    )
+
+    async with async_session_factory() as session:
+        v = await load_courier_vars(session, order_id)
+    if v is None:
+        return
+    if recipient == "seller":
+        if not v.seller_active or not v.seller_email:
+            return
+        message, to, path = render_seller(event, v), v.seller_email, "/seller/orders/"
+    else:
+        if not v.customer_active or not v.customer_email:
+            return
+        message, to, path = render_customer(event, v), v.customer_email, "/account/orders/"
+    payload = render_email(
+        "courier_update",
+        {
+            "title": message.title,
+            "body": message.body,
+            "order_id": order_id,
+            "store_name": v.store_name,
+            "cta_path": path,
+        },
+    )
+    _resolve_email(to, payload.subject, payload.text, html=payload.html, reply_to=settings.EMAIL_REPLY_TO)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_courier_email_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_courier_email_async(order_id: int, event: str, recipient: str) -> None:
+    import asyncio
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(lambda: asyncio.run(courier_email(order_id, event, recipient))).result()
+
+
+async def courier_whatsapp(order_id: int, event: str) -> None:
+    """Body of `send_courier_whatsapp_async`. Verified customer phone only."""
+    from app.core.whatsapp import get_whatsapp_sender
+    from app.core.whatsapp_templates import COURIER_EVENT_TEMPLATES
+    from app.db.session import async_session_factory
+    from app.services.courier_copy import load_courier_vars
+
+    sender = get_whatsapp_sender()
+    template = COURIER_EVENT_TEMPLATES.get(event)
+    if sender is None or template is None:
+        return
+    async with async_session_factory() as session:
+        v = await load_courier_vars(session, order_id)
+    if v is None or not v.customer_active or not v.customer_phone or not v.customer_phone_verified:
+        return
+    variables = {
+        "order_no": str(order_id),
+        "store": v.store_name,
+        "amount": f"{(v.fee or 0.0):.2f}",
+        "days": f"{v.min_days}–{v.max_days}",
+    }
+    await sender.send_template(v.customer_phone, template, variables)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_courier_whatsapp_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_courier_whatsapp_async(order_id: int, event: str) -> None:
+    import asyncio
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(lambda: asyncio.run(courier_whatsapp(order_id, event))).result()
+
+
 _ACTION_LABELS = {
     "order.rewind": "Status reverted",
     "order.refund": "Refunded",
