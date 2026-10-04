@@ -214,6 +214,12 @@ async def test_cancelling_a_store_credit_paid_order_owes_no_refund(session: Asyn
         sent = await ac.post(f"/api/v1/orders/{order['id']}/payment/refund-sent", json={})
     assert order["id"] not in [o["id"] for o in listed]
     assert sent.status_code == 409 and sent.json()["detail"]["code"] == "refund_not_due"
+    # The admin refund marker follows the same rule.
+    async with client_as(ADMIN) as ac:
+        marked = await ac.post(f"/api/v1/admin/orders/{order['id']}/refund", json={
+            "reason": "Customer asked support for a refund",
+        })
+    assert marked.status_code == 409 and marked.json()["detail"]["code"] == "refund_not_due"
 
     rows = (await session.exec(select(Notification).where(Notification.order_id == order["id"]))).all()
     told = [r for r in rows if r.status_value == "cancelled" and r.customer_profile_id is not None]

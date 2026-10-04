@@ -471,6 +471,10 @@ async def refund_order(
         raise HTTPException(
             status_code=422, detail={"code": "payment_not_refundable"}
         )
+    if order.delivery_mode == DeliveryMode.Courier and payment.amount <= 0:
+        # Store credit covered everything and went back as credit on cancel:
+        # no money moved, so there is no refund to record (refund_owed).
+        raise HTTPException(status_code=409, detail={"code": "refund_not_due"})
     if not reason or len(reason.strip()) < 10:
         raise HTTPException(
             status_code=422, detail={"code": "reason_required"}
