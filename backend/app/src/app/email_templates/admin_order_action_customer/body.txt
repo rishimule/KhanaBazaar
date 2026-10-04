@@ -6,6 +6,9 @@ What changed : {{ action_label }}
 {% if reason -%}
 Reason       : {{ reason }}
 {% endif -%}
+{% if refund_due_amount is defined and refund_due_amount -%}
+Refund due   : {{ refund_due_amount|inr }} from {{ store_name }}. We'll let you know when they send it.
+{% endif -%}
 {% if action == 'order.address_override' -%}
 New address  : {{ delivery_address_snapshot }}
 {% endif %}

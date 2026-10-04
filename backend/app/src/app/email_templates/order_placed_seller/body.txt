@@ -1,6 +1,9 @@
 You have a new {{ service_name }} order at {{ store_name }}.
 
 Order #{{ order_id }}
+{% if courier is defined and courier -%}
+Courier order: send the customer a courier quote from your dashboard.
+{% endif -%}
 {% if preferred_delivery -%}
 Requested delivery: {{ preferred_delivery }}
 {% endif -%}

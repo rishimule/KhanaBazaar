@@ -168,6 +168,7 @@ export default function SellerProfileTab({
         token,
         { min: etaMin, max: etaMax },
         svc.pickup_enabled ?? false,
+        svc.courier_enabled ?? false,
       )
         .then(() => setMinError(null))
         .catch((e) => {
@@ -211,6 +212,17 @@ export default function SellerProfileTab({
       ...hub,
       services: hub.services.map((s) =>
         s.id === serviceId ? { ...s, pickup_enabled: value } : s,
+      ),
+    });
+    schedulePersist(serviceId);
+  };
+
+  const updateCourier = (serviceId: number, value: boolean) => {
+    if (!token || !hub) return;
+    setHub({
+      ...hub,
+      services: hub.services.map((s) =>
+        s.id === serviceId ? { ...s, courier_enabled: value } : s,
       ),
     });
     schedulePersist(serviceId);
@@ -510,6 +522,15 @@ export default function SellerProfileTab({
                   onChange={(e) => updatePickup(svc.id, e.target.checked)}
                 />
                 {t("profile.allowPickup")}
+              </label>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
+                <input
+                  type="checkbox"
+                  disabled={!isApproved}
+                  checked={svc.courier_enabled ?? false}
+                  onChange={(e) => updateCourier(svc.id, e.target.checked)}
+                />
+                {t("profile.allowCourier")}
               </label>
             </div>
           ))}

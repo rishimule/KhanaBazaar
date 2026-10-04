@@ -58,19 +58,32 @@ async def record_seller_new_order_notification(
                 )
             ).one()
         )
-        mode = "Pickup" if order.delivery_mode == DeliveryMode.Pickup else "Delivery"
+        is_courier = order.delivery_mode == DeliveryMode.Courier
+        if is_courier:
+            mode = "Courier"
+        elif order.delivery_mode == DeliveryMode.Pickup:
+            mode = "Pickup"
+        else:
+            mode = "Delivery"
         parts: list[str] = []
         if item_count:
             parts.append(f"{item_count} item" + ("s" if item_count != 1 else ""))
         parts.append(order.service_name_snapshot)
         parts.append(mode)
+        # A courier order has no charge yet: the subtotal is all that's known.
+        title = (
+            f"New courier order #{order.id} · ₹{order.subtotal:.2f} + courier"
+            if is_courier
+            else f"New order #{order.id} · ₹{order.total:.2f}"
+        )
+        next_step = "Send a courier quote." if is_courier else "Tap to pack it."
 
         await record_seller_notification(
             session,
             seller_profile_id=seller_profile_id,
             type=NotificationType.SellerNewOrder,
-            title=f"New order #{order.id} · ₹{order.total:.2f}",
-            body=f"{' · '.join(parts)}. Tap to pack it.",
+            title=title,
+            body=f"{' · '.join(parts)}. {next_step}",
             status_value="new_order",
             order_id=order.id,
         )

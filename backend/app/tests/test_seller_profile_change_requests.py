@@ -44,7 +44,11 @@ async def test_create_cr_happy_path(approved_seller, session):
     cr = result.cr
     assert cr.status is SellerProfileChangeStatus.Submitted
     assert cr.submission_count == 1
-    assert cr.proposed_json == payload
+    # Canonicalization fills every declared field; the courier bank fields are
+    # None = "leave unchanged".
+    assert cr.proposed_json == {
+        **payload, "bank_account_name": None, "bank_transfer_enabled": None,
+    }
     assert "bank_account_number" in cr.baseline_json
     events = (
         await session.exec(

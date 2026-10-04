@@ -89,6 +89,10 @@ class SellerProfileUpdateBody(BaseModel):
     fssai_license: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    # Omitted = unchanged; "" clears the name. Completeness is checked in the
+    # route against the merged profile (services/courier_settings.py).
+    bank_account_name: Optional[str] = Field(default=None, max_length=140)
+    bank_transfer_enabled: Optional[bool] = None
     upi_vpa: Optional[str] = None
 
     @field_validator("upi_vpa")
@@ -108,6 +112,8 @@ class SellerProfilePayload(BaseModel):
     fssai_license: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    bank_account_name: Optional[str] = None
+    bank_transfer_enabled: bool = False
     upi_vpa: Optional[str] = None
     verification_status: str
     rejection_reason: Optional[str] = None
@@ -126,6 +132,8 @@ class SellerApplicationPayload(BaseModel):
     fssai_license: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    bank_account_name: Optional[str] = None
+    bank_transfer_enabled: bool = False
     upi_vpa: Optional[str] = None
     verification_status: str
     rejection_reason: Optional[str] = None
@@ -145,6 +153,7 @@ class SetServiceDeliverySettingsBody(BaseModel):
     delivery_eta_min_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
     delivery_eta_max_minutes: Optional[int] = Field(default=None, ge=1, le=20160)
     pickup_enabled: Optional[bool] = None
+    courier_enabled: Optional[bool] = None
 
     @model_validator(mode="after")
     def _check_window(self) -> "SetServiceDeliverySettingsBody":
@@ -163,6 +172,10 @@ class OrderStatusCounts(BaseModel):
     pending: int = 0
     cancelled: int = 0
     paid: int = 0  # dormant OrderStatus value; captured so the donut total never under-reports
+    # Courier stages (spec 2026-10-02). The dashboard fills these with
+    # hasattr(), so a missing field would silently drop those orders.
+    quoted: int = 0
+    accepted: int = 0
 
 
 class InventoryServiceStat(BaseModel):
@@ -195,6 +208,9 @@ class SellerMetricsRead(BaseModel):
     order_status_counts: OrderStatusCounts
     inventory_by_service: list[InventoryServiceStat]
     top_subcategory: TopSubcategory | None = None
+    # Courier orders whose customer says they paid and the seller hasn't
+    # confirmed: the only `accepted` orders that wait on the seller.
+    courier_payment_checks: int = 0
 
 
 class RevenueSeriesPoint(BaseModel):

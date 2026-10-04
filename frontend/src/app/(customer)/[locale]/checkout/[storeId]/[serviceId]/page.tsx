@@ -4,11 +4,11 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
-import { apiErrorKey } from "@/lib/errors";
+import { apiErrorCode, apiErrorKey } from "@/lib/errors";
 import { get } from "@/lib/api";
 import { getCreditEligibility, type CreditEligibility } from "@/lib/credit";
 import { placeOrder } from "@/lib/orders";
@@ -25,6 +25,11 @@ import DeliveryTimePicker, {
   type PreferredWindowValue,
 } from "@/components/orders/DeliveryTimePicker";
 import { listStoreCredit } from "@/lib/returns";
+import CourierExplainer from "@/components/orders/courier/CourierExplainer";
+import RecipientFields, {
+  isRecipientValid,
+  type RecipientValue,
+} from "@/components/orders/courier/RecipientFields";
 import type { StoreCreditBalance } from "@/types";
 import type { DeliveryMode, PaymentMethod, Store } from "@/types";
 import styles from "./page.module.css";
@@ -50,6 +55,8 @@ export default function CheckoutPage() {
     latitude: null,
     longitude: null,
     serviceable: false,
+    zone: null,
+    city: null,
     loading: true,
   });
   const [storeDetails, setStoreDetails] = useState<Store | null>(null);
@@ -60,13 +67,33 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [creditStanding, setCreditStanding] = useState<CreditEligibility | null>(null);
+  const [recipient, setRecipient] = useState<RecipientValue>({ name: "", phone: "" });
+  const [storeLoadFailed, setStoreLoadFailed] = useState(false);
+  // Bumped when the server says the address's zone changed (spec §8.5).
+  const [zoneRecheck, setZoneRecheck] = useState(0);
+  // Set once the order is placed, for the life of this page. Placing empties
+  // this sub-basket, and while the confirmation route loads useParams()
+  // already reports its params (storeId/serviceId → NaN), so the "no cart →
+  // /cart" redirect below would otherwise replace the confirmation push.
+  const placedRef = useRef(false);
+  // Courier mode follows the picked address (spec §8.1). A plain value, not a
+  // hook; computed here because the payment-method effect depends on it.
+  const courierModeActive = deliveryMode !== "pickup" && pickerState.zone === "courier";
 
   useEffect(() => {
     if (!storeId || Number.isNaN(storeId)) return;
     get<Store>(`/api/v1/stores/${storeId}`)
-      .then(setStoreDetails)
-      .catch(() => setStoreDetails(null));
-  }, [storeId]);
+      .then((s) => {
+        setStoreDetails(s);
+        setStoreLoadFailed(false);
+      })
+      .catch(() => {
+        setStoreDetails(null);
+        setStoreLoadFailed(true);
+      });
+    // zoneRecheck: a courier radius, toggle or payee changed mid-checkout, so
+    // re-read courier_payment_methods along with the zones.
+  }, [storeId, zoneRecheck]);
 
   // Fetch the customer's credit standing at this store once (total=0 just reads
   // the account); eligibility vs the live cart total is computed client-side.
@@ -89,6 +116,14 @@ export default function CheckoutPage() {
   // all, yet `upi` is the initial default — so this cannot just fall back to
   // "upi" the way it used to.
   useEffect(() => {
+    if (courierModeActive) {
+      const live = storeDetails?.courier_payment_methods;
+      // Not loaded yet, or nothing live — leave it; the button explains.
+      if (!live || live.length === 0) return;
+      // Also moves a customer off `credit`, which courier never takes.
+      if (!live.includes(paymentMethod)) setPaymentMethod(live[0]);
+      return;
+    }
     // `credit` is a per-customer entitlement and is deliberately absent from
     // the store's method list; never auto-correct away from it.
     if (paymentMethod === "credit") return;
@@ -107,7 +142,13 @@ export default function CheckoutPage() {
         : ["upi", "cash", "net_banking"];
     const next = preference.find(storeAccepts);
     if (next && next !== paymentMethod) setPaymentMethod(next);
-  }, [deliveryMode, paymentMethod, storeDetails?.accepted_payment_methods]);
+  }, [
+    courierModeActive,
+    deliveryMode,
+    paymentMethod,
+    storeDetails?.accepted_payment_methods,
+    storeDetails?.courier_payment_methods,
+  ]);
 
   const cart = useMemo(
     () =>
@@ -144,6 +185,7 @@ export default function CheckoutPage() {
   const isCustomer = dbUser?.role === "customer";
 
   useEffect(() => {
+    if (placedRef.current) return;
     if (!authLoading && !cartLoading && isCustomer && !cart && !switching) {
       router.replace("/cart");
     }
@@ -192,13 +234,21 @@ export default function CheckoutPage() {
   }
 
   const isPickup = deliveryMode === "pickup";
+  const isCourier = courierModeActive;
+  const apiMode: DeliveryMode = isPickup ? "pickup" : isCourier ? "courier" : "door_delivery";
+  // null = the store payload hasn't loaded (or failed); [] = nothing live.
+  const courierMethods = storeDetails?.courier_payment_methods ?? null;
+  const courierBlocked =
+    isCourier &&
+    (!isRecipientValid(recipient) || courierMethods === null || courierMethods.length === 0);
   const pickupAvailable = !!storeDetails?.services.find((s) => s.id === serviceId)
     ?.pickup_enabled;
   const subtotal = getTotal(cart);
   const freeDeliveryThreshold = cart.free_delivery_threshold ?? 0;
   const baseFee = cart.delivery_fee ?? 0;
   const shortfall = Math.max(0, freeDeliveryThreshold - subtotal);
-  const deliveryFee = isPickup ? 0 : shortfall > 0 ? baseFee : 0;
+  // Courier: the charge is quoted by the store after the order (spec §9.2).
+  const deliveryFee = isPickup || isCourier ? 0 : shortfall > 0 ? baseFee : 0;
   const feeApplies = deliveryFee > 0;
   const tax = 0;
   const grossTotal = subtotal + deliveryFee + tax;
@@ -232,13 +282,17 @@ export default function CheckoutPage() {
         storeId,
         serviceId,
         paymentMethod,
-        deliveryMode,
-        preferredDeliveryDate: preferredWindow?.date ?? null,
-        preferredDeliveryWindow: preferredWindow?.window ?? null,
+        deliveryMode: apiMode,
+        // Courier orders take no preferred window (422 preferred_window_not_allowed).
+        preferredDeliveryDate: isCourier ? null : preferredWindow?.date ?? null,
+        preferredDeliveryWindow: isCourier ? null : preferredWindow?.window ?? null,
         // Only ever true when the page actually displayed the discount, so
         // the quoted total and the charged amount cannot diverge.
         applyStoreCredit: useStoreCredit && Boolean(storeCredit),
+        recipientName: isCourier ? recipient.name.trim() : null,
+        recipientPhone: isCourier ? recipient.phone : null,
       });
+      placedRef.current = true;
       // Placing the order clears this sub-basket server-side. Refresh cart
       // state so the navbar count + cart pages reflect it immediately instead
       // of after a manual reload. Guarded: the order already succeeded, so a
@@ -276,6 +330,21 @@ export default function CheckoutPage() {
         return;
       }
       const key = apiErrorKey(e);
+      const zoneCode = apiErrorCode(e);
+      if (
+        zoneCode === "address_within_local_area" ||
+        zoneCode === "outside_courier_area" ||
+        zoneCode === "outside_delivery_area" ||
+        zoneCode === "courier_unavailable" ||
+        zoneCode === "courier_destination_unsupported" ||
+        zoneCode === "upi_unavailable" ||
+        zoneCode === "bank_transfer_unavailable"
+      ) {
+        // The zone or the store's payees changed under the page: re-classify
+        // the addresses and re-read the live payees, so the page switches
+        // mode on its own while the message explains why.
+        setZoneRecheck((n) => n + 1);
+      }
       if (key) {
         setError(tErr(key.replace(/^Errors\./, "")));
       } else if (typeof rawDetail === "string") {
@@ -334,35 +403,50 @@ export default function CheckoutPage() {
         </section>
 
         {!isPickup && (
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>{t("deliveryAddress")}</h2>
-            <AddressPicker
-              value={addressId}
-              onChange={setAddressId}
-              storeId={storeId}
-              onStateChange={setPickerState}
-            />
-            {pickerState.serviceable &&
-              pickerState.latitude != null &&
-              pickerState.longitude != null &&
-              storeDetails?.address.latitude != null &&
-              storeDetails?.address.longitude != null && (
-                <div className={styles.routeMap}>
-                  <DeliveryRouteMap
-                    store={{
-                      lat: storeDetails.address.latitude,
-                      lng: storeDetails.address.longitude,
-                      label: storeDetails.name,
-                    }}
-                    customer={{
-                      lat: pickerState.latitude,
-                      lng: pickerState.longitude,
-                      label: "Your address",
-                    }}
-                  />
-                </div>
-              )}
-          </section>
+          <>
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>{t("deliveryAddress")}</h2>
+              <AddressPicker
+                value={addressId}
+                onChange={setAddressId}
+                storeId={storeId}
+                serviceId={serviceId}
+                recheckKey={zoneRecheck}
+                onStateChange={setPickerState}
+              />
+              {/* No route for courier: meaningless at that distance, and it
+                  would cost a Directions call (spec §8.2). */}
+              {!isCourier &&
+                pickerState.serviceable &&
+                pickerState.latitude != null &&
+                pickerState.longitude != null &&
+                storeDetails?.address.latitude != null &&
+                storeDetails?.address.longitude != null && (
+                  <div className={styles.routeMap}>
+                    <DeliveryRouteMap
+                      store={{
+                        lat: storeDetails.address.latitude,
+                        lng: storeDetails.address.longitude,
+                        label: storeDetails.name,
+                      }}
+                      customer={{
+                        lat: pickerState.latitude,
+                        lng: pickerState.longitude,
+                        label: "Your address",
+                      }}
+                    />
+                  </div>
+                )}
+            </section>
+            {isCourier && (
+              <>
+                <CourierExplainer storeName={cart.store_name} city={pickerState.city} />
+                <section className={styles.section}>
+                  <RecipientFields value={recipient} onChange={setRecipient} />
+                </section>
+              </>
+            )}
+          </>
         )}
 
         {isPickup && storeDetails && (
@@ -379,7 +463,8 @@ export default function CheckoutPage() {
           <PaymentMethodPicker
             value={paymentMethod}
             onChange={setPaymentMethod}
-            deliveryMode={deliveryMode}
+            deliveryMode={apiMode}
+            courierMethods={courierMethods ?? undefined}
             acceptedMethods={storeDetails?.accepted_payment_methods}
             upiPayee={storeDetails?.upi_payee ?? null}
             previewAmount={total}
@@ -391,11 +476,13 @@ export default function CheckoutPage() {
           />
         </section>
 
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>{td("preferredTitle")}</h2>
-          <p className={styles.shortfallNote}>{td("preferredHint")}</p>
-          <DeliveryTimePicker value={preferredWindow} onChange={setPreferredWindow} />
-        </section>
+        {!isCourier && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{td("preferredTitle")}</h2>
+            <p className={styles.shortfallNote}>{td("preferredHint")}</p>
+            <DeliveryTimePicker value={preferredWindow} onChange={setPreferredWindow} />
+          </section>
+        )}
 
         <section className={styles.summary}>
           <div className={styles.summaryRow}>
@@ -404,19 +491,21 @@ export default function CheckoutPage() {
           </div>
           <div className={styles.summaryRow}>
             <span>{t("deliveryFee")}</span>
-            <span>₹{deliveryFee.toFixed(2)}</span>
+            <span>{isCourier ? t("courier.chargeQuoted") : `₹${deliveryFee.toFixed(2)}`}</span>
           </div>
           <div className={styles.summaryRow}>
             <span>{t("tax")}</span>
             <span>₹{tax}</span>
           </div>
-          {etaLabel && (
+          {!isCourier && etaLabel && (
             <div className={styles.summaryRow}>
               <span>{t("estimatedDelivery")}</span>
               <span>{etaLabel}</span>
             </div>
           )}
-          {preferredWindow && (
+          {/* A window picked before switching to a courier address is never
+              sent, so it must not be shown either. */}
+          {!isCourier && preferredWindow && (
             <div className={styles.summaryRow}>
               <span>{td("requested")}</span>
               <span>
@@ -450,12 +539,12 @@ export default function CheckoutPage() {
             </div>
           )}
           <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
-            <span>{t("total")}</span>
-            <span>₹{total}</span>
+            <span>{isCourier ? t("courier.totalSoFar") : t("total")}</span>
+            <span>{isCourier ? t("courier.totalPlusCourier", { total }) : `₹${total}`}</span>
           </div>
         </section>
 
-        {!isPickup && (
+        {!isPickup && !isCourier && (
           <PriceComparison
             sourceStoreId={storeId}
             sourceStoreName={cart.store_name}
@@ -471,7 +560,7 @@ export default function CheckoutPage() {
 
         {error && <div className={styles.error} role="alert">{error}</div>}
 
-        {feeApplies && (
+        {feeApplies && !isCourier && (
           <p className={styles.shortfallNote} role="status">
             {t("minOrderShortfall", { amount: shortfall })}
           </p>
@@ -483,6 +572,7 @@ export default function CheckoutPage() {
           disabled={
             submitting ||
             creditSelectedButBlocked ||
+            courierBlocked ||
             (!isPickup &&
               (pickerState.selectedId === null ||
                 pickerState.loading ||
@@ -493,8 +583,23 @@ export default function CheckoutPage() {
             ? t("placing")
             : !isPickup && pickerState.loading
               ? t("checkingDeliveryArea")
-              : t("placeOrder", { total })}
+              : isCourier
+                ? t("courier.placeOrder")
+                : t("placeOrder", { total })}
         </button>
+        {isCourier && (
+          <p className={styles.shortfallNote} role="status">
+            {storeLoadFailed
+              ? t("courier.storeLoadError")
+              : courierMethods === null
+                ? t("loading")
+                : courierMethods.length === 0
+                  ? t("courier.noPayee")
+                  : !isRecipientValid(recipient)
+                    ? t("courier.recipientNeeded")
+                    : t("courier.nothingToPay")}
+          </p>
+        )}
       </div>
     </div>
   );

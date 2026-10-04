@@ -37,6 +37,7 @@ from .commerce import (
     Review,
 )
 from .consent import PolicyAcceptance, PolicyDocument, PolicyKind
+from .courier import CourierQuote, OrderCourier
 from .credit import (
     CreditAccount,
     CreditAccountStatus,
@@ -127,6 +128,7 @@ __all__ = [
     "CatalogImportStatus",
     "Category",
     "CategoryTranslation",
+    "CourierQuote",
     "CreditAccount",
     "CreditAccountStatus",
     "CreditEntryType",
@@ -158,6 +160,7 @@ __all__ = [
     "NotificationType",
     "OnboardingRequestStatus",
     "Order",
+    "OrderCourier",
     "OrderItem",
     "OrderStatus",
     "Payment",

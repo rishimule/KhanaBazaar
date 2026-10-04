@@ -1,9 +1,15 @@
-{# Four pills: pending → packed → dispatched → delivered.
-   `current` is the active status string. `cancelled` adds a red badge below. #}
+{# Pills for the order's progress. Door/pickup: pending → packed → dispatched →
+   delivered. Courier (mode == 'courier'): requested → quote → paid → shipped →
+   delivered. `current` is the active status; `cancelled` adds a red badge. #}
+{% if mode is defined and mode == 'courier' %}
+  {% set steps = ['requested', 'quote', 'paid', 'shipped', 'delivered'] %}
+  {% set current_idx = {'pending':0,'quoted':1,'accepted':1,'paid':2,'packed':2,'dispatched':3,'delivered':4}.get(current, -1) %}
+{% else %}
+  {% set steps = ['pending', 'packed', 'dispatched', 'delivered'] %}
+  {% set current_idx = {'pending':0,'packed':1,'dispatched':2,'delivered':3}.get(current, -1) %}
+{% endif %}
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:16px 0 24px;">
   <tr>
-    {% set steps = ['pending', 'packed', 'dispatched', 'delivered'] %}
-    {% set current_idx = {'pending':0,'packed':1,'dispatched':2,'delivered':3}.get(current, -1) %}
     {% for step in steps %}
       {% set reached = loop.index0 <= current_idx %}
       <td align="center" style="padding:4px;">
@@ -14,7 +20,7 @@
   </tr>
   {% if current == 'cancelled' %}
     <tr>
-      <td colspan="4" align="center" style="padding-top:8px;color:#b91c1c;font-weight:600;">
+      <td colspan="{{ steps|length }}" align="center" style="padding-top:8px;color:#b91c1c;font-weight:600;">
         Cancelled
       </td>
     </tr>

@@ -259,6 +259,18 @@
   color: var(--shade-cool-dark-3);
 }
 
+/* A deliverable address that ships by courier (spec 2026-10-02 §8.2). */
+.optionCourier {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  background: var(--saffron-light-1);
+  color: var(--saffron-dark-1);
+}
+
 .sectionHeader {
   padding: 8px 14px 4px;
   font-size: 11px;
@@ -289,7 +301,8 @@
     padding-left: 24px;
   }
 
-  .optionBadge {
+  .optionBadge,
+  .optionCourier {
     margin-left: auto;
   }
 }

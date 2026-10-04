@@ -14,6 +14,9 @@ Requested delivery: {{ o.preferred_delivery }}
 Subtotal: {{ o.subtotal|inr }}
 Delivery fee: {{ o.delivery_fee|inr }}
 {% endif -%}
+{% if o.courier is defined and o.courier -%}
+Courier charge: to be quoted. Nothing to pay yet.
+{% endif -%}
 Total: {{ o.order_total|inr }}
 
 {% endfor -%}

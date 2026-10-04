@@ -16,7 +16,8 @@ interface Props {
 export default function DeliveryModeSelector({ value, onChange, pickupAvailable }: Props) {
   const t = useTranslations("Checkout");
   const options: { mode: DeliveryMode; labelKey: string }[] = [
-    { mode: "door_delivery", labelKey: "modeDoor" },
+    // Covers local and courier delivery; the picked address decides which.
+    { mode: "door_delivery", labelKey: "modeDelivery" },
     ...(pickupAvailable
       ? [{ mode: "pickup" as DeliveryMode, labelKey: "modePickup" }]
       : []),

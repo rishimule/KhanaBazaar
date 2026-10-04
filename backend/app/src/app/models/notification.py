@@ -29,6 +29,8 @@ class NotificationType(str, enum.Enum):
     ReturnStatusUpdate = "return_status_update"
     ReturnReceiptOtp = "return_receipt_otp"
     SellerReturnRequest = "seller_return_request"
+    # Courier-only seller events (quote accepted, payment claimed, reminders…).
+    SellerOrderUpdate = "seller_order_update"
 
 
 class Notification(BaseSchema, table=True):

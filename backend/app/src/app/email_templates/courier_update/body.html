@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block body %}
+  <p style="font-size:18px;font-weight:600;margin:0 0 8px;">{{ title }}</p>
+  <p>{{ body }}</p>
+  {% set cta_url = frontend_base_url ~ cta_path ~ order_id|string %}
+  {% set cta_label = "View order" %}
+  {% include "_partials/button.html" %}
+{% endblock %}

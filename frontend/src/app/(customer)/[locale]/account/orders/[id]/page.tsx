@@ -20,6 +20,11 @@ import PaymentStatusBadge from "@/components/orders/PaymentStatusBadge";
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import RequestedDeliveryLine from "@/components/orders/RequestedDeliveryLine";
 import Skeleton from "@/components/Skeleton";
+import CourierCustomerActions from "@/components/orders/courier/CourierCustomerActions";
+import CourierPayPanel from "@/components/orders/courier/CourierPayPanel";
+import CourierQuoteCard from "@/components/orders/courier/CourierQuoteCard";
+import CourierSummary from "@/components/orders/courier/CourierSummary";
+import { courierChargePending, latestQuote } from "@/lib/courier";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -29,6 +34,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
   const t = useTranslations("Account.orderDetail");
   const tErr = useTranslations("Errors");
   const tpm = useTranslations("Order.payment.method");
+  const tco = useTranslations("Order.courier");
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,16 +66,25 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       </div>
     );
 
+  // Courier orders (spec 2026-10-02): quote → accept → pay → ship, no OTP.
+  const isCourier = order.delivery_mode === "courier";
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>{t("title", { id: order.id })}</h1>
-        <OrderStatusBadge status={order.status} deliveryMode={order.delivery_mode} />
+        <OrderStatusBadge
+          status={order.status}
+          deliveryMode={order.delivery_mode}
+          audience="customer"
+        />
       </div>
       <p className={styles.subtitle}>
         {order.store_name} <span className={styles.serviceChip}>· {order.service_name}</span>
       </p>
-      {order.delivery_eta_min_minutes != null && order.delivery_eta_max_minutes != null && (
+      {!isCourier &&
+        order.delivery_eta_min_minutes != null &&
+        order.delivery_eta_max_minutes != null && (
         <p className={styles.subtitle}>
           {t("estimatedDelivery")}:{" "}
           {formatDeliveryEta(order.delivery_eta_min_minutes, order.delivery_eta_max_minutes)}
@@ -81,34 +96,76 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
         <OrderTimeline status={order.status} deliveryMode={order.delivery_mode} />
       </section>
 
+      {isCourier && (
+        <>
+          <CourierQuoteCard order={order} onChange={setOrder} />
+          <CourierPayPanel order={order} onChange={setOrder} />
+          <CourierSummary order={order} viewer="customer" />
+        </>
+      )}
+
       <UpiPayPanel order={order} onChange={setOrder} />
 
       <DeliveryOtpPanel order={order} onChange={setOrder} />
 
-      <ReturnEntryPoint order={order} />
+      {isCourier ? (
+        order.status === "delivered" && (
+          <p className={styles.subtitle}>{t("courierNoReturns")}</p>
+        )
+      ) : (
+        <ReturnEntryPoint order={order} />
+      )}
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("items")}</h2>
         <OrderItemList items={order.items} />
         <div className={styles.totals}>
           <div><span>{t("subtotal")}</span><span>{t("amount", { amount: order.subtotal.toFixed(2) })}</span></div>
-          <div><span>{t("delivery")}</span><span>{t("amount", { amount: order.delivery_fee.toFixed(2) })}</span></div>
+          <div>
+            <span>{isCourier ? t("courierCharge") : t("delivery")}</span>
+            <span>
+              {courierChargePending(order)
+                ? order.status === "quoted" && latestQuote(order)
+                  ? t("courierQuotedCharge", { amount: latestQuote(order)!.courier_fee.toFixed(2) })
+                  : t("courierToBeQuoted")
+                : t("amount", { amount: order.delivery_fee.toFixed(2) })}
+            </span>
+          </div>
           <div><span>{t("tax")}</span><span>{t("amount", { amount: order.tax.toFixed(2) })}</span></div>
-          <div className={styles.grand}><span>{t("total")}</span><span>{t("amount", { amount: order.total.toFixed(2) })}</span></div>
+          <div className={styles.grand}>
+            <span>{t("total")}</span>
+            <span>
+              {courierChargePending(order)
+                ? t("amountPlusCourier", { amount: order.total.toFixed(2) })
+                : t("amount", { amount: order.total.toFixed(2) })}
+            </span>
+          </div>
         </div>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t("payment")}</h2>
-        <p>{tpm(order.payment.method)} · <PaymentStatusBadge status={order.payment.status} /></p>
+        <p>
+          {isCourier && order.payment.method === "net_banking"
+            ? tco("methodBank")
+            : tpm(order.payment.method)}{" "}
+          ·{" "}
+          <PaymentStatusBadge status={order.payment.status} refundDue={order.courier?.refund_due} />
+        </p>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>
-          {order.delivery_mode === "pickup" ? t("pickupLocation") : t("deliveryTo")}
+          {order.delivery_mode === "pickup"
+            ? t("pickupLocation")
+            : isCourier
+              ? t("courierShipTo")
+              : t("deliveryTo")}
         </h2>
         <p>{order.delivery_address_snapshot}</p>
-        {order.store_latitude != null &&
+        {/* No route for courier: meaningless at that distance (spec §8.2). */}
+        {!isCourier &&
+          order.store_latitude != null &&
           order.store_longitude != null &&
           order.delivery_latitude != null &&
           order.delivery_longitude != null && (
@@ -130,7 +187,11 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       <section className={styles.section}>
         <div className={styles.actionRow}>
           <ReorderButton orderId={order.id} className={styles.reorderBtn} />
-          <OrderActionButtons order={order} role="customer" onChange={setOrder} />
+          {isCourier ? (
+            <CourierCustomerActions order={order} onChange={setOrder} />
+          ) : (
+            <OrderActionButtons order={order} role="customer" onChange={setOrder} />
+          )}
         </div>
       </section>
     </div>

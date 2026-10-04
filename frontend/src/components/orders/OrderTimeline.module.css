@@ -57,6 +57,15 @@
   font-weight: var(--weight-semibold);
 }
 
+/* Six courier steps on a phone: the labels need ~380px at the default gap and
+ * size, so tighten both and let steps shrink — the four local steps keep
+ * their roomier layout. */
+@media (max-width: 480px) {
+  .dense { gap: 4px; }
+  .dense .step { min-width: 0; }
+  .dense .label { font-size: var(--body-3xs); line-height: 1.2; }
+}
+
 .cancelled {
   color: var(--tomato-red-dark-1);
   font-weight: var(--weight-semibold);

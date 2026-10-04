@@ -14,6 +14,9 @@ import { get } from "@/lib/api";
 
 interface PublicConfig {
   phone_otp_enabled: boolean;
+  /** COURIER_MAX_RADIUS_KM / COURIER_STALE_DAYS (absent on older APIs). */
+  courier_max_radius_km?: number;
+  courier_stale_days?: number;
 }
 
 let cached: Promise<PublicConfig> | null = null;
@@ -25,6 +28,39 @@ export function getPublicConfig(): Promise<PublicConfig> {
     throw err;
   });
   return cached;
+}
+
+export interface CourierLimits {
+  maxRadiusKm: number | null;
+  staleDays: number | null;
+}
+
+/**
+ * The courier limits, so operator screens follow the env instead of
+ * hard-coding its defaults. `null` until loaded (or on an older API): callers
+ * then drop the number from their copy and leave the check to the server.
+ */
+export function useCourierLimits(): CourierLimits {
+  const [limits, setLimits] = useState<CourierLimits>({ maxRadiusKm: null, staleDays: null });
+  useEffect(() => {
+    let live = true;
+    getPublicConfig()
+      .then((c) => {
+        if (live) {
+          setLimits({
+            maxRadiusKm: c.courier_max_radius_km ?? null,
+            staleDays: c.courier_stale_days ?? null,
+          });
+        }
+      })
+      .catch(() => {
+        /* keep the unknowns */
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return limits;
 }
 
 /**

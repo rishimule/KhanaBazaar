@@ -38,3 +38,5 @@
   background: var(--color-neutral-100);
   color: var(--color-neutral-700);
 }
+
+.refundDue { background: var(--saffron-light-1); color: var(--saffron-dark-1); }

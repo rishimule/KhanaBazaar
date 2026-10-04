@@ -29,6 +29,7 @@ export function adminSetServiceDeliverySettings(
   token: string,
   deliveryEta?: { min: number; max: number },
   pickupEnabled?: boolean,
+  courierEnabled?: boolean,
 ) {
   return patch<Service>(
     `/api/v1/sellers/admin/${sellerId}/services/${serviceId}`,
@@ -42,6 +43,7 @@ export function adminSetServiceDeliverySettings(
           }
         : {}),
       ...(pickupEnabled !== undefined ? { pickup_enabled: pickupEnabled } : {}),
+      ...(courierEnabled !== undefined ? { courier_enabled: courierEnabled } : {}),
     },
     token,
   );
@@ -75,7 +77,7 @@ export function fetchSellerOrders(sellerId: number, token: string) {
 
 export function adminRewindOrder(
   orderId: number,
-  body: { to_status: "pending" | "packed"; reason: string },
+  body: { to_status: "pending" | "packed" | "paid" | "accepted"; reason: string },
   token: string,
 ) {
   return post<{ status: string }>(

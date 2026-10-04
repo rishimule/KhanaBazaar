@@ -51,15 +51,21 @@ async def get_indian_states() -> dict[str, list[str]]:
 
 
 @router.get("/public-config")
-async def public_config() -> dict[str, bool]:
+async def public_config() -> dict[str, bool | int | float]:
     """Server switches a client must know about *before* it renders.
 
     Advisory only — every one of these is still enforced server-side on the
     request that acts on it. `phone_otp_enabled` exists so the phone screens
     can avoid promising a code that will never be sent; the OTP endpoints'
     own `otp_required` field remains the authority on what actually happened.
+    The courier limits label the operator screens (the radius hint, the
+    "stalled" chip) so they follow the env instead of hard-coding defaults.
     """
-    return {"phone_otp_enabled": settings.PHONE_OTP_ENABLED}
+    return {
+        "phone_otp_enabled": settings.PHONE_OTP_ENABLED,
+        "courier_max_radius_km": settings.COURIER_MAX_RADIUS_KM,
+        "courier_stale_days": settings.COURIER_STALE_DAYS,
+    }
 
 
 _HEALTH_CACHE_KEY = "search:health:cached"

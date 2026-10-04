@@ -6,6 +6,11 @@
     <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;width:120px;">Action</td><td style="padding:6px 0;font-size:15px;font-weight:600;">{{ action_label }}</td></tr>
     <tr><td style="padding:6px 0;color:#6b7280;font-size:13px;">Reason</td><td style="padding:6px 0;font-size:15px;">{{ reason|default('(none provided)', true) }}</td></tr>
   </table>
+  {% if refund_due_amount is defined and refund_due_amount %}
+    <div style="background:#fff7ed;border-left:4px solid #c2410c;padding:12px 16px;margin:16px 0;border-radius:4px;">
+      <div style="font-size:15px;color:#1f2937;">You owe the customer a refund of <strong>{{ refund_due_amount|inr }}</strong>. Send it back, then tap “Refund sent” on the order.</div>
+    </div>
+  {% endif %}
   {% set cta_url = frontend_base_url ~ "/seller/orders/" ~ order_id|string %}
   {% set cta_label = "View order" %}
   {% include "_partials/button.html" %}

@@ -42,6 +42,8 @@ export interface Service extends BaseSchema {
   delivery_eta_min_minutes?: number;
   delivery_eta_max_minutes?: number;
   pickup_enabled?: boolean;
+  /** Courier opt-in for this service; the radius lives on the store. */
+  courier_enabled?: boolean;
   is_paused?: boolean;
   pause_reason?: string | null;
   paused_until?: string | null;
@@ -137,6 +139,10 @@ export interface Store extends BaseSchema {
   seller_id: number;
   services: Service[];
   delivery_radius_km: number;
+  /** Courier ring in km; null = the store doesn't ship by courier. */
+  courier_radius_km?: number | null;
+  /** Live prepaid methods for a courier order (names only). */
+  courier_payment_methods?: PaymentMethod[];
   pin_confirmed: boolean;
   is_paused: boolean;
   pause_reason?: string | null;
@@ -287,6 +293,9 @@ export interface SellerProfile extends BaseSchema {
   fssai_license: string | null;
   bank_account_number: string | null;
   bank_ifsc: string | null;
+  bank_account_name?: string | null;
+  /** Customer-facing bank transfer for courier orders. */
+  bank_transfer_enabled?: boolean;
   /** Customer-visible UPI payee. The uploaded verification QR is admin-only
    *  and deliberately absent from these reads. */
   upi_vpa?: string | null;
@@ -327,11 +336,19 @@ export interface ApplicationCounts {
   total: number;
 }
 
-export type OrderStatus = "pending" | "packed" | "dispatched" | "delivered" | "cancelled";
+export type OrderStatus =
+  | "pending"
+  | "quoted"
+  | "accepted"
+  | "paid"
+  | "packed"
+  | "dispatched"
+  | "delivered"
+  | "cancelled";
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 export type DeliveryStatus = "pending" | "packed" | "dispatched" | "delivered" | "cancelled";
 export type PaymentMethod = "cash" | "upi" | "credit" | "net_banking" | "pay_at_store";
-export type DeliveryMode = "door_delivery" | "pickup";
+export type DeliveryMode = "door_delivery" | "pickup" | "courier";
 
 export interface OrderItem {
   id: number;
@@ -349,6 +366,9 @@ export interface OrderPayment {
   paid_at: string | null;
   /** Set when the customer tapped "I've paid". An assertion, not a settlement. */
   customer_claimed_at?: string | null;
+  /** Courier refunds: set by the seller's "Refund sent" or the admin marker. */
+  refunded_at?: string | null;
+  refund_reference?: string | null;
 }
 
 export interface OrderDelivery {
@@ -366,6 +386,55 @@ export interface OrderDelivery {
 export interface OrderReview {
   rating: number;
   comment: string | null;
+}
+
+export interface CourierQuote {
+  id: number;
+  version: number;
+  courier_fee: number;
+  eta_min_days: number;
+  eta_max_days: number;
+  carrier_name: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+/** The seller's bank details — only on an accepted courier order, only for
+ *  its customer. */
+export interface BankTransferDetails {
+  account_name: string;
+  account_number: string;
+  ifsc: string;
+}
+
+export interface CourierInfo {
+  recipient_name: string;
+  recipient_phone: string;
+  /** Seller/admin: every version, newest first. Customer: the latest only. */
+  quotes: CourierQuote[];
+  revised: boolean;
+  /** COURIER_MAX_QUOTE_VERSIONS on the server (older responses omit it). */
+  max_quote_versions?: number;
+  accepted_quote_id: number | null;
+  accepted_at: string | null;
+  /** Fixed when the seller confirms payment (YYYY-MM-DD, IST). */
+  eta_from: string | null;
+  eta_to: string | null;
+  payment_claim_rejected_at: string | null;
+  payment_claim_rejected_note: string | null;
+  carrier_name: string | null;
+  tracking_number: string | null;
+  tracking_url: string | null;
+  tracking_updated_at: string | null;
+  delivered_by: "seller" | "customer" | "admin" | null;
+  cancel_reason: string | null;
+  cancelled_by: string | null;
+  cancelled_at: string | null;
+  payment_reported_missing_at: string | null;
+  refund_due: boolean;
+  /** Prepaid methods the seller can be paid by right now. */
+  payable_methods: PaymentMethod[];
+  bank_transfer: BankTransferDetails | null;
 }
 
 export interface Order {
@@ -397,6 +466,8 @@ export interface Order {
   review: OrderReview | null;
   /** Gross `total` minus this is what the customer actually pays. */
   store_credit_applied?: number;
+  /** Courier orders only (spec 2026-10-02 §13); null for door/pickup. */
+  courier?: CourierInfo | null;
 }
 
 export interface OrderListResponse {
@@ -877,6 +948,7 @@ export interface AdminCustomerOrder {
   status: OrderStatus;
   total: number;
   placed_at: string;
+  delivery_mode?: DeliveryMode;
 }
 
 /** A customer notification row (GET /admin/customers/{id}/notifications). */
@@ -996,6 +1068,12 @@ export interface OrderStatusCounts {
   dispatched: number;
   pending: number;
   cancelled: number;
+  /** Courier: payment confirmed, waiting to be packed. */
+  paid: number;
+  /** Courier: quote sent, waiting on the customer. */
+  quoted: number;
+  /** Courier: quote accepted, waiting for payment. */
+  accepted: number;
 }
 
 export interface InventoryServiceStat {
@@ -1028,6 +1106,8 @@ export interface SellerMetrics {
   order_status_counts: OrderStatusCounts;
   inventory_by_service: InventoryServiceStat[];
   top_subcategory: TopSubcategory | null;
+  /** Courier orders whose customer says they paid, awaiting the seller's check. */
+  courier_payment_checks?: number;
 }
 
 export interface RevenueSeriesPoint {

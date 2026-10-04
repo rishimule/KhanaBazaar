@@ -4,12 +4,12 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { QRCodeSVG } from "qrcode.react";
 
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { claimUpiPayment } from "@/lib/orders";
-import { buildUpiUri, isLikelyIOS, netPayable } from "@/lib/upi";
+import { netPayable } from "@/lib/upi";
+import UpiQrBlock from "@/components/orders/UpiQrBlock";
 import type { Order, Store } from "@/types";
 import styles from "./UpiPayPanel.module.css";
 
@@ -34,15 +34,13 @@ export default function UpiPayPanel({ order, onChange }: Props) {
   const [payee, setPayee] = useState<NonNullable<Store["upi_payee"]> | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [ios, setIos] = useState(false);
 
+  // Courier orders pay through CourierPayPanel once the quote is accepted
+  // (UPI or bank tabs); this panel is for local UPI orders only.
   const isUpiPending =
-    order.payment.method === "upi" && order.payment.status === "pending";
-
-  // Resolved in an effect rather than during render: the UA is unavailable
-  // server-side, and branching on it mid-render risks a hydration mismatch.
-  useEffect(() => setIos(isLikelyIOS()), []);
+    order.delivery_mode !== "courier" &&
+    order.payment.method === "upi" &&
+    order.payment.status === "pending";
 
   useEffect(() => {
     if (!isUpiPending) return;
@@ -65,12 +63,6 @@ export default function UpiPayPanel({ order, onChange }: Props) {
   // is gross too — billing either would tell a customer holding store credit to
   // overpay by exactly their balance.
   const amount = netPayable(order);
-  const uri = buildUpiUri({
-    vpa: payee.vpa,
-    payeeName: payee.display_name,
-    amount,
-    orderId: order.id,
-  });
   const claimed = order.payment.customer_claimed_at;
 
   async function claim() {
@@ -86,16 +78,6 @@ export default function UpiPayPanel({ order, onChange }: Props) {
     }
   }
 
-  async function copyVpa() {
-    try {
-      await navigator.clipboard.writeText(payee!.vpa);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError(t("copyFailed"));
-    }
-  }
-
   return (
     <section className={styles.panel} aria-labelledby="upi-pay-title">
       <h2 id="upi-pay-title" className={styles.title}>
@@ -103,25 +85,13 @@ export default function UpiPayPanel({ order, onChange }: Props) {
       </h2>
       <p className={styles.payee}>{t("payTo", { name: payee.display_name })}</p>
 
-      {/* Kept on a white plate in every theme: a dark-mode-inverted QR will
-          not scan. */}
-      <div className={styles.qrWrap}>
-        <QRCodeSVG value={uri} size={200} level="M" />
-      </div>
-      <p className={styles.hint}>{ios ? t("scanHintIos") : t("scanHint")}</p>
-
-      <div className={styles.vpaRow}>
-        <code className={styles.vpa}>{payee.vpa}</code>
-        <button type="button" className="btn" onClick={copyVpa}>
-          {copied ? t("copied") : t("copyVpa")}
-        </button>
-      </div>
-
-      {/* iOS Safari does not reliably fire `upi://`, so the app button is
-          demoted there rather than removed — it still works in some apps. */}
-      <a className={ios ? "btn" : "btn btn-primary"} href={uri}>
-        {t("payWithApp")}
-      </a>
+      <UpiQrBlock
+        vpa={payee.vpa}
+        payeeName={payee.display_name}
+        amount={amount}
+        orderId={order.id}
+        onError={setError}
+      />
 
       {error && (
         <p className={styles.error} role="alert">

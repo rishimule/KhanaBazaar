@@ -2,7 +2,7 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_
@@ -29,6 +29,7 @@ from app.models.catalog import (
     Subcategory,
 )
 from app.models.commerce import (
+    ACTIVE_ORDER_STATUSES,
     Delivery,
     DeliveryMode,
     Order,
@@ -42,20 +43,30 @@ from app.models.commerce import (
 from app.models.profile import CustomerProfile, SellerProfile, SellerProfileService
 from app.models.store import Store, StoreInventory
 from app.schemas.orders import (
+    CourierAcceptRequest,
+    CourierQuoteRequest,
+    CourierTrackingRequest,
     DeliveryRead,
     OrderItemRead,
     OrderListResponse,
     OrderRead,
     OrderReviewInOrder,
+    PaymentClaimRequest,
+    PaymentNotReceivedRequest,
     PaymentRead,
     PlaceOrderRequest,
+    RefundSentRequest,
     SellerOrderAlertSummary,
     TransitionRequest,
 )
 from app.schemas.price_comparison import ReplaceAdjustment
 from app.schemas.reorder import ReorderResolveResponse, ResolvedReorderItem
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
+from app.services import courier as courier_svc
+from app.services import courier_comms
 from app.services.checkout import place_order_for_sub_basket
+from app.services.courier_copy import load_courier_vars, render_status
+from app.services.courier_rules import TrackingInput, refund_owed_order_ids
 from app.services.notification_push import dispatch_notification_push
 from app.services.notifications import (
     record_delivery_otp_notification,
@@ -65,6 +76,7 @@ from app.services.order_emails import (
     dispatch_admin_order_action,
     dispatch_delivery_otp,
     dispatch_order_placed,
+    dispatch_order_review_request,
     dispatch_order_status_changed,
 )
 from app.services.order_whatsapp import dispatch_order_status_whatsapp
@@ -76,6 +88,7 @@ from app.services.orders import (
 from app.services.seller_order_notifications import (
     record_seller_new_order_notification,
 )
+from app.utils.delivery_window import ist_today
 
 router = APIRouter()
 
@@ -108,6 +121,7 @@ async def record_and_dispatch_notification(
     Order state is already committed by the caller; this opens a fresh write on
     the same session and never raises into the request path.
     """
+    order_id = order.id
     # Skip all comms for non-active accounts (e.g. an admin-deleted customer
     # with a still-open order the seller is finishing) — no in-app row, no push,
     # no WhatsApp.
@@ -138,12 +152,20 @@ async def record_and_dispatch_notification(
                 f"{body} Requested delivery: "
                 f"{format_delivery_window(order.preferred_delivery_date, order.preferred_delivery_window)}."
             )
+        title = title_tpl.format(oid=order.id)
+        if order.delivery_mode == DeliveryMode.Courier and order.id is not None:
+            courier_vars = await load_courier_vars(session, order.id)
+            courier_message = (
+                render_status(status_value, courier_vars) if courier_vars is not None else None
+            )
+            if courier_message is not None:
+                title, body = courier_message.title, courier_message.body
         notif = await record_order_status_notification(
             session,
             customer_profile_id=order.customer_profile_id,
             order_id=order.id,
             status=status_value,
-            title=title_tpl.format(oid=order.id),
+            title=title,
             body=body,
         )
         if notif.id is not None:
@@ -153,21 +175,28 @@ async def record_and_dispatch_notification(
         # Best-effort: roll back the failed notification write so the shared
         # request session is usable for the subsequent _serialize_order read
         # (otherwise a notify hiccup would surface as a 500 on the order path).
+        # The rollback expires every loaded object, so `order` is reloaded
+        # before anyone reads it again.
         try:
             await session.rollback()
         except Exception:
             logger.exception("Rollback after notification failure also failed")
+        try:
+            await session.refresh(order)
+        except Exception:
+            logger.exception("Refresh after notification rollback failed")
         logger.exception(
-            "Failed to record/dispatch notification for order_id=%s", order.id
+            "Failed to record/dispatch notification for order_id=%s", order_id
         )
     # Best-effort, additive customer WhatsApp (outside the try so a notification
     # hiccup doesn't skip it, and vice versa). Phone-verified gate is in the task.
-    if get_whatsapp_sender() is not None and order.id is not None:
-        dispatch_order_status_whatsapp(order.id, status_value)
+    if get_whatsapp_sender() is not None and order_id is not None:
+        dispatch_order_status_whatsapp(order_id, status_value)
 
 
 async def _send_delivery_otp(session: AsyncSession, order: Order, code: str) -> None:
     """Best-effort 3-channel fan-out of the delivery code. Never raises."""
+    order_id = order.id
     try:
         notif = await record_delivery_otp_notification(
             session,
@@ -179,20 +208,26 @@ async def _send_delivery_otp(session: AsyncSession, order: Order, code: str) -> 
             dispatch_notification_push(notif.id)
         await session.refresh(order)
     except Exception:
+        # The rollback expires every loaded object; reload `order` so the
+        # caller can still serialise it, and keep sending the code by SMS/email.
         try:
             await session.rollback()
         except Exception:
             logger.exception("Rollback after delivery-otp notify failure also failed")
+        try:
+            await session.refresh(order)
+        except Exception:
+            logger.exception("Refresh after delivery-otp notify rollback failed")
         logger.exception(
-            "Failed to record delivery-otp notification for order_id=%s", order.id
+            "Failed to record delivery-otp notification for order_id=%s", order_id
         )
-    if order.id is not None:
-        dispatch_delivery_otp(order.id, code)
+    if order_id is not None:
+        dispatch_delivery_otp(order_id, code)
 
 
 REORDER_LANG = "en"
 
-ACTIVE_STATUSES = (OrderStatus.Pending, OrderStatus.Packed, OrderStatus.Dispatched)
+ACTIVE_STATUSES = ACTIVE_ORDER_STATUSES
 HISTORY_STATUSES = (OrderStatus.Delivered, OrderStatus.Cancelled)
 
 
@@ -248,6 +283,11 @@ async def _serialize_order(
         if cust is not None:
             parts = [p for p in (cust.first_name, cust.last_name) if p]
             customer_name = " ".join(parts) if parts else None
+    courier_read = await courier_svc.build_courier_read(
+        session,
+        order,
+        viewer="admin" if viewer_is_admin else ("seller" if include_customer_name else "customer"),
+    )
     return OrderRead(
         id=order.id,
         store_id=order.store_id,
@@ -283,6 +323,8 @@ async def _serialize_order(
         payment=PaymentRead(
             method=payment.method, status=payment.status, amount=payment.amount, paid_at=payment.paid_at,
             customer_claimed_at=payment.customer_claimed_at,
+            refunded_at=payment.refunded_at,
+            refund_reference=payment.refund_reference,
         ),
         delivery=DeliveryRead(
             status=delivery.status,
@@ -309,6 +351,7 @@ async def _serialize_order(
         review=OrderReviewInOrder(rating=review.rating, comment=review.comment)
         if review is not None
         else None,
+        courier=courier_read,
     )
 
 
@@ -355,6 +398,9 @@ async def list_orders(
     status: Optional[str] = Query(default=None),
     service_id: Optional[int] = Query(default=None, gt=0),
     seller_id: Optional[int] = Query(default=None, gt=0),
+    delivery_mode: Optional[DeliveryMode] = Query(default=None),
+    needs: Optional[Literal["quote", "payment_check", "refund"]] = Query(default=None),
+    stale: bool = Query(default=False),
     q: Optional[str] = Query(default=None),
     from_date: Optional[str] = Query(default=None),
     to_date: Optional[str] = Query(default=None),
@@ -419,6 +465,28 @@ async def list_orders(
     else:
         raise HTTPException(status_code=403, detail="forbidden")
 
+    if delivery_mode is not None:
+        stmt = stmt.where(Order.delivery_mode == delivery_mode)
+    if needs is not None or stale:
+        stmt = stmt.where(Order.delivery_mode == DeliveryMode.Courier)
+    if needs == "quote":
+        stmt = stmt.where(Order.status == OrderStatus.Pending)
+    elif needs == "payment_check":
+        stmt = stmt.where(
+            Order.status == OrderStatus.Accepted,
+            col(Order.id).in_(
+                select(Payment.order_id).where(col(Payment.customer_claimed_at).is_not(None))
+            ),
+        )
+    elif needs == "refund":
+        stmt = stmt.where(
+            Order.status == OrderStatus.Cancelled,
+            col(Order.id).in_(refund_owed_order_ids()),
+        )
+    if stale:
+        stmt = stmt.where(
+            courier_svc.stale_courier_clause(datetime.now(timezone.utc), ist_today())
+        )
     if statuses is not None:
         stmt = stmt.where(Order.status.in_(statuses))  # type: ignore[attr-defined]
 
@@ -593,6 +661,8 @@ async def place_order(
         customer_address_id=payload.customer_address_id,
         preferred_delivery_date=payload.preferred_delivery_date,
         preferred_delivery_window=payload.preferred_delivery_window,
+        recipient_name=payload.recipient_name,
+        recipient_phone=payload.recipient_phone,
     )
     if order.id is not None:
         dispatch_order_placed([order.id])
@@ -616,13 +686,22 @@ async def transition_order(
 ) -> OrderRead:
     if user.role not in (UserRole.Seller, UserRole.Admin):
         raise HTTPException(status_code=403, detail="forbidden")
+    # Read now: a failed notification write rolls the session back, which
+    # expires `user` too, and a lazy reload in async code raises.
+    is_admin = user.role == UserRole.Admin
     order, include_customer = await _load_order_for_user(session, order_id, user)
+    tracking = TrackingInput(
+        carrier_name=payload.carrier_name,
+        tracking_number=payload.tracking_number,
+        tracking_url=payload.tracking_url,
+    )
     order = await transition_order_status(
-        session, order, payload.to, user, otp=payload.otp, reason=payload.reason
+        session, order, payload.to, user, otp=payload.otp, reason=payload.reason,
+        tracking=tracking if tracking.any() else None,
     )
     if order.id is not None:
         dispatch_order_status_changed(order.id, order.status.value)
-        if user.role == UserRole.Admin:
+        if is_admin:
             dispatch_admin_order_action(
                 order.id, "order.transition", f"to {order.status.value}"
             )
@@ -639,8 +718,131 @@ async def transition_order(
         session,
         order,
         include_customer_name=include_customer,
-        viewer_is_admin=user.role == UserRole.Admin,
+        viewer_is_admin=is_admin,
     )
+
+
+@router.post("/{order_id}/courier/quote", response_model=OrderRead)
+async def courier_send_quote(
+    order_id: int,
+    body: CourierQuoteRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The store's seller sends (or revises) the courier charge + transit."""
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    result = await courier_svc.send_quote(
+        session,
+        order,
+        user,
+        courier_fee=body.courier_fee,
+        eta_min_days=body.eta_min_days,
+        eta_max_days=body.eta_max_days,
+        carrier_name=body.carrier_name,
+        note=body.note,
+    )
+    order = result.order
+    if not result.duplicate:
+        await courier_comms.notify_customer(
+            session, order, "quote_revised" if result.revised else "quote_ready"
+        )
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=is_admin,
+    )
+
+
+@router.post("/{order_id}/courier/accept", response_model=OrderRead)
+async def courier_accept_quote(
+    order_id: int,
+    body: CourierAcceptRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The owning customer accepts the quote they were shown."""
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    try:
+        result = await courier_svc.accept_quote(session, order, user, quote_id=body.quote_id)
+    except courier_svc.CourierPayeeMissing as exc:
+        # Nothing was written; release the row lock, then tell the seller once.
+        await session.rollback()
+        await session.refresh(order)
+        await courier_comms.notify_seller(session, order, "payee_missing", once=True)
+        raise HTTPException(
+            status_code=409, detail={"code": "courier_payment_unavailable"}
+        ) from exc
+    order = result.order
+    if not result.already_accepted:
+        if result.auto_paid:
+            await courier_comms.notify_customer(session, order, "auto_paid")
+            await courier_comms.notify_seller(session, order, "accepted_paid")
+        else:
+            await courier_comms.notify_seller(session, order, "accepted")
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=is_admin,
+    )
+
+
+@router.patch("/{order_id}/courier/tracking", response_model=OrderRead)
+async def courier_update_tracking(
+    order_id: int,
+    body: CourierTrackingRequest,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The store's seller edits tracking on a shipped courier order."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order, changed = await courier_svc.update_tracking(
+        session,
+        order,
+        user,
+        TrackingInput(
+            carrier_name=body.carrier_name,
+            tracking_number=body.tracking_number,
+            tracking_url=body.tracking_url,
+        ),
+    )
+    if changed:
+        await courier_comms.notify_customer(session, order, "tracking_updated")
+    return await _serialize_order(session, order, include_customer_name=include_customer)
+
+
+@router.post("/{order_id}/courier/received", response_model=OrderRead)
+async def courier_mark_received(
+    order_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The owning customer confirms the parcel arrived."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order = await courier_svc.mark_received(session, order, user)
+    if order.id is not None:
+        dispatch_order_review_request(order.id)
+    await courier_comms.notify_seller(session, order, "customer_received")
+    return await _serialize_order(session, order, include_customer_name=include_customer)
+
+
+@router.post("/{order_id}/payment/refund-sent", response_model=OrderRead)
+async def courier_refund_sent(
+    order_id: int,
+    body: Optional[RefundSentRequest] = Body(default=None),
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The store's seller records that they refunded a cancelled courier order."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order = await courier_svc.mark_refund_sent(
+        session, order, user, reference=body.reference if body is not None else None
+    )
+    await courier_comms.notify_customer(session, order, "refund_sent")
+    return await _serialize_order(session, order, include_customer_name=include_customer)
 
 
 @router.post("/{order_id}/delivery-otp/resend", response_model=OrderRead)
@@ -654,6 +856,7 @@ async def resend_delivery_otp_route(
     # order and a seller on a store they don't own.
     if user.role == UserRole.Seller:
         raise HTTPException(status_code=403, detail="forbidden")
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
     order, include_customer = await _load_order_for_user(session, order_id, user)
     code = await resend_delivery_otp(session, order)
     await _send_delivery_otp(session, order, code)
@@ -661,7 +864,7 @@ async def resend_delivery_otp_route(
         session,
         order,
         include_customer_name=include_customer,
-        viewer_is_admin=user.role == UserRole.Admin,
+        viewer_is_admin=is_admin,
     )
 
 
@@ -677,16 +880,31 @@ async def cancel(
     Customer: only on pending orders. Seller: any non-terminal order on a
     store they own. Admin: any non-terminal order — must supply
     ``{"reason": "..."}`` (>=10 chars) when the order is not pending.
+
+    Courier orders follow their own rules (services/orders.cancel_order): the
+    customer may cancel up to ``accepted`` until they claim payment; the seller
+    always needs a reason and cannot cancel once shipped; a claimed but
+    unconfirmed payment requires ``{"payment_received": true|false}``.
     """
     reason = None
+    payment_received: Optional[bool] = None
     if body and isinstance(body, dict):
         raw = body.get("reason")
         if isinstance(raw, str):
             reason = raw
+        raw_received = body.get("payment_received")
+        if isinstance(raw_received, bool):
+            payment_received = raw_received
+    is_admin = user.role == UserRole.Admin
     order, include_customer = await _load_order_for_user(session, order_id, user)
-    order = await cancel_order(session, order, user, reason=reason)
+    courier_customer_cancel = (
+        order.delivery_mode == DeliveryMode.Courier and user.role == UserRole.Customer
+    )
+    order = await cancel_order(
+        session, order, user, reason=reason, payment_received=payment_received
+    )
     if order.id is not None:
-        if user.role == UserRole.Admin:
+        if is_admin:
             # Admin emails (admin_order_action_*) deliver the cancellation
             # notice to both audiences with reason + admin context, so the
             # generic status-changed email would just duplicate them.
@@ -698,6 +916,8 @@ async def cancel(
                 order.id, "cancelled", notify_seller=True, reason=reason
             )
         await record_and_dispatch_notification(session, order, "cancelled")
+        if courier_customer_cancel:
+            await courier_comms.notify_seller(session, order, "customer_cancelled")
     return await _serialize_order(session, order, include_customer_name=include_customer)
 
 
@@ -869,6 +1089,7 @@ async def reorder(
 @router.post("/{order_id}/payment/claim", response_model=OrderRead)
 async def claim_upi_payment(
     order_id: int,
+    body: Optional[PaymentClaimRequest] = Body(default=None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> OrderRead:
@@ -887,6 +1108,23 @@ async def claim_upi_payment(
     if user.role is not UserRole.Customer:
         raise HTTPException(status_code=403, detail="forbidden")
     order, include_customer_name = await _load_order_for_user(session, order_id, user)
+    if order.delivery_mode == DeliveryMode.Courier:
+        try:
+            order, newly_claimed = await courier_svc.claim_payment(
+                session, order, user, method=body.method if body is not None else None
+            )
+        except courier_svc.CourierPayeeMissing as exc:
+            await session.rollback()
+            await session.refresh(order)
+            await courier_comms.notify_seller(session, order, "payee_missing", once=True)
+            raise HTTPException(
+                status_code=409, detail={"code": "courier_payment_unavailable"}
+            ) from exc
+        if newly_claimed:
+            await courier_comms.notify_seller(session, order, "payment_claimed")
+        return await _serialize_order(
+            session, order, include_customer_name=include_customer_name
+        )
     payment = (
         await session.exec(select(Payment).where(Payment.order_id == order.id))
     ).first()
@@ -907,3 +1145,32 @@ async def claim_upi_payment(
     return await _serialize_order(
         session, order, include_customer_name=include_customer_name
     )
+
+
+@router.post("/{order_id}/payment/confirm", response_model=OrderRead)
+async def courier_confirm_payment(
+    order_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The store's seller confirms the money reached them (courier only)."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order = await courier_svc.confirm_payment(session, order, user)
+    await courier_comms.notify_customer(session, order, "payment_confirmed")
+    return await _serialize_order(session, order, include_customer_name=include_customer)
+
+
+@router.post("/{order_id}/payment/not-received", response_model=OrderRead)
+async def courier_payment_not_received(
+    order_id: int,
+    body: Optional[PaymentNotReceivedRequest] = Body(default=None),
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> OrderRead:
+    """The store's seller reports the claimed payment never arrived."""
+    order, include_customer = await _load_order_for_user(session, order_id, user)
+    order = await courier_svc.reject_payment_claim(
+        session, order, user, note=body.note if body is not None else None
+    )
+    await courier_comms.notify_customer(session, order, "payment_not_received")
+    return await _serialize_order(session, order, include_customer_name=include_customer)

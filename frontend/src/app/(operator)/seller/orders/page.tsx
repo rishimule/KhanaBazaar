@@ -1,7 +1,7 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { type Column } from "@/components/DataTable";
@@ -9,6 +9,7 @@ import LoadError from "@/components/LoadError";
 import Pager from "@/components/Pager";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
+import OrderTotal from "@/components/orders/OrderTotal";
 import { listOrdersPaged } from "@/lib/orders";
 import { usePagedList } from "@/lib/usePagedList";
 import { useVisibilityRefresh } from "@/lib/useVisibilityRefresh";
@@ -18,7 +19,14 @@ import { useAuth } from "@/lib/AuthContext";
 import type { Order, OrderListResponse, Service } from "@/types";
 import styles from "./page.module.css";
 
-type StatusFilter = "all" | "active" | "delivered" | "cancelled";
+type StatusFilter =
+  | "all"
+  | "active"
+  | "delivered"
+  | "cancelled"
+  | "needs_quote"
+  | "check_payment"
+  | "refunds_due";
 type SortKey = "date_desc" | "date_asc" | "total_desc" | "total_asc";
 const PAGE_SIZE = 20;
 
@@ -35,6 +43,7 @@ export default function SellerOrdersPage() {
   const [toDate, setToDate] = useState("");
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date_desc");
+  const sortBeforeRefunds = useRef<SortKey | null>(null);
   const [page, setPage] = useState(1);
   const debouncedQuery = useDebouncedValue(query, 300);
 
@@ -55,7 +64,19 @@ export default function SellerOrdersPage() {
       });
     }
     return listOrdersPaged(token, {
-      status: statusFilter,
+      // The three courier chips are stage filters, not statuses (A1 Task 15).
+      status:
+        statusFilter === "needs_quote" || statusFilter === "check_payment" || statusFilter === "refunds_due"
+          ? "all"
+          : statusFilter,
+      needs:
+        statusFilter === "needs_quote"
+          ? "quote"
+          : statusFilter === "check_payment"
+            ? "payment_check"
+            : statusFilter === "refunds_due"
+              ? "refund"
+              : undefined,
       service_id: serviceId,
       q: debouncedQuery,
       from_date: fromDate,
@@ -121,24 +142,40 @@ export default function SellerOrdersPage() {
     {
       key: "total",
       label: t("col.total"),
-      render: (o) => <span className={styles.right}>₹{o.total.toFixed(2)}</span>,
+      render: (o) => <OrderTotal order={o} className={styles.right} />,
     },
     {
       key: "payment",
       label: t("col.payment"),
       render: (o) => (
         <>
-          <PaymentStatusPill payment={o.payment} />
-          {o.payment.customer_claimed_at && (
-            <span className={styles.claimBadge}>{t("customerSaysPaid")}</span>
-          )}
+          <PaymentStatusPill
+            payment={o.payment}
+            refundDue={o.courier?.refund_due}
+            courier={o.delivery_mode === "courier"}
+          />
+          {/* Only while it is an open question: the claim timestamp outlives
+              the payment, and cancelling a courier order already answered it
+              (refund due, or reported as not received). */}
+          {o.payment.customer_claimed_at &&
+            o.payment.status === "pending" &&
+            !(o.delivery_mode === "courier" && o.status === "cancelled") && (
+              <span className={styles.claimBadge}>{t("customerSaysPaid")}</span>
+            )}
         </>
       ),
     },
     {
       key: "status",
       label: t("col.status"),
-      render: (o) => <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />,
+      render: (o) => (
+        <>
+          <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
+          {o.delivery_mode === "courier" && (
+            <span className={styles.claimBadge}>{t("courierTag")}</span>
+          )}
+        </>
+      ),
     },
   ];
 
@@ -148,13 +185,33 @@ export default function SellerOrdersPage() {
 
       <div className={styles.controls}>
         <div className={styles.chips} role="tablist">
-          {(["all", "active", "delivered", "cancelled"] as StatusFilter[]).map((s) => (
+          {(
+            [
+              "all",
+              "active",
+              "needs_quote",
+              "check_payment",
+              "refunds_due",
+              "delivered",
+              "cancelled",
+            ] as StatusFilter[]
+          ).map((s) => (
             <button
               key={s}
               type="button"
               className={statusFilter === s ? styles.chipActive : styles.chip}
               onClick={() => {
                 setStatusFilter(s);
+                // Oldest debts first (by order date: cancellation time isn't
+                // sortable) — and the previous sort back on leaving the chip,
+                // unless the operator picked a sort meanwhile.
+                if (s === "refunds_due" && statusFilter !== "refunds_due") {
+                  sortBeforeRefunds.current = sortKey;
+                  setSortKey("date_asc");
+                } else if (s !== "refunds_due" && sortBeforeRefunds.current) {
+                  setSortKey(sortBeforeRefunds.current);
+                  sortBeforeRefunds.current = null;
+                }
                 setPage(1);
               }}
             >
@@ -211,6 +268,7 @@ export default function SellerOrdersPage() {
           className={styles.select}
           value={sortKey}
           onChange={(e) => {
+            sortBeforeRefunds.current = null;
             setSortKey(e.target.value as SortKey);
             setPage(1);
           }}
@@ -261,14 +319,23 @@ export default function SellerOrdersPage() {
                 <a href={`/seller/orders/${o.id}`} className={styles.mobileLink}>
                   <div className={styles.mobileTop}>
                     <span className={styles.mono}>#{o.id}</span>
-                    <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
+                    <span>
+                      <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
+                      {o.delivery_mode === "courier" && (
+                        <span className={styles.claimBadge}>{t("courierTag")}</span>
+                      )}
+                    </span>
                   </div>
                   <div>
                     {o.customer_name ?? "—"} · {o.service_name}
                   </div>
                   <div className={styles.mobileBot}>
-                    <span>₹{o.total.toFixed(2)}</span>
-                    <PaymentStatusPill payment={o.payment} />
+                    <OrderTotal order={o} />
+                    <PaymentStatusPill
+                      payment={o.payment}
+                      refundDue={o.courier?.refund_due}
+                      courier={o.delivery_mode === "courier"}
+                    />
                   </div>
                 </a>
               )}

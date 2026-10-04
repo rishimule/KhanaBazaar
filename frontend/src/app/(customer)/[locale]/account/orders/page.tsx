@@ -8,13 +8,24 @@ import DataTable, { type Column } from "@/components/DataTable";
 import Skeleton from "@/components/Skeleton";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
+import OrderTotal from "@/components/orders/OrderTotal";
+import { customerActionNeeded } from "@/lib/courier";
 import { listOrders } from "@/lib/orders";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import type { Order, OrderStatus, Service } from "@/types";
 import styles from "./page.module.css";
 
-const ACTIVE: OrderStatus[] = ["pending", "packed", "dispatched"];
+// Mirrors the backend's ACTIVE_ORDER_STATUSES: everything not yet delivered or
+// cancelled, including the courier-only quoted/accepted/paid stages.
+const ACTIVE: OrderStatus[] = [
+  "pending",
+  "quoted",
+  "accepted",
+  "paid",
+  "packed",
+  "dispatched",
+];
 type StatusFilter = "all" | "active" | "delivered" | "cancelled";
 type SortKey = "date_desc" | "date_asc" | "total_desc" | "total_asc";
 const PAGE_SIZE = 20;
@@ -22,6 +33,7 @@ const PAGE_SIZE = 20;
 export default function CustomerOrdersPage() {
   const { token } = useAuth();
   const t = useTranslations("Account.orders");
+  const tCard = useTranslations("Order.card");
   const router = useRouter();
 
   const [allOrders, setAllOrders] = useState<Order[]>([]);
@@ -120,17 +132,30 @@ export default function CustomerOrdersPage() {
     {
       key: "total",
       label: t("colTotal"),
-      render: (o) => <span className={styles.right}>₹{o.total.toFixed(2)}</span>,
+      render: (o) => <OrderTotal order={o} className={styles.right} />,
     },
     {
       key: "payment",
       label: t("colPayment"),
-      render: (o) => <PaymentStatusPill payment={o.payment} />,
+      render: (o) => (
+        <PaymentStatusPill
+          payment={o.payment}
+          refundDue={o.courier?.refund_due}
+          courier={o.delivery_mode === "courier"}
+        />
+      ),
     },
     {
       key: "status",
       label: t("colStatus"),
-      render: (o) => <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />,
+      render: (o) => (
+        <>
+          <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} audience="customer" />
+          {customerActionNeeded(o) && (
+            <span className={styles.actionNeeded}>{tCard("actionNeeded")}</span>
+          )}
+        </>
+      ),
     },
   ];
 
@@ -235,14 +260,21 @@ export default function CustomerOrdersPage() {
                 <a href={`/account/orders/${o.id}`} className={styles.mobileLink}>
                   <div className={styles.mobileTop}>
                     <span className={styles.mono}>#{o.id}</span>
-                    <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
+                    <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} audience="customer" />
+                    {customerActionNeeded(o) && (
+                      <span className={styles.actionNeeded}>{tCard("actionNeeded")}</span>
+                    )}
                   </div>
                   <div>
                     {o.store_name} · {o.service_name}
                   </div>
                   <div className={styles.mobileBot}>
-                    <span>₹{o.total.toFixed(2)}</span>
-                    <PaymentStatusPill payment={o.payment} />
+                    <OrderTotal order={o} />
+                    <PaymentStatusPill
+                      payment={o.payment}
+                      refundDue={o.courier?.refund_due}
+                      courier={o.delivery_mode === "courier"}
+                    />
                   </div>
                 </a>
               )}

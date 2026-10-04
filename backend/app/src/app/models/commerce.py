@@ -16,6 +16,22 @@ class OrderStatus(str, enum.Enum):
     Dispatched = "dispatched"
     Delivered = "delivered"
     Cancelled = "cancelled"
+    # Courier orders only: pending → quoted → accepted → paid → packed → … .
+    # PascalCase NAMES like the rest, so Postgres stores 'Quoted'/'Accepted'.
+    Quoted = "quoted"
+    Accepted = "accepted"
+
+
+# Every status an order can still move out of — the single source for the
+# "active orders" filters and counts (four hand-written copies used to drift).
+ACTIVE_ORDER_STATUSES: tuple[OrderStatus, ...] = (
+    OrderStatus.Pending,
+    OrderStatus.Quoted,
+    OrderStatus.Accepted,
+    OrderStatus.Paid,
+    OrderStatus.Packed,
+    OrderStatus.Dispatched,
+)
 
 
 class PaymentMethod(str, enum.Enum):
@@ -29,6 +45,8 @@ class PaymentMethod(str, enum.Enum):
 class DeliveryMode(str, enum.Enum):
     DoorDelivery = "door_delivery"
     Pickup = "pickup"
+    # Long-distance by courier, seller-quoted after the order is placed.
+    Courier = "courier"
 
 
 class PaymentStatus(str, enum.Enum):
@@ -124,6 +142,14 @@ class Payment(BaseSchema, table=True):
         default=None,
         sa_type=DateTime(timezone=True),
     )
+    # Courier refunds (spec §10.3): set by the seller's "Refund sent" or the
+    # admin refund marker. `status` alone cannot say who or with what reference.
+    refunded_at: Optional[datetime] = Field(  # type: ignore[call-overload]
+        default=None,
+        sa_type=DateTime(timezone=True),
+    )
+    refund_reference: Optional[str] = Field(default=None, max_length=60)
+    refunded_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
 class Delivery(BaseSchema, table=True):

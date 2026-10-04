@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import OrderStatusBadge from "./OrderStatusBadge";
 import PaymentStatusBadge from "./PaymentStatusBadge";
+import OrderTotal from "./OrderTotal";
+import { customerActionNeeded } from "@/lib/courier";
 import RequestedDeliveryLine from "./RequestedDeliveryLine";
 import type { Order, UserRole } from "@/types";
 import styles from "./OrderCard.module.css";
@@ -42,9 +44,17 @@ export default function OrderCard({ order, role }: Props) {
     <Link href={href} className={styles.card}>
       <div className={styles.header}>
         <span className={styles.id}>#{order.id}</span>
-        <OrderStatusBadge status={order.status} deliveryMode={order.delivery_mode} />
+        <OrderStatusBadge
+          status={order.status}
+          deliveryMode={order.delivery_mode}
+          audience={role === "customer" ? "customer" : "operator"}
+        />
         {order.payment.status === "refunded" && (
           <PaymentStatusBadge status={order.payment.status} />
+        )}
+        {order.courier?.refund_due && <PaymentStatusBadge status="paid" refundDue />}
+        {role === "customer" && customerActionNeeded(order) && (
+          <span className={styles.actionNeeded}>{t("actionNeeded")}</span>
         )}
       </div>
       <div className={styles.title}>
@@ -55,7 +65,7 @@ export default function OrderCard({ order, role }: Props) {
       )}
       <RequestedDeliveryLine order={order} className={styles.subtitle} />
       <div className={styles.meta}>
-        <span className={styles.total}>₹{order.total.toFixed(2)}</span>
+        <OrderTotal order={order} className={styles.total} />
         <span className={styles.time}>{relativeTime(order.placed_at, t)}</span>
       </div>
     </Link>

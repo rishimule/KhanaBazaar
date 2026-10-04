@@ -39,7 +39,7 @@ from app.models.catalog import (
     Service,
     ServiceTranslation,
 )
-from app.models.commerce import Delivery, Order, OrderStatus
+from app.models.commerce import ACTIVE_ORDER_STATUSES, Delivery, Order, OrderStatus
 from app.models.customer_account_event import CustomerAccountEvent
 from app.models.notification import Notification
 from app.models.profile import (
@@ -138,7 +138,7 @@ async def admin_metrics(
         now_ist.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         .astimezone(timezone.utc)
     )
-    active = (OrderStatus.Pending, OrderStatus.Packed, OrderStatus.Dispatched)
+    active = ACTIVE_ORDER_STATUSES
 
     active_orders = (await session.exec(
         select(func.count())  # type: ignore[arg-type]
@@ -497,13 +497,7 @@ async def admin_seller_hub_summary(
         active_count = int((await session.exec(
             select(func.count(Order.id)).where(
                 Order.store_id == store.id,
-                Order.status.in_(  # type: ignore[attr-defined]
-                    [
-                        OrderStatus.Pending,
-                        OrderStatus.Packed,
-                        OrderStatus.Dispatched,
-                    ]
-                ),
+                Order.status.in_(ACTIVE_ORDER_STATUSES),  # type: ignore[attr-defined]
             )
         )).first() or 0)
         product_count = int((await session.exec(
@@ -1350,6 +1344,7 @@ async def admin_customer_orders(
             status=o.status.value,
             total=o.total,
             placed_at=o.placed_at,
+            delivery_mode=o.delivery_mode.value,
         )
         for o in rows
         if o.id is not None

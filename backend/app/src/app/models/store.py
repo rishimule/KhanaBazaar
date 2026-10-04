@@ -17,6 +17,9 @@ class Store(BaseSchema, table=True):
     seller_profile_id: int = Field(foreign_key="sellerprofile.id", nullable=False, index=True)
     address_id: int = Field(foreign_key="address.id", nullable=False, index=True)
     delivery_radius_km: float = Field(default=5.0, nullable=False)
+    # Courier ring (spec §5): None = no courier. When set it is larger than
+    # delivery_radius_km — enforced on every write path, not here.
+    courier_radius_km: float | None = Field(default=None)
     pin_confirmed: bool = Field(default=False, nullable=False)
     is_paused: bool = Field(default=False, nullable=False)
     pause_reason: str | None = Field(default=None, max_length=200)

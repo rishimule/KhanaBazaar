@@ -185,6 +185,25 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
             "your balance from your seller dashboard to restore it."
         ),
     ),
+    "courier_quote_ready": WhatsAppTemplate(
+        name="courier_quote_ready",
+        category="UTILITY",
+        variables=("order_no", "store", "amount", "days"),
+        render=lambda v: (
+            f"{v['store']} sent a courier quote for order #{v['order_no']}: "
+            f"₹{v['amount']}, arriving {v['days']} days after payment. "
+            "Open your order to accept and pay."
+        ),
+    ),
+    "courier_shipped": WhatsAppTemplate(
+        name="courier_shipped",
+        category="UTILITY",
+        variables=("order_no", "store"),
+        render=lambda v: (
+            f"Order #{v['order_no']} from {v['store']} has been shipped by courier. "
+            "Open your order for tracking details."
+        ),
+    ),
     "seller_new_order": WhatsAppTemplate(
         name="seller_new_order",
         category="UTILITY",
@@ -192,6 +211,16 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
         render=lambda v: (
             f"New order #{v['order_id']} for ₹{v['amount']} on your "
             f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
+        ),
+    ),
+    # Courier orders start with a quote, and their total is goods only until then.
+    "seller_new_courier_order": WhatsAppTemplate(
+        name="seller_new_courier_order",
+        category="UTILITY",
+        variables=("order_id", "amount"),
+        render=lambda v: (
+            f"New courier order #{v['order_id']} for ₹{v['amount']} + courier on your "
+            f"{settings.COMPANY_NAME} store. Open your seller dashboard to send a courier quote."
         ),
     ),
 }
@@ -205,6 +234,20 @@ STATUS_TEMPLATES: dict[str, WhatsAppTemplate] = {
     "dispatched": TEMPLATES["order_dispatched"],
     "delivered": TEMPLATES["order_delivered"],
     "cancelled": TEMPLATES["order_cancelled"],
+}
+
+# Courier orders: "pending" stays silent (the quote message follows) and
+# "dispatched" must not say "out for delivery" (spec §11.1).
+COURIER_STATUS_TEMPLATES: dict[str, WhatsAppTemplate] = {
+    "packed": TEMPLATES["order_packed"],
+    "dispatched": TEMPLATES["courier_shipped"],
+    "delivered": TEMPLATES["order_delivered"],
+    "cancelled": TEMPLATES["order_cancelled"],
+}
+
+# Courier-only events that carry a WhatsApp message.
+COURIER_EVENT_TEMPLATES: dict[str, WhatsAppTemplate] = {
+    "quote_ready": TEMPLATES["courier_quote_ready"],
 }
 
 

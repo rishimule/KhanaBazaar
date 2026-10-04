@@ -99,6 +99,11 @@ class SellerProfile(BaseSchema, table=True):
     upi_qr_storage_key: Optional[str] = Field(default=None, max_length=512)
     # Only ever True alongside a non-empty upi_vpa (enforced at write paths).
     upi_enabled: bool = Field(default=False, nullable=False)
+    # Customer-facing bank transfer for courier orders (spec D6). Shown only to
+    # the owning customer of an accepted courier order, and only while enabled
+    # with name + number + IFSC all present (enforced at write paths).
+    bank_account_name: Optional[str] = Field(default=None, max_length=140)
+    bank_transfer_enabled: bool = Field(default=False, nullable=False)
 
     user: User = Relationship()
     business_address: Address = Relationship()
@@ -122,6 +127,8 @@ class SellerProfileService(BaseSchema, table=True):
     delivery_eta_min_minutes: int = Field(default=30, nullable=False)
     delivery_eta_max_minutes: int = Field(default=60, nullable=False)
     pickup_enabled: bool = Field(default=False, nullable=False)
+    # Courier opt-in for this service (spec D4); the radius lives on Store.
+    courier_enabled: bool = Field(default=False, nullable=False)
     is_paused: bool = Field(default=False, nullable=False)
     pause_reason: Optional[str] = Field(default=None, max_length=200)
     paused_until: Optional[date] = Field(default=None)

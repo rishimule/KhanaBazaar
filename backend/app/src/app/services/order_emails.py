@@ -15,6 +15,7 @@ from kombu.exceptions import OperationalError as KombuOperationalError
 from app.worker import (
     send_admin_order_action_customer_async,
     send_admin_order_action_seller_async,
+    send_courier_email_async,
     send_delivery_otp_email_async,
     send_delivery_otp_sms_async,
     send_order_confirmed_customer_async,
@@ -100,11 +101,17 @@ def dispatch_order_status_changed(
             send_order_status_changed_async, order_id, new_status, "seller", reason
         )
     if new_status == "delivered":
-        try:
-            send_order_review_request_async.apply_async(
-                args=[order_id], countdown=86400
-            )
-        except _BROKER_ERRORS:
-            logger.exception(
-                "Failed to schedule order_review_request for order_id=%s", order_id
-            )
+        dispatch_order_review_request(order_id)
+
+
+def dispatch_courier_email(order_id: int, event: str, recipient: str) -> None:
+    """Courier-only event email (services.courier_comms)."""
+    _safe_delay(send_courier_email_async, order_id, event, recipient)
+
+
+def dispatch_order_review_request(order_id: int) -> None:
+    """Schedule the post-delivery review email for 24h later."""
+    try:
+        send_order_review_request_async.apply_async(args=[order_id], countdown=86400)
+    except _BROKER_ERRORS:
+        logger.exception("Failed to schedule order_review_request for order_id=%s", order_id)

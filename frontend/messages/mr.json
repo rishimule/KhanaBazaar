@@ -121,7 +121,10 @@
     "noFilterMatch": "या फिल्टरशी जुळणारे कोणतेही उत्पादन नाही.",
     "storeClosedBadge": "Closed",
     "storeClosedUntil": "Closed — back {date}",
-    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now.",
+    "courierBannerTitle": "{place} पर्यंत कुरिअरने पाठवले जाते",
+    "courierBannerSub": "डिलिव्हरीला काही दिवस लागतात. ऑर्डरनंतर दुकान कुरिअर शुल्क कळवते, आणि ते स्वीकारल्यानंतरच तुम्ही पेमेंट करता.",
+    "courierBannerNotShipping": "कुरिअरने पाठवले जात नाही: {services}"
   },
   "Cart": {
     "errClear": "कार्ट साफ करता आला नाही. कृपया पुन्हा प्रयत्न करा.",
@@ -152,7 +155,8 @@
     "deliveryFee": "Delivery fee",
     "railCheckout": "चेक आउट",
     "railAria": "कार्ट पूर्वावलोकन",
-    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now.",
+    "courierHint": "कुरिअरने पाठवले जाईल. कुरिअर शुल्क ऑर्डरनंतर कळवले जाईल."
   },
   "Checkout": {
     "loading": "लोड होत आहे…",
@@ -235,7 +239,30 @@
     "modeDoor": "घरपोच डिलिव्हरी",
     "modePickup": "दुकानातून पिकअप",
     "collectAt": "येथून घ्या",
-    "storeCreditLabel": "स्टोअर क्रेडिट वापरा (₹{balance} उपलब्ध)"
+    "storeCreditLabel": "स्टोअर क्रेडिट वापरा (₹{balance} उपलब्ध)",
+    "modeDelivery": "डिलिव्हरी",
+    "courier": {
+      "title": "लांबच्या अंतराची ऑर्डर · कुरिअरने येईल",
+      "body": "{store} हे कुरिअरने पाठवेल. पोहोचायला काही दिवस लागू शकतात.",
+      "bodyCity": "{city} हे {store} च्या स्थानिक डिलिव्हरी क्षेत्राबाहेर आहे, म्हणून ते हे कुरिअरने पाठवतील. पोहोचायला काही दिवस लागू शकतात.",
+      "pointCharge": "कुरिअर शुल्क अजून समाविष्ट नाही — ऑर्डरनंतर {store} तुम्हाला शुल्क आणि डिलिव्हरीच्या तारखा पाठवेल.",
+      "pointPayLater": "ते स्वीकारल्यानंतरच तुम्ही पेमेंट कराल.",
+      "pointNoReturns": "कुरिअर ऑर्डर अॅपमध्ये परत करता येत नाहीत.",
+      "recipientTitle": "पार्सल कोण घेणार",
+      "recipientHint": "कुरिअरवाला याच नंबरवर फोन करेल. तुम्ही हे दुसऱ्या कोणालाही पाठवू शकता.",
+      "recipientName": "प्राप्तकर्त्याचे नाव",
+      "recipientPhone": "प्राप्तकर्त्याचा फोन",
+      "phonePlaceholder": "10 अंकी मोबाइल",
+      "phoneInvalid": "योग्य 10 अंकी मोबाइल नंबर लिहा.",
+      "chargeQuoted": "दुकान कळवेल",
+      "totalSoFar": "आतापर्यंत एकूण",
+      "totalPlusCourier": "₹{total} + कुरिअर",
+      "placeOrder": "कुरिअर ऑर्डर द्या",
+      "nothingToPay": "आता काहीही भरायचे नाही",
+      "noPayee": "हे दुकान सध्या कुरिअर ऑर्डरचे पेमेंट घेऊ शकत नाही.",
+      "storeLoadError": "दुकानाची पेमेंट माहिती लोड झाली नाही. पुन्हा प्रयत्न करण्यासाठी पेज रीलोड करा.",
+      "recipientNeeded": "ऑर्डर देण्यासाठी पार्सल कोण घेणार ते लिहा."
+    }
   },
   "Login": {
     "errSendCode": "कोड पाठवण्यात अयशस्वी.",
@@ -399,7 +426,40 @@
     "boundaryRef": "संदर्भ: {digest}",
     "illegal_rewind": "ही ऑर्डर त्या टप्प्यावर परत नेता येणार नाही.",
     "boundaryBodyShop": "पेज लोड होणे थांबले. तुमच्या कार्टमधले काहीही गेलेले नाही. पुन्हा प्रयत्न करा, किंवा होम पेजवर परत जा.",
-    "boundaryShopHome": "होम पेजवर परत जा"
+    "boundaryShopHome": "होम पेजवर परत जा",
+    "courier_unavailable": "हे दुकान आता ही सेवा कुरिअरने पाठवत नाही.",
+    "courier_destination_unsupported": "कुरिअर डिलिव्हरीसाठी भारतातील पत्ता आणि 6 अंकी पिन कोड आवश्यक आहे.",
+    "address_within_local_area": "या पत्त्यावर आता स्थानिक डिलिव्हरी होते. बदललेली डिलिव्हरी माहिती पाहा आणि पुन्हा ऑर्डर द्या.",
+    "outside_courier_area": "हा पत्ता आता दुकानाच्या कुरिअर क्षेत्राबाहेर आहे. दुसरा पत्ता निवडा.",
+    "recipient_name_required": "प्राप्तकर्त्याचे नाव लिहा.",
+    "invalid_recipient_phone": "प्राप्तकर्त्याचा योग्य 10 अंकी भारतीय मोबाइल नंबर लिहा.",
+    "courier_fields_not_allowed": "प्राप्तकर्ता आणि ट्रॅकिंगची माहिती फक्त कुरिअर ऑर्डरसाठी आहे.",
+    "preferred_window_not_allowed": "कुरिअर ऑर्डरमध्ये पसंतीची डिलिव्हरी वेळ निवडता येत नाही.",
+    "bank_transfer_unavailable": "हे दुकान सध्या बँक ट्रान्सफर स्वीकारत नाही.",
+    "upi_unavailable": "हे दुकान सध्या UPI पेमेंट स्वीकारत नाही.",
+    "courier_payment_unavailable": "हे दुकान सध्या पेमेंट घेऊ शकत नाही. आम्ही त्यांना कळवले आहे.",
+    "quote_superseded": "दुकानाने आत्ताच कोटेशन बदलले. कृपया नवीन कोटेशन पाहा.",
+    "quote_locked": "ग्राहकाने स्वीकारल्यानंतर कोटेशन बदलता येत नाही.",
+    "too_many_quote_versions": "या ऑर्डरसाठी कमाल कोटेशन पाठवून झाली आहेत.",
+    "not_awaiting_payment": "ही ऑर्डर पेमेंटची वाट पाहत नाही.",
+    "payment_method_required": "तुम्ही कसे पेमेंट केले ते निवडा.",
+    "payment_settled": "पेमेंटची पुष्टी आधीच झाली आहे.",
+    "no_claim": "ग्राहकाने अजून पेमेंट केल्याचे सांगितलेले नाही.",
+    "invalid_tracking_url": "पूर्ण https:// ट्रॅकिंग लिंक वापरा.",
+    "already_delivered": "ही ऑर्डर आधीच पोहोचवली म्हणून नोंदली आहे.",
+    "payment_received_required": "ग्राहकाचे पेमेंट तुम्हाला मिळाले का ते सांगा.",
+    "refund_not_due": "या ऑर्डरवर कोणताही परतावा बाकी नाही.",
+    "already_refunded": "परतावा आधीच नोंदवला गेला आहे.",
+    "not_returnable_courier": "कुरिअर ऑर्डर अॅपमध्ये परत करता येत नाहीत.",
+    "not_applicable_for_courier": "हे कुरिअर ऑर्डरसाठी उपलब्ध नाही.",
+    "courier_radius_not_larger": "कुरिअर त्रिज्या स्थानिक डिलिव्हरी त्रिज्येपेक्षा मोठी असावी.",
+    "courier_radius_too_large": "कुरिअर त्रिज्या खूप मोठी आहे.",
+    "bank_transfer_incomplete": "बँक ट्रान्सफरसाठी खात्याचे नाव, क्रमांक आणि IFSC आवश्यक आहेत.",
+    "reason_required": "कृपया किमान 10 अक्षरांचे कारण लिहा.",
+    "cancel_not_allowed": "ही ऑर्डर आता इथून रद्द करता येणार नाही.",
+    "payment_method_not_allowed": "या ऑर्डरसाठी ही पेमेंट पद्धत वापरता येत नाही.",
+    "outside_delivery_area": "हा पत्ता आता दुकानाच्या डिलिव्हरी क्षेत्राबाहेर आहे. दुसरा पत्ता निवडा.",
+    "not_a_courier_order": "ही कुरिअर ऑर्डर नाही."
   },
   "Footer": {
     "tagline": "स्थानिक विक्रेत्यांना डिजिटल ओळख द्या. एकत्र येऊन आपण एक मजबूत, परस्पर जोडलेली परिसंस्था घडवतो.",
@@ -470,7 +530,14 @@
     "verifyMissingFields": "आधी पत्ता ओळ 1, शहर, राज्य आणि 6-अंकी पिनकोड भरा.",
     "verifyNotFound": "नकाशावर तो पत्ता सापडला नाही. तो संपादित करून पुन्हा प्रयत्न करा किंवा पिन हाताने ठेवा.",
     "verifyFailed": "पत्ता शोध अयशस्वी. कृपया पुन्हा प्रयत्न करा.",
-    "verifyRequired": "पुढे जाण्यासाठी पडताळणी आवश्यक आहे."
+    "verifyRequired": "पुढे जाण्यासाठी पडताळणी आवश्यक आहे.",
+    "courierBadge": "कुरिअर · काही दिवस",
+    "noCourierForServiceBadge": "कुरिअरने पाठवले जात नाही",
+    "courierNeedsPinBadge": "भारतीय पिन कोड आवश्यक",
+    "noPinBadge": "नकाशावर पिन आवश्यक",
+    "checkFailedBadge": "तपासता आले नाही",
+    "checkFailedNotice": "आम्ही आत्ता काही पत्ते तपासू शकलो नाही. पुन्हा प्रयत्न करण्यासाठी पेज रीलोड करा.",
+    "unavailableHeader": "या ऑर्डरसाठी उपलब्ध नाही"
   },
   "Payment": {
     "legend": "पेमेंट पद्धत",
@@ -486,7 +553,12 @@
     "netBankingLabel": "नेट बँकिंग",
     "netBankingHint": "तुमच्या बँक पोर्टलद्वारे पैसे भरा",
     "payAtStoreLabel": "दुकानात पैसे द्या",
-    "payAtStoreHint": "वस्तू घेताना काउंटरवर पैसे भरा"
+    "payAtStoreHint": "वस्तू घेताना काउंटरवर पैसे भरा",
+    "courierLegend": "स्वीकारल्यानंतर तुम्ही कसे पेमेंट कराल",
+    "courierPayLaterHint": "कोटेशन स्वीकारल्यानंतर पेमेंट करा",
+    "bankTransferLabel": "बँक ट्रान्सफर",
+    "bankTransferHint": "दुकानाच्या बँक खात्यात NEFT किंवा IMPS",
+    "courierCreditNote": "कुरिअर ऑर्डरसाठी क्रेडिट उपलब्ध नाही."
   },
   "Order": {
     "delivery": {
@@ -508,7 +580,16 @@
       "delivered": "पोहोचवले",
       "cancelled": "रद्द",
       "pickup_dispatched": "पिकअपसाठी तयार",
-      "pickup_delivered": "घेतले"
+      "pickup_delivered": "घेतले",
+      "courier_pending": "कोटेशनची प्रतीक्षा",
+      "courier_quoted": "कोटेशन पाठवले",
+      "courier_quoted_customer": "कोटेशन तयार",
+      "courier_accepted": "पेमेंटची प्रतीक्षा",
+      "courier_paid": "पेमेंट झाले",
+      "courier_dispatched": "कुरिअरने पाठवले",
+      "quoted": "कोटेशन दिले",
+      "accepted": "स्वीकारले",
+      "paid": "पेमेंट झाले"
     },
     "timeline": {
       "placed": "ऑर्डर दिली",
@@ -517,14 +598,20 @@
       "delivered": "पोहोचवले",
       "cancelled": "ऑर्डर रद्द केली",
       "pickup_dispatched": "पिकअपसाठी तयार",
-      "pickup_delivered": "घेतले"
+      "pickup_delivered": "घेतले",
+      "courier_requested": "विनंती केली",
+      "courier_quote": "कोटेशन",
+      "courier_paid": "पेमेंट झाले",
+      "courier_shipped": "कुरिअरने पाठवले"
     },
     "card": {
       "forCustomer": "{name} साठी",
       "secondsAgo": "{count} सेकंदांपूर्वी",
       "minutesAgo": "{count} मिनिटांपूर्वी",
       "hoursAgo": "{count} तासांपूर्वी",
-      "daysAgo": "{count} दिवसांपूर्वी"
+      "daysAgo": "{count} दिवसांपूर्वी",
+      "totalPlusCourier": "₹{amount} + कुरिअर",
+      "actionNeeded": "तुमची कृती आवश्यक"
     },
     "actions": {
       "markPacked": "पॅक केले चिन्हांकित करा",
@@ -561,7 +648,8 @@
         "pending": "प्रलंबित",
         "paid": "भरले",
         "failed": "अयशस्वी",
-        "refunded": "परत"
+        "refunded": "परत",
+        "refund_due": "परतावा बाकी"
       },
       "method": {
         "upi": "UPI",
@@ -581,6 +669,54 @@
         "order_not_delivered": "फक्त डिलिव्हर झालेल्या ऑर्डरचा रिव्ह्यू देता येतो.",
         "review_exists": "तुम्ही आधीच या ऑर्डरचा रिव्ह्यू दिला आहे."
       }
+    },
+    "courier": {
+      "summaryLabel": "कुरिअर तपशील",
+      "recipient": "प्राप्तकर्ता",
+      "estimatedArrival": "अंदाजे पोहोच",
+      "transit": "प्रवासाचा वेळ",
+      "transitDays": "पेमेंटनंतर {min}–{max} दिवसांत",
+      "tracking": "ट्रॅकिंग",
+      "trackOn": "{host} वर ट्रॅक करा",
+      "copy": "कॉपी करा",
+      "copied": "कॉपी झाले",
+      "distance": "अंतर",
+      "distanceKm": "साधारण {km} किमी (सरळ रेषेत)",
+      "quoteHistory": "पाठवलेली कोटेशन ({count})",
+      "quoteLine": "v{version} · ₹{fee} · {min}–{max} दिवस",
+      "quoteAccepted": "स्वीकारले",
+      "deliveredBy": "पोहोचवले म्हणून नोंद करणारे",
+      "deliveredBy_seller": "दुकान",
+      "deliveredBy_customer": "ग्राहक",
+      "deliveredBy_admin": "सपोर्ट टीम",
+      "cancelReason": "रद्द: {reason}",
+      "refundDueCustomer": "{store} कडून तुम्हाला ₹{amount} परतावा येणे आहे. तो पाठवल्यावर आम्ही तुम्हाला कळवू.",
+      "refundDueOperator": "ग्राहकाला परतावा बाकी: ₹{amount}.",
+      "refunded": "{date} रोजी ₹{amount} परत केले",
+      "refundRef": "संदर्भ {ref}",
+      "reportedMissingCustomer": "{store} ने कळवले की तुमचे पेमेंट पोहोचले नाही. तुम्ही पेमेंट केले असल्यास सपोर्टशी संपर्क साधा.",
+      "reportedMissingOperator": "पेमेंट मिळाले नाही असे नोंदवून रद्द केले.",
+      "methodUpi": "UPI",
+      "methodBank": "बँक ट्रान्सफर",
+      "reportedMissingCustomerSupport": "आमच्या सपोर्ट टीमने नोंदवले की तुमचे पेमेंट {store} पर्यंत पोहोचले नाही. तुम्ही पेमेंट केले असल्यास सपोर्टशी संपर्क साधा.",
+      "claimedRow": "ग्राहकानुसार पेमेंट झाले",
+      "claimedValue": "{method} · {when}"
+    },
+    "courierCancel": {
+      "title": "ऑर्डर #{id} रद्द करायची?",
+      "reasonLabel": "कारण (किमान 10 अक्षरे)",
+      "reasonTooShort": "कृपया किमान 10 अक्षरे लिहा.",
+      "receivedQuestionSeller": "ग्राहकाच्या म्हणण्यानुसार त्यांनी ₹{amount} भरले. ते तुम्हाला मिळाले का?",
+      "receivedQuestionAdmin": "ग्राहकाच्या म्हणण्यानुसार त्यांनी ₹{amount} भरले. ते विक्रेत्याला मिळाले का?",
+      "receivedYes": "हो, मिळाले",
+      "receivedNo": "नाही, मिळाले नाही",
+      "consequenceRestock": "वस्तू पुन्हा स्टॉकमध्ये येतील, आणि ग्राहकाला कळवले जाईल.",
+      "consequenceShipped": "पार्सल आधीच पाठवले आहे, त्यामुळे स्टॉक परत जोडला जाणार नाही. पार्सल परत आल्यास स्टॉक पुन्हा जोडा.",
+      "consequenceRefund": "परतावा नोंदवेपर्यंत ग्राहकाला ₹{amount} परत देणे बाकी राहील.",
+      "consequenceMissing": "पेमेंट मिळाले नाही असे नोंदवून ऑर्डर रद्द होईल.",
+      "keep": "ऑर्डर ठेवा",
+      "confirm": "ऑर्डर रद्द करा",
+      "failed": "ऑर्डर रद्द करता आली नाही. कृपया पुन्हा प्रयत्न करा."
     }
   },
   "Account": {
@@ -660,7 +796,56 @@
       "resendError": "कोड पुन्हा पाठवता आला नाही.",
       "pickupLocation": "पिकअप ठिकाण",
       "deliveryCodeTitlePickup": "कलेक्शन कोड",
-      "deliveryCodeHintPickup": "तुमची ऑर्डर घेण्यासाठी हा कोड दुकानाच्या काउंटरवर दाखवा."
+      "deliveryCodeHintPickup": "तुमची ऑर्डर घेण्यासाठी हा कोड दुकानाच्या काउंटरवर दाखवा.",
+      "courierNoReturns": "कुरिअर ऑर्डर अॅपमध्ये परत करता येत नाहीत. काही चुकले असल्यास दुकानाशी संपर्क साधा.",
+      "courierCharge": "कुरिअर शुल्क",
+      "courierToBeQuoted": "दुकान कळवेल",
+      "amountPlusCourier": "₹{amount} + कुरिअर",
+      "courierShipTo": "इथे पाठवले जाईल",
+      "courier": {
+        "quoteTitle": "तुमचे कुरिअर कोटेशन",
+        "quoteRevisedTitle": "बदललेले कुरिअर कोटेशन",
+        "courierCharge": "कुरिअर शुल्क",
+        "arrives": "पोहोचेल",
+        "arrivesDays": "पेमेंटनंतर {min}–{max} दिवसांत",
+        "arrivesIfToday": "आज पेमेंट केल्यास साधारण {from} – {to}",
+        "carrier": "कुरिअर कंपनी",
+        "newTotal": "नवीन एकूण",
+        "creditCovers": "₹{amount} चे स्टोअर क्रेडिट वापरले आहे. या दुकानातील तुमचे उरलेले क्रेडिटही कुरिअर शुल्कासाठी वापरले जाईल.",
+        "acceptQuote": "स्वीकारा आणि पेमेंट करा",
+        "declineQuote": "नाकारा",
+        "quoteChanged": "दुकानाने आत्ताच कोटेशन बदलले. हे नवीन कोटेशन आहे.",
+        "declineTitle": "हे कोटेशन नाकारायचे?",
+        "declineReason": "कारण (ऐच्छिक)",
+        "declineHint": "ऑर्डर रद्द होईल आणि दुकानाला कळवले जाईल. तुम्ही कोणतेही पेमेंट केलेले नाही.",
+        "confirmDecline": "नाकारा आणि रद्द करा",
+        "keepOrder": "ऑर्डर ठेवा",
+        "payTitle": "₹{amount} भरा",
+        "tabUpi": "UPI",
+        "tabBank": "बँक ट्रान्सफर",
+        "loadingPayee": "पेमेंट माहिती लोड होत आहे…",
+        "payeeLoadError": "दुकानाची UPI माहिती लोड झाली नाही. पुन्हा प्रयत्न करा किंवा बँक ट्रान्सफरने पेमेंट करा.",
+        "payeeLoadErrorRetry": "दुकानाची UPI माहिती लोड झाली नाही. पुन्हा प्रयत्न करण्यासाठी पेज रीलोड करा.",
+        "payeeUnavailable": "हे दुकान सध्या पेमेंट घेऊ शकत नाही. नंतर पुन्हा पाहा, किंवा ऑर्डर नको असल्यास ती रद्द करा.",
+        "bankAccountName": "खातेदाराचे नाव",
+        "bankAccountNumber": "खाते क्रमांक",
+        "bankIfsc": "IFSC",
+        "bankAmount": "रक्कम",
+        "bankRemarks": "पेमेंटच्या रिमार्कमध्ये Order {id} लिहा, म्हणजे दुकानाला ते ओळखता येईल.",
+        "copy": "कॉपी करा",
+        "claimFailed": "तुमचे पेमेंट नोंदवता आले नाही. कृपया पुन्हा प्रयत्न करा.",
+        "claimedAt": "तुम्ही {when} रोजी पेमेंट केल्याचे सांगितले. {store} च्या पुष्टीची प्रतीक्षा आहे.",
+        "claimRejected": "दुकानानुसार तुमचे पेमेंट पोहोचलेले नाही. पुन्हा पेमेंट करण्यापूर्वी तुमचे बँक किंवा UPI अॅप तपासा.",
+        "claimRejectedWithNote": "दुकानानुसार तुमचे पेमेंट पोहोचलेले नाही: {note}",
+        "payDisclaimer": "पेमेंट थेट दुकानाला जाते. पैसे पोहोचल्यावर दुकान पुष्टी करते.",
+        "received": "मला मिळाले",
+        "receivedConfirm": "पार्सल पोहोचले आहे याची खात्री करायची?",
+        "cancelTitle": "ही ऑर्डर रद्द करायची?",
+        "confirmCancel": "ऑर्डर रद्द करा",
+        "cancelAfterClaim": "तुम्ही पेमेंट केल्याचे सांगितले आहे. आता रद्द करण्यासाठी {store} शी संपर्क साधा.",
+        "actionFailed": "काहीतरी चुकले. कृपया पुन्हा प्रयत्न करा."
+      },
+      "courierQuotedCharge": "₹{amount} चे कोटेशन · अजून स्वीकारलेले नाही"
     },
     "profile": {
       "loading": "प्रोफाइल लोड होत आहे…",
@@ -1278,7 +1463,12 @@
       "reasonPlaceholder": "उदा. दिवाळीच्या सुट्ट्या",
       "metricsFailedTitle": "तुमचे आकडे लोड होऊ शकले नाहीत",
       "metricsFailedBody": "याचा अर्थ तुमची काहीच कमाई झाली नाही असा नाही — आम्ही सर्व्हरपर्यंत पोहोचू शकलो नाही. कनेक्शन तपासून पुन्हा प्रयत्न करा.",
-      "pauseFailed": "दुकानाची स्थिती बदलता आली नाही. काहीही बदलले नाही."
+      "pauseFailed": "दुकानाची स्थिती बदलता आली नाही. काहीही बदलले नाही.",
+      "donutQuoted": "कोटेशन पाठवले",
+      "donutAccepted": "पेमेंट बाकी",
+      "donutPaid": "पेमेंट झाले, पॅक करायचे",
+      "attnPaid": "{count} पेमेंट झाले, पॅक होण्याच्या प्रतीक्षेत",
+      "attnPaymentCheck": "{count} मध्ये पेमेंटची पुष्टी बाकी"
     },
     "inventory": {
       "categoriesAria": "श्रेणी",
@@ -1369,7 +1559,10 @@
         "all": "सर्व",
         "active": "सक्रिय",
         "delivered": "वितरित",
-        "cancelled": "रद्द"
+        "cancelled": "रद्द",
+        "needs_quote": "कोटेशन द्यायचे आहे",
+        "check_payment": "पेमेंट तपासा",
+        "refunds_due": "परतावे बाकी"
       },
       "allServices": "सर्व सेवा",
       "fromDate": "पासून तारीख",
@@ -1398,7 +1591,8 @@
       "showing": "Showing {from}–{to} of {total}",
       "loadFailedTitle": "तुमच्या ऑर्डर लोड होऊ शकल्या नाहीत",
       "loadFailedBody": "याचा अर्थ तुमच्याकडे ऑर्डर नाहीत असा नाही — आम्ही सर्व्हरपर्यंत पोहोचू शकलो नाही.",
-      "customerSaysPaid": "ग्राहक म्हणतो पैसे भरले"
+      "customerSaysPaid": "ग्राहक म्हणतो पैसे भरले",
+      "courierTag": "कुरिअर"
     },
     "orderDetail": {
       "loadError": "ऑर्डर लोड होऊ शकली नाही.",
@@ -1415,7 +1609,63 @@
       "storeCreditApplied": "स्टोअर क्रेडिट लागू",
       "amountPayable": "देय रक्कम",
       "startReturn": "परतावा सुरू करा",
-      "customerSaysPaidAt": "ग्राहक म्हणतो की त्यांनी {when} रोजी पैसे भरले. पाठवण्यापूर्वी तुमचे बँक अॅप तपासा."
+      "customerSaysPaidAt": "ग्राहक म्हणतो की त्यांनी {when} रोजी पैसे भरले. पाठवण्यापूर्वी तुमचे बँक अॅप तपासा.",
+      "courier": {
+        "charge": "कुरिअर शुल्क",
+        "toBeQuoted": "कोटेशन बाकी",
+        "totalPlusCourier": "₹{amount} + कुरिअर",
+        "shipTo": "इथे पाठवा",
+        "cancel": "ऑर्डर रद्द करा",
+        "actionFailed": "ऑर्डर अपडेट करता आली नाही. कृपया पुन्हा प्रयत्न करा.",
+        "sendQuote": "कुरिअर कोटेशन पाठवा",
+        "reviseQuote": "कोटेशन बदला",
+        "quoteTitle": "कुरिअर कोटेशन",
+        "quoteFee": "कुरिअर शुल्क (₹)",
+        "quoteEtaMin": "किमान किती दिवसांत पोहोचेल (पेमेंटनंतर)",
+        "quoteEtaMax": "जास्तीत जास्त किती दिवसांत पोहोचेल (पेमेंटनंतर)",
+        "quoteCarrier": "कुरिअर कंपनी (ऐच्छिक)",
+        "quoteNote": "ग्राहकासाठी टीप (ऐच्छिक)",
+        "quotePreview": "ग्राहकाला एकूण ₹{total} दिसेल, स्टोअर क्रेडिट वापरण्यापूर्वी.",
+        "quoteInvalid": "₹0 ते ₹1,00,000 पर्यंतचे शुल्क लिहा, आणि 1 ते 60 पर्यंतचे दिवस, ज्यात पहिला दुसऱ्यापेक्षा जास्त नसावा.",
+        "quoteSubmit": "कोटेशन पाठवा",
+        "quoteLimit": "या ऑर्डरसाठी कमाल {max} कोटेशन पाठवून झाली आहेत.",
+        "hintPending": "ग्राहक तुमच्या कुरिअर शुल्काची आणि डिलिव्हरीच्या वेळेची वाट पाहत आहे.",
+        "hintQuoted": "कोटेशन v{version} पाठवले. ग्राहक स्वीकारण्याची प्रतीक्षा आहे.",
+        "hintAwaitingPayment": "ग्राहकाने ₹{amount} भरण्याची प्रतीक्षा आहे.",
+        "hintClaimed": "ग्राहकाच्या म्हणण्यानुसार त्यांनी {when} रोजी {method} ने पेमेंट केले. पुष्टी करण्यापूर्वी तुमचे बँक किंवा UPI अॅप तपासा.",
+        "hintRejected": "तुम्ही सांगितले की मागील पेमेंट पोहोचले नाही. ग्राहकाला तपासून पुन्हा पेमेंट करण्यास सांगितले आहे.",
+        "hintPaid": "पेमेंटची पुष्टी झाली. ऑर्डर पॅक करा, मग पाठवा.",
+        "hintPacked": "कुरिअर बुक करा, मग ट्रॅकिंग माहितीसह ऑर्डर पाठवली म्हणून नोंदवा.",
+        "hintDispatched": "कुरिअरने डिलिव्हरीची पुष्टी केल्यावर ते पोहोचवले म्हणून नोंदवा. ग्राहकही ते मिळाले म्हणून नोंदवू शकतो.",
+        "hintRefund": "ग्राहकाला ₹{amount} परत पाठवा, मग इथे नोंदवा.",
+        "confirmPayment": "पेमेंट मिळाले",
+        "confirmPaymentPrompt": "₹{amount} तुमच्या खात्यात पोहोचले आहेत याची खात्री करायची?",
+        "notReceived": "मिळाले नाही",
+        "notReceivedTitle": "पेमेंट मिळाले नाही",
+        "notReceivedNote": "ग्राहकासाठी संदेश (ऐच्छिक)",
+        "notReceivedHint": "ग्राहकाला तपासून पुन्हा पेमेंट करण्यास सांगितले जाईल. ऑर्डर सुरू राहील.",
+        "notReceivedSubmit": "ग्राहकाला कळवा",
+        "markPacked": "पॅक केले चिन्हांकित करा",
+        "markShipped": "पाठवले चिन्हांकित करा",
+        "shipTitle": "शिपिंग तपशील",
+        "trackingTitle": "ट्रॅकिंग बदला",
+        "trackCarrier": "कुरिअर कंपनी",
+        "trackNumber": "ट्रॅकिंग नंबर",
+        "trackUrl": "ट्रॅकिंग लिंक",
+        "trackUrlInvalid": "पूर्ण https:// लिंक वापरा.",
+        "trackHint": "सर्व ऐच्छिक आहे. तुम्ही जे जोडाल ते ग्राहकाला दिसेल.",
+        "shipSubmit": "पाठवले चिन्हांकित करा",
+        "trackingSubmit": "ट्रॅकिंग सेव्ह करा",
+        "editTracking": "ट्रॅकिंग बदला",
+        "markDelivered": "पोहोचवले चिन्हांकित करा",
+        "deliverPrompt": "ही ऑर्डर पोहोचवली म्हणून नोंदवायची? कुरिअरने डिलिव्हरीची पुष्टी केल्यानंतरच हे करा.",
+        "refundSent": "परतावा पाठवला",
+        "refundTitle": "परतावा नोंदवा",
+        "refundRef": "पेमेंट संदर्भ (ऐच्छिक)",
+        "refundHint": "₹{amount} परत पाठवल्यानंतर हे नोंदवा. UPI किंवा बँक संदर्भ जोडा, म्हणजे ग्राहकाला ते शोधता येईल.",
+        "refundSubmit": "परतावा नोंदवा",
+        "quotedCharge": "₹{amount} चे कोटेशन · ग्राहकाची प्रतीक्षा"
+      }
     },
     "settings": {
       "loadStoreError": "स्टोअर लोड होऊ शकले नाही.",
@@ -1441,7 +1691,13 @@
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
       "deliveryFeeInputLabel": "Delivery fee for {service}",
-      "allowPickup": "दुकानातून पिकअपला परवानगी द्या"
+      "allowPickup": "दुकानातून पिकअपला परवानगी द्या",
+      "allowCourier": "कुरिअरने पाठवा (लांबच्या ऑर्डर)",
+      "courierRadius": "कुरिअर त्रिज्या",
+      "courierRadiusValue": "{km} किमीपर्यंत",
+      "courierRadiusOff": "बंद",
+      "courierRadiusCaption": "तुमच्या डिलिव्हरी त्रिज्येबाहेरील पण या अंतराच्या आतील ग्राहक कुरिअरने ऑर्डर करू शकतात. कुरिअर शुल्क तुम्ही प्रत्येक ऑर्डरसाठी ठरवता. हे “संपादित करा” वापरून बदला.",
+      "courierNoPayee": "तुम्हाला पेमेंट मिळू शकेपर्यंत कुरिअर ऑर्डर बंद आहेत: “देयके” मध्ये UPI सुरू करा, किंवा “बँकिंग” मध्ये बँक ट्रान्सफर."
     },
     "profile": {
       "heading": "प्रोफाइल",
@@ -1497,7 +1753,11 @@
       "upiDisabled": "UPI बंद आहे. पुन्हा चालू करण्यासाठी तुमची UPI ID जपून ठेवली आहे.",
       "upiQrLabel": "देयक QR प्रतिमा (ऐच्छिक)",
       "upiQrHint": "आमची टीम ती तुमच्या UPI ID शी ताडून पाहते. ग्राहक ही प्रतिमा कधीच पाहत नाहीत — ते आम्ही ID वरून तयार केलेला QR स्कॅन करतात.",
-      "upiReviewHint": "ग्राहकांना दिसण्यापूर्वी बदलांचे पुनरावलोकन होते."
+      "upiReviewHint": "ग्राहकांना दिसण्यापूर्वी बदलांचे पुनरावलोकन होते.",
+      "accountNameLabel": "खातेदार",
+      "bankTransferLabel": "कुरिअर ऑर्डरसाठी बँक ट्रान्सफर",
+      "bankTransferOn": "सुरू",
+      "bankTransferOff": "बंद"
     },
     "signup": {
       "stepCounter": "पायरी {current} / {total}",
@@ -1885,7 +2145,11 @@
       "loadMore": "अधिक लोड करा",
       "prev": "‹ Prev",
       "next": "Next ›",
-      "showing": "Showing {from}–{to} of {total}"
+      "showing": "Showing {from}–{to} of {total}",
+      "filterCourier": "कुरिअर",
+      "filterWaiting": "अडकलेले",
+      "filterWaitingHint": "कोटेशन, स्वीकृती किंवा पेमेंटसाठी {days}+ दिवस थांबलेले, किंवा पाठवलेले आणि डिलिव्हरीची तारीख उलटलेली.",
+      "filterRefundsDue": "परतावे बाकी"
     },
     "orderDetail": {
       "loadError": "ऑर्डर लोड करता आला नाही.",
@@ -1905,7 +2169,22 @@
       "resendDone": "कोड पुन्हा पाठवला.",
       "resendError": "कोड पुन्हा पाठवता आला नाही.",
       "deliveryCodeTitlePickup": "कलेक्शन कोड",
-      "deliveryCodeHintPickup": "या पिकअप ऑर्डरसाठी ग्राहकाचा कलेक्शन कोड."
+      "deliveryCodeHintPickup": "या पिकअप ऑर्डरसाठी ग्राहकाचा कलेक्शन कोड.",
+      "courier": {
+        "charge": "कुरिअर शुल्क",
+        "toBeQuoted": "कोटेशन बाकी",
+        "totalPlusCourier": "₹{amount} + कुरिअर",
+        "shipTo": "इथे पाठवा",
+        "cancel": "ऑर्डर रद्द करा",
+        "actionFailed": "ऑर्डर अपडेट करता आली नाही. कृपया पुन्हा प्रयत्न करा.",
+        "forceDeliver": "सक्तीने डिलिव्हर करा",
+        "forceDeliverTitle": "ऑर्डर #{id} पोहोचवली म्हणून नोंदवायची?",
+        "forceDeliverDesc": "कुरिअर ऑर्डर पोहोचवली म्हणून नोंदवते. विक्रेत्याला आणि ग्राहकाला कळवले जाते.",
+        "markRefunded": "परतावा झाला चिन्हांकित करा",
+        "refundTitle": "ऑर्डर #{id} वर परतावा नोंदवायचा?",
+        "refundDesc": "ग्राहकाला ₹{amount} परत मिळाल्याची नोंद करते. विक्रेत्याने पुष्टी केल्यावरच हे वापरा.",
+        "quotedCharge": "₹{amount} चे कोटेशन · ग्राहकाची प्रतीक्षा"
+      }
     },
     "catalog": {
       "services": "सेवा",
@@ -2158,13 +2437,14 @@
         "etaLabel": "अंदाजित वेळ",
         "minutesSuffix": "मिनिटे",
         "etaMinAriaLabel": "{name} साठी किमान वितरण मिनिटे",
-        "etaMaxAriaLabel": "{name} साठी कमाल वितरण मिनिटे"
+        "etaMaxAriaLabel": "{name} साठी कमाल वितरण मिनिटे",
+        "allowCourier": "कुरिअरने पाठवा"
       },
       "orders": {
         "loadError": "ऑर्डर लोड करण्यात अयशस्वी",
         "actionFailed": "क्रिया अयशस्वी: {msg}",
         "heading": "ऑर्डर ({n})",
-        "writesBlocked": "विक्रेता सक्रिय नाही — विध्वंसक क्रिया अक्षम आहेत.",
+        "writesBlocked": "विक्रेता सक्रिय नाही — विध्वंसक क्रिया अक्षम आहेत; फक्त कुरिअर ऑर्डर रद्द करणे आणि त्याचा परतावा नोंदवणे शक्य आहे.",
         "col": {
           "order": "ऑर्डर",
           "status": "स्थिती",
@@ -2187,7 +2467,9 @@
           "refundTitle": "ऑर्डर #{id} वर पेमेंट परतावा म्हणून चिन्हांकित करायचे?",
           "cancelDesc": "रद्द केल्याने वस्तू पुन्हा स्टॉकमध्ये येतात. विक्रेत्याला ईमेल केला जातो.",
           "rewindDesc": "स्थिती {from} वरून {to} वर मागे जाते. विक्रेत्याला ईमेल केला जातो.",
-          "refundDesc": "पेमेंट स्थिती परताव्यात बदलते (मॅन्युअल लेजर मार्कर — MVP मध्ये खरा परतावा गेटवे नाही). विक्रेत्याला ईमेल केला जातो."
+          "refundDesc": "पेमेंट स्थिती परताव्यात बदलते (मॅन्युअल लेजर मार्कर — MVP मध्ये खरा परतावा गेटवे नाही). विक्रेत्याला ईमेल केला जातो.",
+          "rewindCourierPayment": "पेमेंट पुन्हा अपुष्ट होते आणि डिलिव्हरीच्या तारखा काढल्या जातात, त्यामुळे विक्रेत्याला पैशांची पुन्हा पुष्टी करावी लागेल.",
+          "rewindCourierTracking": "कुरिअर कंपनी आणि ट्रॅकिंग तपशील काढले जातात."
         }
       },
       "products": {
@@ -2630,7 +2912,8 @@
       "pending": "पेमेंट प्रलंबित",
       "paid": "पेमेंट झाले",
       "failed": "पेमेंट अयशस्वी",
-      "refunded": "परतावा दिला"
+      "refunded": "परतावा दिला",
+      "refund_due": "परतावा बाकी"
     },
     "localeSwitcher": {
       "changeLanguage": "भाषा बदला"
@@ -2679,7 +2962,9 @@
     "trackOrder": "ऑर्डर ट्रॅक करा",
     "continueShopping": "खरेदी सुरू ठेवा",
     "loading": "तुमची ऑर्डर लोड होत आहे…",
-    "loadError": "ही ऑर्डर लोड होऊ शकली नाही. तुमची ऑर्डर यादी पहा."
+    "loadError": "ही ऑर्डर लोड होऊ शकली नाही. तुमची ऑर्डर यादी पहा.",
+    "courierTitle": "ऑर्डर दुकानाला पाठवली",
+    "courierSubtitle": "{store} तुम्हाला कुरिअर शुल्क आणि डिलिव्हरीची वेळ पाठवेल. अजून काहीही भरायचे नाही."
   },
   "PolicyConsent": {
     "title": "आम्ही आमची धोरणे अद्ययावत केली आहेत",

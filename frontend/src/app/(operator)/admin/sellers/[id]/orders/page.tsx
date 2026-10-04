@@ -5,8 +5,10 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
+import CourierCancelDialog from "@/components/orders/courier/CourierCancelDialog";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusBadge from "@/components/orders/PaymentStatusBadge";
+import OrderTotal from "@/components/orders/OrderTotal";
 import { useAuth } from "@/lib/AuthContext";
 import { post } from "@/lib/api";
 import {
@@ -19,19 +21,27 @@ import type { Order, SellerHubSummary } from "@/types";
 
 type ActionKind = "cancel" | "rewind" | "refund";
 
+type RewindTarget = "pending" | "packed" | "paid" | "accepted";
+
 interface PendingAction {
   order: Order;
   kind: ActionKind;
-  to?: "pending" | "packed";
+  to?: RewindTarget;
 }
 
-const REWIND_PATH: Record<Order["status"], "pending" | "packed" | null> = {
-  pending: null,
-  packed: "pending",
-  dispatched: "packed",
-  delivered: null,
-  cancelled: null,
-};
+/** One step back, never before the customer's acceptance on a courier order
+ *  (spec §9.7). Mirrors the backend's REWIND tables. */
+function rewindTarget(order: Order): RewindTarget | null {
+  if (order.delivery_mode === "courier") {
+    if (order.status === "paid") return "accepted";
+    if (order.status === "packed") return "paid";
+    if (order.status === "dispatched") return "packed";
+    return null;
+  }
+  if (order.status === "packed") return "pending";
+  if (order.status === "dispatched") return "packed";
+  return null;
+}
 
 export default function AdminOrdersTab({
   params,
@@ -81,10 +91,15 @@ export default function AdminOrdersTab({
       setPending(null);
       await load();
     } catch (e) {
+      // Keep the modal open (it shows the message) so the reason isn't lost.
       const msg = (e as Error).message ?? "unknown_error";
       setActionError(t("orders.actionFailed", { msg }));
-      setPending(null);
     }
+  }
+
+  function closeAction() {
+    setPending(null);
+    setActionError(null);
   }
 
   if (error) return <div>{error}</div>;
@@ -109,21 +124,7 @@ export default function AdminOrdersTab({
           {t("orders.writesBlocked")}
         </div>
       )}
-      {actionError && (
-        <div
-          role="alert"
-          style={{
-            padding: "0.6rem 0.9rem",
-            background: "rgba(216, 60, 48, 0.12)",
-            border: "1px solid var(--color-error)",
-            borderRadius: 6,
-            marginBottom: "0.75rem",
-            color: "var(--color-error)",
-          }}
-        >
-          {actionError}
-        </div>
-      )}
+
       <div style={{ overflowX: "auto" }}>
       <table
         style={{
@@ -145,10 +146,18 @@ export default function AdminOrdersTab({
         <tbody>
           {orders.map((o) => {
             const terminal = o.status === "delivered" || o.status === "cancelled";
-            const rewindTo = REWIND_PATH[o.status];
+            const rewindTo = rewindTarget(o);
+            // A cancelled courier order owes a refund only with money paid
+            // (`refund_due`: a ₹0 store-credit order owes nothing).
             const refundable =
-              (o.status === "cancelled" || o.status === "delivered") &&
-              o.payment.status === "paid";
+              o.payment.status === "paid" &&
+              (o.status === "delivered" ||
+                (o.status === "cancelled" &&
+                  (o.delivery_mode !== "courier" || Boolean(o.courier?.refund_due))));
+            // Courier: the admin must still be able to cancel and record the
+            // refund after the seller lost approval (spec §9.9); the backend
+            // allows exactly these two. Rewinds stay blocked.
+            const courierEscape = o.delivery_mode === "courier";
             return (
               <tr key={o.id}>
                 <td style={cell}>
@@ -156,15 +165,17 @@ export default function AdminOrdersTab({
                 </td>
                 <td style={cell}><OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} /></td>
                 <td style={cell}>
-                  <PaymentStatusBadge status={o.payment.status} />
+                  <PaymentStatusBadge status={o.payment.status} refundDue={o.courier?.refund_due} />
                 </td>
                 <td style={cell}>{o.customer_name ?? "—"}</td>
-                <td style={cell}>₹{o.total.toFixed(2)}</td>
+                <td style={cell}>
+                  <OrderTotal order={o} />
+                </td>
                 <td style={cell}>
                   {!terminal && (
                     <button
                       className="btn btn-danger"
-                      disabled={writesBlocked}
+                      disabled={writesBlocked && !courierEscape}
                       onClick={() =>
                         setPending({ order: o, kind: "cancel" })
                       }
@@ -188,7 +199,7 @@ export default function AdminOrdersTab({
                   {refundable && (
                     <button
                       className="btn btn-outline"
-                      disabled={writesBlocked}
+                      disabled={writesBlocked && !courierEscape}
                       onClick={() =>
                         setPending({ order: o, kind: "refund" })
                       }
@@ -204,21 +215,42 @@ export default function AdminOrdersTab({
       </table>
       </div>
 
-      {pending && (
-        <AdminReasonModal
-          title={modalTitle(pending, t)}
-          description={modalDescription(pending, t)}
-          confirmLabel={
-            pending.kind === "cancel"
-              ? t("orders.confirm.cancel")
-              : pending.kind === "rewind"
-                ? t("orders.confirm.rewind")
-                : t("orders.confirm.refund")
-          }
-          destructive
-          onConfirm={performAction}
-          onClose={() => setPending(null)}
+      {/* The plain reason modal can't ask whether a claimed payment arrived,
+          so a courier force-cancel would 422 on payment_received_required. */}
+      {pending && pending.kind === "cancel" && pending.order.delivery_mode === "courier" ? (
+        <CourierCancelDialog
+          order={pending.order}
+          role="admin"
+          onClose={closeAction}
+          onRefresh={(next) => {
+            // Keep the open dialog on the fresh order (e.g. the customer just
+            // said they paid, so it must now ask whether the money arrived).
+            setPending((p) => (p ? { ...p, order: next } : p));
+            void load();
+          }}
+          onDone={() => {
+            setPending(null);
+            void load();
+          }}
         />
+      ) : (
+        pending && (
+          <AdminReasonModal
+            title={modalTitle(pending, t)}
+            description={modalDescription(pending, t)}
+            confirmLabel={
+              pending.kind === "cancel"
+                ? t("orders.confirm.cancel")
+                : pending.kind === "rewind"
+                  ? t("orders.confirm.rewind")
+                  : t("orders.confirm.refund")
+            }
+            destructive
+            onConfirm={performAction}
+            onClose={closeAction}
+            error={actionError}
+          />
+        )
       )}
     </div>
   );
@@ -234,10 +266,20 @@ function modalTitle(p: PendingAction, t: Translator): string {
 }
 
 function modalDescription(p: PendingAction, t: Translator): string {
+  // Courier cancels never get here: they open CourierCancelDialog, which
+  // states its own consequences (no restock once shipped, refund due).
   if (p.kind === "cancel")
     return t("orders.modal.cancelDesc");
-  if (p.kind === "rewind")
-    return t("orders.modal.rewindDesc", { from: p.order.status, to: p.to ?? "" });
+  if (p.kind === "rewind") {
+    const base = t("orders.modal.rewindDesc", { from: p.order.status, to: p.to ?? "" });
+    if (p.order.delivery_mode !== "courier") return base;
+    // What a courier rewind also undoes (services/orders.rewind_order).
+    const extra = [
+      p.to === "accepted" ? t("orders.modal.rewindCourierPayment") : null,
+      p.order.status === "dispatched" ? t("orders.modal.rewindCourierTracking") : null,
+    ].filter(Boolean);
+    return [base, ...extra].join(" ");
+  }
   return t("orders.modal.refundDesc");
 }
 

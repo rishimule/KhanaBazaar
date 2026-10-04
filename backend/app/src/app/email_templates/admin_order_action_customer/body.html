@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% block body %}
   <p>Hi {{ customer_first_name|default('there') }},</p>
-  {% if action == 'order.cancel' %}
+  {% if action == 'order.cancel' and refund_due_amount is defined and refund_due_amount %}
+    <p>We cancelled your order <strong>#{{ order_id }}</strong> ({{ service_name }}). {{ store_name }} owes you a refund of <strong>{{ refund_due_amount|inr }}</strong>; we'll let you know when they send it.</p>
+  {% elif action == 'order.cancel' and mode is defined and mode == 'courier' %}
+    <p>We cancelled your order <strong>#{{ order_id }}</strong> ({{ service_name }}).</p>
+  {% elif action == 'order.cancel' %}
     <p>We cancelled your order <strong>#{{ order_id }}</strong> ({{ service_name }}) and started a refund where applicable.</p>
   {% elif action == 'order.refund' %}
     <p>We issued a refund for your order <strong>#{{ order_id }}</strong> ({{ service_name }}).</p>

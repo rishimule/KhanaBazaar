@@ -121,7 +121,10 @@
     "noFilterMatch": "No products match this filter.",
     "storeClosedBadge": "Closed",
     "storeClosedUntil": "Closed — back {date}",
-    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now.",
+    "courierBannerTitle": "Ships to {place} by courier",
+    "courierBannerSub": "Delivery takes a few days. The store quotes the courier charge after you order, and you pay only once you accept it.",
+    "courierBannerNotShipping": "Not sent by courier: {services}"
   },
   "Cart": {
     "errClear": "Could not clear cart. Please try again.",
@@ -152,7 +155,8 @@
     "deliveryFee": "Delivery fee",
     "railCheckout": "Check out",
     "railAria": "Cart preview",
-    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now."
+    "storePausedBanner": "This store is temporarily closed and isn't taking orders right now.",
+    "courierHint": "Ships by courier. The courier charge is quoted after you order."
   },
   "Checkout": {
     "loading": "Loading…",
@@ -235,7 +239,30 @@
     "modeDoor": "Door delivery",
     "modePickup": "Pick up at store",
     "collectAt": "Collect at",
-    "storeCreditLabel": "Use store credit (₹{balance} available)"
+    "storeCreditLabel": "Use store credit (₹{balance} available)",
+    "modeDelivery": "Delivery",
+    "courier": {
+      "title": "Long-distance order · ships by courier",
+      "body": "{store} will send this by courier. It may take a few days to arrive.",
+      "bodyCity": "{city} is outside {store}'s local delivery area, so they'll send it by courier. It may take a few days to arrive.",
+      "pointCharge": "The courier charge isn't included yet — {store} sends you the charge and delivery dates after you order.",
+      "pointPayLater": "You pay only after you accept them.",
+      "pointNoReturns": "Courier orders can't be returned in the app.",
+      "recipientTitle": "Who receives it",
+      "recipientHint": "The courier calls this number. You can send it to someone else.",
+      "recipientName": "Recipient name",
+      "recipientPhone": "Recipient phone",
+      "phonePlaceholder": "10-digit mobile",
+      "phoneInvalid": "Enter a valid 10-digit mobile number.",
+      "chargeQuoted": "Quoted by the store",
+      "totalSoFar": "Total so far",
+      "totalPlusCourier": "₹{total} + courier",
+      "placeOrder": "Place courier order",
+      "nothingToPay": "Nothing to pay now",
+      "noPayee": "This store can't take courier payments right now.",
+      "storeLoadError": "Couldn't load the store's payment details. Reload the page to try again.",
+      "recipientNeeded": "Add who receives the parcel to place the order."
+    }
   },
   "Login": {
     "errSendCode": "Failed to send code.",
@@ -399,7 +426,40 @@
     "boundaryRef": "Reference: {digest}",
     "illegal_rewind": "This order cannot be moved back to that stage.",
     "boundaryBodyShop": "The page stopped loading. Nothing in your cart was lost. Try again, or head back to the home page.",
-    "boundaryShopHome": "Back to home"
+    "boundaryShopHome": "Back to home",
+    "courier_unavailable": "This store doesn't send this service by courier any more.",
+    "courier_destination_unsupported": "Courier delivery needs an address in India with a 6-digit PIN code.",
+    "address_within_local_area": "This address now gets local delivery. Check the updated delivery details and place the order again.",
+    "outside_courier_area": "This address is now outside the store's courier area. Choose another address.",
+    "recipient_name_required": "Enter the recipient's name.",
+    "invalid_recipient_phone": "Enter a valid 10-digit Indian mobile number for the recipient.",
+    "courier_fields_not_allowed": "Recipient and tracking details are only for courier orders.",
+    "preferred_window_not_allowed": "Courier orders don't take a preferred delivery time.",
+    "bank_transfer_unavailable": "This store isn't accepting bank transfers right now.",
+    "upi_unavailable": "This store isn't accepting UPI right now.",
+    "courier_payment_unavailable": "This store can't take payments right now. We've let them know.",
+    "quote_superseded": "The store just updated the quote. Please review the new one.",
+    "quote_locked": "The quote can't change after the customer accepted it.",
+    "too_many_quote_versions": "This order has had the maximum number of quotes.",
+    "not_awaiting_payment": "This order isn't waiting for payment.",
+    "payment_method_required": "Choose how you paid.",
+    "payment_settled": "The payment is already confirmed.",
+    "no_claim": "The customer hasn't said they paid yet.",
+    "invalid_tracking_url": "Use a full https:// tracking link.",
+    "already_delivered": "This order is already marked delivered.",
+    "payment_received_required": "Say whether the customer's payment reached you.",
+    "refund_not_due": "There's no refund owed on this order.",
+    "already_refunded": "The refund is already recorded.",
+    "not_returnable_courier": "Courier orders can't be returned in the app.",
+    "not_applicable_for_courier": "This isn't available for courier orders.",
+    "courier_radius_not_larger": "The courier radius must be larger than the local delivery radius.",
+    "courier_radius_too_large": "The courier radius is too large.",
+    "bank_transfer_incomplete": "Bank transfer needs the account name, number and IFSC.",
+    "reason_required": "Please give a reason of at least 10 characters.",
+    "cancel_not_allowed": "This order can no longer be cancelled from here.",
+    "payment_method_not_allowed": "That payment method can't be used for this order.",
+    "outside_delivery_area": "This address is now outside the store's delivery area. Choose another address.",
+    "not_a_courier_order": "This isn't a courier order."
   },
   "Footer": {
     "tagline": "Empower local sellers with a digital presence. Together, we grow a stronger, connected ecosystem.",
@@ -470,7 +530,14 @@
     "verifyMissingFields": "Fill address line 1, city, state and a 6-digit pincode first.",
     "verifyNotFound": "Couldn't locate that address on the map. Edit it and try again, or pin manually.",
     "verifyFailed": "Address lookup failed. Please try again.",
-    "verifyRequired": "Verification required to continue."
+    "verifyRequired": "Verification required to continue.",
+    "courierBadge": "Courier · few days",
+    "noCourierForServiceBadge": "Not sent by courier",
+    "courierNeedsPinBadge": "Needs an Indian PIN code",
+    "noPinBadge": "Needs a map pin",
+    "checkFailedBadge": "Couldn't check",
+    "checkFailedNotice": "We couldn't check some addresses just now. Reload the page to try again.",
+    "unavailableHeader": "Not available for this order"
   },
   "Payment": {
     "legend": "Payment method",
@@ -486,7 +553,12 @@
     "netBankingLabel": "Net Banking",
     "netBankingHint": "Pay via your bank portal",
     "payAtStoreLabel": "Pay at store",
-    "payAtStoreHint": "Pay at the counter when you collect"
+    "payAtStoreHint": "Pay at the counter when you collect",
+    "courierLegend": "How you'll pay after accepting",
+    "courierPayLaterHint": "Pay after you accept the quote",
+    "bankTransferLabel": "Bank transfer",
+    "bankTransferHint": "NEFT or IMPS to the store's bank account",
+    "courierCreditNote": "Credit isn't available for courier orders."
   },
   "Order": {
     "delivery": {
@@ -508,7 +580,16 @@
       "delivered": "Delivered",
       "cancelled": "Cancelled",
       "pickup_dispatched": "Ready for pickup",
-      "pickup_delivered": "Collected"
+      "pickup_delivered": "Collected",
+      "courier_pending": "Awaiting quote",
+      "courier_quoted": "Quote sent",
+      "courier_quoted_customer": "Quote ready",
+      "courier_accepted": "Awaiting payment",
+      "courier_paid": "Paid",
+      "courier_dispatched": "Shipped",
+      "quoted": "Quoted",
+      "accepted": "Accepted",
+      "paid": "Paid"
     },
     "timeline": {
       "placed": "Order placed",
@@ -517,14 +598,20 @@
       "delivered": "Delivered",
       "cancelled": "Order cancelled",
       "pickup_dispatched": "Ready for pickup",
-      "pickup_delivered": "Collected"
+      "pickup_delivered": "Collected",
+      "courier_requested": "Requested",
+      "courier_quote": "Quote",
+      "courier_paid": "Paid",
+      "courier_shipped": "Shipped"
     },
     "card": {
       "forCustomer": "For {name}",
       "secondsAgo": "{count}s ago",
       "minutesAgo": "{count}m ago",
       "hoursAgo": "{count}h ago",
-      "daysAgo": "{count}d ago"
+      "daysAgo": "{count}d ago",
+      "totalPlusCourier": "₹{amount} + courier",
+      "actionNeeded": "Action needed"
     },
     "actions": {
       "markPacked": "Mark Packed",
@@ -561,7 +648,8 @@
         "pending": "Pending",
         "paid": "Paid",
         "failed": "Failed",
-        "refunded": "Refunded"
+        "refunded": "Refunded",
+        "refund_due": "Refund due"
       },
       "method": {
         "upi": "UPI",
@@ -581,6 +669,54 @@
         "order_not_delivered": "You can only review delivered orders.",
         "review_exists": "You've already reviewed this order."
       }
+    },
+    "courier": {
+      "summaryLabel": "Courier details",
+      "recipient": "Recipient",
+      "estimatedArrival": "Estimated arrival",
+      "transit": "Transit",
+      "transitDays": "{min}–{max} days after payment",
+      "tracking": "Tracking",
+      "trackOn": "Track on {host}",
+      "copy": "Copy",
+      "copied": "Copied",
+      "distance": "Distance",
+      "distanceKm": "About {km} km (straight line)",
+      "quoteHistory": "Quotes sent ({count})",
+      "quoteLine": "v{version} · ₹{fee} · {min}–{max} days",
+      "quoteAccepted": "accepted",
+      "deliveredBy": "Marked delivered by",
+      "deliveredBy_seller": "the store",
+      "deliveredBy_customer": "the customer",
+      "deliveredBy_admin": "support",
+      "cancelReason": "Cancelled: {reason}",
+      "refundDueCustomer": "{store} owes you a refund of ₹{amount}. We'll tell you when they send it.",
+      "refundDueOperator": "Refund due to the customer: ₹{amount}.",
+      "refunded": "Refunded ₹{amount} on {date}",
+      "refundRef": "ref {ref}",
+      "reportedMissingCustomer": "{store} reported that your payment didn't arrive. Contact support if you paid.",
+      "reportedMissingOperator": "Cancelled with the payment reported as not received.",
+      "methodUpi": "UPI",
+      "methodBank": "Bank transfer",
+      "reportedMissingCustomerSupport": "Our support team recorded that your payment didn't reach {store}. Contact support if you paid.",
+      "claimedRow": "Customer says paid",
+      "claimedValue": "{method} · {when}"
+    },
+    "courierCancel": {
+      "title": "Cancel order #{id}?",
+      "reasonLabel": "Reason (at least 10 characters)",
+      "reasonTooShort": "Please enter at least 10 characters.",
+      "receivedQuestionSeller": "The customer says they paid ₹{amount}. Did it reach you?",
+      "receivedQuestionAdmin": "The customer says they paid ₹{amount}. Did it reach the seller?",
+      "receivedYes": "Yes, it arrived",
+      "receivedNo": "No, it didn't",
+      "consequenceRestock": "Items go back into stock, and the customer is told.",
+      "consequenceShipped": "The parcel has already shipped, so stock is not returned. Restock it if it comes back.",
+      "consequenceRefund": "The customer is owed ₹{amount} until the refund is recorded.",
+      "consequenceMissing": "The order is cancelled with the payment reported as not received.",
+      "keep": "Keep order",
+      "confirm": "Cancel order",
+      "failed": "Couldn't cancel the order. Please try again."
     }
   },
   "Account": {
@@ -662,7 +798,56 @@
       "resendError": "Could not resend the code.",
       "pickupLocation": "Pickup location",
       "deliveryCodeTitlePickup": "Collection code",
-      "deliveryCodeHintPickup": "Show this code at the store counter to collect your order."
+      "deliveryCodeHintPickup": "Show this code at the store counter to collect your order.",
+      "courierNoReturns": "Courier orders can't be returned in the app. Contact the store if something is wrong.",
+      "courierCharge": "Courier charge",
+      "courierToBeQuoted": "To be quoted",
+      "amountPlusCourier": "₹{amount} + courier",
+      "courierShipTo": "Shipping to",
+      "courier": {
+        "quoteTitle": "Your courier quote",
+        "quoteRevisedTitle": "Updated courier quote",
+        "courierCharge": "Courier charge",
+        "arrives": "Arrives",
+        "arrivesDays": "{min}–{max} days after payment",
+        "arrivesIfToday": "Around {from} – {to} if you pay today",
+        "carrier": "Courier",
+        "newTotal": "New total",
+        "creditCovers": "₹{amount} of store credit is applied. Any more credit you have at this store also goes toward the courier charge.",
+        "acceptQuote": "Accept and pay",
+        "declineQuote": "Decline",
+        "quoteChanged": "The store just updated the quote. Here's the new one.",
+        "declineTitle": "Decline this quote?",
+        "declineReason": "Reason (optional)",
+        "declineHint": "The order is cancelled and the store is told. You haven't paid anything.",
+        "confirmDecline": "Decline and cancel",
+        "keepOrder": "Keep order",
+        "payTitle": "Pay ₹{amount}",
+        "tabUpi": "UPI",
+        "tabBank": "Bank transfer",
+        "loadingPayee": "Loading payment details…",
+        "payeeLoadError": "Couldn't load the store's UPI details. Try again, or pay by bank transfer.",
+        "payeeLoadErrorRetry": "Couldn't load the store's UPI details. Reload the page to try again.",
+        "payeeUnavailable": "This store can't take payments right now. Check back later, or cancel the order if you no longer want it.",
+        "bankAccountName": "Account name",
+        "bankAccountNumber": "Account number",
+        "bankIfsc": "IFSC",
+        "bankAmount": "Amount",
+        "bankRemarks": "Add Order {id} in the payment remarks so the store can match it.",
+        "copy": "Copy",
+        "claimFailed": "Couldn't record your payment. Please try again.",
+        "claimedAt": "You said you paid on {when}. Waiting for {store} to confirm.",
+        "claimRejected": "The store says your payment hasn't arrived. Check your bank or UPI app before paying again.",
+        "claimRejectedWithNote": "The store says your payment hasn't arrived: {note}",
+        "payDisclaimer": "Payments go straight to the store. The store confirms when the money arrives.",
+        "received": "I've received it",
+        "receivedConfirm": "Confirm the parcel has arrived?",
+        "cancelTitle": "Cancel this order?",
+        "confirmCancel": "Cancel order",
+        "cancelAfterClaim": "You've said you paid. To cancel now, contact {store}.",
+        "actionFailed": "Something went wrong. Please try again."
+      },
+      "courierQuotedCharge": "₹{amount} quoted · not accepted yet"
     },
     "profile": {
       "loading": "Loading profile…",
@@ -1277,7 +1462,12 @@
       "reasonPlaceholder": "e.g. Diwali holidays",
       "metricsFailedTitle": "Couldn't load your numbers",
       "metricsFailedBody": "This does not mean you earned nothing — we couldn't reach the server. Check your connection and try again.",
-      "pauseFailed": "Couldn't change your store status. Nothing was changed."
+      "pauseFailed": "Couldn't change your store status. Nothing was changed.",
+      "donutQuoted": "Quote sent",
+      "donutAccepted": "Awaiting payment",
+      "donutPaid": "Paid, to pack",
+      "attnPaid": "{count} paid and waiting to be packed",
+      "attnPaymentCheck": "{count} with a payment to confirm"
     },
     "inventory": {
       "categoriesAria": "Categories",
@@ -1368,7 +1558,10 @@
         "all": "All",
         "active": "Active",
         "delivered": "Delivered",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "needs_quote": "Needs quote",
+        "check_payment": "Check payment",
+        "refunds_due": "Refunds due"
       },
       "allServices": "All services",
       "fromDate": "From date",
@@ -1397,7 +1590,8 @@
       "showing": "Showing {from}–{to} of {total}",
       "loadFailedTitle": "Couldn't load your orders",
       "loadFailedBody": "This does not mean you have no orders — we couldn't reach the server.",
-      "customerSaysPaid": "Customer says paid"
+      "customerSaysPaid": "Customer says paid",
+      "courierTag": "Courier"
     },
     "orderDetail": {
       "loadError": "Could not load order.",
@@ -1414,7 +1608,63 @@
       "storeCreditApplied": "Store credit applied",
       "amountPayable": "Amount payable",
       "startReturn": "Start a return",
-      "customerSaysPaidAt": "Customer says they paid on {when}. Check your own bank app before dispatching."
+      "customerSaysPaidAt": "Customer says they paid on {when}. Check your own bank app before dispatching.",
+      "courier": {
+        "charge": "Courier charge",
+        "toBeQuoted": "To be quoted",
+        "totalPlusCourier": "₹{amount} + courier",
+        "shipTo": "Ship to",
+        "cancel": "Cancel order",
+        "actionFailed": "Couldn't update the order. Please try again.",
+        "sendQuote": "Send courier quote",
+        "reviseQuote": "Revise quote",
+        "quoteTitle": "Courier quote",
+        "quoteFee": "Courier charge (₹)",
+        "quoteEtaMin": "Arrives in at least (days after payment)",
+        "quoteEtaMax": "Arrives in at most (days after payment)",
+        "quoteCarrier": "Courier company (optional)",
+        "quoteNote": "Note to the customer (optional)",
+        "quotePreview": "The customer sees a total of ₹{total}, before any store credit.",
+        "quoteInvalid": "Enter a charge from ₹0 to ₹1,00,000, and days from 1 to 60 with the first no more than the second.",
+        "quoteSubmit": "Send quote",
+        "quoteLimit": "This order has had the maximum of {max} quotes.",
+        "hintPending": "The customer is waiting for your courier charge and delivery time.",
+        "hintQuoted": "Quote v{version} sent. Waiting for the customer to accept.",
+        "hintAwaitingPayment": "Waiting for the customer to pay ₹{amount}.",
+        "hintClaimed": "The customer says they paid by {method} on {when}. Check your bank or UPI app before confirming.",
+        "hintRejected": "You said the last payment didn't arrive. The customer has been asked to check and pay again.",
+        "hintPaid": "Payment confirmed. Pack the order, then ship it.",
+        "hintPacked": "Book the courier, then mark the order shipped with the tracking details.",
+        "hintDispatched": "Mark it delivered when the courier confirms delivery. The customer can also mark it received.",
+        "hintRefund": "Send ₹{amount} back to the customer, then record it here.",
+        "confirmPayment": "Payment received",
+        "confirmPaymentPrompt": "Confirm that ₹{amount} has reached your account?",
+        "notReceived": "Not received",
+        "notReceivedTitle": "Payment not received",
+        "notReceivedNote": "Message to the customer (optional)",
+        "notReceivedHint": "The customer is asked to check and pay again. The order stays open.",
+        "notReceivedSubmit": "Tell the customer",
+        "markPacked": "Mark packed",
+        "markShipped": "Mark shipped",
+        "shipTitle": "Shipping details",
+        "trackingTitle": "Edit tracking",
+        "trackCarrier": "Courier company",
+        "trackNumber": "Tracking number",
+        "trackUrl": "Tracking link",
+        "trackUrlInvalid": "Use a full https:// link.",
+        "trackHint": "All optional. The customer sees whatever you add.",
+        "shipSubmit": "Mark shipped",
+        "trackingSubmit": "Save tracking",
+        "editTracking": "Edit tracking",
+        "markDelivered": "Mark delivered",
+        "deliverPrompt": "Mark this order delivered? Do this once the courier confirms delivery.",
+        "refundSent": "Refund sent",
+        "refundTitle": "Record the refund",
+        "refundRef": "Payment reference (optional)",
+        "refundHint": "Record this after you send ₹{amount} back. Add the UPI or bank reference so the customer can find it.",
+        "refundSubmit": "Record refund",
+        "quotedCharge": "₹{amount} quoted · waiting for the customer"
+      }
     },
     "settings": {
       "loadStoreError": "Could not load store.",
@@ -1440,7 +1690,13 @@
       "minOrderCaption": "Set the cart total at or above which delivery is free, plus the flat fee charged below it. Set the threshold to 0 for always-free delivery.",
       "freeDeliveryThresholdInputLabel": "Free delivery threshold for {service}",
       "deliveryFeeInputLabel": "Delivery fee for {service}",
-      "allowPickup": "Allow pickup at store"
+      "allowPickup": "Allow pickup at store",
+      "allowCourier": "Ship by courier (long distance)",
+      "courierRadius": "Courier radius",
+      "courierRadiusValue": "Up to {km} km",
+      "courierRadiusOff": "Off",
+      "courierRadiusCaption": "Customers beyond your delivery radius but within this distance can order by courier. You set the courier charge per order. Change it with Edit.",
+      "courierNoPayee": "Courier orders are off until you can be paid: turn on UPI in Payments, or bank transfer in Banking."
     },
     "profile": {
       "heading": "Profile",
@@ -1496,7 +1752,11 @@
       "upiDisabled": "UPI is off. Your UPI ID is saved for when you turn it back on.",
       "upiQrLabel": "Payment QR image (optional)",
       "upiQrHint": "For our team to check against your UPI ID. Customers never see this image — they scan a QR we generate from the ID itself.",
-      "upiReviewHint": "Changes are reviewed before customers see them."
+      "upiReviewHint": "Changes are reviewed before customers see them.",
+      "accountNameLabel": "Account holder",
+      "bankTransferLabel": "Bank transfer for courier orders",
+      "bankTransferOn": "On",
+      "bankTransferOff": "Off"
     },
     "signup": {
       "stepCounter": "Step {current} of {total}",
@@ -1884,7 +2144,11 @@
       "loadMore": "Load more",
       "prev": "‹ Prev",
       "next": "Next ›",
-      "showing": "Showing {from}–{to} of {total}"
+      "showing": "Showing {from}–{to} of {total}",
+      "filterCourier": "Courier",
+      "filterWaiting": "Stalled",
+      "filterWaitingHint": "Waiting {days}+ days for a quote, acceptance or payment, or shipped and past the delivery date.",
+      "filterRefundsDue": "Refunds due"
     },
     "orderDetail": {
       "loadError": "Could not load order.",
@@ -1904,7 +2168,22 @@
       "resendDone": "Code re-sent.",
       "resendError": "Could not resend the code.",
       "deliveryCodeTitlePickup": "Collection code",
-      "deliveryCodeHintPickup": "Customer collection code for this pickup order."
+      "deliveryCodeHintPickup": "Customer collection code for this pickup order.",
+      "courier": {
+        "charge": "Courier charge",
+        "toBeQuoted": "To be quoted",
+        "totalPlusCourier": "₹{amount} + courier",
+        "shipTo": "Ship to",
+        "cancel": "Cancel order",
+        "actionFailed": "Couldn't update the order. Please try again.",
+        "forceDeliver": "Force deliver",
+        "forceDeliverTitle": "Force deliver order #{id}?",
+        "forceDeliverDesc": "Marks the courier order delivered. The seller and the customer are told.",
+        "markRefunded": "Mark refunded",
+        "refundTitle": "Record the refund on order #{id}?",
+        "refundDesc": "Records that the customer got ₹{amount} back. Use this only once the seller confirms it.",
+        "quotedCharge": "₹{amount} quoted · waiting for the customer"
+      }
     },
     "catalog": {
       "services": "Services",
@@ -2157,13 +2436,14 @@
         "etaLabel": "ETA",
         "minutesSuffix": "min",
         "etaMinAriaLabel": "Minimum delivery minutes for {name}",
-        "etaMaxAriaLabel": "Maximum delivery minutes for {name}"
+        "etaMaxAriaLabel": "Maximum delivery minutes for {name}",
+        "allowCourier": "Ship by courier"
       },
       "orders": {
         "loadError": "Failed to load orders",
         "actionFailed": "Action failed: {msg}",
         "heading": "Orders ({n})",
-        "writesBlocked": "Seller is not active — destructive actions disabled.",
+        "writesBlocked": "Seller is not active — destructive actions are disabled, except cancelling a courier order and recording its refund.",
         "col": {
           "order": "Order",
           "status": "Status",
@@ -2186,7 +2466,9 @@
           "refundTitle": "Mark payment refunded on order #{id}?",
           "cancelDesc": "Cancellation restocks items. Seller is emailed.",
           "rewindDesc": "Status moves backward from {from} to {to}. Seller is emailed.",
-          "refundDesc": "Payment status flips to refunded (manual ledger marker — MVP has no real refund gateway). Seller is emailed."
+          "refundDesc": "Payment status flips to refunded (manual ledger marker — MVP has no real refund gateway). Seller is emailed.",
+          "rewindCourierPayment": "The payment goes back to unconfirmed and the delivery dates are cleared, so the seller must confirm the money again.",
+          "rewindCourierTracking": "The carrier and tracking details are cleared."
         }
       },
       "products": {
@@ -2629,7 +2911,8 @@
       "pending": "Payment pending",
       "paid": "Paid",
       "failed": "Payment failed",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "refund_due": "Refund due"
     },
     "localeSwitcher": {
       "changeLanguage": "Change language"
@@ -2678,7 +2961,9 @@
     "trackOrder": "Track order",
     "continueShopping": "Continue shopping",
     "loading": "Loading your order…",
-    "loadError": "Couldn't load this order. Check your orders list."
+    "loadError": "Couldn't load this order. Check your orders list.",
+    "courierTitle": "Order sent to the store",
+    "courierSubtitle": "{store} will send you the courier charge and delivery time. Nothing to pay yet."
   },
   "PolicyConsent": {
     "title": "We've updated our policies",

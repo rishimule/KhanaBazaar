@@ -90,15 +90,21 @@ def send_order_status_whatsapp_async(order_id: int, status: str) -> None:
     import concurrent.futures
 
     from app.core.whatsapp import get_whatsapp_sender
-    from app.core.whatsapp_templates import STATUS_TEMPLATES
+    from app.core.whatsapp_templates import COURIER_STATUS_TEMPLATES, STATUS_TEMPLATES
 
     sender = get_whatsapp_sender()
     if sender is None:
         return
-    template = STATUS_TEMPLATES.get(status)
-    if template is None:
+    # No template in either map → no message, and no DB read either.
+    if status not in STATUS_TEMPLATES and status not in COURIER_STATUS_TEMPLATES:
         return
     ctx = _load_order_email_context(order_id)
+    templates = (
+        COURIER_STATUS_TEMPLATES if ctx.get("delivery_mode") == "courier" else STATUS_TEMPLATES
+    )
+    template = templates.get(status)
+    if template is None:
+        return
     phone = ctx.get("customer_phone")
     if not phone or not ctx.get("customer_phone_verified"):
         return
@@ -514,6 +520,16 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     }
                     for row in items_rows
                 ]
+                from app.models.commerce import DeliveryMode
+                from app.models.courier import OrderCourier
+
+                courier_row = None
+                if order.delivery_mode == DeliveryMode.Courier:
+                    courier_row = (
+                        await session.exec(
+                            select(OrderCourier).where(OrderCourier.order_id == order_id)
+                        )
+                    ).first()
                 return {
                     "order_id": order.id,
                     "order_total": order.total,
@@ -570,6 +586,12 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                         seller_user.preferred_language if seller_user else "en"
                     ),
                     "delivery_address_snapshot": order.delivery_address_snapshot,
+                    "delivery_mode": order.delivery_mode.value,
+                    "payment_status": payment_row.status.value if payment_row else None,
+                    "payment_amount": payment_row.amount if payment_row else None,
+                    "courier_carrier": courier_row.carrier_name if courier_row else None,
+                    "courier_tracking_number": courier_row.tracking_number if courier_row else None,
+                    "courier_tracking_url": courier_row.tracking_url if courier_row else None,
                 }
         finally:
             await engine.dispose()
@@ -603,6 +625,7 @@ def send_order_placed_seller_async(order_id: int) -> None:
             "subtotal": ctx["subtotal"],
             "delivery_fee": ctx["delivery_fee"],
             "preferred_delivery": ctx.get("preferred_delivery"),
+            "courier": ctx.get("delivery_mode") == "courier",
         },
         lang=ctx.get("seller_lang") or "en",
     )
@@ -656,9 +679,13 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
                 "delivery_fee": ctx["delivery_fee"],
                 "delivery_eta": ctx.get("delivery_eta"),
                 "preferred_delivery": ctx.get("preferred_delivery"),
+                "courier": ctx.get("delivery_mode") == "courier",
+                # Nothing is payable on a courier order until its quote is
+                # accepted, so no UPI block in the placement email.
                 "upi_vpa": (
                     ctx.get("seller_upi_vpa")
                     if ctx.get("payment_method") == "upi"
+                    and ctx.get("delivery_mode") != "courier"
                     else None
                 ),
                 # NET payable. `order_total` is the GROSS goods cost; store
@@ -671,6 +698,7 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
                         2,
                     )
                     if ctx.get("payment_method") == "upi"
+                    and ctx.get("delivery_mode") != "courier"
                     and ctx.get("seller_upi_vpa")
                     else None
                 ),
@@ -697,6 +725,27 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
         html=payload.html,
         reply_to=settings.EMAIL_REPLY_TO,
     )
+
+
+def _courier_status_extras(ctx: dict[str, Any], new_status: str) -> dict[str, Any]:
+    """Template keys the order-status email needs for a courier order."""
+    courier = ctx.get("delivery_mode") == "courier"
+    tracking = " · ".join(
+        p for p in (ctx.get("courier_carrier"), ctx.get("courier_tracking_number")) if p
+    )
+    return {
+        "mode": ctx.get("delivery_mode") or "door_delivery",
+        "status_label": "shipped" if courier and new_status == "dispatched" else new_status,
+        "tracking_line": tracking if courier and new_status == "dispatched" and tracking else None,
+        "tracking_url": (
+            ctx.get("courier_tracking_url") if courier and new_status == "dispatched" else None
+        ),
+        "refund_due_amount": (
+            ctx.get("payment_amount")
+            if courier and new_status == "cancelled" and ctx.get("payment_status") == "paid"
+            else None
+        ),
+    }
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
@@ -741,6 +790,7 @@ def send_order_status_changed_async(
             "current": new_status,
             "reason": reason,
             "recipient": recipient,
+            **_courier_status_extras(ctx, new_status),
         },
         lang=lang,
     )
@@ -751,6 +801,95 @@ def send_order_status_changed_async(
         html=payload.html,
         reply_to=settings.EMAIL_REPLY_TO,
     )
+
+
+async def courier_email(order_id: int, event: str, recipient: str) -> None:
+    """Body of `send_courier_email_async`, awaitable in-loop for tests. Reads
+    via async_session_factory so tests hit the test DB, not the dev one."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+    from app.db.session import async_session_factory
+    from app.services.courier_copy import (
+        load_courier_vars,
+        render_customer,
+        render_seller,
+    )
+
+    async with async_session_factory() as session:
+        v = await load_courier_vars(session, order_id)
+    if v is None:
+        return
+    if recipient == "seller":
+        if not v.seller_active or not v.seller_email:
+            return
+        message, to, path = render_seller(event, v), v.seller_email, "/seller/orders/"
+    else:
+        if not v.customer_active or not v.customer_email:
+            return
+        message, to, path = render_customer(event, v), v.customer_email, "/account/orders/"
+    payload = render_email(
+        "courier_update",
+        {
+            "title": message.title,
+            "body": message.body,
+            "order_id": order_id,
+            "store_name": v.store_name,
+            "cta_path": path,
+        },
+    )
+    _resolve_email(to, payload.subject, payload.text, html=payload.html, reply_to=settings.EMAIL_REPLY_TO)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_courier_email_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_courier_email_async(order_id: int, event: str, recipient: str) -> None:
+    import asyncio
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(lambda: asyncio.run(courier_email(order_id, event, recipient))).result()
+
+
+async def courier_whatsapp(order_id: int, event: str) -> None:
+    """Body of `send_courier_whatsapp_async`. Verified customer phone only."""
+    from app.core.whatsapp import get_whatsapp_sender
+    from app.core.whatsapp_templates import COURIER_EVENT_TEMPLATES
+    from app.db.session import async_session_factory
+    from app.services.courier_copy import load_courier_vars
+
+    sender = get_whatsapp_sender()
+    template = COURIER_EVENT_TEMPLATES.get(event)
+    if sender is None or template is None:
+        return
+    async with async_session_factory() as session:
+        v = await load_courier_vars(session, order_id)
+    if v is None or not v.customer_active or not v.customer_phone or not v.customer_phone_verified:
+        return
+    variables = {
+        "order_no": str(order_id),
+        "store": v.store_name,
+        "amount": f"{(v.fee or 0.0):.2f}",
+        "days": f"{v.min_days}–{v.max_days}",
+    }
+    await sender.send_template(v.customer_phone, template, variables)
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="send_courier_whatsapp_async",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    retry_backoff=True,
+)
+def send_courier_whatsapp_async(order_id: int, event: str) -> None:
+    import asyncio
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(lambda: asyncio.run(courier_whatsapp(order_id, event))).result()
 
 
 _ACTION_LABELS = {
@@ -769,6 +908,15 @@ _ACTION_LABELS = {
 
 def _action_label(action: str) -> str:
     return _ACTION_LABELS.get(action, action)
+
+
+def _admin_cancel_refund(ctx: dict[str, Any], action: str) -> float | None:
+    """What the seller owes the customer after an admin cancel of a paid
+    courier order (the money went to the seller, so the seller refunds it)."""
+    if action != "order.cancel":
+        return None
+    amount = _courier_status_extras(ctx, "cancelled")["refund_due_amount"]
+    return float(amount) if amount is not None else None
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
@@ -795,6 +943,7 @@ def send_admin_order_action_seller_async(
             "store_name": ctx.get("store_name") or "your store",
             "action_label": _action_label(action),
             "reason": reason or "",
+            "refund_due_amount": _admin_cancel_refund(ctx, action),
         },
         lang=ctx.get("seller_lang") or "en",
     )
@@ -912,11 +1061,14 @@ def send_admin_order_action_customer_async(
         {
             "order_id": ctx["order_id"],
             "service_name": ctx["service_name"],
+            "store_name": ctx.get("store_name") or "the store",
             "customer_first_name": ctx.get("customer_first_name"),
             "action": action,
             "action_label": _action_label(action),
             "reason": reason or "",
             "delivery_address_snapshot": ctx.get("delivery_address_snapshot") or "",
+            "mode": ctx.get("delivery_mode") or "door_delivery",
+            "refund_due_amount": _admin_cancel_refund(ctx, action),
         },
         lang=ctx.get("customer_lang") or "en",
     )
@@ -1331,12 +1483,18 @@ def send_seller_change_request_approved_async(cr_id_str: str) -> None:
     Picks the with-edits or no-edits template based on whether the admin's
     `applied_json` differs from the seller's `proposed_json`.
     """
+    from app.models.seller_profile_change_request import SellerProfileChangeGroup
+    from app.schemas.seller_profile_change_request import normalize_group_payload
+
     ctx = _load_seller_change_request_context(cr_id_str)
     if not ctx:
         return
+    proposed = ctx.get("proposed")
+    if isinstance(proposed, dict):
+        proposed = normalize_group_payload(SellerProfileChangeGroup(ctx["group"]), proposed)
     has_edits = (
         ctx.get("applied") is not None
-        and ctx["applied"] != ctx.get("proposed")
+        and ctx["applied"] != proposed
     )
     ctx["has_edits"] = has_edits
     template = (
@@ -1868,9 +2026,9 @@ async def seller_new_order_alert(order_id: int) -> None:
     async with async_session_factory() as session:
         row = (
             await session.exec(
-                select(
-                    SellerProfile.id, SellerProfile.phone, Order.total, User.account_status
-                )
+                # Four entities at most: sqlmodel's typed `select` overloads stop
+                # there, so the order's total and mode ride on the Order row.
+                select(SellerProfile.id, SellerProfile.phone, Order, User.account_status)
                 .select_from(Order)
                 .join(Store, Store.id == Order.store_id)  # type: ignore[arg-type]
                 .join(SellerProfile, SellerProfile.id == Store.seller_profile_id)  # type: ignore[arg-type]
@@ -1880,7 +2038,8 @@ async def seller_new_order_alert(order_id: int) -> None:
         ).first()
     if row is None:
         return
-    seller_profile_id, phone, total, account_status = row
+    seller_profile_id, phone, order_row, account_status = row
+    total, delivery_mode = order_row.total, order_row.delivery_mode
     if not phone or account_status != AccountStatus.active:
         return
     if await _seller_alert_quota_exceeded(seller_profile_id):
@@ -1890,14 +2049,21 @@ async def seller_new_order_alert(order_id: int) -> None:
     # whole message to UCS-2 (70-char segments instead of 160) and doubles
     # the cost of the highest-volume transactional SMS we send — one per
     # order. The WhatsApp template keeps ₹; that path isn't segment-billed.
+    from app.models.commerce import DeliveryMode
+
+    courier = delivery_mode == DeliveryMode.Courier
+    # A courier order's total is goods only until the seller quotes the charge.
     sms_text = (
-        f"New order #{order_id} for Rs.{amount} on your "
+        f"New courier order #{order_id} for Rs.{amount} + courier on your "
+        f"{settings.COMPANY_NAME} store. Open your seller dashboard to send a courier quote."
+        if courier
+        else f"New order #{order_id} for Rs.{amount} on your "
         f"{settings.COMPANY_NAME} store. Open your seller dashboard to pack it."
     )
     try:
         await deliver_phone_message(
             to=phone,
-            template_name="seller_new_order",
+            template_name="seller_new_courier_order" if courier else "seller_new_order",
             variables={"order_id": str(order_id), "amount": amount},
             sms_text=sms_text,
             sms_sender=get_sms_sender(),
@@ -2370,6 +2536,19 @@ def sweep_expired_returns() -> int:
     for return_id in lapsed_ids:
         dispatch_return_status(return_id, "return_payment_lapsed")
     return len(expired_ids) + len(lapsed_ids)
+
+
+@celery_app.task(name="courier.send_reminders")  # type: ignore[untyped-decorator]
+def send_courier_reminders() -> int:
+    """Hourly courier reminders (services.courier_reminders). Thread-bridged
+    like the returns sweep, so it runs under prefork and in eager tests."""
+    import asyncio
+    import concurrent.futures
+
+    from app.services.courier_reminders import run_courier_reminder_sweep
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(run_courier_reminder_sweep())).result()
 
 
 def _load_return_email_context(return_id: int) -> dict[str, Any]:

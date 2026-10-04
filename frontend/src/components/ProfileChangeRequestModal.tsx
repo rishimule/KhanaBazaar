@@ -13,7 +13,7 @@ import {
   requestSellerPhoneOtp,
   verifySellerPhoneOtp,
 } from "@/lib/sellerPhone";
-import { usePhoneOtpEnabled } from "@/lib/publicConfig";
+import { useCourierLimits, usePhoneOtpEnabled } from "@/lib/publicConfig";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import { GROUP_LABEL } from "@/lib/changeRequests";
 import {
@@ -32,8 +32,10 @@ import styles from "./ProfileChangeRequestModal.module.css";
 interface FieldDef {
   name: string;
   label: string;
-  type?: "text" | "number" | "tel";
+  type?: "text" | "number" | "tel" | "checkbox";
   required?: boolean;
+  /** One line under the input. */
+  hint?: string;
 }
 
 interface ServiceRow {
@@ -44,6 +46,7 @@ interface ServiceRow {
   delivery_fee: string;
   delivery_eta_min_minutes: string;
   delivery_eta_max_minutes: string;
+  courier_enabled: boolean;
 }
 
 const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
@@ -60,8 +63,15 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
     { name: "fssai_license", label: "FSSAI license" },
   ],
   banking: [
+    { name: "bank_account_name", label: "Account holder name" },
     { name: "bank_account_number", label: "Bank account number" },
     { name: "bank_ifsc", label: "IFSC code" },
+    {
+      name: "bank_transfer_enabled",
+      label: "Accept bank transfers for courier orders",
+      type: "checkbox",
+      hint: "Courier customers see this account's name, number and IFSC only after they accept your quote.",
+    },
   ],
   // Services group uses a different sub-form (see profile services card), not
   // handled by this generic modal.
@@ -76,6 +86,12 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
       label: "Delivery radius (km)",
       type: "number",
       required: true,
+    },
+    {
+      name: "courier_radius_km",
+      label: "Courier radius (km)",
+      type: "number",
+      hint: "Leave empty for no courier delivery. It must be larger than the delivery radius.",
     },
   ],
   // Avatar changes are driven by <AvatarUploader> on the seller profile page,
@@ -105,6 +121,14 @@ interface Props {
    * a phone change can skip the verify step and dead-end at a 422.
    */
   currentPhone?: string;
+  /**
+   * The live values the "omitted = unchanged" rules compare against (courier
+   * radius, bank account name). Defaults to `currentValues`. The resubmit flow
+   * seeds `currentValues` from the earlier proposal, so it passes
+   * `cr.baseline_json` here — else an earlier "clear" is silently dropped and
+   * an emptied radius shows up as a phantom "Off → Off" change.
+   */
+  baselineValues?: Record<string, unknown>;
 }
 
 /**
@@ -121,6 +145,7 @@ export default function ProfileChangeRequestModal({
   onSubmit,
   submitLabel,
   currentPhone,
+  baselineValues,
 }: Props) {
   const tCR = useTranslations("Seller.changeRequests");
   const resolvedSubmitLabel = submitLabel ?? tCR("submitForReview");
@@ -159,7 +184,7 @@ export default function ProfileChangeRequestModal({
     setServicesLoading(true);
     const subscribed = new Map<
       number,
-      { min: string; fee: string; etaMin: string; etaMax: string }
+      { min: string; fee: string; etaMin: string; etaMax: string; courier: boolean }
     >();
     const subRaw = currentValues["services"];
     if (Array.isArray(subRaw)) {
@@ -170,6 +195,7 @@ export default function ProfileChangeRequestModal({
           fee: String(r["delivery_fee"] ?? "0"),
           etaMin: String(r["delivery_eta_min_minutes"] ?? "30"),
           etaMax: String(r["delivery_eta_max_minutes"] ?? "60"),
+          courier: r["courier_enabled"] === true,
         });
       }
     }
@@ -189,6 +215,7 @@ export default function ProfileChangeRequestModal({
                 delivery_fee: sub?.fee ?? "0",
                 delivery_eta_min_minutes: sub?.etaMin ?? "30",
                 delivery_eta_max_minutes: sub?.etaMax ?? "60",
+                courier_enabled: sub?.courier ?? false,
               };
             }),
         );
@@ -245,6 +272,12 @@ export default function ProfileChangeRequestModal({
   const [otpBusy, setOtpBusy] = useState(false);
   // Label only — the request response's `otp_required` decides the flow.
   const phoneOtpEnabled = usePhoneOtpEnabled();
+  // COURIER_MAX_RADIUS_KM from the server; null until known (server decides).
+  const { maxRadiusKm } = useCourierLimits();
+  const hintFor = (f: FieldDef): string | undefined =>
+    f.name === "courier_radius_km" && f.hint && maxRadiusKm !== null
+      ? `${f.hint} Up to ${maxRadiusKm.toLocaleString("en-IN")} km.`
+      : f.hint;
 
   // Editing the phone after verifying invalidates the token.
   useEffect(() => {
@@ -317,6 +350,38 @@ export default function ProfileChangeRequestModal({
         return;
       }
     }
+    // These mirror the server rules so the seller sees the reason before a
+    // round trip; the server stays the authority. The cap comes from
+    // /meta/public-config, so it follows COURIER_MAX_RADIUS_KM.
+    if (group === "store_basics") {
+      const raw = (values["courier_radius_km"] ?? "").trim();
+      const courier = Number(raw);
+      if (raw !== "" && courier !== 0) {
+        if (!Number.isFinite(courier) || courier <= Number(values["delivery_radius_km"])) {
+          setError("The courier radius must be larger than the delivery radius.");
+          return;
+        }
+        // Like the server, the cap binds only a ring that differs from the
+        // stored one, so a lowered cap never blocks a local-radius-only edit
+        // (this form re-sends the existing ring unchanged).
+        const storedRing = Number((baselineValues ?? currentValues)["courier_radius_km"] ?? 0);
+        if (maxRadiusKm !== null && courier > maxRadiusKm && courier !== storedRing) {
+          setError(
+            `The courier radius can be at most ${maxRadiusKm.toLocaleString("en-IN")} km.`,
+          );
+          return;
+        }
+      }
+    }
+    if (group === "banking" && values["bank_transfer_enabled"] === "true") {
+      const missing = ["bank_account_name", "bank_account_number", "bank_ifsc"].some(
+        (k) => (values[k] ?? "").trim() === "",
+      );
+      if (missing) {
+        setError("Bank transfer needs the account holder name, account number and IFSC.");
+        return;
+      }
+    }
     setBusy(true);
     let payload: Record<string, unknown>;
     if (group === "services") {
@@ -332,6 +397,7 @@ export default function ProfileChangeRequestModal({
               s.delivery_eta_min_minutes === "" ? 30 : Number(s.delivery_eta_min_minutes),
             delivery_eta_max_minutes:
               s.delivery_eta_max_minutes === "" ? 60 : Number(s.delivery_eta_max_minutes),
+            courier_enabled: s.courier_enabled,
           })),
       };
     } else if (group === "address") {
@@ -352,11 +418,37 @@ export default function ProfileChangeRequestModal({
       payload = {};
       for (const f of fields) {
         const v = values[f.name] ?? "";
-        if (f.type === "number") {
+        if (f.type === "checkbox") {
+          // "" = nothing proposed yet (a resubmitted older CR stores null);
+          // left untouched, that stays "unchanged" rather than a false.
+          if (v === "") continue;
+          payload[f.name] = v === "true";
+        } else if (f.type === "number") {
           payload[f.name] = v === "" ? null : Number(v);
         } else {
           payload[f.name] = v.trim();
         }
+      }
+      // Omitted means unchanged (A1 Task 5). An emptied courier radius means
+      // "off" only when there was one, so an untouched empty field never
+      // shows up as a change in the review diff.
+      const live = baselineValues ?? currentValues;
+      if (group === "store_basics") {
+        const had = live["courier_radius_km"];
+        const hadCourier = typeof had === "number" ? had > 0 : had !== null && had !== undefined && had !== "";
+        const proposed = payload["courier_radius_km"];
+        if (proposed === null || proposed === 0) {
+          if (hadCourier) payload["courier_radius_km"] = 0;
+          else delete payload["courier_radius_km"];
+        }
+      }
+      if (
+        group === "banking" &&
+        payload["bank_account_name"] === "" &&
+        (live["bank_account_name"] ?? "") === ""
+      ) {
+        // Never set, still empty: omit it (unchanged) rather than "clear".
+        delete payload["bank_account_name"];
       }
     }
     try {
@@ -505,6 +597,20 @@ export default function ProfileChangeRequestModal({
                         }
                       />
                     </label>
+                    <label className={styles.checkboxRow}>
+                      <input
+                        type="checkbox"
+                        checked={row.courier_enabled}
+                        onChange={(e) =>
+                          setServices((rows) =>
+                            rows.map((r, i) =>
+                              i === idx ? { ...r, courier_enabled: e.target.checked } : r,
+                            ),
+                          )
+                        }
+                      />
+                      <span>Ship by courier (long distance — needs a courier radius)</span>
+                    </label>
                   </>
                 )}
               </div>
@@ -593,6 +699,28 @@ export default function ProfileChangeRequestModal({
                 </label>
               );
             }
+            if (f.type === "checkbox") {
+              // Initial values arrive as "true"/"false" strings, via
+              // String(currentValues[f.name] ?? "").
+              return (
+                <div key={f.name} className={styles.field}>
+                  <label className={styles.checkboxRow}>
+                    <input
+                      type="checkbox"
+                      checked={values[f.name] === "true"}
+                      onChange={(e) =>
+                        setValues((vs) => ({
+                          ...vs,
+                          [f.name]: e.target.checked ? "true" : "false",
+                        }))
+                      }
+                    />
+                    <span>{f.label}</span>
+                  </label>
+                  {hintFor(f) && <span className={styles.subtitle}>{hintFor(f)}</span>}
+                </div>
+              );
+            }
             return (
               <label key={f.name} className={styles.field}>
                 <span>{f.label}</span>
@@ -613,6 +741,7 @@ export default function ProfileChangeRequestModal({
                     setErrors((es) => ({ ...es, [f.name]: validateField(f.name, v) }));
                   }}
                 />
+                {hintFor(f) && <span className={styles.subtitle}>{hintFor(f)}</span>}
                 {errors[f.name] && (
                   <span
                     id={`${f.name}-error`}

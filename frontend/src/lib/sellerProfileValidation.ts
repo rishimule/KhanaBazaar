@@ -27,6 +27,7 @@ const MSG = {
   fullNameRequired: "Enter the owner's full name.",
   businessNameRequired: "Enter the business name.",
   etaOrder: "Maximum delivery time must be at least the minimum.",
+  accountNameTooLong: "Keep the account holder name under 140 characters.",
   checkEntries: "Please check your entries and try again.",
 } as const;
 
@@ -67,6 +68,8 @@ export function validateField(field: string, value: string): string | null {
       return v === "" || BANK_ACCOUNT_RE.test(v) ? null : MSG.account;
     case "bank_ifsc":
       return v === "" || IFSC_RE.test(v) ? null : MSG.ifsc;
+    case "bank_account_name":
+      return v.length > 140 ? MSG.accountNameTooLong : null;
     default:
       return null;
   }
@@ -152,10 +155,20 @@ export function profileEditErrorMessage(e: unknown, fallback?: string): string {
       return "Verify your new phone number before submitting.";
     case "phone_verification_mismatch":
       return "The verified phone doesn't match. Re-verify and try again.";
+    case "courier_radius_not_larger":
+      return "The courier radius must be larger than the delivery radius.";
+    case "courier_radius_too_large":
+      return "That courier radius is larger than allowed.";
+    case "bank_transfer_incomplete":
+      return "Bank transfer needs the account holder name, account number and IFSC.";
   }
   switch (field) {
     case "delivery_radius_km":
       return "Delivery radius must be 50 km or less.";
+    case "courier_radius_km":
+      return "The courier radius can't be negative.";
+    case "bank_account_name":
+      return MSG.accountNameTooLong;
     case "free_delivery_threshold":
       return "Free-delivery threshold must be between ₹0 and ₹1,00,000.";
     case "delivery_fee":

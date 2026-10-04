@@ -18,7 +18,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.core.otp import generate_code
 from app.models.base import User
-from app.models.commerce import Delivery, Order, OrderItem, OrderStatus
+from app.models.commerce import Delivery, DeliveryMode, Order, OrderItem, OrderStatus
 from app.models.notification import NotificationType
 from app.models.profile import SellerProfile, SellerProfileService
 from app.models.returns import (
@@ -172,6 +172,9 @@ async def compute_eligibility(
             ],
         )
 
+    if order.delivery_mode == DeliveryMode.Courier:
+        # Returns assume a counter handover; courier orders are out (spec D10).
+        return _blank("not_returnable_courier")
     if order.status != OrderStatus.Delivered:
         return _blank("order_not_delivered")
 

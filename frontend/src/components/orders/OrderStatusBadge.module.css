@@ -21,3 +21,5 @@
 .delivered  { background: var(--chive-green-light-1);      color: var(--chive-green-base-4); }
 .cancelled  { background: var(--tomato-red-light-1);       color: var(--tomato-red-dark-1); }
 .paid       { background: var(--jade-green-light-1);       color: var(--jade-green-dark-1); }
+.quoted   { background: var(--turmeric-light-1);      color: var(--turmeric-dark-1); }
+.accepted { background: var(--saffron-light-1);       color: var(--saffron-dark-1); }

@@ -224,3 +224,45 @@ async def test_quota_check_fails_open(session: AsyncSession) -> None:
         await seller_new_order_alert(order_id)
 
     assert len(sms.calls) == 1
+
+
+async def _make_courier(session: AsyncSession, order_id: int) -> None:
+    from app.models.commerce import DeliveryMode
+
+    order = await session.get(Order, order_id)
+    assert order is not None
+    order.delivery_mode = DeliveryMode.Courier
+    await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_courier_order_alert_asks_for_a_quote(session: AsyncSession) -> None:
+    """Both channels: the total is goods only until the seller quotes."""
+    order_id = await _seed_order(
+        session, account_status=AccountStatus.active, phone="+919812300066"
+    )
+    await _make_courier(session, order_id)
+
+    sms = _RecordingSMS()
+    with patch("app.core.sms.get_sms_sender", lambda: sms), patch(
+        "app.core.whatsapp.get_whatsapp_sender", lambda: None
+    ):
+        await seller_new_order_alert(order_id)
+    text = sms.calls[0][1]
+    assert "courier quote" in text and "+ courier" in text and "pack it" not in text
+    assert text.isascii(), text
+
+    sent: list[tuple[str, str]] = []
+
+    class _WA:
+        async def send_template(
+            self, to: str, template: Any, variables: dict[str, str]
+        ) -> None:
+            sent.append((template.name, template.render(variables)))
+
+    with patch("app.core.sms.get_sms_sender", lambda: _RecordingSMS()), patch(
+        "app.core.whatsapp.get_whatsapp_sender", lambda: _WA()
+    ):
+        await seller_new_order_alert(order_id)
+    assert sent[0][0] == "seller_new_courier_order"
+    assert "courier quote" in sent[0][1] and "pack it" not in sent[0][1]

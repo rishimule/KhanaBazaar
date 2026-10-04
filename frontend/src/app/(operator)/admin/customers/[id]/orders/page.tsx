@@ -5,6 +5,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
+import OrderTotal from "@/components/orders/OrderTotal";
 import { useAuth } from "@/lib/AuthContext";
 import { fetchCustomerOrders } from "@/lib/adminCustomers";
 import type { AdminCustomerOrder } from "@/types";
@@ -66,9 +67,11 @@ export default function CustomerOrdersTab({
                   </td>
                   <td>{o.service_name_snapshot ?? "—"}</td>
                   <td>
-                    <OrderStatusBadge status={o.status} />
+                    <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} />
                   </td>
-                  <td>₹{o.total.toFixed(2)}</td>
+                  <td>
+                    <OrderTotal order={o} />
+                  </td>
                   <td>{new Date(o.placed_at).toLocaleDateString()}</td>
                 </tr>
               ))}

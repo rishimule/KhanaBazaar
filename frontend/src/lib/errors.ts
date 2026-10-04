@@ -54,6 +54,42 @@ export function apiErrorCode(err: unknown): string | null {
   return null;
 }
 
+// Courier codes (Plan A1): each maps 1:1 to an `Errors.<code>` message.
+const COURIER_ERROR_CODES = new Set([
+  "courier_unavailable",
+  "courier_destination_unsupported",
+  "address_within_local_area",
+  "outside_courier_area",
+  "recipient_name_required",
+  "invalid_recipient_phone",
+  "courier_fields_not_allowed",
+  "preferred_window_not_allowed",
+  "bank_transfer_unavailable",
+  "upi_unavailable",
+  "courier_payment_unavailable",
+  "quote_superseded",
+  "quote_locked",
+  "too_many_quote_versions",
+  "not_awaiting_payment",
+  "payment_method_required",
+  "payment_method_not_allowed",
+  "not_a_courier_order",
+  "payment_settled",
+  "no_claim",
+  "invalid_tracking_url",
+  "already_delivered",
+  "payment_received_required",
+  "refund_not_due",
+  "already_refunded",
+  "not_returnable_courier",
+  "not_applicable_for_courier",
+  "courier_radius_not_larger",
+  "courier_radius_too_large",
+  "bank_transfer_incomplete",
+  "reason_required",
+  "cancel_not_allowed",
+]);
+
 export function apiErrorKey(err: unknown): string | null {
   if (!(err instanceof ApiError)) {
     if (err instanceof TypeError) return "Errors.network";
@@ -81,6 +117,9 @@ export function apiErrorKey(err: unknown): string | null {
   if (lower === "seller_not_active") return "Errors.seller_not_active";
   if (lower === "order_not_mutable") return "Errors.order_not_mutable";
   if (lower === "not_dispatched") return "Errors.not_dispatched";
+  // Door delivery: the store's local radius shrank under an open checkout.
+  if (lower === "outside_delivery_area") return "Errors.outside_delivery_area";
+  if (COURIER_ERROR_CODES.has(lower)) return `Errors.${lower}`;
 
   switch (err.status) {
     case 401:

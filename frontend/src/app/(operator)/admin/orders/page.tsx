@@ -1,7 +1,7 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { type Column } from "@/components/DataTable";
@@ -9,21 +9,33 @@ import Skeleton from "@/components/Skeleton";
 import Pager from "@/components/Pager";
 import OrderStatusBadge from "@/components/orders/OrderStatusBadge";
 import PaymentStatusPill from "@/components/orders/PaymentStatusPill";
+import OrderTotal from "@/components/orders/OrderTotal";
 import { listOrdersPaged } from "@/lib/orders";
 import { usePagedList } from "@/lib/usePagedList";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { useCourierLimits } from "@/lib/publicConfig";
 import type { Order, OrderListResponse, Service } from "@/types";
 import styles from "./page.module.css";
 
-type StatusFilter = "all" | "active" | "delivered" | "cancelled";
+type StatusFilter =
+  | "all"
+  | "active"
+  | "courier"
+  | "waiting"
+  | "refunds_due"
+  | "delivered"
+  | "cancelled";
 type SortKey = "date_desc" | "date_asc" | "total_desc" | "total_asc";
 const PAGE_SIZE = 20;
 
 const STATUS_FILTER_KEYS: Record<StatusFilter, string> = {
   all: "filterAll",
   active: "filterActive",
+  courier: "filterCourier",
+  waiting: "filterWaiting",
+  refunds_due: "filterRefundsDue",
   delivered: "filterDelivered",
   cancelled: "filterCancelled",
 };
@@ -31,6 +43,8 @@ const STATUS_FILTER_KEYS: Record<StatusFilter, string> = {
 export default function AdminOrdersPage() {
   const t = useTranslations("Admin.orders");
   const { token } = useAuth();
+  // COURIER_STALE_DAYS, for the "Stalled" chip's tooltip.
+  const { staleDays } = useCourierLimits();
   const router = useRouter();
 
   const [services, setServices] = useState<Service[]>([]);
@@ -40,6 +54,7 @@ export default function AdminOrdersPage() {
   const [toDate, setToDate] = useState("");
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date_desc");
+  const sortBeforeRefunds = useRef<SortKey | null>(null);
   const [page, setPage] = useState(1);
   const debouncedQuery = useDebouncedValue(query, 300);
 
@@ -59,8 +74,14 @@ export default function AdminOrdersPage() {
         page_size: PAGE_SIZE,
       });
     }
+    // The three courier chips are stage filters, not statuses (A1 Task 15).
+    const courierChip =
+      statusFilter === "courier" || statusFilter === "waiting" || statusFilter === "refunds_due";
     return listOrdersPaged(token, {
-      status: statusFilter,
+      status: courierChip ? "all" : statusFilter,
+      delivery_mode: statusFilter === "courier" ? "courier" : undefined,
+      stale: statusFilter === "waiting",
+      needs: statusFilter === "refunds_due" ? "refund" : undefined,
       service_id: serviceId,
       q: debouncedQuery,
       from_date: fromDate,
@@ -111,9 +132,19 @@ export default function AdminOrdersPage() {
     {
       key: "total",
       label: t("colTotal"),
-      render: (o) => <span className={styles.right}>₹{o.total.toFixed(2)}</span>,
+      render: (o) => <OrderTotal order={o} className={styles.right} />,
     },
-    { key: "payment", label: t("colPayment"), render: (o) => <PaymentStatusPill payment={o.payment} /> },
+    {
+      key: "payment",
+      label: t("colPayment"),
+      render: (o) => (
+        <PaymentStatusPill
+          payment={o.payment}
+          refundDue={o.courier?.refund_due}
+          courier={o.delivery_mode === "courier"}
+        />
+      ),
+    },
     { key: "status", label: t("colStatus"), render: (o) => <OrderStatusBadge status={o.status} deliveryMode={o.delivery_mode} /> },
   ];
 
@@ -123,13 +154,38 @@ export default function AdminOrdersPage() {
 
       <div className={styles.controls}>
         <div className={styles.chips} role="tablist">
-          {(["all", "active", "delivered", "cancelled"] as StatusFilter[]).map((s) => (
+          {(
+            [
+              "all",
+              "active",
+              "courier",
+              "waiting",
+              "refunds_due",
+              "delivered",
+              "cancelled",
+            ] as StatusFilter[]
+          ).map((s) => (
             <button
               key={s}
               type="button"
               className={statusFilter === s ? styles.chipActive : styles.chip}
+              title={
+                s === "waiting" && staleDays !== null
+                  ? t("filterWaitingHint", { days: staleDays })
+                  : undefined
+              }
               onClick={() => {
                 setStatusFilter(s);
+                // Oldest debts first (by order date: cancellation time isn't
+                // sortable) — and the previous sort back on leaving the chip,
+                // unless the operator picked a sort meanwhile.
+                if (s === "refunds_due" && statusFilter !== "refunds_due") {
+                  sortBeforeRefunds.current = sortKey;
+                  setSortKey("date_asc");
+                } else if (s !== "refunds_due" && sortBeforeRefunds.current) {
+                  setSortKey(sortBeforeRefunds.current);
+                  sortBeforeRefunds.current = null;
+                }
                 setPage(1);
               }}
             >
@@ -186,6 +242,7 @@ export default function AdminOrdersPage() {
           className={styles.select}
           value={sortKey}
           onChange={(e) => {
+            sortBeforeRefunds.current = null;
             setSortKey(e.target.value as SortKey);
             setPage(1);
           }}
@@ -232,8 +289,12 @@ export default function AdminOrdersPage() {
                     {o.store_name} · {o.service_name}
                   </div>
                   <div className={styles.mobileBot}>
-                    <span>₹{o.total.toFixed(2)}</span>
-                    <PaymentStatusPill payment={o.payment} />
+                    <OrderTotal order={o} />
+                    <PaymentStatusPill
+                      payment={o.payment}
+                      refundDue={o.courier?.refund_due}
+                      courier={o.delivery_mode === "courier"}
+                    />
                   </div>
                 </a>
               )}

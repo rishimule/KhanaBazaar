@@ -12,6 +12,7 @@ import { apiErrorCode, apiErrorKey } from "@/lib/errors";
 import type { Cart, Store } from "@/types";
 import ReplaceAdjustmentsBanner from "@/components/orders/ReplaceAdjustmentsBanner";
 import CartAddedToast from "@/components/orders/CartAddedToast";
+import { useCourierZones } from "@/lib/useCourierZones";
 import styles from "./page.module.css";
 
 interface StoreGroup {
@@ -45,6 +46,13 @@ export default function CartPage() {
   const [storesById, setStoresById] = useState<Record<number, Store>>({});
 
   const storeGroups = useMemo(() => groupByStore(carts), [carts]);
+  // Courier preview for the navbar location; checkout decides the real mode.
+  const courierZones = useCourierZones(storeGroups.map((g) => g.store_id));
+  /** The navbar location is in this store's courier zone, for a service that ships. */
+  const isCourierBasket = (storeId: number, serviceId: number): boolean => {
+    const z = courierZones[storeId];
+    return z?.zone === "courier" && (z.courier_service_ids ?? []).includes(serviceId);
+  };
 
   // Fetch the stores backing the cart sub-baskets so we can surface pause
   // ("Closed") state and disable checkout before the customer hits a 409.
@@ -201,8 +209,10 @@ export default function CartPage() {
         </div>
       );
     }
+    const courier = isCourierBasket(storeId, serviceId);
     const shortfall = Math.max(0, freeDeliveryThreshold - subtotal);
-    const feeApplies = deliveryFee > 0 && shortfall > 0;
+    // A local free-delivery nudge means nothing for a courier order.
+    const feeApplies = !courier && deliveryFee > 0 && shortfall > 0;
     return (
       <>
         {feeApplies && (
@@ -211,6 +221,11 @@ export default function CartPage() {
             role="status"
           >
             {t("minOrderShortfall", { amount: shortfall, service: serviceName })}
+          </div>
+        )}
+        {courier && (
+          <div className={`${styles.shortfallBanner} ${styles.shortfallHint}`} role="status">
+            {t("courierHint")}
           </div>
         )}
         <Link
@@ -382,7 +397,8 @@ export default function CartPage() {
                     <span className={styles.storeSubtotalValue}>
                       {t("subtotal", { value: subtotal })}
                     </span>
-                    {subtotal < (cart.free_delivery_threshold ?? 0) &&
+                    {!isCourierBasket(cart.store_id, cart.service_id) &&
+                      subtotal < (cart.free_delivery_threshold ?? 0) &&
                       (cart.delivery_fee ?? 0) > 0 && (
                         <span className={styles.storeSubtotalValue}>
                           {t("deliveryFee")}: ₹{(cart.delivery_fee ?? 0).toFixed(2)}

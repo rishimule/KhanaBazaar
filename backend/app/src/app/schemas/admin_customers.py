@@ -54,6 +54,9 @@ class AdminCustomerOrder(BaseModel):
     status: str
     total: float
     placed_at: datetime
+    # Lets the admin list label courier stages and show "₹X + courier" before
+    # a quote is accepted (spec 2026-10-02 §14).
+    delivery_mode: str = "door_delivery"
 
 
 class AdminCustomerNotification(BaseModel):

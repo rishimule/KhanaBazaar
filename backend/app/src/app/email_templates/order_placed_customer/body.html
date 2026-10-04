@@ -7,7 +7,9 @@
     <div style="margin-top:24px;padding:16px;border:1px solid #e5e7eb;border-radius:8px;">
       <div style="font-size:16px;font-weight:600;">Order #{{ o.order_id }} — {{ o.service_name }}</div>
       <div style="font-size:14px;color:#6b7280;margin-bottom:8px;">{{ o.store_name }}</div>
-      {% if o.delivery_eta %}
+      {% if o.courier is defined and o.courier %}
+        <div style="font-size:14px;color:#374151;margin-bottom:8px;">Courier order — {{ o.store_name }} will send you the courier charge and delivery time. Nothing to pay yet.</div>
+      {% elif o.delivery_eta %}
         <div style="font-size:14px;color:#374151;margin-bottom:8px;">Estimated delivery: {{ o.delivery_eta }}</div>
       {% endif %}
       {% if o.preferred_delivery %}
@@ -16,6 +18,9 @@
       {% with items=o.line_items, order_total=o.order_total, subtotal=o.subtotal, delivery_fee=o.delivery_fee %}
         {% include "_partials/line_items.html" %}
       {% endwith %}
+      {% if o.courier is defined and o.courier %}
+        <div style="font-size:14px;color:#374151;margin-top:8px;">Courier charge: to be quoted</div>
+      {% endif %}
       {% if o.upi_vpa and o.upi_payable %}
         <div style="margin-top:12px;padding:12px;background:#f9fafb;border-radius:6px;">
           <div style="font-size:14px;font-weight:600;">Pay &#8377;{{ '%.2f'|format(o.upi_payable) }} by UPI</div>

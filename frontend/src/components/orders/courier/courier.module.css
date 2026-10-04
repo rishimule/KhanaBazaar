@@ -1,0 +1,186 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+/* Shared by every courier component, so the courier screens read as one set. */
+.card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  margin-top: var(--space-4);
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  font-family: var(--font-family-sans);
+}
+
+.explainer {
+  composes: card;
+  background: var(--saffron-light-1);
+  border-color: var(--saffron-light-2);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--body-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-dark-7);
+}
+
+.body,
+.hint,
+.sub,
+.muted,
+.note,
+.disclaimer {
+  margin: 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-5);
+}
+
+.body { color: var(--shade-cool-dark-7); }
+.note { font-style: italic; }
+.disclaimer { font-size: var(--body-2xs); }
+
+.points {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-1-5);
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+}
+
+.rows {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  font-size: var(--body-sm);
+}
+
+.rows dt { color: var(--shade-cool-base-5); }
+.rows dd { margin: 0; color: var(--shade-cool-dark-7); display: grid; gap: 2px; }
+
+.total {
+  font-size: var(--body-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.fieldset {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  font-size: var(--body-md);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-dark-7);
+  margin-bottom: var(--space-1);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--body-sm);
+  color: var(--shade-cool-dark-7);
+}
+
+.field input,
+.field textarea {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  font: inherit;
+}
+
+.phoneRow { display: flex; align-items: stretch; }
+
+.prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--hairline);
+  border-right: 0;
+  border-radius: var(--radius-card) 0 0 var(--radius-card);
+  background: var(--shade-cool-light-2);
+}
+
+.phoneRow input { flex: 1; border-radius: 0 var(--radius-card) var(--radius-card) 0; }
+
+.radioRow { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+
+.tabs { display: flex; gap: var(--space-2); }
+
+.tab,
+.tabActive {
+  padding: var(--space-1-5) var(--space-4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  font: inherit;
+  font-size: var(--body-sm);
+  cursor: pointer;
+}
+
+.tabActive {
+  border-color: var(--color-primary-1);
+  background: var(--leaf-green-light-1);
+  color: var(--color-primary-1);
+  font-weight: var(--weight-semibold);
+}
+
+.bank {
+  composes: rows;
+  padding: var(--space-3);
+  background: var(--shade-cool-light-2);
+  border-radius: var(--radius-card);
+}
+
+/* Value and its Copy button on one line, read left to right even inside the
+ * centred pay card; long account numbers still wrap instead of overflowing. */
+.bank { text-align: left; align-items: center; }
+.bank dd { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+.bank code { word-break: break-all; }
+
+.error,
+.warning,
+.refund {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--body-sm);
+  border-radius: var(--radius-card);
+}
+
+.error {
+  color: var(--tomato-red-dark-1);
+  background: var(--tomato-red-light-1);
+  border: 1px solid var(--tomato-red-light-2);
+}
+
+.warning,
+.refund {
+  color: var(--saffron-dark-1);
+  background: var(--saffron-light-1);
+  border: 1px solid var(--saffron-light-2);
+}
+
+.claimed {
+  margin: 0;
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary-1);
+}
+
+.center { justify-items: center; text-align: center; }

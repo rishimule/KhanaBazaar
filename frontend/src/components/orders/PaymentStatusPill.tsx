@@ -13,15 +13,24 @@ const STATUS_CLASS: Record<string, string> = {
 
 interface Props {
   payment: OrderPayment;
+  /** Courier: cancelled after payment, refund not yet recorded (spec §10.3). */
+  refundDue?: boolean;
+  /** Courier orders call `net_banking` "Bank transfer", as their screens do. */
+  courier?: boolean;
 }
 
-export default function PaymentStatusPill({ payment }: Props) {
+export default function PaymentStatusPill({ payment, refundDue = false, courier = false }: Props) {
   const t = useTranslations("Order.payment");
+  const tc = useTranslations("Order.courier");
   return (
-    <span className={`${styles.pill} ${STATUS_CLASS[payment.status] ?? ""}`}>
-      <span className={styles.method}>{t(`method.${payment.method}`)}</span>
+    <span className={`${styles.pill} ${refundDue ? styles.refundDue : STATUS_CLASS[payment.status] ?? ""}`}>
+      <span className={styles.method}>
+        {courier && payment.method === "net_banking" ? tc("methodBank") : t(`method.${payment.method}`)}
+      </span>
       <span className={styles.dot}>·</span>
-      <span className={styles.status}>{t(`status.${payment.status}`)}</span>
+      <span className={styles.status}>
+        {refundDue ? t("status.refund_due") : t(`status.${payment.status}`)}
+      </span>
     </span>
   );
 }

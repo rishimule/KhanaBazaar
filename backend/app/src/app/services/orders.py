@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import hmac
+from collections.abc import Mapping
+from collections.abc import Set as AbstractSet
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
@@ -25,10 +27,20 @@ from app.models.commerce import (
     PaymentMethod,
     PaymentStatus,
 )
+from app.models.courier import CourierQuote, OrderCourier
 from app.models.profile import CustomerProfile, SellerProfile, VerificationStatus
 from app.models.store import Store
 from app.schemas.address import AddressPayload, address_from_payload
 from app.services.admin_audit import log as audit_log
+from app.services.courier_rules import (
+    COURIER_REWIND_TARGETS,
+    COURIER_TRANSITIONS,
+    TrackingInput,
+    apply_tracking,
+    delivery_status_for,
+    lock_order,
+    validate_tracking_url,
+)
 from app.services.inventory import lock_inventory_rows, restock
 from app.utils.address import format_address
 
@@ -90,6 +102,32 @@ async def _seller_owns_store(session: AsyncSession, user: User, store_id: int) -
     return store_result.first() is not None
 
 
+async def _order_courier_row(session: AsyncSession, order_id: Optional[int]) -> OrderCourier:
+    row = (
+        await session.exec(select(OrderCourier).where(OrderCourier.order_id == order_id))
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=500, detail="order_courier_missing")
+    return row
+
+
+async def _apply_courier_dispatch(
+    session: AsyncSession, order: Order, tracking: Optional[TrackingInput], now: datetime
+) -> None:
+    """Record optional tracking on "Shipped". A carrier the request leaves out
+    defaults to the one named on the accepted quote; an explicit "" means none.
+    No OTP for courier orders (spec D9)."""
+    row = await _order_courier_row(session, order.id)
+    if tracking is not None and apply_tracking(row, tracking):
+        row.tracking_updated_at = now
+    carrier_named = tracking is not None and tracking.carrier_name is not None
+    if not carrier_named and row.carrier_name is None and row.accepted_quote_id is not None:
+        quote = await session.get(CourierQuote, row.accepted_quote_id)
+        if quote is not None and quote.carrier_name:
+            row.carrier_name = quote.carrier_name
+    session.add(row)
+
+
 async def transition_order_status(
     session: AsyncSession,
     order: Order,
@@ -98,12 +136,32 @@ async def transition_order_status(
     *,
     otp: Optional[str] = None,
     reason: Optional[str] = None,
+    tracking: Optional[TrackingInput] = None,
 ) -> Order:
     target = TARGET_BY_STR[target_str]
-    if target not in LEGAL_TRANSITIONS.get(order.status, set()):
+    assert order.id is not None
+    order = await lock_order(session, order.id)
+    is_courier = order.delivery_mode == DeliveryMode.Courier
+    # Seller and customer can both mark a courier order delivered; whoever is
+    # second gets a precise code instead of a generic illegal transition.
+    if is_courier and order.status == OrderStatus.Delivered and target == OrderStatus.Delivered:
+        raise HTTPException(status_code=409, detail={"code": "already_delivered"})
+    # Courier orders follow their own table (pending → quoted → accepted →
+    # paid → packed → …); door and pickup keep LEGAL_TRANSITIONS unchanged.
+    table: Mapping[OrderStatus, AbstractSet[OrderStatus]] = (
+        COURIER_TRANSITIONS if is_courier else LEGAL_TRANSITIONS
+    )
+    if target not in table.get(order.status, frozenset()):
         raise HTTPException(status_code=409, detail={
             "detail": "illegal_transition", "from": order.status.value, "to": target.value,
         })
+    if tracking is not None and tracking.any():
+        if not (is_courier and target == OrderStatus.Dispatched):
+            raise HTTPException(status_code=422, detail={"code": "courier_fields_not_allowed"})
+        try:
+            validate_tracking_url(tracking.tracking_url)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_tracking_url"}) from exc
 
     # Authorization: seller owns store or admin.
     if actor.role == UserRole.Seller:
@@ -136,7 +194,9 @@ async def transition_order_status(
                 raise HTTPException(
                     status_code=422, detail={"code": "reason_required"}
                 )
-        else:
+        elif not is_courier:
+            # Courier orders have no handover code (spec D9); admins above
+            # still need a reason.
             if delivery.delivery_otp is None:
                 raise HTTPException(
                     status_code=409, detail={"code": "delivery_otp_not_issued"}
@@ -173,21 +233,30 @@ async def transition_order_status(
     elif target == OrderStatus.Dispatched:
         delivery.status = DeliveryStatus.Dispatched
         delivery.dispatched_at = now
-        delivery.delivery_otp = generate_code()
-        delivery.delivery_otp_attempts = 0
-        delivery.delivery_otp_sent_at = now
-        delivery.delivery_otp_verified_at = None
+        if is_courier:
+            await _apply_courier_dispatch(session, order, tracking, now)
+        else:
+            delivery.delivery_otp = generate_code()
+            delivery.delivery_otp_attempts = 0
+            delivery.delivery_otp_sent_at = now
+            delivery.delivery_otp_verified_at = None
     elif target == OrderStatus.Delivered:
         delivery.status = DeliveryStatus.Delivered
         delivery.delivered_at = now
-        if actor.role != UserRole.Admin:
-            delivery.delivery_otp_verified_at = now
-        delivery.delivery_otp = None  # consume the code (also clears it for admin force)
-        # Credit orders are NOT paid on delivery — the customer still owes on
-        # credit; the credit ledger, not Payment.status, tracks what's owed.
-        if payment is not None and payment.method != PaymentMethod.Credit:
-            payment.status = PaymentStatus.Paid
-            payment.paid_at = now
+        if is_courier:
+            # No OTP, and the payment was settled at confirmation (spec §9.5).
+            row = await _order_courier_row(session, order.id)
+            row.delivered_by = "admin" if actor.role == UserRole.Admin else "seller"
+            session.add(row)
+        else:
+            if actor.role != UserRole.Admin:
+                delivery.delivery_otp_verified_at = now
+            delivery.delivery_otp = None  # consume the code (also clears it for admin force)
+            # Credit orders are NOT paid on delivery — the customer still owes on
+            # credit; the credit ledger, not Payment.status, tracks what's owed.
+            if payment is not None and payment.method != PaymentMethod.Credit:
+                payment.status = PaymentStatus.Paid
+                payment.paid_at = now
 
     if acting_admin_id is not None:
         target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)
@@ -228,6 +297,40 @@ async def _authorize_cancel(session: AsyncSession, actor: User, order: Order) ->
         raise HTTPException(status_code=403, detail="forbidden")
 
 
+async def _authorize_courier_cancel(
+    session: AsyncSession,
+    actor: User,
+    order: Order,
+    payment: Optional[Payment],
+    reason: Optional[str],
+) -> None:
+    """Courier cancellation rules (spec §9.6)."""
+    if actor.role == UserRole.Customer:
+        cust_id = (
+            await session.exec(
+                select(CustomerProfile.id).where(CustomerProfile.user_id == actor.id)
+            )
+        ).first()
+        if cust_id != order.customer_profile_id:
+            raise HTTPException(status_code=403, detail="forbidden")
+        claimed = payment is not None and payment.customer_claimed_at is not None
+        if order.status not in (
+            OrderStatus.Pending, OrderStatus.Quoted, OrderStatus.Accepted,
+        ) or (order.status == OrderStatus.Accepted and claimed):
+            # After "I've paid" the money may have moved: the seller or admin
+            # cancels, so the refund question gets answered.
+            raise HTTPException(status_code=403, detail="cancel_not_allowed")
+    elif actor.role == UserRole.Seller:
+        if not await _seller_owns_store(session, actor, order.store_id):
+            raise HTTPException(status_code=403, detail="forbidden")
+        if order.status == OrderStatus.Dispatched:
+            raise HTTPException(status_code=403, detail="cancel_not_allowed")
+        if not reason or len(reason.strip()) < 10:
+            raise HTTPException(status_code=422, detail={"code": "reason_required"})
+    elif actor.role != UserRole.Admin:
+        raise HTTPException(status_code=403, detail="forbidden")
+
+
 REWIND_TARGETS: dict[OrderStatus, set[OrderStatus]] = {
     OrderStatus.Packed: {OrderStatus.Pending},
     OrderStatus.Dispatched: {OrderStatus.Pending, OrderStatus.Packed},
@@ -244,12 +347,22 @@ async def rewind_order(
 ) -> Order:
     """Admin-only backward transition.
 
-    Allowed: Packed→Pending, Dispatched→{Pending, Packed}. Terminal statuses
-    (Delivered, Cancelled) reject. Reason >=10 chars required.
+    Door/pickup: Packed→Pending, Dispatched→{Pending, Packed}. Courier:
+    Paid→Accepted, Packed→Paid, Dispatched→{Paid, Packed} — never back before
+    the customer's acceptance (spec §9.7). Terminal statuses reject. Reason
+    >=10 chars required.
     """
+    # Validate against the locked row: a seller cancel or a customer's
+    # "received" racing this rewind would otherwise be silently overwritten
+    # (credit already reverted, stock already restocked, refund-due erased).
+    assert order.id is not None
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
     if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
         raise HTTPException(status_code=409, detail={"code": "terminal_status"})
-    if to_status not in REWIND_TARGETS.get(order.status, set()):
+    is_courier = order.delivery_mode == DeliveryMode.Courier
+    targets = COURIER_REWIND_TARGETS if is_courier else REWIND_TARGETS
+    if to_status not in targets.get(order.status, set()):
         raise HTTPException(
             status_code=409,
             detail={
@@ -265,25 +378,45 @@ async def rewind_order(
 
     await _assert_seller_active_for_store(session, order.store_id)
 
-    delivery_result = await session.exec(
-        select(Delivery).where(Delivery.order_id == order.id)
-    )
-    delivery = delivery_result.first()
-    payment_result = await session.exec(
-        select(Payment).where(Payment.order_id == order.id)
-    )
-    payment = payment_result.first()
+    delivery = (
+        await session.exec(select(Delivery).where(Delivery.order_id == order.id))
+    ).first()
+    payment = (
+        await session.exec(select(Payment).where(Payment.order_id == order.id))
+    ).first()
 
     before = _order_snapshot(order, payment)
+    previous_status = order.status
 
     order.status = to_status
     if delivery is not None:
-        delivery.status = DeliveryStatus(to_status.value)
-        if to_status == OrderStatus.Pending:
+        # DeliveryStatus has no "paid"/"accepted"; delivery_status_for maps
+        # every pre-packing status to Pending.
+        delivery.status = delivery_status_for(to_status)
+        if delivery.status == DeliveryStatus.Pending:
             delivery.packed_at = None
             delivery.dispatched_at = None
         elif to_status == OrderStatus.Packed:
             delivery.dispatched_at = None
+    if is_courier:
+        row = (
+            await session.exec(select(OrderCourier).where(OrderCourier.order_id == order.id))
+        ).first()
+        if row is not None:
+            if previous_status == OrderStatus.Dispatched:
+                # Not shipped after all: stale tracking would mislead.
+                row.carrier_name = None
+                row.tracking_number = None
+                row.tracking_url = None
+                row.tracking_updated_at = None
+            if to_status == OrderStatus.Accepted:
+                # "Payment received" was tapped by mistake.
+                row.eta_from = None
+                row.eta_to = None
+                if payment is not None:
+                    payment.status = PaymentStatus.Pending
+                    payment.paid_at = None
+            session.add(row)
 
     target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)
     await audit_log(
@@ -322,6 +455,11 @@ async def refund_order(
     in the same transaction. Does NOT integrate with a real refund gateway
     (manual ledger marker for MVP).
     """
+    # Locked like every other payment write, so it serialises with the
+    # seller's "Refund sent" and a concurrent cancel.
+    assert order.id is not None
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
     if order.status not in (OrderStatus.Cancelled, OrderStatus.Delivered):
         raise HTTPException(
             status_code=409, detail={"code": "order_not_final"}
@@ -333,15 +471,24 @@ async def refund_order(
         raise HTTPException(
             status_code=422, detail={"code": "payment_not_refundable"}
         )
+    if order.delivery_mode == DeliveryMode.Courier and payment.amount <= 0:
+        # Store credit covered everything and went back as credit on cancel:
+        # no money moved, so there is no refund to record (refund_owed).
+        raise HTTPException(status_code=409, detail={"code": "refund_not_due"})
     if not reason or len(reason.strip()) < 10:
         raise HTTPException(
             status_code=422, detail={"code": "reason_required"}
         )
 
-    await _assert_seller_active_for_store(session, order.store_id)
+    if order.delivery_mode != DeliveryMode.Courier:
+        await _assert_seller_active_for_store(session, order.store_id)
+    # Courier: recording a refund is bookkeeping for money that already moved,
+    # and must still work after the seller lost approval (spec §9.9).
 
     before = _order_snapshot(order, payment)
     payment.status = PaymentStatus.Refunded
+    payment.refunded_at = datetime.now(timezone.utc)
+    payment.refunded_by_user_id = acting_admin_id
 
     target_seller_id = await _resolve_seller_id_for_store(session, order.store_id)
     await audit_log(
@@ -384,6 +531,12 @@ async def override_delivery_address(
     if order.delivery_mode == DeliveryMode.Pickup:
         raise HTTPException(
             status_code=409, detail={"detail": "not_applicable_for_pickup"}
+        )
+    if order.delivery_mode == DeliveryMode.Courier:
+        # The quote was priced to this address; before payment the customer
+        # can cancel and re-order (spec §9.7).
+        raise HTTPException(
+            status_code=409, detail={"detail": "not_applicable_for_courier"}
         )
     if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
         raise HTTPException(
@@ -464,17 +617,34 @@ async def cancel_order(
     actor: User,
     *,
     reason: Optional[str] = None,
+    payment_received: Optional[bool] = None,
 ) -> Order:
+    assert order.id is not None
+    order_id: int = order.id
+    order = await lock_order(session, order_id)
     if order.status in (OrderStatus.Delivered, OrderStatus.Cancelled):
         raise HTTPException(status_code=409, detail="terminal_status")
 
-    await _authorize_cancel(session, actor, order)
+    is_courier = order.delivery_mode == DeliveryMode.Courier
+    delivery_result = await session.exec(select(Delivery).where(Delivery.order_id == order.id))
+    delivery = delivery_result.first()
+    payment_result = await session.exec(select(Payment).where(Payment.order_id == order.id))
+    payment = payment_result.first()
+
+    if is_courier:
+        await _authorize_courier_cancel(session, actor, order, payment, reason)
+    else:
+        await _authorize_cancel(session, actor, order)
 
     acting_admin_id = actor.id if actor.role == UserRole.Admin else None
 
     # Admin cancelling a non-Pending order must supply a reason >= 10 chars.
     if acting_admin_id is not None:
-        await _assert_seller_active_for_store(session, order.store_id)
+        # Courier: a seller who lost approval can no longer finish or cancel the
+        # order, and the customer may already have paid — the admin is the one
+        # who cancels (spec §9.9). Door/pickup keep the supervisor rule.
+        if not is_courier:
+            await _assert_seller_active_for_store(session, order.store_id)
         if order.status != OrderStatus.Pending:
             if not reason or len(reason.strip()) < 10:
                 raise HTTPException(
@@ -482,12 +652,19 @@ async def cancel_order(
                     detail={"code": "reason_required"},
                 )
 
-    delivery_result = await session.exec(select(Delivery).where(Delivery.order_id == order.id))
-    delivery = delivery_result.first()
-    payment_result = await session.exec(select(Payment).where(Payment.order_id == order.id))
-    payment = payment_result.first()
+    # A claimed-but-unconfirmed courier payment: only the canceller can say
+    # whether the money arrived, so they must (spec §9.6).
+    claimed_unconfirmed = (
+        is_courier
+        and payment is not None
+        and payment.status == PaymentStatus.Pending
+        and payment.customer_claimed_at is not None
+    )
+    if claimed_unconfirmed and payment_received is None:
+        raise HTTPException(status_code=422, detail={"code": "payment_received_required"})
 
     before = _order_snapshot(order, payment)
+    previous_status = order.status
 
     # Hand back any store credit the order consumed before it was cancelled.
     if order.store_credit_applied > 0:
@@ -508,40 +685,58 @@ async def cancel_order(
     order.status = OrderStatus.Cancelled
     if delivery is not None:
         delivery.status = DeliveryStatus.Cancelled
-    # NOTE: dormant today — Delivered is terminal so Paid orders cannot reach
-    # cancel. If a future workflow lets admins cancel post-Delivered, audit
-    # this branch (real money refund, not just bookkeeping).
-    if payment is not None and payment.status == PaymentStatus.Paid:
+    if is_courier:
+        now = datetime.now(timezone.utc)
+        row = (
+            await session.exec(select(OrderCourier).where(OrderCourier.order_id == order.id))
+        ).first()
+        if row is not None:
+            row.cancel_reason = (reason or "").strip()[:300] or None
+            row.cancelled_by = actor.role.value
+            row.cancelled_at = now
+            if claimed_unconfirmed and payment is not None:
+                if payment_received:
+                    payment.status = PaymentStatus.Paid
+                    payment.paid_at = now
+                else:
+                    row.payment_reported_missing_at = now
+            session.add(row)
+        # A Paid courier payment STAYS Paid: cancelled + Paid is "refund due"
+        # until the seller records the refund (spec §10.3).
+    elif payment is not None and payment.status == PaymentStatus.Paid:
+        # NOTE: dormant for door/pickup — Delivered is terminal so Paid orders
+        # cannot reach cancel. Kept as the existing bookkeeping marker.
         payment.status = PaymentStatus.Refunded
 
-    items_result = await session.exec(select(OrderItem).where(OrderItem.order_id == order.id))
-    items = list(items_result.all())
-    inv_ids = [item.inventory_id for item in items if item.inventory_id is not None]
-    locked_inv = await lock_inventory_rows(session, inv_ids)
-    inv_by_id = {inv.id: inv for inv in locked_inv}
-    for item in items:
-        if item.inventory_id is None:
-            continue
-        inv = inv_by_id.get(item.inventory_id)
-        if inv is not None:
-            restock(inv, item.quantity)
+    # A shipped courier parcel is gone; the seller restocks if it comes back.
+    if not (is_courier and previous_status == OrderStatus.Dispatched):
+        items_result = await session.exec(select(OrderItem).where(OrderItem.order_id == order.id))
+        items = list(items_result.all())
+        inv_ids = [item.inventory_id for item in items if item.inventory_id is not None]
+        locked_inv = await lock_inventory_rows(session, inv_ids)
+        inv_by_id = {inv.id: inv for inv in locked_inv}
+        for item in items:
+            if item.inventory_id is None:
+                continue
+            inv = inv_by_id.get(item.inventory_id)
+            if inv is not None:
+                restock(inv, item.quantity)
 
     # Reverse the credit charge for a cancelled credit order: decrement the
     # customer's outstanding balance + append a reversal ledger entry.
     if payment is not None and payment.method == PaymentMethod.Credit:
         from app.services import credit as credit_svc
 
-        assert order.id is not None
         # Reverse what was actually BORROWED, not the gross total. Store
         # credit covers part of a mixed-tender order and is refunded on its own
-        # ledger just below; reversing `order.total` here would refund that
+        # ledger just above; reversing `order.total` here would refund that
         # portion twice and eat unrelated debt (outstanding is floored at 0).
         borrowed = round(order.total - order.store_credit_applied, 2)
         await credit_svc.reverse_credit_charge(
             session,
             store_id=order.store_id,
             customer_profile_id=order.customer_profile_id,
-            order_id=order.id,
+            order_id=order_id,
             amount=borrowed,
         )
 

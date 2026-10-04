@@ -64,6 +64,12 @@ celery_app.conf.beat_schedule = {
         "task": "returns.sweep_expired",
         "schedule": crontab(minute=12),
     },
+    # Minute 17 keeps clear of the returns sweep (12) and the search
+    # reconcilers (7 and 22). Sends nothing outside 09:00–21:00 IST.
+    "courier-reminders-hourly": {
+        "task": "courier.send_reminders",
+        "schedule": crontab(minute=17),
+    },
     "fees-daily-sweep": {
         "task": "fees.run_daily_sweep",
         "schedule": crontab(hour=2, minute=0),

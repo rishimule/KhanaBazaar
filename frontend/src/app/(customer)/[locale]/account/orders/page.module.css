@@ -129,3 +129,13 @@
     min-width: 100%;
   }
 }
+
+.actionNeeded {
+  margin-left: var(--space-2);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--body-2xs);
+  font-weight: var(--weight-semibold);
+  background: var(--saffron-light-1);
+  color: var(--saffron-dark-1);
+}
