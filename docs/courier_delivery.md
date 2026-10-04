@@ -42,7 +42,7 @@ pending ──quote──▶ quoted ──accept──▶ accepted ──confirm
 ```
 
 - Courier orders use their own transition table, `services/courier_rules.COURIER_TRANSITIONS`. Door delivery and pickup keep `LEGAL_TRANSITIONS`, and `transition_order_status` picks the table per mode.
-- `OrderStatus.Paid` was defined but never used before. For courier it means the money is settled: the seller confirmed it, the ₹0 auto-pay at acceptance set it, or an admin rewound `packed → paid`.
+- `OrderStatus.Paid` was defined but never used before. For courier it means the money is settled: the seller confirmed it, the ₹0 auto-pay at acceptance set it, or an admin rewound to `paid` (from `packed` or `dispatched`).
 - `OrderStatus.Quoted` and `OrderStatus.Accepted` are new. Both count as **active** (`ACTIVE_ORDER_STATUSES`), so they show in "active" lists and block account deactivation like any open order.
 - Every courier action, plus `transition`, `cancel`, the admin rewind and the admin refund marker, takes a `SELECT … FOR UPDATE` on the order (`courier_rules.lock_order`), so concurrent taps serialise. `tests/test_courier_races.py` pins three races with two real sessions: revise vs accept, cancel vs confirm, and seller vs customer marking delivered.
 
@@ -73,7 +73,7 @@ pending ──quote──▶ quoted ──accept──▶ accepted ──confirm
   - Cancelling later reverts both credit entries (`revert_order(store_credit_applied)`).
 - **₹0 payable** (store credit covered everything) skips straight to `paid`, and the customer is told.
 - **Order-value fees:** the courier charge is **excluded** from the platform's order-value % fee. Courier rows use `total − delivery_fee` (`fee_order_value.compute_order_value_sales`).
-- **Refunds:** cancelling after the money arrived leaves `Payment.status = paid`. On a cancelled order, `Paid` **with a non-zero amount** is the "refund due" state (`OrderRead.courier.refund_due`, one rule in `courier_rules.refund_owed` used by the read model, the `needs=refund` filter, the reminders, the copy and refund-sent). A ₹0 payment (store credit covered everything) owes nothing: the credit goes back as credit on cancel. The refund ends when either:
+- **Refunds:** cancelling after the money arrived leaves `Payment.status = paid`. On a cancelled order, `Paid` **with a non-zero amount** is the "refund due" state (`OrderRead.courier.refund_due`). One rule, `courier_rules.refund_owed`, drives the read model, the `needs=refund` filter, the reminders and refund-sent; the in-app copy checks the same paid-and-above-₹0 condition itself, and the emails' refund line only renders a non-zero amount. A ₹0 payment (store credit covered everything) owes nothing: the credit goes back as credit on cancel, and both refund-sent and the admin refund marker answer `409 refund_not_due`. The refund ends when either:
   - the seller records `payment/refund-sent`, with an optional UTR reference; or
   - an admin uses the refund marker (`POST /admin/orders/{id}/refund`).
 
@@ -102,7 +102,7 @@ pending ──quote──▶ quoted ──accept──▶ accepted ──confirm
 |---|---|---|
 | Customer | `pending`, `quoted` (declining the quote), and `accepted` **until they tap "I've paid"** | After a claim → `403 cancel_not_allowed`: money may have moved, so the seller or admin has to answer the refund question. The reason is optional. |
 | Seller | Anything up to `packed` | Needs a reason of ≥ 10 characters (`422 reason_required`). After shipping → `403 cancel_not_allowed`. |
-| Admin | Anything non-terminal | A reason of ≥ 10 characters once past `pending`. Cancelling a shipped parcel does **not** restock. Unlike door/pickup orders, this works even after the seller lost approval (spec §9.9), and so does the refund marker; rewinds and force-deliver still answer `409 seller_not_active`. |
+| Admin | Anything non-terminal | A reason of ≥ 10 characters once past `pending`. Cancelling a shipped parcel does **not** restock. Unlike door/pickup orders, this works even after the seller lost approval (spec §9.9), and so does the refund marker; every other admin fulfilment action (pack, ship, force-deliver, rewind) still answers `409 seller_not_active`. |
 
 - **Claimed but unconfirmed:** the customer said they paid and nobody confirmed it. The canceller must send `payment_received`, otherwise `422 payment_received_required`:
   - `true` marks the payment `paid`, so a refund is due.
@@ -135,7 +135,7 @@ pending ──quote──▶ quoted ──accept──▶ accepted ──confirm
 
 | Setting | Model | Changed by |
 |---|---|---|
-| Courier radius | `Store.courier_radius_km` (NULL = off; when set, larger than the local radius and ≤ `COURIER_MAX_RADIUS_KM`) | Store-basics change request (approved sellers). Pending sellers write it directly with `PATCH /stores/{id}`. Admins have no direct route: they change it by approving a change request with edits. |
+| Courier radius | `Store.courier_radius_km` (NULL = off; when set, larger than the local radius and ≤ `COURIER_MAX_RADIUS_KM`) | Store-basics change request (approved sellers). Pending sellers write it directly with `PATCH /stores/{id}`. Admins have no direct route: they change it by approving a change request with edits (the review form exposes `courier_radius_km` for store-basics requests; empty = unchanged, 0 = off). |
 | Ship by courier, per service | `SellerProfileService.courier_enabled` | Services change request (approved sellers). Direct writes: `PATCH /sellers/me/services/{id}` (pending) and `PATCH /sellers/admin/{seller_id}/services/{id}` (admin, audited). |
 | Bank transfer | `SellerProfile.bank_account_name`, `bank_transfer_enabled` (plus the existing number and IFSC) | Banking change request (approved sellers). Pending sellers write them with `PATCH /sellers/me/profile`. Admins again go through approve-with-edits. |
 
@@ -145,7 +145,7 @@ Change-request payloads treat these optional fields as **omitted = unchanged**:
 - `bank_account_name: ""` clears the name;
 - the canonical `proposed_json` stores `null` for anything omitted.
 
-The radius rules (`422 courier_radius_not_larger` / `courier_radius_too_large`) and bank-transfer completeness (`422 bank_transfer_incomplete`) are checked at submission **and again at approval**. The cap (`courier_radius_too_large`) only applies to a radius the request actually sets, so lowering `COURIER_MAX_RADIUS_KM` below a store's existing ring never blocks an unrelated edit (a pin confirmation or a local-radius change); "larger than the local radius" is always checked against the merged values.
+The radius rules (`422 courier_radius_not_larger` / `courier_radius_too_large`) and bank-transfer completeness (`422 bank_transfer_incomplete`) are checked at submission **and again at approval**. The cap (`courier_radius_too_large`) binds only a ring that differs from the stored one, so lowering `COURIER_MAX_RADIUS_KM` below a store's existing ring never blocks an unrelated edit: a pin confirmation, or a local-radius change whose pre-filled form re-sends the existing ring unchanged (the change-request modal applies the same rule before submitting). "Larger than the local radius" is checked against the merged values whenever either radius changes.
 
 A change request submitted before this release lacks the new keys. Approval compares the applied values with the stored proposal **re-validated into today's shape** (`schemas.seller_profile_change_request.normalize_group_payload`), so approving such a request untouched is a plain approval, not "approved with edits", in both the audit log and the seller's email.
 
@@ -171,12 +171,12 @@ Generic status messages for courier orders:
 
 Differences from the spec's messaging table, all deliberate:
 
-- In-app rows use `status_value = courier_<event>` (generic statuses keep their plain value), and reminders are split per stage (`courier_reminder_quote`, …) rather than one `courier_reminder`. Both bells render the stored title and body, so nothing depends on the value.
+- In-app rows use `status_value = courier_<event>` (generic statuses keep their plain value), and reminders are split per stage (`courier_reminder_quote`, …) rather than one `courier_reminder`. Both bells render the stored title and body; the backend only reads the value to send `payee_missing` once per order.
 - A revised quote sends no WhatsApp (only the first quote has a template).
 - There is one generic `courier_update` email template filled from `courier_copy`, not one per event.
 - Queued email and WhatsApp tasks read the order when they run, so a message can reflect a later state (for example, a "payment not received" email sent after the customer already claimed again shows no note).
 
-**Reminders** come from the hourly `courier.send_reminders` beat task (minute 17 UTC, which is :47 IST, so the first daytime run is 09:47). Quiet hours are `[COURIER_QUIET_START_HOUR, COURIER_QUIET_END_HOUR)` IST, 21:00–09:00 by default. The window may wrap midnight or not (`0` → `7` keeps only 00:00–06:59 quiet), and START == END means no quiet hours. The sweep never changes state and sends one reminder per stage key (`order_courier.last_reminder_key`). It skips rows a live request holds (`FOR UPDATE SKIP LOCKED`), and stamps and commits each row before queueing its messages, so a crash can lose a reminder but never double it. A "please pay" nudge is held back while the store has no live payee, and goes out once one is back.
+**Reminders** come from the hourly `courier.send_reminders` beat task (minute 17 UTC, which is :47 IST, so the first daytime run is 09:47). Quiet hours are `[COURIER_QUIET_START_HOUR, COURIER_QUIET_END_HOUR)` IST, 21:00–09:00 by default. The window may wrap midnight or not (`0` → `7` keeps only 00:00–06:59 quiet), and START == END means no quiet hours. The sweep never changes state and sends one reminder per stage key (`order_courier.last_reminder_key`). It skips rows a live request holds (`FOR UPDATE SKIP LOCKED`), and stamps and commits each row before queueing its messages, so a crash can lose a reminder but never double it. The customer's "accept your quote" and "please pay" nudges are held back while the store has no live payee (accepting or paying would fail), and go out once one is back.
 
 | Stage key | When | Who is nudged |
 |---|---|---|
@@ -191,7 +191,7 @@ Differences from the spec's messaging table, all deliberate:
 
 ## 9. Error codes
 
-Every code maps 1:1 to an `Errors.<code>` message in all five catalogs (`frontend/src/lib/errors.ts` `COURIER_ERROR_CODES`).
+Every code maps to an `Errors.<code>` message in all five catalogs (`frontend/src/lib/errors.ts` `apiErrorKey`; most go through `COURIER_ERROR_CODES`, the shared ones through explicit checks).
 
 | Code | HTTP | When |
 |---|---|---|
@@ -208,15 +208,15 @@ Every code maps 1:1 to an `Errors.<code>` message in all five catalogs (`fronten
 | `quote_superseded` | 409 | The customer accepted an old quote version |
 | `quote_locked` | 409 | Quote after acceptance |
 | `too_many_quote_versions` | 409 | Over `COURIER_MAX_QUOTE_VERSIONS` |
-| `not_awaiting_payment` | 409 | Claim outside `accepted` (confirm and "not received" answer `illegal_transition` or `payment_settled` instead) |
+| `not_awaiting_payment` | 409 | Claim outside `accepted` (confirm answers `payment_settled` or `illegal_transition` instead; "not received" answers `no_claim` or `illegal_transition`) |
 | `payment_method_required` | 422 | Courier claim without `{method}` |
-| `payment_method_not_allowed` | 422 | Courier claim with a method other than `upi` / `net_banking` |
+| `payment_method_not_allowed` | 422 | Courier checkout or claim with a non-prepaid method (cash, credit, pay at store); an unknown value gets FastAPI's generic 422 |
 | `payment_settled` | 409 | The payment is already confirmed |
 | `no_claim` | 409 | "Not received" with no claim to reject |
 | `invalid_tracking_url` | 422 | Not https, no host, credentials embedded, or longer than 500 characters |
 | `already_delivered` | 409 | A second "delivered" from any party |
 | `payment_received_required` | 422 | Cancel with an unanswered claim and no `payment_received` |
-| `refund_not_due` / `already_refunded` | 409 | Refund-sent when nothing is owed, or a second time |
+| `refund_not_due` / `already_refunded` | 409 | Refund-sent when nothing is owed (also the admin refund marker on a ₹0 courier payment), or a second time |
 | `not_returnable_courier` | 409 | Creating a return for a courier order (also the eligibility reason) |
 | `not_applicable_for_courier` | 409 | Admin delivery-address override on a courier order |
 | `courier_radius_not_larger` / `courier_radius_too_large` | 422 | Radius rules (settings and change requests) |
@@ -225,9 +225,9 @@ Every code maps 1:1 to an `Errors.<code>` message in all five catalogs (`fronten
 | `cancel_not_allowed` | 403 | The role can't cancel at this stage (§5) |
 | `not_a_courier_order` | 409 | A courier-only endpoint called on a door/pickup order |
 | `not_dispatched` | 409 | Tracking edit on an order that isn't `dispatched` |
-| `terminal_status` | 409 | Quoting a delivered or cancelled order |
+| `terminal_status` | 409 | Quoting, cancelling or rewinding a delivered or cancelled order |
 | `illegal_transition` | 409 | Any step the courier table doesn't allow from the current status |
-| `seller_not_active` | 409 | Admin rewind or force-deliver once the seller lost approval |
+| `seller_not_active` | 409 | Any admin transition (pack, ship, force-deliver) or rewind once the seller lost approval |
 | `outside_delivery_area` | 422 | Door delivery: the address left the store's local radius (the checkout re-classifies addresses) |
 
 ---
@@ -306,7 +306,7 @@ The frontend reads the limits from the server instead of hard-coding them: `Orde
 
 ## 14. Testing
 
-- **Backend:** `backend/app/tests/test_courier_*.py` (18 files, shared helpers in `tests/_courier_helpers.py`) cover models, config, zones, settings and change requests, checkout, quotes, accept, payment, shipping, cancel and refund, admin, list filters, notifications, reminders, two-session races and the dev seed. Run them like the rest of the suite (`uv run pytest -q`). A run that overlaps another needs its own database: set `KB_TEST_DB` (read in `backend/app/tests/conftest.py`), and point `REDIS_URL` at a spare Redis db.
+- **Backend:** `backend/app/tests/test_courier_*.py` (18 files, shared helpers in `tests/_courier_helpers.py`) cover models, config, zones, settings and change requests, checkout, quotes, accept, payment, shipping, cancel and refund, admin, list filters, notifications, reminders, two-session races and the dev seed. Run them like the rest of the suite (`uv run pytest -q`). A run that overlaps another needs its own database: set `KB_TEST_DB` (read in `backend/app/tests/conftest.py`), point `REDIS_URL` at a spare Redis db, and point `MEILI_TEST_URL` at its own Meilisearch.
 - **Frontend:** there are no frontend tests in this repo. `npm run lint`, `npx tsc --noEmit`, `npm run check:i18n` and `npm run build` must pass, and the flows were walked in a browser against a private seeded database.
 
 ---
@@ -319,7 +319,7 @@ The frontend reads the limits from the server instead of hard-coding them: `Orde
 - **Notification copy is English-only,** like every message in the repo. The UI is translated.
 - **No returns.** If a parcel comes back, the seller restocks it by hand.
 - **No follow-up once the seller holds the money.** `paid` and `packed` orders get no reminder and never count as stalled; only shipping past the delivery date does.
-- **Abandoned orders hold stock.** A `pending` or `quoted` order nobody acts on keeps its reserved stock until someone cancels it; reminders never cancel.
+- **Abandoned orders hold stock.** A `pending`, `quoted` or unpaid `accepted` order nobody acts on keeps its reserved stock until someone cancels it; reminders never cancel.
 - **₹0 acceptance still needs a payee.** Accepting requires a live UPI or bank-transfer payee even when store credit covers everything (allowed by the spec, but not strictly necessary).
 - **Downgrade.** Rolling migration `4675f7be7055` back is only safe before the first courier order: any `courier`, `quoted` or `accepted` row makes older code fail to load that order.
-- **Cost per list row.** Order lists run about four extra queries per courier order (quotes, payment, seller, courier row), and the reminder sweep takes one lock per active courier order each hour. Fine at current volumes; batch both if courier orders grow large.
+- **Cost per list row.** Order lists run about four extra queries per courier order (quotes, payment, seller, courier row), and each reminder sweep (hourly outside quiet hours, so about 12 runs a day by default) takes one lock per active courier order and per cancelled order still owed a refund. Fine at current volumes; batch both if courier orders grow large.

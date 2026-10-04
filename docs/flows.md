@@ -97,7 +97,7 @@ UI lives at `frontend/src/app/checkout/[storeId]/page.tsx`, scoped to one `servi
 | 1 | Resolve `CustomerProfile` from JWT | 404 customer profile not found |
 | 2 | Resolve + authorize address (must belong to caller) | 404/403 `invalid_address` |
 | 3 | Load `Cart` + `CartItem`s for `(store_id, service_id)` | 404 `cart_not_found`, 400 `cart_empty` |
-| 4 | **PostGIS serviceability assertion**: `ST_DWithin(store.geo, address.geo, store.delivery_radius_km*1000)` | **422 `Address outside store delivery area`** |
+| 4 | **PostGIS serviceability assertion**: `ST_DWithin(store.geo, address.geo, store.delivery_radius_km*1000)` | **422 `outside_delivery_area`** (the checkout re-classifies the saved addresses) |
 | 5 | `_validate_service_active_for_store(store_id, service_id)` — seller still offers this service | **409 `service_unavailable`** |
 | 6 | `SELECT … FOR UPDATE` on every `StoreInventory` row in cart | row-locked till commit |
 | 7 | `_assert_locked_inventory_matches_service(...)` — re-derive `service_id` from each locked product chain and compare to payload | **409 `service_mismatch`** |
