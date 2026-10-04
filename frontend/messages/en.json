@@ -458,7 +458,8 @@
     "reason_required": "Please give a reason of at least 10 characters.",
     "cancel_not_allowed": "This order can no longer be cancelled from here.",
     "payment_method_not_allowed": "That payment method can't be used for this order.",
-    "outside_delivery_area": "This address is now outside the store's delivery area. Choose another address."
+    "outside_delivery_area": "This address is now outside the store's delivery area. Choose another address.",
+    "not_a_courier_order": "This isn't a courier order."
   },
   "Footer": {
     "tagline": "Empower local sellers with a digital presence. Together, we grow a stronger, connected ecosystem.",
@@ -2442,7 +2443,7 @@
         "loadError": "Failed to load orders",
         "actionFailed": "Action failed: {msg}",
         "heading": "Orders ({n})",
-        "writesBlocked": "Seller is not active — destructive actions disabled.",
+        "writesBlocked": "Seller is not active — destructive actions are disabled, except cancelling a courier order and recording its refund.",
         "col": {
           "order": "Order",
           "status": "Status",

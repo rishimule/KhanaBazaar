@@ -91,10 +91,15 @@ export default function AdminOrdersTab({
       setPending(null);
       await load();
     } catch (e) {
+      // Keep the modal open (it shows the message) so the reason isn't lost.
       const msg = (e as Error).message ?? "unknown_error";
       setActionError(t("orders.actionFailed", { msg }));
-      setPending(null);
     }
+  }
+
+  function closeAction() {
+    setPending(null);
+    setActionError(null);
   }
 
   if (error) return <div>{error}</div>;
@@ -119,21 +124,7 @@ export default function AdminOrdersTab({
           {t("orders.writesBlocked")}
         </div>
       )}
-      {actionError && (
-        <div
-          role="alert"
-          style={{
-            padding: "0.6rem 0.9rem",
-            background: "rgba(216, 60, 48, 0.12)",
-            border: "1px solid var(--color-error)",
-            borderRadius: 6,
-            marginBottom: "0.75rem",
-            color: "var(--color-error)",
-          }}
-        >
-          {actionError}
-        </div>
-      )}
+
       <div style={{ overflowX: "auto" }}>
       <table
         style={{
@@ -230,7 +221,7 @@ export default function AdminOrdersTab({
         <CourierCancelDialog
           order={pending.order}
           role="admin"
-          onClose={() => setPending(null)}
+          onClose={closeAction}
           onRefresh={(next) => {
             // Keep the open dialog on the fresh order (e.g. the customer just
             // said they paid, so it must now ask whether the money arrived).
@@ -256,7 +247,8 @@ export default function AdminOrdersTab({
             }
             destructive
             onConfirm={performAction}
-            onClose={() => setPending(null)}
+            onClose={closeAction}
+            error={actionError}
           />
         )
       )}

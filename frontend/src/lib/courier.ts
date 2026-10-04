@@ -58,9 +58,10 @@ export function isOrderableZone(zone: AddressCourierZone | null | undefined): bo
 }
 
 /** The Intl tag for an app locale: English reads Indian-style ("4 Oct",
- *  "3 Oct 2026, 3:49 pm"); the Indian languages are used as they are. */
+ *  "3 Oct 2026, 3:49 pm"), and every language keeps Latin digits so dates
+ *  match the amounts beside them (Marathi would otherwise use Devanagari). */
 function intlLocale(locale: string): string {
-  return locale === "en" ? "en-IN" : locale;
+  return `${locale === "en" ? "en-IN" : locale}-u-nu-latn`;
 }
 
 /** "4 Oct" in the viewer's locale. Accepts YYYY-MM-DD or a Date. */

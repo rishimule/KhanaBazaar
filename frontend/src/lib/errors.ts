@@ -73,6 +73,7 @@ const COURIER_ERROR_CODES = new Set([
   "not_awaiting_payment",
   "payment_method_required",
   "payment_method_not_allowed",
+  "not_a_courier_order",
   "payment_settled",
   "no_claim",
   "invalid_tracking_url",

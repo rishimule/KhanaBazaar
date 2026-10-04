@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { useState } from "react";
+import { flushSync } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/lib/AuthContext";
@@ -11,18 +12,17 @@ import { acceptCourierQuote, cancelOrder, refetchIfStale } from "@/lib/orders";
 import type { Order } from "@/types";
 import styles from "./courier.module.css";
 
-/** The card unmounts once the customer decides; hand keyboard focus to what
- *  replaced it (the pay panel's heading, else the page heading) instead of
- *  letting it fall back to <body>. Runs after React commits the new order. */
+/** The card renders nothing once the customer decides; hand keyboard focus to
+ *  what replaced it (the pay panel's heading, else the page heading) instead
+ *  of letting it fall back to <body>. Call after the new order is committed
+ *  (`flushSync`), so the pay panel already exists. */
 function moveFocusAfterDecision() {
-  window.setTimeout(() => {
-    const target =
-      document.getElementById("courier-pay-title") ??
-      document.querySelector<HTMLElement>("main h1");
-    if (!target) return;
-    if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
-    target.focus();
-  }, 0);
+  const target =
+    document.getElementById("courier-pay-title") ??
+    document.querySelector<HTMLElement>("main h1");
+  if (!target) return;
+  if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+  target.focus();
 }
 
 /** The customer's decision point: the latest quote, Accept or Decline. */
@@ -55,7 +55,8 @@ export default function CourierQuoteCard({
     setBusy(true);
     setError(null);
     try {
-      onChange(await acceptCourierQuote(token, order.id, quote.id));
+      const next = await acceptCourierQuote(token, order.id, quote.id);
+      flushSync(() => onChange(next));
       moveFocusAfterDecision();
     } catch (e) {
       // A revision mid-tap, a cancel in another tab: catch the page up first.
@@ -77,8 +78,11 @@ export default function CourierQuoteCard({
     setBusy(true);
     setError(null);
     try {
-      onChange(await cancelOrder(token, order.id, { reason: reason.trim() || undefined }));
-      setDeclineOpen(false);
+      const next = await cancelOrder(token, order.id, { reason: reason.trim() || undefined });
+      flushSync(() => {
+        onChange(next);
+        setDeclineOpen(false);
+      });
       moveFocusAfterDecision();
     } catch (e) {
       const fresh = await refetchIfStale(token, order.id, e);

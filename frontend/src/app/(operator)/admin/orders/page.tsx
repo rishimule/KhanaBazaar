@@ -1,7 +1,7 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import DataTable, { type Column } from "@/components/DataTable";
@@ -54,6 +54,7 @@ export default function AdminOrdersPage() {
   const [toDate, setToDate] = useState("");
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date_desc");
+  const sortBeforeRefunds = useRef<SortKey | null>(null);
   const [page, setPage] = useState(1);
   const debouncedQuery = useDebouncedValue(query, 300);
 
@@ -175,8 +176,16 @@ export default function AdminOrdersPage() {
               }
               onClick={() => {
                 setStatusFilter(s);
-                // Oldest debts first (by order date: cancellation time isn't sortable).
-                if (s === "refunds_due") setSortKey("date_asc");
+                // Oldest debts first (by order date: cancellation time isn't
+                // sortable) — and the previous sort back on leaving the chip,
+                // unless the operator picked a sort meanwhile.
+                if (s === "refunds_due" && statusFilter !== "refunds_due") {
+                  sortBeforeRefunds.current = sortKey;
+                  setSortKey("date_asc");
+                } else if (s !== "refunds_due" && sortBeforeRefunds.current) {
+                  setSortKey(sortBeforeRefunds.current);
+                  sortBeforeRefunds.current = null;
+                }
                 setPage(1);
               }}
             >
@@ -233,6 +242,7 @@ export default function AdminOrdersPage() {
           className={styles.select}
           value={sortKey}
           onChange={(e) => {
+            sortBeforeRefunds.current = null;
             setSortKey(e.target.value as SortKey);
             setPage(1);
           }}

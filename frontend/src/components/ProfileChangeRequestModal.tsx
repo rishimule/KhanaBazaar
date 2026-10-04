@@ -361,7 +361,11 @@ export default function ProfileChangeRequestModal({
           setError("The courier radius must be larger than the delivery radius.");
           return;
         }
-        if (maxRadiusKm !== null && courier > maxRadiusKm) {
+        // Like the server, the cap binds only a ring that differs from the
+        // stored one, so a lowered cap never blocks a local-radius-only edit
+        // (this form re-sends the existing ring unchanged).
+        const storedRing = Number((baselineValues ?? currentValues)["courier_radius_km"] ?? 0);
+        if (maxRadiusKm !== null && courier > maxRadiusKm && courier !== storedRing) {
           setError(
             `The courier radius can be at most ${maxRadiusKm.toLocaleString("en-IN")} km.`,
           );

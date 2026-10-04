@@ -353,7 +353,8 @@ export default function AdminCRDetailPage() {
               Object.keys(cr.proposed_json)
                 .filter((key) => {
                   if (cr.group !== "store_basics") return true;
-                  return key === "delivery_radius_km";
+                  // An empty courier radius means "unchanged"; 0 turns it off.
+                  return key === "delivery_radius_km" || key === "courier_radius_km";
                 })
                 .map((key) => (
                   <label key={key} className={styles.field}>

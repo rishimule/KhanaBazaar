@@ -3,7 +3,13 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { formatShortDate, latestQuote, straightLineKm, trackingHost } from "@/lib/courier";
+import {
+  formatDateTime,
+  formatShortDate,
+  latestQuote,
+  straightLineKm,
+  trackingHost,
+} from "@/lib/courier";
 import { netPayable } from "@/lib/upi";
 import type { Order } from "@/types";
 import styles from "./courier.module.css";
@@ -71,7 +77,7 @@ export default function CourierSummary({
             <dd>
               {t("claimedValue", {
                 method: methodLabel,
-                when: new Date(claimedAt).toLocaleString("en-IN"),
+                when: formatDateTime(claimedAt, locale),
               })}
             </dd>
           </>
