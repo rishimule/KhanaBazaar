@@ -686,6 +686,34 @@ async def test_admin_cancels_dispatched_order(as_customer: Any, seed: dict[str, 
     assert post_stock == pre_stock + 2
 
 
+async def test_dispatch_survives_a_failed_delivery_code_notification(
+    as_customer: Any,
+    seed: dict[str, int],
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The in-app row for the delivery code fails after the status is saved:
+    the seller still gets 200 and the code still goes out by SMS/email."""
+    from app.api import orders as orders_api
+
+    order_ids = await _place_orders(seed)
+    target = await _order_id_for_store(order_ids, seed["store_a"])
+
+    async def _boom(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("notification store down")
+
+    sent: list[int] = []
+    monkeypatch.setattr(orders_api, "record_delivery_otp_notification", _boom)
+    monkeypatch.setattr(orders_api, "dispatch_delivery_otp", lambda oid, code: sent.append(oid))
+    app.dependency_overrides[get_current_user] = lambda: mock_seller
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "packed"})
+        resp = await ac.post(f"/api/v1/orders/{target}/transition", json={"to": "dispatched"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "dispatched"
+    assert sent == [target]
+
+
 # ----------------------------------------------------------------------
 # Admin supervisor order actions: rewind / refund / address-override
 # ----------------------------------------------------------------------

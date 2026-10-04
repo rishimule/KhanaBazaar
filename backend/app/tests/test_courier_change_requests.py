@@ -145,6 +145,12 @@ async def test_lowered_cap_does_not_block_a_local_only_change(
     await _approve(session, cr)
     store = await _store(session, world)
     assert (store.delivery_radius_km, store.courier_radius_km) == (7, 500)
+    # The seller's pre-filled form re-sends the unchanged 500 km ring.
+    resent = await _create(
+        session, world, G.StoreBasics, {"delivery_radius_km": 8, "courier_radius_km": 500},
+    )
+    await _approve(session, resent)
+    assert (await _store(session, world)).delivery_radius_km == 8
     with pytest.raises(HTTPException) as exc:
         await _create(session, world, G.StoreBasics, {"delivery_radius_km": 7, "courier_radius_km": 400})
     assert exc.value.detail == "courier_radius_too_large"

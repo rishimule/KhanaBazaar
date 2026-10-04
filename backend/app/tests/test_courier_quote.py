@@ -1,6 +1,11 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 import pytest
+from fastapi import Depends
+from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -13,6 +18,7 @@ from tests._courier_helpers import (
     SELLER,
     client_as,
     get_order,
+    order_at_paid,
     place_courier_order,
     seed_courier_world,
     send_quote,
@@ -132,41 +138,66 @@ async def test_order_carries_the_quote_version_cap(session: AsyncSession) -> Non
     assert body["courier"]["max_quote_versions"] == settings.COURIER_MAX_QUOTE_VERSIONS
 
 
-async def test_a_failed_notification_does_not_fail_a_saved_quote(
-    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The notify helper rolls the request session back on failure, which
-    expires every object loaded through it — including the user, as it is in
-    production (client_as injects a detached one, so load it via the session)."""
-    from fastapi import Depends
-
+@asynccontextmanager
+async def _session_bound_client(user_id: int) -> AsyncIterator[AsyncClient]:
+    """Like client_as, but the user is loaded through the request's own
+    session, as get_current_user does in production — so a rollback inside
+    the request expires it too (client_as injects a detached user)."""
     from app import app
     from app.core.security import get_current_user
     from app.db.session import get_db_session
     from app.models.base import User
+
+    async def _session_user(db: AsyncSession = Depends(get_db_session)) -> User:
+        user = await db.get(User, user_id)
+        assert user is not None
+        return user
+
+    app.dependency_overrides[get_current_user] = _session_user
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            yield ac
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+async def _boom(*args: object, **kwargs: object) -> None:
+    raise RuntimeError("notification store down")
+
+
+async def test_a_failed_notification_does_not_fail_a_saved_quote(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The courier notify helper rolls the request session back on failure."""
     from app.services import courier_comms
 
     world = await seed_courier_world(session)
     order = await place_courier_order(world)
-
-    async def _boom(*args: object, **kwargs: object) -> None:
-        raise RuntimeError("notification store down")
-
-    async def _session_user(db: AsyncSession = Depends(get_db_session)) -> User:
-        user = await db.get(User, SELLER.id)
-        assert user is not None
-        return user
-
     monkeypatch.setattr(courier_comms, "record_order_status_notification", _boom)
-    app.dependency_overrides[get_current_user] = _session_user
-    try:
-        from httpx import ASGITransport, AsyncClient
-
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            resp = await ac.post(f"/api/v1/orders/{order['id']}/courier/quote", json={
-                "courier_fee": 120, "eta_min_days": 3, "eta_max_days": 5,
-            })
-    finally:
-        app.dependency_overrides.pop(get_current_user, None)
+    async with _session_bound_client(int(SELLER.id or 0)) as ac:
+        resp = await ac.post(f"/api/v1/orders/{order['id']}/courier/quote", json={
+            "courier_fee": 120, "eta_min_days": 3, "eta_max_days": 5,
+        })
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "quoted"
+
+
+async def test_a_failed_status_notification_does_not_fail_a_saved_transition_or_cancel(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """record_and_dispatch_notification rolls back on failure; the route must
+    still serialise the (reloaded) order instead of answering 500."""
+    from app.api import orders as orders_api
+
+    world = await seed_courier_world(session)
+    paid = await order_at_paid(world)
+    monkeypatch.setattr(orders_api, "record_order_status_notification", _boom)
+    async with _session_bound_client(int(SELLER.id or 0)) as ac:
+        packed = await ac.post(f"/api/v1/orders/{paid['id']}/transition", json={"to": "packed"})
+        cancelled = await ac.post(f"/api/v1/orders/{paid['id']}/cancel", json={
+            "reason": "Item damaged while packing",
+        })
+    assert packed.status_code == 200, packed.text
+    assert packed.json()["status"] == "packed"
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json()["status"] == "cancelled"

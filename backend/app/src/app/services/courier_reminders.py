@@ -155,11 +155,12 @@ async def _remind_one(order_id: int, now: datetime) -> bool:
         )
         if due is None or due.key == row.last_reminder_key:
             return False
-        if due.customer_event == "reminder_payment" and not courier_payment_methods(
-            await store_seller(session, order.store_id)
+        if due.customer_event in ("reminder_quote", "reminder_payment") and not (
+            courier_payment_methods(await store_seller(session, order.store_id))
         ):
-            # Telling the customer to pay when they can't would only confuse
-            # them; left unstamped, it goes out once a payee is back.
+            # Accepting or paying would fail for want of a payee, so nudging the
+            # customer only confuses them; left unstamped, it goes out once a
+            # payee is back.
             return False
         row.last_reminder_key = due.key
         row.last_reminder_at = now

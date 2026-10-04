@@ -196,6 +196,7 @@ async def record_and_dispatch_notification(
 
 async def _send_delivery_otp(session: AsyncSession, order: Order, code: str) -> None:
     """Best-effort 3-channel fan-out of the delivery code. Never raises."""
+    order_id = order.id
     try:
         notif = await record_delivery_otp_notification(
             session,
@@ -207,15 +208,21 @@ async def _send_delivery_otp(session: AsyncSession, order: Order, code: str) -> 
             dispatch_notification_push(notif.id)
         await session.refresh(order)
     except Exception:
+        # The rollback expires every loaded object; reload `order` so the
+        # caller can still serialise it, and keep sending the code by SMS/email.
         try:
             await session.rollback()
         except Exception:
             logger.exception("Rollback after delivery-otp notify failure also failed")
+        try:
+            await session.refresh(order)
+        except Exception:
+            logger.exception("Refresh after delivery-otp notify rollback failed")
         logger.exception(
-            "Failed to record delivery-otp notification for order_id=%s", order.id
+            "Failed to record delivery-otp notification for order_id=%s", order_id
         )
-    if order.id is not None:
-        dispatch_delivery_otp(order.id, code)
+    if order_id is not None:
+        dispatch_delivery_otp(order_id, code)
 
 
 REORDER_LANG = "en"
@@ -849,6 +856,7 @@ async def resend_delivery_otp_route(
     # order and a seller on a store they don't own.
     if user.role == UserRole.Seller:
         raise HTTPException(status_code=403, detail="forbidden")
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
     order, include_customer = await _load_order_for_user(session, order_id, user)
     code = await resend_delivery_otp(session, order)
     await _send_delivery_otp(session, order, code)
@@ -856,7 +864,7 @@ async def resend_delivery_otp_route(
         session,
         order,
         include_customer_name=include_customer,
-        viewer_is_admin=user.role == UserRole.Admin,
+        viewer_is_admin=is_admin,
     )
 
 

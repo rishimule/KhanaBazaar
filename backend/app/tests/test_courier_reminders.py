@@ -227,22 +227,27 @@ async def test_payment_rows_are_untouched(session: AsyncSession) -> None:
     assert payment.status is PaymentStatus.Pending and payment.customer_claimed_at is not None
 
 
-async def test_no_pay_now_reminder_while_the_store_cannot_be_paid(session: AsyncSession) -> None:
+async def test_no_accept_or_pay_nudge_while_the_store_cannot_be_paid(session: AsyncSession) -> None:
     from app.models.profile import SellerProfile
 
     world = await seed_courier_world(session)
-    order_id = await insert_courier_order(session, world, status=OrderStatus.Accepted)
-    row = (await session.exec(select(OrderCourier).where(OrderCourier.order_id == order_id))).one()
+    accepted = await insert_courier_order(session, world, status=OrderStatus.Accepted)
+    quoted = await insert_courier_order(session, world, status=OrderStatus.Quoted, quote_fee=120.0)
+    row = (await session.exec(select(OrderCourier).where(OrderCourier.order_id == accepted))).one()
     row.accepted_at = OLD
+    quote = (await session.exec(select(CourierQuote).where(CourierQuote.order_id == quoted))).one()
+    quote.created_at = OLD
     seller = await session.get(SellerProfile, world.seller_profile_id)
     assert seller is not None
     seller.upi_enabled = False
     seller.bank_transfer_enabled = False
     await session.commit()
     assert await run_courier_reminder_sweep(now=NOW) == 0
-    assert await _reminders(session, order_id) == []
-    # Unstamped, so it goes out as soon as a payee is back.
+    assert await _reminders(session, accepted) == []
+    assert await _reminders(session, quoted) == []
+    # Unstamped, so they go out as soon as a payee is back.
     seller.upi_enabled = True
     await session.commit()
-    assert await run_courier_reminder_sweep(now=NOW) == 1
-    assert await _reminders(session, order_id) == ["courier_reminder_payment"]
+    assert await run_courier_reminder_sweep(now=NOW) == 2
+    assert await _reminders(session, accepted) == ["courier_reminder_payment"]
+    assert await _reminders(session, quoted) == ["courier_reminder_quote"]

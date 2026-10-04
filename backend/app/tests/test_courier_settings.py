@@ -138,8 +138,11 @@ async def test_a_lowered_cap_only_binds_a_ring_the_request_sets(
     async with client_as(SELLER) as ac:
         pin = await ac.patch(url, json={"pin_confirmed": True})
         local = await ac.patch(url, json={"delivery_radius_km": 8})
+        # A pre-filled form re-sends the existing ring unchanged.
+        resent = await ac.patch(url, json={"delivery_radius_km": 9, "courier_radius_km": 500})
         too_big = await ac.patch(url, json={"courier_radius_km": 400})
     assert pin.status_code == 200, pin.text
     assert local.status_code == 200, local.text
     assert local.json()["courier_radius_km"] == 500
+    assert resent.status_code == 200, resent.text
     assert too_big.status_code == 422 and too_big.json()["detail"] == "courier_radius_too_large"

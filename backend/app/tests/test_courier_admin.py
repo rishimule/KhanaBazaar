@@ -5,7 +5,7 @@ from datetime import timedelta
 import httpx
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.commerce import DeliveryMode, Order, OrderStatus
+from app.models.commerce import DeliveryMode, Order, OrderStatus, PaymentStatus
 from app.models.profile import (
     CustomerAddress,
     SellerProfile,
@@ -154,6 +154,12 @@ async def test_admin_can_cancel_and_refund_after_the_seller_lost_approval(
     # be able to record the refund the customer is owed.
     world = await seed_courier_world(session)
     order = await order_at_paid(world)
+    stuck = await insert_courier_order(
+        session, world, status=OrderStatus.Paid, payment_status=PaymentStatus.Paid,
+    )
+    shipped = await insert_courier_order(
+        session, world, status=OrderStatus.Dispatched, payment_status=PaymentStatus.Paid,
+    )
     profile = await session.get(SellerProfile, world.seller_profile_id)
     assert profile is not None
     profile.verification_status = VerificationStatus.Rejected
@@ -168,9 +174,16 @@ async def test_admin_can_cancel_and_refund_after_the_seller_lost_approval(
             "reason": "Refunded by support via UPI",
         })
         assert refunded.status_code == 200, refunded.text
-        rewound = await ac.post(f"/api/v1/admin/orders/{order['id']}/rewind", json={
+        rewound = await ac.post(f"/api/v1/admin/orders/{stuck}/rewind", json={
             "to_status": "accepted", "reason": "Trying to reopen the payment",
         })
-    # Fulfilment-side admin actions stay blocked for an unapproved seller.
+        forced = await ac.post(f"/api/v1/orders/{shipped}/transition", json={
+            "to": "delivered", "reason": "Customer confirmed it by phone",
+        })
+    # Fulfilment-side admin actions stay blocked for an unapproved seller — on
+    # live orders, so the seller check (not a terminal status) is what answers.
     assert rewound.status_code == 409
+    assert rewound.json()["detail"] == {"code": "seller_not_active"}
+    assert forced.status_code == 409
+    assert forced.json()["detail"] == {"code": "seller_not_active"}
 
