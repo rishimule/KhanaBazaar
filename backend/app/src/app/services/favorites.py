@@ -12,6 +12,7 @@ from app.schemas.favorites import (
     FavoritesGroupedResponse,
     StoreFavGroup,
 )
+from app.services.serviceability import zone_case_sql, zone_params
 
 
 async def add_favorite(
@@ -64,50 +65,49 @@ async def list_favorite_ids(
 
 # Mirrors the active/available filter chain used by services/storefront.py so
 # the favourites views agree with the rest of the storefront on what is
-# actually shoppable.
+# actually shoppable. `zone` is the store's fulfilment for the product's own
+# service (local, or courier when that service ships there).
 _GROUPED_SQL = text(
-    """
-    SELECT f.product_id, f.created_at AS favourited_at,
-           COALESCE(mpt_loc.name, mpt_en.name, mp.slug) AS name,
-           mp.image_url,
-           sub.category_id,
-           svc.id AS service_id,
-           COALESCE(st_loc.name, st_en.name, svc.slug) AS service_name,
-           i.id AS inventory_id, i.price, i.stock,
-           s.id AS store_id, s.name AS store_name,
-           ST_Distance(
-             s_addr.geo,
-             ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
-           ) / 1000.0 AS distance_km
-    FROM   favorite f
-    JOIN   masterproduct mp ON mp.id = f.product_id AND mp.is_active = true
-    JOIN   subcategory sub ON sub.id = mp.subcategory_id AND sub.is_active = true
-    JOIN   category cat ON cat.id = sub.category_id AND cat.is_active = true
-    JOIN   service svc ON svc.id = cat.service_id AND svc.is_active = true
-    LEFT JOIN masterproduct_translation mpt_loc
-              ON mpt_loc.master_product_id = mp.id
-             AND mpt_loc.language_code = :lang
-    LEFT JOIN masterproduct_translation mpt_en
-              ON mpt_en.master_product_id = mp.id
-             AND mpt_en.language_code = 'en'
-    LEFT JOIN service_translation st_loc
-              ON st_loc.service_id = svc.id
-             AND st_loc.language_code = :lang
-    LEFT JOIN service_translation st_en
-              ON st_en.service_id = svc.id
-             AND st_en.language_code = 'en'
-    JOIN   storeinventory i ON i.product_id = f.product_id
-                            AND i.is_available = true
-                            AND i.stock > 0
-    JOIN   store s ON s.id = i.store_id AND s.is_active = true
-    JOIN   address s_addr ON s_addr.id = s.address_id
-    WHERE  f.customer_profile_id = :cid
-    AND    ST_DWithin(
-             s_addr.geo,
-             ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
-             s.delivery_radius_km * 1000
-           )
-    ORDER BY distance_km ASC, s.id ASC, f.created_at DESC
+    f"""
+    SELECT * FROM (
+      SELECT f.product_id, f.created_at AS favourited_at,
+             COALESCE(mpt_loc.name, mpt_en.name, mp.slug) AS name,
+             mp.image_url,
+             sub.category_id,
+             svc.id AS service_id,
+             COALESCE(st_loc.name, st_en.name, svc.slug) AS service_name,
+             i.id AS inventory_id, i.price, i.stock,
+             s.id AS store_id, s.name AS store_name,
+             ST_Distance(a.geo, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography)
+               / 1000.0 AS distance_km,
+             {zone_case_sql("svc.id")} AS zone
+      FROM   favorite f
+      JOIN   masterproduct mp ON mp.id = f.product_id AND mp.is_active = true
+      JOIN   subcategory sub ON sub.id = mp.subcategory_id AND sub.is_active = true
+      JOIN   category cat ON cat.id = sub.category_id AND cat.is_active = true
+      JOIN   service svc ON svc.id = cat.service_id AND svc.is_active = true
+      LEFT JOIN masterproduct_translation mpt_loc
+                ON mpt_loc.master_product_id = mp.id
+               AND mpt_loc.language_code = :lang
+      LEFT JOIN masterproduct_translation mpt_en
+                ON mpt_en.master_product_id = mp.id
+               AND mpt_en.language_code = 'en'
+      LEFT JOIN service_translation st_loc
+                ON st_loc.service_id = svc.id
+               AND st_loc.language_code = :lang
+      LEFT JOIN service_translation st_en
+                ON st_en.service_id = svc.id
+               AND st_en.language_code = 'en'
+      JOIN   storeinventory i ON i.product_id = f.product_id
+                              AND i.is_available = true
+                              AND i.stock > 0
+      JOIN   store s ON s.id = i.store_id AND s.is_active = true
+      JOIN   address a ON a.id = s.address_id AND a.geo IS NOT NULL
+      JOIN   sellerprofile sp ON sp.id = s.seller_profile_id
+      WHERE  f.customer_profile_id = :cid
+    ) z
+    WHERE z.zone IS NOT NULL
+    ORDER BY (z.zone = 'local') DESC, z.distance_km ASC, z.store_id ASC, z.favourited_at DESC
     """
 )
 
@@ -165,25 +165,31 @@ async def list_grouped_favorites(
     rows = (
         await session.execute(
             _GROUPED_SQL,
-            {"cid": customer_profile_id, "lat": lat, "lng": lng, "lang": lang},
+            {"cid": customer_profile_id, "lang": lang, **zone_params(lat, lng)},
         )
     ).mappings().all()
 
+    # Rows arrive local first, so local groups come before courier groups.
+    local_products = {int(r["product_id"]) for r in rows if r["zone"] == "local"}
     groups: dict[int, StoreFavGroup] = {}
     served_ids: set[int] = set()
     for r in rows:
-        served_ids.add(int(r["product_id"]))
+        product_id = int(r["product_id"])
+        if r["zone"] == "courier" and product_id in local_products:
+            continue  # sold locally: listed under the local store only
+        served_ids.add(product_id)
         sid = int(r["store_id"])
         if sid not in groups:
             groups[sid] = StoreFavGroup(
                 store_id=sid,
                 store_name=r["store_name"],
                 distance_km=float(r["distance_km"]),
+                fulfilment=r["zone"],
                 items=[],
             )
         groups[sid].items.append(
             FavoriteAtStore(
-                product_id=int(r["product_id"]),
+                product_id=product_id,
                 name=r["name"],
                 image_url=r["image_url"],
                 category_id=int(r["category_id"]),
