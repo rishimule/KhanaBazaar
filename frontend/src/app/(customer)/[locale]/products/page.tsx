@@ -80,7 +80,10 @@ function ProductsInner() {
     needsCourierDefault && shippedIds
       ? (services.find((s) => shippedIds.has(s.id))?.slug ?? null)
       : null;
-  const activeSlug = serviceSlug ?? courierDefaultSlug ?? services[0]?.slug ?? null;
+  // While the courier default is still unknown, highlight nothing yet.
+  const activeSlug = waitingForCourierDefault
+    ? (serviceSlug ?? null)
+    : (serviceSlug ?? courierDefaultSlug ?? services[0]?.slug ?? null);
   const activeService = useMemo(
     () => services.find((s) => s.slug === activeSlug) ?? null,
     [services, activeSlug],
@@ -242,11 +245,14 @@ function ProductsInner() {
           </>
         ) : (
           <>
-            {loading && <div className={styles.empty}>{t("loading")}</div>}
-            {!loading && browse && browse.categories.length === 0 && (
+            {(loading || waitingForCourierDefault) && (
+              <div className={styles.empty}>{t("loading")}</div>
+            )}
+            {!loading && !waitingForCourierDefault && browse && browse.categories.length === 0 && (
               <div className={styles.empty}>{t("empty")}</div>
             )}
             {!loading &&
+              !waitingForCourierDefault &&
               browse &&
               activeService &&
               browse.categories.map((cat) => (
