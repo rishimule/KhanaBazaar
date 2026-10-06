@@ -178,3 +178,48 @@ async def test_store_name_search_pages_local_courier_then_others(
     anywhere = (await client.get("/api/v1/search/stores", params={"q": "bazaar"})).json()
     assert anywhere["total"] == 3
     assert {s["fulfilment"] for s in anywhere["stores"]} == {None}
+
+
+@pytest.mark.asyncio
+async def test_browse_fills_carousels_with_courier_products(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    await reindex_all(session, meili_test_client)
+    lat, lng = COURIER_POINT
+    body = (await client.get(
+        "/api/v1/search/browse", params={"service_id": world.service_id, "lat": lat, "lng": lng}
+    )).json()
+    [category] = body["categories"]
+    assert [p["id"] for p in category["products"]] == [world.kaju_id, world.soan_id]
+    assert [s["slug"] for s in category["subcategories"]] == ["barfi"]
+    delhi = (await client.get(
+        "/api/v1/search/browse",
+        params={"service_id": world.service_id, "lat": FAR_POINT[0], "lng": FAR_POINT[1]},
+    )).json()
+    assert delhi["categories"] == []
+
+
+@pytest.mark.asyncio
+async def test_compare_orders_local_then_courier_then_unreachable(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    world = await seed_discovery_world(session)
+    lat, lng = COURIER_POINT
+    body = (await client.get(
+        f"/api/v1/search/products/{world.kaju_id}/stores", params={"lat": lat, "lng": lng}
+    )).json()
+    assert [
+        (o["store"]["name"], o["fulfilment"], o["is_serviceable"]) for o in body["offers"]
+    ] == [
+        ("Mysuru Mart", "local", True),    # ₹120
+        ("Ravi Sweets", "courier", True),  # ₹100
+        ("Mira Mart", None, False),        # ₹90 — cheapest, but can't reach Mysuru
+    ]
+    card_offers = {o["store_id"]: o["fulfilment"] for o in body["product"]["per_store_offers"]}
+    assert card_offers[world.ravi_store_id] == "courier"
+    anywhere = (await client.get(f"/api/v1/search/products/{world.kaju_id}/stores")).json()
+    assert [o["store"]["name"] for o in anywhere["offers"]] == [
+        "Mira Mart", "Ravi Sweets", "Mysuru Mart",
+    ]  # price order, as before
+    assert {o["fulfilment"] for o in anywhere["offers"]} == {None}

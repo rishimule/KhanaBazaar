@@ -55,7 +55,7 @@ from app.schemas.search import (
 )
 from app.schemas.store_product_detail import ProductImagePayload
 from app.search.client import get_meili_client
-from app.search.locality import get_locality, get_serviceable_store_ids, grid_cell_key
+from app.search.locality import get_locality, grid_cell_key
 from app.search.partition import (
     combine,
     fulfilment_rank,
@@ -638,7 +638,7 @@ async def browse(
     session: AsyncSession = Depends(get_db_session),
     redis: aioredis.Redis = Depends(get_redis),
 ) -> BrowseResponse:
-    serviceable = await get_serviceable_store_ids(session, redis, lat, lng)
+    locality = await get_locality(session, redis, lat, lng)
     cell = (
         grid_cell_key(lat, lng) if lat is not None and lng is not None else "no-loc"
     )
@@ -671,9 +671,9 @@ async def browse(
         ).scalar_one_or_none()
     svc_name = svc_t.name if svc_t else svc.slug
 
-    # Location set but no store delivers here → nothing to show (distinct from
-    # `serviceable is None`, which means no/invalid location → show everything).
-    if serviceable is not None and not serviceable:
+    # Location set but nothing serves it → nothing to show (distinct from a
+    # None locality, which means no/invalid location → show everything).
+    if locality is not None and locality.is_empty:
         body = BrowseResponse(
             service_id=service_id, service_name=svc_name, categories=[]
         )
@@ -714,25 +714,28 @@ async def browse(
             ).scalar_one_or_none()
         cat_names[cat.id] = ct.name if ct else cat.slug
 
-    serviceable_clause = ""
-    if serviceable is not None and serviceable:
-        ids_str = ",".join(str(s) for s in serviceable)
-        serviceable_clause = f" AND store_ids IN [{ids_str}]"
-
+    # One query per group (local, then courier) per category; product_groups'
+    # courier clause covers every service, and the service filter below keeps
+    # just this one's term.
+    group_filters: list[Optional[str]] = (
+        [None] if locality is None else [g for _, g in product_groups(locality)]
+    )
+    per = len(group_filters)
     client = get_meili_client()
     queries = [
         SearchParams(
             index_uid="products",
             query="",
-            filter=(
-                f"is_active = true AND service_id = {service_id} "
-                f"AND category_id = {cat.id}{serviceable_clause}"
+            filter=combine(
+                f"is_active = true AND service_id = {service_id} AND category_id = {cat.id}",
+                group,
             ),
             limit=per_category,
             facets=["subcategory_id"],
             attributes_to_retrieve=_BROWSE_CARD_ATTRS + [f"name_{locale}", "name_en"],
         )
         for cat in cat_rows
+        for group in group_filters
     ]
 
     # First pass: collect cards + the subcategory ids that actually have
@@ -741,11 +744,12 @@ async def browse(
     pending: list[tuple[Category, list[BrowseProductCard], list[int]]] = []
     all_sub_ids: set[int] = set()
     if queries:
-        results = await client.multi_search(queries)
-        # multi_search preserves query order → align with cat_rows
-        for cat, res in zip(cat_rows, results, strict=True):
+        results = await search_each(client, queries)
+        # multi_search preserves query order: `per` results per category.
+        for ci, cat in enumerate(cat_rows):
+            parts = results[ci * per:(ci + 1) * per]
             cards: list[BrowseProductCard] = []
-            for hit in res.hits:
+            for hit in [h for part in parts for h in part.hits][:per_category]:
                 cards.append(
                     BrowseProductCard(
                         id=hit["id"],
@@ -764,8 +768,12 @@ async def browse(
                 )
             if not cards:
                 continue
-            facet = res.facet_distribution or {}
-            sub_dist = facet.get("subcategory_id") or {}
+            # Subcategory chips count the full match set of every group.
+            sub_dist: dict[str, int] = {}
+            for part in parts:
+                facet = part.facet_distribution or {}
+                for key, count in (facet.get("subcategory_id") or {}).items():
+                    sub_dist[str(key)] = sub_dist.get(str(key), 0) + int(count)
             sub_ids = [int(k) for k, count in sub_dist.items() if count]
             all_sub_ids.update(sub_ids)
             pending.append((cat, cards, sub_ids))
@@ -912,9 +920,9 @@ async def compare_offers(
         )
     ).all()
 
-    serviceable: Optional[list[int]] = None
+    locality: Optional[Locality] = None
     if lat is not None and lng is not None:
-        serviceable = await get_serviceable_store_ids(session, redis, lat, lng)
+        locality = await get_locality(session, redis, lat, lng)
 
     # Seller profiles that have THIS product's service paused, so a per-service
     # pause (not just a store-wide one) flags the offer as closed — mirrors
@@ -944,7 +952,8 @@ async def compare_offers(
             dist = round(
                 _haversine_km(lat, lng, address.latitude, address.longitude), 2
             )
-        is_serv = serviceable is None or store.id in (serviceable or [])
+        reach = locality.fulfilment(store.id, svc.id) if locality is not None else None
+        is_serv = locality is None or reach is not None
         store_paused = bool(store.is_paused) or store.seller_profile_id in paused_profile_ids
         offers.append(
             CompareOffer(
@@ -962,6 +971,7 @@ async def compare_offers(
                 is_available=bool(inv.is_available),
                 is_serviceable=is_serv,
                 store_paused=store_paused,
+                fulfilment=reach,
             )
         )
         pso_for_card.append(
@@ -975,10 +985,18 @@ async def compare_offers(
                 is_serviceable=is_serv,
                 store_paused=store_paused,
                 distance_km=dist,
+                fulfilment=reach,
             )
         )
 
-    offers.sort(key=lambda o: o.price)
+    # Local, then courier, then stores that can't reach the point; cheapest
+    # first within each. Without a location: cheapest first, as before.
+    offers.sort(
+        key=lambda o: (
+            fulfilment_rank(o.fulfilment) if locality is not None else 0,
+            o.price,
+        )
+    )
 
     if offers:
         _prem = await premium_store_ids(session, [o.store.id for o in offers])

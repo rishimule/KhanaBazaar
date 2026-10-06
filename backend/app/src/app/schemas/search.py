@@ -117,6 +117,8 @@ class CompareOffer(BaseModel):
     is_available: bool
     is_serviceable: bool
     store_paused: bool = False
+    # How this store reaches the given location; None without one.
+    fulfilment: Optional[Literal["local", "courier"]] = None
 
 
 class CompareResponse(BaseModel):
