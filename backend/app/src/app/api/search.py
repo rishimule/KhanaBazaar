@@ -57,10 +57,13 @@ from app.schemas.store_product_detail import ProductImagePayload
 from app.search.client import get_meili_client
 from app.search.locality import get_locality, get_serviceable_store_ids, grid_cell_key
 from app.search.partition import (
+    combine,
     fulfilment_rank,
     ids_in,
     product_groups,
+    search_each,
     stitched_search,
+    store_groups,
 )
 from app.services.fee_gating import premium_store_ids
 from app.services.serviceability import Fulfilment, Locality
@@ -195,15 +198,20 @@ async def suggest(
 
     client = get_meili_client()
 
-    # Resolve serviceable stores
+    # Resolve the stores that serve the point (store-scoped: just that store).
+    locality: Optional[Locality] = None
+    product_filters: list[Optional[str]]
     if store_id is not None:
-        store_filter: Optional[list[int]] = [store_id]
+        product_filters = [ids_in("store_ids", [store_id])]
     else:
-        store_filter = await get_serviceable_store_ids(session, redis, lat, lng)
+        locality = await get_locality(session, redis, lat, lng)
+        product_filters = (
+            [None] if locality is None else [g for _, g in product_groups(locality)]
+        )
 
-    # Location set but no store delivers here → nothing to suggest (distinct
-    # from store_filter is None, which means no/invalid location → show all).
-    if store_filter is not None and not store_filter:
+    # Location set but nothing serves it → nothing to suggest (distinct from a
+    # None locality, which means no/invalid location → show all).
+    if not product_filters:
         query_id = str(uuid.uuid4())
         empty = SuggestResponse(
             query_id=uuid.UUID(query_id), terms=[], products=[], stores=[]
@@ -216,21 +224,44 @@ async def suggest(
         response.headers["X-Search-Query-ID"] = query_id
         return empty
 
-    products_filter_parts: list[str] = ["is_active = true"]
-    if store_filter is not None and store_filter:
-        ids = ",".join(str(s) for s in store_filter)
-        products_filter_parts.append(f"store_ids IN [{ids}]")
-    products_filter = " AND ".join(products_filter_parts)
-
-    products_res = await client.index("products").search(
-        q, limit=limit, filter=products_filter
-    )
+    # ① local first, ② courier fills the remainder — one round trip.
+    product_pages = await search_each(client, [
+        SearchParams(
+            index_uid="products",
+            query=q,
+            filter=combine("is_active = true", group),
+            limit=limit,
+        )
+        for group in product_filters
+    ])
+    product_hits = [hit for res in product_pages for hit in res.hits][:limit]
     terms_res = await client.index("search_terms").search(
         q, limit=limit, filter=f"locale = '{locale}'"
     )
-    stores_res = await client.index("stores").search(
-        q, limit=3, filter="is_active = true"
-    )
+    # Stores: local, courier, then the rest — a name search still finds a
+    # far store, it just comes last.
+    store_slots = store_groups(locality) if locality is not None else [(None, None)]
+    store_pages = await search_each(client, [
+        SearchParams(
+            index_uid="stores",
+            query=q,
+            filter=combine("is_active = true", group),
+            limit=3,
+        )
+        for _, group in store_slots
+    ])
+    store_hits = [
+        (store_slots[i][0], hit)
+        for i, res in enumerate(store_pages)
+        for hit in res.hits
+    ][:3]
+
+    def _reaches(offer_store_id: int, product_service_id: int) -> bool:
+        if store_id is not None:
+            return offer_store_id == store_id
+        if locality is None:
+            return True
+        return locality.fulfilment(offer_store_id, product_service_id) is not None
 
     def _name_for_locale(doc: dict) -> str:
         return (
@@ -240,12 +271,12 @@ async def suggest(
         )
 
     products: list[SuggestProduct] = []
-    for hit in products_res.hits:
+    for hit in product_hits:
         offers = [
             o
             for o in hit.get("per_store_offers", [])
             if not o.get("suspended", False)
-            and (store_filter is None or o["store_id"] in store_filter)
+            and _reaches(int(o["store_id"]), int(hit["service_id"]))
         ]
         in_stock = [o for o in offers if o["is_available"] and o["stock"] > 0]
         best = (
@@ -278,7 +309,7 @@ async def suggest(
         )
 
     stores: list[SuggestStore] = []
-    for hit in stores_res.hits:
+    for reach, hit in store_hits:
         dist = None
         if lat is not None and lng is not None and hit.get("lat") and hit.get("lng"):
             dist = round(_haversine_km(lat, lng, hit["lat"], hit["lng"]), 2)
@@ -288,6 +319,7 @@ async def suggest(
                 name=hit["name"],
                 service_ids=hit.get("service_ids", []),
                 distance_km=dist,
+                fulfilment=reach,
             )
         )
 
@@ -996,16 +1028,22 @@ async def stores_search(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=60),
     session: AsyncSession = Depends(get_db_session),
+    redis: aioredis.Redis = Depends(get_redis),
 ) -> StoreSearchResponse:
     client = get_meili_client()
-    res = await client.index("stores").search(
+    locality = await get_locality(session, redis, lat, lng)
+    slots = store_groups(locality) if locality is not None else [(None, None)]
+    stitched = await stitched_search(
+        client,
+        "stores",
         q.strip(),
-        filter="is_active = true",
+        base_filter="is_active = true",
+        group_filters=[group for _, group in slots],
         offset=(page - 1) * page_size,
         limit=page_size,
     )
     items: list[SuggestStore] = []
-    for h in res.hits:
+    for slot, h in stitched.hits:
         dist = None
         if lat is not None and lng is not None and h.get("lat") and h.get("lng"):
             dist = round(_haversine_km(lat, lng, h["lat"], h["lng"]), 2)
@@ -1015,6 +1053,7 @@ async def stores_search(
                 name=h["name"],
                 service_ids=h.get("service_ids", []),
                 distance_km=dist,
+                fulfilment=slots[slot][0],
             )
         )
     if items:
@@ -1022,7 +1061,7 @@ async def stores_search(
         for s in items:
             s.is_premium = s.id in _prem
     return StoreSearchResponse(
-        total=int(res.estimated_total_hits or len(items)),
+        total=stitched.total,
         page=page,
         page_size=page_size,
         stores=items,

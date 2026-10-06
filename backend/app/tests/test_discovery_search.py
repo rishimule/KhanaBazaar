@@ -8,6 +8,7 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.profile import SellerProfileService
+from app.models.store import Store
 from app.search.partition import fulfilment_rank, product_groups, store_groups
 from app.search.reindex import reindex_all
 from app.services.serviceability import Locality
@@ -117,3 +118,63 @@ async def test_store_scoped_search_is_unchanged(
         for offer in product["per_store_offers"]:
             assert offer["is_serviceable"] is (offer["store_id"] == world.ravi_store_id)
             assert offer["fulfilment"] is None
+
+
+@pytest.mark.asyncio
+async def test_suggest_fills_with_courier_products_and_orders_stores(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    await reindex_all(session, meili_test_client)
+    lat, lng = COURIER_POINT
+    papdi = (await client.get(
+        "/api/v1/search/suggest", params={"q": "papdi", "lat": lat, "lng": lng}
+    )).json()
+    assert [p["id"] for p in papdi["products"]] == [world.soan_id]
+    assert papdi["products"][0]["best_store"]["id"] == world.ravi_store_id
+    kaju = (await client.get(
+        "/api/v1/search/suggest", params={"q": "kaju", "lat": lat, "lng": lng}
+    )).json()
+    # Only the stores that reach Mysuru count: Mysuru Mart (local), Ravi (courier).
+    assert kaju["products"][0]["store_count"] == 2
+    marts = (await client.get(
+        "/api/v1/search/suggest", params={"q": "mart", "lat": lat, "lng": lng}
+    )).json()
+    assert [(s["name"], s["fulfilment"]) for s in marts["stores"]] == [
+        ("Mysuru Mart", "local"), ("Mira Mart", None),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_store_name_search_pages_local_courier_then_others(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    # The stores index searches names only, so give all three a shared word.
+    for store_id, name in (
+        (world.ravi_store_id, "Ravi Bazaar"),
+        (world.mira_store_id, "Mira Bazaar"),
+        (world.mysuru_store_id, "Mysuru Bazaar"),
+    ):
+        store = await session.get(Store, store_id)
+        assert store is not None
+        store.name = name
+    await session.commit()
+    await reindex_all(session, meili_test_client)
+    lat, lng = COURIER_POINT
+    seen: list[tuple[str, str | None]] = []
+    for page in (1, 2, 3):
+        resp = await client.get(
+            "/api/v1/search/stores",
+            params={"q": "bazaar", "lat": lat, "lng": lng, "page": page, "page_size": 1},
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total"] == 3
+        seen += [(s["name"], s["fulfilment"]) for s in body["stores"]]
+    assert seen == [
+        ("Mysuru Bazaar", "local"), ("Ravi Bazaar", "courier"), ("Mira Bazaar", None),
+    ]
+    anywhere = (await client.get("/api/v1/search/stores", params={"q": "bazaar"})).json()
+    assert anywhere["total"] == 3
+    assert {s["fulfilment"] for s in anywhere["stores"]} == {None}

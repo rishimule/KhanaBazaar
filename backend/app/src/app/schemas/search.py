@@ -37,6 +37,9 @@ class SuggestStore(BaseModel):
     service_ids: list[int]
     distance_km: Optional[float] = None
     is_premium: bool = False
+    # How this store reaches the searched location; None without a location,
+    # or when it can't reach it (a name search still lists far stores).
+    fulfilment: Optional[Literal["local", "courier"]] = None
 
 
 class SuggestResponse(BaseModel):

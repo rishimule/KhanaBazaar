@@ -67,6 +67,12 @@ def combine(base: str, extra: Optional[str]) -> str:
     return f"{base} AND ({extra})" if extra else base
 
 
+async def search_each(client: Any, queries: list[SearchParams]) -> list[Any]:
+    """Plain (non-federated) multi-search: one result per query, in order.
+    The SDK's return type also covers federated search, hence the `Any`."""
+    return list(await client.multi_search(queries)) if queries else []
+
+
 @dataclass(frozen=True)
 class Stitched:
     hits: list[tuple[int, dict[str, Any]]]  # (group index, hit)
@@ -89,7 +95,7 @@ async def stitched_search(
 ) -> Stitched:
     """One page across groups searched in order: every match of group 1, then
     group 2, ... Facet counts are summed over the groups."""
-    counts = await client.multi_search([
+    counts = await search_each(client, [
         SearchParams(
             index_uid=index_uid, query=query, filter=combine(base_filter, group),
             page=1, hits_per_page=0, facets=facets,
@@ -122,7 +128,7 @@ async def stitched_search(
         slots.append(index)
         remaining -= take
         start = 0
-    pages = await client.multi_search(window) if window else []
+    pages = await search_each(client, window)
     hits = [(slot, hit) for slot, page in zip(slots, pages, strict=True) for hit in page.hits]
     summed: dict[str, dict[str, int]] = {}
     for result in counts:
