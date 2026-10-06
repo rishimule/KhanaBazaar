@@ -12,22 +12,15 @@ from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+from app.services.serviceability import in_india_bbox
 
 _GRID_DEG = 0.005  # ~500 m at India latitudes
-_INDIA_BBOX = (6.5, 36.0, 68.0, 98.0)  # lat_min, lat_max, lng_min, lng_max
 
 
 def grid_cell_key(lat: float, lng: float) -> str:
     lat_cell = math.floor(lat / _GRID_DEG) * _GRID_DEG
     lng_cell = math.floor(lng / _GRID_DEG) * _GRID_DEG
     return f"serviceable:{lat_cell:.4f}:{lng_cell:.4f}"
-
-
-def in_india_bbox(lat: float, lng: float) -> bool:
-    return (
-        _INDIA_BBOX[0] <= lat <= _INDIA_BBOX[1]
-        and _INDIA_BBOX[2] <= lng <= _INDIA_BBOX[3]
-    )
 
 
 async def get_serviceable_store_ids(
