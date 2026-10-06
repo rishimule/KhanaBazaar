@@ -56,6 +56,8 @@ class PerStoreOffer(BaseModel):
     is_serviceable: bool
     store_paused: bool = False
     distance_km: Optional[float] = None
+    # How this store reaches the searched location; None without one.
+    fulfilment: Optional[Literal["local", "courier"]] = None
 
 
 class ProductCard(BaseModel):

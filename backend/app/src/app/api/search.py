@@ -55,8 +55,15 @@ from app.schemas.search import (
 )
 from app.schemas.store_product_detail import ProductImagePayload
 from app.search.client import get_meili_client
-from app.search.locality import get_serviceable_store_ids, grid_cell_key
+from app.search.locality import get_locality, get_serviceable_store_ids, grid_cell_key
+from app.search.partition import (
+    fulfilment_rank,
+    ids_in,
+    product_groups,
+    stitched_search,
+)
 from app.services.fee_gating import premium_store_ids
+from app.services.serviceability import Fulfilment, Locality
 
 router = APIRouter()
 
@@ -366,14 +373,19 @@ async def products(
     if len(q) > 100:
         raise HTTPException(status_code=400, detail="q_too_long")
 
+    locality: Optional[Locality] = None
+    group_filters: list[Optional[str]]
     if store_id is not None:
-        serviceable: Optional[list[int]] = [store_id]
+        group_filters = [ids_in("store_ids", [store_id])]
     else:
-        serviceable = await get_serviceable_store_ids(session, redis, lat, lng)
+        locality = await get_locality(session, redis, lat, lng)
+        group_filters = (
+            [None] if locality is None else [g for _, g in product_groups(locality)]
+        )
 
-    # Location set but no store delivers here → no products (distinct from
-    # serviceable is None, which means no/invalid location → show all).
-    if serviceable is not None and not serviceable:
+    # Location set but nothing serves it → no products (distinct from a None
+    # locality, which means no/invalid location → show all).
+    if not group_filters:
         query_id = str(uuid.uuid4())
         response.headers["X-Search-Query-ID"] = query_id
         return ProductsResponse(
@@ -398,9 +410,6 @@ async def products(
         )
 
     filters: list[str] = ["is_active = true"]
-    if serviceable is not None and serviceable:
-        ids_str = ",".join(str(s) for s in serviceable)
-        filters.append(f"store_ids IN [{ids_str}]")
     if service_id is not None:
         filters.append(f"service_id = {service_id}")
     if category_id is not None:
@@ -413,21 +422,31 @@ async def products(
         filters.append(f"max_price <= {max_price}")
 
     client = get_meili_client()
-    res = await client.index("products").search(
+    stitched = await stitched_search(
+        client,
+        "products",
         q,
-        filter=" AND ".join(filters),
-        sort=_SORT_MAP[sort],
+        base_filter=" AND ".join(filters),
+        group_filters=group_filters,
         offset=(page - 1) * page_size,
         limit=page_size,
+        sort=_SORT_MAP[sort],
         facets=["service_id", "category_id"],
     )
 
-    serviceable_set: Optional[set[int]] = (
-        set(serviceable) if serviceable is not None else None
-    )
+    def _offer_reach(
+        offer_store_id: int, product_service_id: int
+    ) -> tuple[bool, Optional[Fulfilment]]:
+        if store_id is not None:
+            return offer_store_id == store_id, None
+        if locality is None:
+            return True, None
+        reach = locality.fulfilment(offer_store_id, product_service_id)
+        return reach is not None, reach
 
     cards: list[ProductCard] = []
-    for hit in res.hits:
+    card_groups: list[int] = []
+    for group_index, hit in stitched.hits:
         offers: list[PerStoreOffer] = []
         for o in hit.get("per_store_offers", []):
             if o.get("suspended", False):
@@ -443,6 +462,7 @@ async def products(
             distance = None
             if lat is not None and lng is not None and s_lat and s_lng:
                 distance = round(_haversine_km(lat, lng, s_lat, s_lng), 2)
+            serviceable, reach = _offer_reach(int(o["store_id"]), int(hit["service_id"]))
             offers.append(
                 PerStoreOffer(
                     store_id=o["store_id"],
@@ -450,13 +470,16 @@ async def products(
                     price=float(o["price"]),
                     stock=int(o["stock"]),
                     is_available=bool(o["is_available"]),
-                    is_serviceable=(
-                        serviceable_set is None or o["store_id"] in serviceable_set
-                    ),
+                    is_serviceable=serviceable,
                     store_paused=bool(o.get("store_paused", False)),
                     distance_km=distance,
+                    fulfilment=reach,
                 )
             )
+        if locality is not None:
+            # Local, then courier, then stores that can't reach the point
+            # (stable: the document's order stays within each rank).
+            offers.sort(key=lambda offer: fulfilment_rank(offer.fulfilment))
         cards.append(
             ProductCard(
                 id=hit["id"],
@@ -474,14 +497,21 @@ async def products(
                 per_store_offers=offers,
             )
         )
+        card_groups.append(group_index)
 
     if sort == "distance":
-        cards.sort(
-            key=lambda c: min(
-                (o.distance_km for o in c.per_store_offers if o.distance_km is not None),
-                default=float("inf"),
-            )
+        # The user's sort applies within each group; local stays first.
+        order = sorted(
+            range(len(cards)),
+            key=lambda i: (
+                card_groups[i],
+                min(
+                    (o.distance_km for o in cards[i].per_store_offers if o.distance_km is not None),
+                    default=float("inf"),
+                ),
+            ),
         )
+        cards = [cards[i] for i in order]
 
     # Derived price bucket facet
     buckets = {"0_50": 0, "50_100": 0, "100_200": 0, "200_plus": 0}
@@ -495,10 +525,9 @@ async def products(
         else:
             buckets["200_plus"] += 1
 
-    facet_dist = res.facet_distribution or {}
     facets = FacetBuckets(
-        service_id={str(k): int(v) for k, v in (facet_dist.get("service_id") or {}).items()},
-        category_id={str(k): int(v) for k, v in (facet_dist.get("category_id") or {}).items()},
+        service_id=stitched.facets.get("service_id", {}),
+        category_id=stitched.facets.get("category_id", {}),
         min_price_bucket=buckets,
     )
 
@@ -517,7 +546,7 @@ async def products(
     query_id = str(uuid.uuid4())
     response.headers["X-Search-Query-ID"] = query_id
 
-    total = int(res.estimated_total_hits or len(cards))
+    total = stitched.total
     try:
         await _log_query(
             session,
