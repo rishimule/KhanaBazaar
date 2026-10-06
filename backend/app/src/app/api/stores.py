@@ -243,7 +243,8 @@ async def list_stores(
     )
     # Filtered in SQL (not after OFFSET/LIMIT) so a page is never short.
     suspended_clause = " AND s.id NOT IN :suspended" if suspended_store_ids else ""
-    order_clause = "z.distance_km ASC" if sort == "distance" else "z.id ASC"
+    # The id tiebreak keeps "Load more" pages stable for stores at one spot.
+    order_clause = "z.distance_km ASC, z.id ASC" if sort == "distance" else "z.id ASC"
     sql = text(
         "SELECT z.id, z.distance_km, z.zone FROM ("
         f"  SELECT s.id, ST_Distance(a.geo, {POINT_SQL}) / 1000.0 AS distance_km, "

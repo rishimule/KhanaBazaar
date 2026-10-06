@@ -1,15 +1,22 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Search partitions local and courier results (spec §12, §16)."""
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.profile import SellerProfileService
-from app.models.store import Store
-from app.search.partition import fulfilment_rank, product_groups, store_groups
+from app.models.store import Store, StoreInventory
+from app.search.partition import (
+    fulfilment_rank,
+    nearest_offer_km,
+    product_groups,
+    store_groups,
+)
 from app.search.reindex import reindex_all
 from app.services.serviceability import Locality
 from tests._courier_helpers import COURIER_POINT, FAR_POINT, LOCAL_POINT
@@ -37,6 +44,27 @@ def test_store_groups_keep_other_stores_last() -> None:
 
 def test_fulfilment_rank() -> None:
     assert [fulfilment_rank(f) for f in ("local", "courier", None)] == [0, 1, 2]
+
+
+def test_product_groups_keep_only_the_requested_service() -> None:
+    both = Locality(local=(3,), courier={5: (7,), 6: (8,)})
+    assert product_groups(both, service_id=5) == [
+        ("local", "store_ids IN [3]"),
+        ("courier", "((service_id = 5 AND store_ids IN [7])) AND NOT store_ids IN [3]"),
+    ]
+    assert product_groups(both, service_id=9) == [("local", "store_ids IN [3]")]
+    assert product_groups(Locality(courier={5: (7,)}), service_id=9) == []
+
+
+def test_nearest_offer_km_uses_the_cards_own_group() -> None:
+    def offer(km: float | None, fulfilment: str | None, serviceable: bool) -> Any:
+        return SimpleNamespace(distance_km=km, fulfilment=fulfilment, is_serviceable=serviceable)
+
+    offers = [offer(8.0, "local", True), offer(3.0, "courier", True), offer(1.0, None, False)]
+    assert nearest_offer_km(offers, "local") == 8.0  # not the nearer courier offer
+    assert nearest_offer_km(offers, "courier") == 3.0
+    assert nearest_offer_km(offers, None) == 3.0  # nearest that can serve at all
+    assert nearest_offer_km([offer(None, "local", True)], "local") == float("inf")
 
 
 async def _products(client: AsyncClient, point: tuple[float, float], **params: Any) -> dict[str, Any]:
@@ -219,8 +247,11 @@ async def test_compare_orders_local_then_courier_then_unreachable(
         ("Ravi Sweets", "courier", True),  # ₹100
         ("Mira Mart", None, False),        # ₹90 — cheapest, but can't reach Mysuru
     ]
-    card_offers = {o["store_id"]: o["fulfilment"] for o in body["product"]["per_store_offers"]}
-    assert card_offers[world.ravi_store_id] == "courier"
+    assert [(o["store_id"], o["fulfilment"]) for o in body["product"]["per_store_offers"]] == [
+        (world.mysuru_store_id, "local"),
+        (world.ravi_store_id, "courier"),
+        (world.mira_store_id, None),
+    ]
     anywhere = (await client.get(f"/api/v1/search/products/{world.kaju_id}/stores")).json()
     assert [o["store"]["name"] for o in anywhere["offers"]] == [
         "Mira Mart", "Ravi Sweets", "Mysuru Mart",
@@ -408,3 +439,64 @@ async def test_store_scoped_search_ignores_the_location(
         assert offer["is_serviceable"] is (offer["store_id"] == world.mira_store_id)
         assert offer["fulfilment"] is None
 
+
+@pytest.mark.asyncio
+async def test_suggest_best_store_prefers_stock_then_local(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    # Mysuru Mart (local) runs out of Kaju Katli; Ravi (courier) still has it.
+    row = (await session.exec(
+        select(StoreInventory).where(
+            StoreInventory.store_id == world.mysuru_store_id,
+            StoreInventory.product_id == world.kaju_id,
+        )
+    )).one()
+    row.stock = 0
+    await session.commit()
+    await reindex_all(session, meili_test_client)
+    lat, lng = COURIER_POINT
+    near = (await client.get(
+        "/api/v1/search/suggest", params={"q": "kaju", "lat": lat, "lng": lng}
+    )).json()["products"][0]["best_store"]
+    assert (near["id"], near["fulfilment"], near["is_available"]) == (
+        world.ravi_store_id, "courier", True,
+    )
+    # Without a location: the cheapest store with stock, as before.
+    anywhere = (await client.get(
+        "/api/v1/search/suggest", params={"q": "kaju"}
+    )).json()["products"][0]["best_store"]
+    assert (anywhere["id"], anywhere["fulfilment"], anywhere["price"]) == (
+        world.mira_store_id, None, 90.0,
+    )
+
+
+@pytest.mark.asyncio
+async def test_store_name_search_pages_without_a_location(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    await _rename_to_bazaars(session, world)
+    await reindex_all(session, meili_test_client)
+    # One group, so each page is a single page-mode query (pages 2 and 3 too).
+    names: list[str] = []
+    for page in (1, 2, 3, 4):
+        body = (await client.get(
+            "/api/v1/search/stores", params={"q": "bazaar", "page": page, "page_size": 1}
+        )).json()
+        assert body["total"] == 3
+        names += [s["name"] for s in body["stores"]]
+    assert sorted(names) == ["Mira Bazaar", "Mysuru Bazaar", "Ravi Bazaar"]
+
+
+
+@pytest.mark.asyncio
+async def test_distance_sort_keeps_local_results_first(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    extras = await seed_discovery_extras(session, world)
+    await reindex_all(session, meili_test_client)
+    ids = [p["id"] for p in (await _products(client, COURIER_POINT, sort="distance"))["products"]]
+    assert set(ids[:2]) == {world.kaju_id, extras.mysore_pak_id}
+    assert set(ids[2:]) == {world.soan_id, extras.rasgulla_id}

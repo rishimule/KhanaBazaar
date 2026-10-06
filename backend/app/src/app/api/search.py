@@ -60,6 +60,7 @@ from app.search.partition import (
     combine,
     fulfilment_rank,
     ids_in,
+    nearest_offer_km,
     product_groups,
     search_each,
     stitched_search,
@@ -421,16 +422,19 @@ async def products(
         raise HTTPException(status_code=400, detail="q_too_long")
 
     locality: Optional[Locality] = None
+    # One label per group: "local"/"courier", or None without groups.
+    group_labels: list[Optional[Fulfilment]] = [None]
     group_filters: list[Optional[str]]
     if store_id is not None:
         group_filters = [ids_in("store_ids", [store_id])]
     else:
         locality = await get_locality(session, redis, lat, lng)
-        group_filters = (
-            [None]
-            if locality is None
-            else [g for _, g in product_groups(locality, service_id=service_id)]
-        )
+        if locality is None:
+            group_filters = [None]
+        else:
+            groups = product_groups(locality, service_id=service_id)
+            group_labels = [label for label, _ in groups]
+            group_filters = [g for _, g in groups]
 
     # Location set but nothing serves it → no products (distinct from a None
     # locality, which means no/invalid location → show all).
@@ -550,18 +554,13 @@ async def products(
 
     if sort == "distance":
         # The user's sort applies within each group (local stays first), by
-        # the nearest store that can actually reach the point.
+        # the card's nearest offer from that same group.
         order = sorted(
             range(len(cards)),
             key=lambda i: (
                 card_groups[i],
-                min(
-                    (
-                        o.distance_km
-                        for o in cards[i].per_store_offers
-                        if o.distance_km is not None and o.is_serviceable
-                    ),
-                    default=float("inf"),
+                nearest_offer_km(
+                    cards[i].per_store_offers, group_labels[card_groups[i]]
                 ),
             ),
         )
@@ -700,7 +699,9 @@ async def browse(
         if locality is None
         else [g for _, g in product_groups(locality, service_id=service_id)]
     )
-    # Location set but nothing serves this service there → nothing to show.
+    # No local store at all and no courier store for this service → nothing
+    # to show. (Local stores that only sell other services still run the
+    # queries below, which then match nothing.)
     if not group_filters:
         body = BrowseResponse(
             service_id=service_id, service_name=svc_name, categories=[]

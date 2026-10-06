@@ -72,6 +72,22 @@ def store_groups(locality: Locality) -> list[tuple[Optional[Fulfilment], Optiona
     return groups
 
 
+def nearest_offer_km(offers: Iterable[Any], group: Optional[str]) -> float:
+    """The distance the distance sort uses for one card: its nearest offer
+    from the card's own group (local offers for a local card, courier offers
+    for a courier card) or, without groups (no location, one store), its
+    nearest offer that can serve the point at all."""
+    return min(
+        (
+            o.distance_km
+            for o in offers
+            if o.distance_km is not None
+            and (o.fulfilment == group if group is not None else o.is_serviceable)
+        ),
+        default=float("inf"),
+    )
+
+
 def combine(base: str, extra: Optional[str]) -> str:
     return f"{base} AND ({extra})" if extra else base
 

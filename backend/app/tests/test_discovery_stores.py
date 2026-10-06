@@ -102,6 +102,7 @@ async def test_list_without_a_location_has_no_fulfilment(session: AsyncSession) 
 
 async def test_a_fee_suspended_store_does_not_leave_a_page_short(session: AsyncSession) -> None:
     world = await seed_discovery_world(session)
+    assert world.ravi_store_id < world.mira_store_id  # id order puts Ravi first
     session.add(FeeArrangement(
         store_id=world.ravi_store_id, service_id=world.service_id,
         model=FeeModel.Freebie, status=ArrangementStatus.Suspended,
