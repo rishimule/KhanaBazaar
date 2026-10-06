@@ -527,7 +527,7 @@ Mock the Google client globally in any new geo test — see `tests/test_geo_endp
 
 ### Distance + radius
 
-Stores are filtered/sorted by lat/lng via `GET /api/v1/stores/?lat=&lng=&sort=distance` (PostGIS `ST_DWithin` for filter, `ST_Distance` for sort). Order creation re-asserts `ST_DWithin` against the customer address — defense in depth against direct API bypass. Stores or addresses missing `geo` are treated as not-serviceable.
+`GET /api/v1/stores/?lat=&lng=&sort=distance` lists the stores that reach a point — local stores by distance, then courier stores (each row tagged `fulfilment`) — using the zone SQL in `services/serviceability.py` (`zone_case_sql`, PostGIS `ST_DWithin`/`ST_Distance`). Order creation re-checks the customer address (`within_local_radius` for door delivery, `zone_for_address` for courier) — defense in depth against direct API bypass. Stores or addresses missing `geo` are treated as not-serviceable.
 
 ### Backfill
 

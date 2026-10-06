@@ -112,7 +112,7 @@ UI lives at `frontend/src/app/checkout/[storeId]/page.tsx`, scoped to one `servi
 
 Steps 5 and 7 are deliberate **defense-in-depth against catalog drift**: between cart-load and checkout the seller may have revoked the service (→ 409 `service_unavailable`) or admin may have re-parented a subcategory to a different service (→ 409 `service_mismatch`). Both raise cleanly so a half-placed cross-service order is impossible. No automatic cart purge happens — the customer is informed and can prune the sub-basket themselves.
 
-The serviceability assertion (step 4) is **defense in depth** against direct API bypass — the frontend `<AddressPicker>` already disables out-of-radius rows by calling `POST /api/v1/geo/serviceability` per saved address, but the backend re-checks at order time so a customer cannot POST around the picker. Stores or addresses missing `geo` (null lat/lng) are treated as not-serviceable so couriers never end up with un-pinpointed deliveries.
+The serviceability assertion (step 4) is **defense in depth** against direct API bypass — the frontend `<AddressPicker>` already classifies each saved address into a zone (`classifyAddressZone` over `POST /api/v1/geo/serviceability` with the store), keeping local and courier-ring addresses orderable, but the backend re-checks at order time (`within_local_radius` for door delivery, `zone_for_address` for courier) so a customer cannot POST around the picker. Stores or addresses missing `geo` (null lat/lng) are treated as not-serviceable so couriers never end up with un-pinpointed deliveries.
 
 Pricing is hardcoded at MVP: `MVP_DELIVERY_FEE = 0`, `MVP_TAX = 0`. `subtotal = sum(unit_price × qty)`, `total = subtotal + fee + tax`. Edit constants in `services/checkout.py` when fees plug in.
 
@@ -336,12 +336,12 @@ Stores without a `geo` (null lat/lng) are excluded — they cannot be located. C
 ```
 <AddressPicker> (per saved address)        Backend
    POST /geo/serviceability {lat, lng, store_id}
-                                          |--- ST_DWithin(store.geo, point, radius)
+                                          |--- zone_for_point (services/serviceability.py)
                                           |
-   <select><option disabled> ←-- {serviceable: false}
+   classifyAddressZone ←-- {serviceable, zone, courier_service_ids}
 ```
 
-The address dropdown disables un-serviceable rows in the UI. On submit, `POST /orders` re-asserts the same `ST_DWithin` (defense in depth, see §4 step 4).
+`classifyAddressZone` (`lib/courier.ts`) turns each answer into a zone: `local` and `courier` rows stay orderable (courier also needs this service in `courier_service_ids` and an Indian 6-digit PIN), the rest are disabled. Checkout's mode follows the picked address (courier delivery, §13). On submit, `POST /orders` re-checks with `within_local_radius` (door) or `zone_for_address` (courier) — defense in depth, see §4 step 4.
 
 ### 10.5 Seller signup pin step
 
