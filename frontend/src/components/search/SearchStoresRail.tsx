@@ -7,11 +7,13 @@ import { useLocale } from "next-intl";
 import { searchStores, type StoreHit } from "@/lib/searchClient";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import CrownBadge from "@/components/CrownBadge";
+import CourierBadge from "@/components/CourierBadge";
+import { showsCourierBadge } from "@/lib/courier";
 import styles from "./SearchStoresRail.module.css";
 
 export function SearchStoresRail({ q }: { q: string }) {
   const locale = useLocale();
-  const { location } = useDeliveryLocation();
+  const { location, userSet } = useDeliveryLocation();
   const [stores, setStores] = useState<StoreHit[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -63,6 +65,7 @@ export function SearchStoresRail({ q }: { q: string }) {
               {s.distance_km != null && (
                 <span className={styles.dist}>{s.distance_km} km away</span>
               )}
+              {showsCourierBadge(s, userSet) && <CourierBadge />}
             </span>
           </Link>
         ))}

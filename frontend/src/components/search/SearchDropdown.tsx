@@ -8,6 +8,9 @@ import { useLocale, useTranslations } from "next-intl";
 import * as recent from "@/lib/recentSearches";
 import { logClick, type SuggestResponse } from "@/lib/searchClient";
 import CrownBadge from "@/components/CrownBadge";
+import CourierBadge from "@/components/CourierBadge";
+import { showsCourierBadge } from "@/lib/courier";
+import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import styles from "./SearchDropdown.module.css";
 
 type Props = {
@@ -38,6 +41,7 @@ export function SearchDropdown({
 }: Props) {
   const t = useTranslations("Search");
   const locale = useLocale();
+  const { userSet } = useDeliveryLocation();
   const [recents, setRecents] = useState<string[]>([]);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -246,7 +250,10 @@ export function SearchDropdown({
                 onClose();
               }}
             >
-              <span>🏪 {s.name}{s.is_premium && <CrownBadge />}</span>
+              <span>
+                🏪 {s.name}{s.is_premium && <CrownBadge />}
+                {showsCourierBadge(s, userSet) && <CourierBadge className={styles.courier} />}
+              </span>
               {s.distance_km !== null && <span>{s.distance_km} km</span>}
             </Link>
             );
