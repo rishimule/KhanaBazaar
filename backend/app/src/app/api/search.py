@@ -6,7 +6,7 @@ import hashlib
 import json
 import math
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -263,6 +263,25 @@ async def suggest(
             return True
         return locality.fulfilment(offer_store_id, product_service_id) is not None
 
+    def _reach_of(offer_store_id: int, product_service_id: int) -> Optional[Fulfilment]:
+        if store_id is not None or locality is None:
+            return None
+        return locality.fulfilment(offer_store_id, product_service_id)
+
+    def _best_offer(
+        offers: list[dict[str, Any]], service: int
+    ) -> Optional[dict[str, Any]]:
+        """In stock first, then local before courier, then cheapest."""
+        return min(
+            offers,
+            key=lambda o: (
+                0 if o["is_available"] and o["stock"] > 0 else 1,
+                fulfilment_rank(_reach_of(int(o["store_id"]), service)),
+                float(o["price"]),
+            ),
+            default=None,
+        )
+
     def _name_for_locale(doc: dict) -> str:
         return (
             doc.get(f"name_{locale}")
@@ -278,12 +297,7 @@ async def suggest(
             if not o.get("suspended", False)
             and _reaches(int(o["store_id"]), int(hit["service_id"]))
         ]
-        in_stock = [o for o in offers if o["is_available"] and o["stock"] > 0]
-        best = (
-            min(in_stock, key=lambda o: o["price"])
-            if in_stock
-            else (min(offers, key=lambda o: o["price"]) if offers else None)
-        )
+        best = _best_offer(offers, int(hit["service_id"]))
         best_store: Optional[SuggestStoreOfferBest] = None
         if best is not None:
             try:
@@ -296,6 +310,7 @@ async def suggest(
                 name=store_name,
                 price=best["price"],
                 is_available=best["is_available"] and best["stock"] > 0,
+                fulfilment=_reach_of(int(best["store_id"]), int(hit["service_id"])),
             )
         products.append(
             SuggestProduct(
@@ -412,7 +427,9 @@ async def products(
     else:
         locality = await get_locality(session, redis, lat, lng)
         group_filters = (
-            [None] if locality is None else [g for _, g in product_groups(locality)]
+            [None]
+            if locality is None
+            else [g for _, g in product_groups(locality, service_id=service_id)]
         )
 
     # Location set but nothing serves it → no products (distinct from a None
@@ -532,13 +549,18 @@ async def products(
         card_groups.append(group_index)
 
     if sort == "distance":
-        # The user's sort applies within each group; local stays first.
+        # The user's sort applies within each group (local stays first), by
+        # the nearest store that can actually reach the point.
         order = sorted(
             range(len(cards)),
             key=lambda i: (
                 card_groups[i],
                 min(
-                    (o.distance_km for o in cards[i].per_store_offers if o.distance_km is not None),
+                    (
+                        o.distance_km
+                        for o in cards[i].per_store_offers
+                        if o.distance_km is not None and o.is_serviceable
+                    ),
                     default=float("inf"),
                 ),
             ),
@@ -671,9 +693,15 @@ async def browse(
         ).scalar_one_or_none()
     svc_name = svc_t.name if svc_t else svc.slug
 
-    # Location set but nothing serves it → nothing to show (distinct from a
-    # None locality, which means no/invalid location → show everything).
-    if locality is not None and locality.is_empty:
+    # Groups for THIS service: local, then courier (only if this service
+    # ships here). None locality = no/invalid location → no extra filter.
+    group_filters: list[Optional[str]] = (
+        [None]
+        if locality is None
+        else [g for _, g in product_groups(locality, service_id=service_id)]
+    )
+    # Location set but nothing serves this service there → nothing to show.
+    if not group_filters:
         body = BrowseResponse(
             service_id=service_id, service_name=svc_name, categories=[]
         )
@@ -714,12 +742,7 @@ async def browse(
             ).scalar_one_or_none()
         cat_names[cat.id] = ct.name if ct else cat.slug
 
-    # One query per group (local, then courier) per category; product_groups'
-    # courier clause covers every service, and the service filter below keeps
-    # just this one's term.
-    group_filters: list[Optional[str]] = (
-        [None] if locality is None else [g for _, g in product_groups(locality)]
-    )
+    # One query per group (local, then courier) per category.
     per = len(group_filters)
     client = get_meili_client()
     queries = [
@@ -992,6 +1015,12 @@ async def compare_offers(
     # Local, then courier, then stores that can't reach the point; cheapest
     # first within each. Without a location: cheapest first, as before.
     offers.sort(
+        key=lambda o: (
+            fulfilment_rank(o.fulfilment) if locality is not None else 0,
+            o.price,
+        )
+    )
+    pso_for_card.sort(
         key=lambda o: (
             fulfilment_rank(o.fulfilment) if locality is not None else 0,
             o.price,

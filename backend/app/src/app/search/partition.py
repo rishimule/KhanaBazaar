@@ -29,16 +29,25 @@ def ids_in(field: str, ids: Iterable[int]) -> str:
     return f"{field} IN [{','.join(str(int(i)) for i in ids)}]"
 
 
-def product_groups(locality: Locality) -> list[tuple[Fulfilment, str]]:
+def product_groups(
+    locality: Locality, service_id: Optional[int] = None
+) -> list[tuple[Fulfilment, str]]:
     """① a local store sells it; ② no local store does, and a courier store
-    ships it for its own service. Empty when nothing serves the point."""
+    ships it for its own service. With `service_id` (the caller also filters
+    on it), ② carries only that service's term — or is skipped. Empty when
+    nothing serves the point."""
     groups: list[tuple[Fulfilment, str]] = []
     if locality.local:
         groups.append(("local", ids_in("store_ids", locality.local)))
-    if locality.courier:
+    courier = {
+        sid: stores
+        for sid, stores in locality.courier.items()
+        if service_id is None or sid == service_id
+    }
+    if courier:
         ships = " OR ".join(
-            f"(service_id = {int(service_id)} AND {ids_in('store_ids', stores)})"
-            for service_id, stores in sorted(locality.courier.items())
+            f"(service_id = {int(sid)} AND {ids_in('store_ids', stores)})"
+            for sid, stores in sorted(courier.items())
         )
         clause = f"({ships})"
         if locality.local:
@@ -95,6 +104,27 @@ async def stitched_search(
 ) -> Stitched:
     """One page across groups searched in order: every match of group 1, then
     group 2, ... Facet counts are summed over the groups."""
+    # The SDK defaults attributes_to_retrieve to ["*"] and rejects None.
+    projection: dict[str, Any] = (
+        {} if attributes_to_retrieve is None
+        else {"attributes_to_retrieve": attributes_to_retrieve}
+    )
+    if len(group_filters) == 1 and limit > 0 and offset % limit == 0:
+        # One group (no location, store-scoped, or local-only): a single
+        # page-mode query returns the hits, the exact total and the facets.
+        [page] = await search_each(client, [
+            SearchParams(
+                index_uid=index_uid, query=query,
+                filter=combine(base_filter, group_filters[0]),
+                page=offset // limit + 1, hits_per_page=limit,
+                sort=sort, facets=facets, **projection,
+            )
+        ])
+        return Stitched(
+            hits=[(0, hit) for hit in page.hits],
+            total=_exact_total(page),
+            facets=_sum_facets([page]),
+        )
     counts = await search_each(client, [
         SearchParams(
             index_uid=index_uid, query=query, filter=combine(base_filter, group),
@@ -102,12 +132,7 @@ async def stitched_search(
         )
         for group in group_filters
     ])
-    totals = [int(r.total_hits or 0) for r in counts]
-    # The SDK defaults attributes_to_retrieve to ["*"] and rejects None.
-    projection: dict[str, Any] = (
-        {} if attributes_to_retrieve is None
-        else {"attributes_to_retrieve": attributes_to_retrieve}
-    )
+    totals = [_exact_total(r) for r in counts]
     window: list[SearchParams] = []
     slots: list[int] = []
     start, remaining = offset, limit
@@ -130,10 +155,22 @@ async def stitched_search(
         start = 0
     pages = await search_each(client, window)
     hits = [(slot, hit) for slot, page in zip(slots, pages, strict=True) for hit in page.hits]
+    return Stitched(hits=hits, total=sum(totals), facets=_sum_facets(counts))
+
+
+def _exact_total(result: Any) -> int:
+    """`total_hits` from a page-mode query; never silently 0 if a response
+    comes back in offset/limit form."""
+    if result.total_hits is not None:
+        return int(result.total_hits)
+    return int(result.estimated_total_hits or 0)
+
+
+def _sum_facets(results: list[Any]) -> dict[str, dict[str, int]]:
     summed: dict[str, dict[str, int]] = {}
-    for result in counts:
+    for result in results:
         for name, distribution in (result.facet_distribution or {}).items():
             bucket = summed.setdefault(name, {})
             for value, count in distribution.items():
                 bucket[str(value)] = bucket.get(str(value), 0) + int(count)
-    return Stitched(hits=hits, total=sum(totals), facets=summed)
+    return summed

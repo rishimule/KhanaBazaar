@@ -20,6 +20,8 @@ class SuggestStoreOfferBest(BaseModel):
     name: str
     price: float
     is_available: bool
+    # How this store reaches the searched location; None without one.
+    fulfilment: Optional[Literal["local", "courier"]] = None
 
 
 class SuggestProduct(BaseModel):

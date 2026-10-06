@@ -18,7 +18,16 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.address import Address
 from app.models.base import User, UserRole
-from app.models.catalog import MasterProduct, MasterProductTranslation
+from app.models.catalog import (
+    Category,
+    CategoryTranslation,
+    MasterProduct,
+    MasterProductTranslation,
+    Service,
+    ServiceTranslation,
+    Subcategory,
+    SubcategoryTranslation,
+)
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.store import Store, StoreInventory
 from tests._courier_helpers import CourierWorld, seed_courier_world
@@ -105,3 +114,86 @@ async def seed_discovery_world(session: AsyncSession) -> DiscoveryWorld:
     )
     await session.commit()
     return ids
+
+
+@dataclass(frozen=True)
+class DiscoveryExtras:
+    """Opt-in additions for the search and favourites edge cases."""
+
+    rasgulla_id: int  # Sweets › Bengali Sweets, Ravi only, ₹150 ("1 kg tin")
+    mysore_pak_id: int  # Sweets › Barfi, Mysuru Mart only, ₹200 ("400 g box")
+    sev_id: int  # Namkeen › Sev, Ravi only, ₹60; Ravi doesn't ship Namkeen
+    namkeen_service_id: int
+
+
+async def _product(
+    session: AsyncSession, subcategory_id: int, slug: str, name: str, description: str,
+    price: float,
+) -> int:
+    product = MasterProduct(subcategory_id=subcategory_id, slug=slug, base_price=price)
+    session.add(product)
+    await session.flush()
+    assert product.id is not None
+    session.add(
+        MasterProductTranslation(
+            master_product_id=product.id, language_code="en",
+            name=name, description=description,
+        )
+    )
+    return product.id
+
+
+async def seed_discovery_extras(
+    session: AsyncSession, world: DiscoveryWorld
+) -> DiscoveryExtras:
+    """At Mysuru these give two local products (Kaju Katli, Mysore Pak) and two
+    courier ones (Soan Papdi, Rasgulla), plus a Ravi product in a service Ravi
+    doesn't ship (Ratlami Sev)."""
+    kaju = await session.get(MasterProduct, world.kaju_id)
+    assert kaju is not None
+    barfi = await session.get(Subcategory, kaju.subcategory_id)
+    assert barfi is not None and barfi.id is not None
+    bengali = Subcategory(category_id=barfi.category_id, slug="bengali", is_active=True, sort_order=1)
+    session.add(bengali)
+    await session.flush()
+    assert bengali.id is not None
+    session.add(
+        SubcategoryTranslation(subcategory_id=bengali.id, language_code="en", name="Bengali Sweets")
+    )
+    rasgulla = await _product(session, bengali.id, "rasgulla", "Rasgulla", "1 kg tin", 150.0)
+    mysore_pak = await _product(session, barfi.id, "mysore-pak", "Mysore Pak", "400 g box", 200.0)
+
+    namkeen = Service(slug="namkeen", is_active=True, sort_order=1)
+    session.add(namkeen)
+    await session.flush()
+    assert namkeen.id is not None
+    session.add(ServiceTranslation(service_id=namkeen.id, language_code="en", name="Namkeen"))
+    farsan = Category(service_id=namkeen.id, slug="farsan", is_active=True, sort_order=0)
+    session.add(farsan)
+    await session.flush()
+    assert farsan.id is not None
+    session.add(CategoryTranslation(category_id=farsan.id, language_code="en", name="Farsan"))
+    sev_sub = Subcategory(category_id=farsan.id, slug="sev", is_active=True, sort_order=0)
+    session.add(sev_sub)
+    await session.flush()
+    assert sev_sub.id is not None
+    session.add(SubcategoryTranslation(subcategory_id=sev_sub.id, language_code="en", name="Sev"))
+    sev = await _product(session, sev_sub.id, "ratlami-sev", "Ratlami Sev", "200 g pack", 60.0)
+    # Ravi sells Namkeen too, without courier.
+    session.add(
+        SellerProfileService(
+            seller_profile_id=world.courier.seller_profile_id, service_id=namkeen.id
+        )
+    )
+    session.add_all([
+        StoreInventory(store_id=world.ravi_store_id, product_id=rasgulla, price=150.0, stock=10, is_available=True),
+        StoreInventory(store_id=world.mysuru_store_id, product_id=mysore_pak, price=200.0, stock=10, is_available=True),
+        StoreInventory(store_id=world.ravi_store_id, product_id=sev, price=60.0, stock=10, is_available=True),
+    ])
+    extras = DiscoveryExtras(
+        rasgulla_id=rasgulla, mysore_pak_id=mysore_pak, sev_id=sev,
+        namkeen_service_id=namkeen.id,
+    )
+    await session.commit()
+    return extras
+

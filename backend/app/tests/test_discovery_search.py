@@ -13,7 +13,7 @@ from app.search.partition import fulfilment_rank, product_groups, store_groups
 from app.search.reindex import reindex_all
 from app.services.serviceability import Locality
 from tests._courier_helpers import COURIER_POINT, FAR_POINT, LOCAL_POINT
-from tests._discovery_helpers import seed_discovery_world
+from tests._discovery_helpers import seed_discovery_extras, seed_discovery_world
 
 
 def test_product_groups_are_disjoint_and_local_first() -> None:
@@ -137,6 +137,9 @@ async def test_suggest_fills_with_courier_products_and_orders_stores(
     )).json()
     # Only the stores that reach Mysuru count: Mysuru Mart (local), Ravi (courier).
     assert kaju["products"][0]["store_count"] == 2
+    # Local before courier, even though Ravi (₹100) is cheaper than Mysuru Mart (₹120).
+    best = kaju["products"][0]["best_store"]
+    assert (best["id"], best["fulfilment"], best["price"]) == (world.mysuru_store_id, "local", 120.0)
     marts = (await client.get(
         "/api/v1/search/suggest", params={"q": "mart", "lat": lat, "lng": lng}
     )).json()
@@ -223,3 +226,185 @@ async def test_compare_orders_local_then_courier_then_unreachable(
         "Mira Mart", "Ravi Sweets", "Mysuru Mart",
     ]  # price order, as before
     assert {o["fulfilment"] for o in anywhere["offers"]} == {None}
+
+
+async def _rename_to_bazaars(session: AsyncSession, world: Any) -> None:
+    for store_id, name in (
+        (world.ravi_store_id, "Ravi Bazaar"),
+        (world.mira_store_id, "Mira Bazaar"),
+        (world.mysuru_store_id, "Mysuru Bazaar"),
+    ):
+        store = await session.get(Store, store_id)
+        assert store is not None
+        store.name = name
+    await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_suggest_store_rows_fill_local_courier_then_other(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    await _rename_to_bazaars(session, world)
+    await reindex_all(session, meili_test_client)
+    lat, lng = COURIER_POINT
+    body = (await client.get(
+        "/api/v1/search/suggest", params={"q": "bazaar", "lat": lat, "lng": lng}
+    )).json()
+    assert [(s["name"], s["fulfilment"]) for s in body["stores"]] == [
+        ("Mysuru Bazaar", "local"), ("Ravi Bazaar", "courier"), ("Mira Bazaar", None),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_suggest_products_list_local_matches_first(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    extras = await seed_discovery_extras(session, world)
+    await reindex_all(session, meili_test_client)
+    lat, lng = COURIER_POINT
+    # "box" matches Kaju Katli and Mysore Pak (local) and Soan Papdi (courier).
+    ids = [p["id"] for p in (await client.get(
+        "/api/v1/search/suggest", params={"q": "box", "lat": lat, "lng": lng}
+    )).json()["products"]]
+    assert set(ids[:2]) == {world.kaju_id, extras.mysore_pak_id}
+    assert ids[2:] == [world.soan_id]
+
+
+@pytest.mark.asyncio
+async def test_courier_counts_only_for_the_products_own_service(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    extras = await seed_discovery_extras(session, world)
+    await reindex_all(session, meili_test_client)
+    lat, lng = COURIER_POINT
+    # Ravi sells Ratlami Sev (Namkeen) but ships only Sweets.
+    mysuru = await _products(client, COURIER_POINT)
+    assert {p["id"] for p in mysuru["products"]} == {
+        world.kaju_id, extras.mysore_pak_id, world.soan_id, extras.rasgulla_id,
+    }
+    assert mysuru["facets"]["service_id"] == {str(world.service_id): 4}
+    assert (await _products(client, COURIER_POINT, q="sev"))["total"] == 0
+    assert (await client.get(
+        "/api/v1/search/suggest", params={"q": "sev", "lat": lat, "lng": lng}
+    )).json()["products"] == []
+    compare = (await client.get(
+        f"/api/v1/search/products/{extras.sev_id}/stores", params={"lat": lat, "lng": lng}
+    )).json()
+    assert [(o["store"]["name"], o["fulfilment"], o["is_serviceable"]) for o in compare["offers"]] == [
+        ("Ravi Sweets", None, False),
+    ]
+    # At home Ravi is local, so the same product is listed and reachable.
+    home = await _products(client, LOCAL_POINT, q="sev")
+    [sev] = home["products"]
+    assert [(o["store_id"], o["fulfilment"]) for o in sev["per_store_offers"]] == [
+        (world.ravi_store_id, "local"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_page_window_starts_inside_the_courier_group(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    extras = await seed_discovery_extras(session, world)
+    await reindex_all(session, meili_test_client)
+    local = {world.kaju_id, extras.mysore_pak_id}
+    courier = {world.soan_id, extras.rasgulla_id}
+    singles = [await _products(client, COURIER_POINT, page=n, page_size=1) for n in (1, 2, 3, 4, 5)]
+    ids = [p["id"] for page in singles for p in page["products"]]
+    assert set(ids[:2]) == local and set(ids[2:]) == courier and len(ids) == 4
+    assert {page["total"] for page in singles} == {4}
+    # Page 2 of 3 starts one row into the courier group (offset 3).
+    first = await _products(client, COURIER_POINT, page=1, page_size=3)
+    second = await _products(client, COURIER_POINT, page=2, page_size=3)
+    first_ids = [p["id"] for p in first["products"]]
+    assert set(first_ids[:2]) == local and first_ids[2] in courier
+    assert [p["id"] for p in second["products"]] == list(courier - {first_ids[2]})
+
+
+@pytest.mark.asyncio
+async def test_price_sort_applies_within_each_group(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    extras = await seed_discovery_extras(session, world)
+    await reindex_all(session, meili_test_client)
+    # min_price: Kaju Katli ₹90 (Mira Mart), Mysore Pak ₹200 | Soan Papdi ₹80, Rasgulla ₹150.
+    asc = await _products(client, COURIER_POINT, sort="price_asc")
+    assert [p["id"] for p in asc["products"]] == [
+        world.kaju_id, extras.mysore_pak_id, world.soan_id, extras.rasgulla_id,
+    ]
+    desc = await _products(client, COURIER_POINT, sort="price_desc")
+    assert [p["id"] for p in desc["products"]] == [
+        extras.mysore_pak_id, world.kaju_id, extras.rasgulla_id, world.soan_id,
+    ]
+
+
+@pytest.mark.asyncio
+async def test_browse_sums_subcategories_and_truncates_local_first(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    extras = await seed_discovery_extras(session, world)
+    await reindex_all(session, meili_test_client)
+    lat, lng = COURIER_POINT
+    params = {"service_id": world.service_id, "lat": lat, "lng": lng}
+    [category] = (await client.get("/api/v1/search/browse", params=params)).json()["categories"]
+    ids = [p["id"] for p in category["products"]]
+    assert set(ids[:2]) == {world.kaju_id, extras.mysore_pak_id}
+    assert set(ids[2:]) == {world.soan_id, extras.rasgulla_id}
+    # "bengali" only has a courier product (Rasgulla): the chips count both groups.
+    assert [s["slug"] for s in category["subcategories"]] == ["barfi", "bengali"]
+    [one] = (await client.get(
+        "/api/v1/search/browse", params={**params, "per_category": 1}
+    )).json()["categories"]
+    assert [p["id"] for p in one["products"]][0] in {world.kaju_id, extras.mysore_pak_id}
+    assert len(one["products"]) == 1
+    # Namkeen ships nowhere near Mysuru and has no local seller: nothing to browse.
+    namkeen = (await client.get(
+        "/api/v1/search/browse",
+        params={"service_id": extras.namkeen_service_id, "lat": lat, "lng": lng},
+    )).json()
+    assert namkeen["categories"] == []
+
+
+@pytest.mark.asyncio
+async def test_compare_without_reach_or_outside_india(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    world = await seed_discovery_world(session)
+    delhi = (await client.get(
+        f"/api/v1/search/products/{world.kaju_id}/stores",
+        params={"lat": FAR_POINT[0], "lng": FAR_POINT[1]},
+    )).json()
+    assert [(o["store"]["name"], o["fulfilment"], o["is_serviceable"]) for o in delhi["offers"]] == [
+        ("Mira Mart", None, False), ("Ravi Sweets", None, False), ("Mysuru Mart", None, False),
+    ]
+    abroad = (await client.get(
+        f"/api/v1/search/products/{world.kaju_id}/stores", params={"lat": 40.0, "lng": -74.0}
+    )).json()
+    assert [(o["store"]["name"], o["fulfilment"], o["is_serviceable"]) for o in abroad["offers"]] == [
+        ("Mira Mart", None, True), ("Ravi Sweets", None, True), ("Mysuru Mart", None, True),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_store_scoped_search_ignores_the_location(
+    client: AsyncClient, session: AsyncSession, meili_test_client: Any
+) -> None:
+    world = await seed_discovery_world(session)
+    await reindex_all(session, meili_test_client)
+    lat, lng = COURIER_POINT
+    body = (await client.get(
+        "/api/v1/search/products",
+        params={"q": "", "store_id": world.mira_store_id, "lat": lat, "lng": lng},
+    )).json()
+    [kaju] = body["products"]
+    assert kaju["id"] == world.kaju_id
+    for offer in kaju["per_store_offers"]:
+        assert offer["is_serviceable"] is (offer["store_id"] == world.mira_store_id)
+        assert offer["fulfilment"] is None
+
