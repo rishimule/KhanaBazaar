@@ -3,7 +3,7 @@
 from datetime import date
 
 from fastapi import HTTPException
-from sqlalchemy import and_, text
+from sqlalchemy import and_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -32,6 +32,7 @@ from app.services.inventory import decrement_stock, lock_inventory_rows
 from app.services.serviceability import (
     bank_transfer_live,
     is_courier_destination,
+    within_local_radius,
     zone_for_address,
 )
 from app.utils.address import format_address
@@ -151,25 +152,20 @@ async def _assert_serviceable(
 ) -> None:
     """Raise 422 if the customer's delivery address is outside the store's
     delivery radius. Stores or addresses missing geo are treated as
-    NOT-serviceable so couriers don't end up with un-pinpointed deliveries."""
-    sql = text(
-        "SELECT EXISTS ("
-        "  SELECT 1 FROM store s "
-        "  JOIN address sa ON sa.id = s.address_id "
-        "  JOIN address ca ON ca.id = :address_id "
-        "  WHERE s.id = :store_id "
-        "    AND sa.geo IS NOT NULL AND ca.geo IS NOT NULL "
-        "    AND ST_DWithin(sa.geo, ca.geo, s.delivery_radius_km * 1000)"
-        ") AS ok"
-    )
-    result = await session.exec(  # type: ignore[call-overload]
-        sql.bindparams(store_id=store_id, address_id=address_id)
-    )
-    ok = bool(result.scalar_one())
-    if not ok:
-        raise HTTPException(
-            status_code=422, detail="outside_delivery_area"
+    NOT-serviceable so couriers don't end up with un-pinpointed deliveries.
+    Status-blind on purpose: an inactive store is reported as
+    `store_unavailable` by _validate_stores_active, which runs later."""
+    address = await session.get(Address, address_id)
+    ok = (
+        address is not None
+        and address.latitude is not None
+        and address.longitude is not None
+        and await within_local_radius(
+            session, store_id=store_id, lat=address.latitude, lng=address.longitude
         )
+    )
+    if not ok:
+        raise HTTPException(status_code=422, detail="outside_delivery_area")
 
 
 async def _validate_stores_active(

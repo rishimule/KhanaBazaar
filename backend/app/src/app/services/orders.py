@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
 from fastapi import HTTPException
-from sqlalchemy import text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -42,6 +41,7 @@ from app.services.courier_rules import (
     validate_tracking_url,
 )
 from app.services.inventory import lock_inventory_rows, restock
+from app.services.serviceability import within_local_radius
 from app.utils.address import format_address
 
 LEGAL_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
@@ -518,8 +518,8 @@ async def override_delivery_address(
 ) -> Order:
     """Admin-only: replace the delivery address on a non-terminal order.
 
-    1. Validate ST_DWithin between the new coordinates and the store's
-       address inside the store's ``delivery_radius_km``.
+    1. Check the new coordinates are inside the store's local radius
+       (``within_local_radius``, the shared rule).
     2. Insert a new ``Address`` row from the payload (preserving the
        original for audit).
     3. Update ``Order.delivery_address_id`` and rewrite the formatted
@@ -561,24 +561,13 @@ async def override_delivery_address(
             detail={"code": "delivery_geo_missing"},
         )
 
-    radius_m = (store.delivery_radius_km or 5.0) * 1000.0
-    within_stmt = text(
-        "SELECT ST_DWithin("
-        " ST_SetSRID(ST_MakePoint(:slng, :slat), 4326)::geography,"
-        " ST_SetSRID(ST_MakePoint(:nlng, :nlat), 4326)::geography,"
-        " :radius) AS within"
-    )
-    result = await session.execute(
-        within_stmt,
-        {
-            "slng": store_address.longitude,
-            "slat": store_address.latitude,
-            "nlng": address_payload.longitude,
-            "nlat": address_payload.latitude,
-            "radius": radius_m,
-        },
-    )
-    if not result.scalar():
+    assert store.id is not None
+    if not await within_local_radius(
+        session,
+        store_id=store.id,
+        lat=address_payload.latitude,
+        lng=address_payload.longitude,
+    ):
         raise HTTPException(
             status_code=422, detail={"code": "delivery_out_of_radius"}
         )
