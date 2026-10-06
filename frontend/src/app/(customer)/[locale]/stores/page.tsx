@@ -196,7 +196,9 @@ function StoresPageInner() {
           </p>
         ) : (
           <>
-        {deliverability === "courier_only" && <CourierOnlyBanner />}
+        {deliverability === "courier_only" && (
+          <CourierOnlyBanner className={styles.courierBanner} />
+        )}
         {services.length > 0 && (
           <section className={styles.svcSection}>
             <h2 className={styles.svcTitle}>{t("shopByService")}</h2>

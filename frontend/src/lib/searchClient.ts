@@ -17,6 +17,7 @@ export type SuggestBestStore = {
   name: string;
   price: number;
   is_available: boolean;
+  fulfilment?: Fulfilment | null;
 };
 
 export type SuggestProduct = {

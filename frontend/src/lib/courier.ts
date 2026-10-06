@@ -173,6 +173,28 @@ export function storeServesService(
   return store.fulfilment !== "courier" || (store.courier_service_ids ?? []).includes(serviceId);
 }
 
+/** Stable reorder that puts courier rows after every other row — e.g. home
+ *  preview candidates, built in catalogue-service order, so a courier store
+ *  is previewed only when no local candidate has stock to show. */
+export function localFirst<T>(rows: T[], fulfilmentOf: (row: T) => Fulfilment | null | undefined): T[] {
+  return [
+    ...rows.filter((row) => fulfilmentOf(row) !== "courier"),
+    ...rows.filter((row) => fulfilmentOf(row) === "courier"),
+  ];
+}
+
+/** Services that at least one courier row of the store list ships. */
+export function courierShippedServiceIds(
+  stores: Pick<Store, "fulfilment" | "courier_service_ids">[],
+): Set<number> {
+  const ids = new Set<number>();
+  for (const store of stores) {
+    if (store.fulfilment !== "courier") continue;
+    for (const id of store.courier_service_ids ?? []) ids.add(id);
+  }
+  return ids;
+}
+
 /** Local and courier store counts from a count-mode serviceability check.
  *  An older API without `store_count` falls back to the `serviceable` flag. */
 export function deliverabilityCounts(result: ServiceabilityResult): {

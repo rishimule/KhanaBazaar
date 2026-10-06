@@ -215,10 +215,17 @@ export function SearchDropdown({
                     {p.best_store.name}
                     {" · "}
                     {p.best_store.is_available ? "in stock" : t("outOfStock")}
+                    {showsCourierBadge(p.best_store, userSet) && (
+                      <CourierBadge className={styles.courier} />
+                    )}
                   </span>
                 )}
               </span>
-              <span className={styles.price}>₹{p.min_price.toFixed(0)}</span>
+              {/* The named store's price: the catalogue minimum may come
+                  from a store that can't reach this location. */}
+              <span className={styles.price}>
+                ₹{(p.best_store?.price ?? p.min_price).toFixed(0)}
+              </span>
             </Link>
           ))}
         </section>

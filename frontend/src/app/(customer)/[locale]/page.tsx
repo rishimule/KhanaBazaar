@@ -22,7 +22,7 @@ import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import CrownBadge from "@/components/CrownBadge";
 import CourierBadge from "@/components/CourierBadge";
 import CourierOnlyBanner from "@/components/CourierOnlyBanner";
-import { showsCourierBadge, storeServesService } from "@/lib/courier";
+import { localFirst, showsCourierBadge, storeServesService } from "@/lib/courier";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -78,7 +78,8 @@ export default function Home() {
       const store = stores.find((s) => storeServesService(s, service.id));
       if (store) out.push({ store, service });
     }
-    return out;
+    // …and every local candidate is tried before any courier one.
+    return localFirst(out, (c) => c.store.fulfilment);
   }, [services, stores]);
 
   if (loading || (dbUser && dbUser.role !== "customer")) {
@@ -235,7 +236,7 @@ export default function Home() {
                       <div className={styles.storeCardBody}>
                         <h3 className={styles.storeName}>{store.name}{store.is_premium && <CrownBadge />}</h3>
                         <p className={styles.storeAddr}>{formatAddress(store.address)}</p>
-                        {showsCourierBadge(store, userSet) && <CourierBadge />}
+                        {showsCourierBadge(store, userSet) && <CourierBadge start />}
                         <span className={styles.storeCardAction}>{t("storeBrowse")} →</span>
                       </div>
                     </Link>

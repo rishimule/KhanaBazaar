@@ -7,8 +7,21 @@ import styles from "./CourierBadge.module.css";
 
 /** "Ships by courier · few days" — on listing rows that reach the chosen
  *  location only by courier (spec 2026-10-02 §12). Callers decide whether to
- *  render it with `showsCourierBadge`. */
-export default function CourierBadge({ className = "" }: { className?: string }) {
+ *  render it with `showsCourierBadge`.
+ *  - `start`: inside a column flexbox, keep the pill its own width;
+ *  - `wrap`: on narrow rows, let the label wrap instead of widening the row. */
+export default function CourierBadge({
+  className = "",
+  start = false,
+  wrap = false,
+}: {
+  className?: string;
+  start?: boolean;
+  wrap?: boolean;
+}) {
   const t = useTranslations("Shared");
-  return <span className={`${styles.badge} ${className}`.trim()}>{t("courierBadge")}</span>;
+  const classes = [styles.badge, start && styles.start, wrap && styles.wrap, className]
+    .filter(Boolean)
+    .join(" ");
+  return <span className={classes}>{t("courierBadge")}</span>;
 }

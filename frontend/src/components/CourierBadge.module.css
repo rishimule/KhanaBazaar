@@ -2,8 +2,6 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  /* Inside a column flexbox, don't stretch to the full width. */
-  align-self: flex-start;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   font-size: var(--body-2xs);
@@ -12,4 +10,12 @@
   white-space: nowrap;
   background: var(--saffron-light-1);
   color: var(--saffron-dark-1);
+}
+
+.start {
+  align-self: flex-start;
+}
+
+.wrap {
+  white-space: normal;
 }

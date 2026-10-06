@@ -67,8 +67,10 @@ export function ProductOfferList({ data }: Props) {
             {o.store.name}
             {o.store.is_premium && <CrownBadge />}
           </Link>
+          {showsCourierBadge(o, userSet) && (
+            <CourierBadge className={styles.courier} start wrap />
+          )}
           <div className={styles.subtext}>
-            {showsCourierBadge(o, userSet) && <CourierBadge className={styles.courier} />}
             {o.store.distance_km !== null && (
               <span>{o.store.distance_km} km</span>
             )}

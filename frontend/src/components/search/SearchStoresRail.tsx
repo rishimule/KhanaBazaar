@@ -65,7 +65,7 @@ export function SearchStoresRail({ q }: { q: string }) {
               {s.distance_km != null && (
                 <span className={styles.dist}>{s.distance_km} km away</span>
               )}
-              {showsCourierBadge(s, userSet) && <CourierBadge />}
+              {showsCourierBadge(s, userSet) && <CourierBadge start />}
             </span>
           </Link>
         ))}

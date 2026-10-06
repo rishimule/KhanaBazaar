@@ -10,6 +10,7 @@ import { get } from "@/lib/api";
 import { browseProducts, type BrowseResponse } from "@/lib/searchClient";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import { useDeliverability } from "@/lib/useDeliverability";
+import { courierShippedServiceIds } from "@/lib/courier";
 import { serviceGlyph } from "@/lib/serviceGlyph";
 import { ScrollRail } from "@/components/ScrollRail";
 import { CategoryCarousel } from "@/components/CategoryCarousel";
@@ -18,7 +19,7 @@ import { SearchFilters } from "@/components/search/SearchFilters";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import CourierOnlyBanner from "@/components/CourierOnlyBanner";
-import { Service } from "@/types";
+import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
 function ProductsInner() {
@@ -49,7 +50,37 @@ function ProductsInner() {
       .catch(() => setServices([]));
   }, [locale]);
 
-  const activeSlug = serviceSlug ?? services[0]?.slug ?? null;
+  // Courier-only location with no service picked: open on a service a
+  // courier store actually ships, not on one that would show nothing.
+  const needsCourierDefault = deliverability === "courier_only" && !serviceSlug;
+  const locationKey = `${location.lat},${location.lng}`;
+  const [shipped, setShipped] = useState<{ key: string; ids: Set<number> } | null>(null);
+  const shippedIds = shipped?.key === locationKey ? shipped.ids : null;
+  const waitingForCourierDefault = needsCourierDefault && shippedIds === null;
+
+  useEffect(() => {
+    if (!needsCourierDefault) return;
+    let cancel = false;
+    const key = `${location.lat},${location.lng}`;
+    get<Store[]>(
+      `/api/v1/stores/?lat=${location.lat}&lng=${location.lng}&sort=distance&limit=50`,
+    )
+      .then((rows) => {
+        if (!cancel) setShipped({ key, ids: courierShippedServiceIds(rows) });
+      })
+      .catch(() => {
+        if (!cancel) setShipped({ key, ids: new Set() });
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [needsCourierDefault, location.lat, location.lng]);
+
+  const courierDefaultSlug =
+    needsCourierDefault && shippedIds
+      ? (services.find((s) => shippedIds.has(s.id))?.slug ?? null)
+      : null;
+  const activeSlug = serviceSlug ?? courierDefaultSlug ?? services[0]?.slug ?? null;
   const activeService = useMemo(
     () => services.find((s) => s.slug === activeSlug) ?? null,
     [services, activeSlug],
@@ -78,6 +109,7 @@ function ProductsInner() {
     if (!activeService) return;
     // Only browse with a real location (no silent Mumbai default).
     if (!userSet) return;
+    if (waitingForCourierDefault) return;
     let cancel = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- show skeleton synchronously while fetching
     setLoading(true);
@@ -97,7 +129,7 @@ function ProductsInner() {
     return () => {
       cancel = true;
     };
-  }, [activeService, categoryId, location, locale, userSet]);
+  }, [activeService, categoryId, location, locale, userSet, waitingForCourierDefault]);
 
   return (
     <div className={styles.page}>
@@ -127,7 +159,9 @@ function ProductsInner() {
           <div className={styles.empty}>{t("loading")}</div>
         ) : (
           <>
-        {deliverability === "courier_only" && <CourierOnlyBanner />}
+        {deliverability === "courier_only" && (
+          <CourierOnlyBanner className={styles.courierBanner} />
+        )}
         {services.length > 0 && (
           <div className={styles.svcSection}>
             <ScrollRail

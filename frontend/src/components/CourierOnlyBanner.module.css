@@ -5,7 +5,6 @@
   gap: var(--space-4);
   width: 100%;
   padding: var(--space-5) var(--space-6);
-  margin-bottom: var(--space-6);
   background: var(--saffron-light-1);
   color: var(--shade-cool-dark-7);
   border: 1px solid var(--saffron-light-2);

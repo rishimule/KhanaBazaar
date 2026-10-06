@@ -17,6 +17,8 @@
 }
 .storeMeta {
   flex: 1;
+  /* Let the row shrink on phones instead of pushing the buttons off-screen. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -125,5 +127,5 @@
 }
 
 .courier {
-  margin-right: 6px;
+  margin: 2px 0;
 }

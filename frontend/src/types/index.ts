@@ -131,10 +131,10 @@ export interface CustomerProfile {
   account_status?: "active" | "deactivated" | "suspended" | "deleted";
 }
 
-/** A seller's store on the platform. */
 /** How a listed store reaches the customer's chosen location (spec §12). */
 export type Fulfilment = "local" | "courier";
 
+/** A seller's store on the platform. */
 export interface Store extends BaseSchema {
   name: string;
   address: Address;

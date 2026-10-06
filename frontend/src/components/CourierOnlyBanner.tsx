@@ -6,11 +6,12 @@ import { useTranslations } from "next-intl";
 import styles from "./CourierOnlyBanner.module.css";
 
 /** Home / Stores / Products when no store delivers to the chosen location
- *  but some ship there by courier (the `courier_only` deliverability state). */
-export default function CourierOnlyBanner() {
+ *  but some ship there by courier (the `courier_only` deliverability state).
+ *  No outer margin: Home's flex gap spaces it, other pages pass a class. */
+export default function CourierOnlyBanner({ className = "" }: { className?: string }) {
   const t = useTranslations("Deliverability");
   return (
-    <section className={styles.banner} role="status">
+    <section className={`${styles.banner} ${className}`.trim()} role="status">
       <span className={styles.icon} aria-hidden="true">📦</span>
       <p className={styles.message}>{t("courierOnly")}</p>
     </section>
