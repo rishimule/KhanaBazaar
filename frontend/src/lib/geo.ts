@@ -34,6 +34,8 @@ export interface ServiceabilityResult {
   /** Local door delivery only (unchanged meaning). */
   serviceable: boolean;
   store_count?: number | null;
+  /** Count mode: stores that ship here by courier (never local ones). */
+  courier_store_count?: number | null;
   /** Set when a store was given. */
   zone?: DeliveryZone | null;
   /** With a store: its services that can ship by courier to this point. */

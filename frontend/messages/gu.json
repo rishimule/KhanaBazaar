@@ -80,7 +80,8 @@
     "sellerBandEyebrow": "સ્થાનિક વિક્રેતાઓ માટે",
     "sellerBandTitle": "સ્થાનિક દુકાન ચલાવો છો?",
     "sellerBandBody": "તમારો કેટલોગ ઓનલાઇન લાવો, સ્થાનિક ઇન્વેન્ટરી મેનેજ કરો, અને {brand} દ્વારા નજીકના ગ્રાહકો સુધી પહોંચો.",
-    "becomeSeller": "વિક્રેતા બનો"
+    "becomeSeller": "વિક્રેતા બનો",
+    "previewTitleCourier": "તમને મોકલતા સ્ટોરમાંથી"
   },
   "Stores": {
     "loading": "લોડ થઈ રહ્યું છે…",
@@ -2945,7 +2946,8 @@
       "confirmCta": "લોગ આઉટ",
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
-    }
+    },
+    "courierBadge": "કુરિયરથી મોકલાય છે · થોડા દિવસ"
   },
   "Info": {
     "aboutTitle": "{brand} વિશે",
@@ -2981,7 +2983,8 @@
     "setLocationTitle": "તમારું ડિલિવરી સ્થાન સેટ કરો",
     "setLocationBody": "અમને જણાવો કે ક્યાં ડિલિવરી કરવી જેથી અમે તમારી નજીક ઉપલબ્ધ વસ્તુઓ બતાવી શકીએ.",
     "setLocationCta": "સ્થાન સેટ કરો",
-    "useMyLocation": "મારું સ્થાન વાપરો"
+    "useMyLocation": "મારું સ્થાન વાપરો",
+    "courierOnly": "હજુ અહીં કોઈ સ્ટોર સીધી ડિલિવરી કરતો નથી — આ તમને કુરિયરથી મોકલાય છે"
   },
   "SuggestStore": {
     "title": "વિક્રેતા અથવા સ્ટોર સૂચવો",

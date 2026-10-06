@@ -10,9 +10,11 @@ import type {
   Address,
   CourierQuote,
   DeliveryMode,
+  Fulfilment,
   Order,
   OrderStatus,
   PaymentMethod,
+  Store,
 } from "@/types";
 
 /** Why a saved address can or cannot take this sub-basket at checkout.
@@ -149,4 +151,36 @@ export function straightLineKm(
     Math.sin(rad(lat2 - lat1) / 2) ** 2 +
     Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2;
   return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+/** Show "Ships by courier" on a listing row (store card, offer, search store
+ *  row, favourites group): only when the row reaches the location by courier
+ *  AND the customer chose that location — never the Mumbai fallback. */
+export function showsCourierBadge(
+  row: { fulfilment?: Fulfilment | null },
+  locationChosen: boolean,
+): boolean {
+  return locationChosen && row.fulfilment === "courier";
+}
+
+/** Whether a row of the location-aware store list can serve `serviceId`
+ *  there: a local store just has to offer it; a courier store must ship it. */
+export function storeServesService(
+  store: Pick<Store, "services" | "fulfilment" | "courier_service_ids">,
+  serviceId: number,
+): boolean {
+  if (!store.services?.some((s) => s.id === serviceId)) return false;
+  return store.fulfilment !== "courier" || (store.courier_service_ids ?? []).includes(serviceId);
+}
+
+/** Local and courier store counts from a count-mode serviceability check.
+ *  An older API without `store_count` falls back to the `serviceable` flag. */
+export function deliverabilityCounts(result: ServiceabilityResult): {
+  local: number;
+  courier: number;
+} {
+  return {
+    local: result.store_count ?? (result.serviceable ? 1 : 0),
+    courier: result.courier_store_count ?? 0,
+  };
 }
