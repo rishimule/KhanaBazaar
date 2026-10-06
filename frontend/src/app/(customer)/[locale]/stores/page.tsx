@@ -17,6 +17,9 @@ import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import CrownBadge from "@/components/CrownBadge";
+import CourierBadge from "@/components/CourierBadge";
+import CourierOnlyBanner from "@/components/CourierOnlyBanner";
+import { showsCourierBadge } from "@/lib/courier";
 import StoreAvatar from "@/components/StoreAvatar";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
@@ -193,6 +196,7 @@ function StoresPageInner() {
           </p>
         ) : (
           <>
+        {deliverability === "courier_only" && <CourierOnlyBanner />}
         {services.length > 0 && (
           <section className={styles.svcSection}>
             <h2 className={styles.svcTitle}>{t("shopByService")}</h2>
@@ -294,6 +298,7 @@ function StoresPageInner() {
                         {store.distance_km.toFixed(1)} km away
                       </span>
                     )}
+                    {showsCourierBadge(store, userSet) && <CourierBadge />}
                   </div>
                   <span className={styles.viewBtn}>{t("viewStore")} →</span>
                 </div>

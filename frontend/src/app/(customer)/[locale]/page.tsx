@@ -20,6 +20,9 @@ import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import CrownBadge from "@/components/CrownBadge";
+import CourierBadge from "@/components/CourierBadge";
+import CourierOnlyBanner from "@/components/CourierOnlyBanner";
+import { showsCourierBadge, storeServesService } from "@/lib/courier";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -70,9 +73,9 @@ export default function Home() {
   const candidates = useMemo<PreviewCandidate[]>(() => {
     const out: PreviewCandidate[] = [];
     for (const service of services) {
-      const store = stores.find((s) =>
-        s.services?.some((sv) => sv.id === service.id),
-      );
+      // Local stores come first in the list, so a service prefers one; a
+      // courier store qualifies only for a service it ships (spec §12).
+      const store = stores.find((s) => storeServesService(s, service.id));
       if (store) out.push({ store, service });
     }
     return out;
@@ -183,6 +186,7 @@ export default function Home() {
           </div>
         ) : (
           <>
+            {deliverability === "courier_only" && <CourierOnlyBanner />}
             {services.length > 0 && (
               <section className={styles.section}>
                 <div className={styles.sectionHead}>
@@ -231,6 +235,7 @@ export default function Home() {
                       <div className={styles.storeCardBody}>
                         <h3 className={styles.storeName}>{store.name}{store.is_premium && <CrownBadge />}</h3>
                         <p className={styles.storeAddr}>{formatAddress(store.address)}</p>
+                        {showsCourierBadge(store, userSet) && <CourierBadge />}
                         <span className={styles.storeCardAction}>{t("storeBrowse")} →</span>
                       </div>
                     </Link>

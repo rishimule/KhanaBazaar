@@ -17,6 +17,7 @@ import { SearchResultsGrid } from "@/components/search/SearchResultsGrid";
 import { SearchFilters } from "@/components/search/SearchFilters";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
+import CourierOnlyBanner from "@/components/CourierOnlyBanner";
 import { Service } from "@/types";
 import styles from "./page.module.css";
 
@@ -126,6 +127,7 @@ function ProductsInner() {
           <div className={styles.empty}>{t("loading")}</div>
         ) : (
           <>
+        {deliverability === "courier_only" && <CourierOnlyBanner />}
         {services.length > 0 && (
           <div className={styles.svcSection}>
             <ScrollRail
