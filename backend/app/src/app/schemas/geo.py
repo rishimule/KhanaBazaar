@@ -41,6 +41,8 @@ class ServiceabilityResponse(BaseModel):
     # Local door delivery only — unchanged meaning for existing callers.
     serviceable: bool
     store_count: Optional[int] = None
+    # Count mode: stores that would ship here by courier (never local ones).
+    courier_store_count: Optional[int] = None
     # Set only when store_id was given (spec §12).
     zone: Optional[Literal["local", "courier", "none"]] = None
     courier_service_ids: list[int] = []
