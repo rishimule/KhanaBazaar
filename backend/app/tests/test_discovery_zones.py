@@ -1,11 +1,15 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """The zone rule as listing SQL and as a per-point Locality (spec §5, §12)."""
+from collections.abc import Callable
+
+import pytest
 from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models.address import Address
 from app.models.catalog import Service
-from app.models.profile import SellerProfile
+from app.models.profile import SellerProfile, SellerProfileService
 from app.models.store import Store
 from app.services.serviceability import (
     Locality,
@@ -13,6 +17,7 @@ from app.services.serviceability import (
     courier_enabled_service_ids,
     within_local_radius,
     zone_case_sql,
+    zone_for_point,
     zone_params,
 )
 from tests._courier_helpers import COURIER_POINT, FAR_POINT, LOCAL_POINT
@@ -118,3 +123,87 @@ async def test_courier_enabled_service_ids(session: AsyncSession) -> None:
     )
     assert shipping == {world.ravi_store_id: (world.service_id,)}
     assert await courier_enabled_service_ids(session, []) == {}
+
+
+Mutation = Callable[[Store, SellerProfile, SellerProfileService, Address], None]
+
+
+def _unchanged(st: Store, sp: SellerProfile, sps: SellerProfileService, a: Address) -> None:
+    pass
+
+
+def _bank_transfer_only(st: Store, sp: SellerProfile, sps: SellerProfileService, a: Address) -> None:
+    sp.upi_enabled = False
+
+
+def _upi_without_vpa(st: Store, sp: SellerProfile, sps: SellerProfileService, a: Address) -> None:
+    sp.upi_vpa = ""
+    sp.bank_transfer_enabled = False
+
+
+def _bank_without_ifsc(st: Store, sp: SellerProfile, sps: SellerProfileService, a: Address) -> None:
+    sp.upi_enabled = False
+    sp.bank_ifsc = None
+
+
+def _bank_without_name(st: Store, sp: SellerProfile, sps: SellerProfileService, a: Address) -> None:
+    sp.upi_enabled = False
+    sp.bank_account_name = ""
+
+
+def _courier_off(st: Store, sp: SellerProfile, sps: SellerProfileService, a: Address) -> None:
+    sps.courier_enabled = False
+
+
+def _no_courier_ring(st: Store, sp: SellerProfile, sps: SellerProfileService, a: Address) -> None:
+    st.courier_radius_km = None
+
+
+def _inactive_store(st: Store, sp: SellerProfile, sps: SellerProfileService, a: Address) -> None:
+    st.is_active = False
+
+
+def _store_without_pin(st: Store, sp: SellerProfile, sps: SellerProfileService, a: Address) -> None:
+    a.latitude = None
+    a.longitude = None
+
+
+@pytest.mark.parametrize(
+    ("mutate", "ships"),
+    [
+        (_unchanged, True),
+        (_bank_transfer_only, True),  # the payee rule is UPI *or* bank transfer
+        (_upi_without_vpa, False),
+        (_bank_without_ifsc, False),
+        (_bank_without_name, False),
+        (_courier_off, False),
+        (_no_courier_ring, False),
+        (_inactive_store, False),
+        (_store_without_pin, False),
+    ],
+    ids=lambda v: v.__name__.strip("_") if callable(v) else str(v),
+)
+async def test_listing_sql_agrees_with_zone_for_point(
+    session: AsyncSession, mutate: Mutation, ships: bool
+) -> None:
+    """The listing SQL, the per-store check and the cached locality must
+    answer the same question the same way (spec §5)."""
+    world = await seed_discovery_world(session)
+    store = await session.get(Store, world.ravi_store_id)
+    seller = await session.get(SellerProfile, world.courier.seller_profile_id)
+    sps = await session.get(SellerProfileService, world.courier.sps_id)
+    assert store is not None and seller is not None and sps is not None
+    address = await session.get(Address, store.address_id)
+    assert address is not None
+    mutate(store, seller, sps, address)
+    await session.commit()
+    lat, lng = COURIER_POINT
+    expected = "courier" if ships else None
+    assert (await _zones(session, COURIER_POINT)).get("Ravi Sweets") == expected
+    zone = await zone_for_point(
+        session, store_id=world.ravi_store_id, lat=lat, lng=lng, service_id=world.service_id
+    )
+    assert zone.zone == ("courier" if ships else "none")
+    locality = await compute_locality(session, lat=lat, lng=lng)
+    assert locality.fulfilment(world.ravi_store_id, world.service_id) == expected
+

@@ -105,6 +105,7 @@ _GROUPED_SQL = text(
       JOIN   address a ON a.id = s.address_id AND a.geo IS NOT NULL
       JOIN   sellerprofile sp ON sp.id = s.seller_profile_id
       WHERE  f.customer_profile_id = :cid
+      OFFSET 0  -- not inlined: the zone is computed once per row
     ) z
     WHERE z.zone IS NOT NULL
     ORDER BY (z.zone = 'local') DESC, z.distance_km ASC, z.store_id ASC, z.favourited_at DESC

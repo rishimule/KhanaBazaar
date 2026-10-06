@@ -7,6 +7,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.catalog import Service
+from app.models.platform_fee import ArrangementStatus, FeeArrangement, FeeModel
 from app.models.profile import SellerProfileService
 from app.models.store import Store
 from tests._courier_helpers import COURIER_POINT, CUSTOMER, LOCAL_POINT, client_as
@@ -97,3 +98,21 @@ async def test_list_without_a_location_has_no_fulfilment(session: AsyncSession) 
         resp = await ac.get("/api/v1/stores/")
     assert resp.status_code == 200
     assert {r["fulfilment"] for r in resp.json()} == {None}
+
+
+async def test_a_fee_suspended_store_does_not_leave_a_page_short(session: AsyncSession) -> None:
+    world = await seed_discovery_world(session)
+    session.add(FeeArrangement(
+        store_id=world.ravi_store_id, service_id=world.service_id,
+        model=FeeModel.Freebie, status=ArrangementStatus.Suspended,
+    ))
+    await session.commit()
+    # Without `sort` the list is in id order, so Ravi Sweets (suspended) would
+    # take the only slot if it were filtered after LIMIT.
+    async with client_as(CUSTOMER) as ac:
+        resp = await ac.get("/api/v1/stores/", params={
+            "lat": LOCAL_POINT[0], "lng": LOCAL_POINT[1], "service": "sweets", "limit": 1,
+        })
+    assert resp.status_code == 200, resp.text
+    assert [r["name"] for r in resp.json()] == ["Mira Mart"]
+

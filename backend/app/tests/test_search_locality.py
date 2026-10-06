@@ -108,12 +108,12 @@ async def test_none_when_out_of_india(session: AsyncSession):
     assert await get_serviceable_store_ids(session, redis, lat=40.0, lng=-74.0) is None
 
 
-def test_grid_cell_key_uses_the_v2_prefix():
+def test_grid_cell_key_uses_the_v2_prefix() -> None:
     assert grid_cell_key(19.0744, 72.8769).startswith("serviceable:v2:")
 
 
 @pytest.mark.asyncio
-async def test_locality_is_cached_under_v2_and_ignores_a_v1_value(session: AsyncSession):
+async def test_locality_is_cached_under_v2_and_ignores_a_v1_value(session: AsyncSession) -> None:
     world = await seed_discovery_world(session)
     redis = FakeRedis(decode_responses=True)
     lat, lng = COURIER_POINT
@@ -129,7 +129,7 @@ async def test_locality_is_cached_under_v2_and_ignores_a_v1_value(session: Async
 
 
 @pytest.mark.asyncio
-async def test_locality_none_without_a_usable_point(session: AsyncSession):
+async def test_locality_none_without_a_usable_point(session: AsyncSession) -> None:
     redis = FakeRedis(decode_responses=True)
     assert await get_locality(session, redis, None, None) is None
     assert await get_locality(session, redis, 40.0, -74.0) is None

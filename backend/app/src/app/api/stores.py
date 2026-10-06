@@ -3,7 +3,7 @@
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import col, select
@@ -241,6 +241,8 @@ async def list_stores(
         if service_id is not None
         else ""
     )
+    # Filtered in SQL (not after OFFSET/LIMIT) so a page is never short.
+    suspended_clause = " AND s.id NOT IN :suspended" if suspended_store_ids else ""
     order_clause = "z.distance_km ASC" if sort == "distance" else "z.id ASC"
     sql = text(
         "SELECT z.id, z.distance_km, z.zone FROM ("
@@ -248,7 +250,11 @@ async def list_stores(
         f"    {zone_sql} AS zone "
         "  FROM store s JOIN address a ON a.id = s.address_id "
         "  JOIN sellerprofile sp ON sp.id = s.seller_profile_id "
-        f"  WHERE s.is_active AND a.geo IS NOT NULL{cap_clause}{service_clause}"
+        "  WHERE s.is_active AND a.geo IS NOT NULL"
+        f"{cap_clause}{service_clause}{suspended_clause}"
+        # OFFSET 0 keeps Postgres from inlining the subquery, so the zone is
+        # computed once per store rather than again in WHERE and ORDER BY.
+        "  OFFSET 0"
         ") z WHERE z.zone IS NOT NULL "
         f"ORDER BY (z.zone = 'local') DESC, {order_clause} "
         "OFFSET :skip LIMIT :limit"
@@ -258,15 +264,14 @@ async def list_stores(
         bind_params["user_cap"] = radius_km
     if service_id is not None:
         bind_params["service_id"] = service_id
+    if suspended_store_ids:
+        sql = sql.bindparams(bindparam("suspended", expanding=True))
+        bind_params["suspended"] = sorted(suspended_store_ids)
     rows = (
         await session.exec(sql.bindparams(**bind_params))  # type: ignore[call-overload]
     ).all()
     distance_by_id: dict[int, float] = {int(r[0]): float(r[1]) for r in rows}
     zone_by_id: dict[int, Fulfilment] = {int(r[0]): r[2] for r in rows}
-    if suspended_store_ids:
-        distance_by_id = {
-            i: d for i, d in distance_by_id.items() if i not in suspended_store_ids
-        }
     if not distance_by_id:
         return []
     stmt = (

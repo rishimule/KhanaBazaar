@@ -223,9 +223,10 @@ _WITHIN_LOCAL_SQL = text(
 async def within_local_radius(
     session: AsyncSession, *, store_id: int, lat: float, lng: float
 ) -> bool:
-    """The local-delivery test alone, whatever the store's status: door
-    checkout and the admin address override report an inactive store with
-    their own errors, so this must not."""
+    """The local-delivery test alone, whatever the store's status. Door
+    checkout reports an inactive store as `store_unavailable` in a later
+    check; the admin address override never looked at store status. Both
+    keep that behaviour."""
     result = await session.exec(  # type: ignore[call-overload]
         _WITHIN_LOCAL_SQL.bindparams(store_id=store_id, lat=lat, lng=lng)
     )
@@ -240,6 +241,9 @@ class Locality:
 
     local: tuple[int, ...] = ()
     courier: dict[int, tuple[int, ...]] = field(default_factory=dict)
+
+    # Holds a dict, so it can't be hashed; say so instead of failing in hash().
+    __hash__ = None  # type: ignore[assignment]
 
     @property
     def courier_store_ids(self) -> frozenset[int]:
