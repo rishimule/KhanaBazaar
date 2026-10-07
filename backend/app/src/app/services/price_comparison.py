@@ -15,6 +15,7 @@ from app.models.platform_fee import ArrangementStatus, FeeArrangement, FeeModel
 from app.models.store import Store, StoreInventory
 from app.schemas.price_comparison import ComparisonAlternative, ComparisonItem
 from app.services.fee_gating import premium_store_ids
+from app.services.serviceability import LOCAL_SQL, POINT_SQL
 
 MAX_ALTERNATIVES = 5
 CANDIDATE_POOL_LIMIT = 20
@@ -55,20 +56,19 @@ async def find_alternatives(
     product_ids = [pid for pid, _ in cart_items]
 
     # --- step 1: PostGIS candidate pool ----------------------------------
-    point = "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography"
     sql = text(
-        f"SELECT s.id, ST_Distance(a.geo, {point}) / 1000.0 AS distance_km "
+        f"SELECT s.id, ST_Distance(a.geo, {POINT_SQL}) / 1000.0 AS distance_km "
         "FROM store s JOIN address a ON a.id = s.address_id "
         "WHERE s.is_active "
         "  AND s.id <> :source_id "
         "  AND a.geo IS NOT NULL "
-        f"  AND ST_DWithin(a.geo, {point}, s.delivery_radius_km * 1000) "
+        f"  AND {LOCAL_SQL} "
         "  AND EXISTS ("
         "    SELECT 1 FROM sellerprofile_service sps "
         "    WHERE sps.seller_profile_id = s.seller_profile_id "
         "      AND sps.service_id = :service_id"
         "  ) "
-        f"ORDER BY ST_Distance(a.geo, {point}) ASC "
+        f"ORDER BY ST_Distance(a.geo, {POINT_SQL}) ASC "
         "LIMIT :pool_limit"
     )
     rows = (

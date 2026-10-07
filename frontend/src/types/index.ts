@@ -131,6 +131,9 @@ export interface CustomerProfile {
   account_status?: "active" | "deactivated" | "suspended" | "deleted";
 }
 
+/** How a listed store reaches the customer's chosen location (spec §12). */
+export type Fulfilment = "local" | "courier";
+
 /** A seller's store on the platform. */
 export interface Store extends BaseSchema {
   name: string;
@@ -158,6 +161,10 @@ export interface Store extends BaseSchema {
   upi_payee?: { vpa: string; display_name: string } | null;
   /** Set when the store list was queried with the user's lat/lng. */
   distance_km?: number | null;
+  /** Set by the location-aware store list: local delivery or courier. */
+  fulfilment?: Fulfilment | null;
+  /** On courier rows: the services that ship by courier. */
+  courier_service_ids?: number[];
   /** True when the store has a live paid (non-Freebie) fee arrangement. */
   is_premium?: boolean;
 }
@@ -993,6 +1000,8 @@ export interface StoreFavGroup {
   store_id: number;
   store_name: string;
   distance_km: number;
+  /** "courier": these favourites ship from this store (none is sold locally). */
+  fulfilment?: Fulfilment;
   items: FavoriteAtStore[];
 }
 

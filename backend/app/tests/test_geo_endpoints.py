@@ -226,8 +226,10 @@ async def test_serviceability_per_store_true_when_inside_radius(
     assert r.json() == {
         "serviceable": True,
         "store_count": None,
-        # Additive since the courier work (spec §12): the store-scoped zone,
-        # and which services can ship by courier to the point (none here).
+        # Additive since the courier work (spec §12): the count-mode courier
+        # tally (unset with a store), the store-scoped zone, and which
+        # services can ship by courier to the point (none here).
+        "courier_store_count": None,
         "zone": "local",
         "courier_service_ids": [],
     }

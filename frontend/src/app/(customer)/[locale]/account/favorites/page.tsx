@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import ProductCard from "@/components/ProductCard";
+import CourierBadge from "@/components/CourierBadge";
+import { showsCourierBadge } from "@/lib/courier";
 import { useAuth } from "@/lib/AuthContext";
 import { get } from "@/lib/api";
 import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
@@ -137,6 +139,7 @@ export default function FavoritesPage() {
             <span className={styles.distance}>
               {formatDistance(g.distance_km)}
             </span>
+            {showsCourierBadge(g, userSet) && <CourierBadge />}
           </header>
           <div className={styles.grid}>
             {g.items.map((it) => (

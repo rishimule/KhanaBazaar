@@ -17,8 +17,12 @@ export default function ComparePage({ params }: { params: Promise<Params> }) {
   const t = useTranslations("Search");
   const locale = useLocale();
   const { location } = useDeliveryLocation();
-  const [data, setData] = useState<CompareResponse | null>(null);
+  // Keyed by the location it was fetched for, so offers (and their courier
+  // badges) for a previous location never show after the location changes.
+  const [result, setResult] = useState<{ key: string; data: CompareResponse } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const locationKey = `${location?.lat},${location?.lng}`;
+  const data = result?.key === locationKey ? result.data : null;
 
   useEffect(() => {
     let cancel = false;
@@ -28,7 +32,7 @@ export default function ComparePage({ params }: { params: Promise<Params> }) {
       locale,
     })
       .then((res) => {
-        if (!cancel) setData(res);
+        if (!cancel) setResult({ key: `${location?.lat},${location?.lng}`, data: res });
       })
       .catch(() => {
         if (!cancel) setError(t("unavailable"));

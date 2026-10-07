@@ -3,7 +3,7 @@
 """Wire-format models for store endpoints."""
 
 from datetime import date
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -64,6 +64,10 @@ class StoreRead(BaseModel):
     accepted_payment_methods: list[PaymentMethod] = []
     upi_payee: Optional[UpiPayeeRead] = None
     distance_km: Optional[float] = None
+    # Set by the store list when a location is given (spec §12): how this
+    # store reaches it, and — on courier rows — the services that ship.
+    fulfilment: Optional[Literal["local", "courier"]] = None
+    courier_service_ids: list[int] = []
     created_at: str
     updated_at: str
 

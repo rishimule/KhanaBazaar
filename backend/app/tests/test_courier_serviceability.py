@@ -155,7 +155,7 @@ async def test_endpoint_reports_zone_and_keeps_serviceable_local_only(session: A
         })
     assert courier.status_code == 200, courier.text
     assert courier.json() == {
-        "serviceable": False, "store_count": None,
+        "serviceable": False, "store_count": None, "courier_store_count": None,
         "zone": "courier", "courier_service_ids": [world.service_id],
     }
     assert local.json()["serviceable"] is True and local.json()["zone"] == "local"

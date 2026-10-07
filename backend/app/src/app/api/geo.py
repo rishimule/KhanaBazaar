@@ -35,7 +35,7 @@ from app.schemas.geo import (
     ServiceabilityRequest,
     ServiceabilityResponse,
 )
-from app.services.serviceability import zone_for_point
+from app.services.serviceability import zone_case_sql, zone_for_point, zone_params
 
 router = APIRouter()
 
@@ -211,17 +211,19 @@ async def serviceability_endpoint(
         )
 
     sql = text(
-        "SELECT COUNT(*) FROM store s "
-        "JOIN address a ON a.id = s.address_id "
-        "WHERE s.is_active AND a.geo IS NOT NULL "
-        "  AND ST_DWithin("
-        "    a.geo, "
-        "    ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, "
-        "    s.delivery_radius_km * 1000"
-        "  )"
+        "SELECT COUNT(*) FILTER (WHERE z.zone = 'local') AS local_count, "
+        "  COUNT(*) FILTER (WHERE z.zone = 'courier') AS courier_count "
+        f"FROM (SELECT {zone_case_sql()} AS zone FROM store s "
+        "  JOIN address a ON a.id = s.address_id "
+        "  JOIN sellerprofile sp ON sp.id = s.seller_profile_id "
+        "  WHERE s.is_active AND a.geo IS NOT NULL) z"
     )
     result = await session.exec(  # type: ignore[call-overload]
-        sql.bindparams(lat=body.lat, lng=body.lng)
+        sql.bindparams(**zone_params(body.lat, body.lng))
     )
-    count = int(result.scalar_one())
-    return ServiceabilityResponse(serviceable=count > 0, store_count=count)
+    local_count, courier_count = result.one()
+    return ServiceabilityResponse(
+        serviceable=int(local_count) > 0,
+        store_count=int(local_count),
+        courier_store_count=int(courier_count),
+    )

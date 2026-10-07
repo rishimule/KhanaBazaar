@@ -80,7 +80,8 @@
     "sellerBandEyebrow": "For local sellers",
     "sellerBandTitle": "Run a local store?",
     "sellerBandBody": "Bring your catalog online, manage local inventory, and reach nearby customers through {brand}.",
-    "becomeSeller": "Become a seller"
+    "becomeSeller": "Become a seller",
+    "previewTitleCourier": "From a store that ships to you"
   },
   "Stores": {
     "loading": "Loading…",
@@ -2944,7 +2945,8 @@
       "confirmCta": "Log out",
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
-    }
+    },
+    "courierBadge": "Ships by courier · few days"
   },
   "Info": {
     "aboutTitle": "About {brand}",
@@ -2980,7 +2982,8 @@
     "setLocationTitle": "Set your delivery location",
     "setLocationBody": "Tell us where to deliver so we can show what is available near you.",
     "setLocationCta": "Set location",
-    "useMyLocation": "Use my location"
+    "useMyLocation": "Use my location",
+    "courierOnly": "No stores deliver here directly yet — these ship to you by courier"
   },
   "SuggestStore": {
     "title": "Suggest a seller or store",

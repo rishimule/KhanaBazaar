@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -32,6 +33,8 @@ class StoreFavGroup(BaseModel):
     store_id: int
     store_name: str
     distance_km: float
+    # "courier": these favourites ship from this store (none is sold locally).
+    fulfilment: Literal["local", "courier"] = "local"
     items: list[FavoriteAtStore]
 
 

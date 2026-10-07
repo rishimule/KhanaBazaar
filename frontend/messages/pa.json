@@ -80,7 +80,8 @@
     "sellerBandEyebrow": "ਸਥਾਨਕ ਵਿਕਰੇਤਾਵਾਂ ਲਈ",
     "sellerBandTitle": "ਸਥਾਨਕ ਸਟੋਰ ਚਲਾਉਂਦੇ ਹੋ?",
     "sellerBandBody": "ਆਪਣਾ ਕੈਟਾਲਾਗ ਆਨਲਾਈਨ ਲਿਆਓ, ਸਥਾਨਕ ਇਨਵੈਂਟਰੀ ਮੈਨੇਜ ਕਰੋ, ਅਤੇ {brand} ਰਾਹੀਂ ਨੇੜਲੇ ਗਾਹਕਾਂ ਤੱਕ ਪਹੁੰਚੋ.",
-    "becomeSeller": "ਵਿਕਰੇਤਾ ਬਣੋ"
+    "becomeSeller": "ਵਿਕਰੇਤਾ ਬਣੋ",
+    "previewTitleCourier": "ਤੁਹਾਨੂੰ ਭੇਜਣ ਵਾਲੇ ਸਟੋਰ ਤੋਂ"
   },
   "Stores": {
     "loading": "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
@@ -2945,7 +2946,8 @@
       "confirmCta": "ਲੌਗ ਆਊਟ",
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
-    }
+    },
+    "courierBadge": "ਕੋਰੀਅਰ ਰਾਹੀਂ ਭੇਜਿਆ ਜਾਂਦਾ ਹੈ · ਕੁਝ ਦਿਨ"
   },
   "Info": {
     "aboutTitle": "{brand} ਬਾਰੇ",
@@ -2981,7 +2983,8 @@
     "setLocationTitle": "ਆਪਣਾ ਡਿਲੀਵਰੀ ਟਿਕਾਣਾ ਸੈੱਟ ਕਰੋ",
     "setLocationBody": "ਸਾਨੂੰ ਦੱਸੋ ਕਿੱਥੇ ਡਿਲੀਵਰੀ ਕਰਨੀ ਹੈ ਤਾਂ ਜੋ ਅਸੀਂ ਤੁਹਾਡੇ ਨੇੜੇ ਉਪਲਬਧ ਚੀਜ਼ਾਂ ਦਿਖਾ ਸਕੀਏ।",
     "setLocationCta": "ਟਿਕਾਣਾ ਸੈੱਟ ਕਰੋ",
-    "useMyLocation": "ਮੇਰਾ ਟਿਕਾਣਾ ਵਰਤੋ"
+    "useMyLocation": "ਮੇਰਾ ਟਿਕਾਣਾ ਵਰਤੋ",
+    "courierOnly": "ਅਜੇ ਇੱਥੇ ਕੋਈ ਸਟੋਰ ਸਿੱਧੀ ਡਿਲਿਵਰੀ ਨਹੀਂ ਕਰਦਾ — ਇਹ ਤੁਹਾਨੂੰ ਕੋਰੀਅਰ ਰਾਹੀਂ ਭੇਜੇ ਜਾਂਦੇ ਹਨ"
   },
   "SuggestStore": {
     "title": "ਕਿਸੇ ਵਿਕਰੇਤਾ ਜਾਂ ਸਟੋਰ ਦਾ ਸੁਝਾਅ ਦਿਓ",

@@ -6,7 +6,7 @@ Courier delivery lets a store ship to customers **beyond its local delivery radi
 
 There is **no delivery OTP**, payment is **prepaid only**, tracking is **optional**, and courier orders **cannot be returned** in the app.
 
-This page is the reference for the whole feature: backend rules, API, error codes, frontend screens, configuration and deploy notes. The step-by-step request flow also lives in [`flows.md` §13](flows.md#13-courier-orders-long-distance-delivery), and the condensed gotchas live in `CLAUDE.md` under *Courier orders*. The design spec and the two implementation plans are worktree-local working documents (`docs/superpowers/` is gitignored), so this page is meant to stand on its own.
+This page is the reference for the whole feature: backend rules, API, error codes, frontend screens, configuration and deploy notes. The step-by-step request flow also lives in [`flows.md` §13](flows.md#13-courier-orders-long-distance-delivery), and the condensed gotchas live in `CLAUDE.md` under *Courier orders*. The design spec and the implementation plans (Phase A and Phase B) are worktree-local working documents (`docs/superpowers/` is gitignored), so this page is meant to stand on its own.
 
 ---
 
@@ -19,16 +19,41 @@ An address can take a courier order from a store only when **all** of these hold
 | The address is beyond `Store.delivery_radius_km` but within `Store.courier_radius_km` (the courier ring). | `services/serviceability.py` (`zone_for_point`, PostGIS `ST_DWithin`) |
 | The service has `SellerProfileService.courier_enabled = true`. | same |
 | The seller has a **live prepaid payee**: UPI (`upi_enabled` + `upi_vpa`), or bank transfer (`bank_transfer_enabled` + account name + account number + IFSC). | `serviceability.courier_payment_methods` |
-| The point is inside the India bounding box. At checkout the saved address must also have `country == "India"` and a 6-digit PIN, because the bbox also covers Nepal and Bangladesh. | `serviceability.is_courier_destination`, `checkout.py` |
+| The point is inside the India bounding box. At checkout the saved address must also have `country == "India"` and a 6-digit PIN, because the box (6.5–36° N, 68–98° E) also takes in neighbouring countries (Pakistan, Afghanistan's east, Nepal, Bhutan, Bangladesh, Sri Lanka, Tibet and western China, most of Myanmar). | `serviceability.is_courier_destination`, `checkout.py` |
 | The store and service are not paused, and the seller is approved. | Enforced at checkout and in listings exactly as for local orders. Zones carry no availability rules. |
 
-`services/serviceability.py` is the radius rule for **courier checkout and `/geo/serviceability`**. In Phase A the other local-radius checks keep their own copies: door checkout (`checkout._assert_serviceable`), store lists (`api/stores.py`), the geo count mode, price comparison, favourites, search locality and the admin address override. Phase B moves them onto the helper, so change all of them together until then.
+`services/serviceability.py` is the **only** home of the radius rule:
+
+- listing queries build on its SQL fragments (`LOCAL_SQL`, `zone_case_sql`);
+- door checkout and the admin delivery-address override use the status-blind `within_local_radius`: door checkout reports an inactive store as `store_unavailable` in a later check, and the override never looked at store status, so both behave as before;
+- search reads a cached per-point `Locality`;
+- single-store checks use `zone_for_point`.
+
+Checkout's "cheaper at another store" comparison uses `LOCAL_SQL` and stays local-only.
 
 `POST /api/v1/geo/serviceability` with a `store_id` returns:
 
 - `serviceable`, which keeps its **local-only** meaning so older callers are unaffected (this is the API field; the checkout address picker's own notion of an orderable address covers local *or* courier);
 - `zone`: `local` | `courier` | `none`;
 - `courier_service_ids`: the services that can ship there. Without `service_id`, `zone: "courier"` means *some* service ships. With `service_id`, it means *that* service does.
+
+Without a `store_id` (count mode) it returns `store_count` (local stores) and `courier_store_count` (stores that ship there by courier).
+
+### Discovery (Phase B)
+
+Every listing shows local results first, then courier ones, and tags each row `fulfilment: local | courier | null`.
+
+| Surface | Behaviour |
+|---|---|
+| `GET /stores/?lat&lng` | Local stores, then courier stores, each by distance (or id). Courier rows carry `courier_service_ids`. A `?service=` filter needs that service to ship for a courier row; a `radius_km` cap applies to distance in both zones. Without a location the list is unchanged and `fulfilment` is null. |
+| Count mode (above) | The `courier_only` state on Home, Stores and Products is 0 local stores and at least 1 courier store. |
+| Locality cache (`search/locality.py`) | `get_locality` returns `Locality{local, courier: {service_id: [store_ids]}}`, cached per ~500 m cell for `SEARCH_SERVICEABLE_GRID_TTL_SECONDS` under the **`serviceable:v2:`** prefix. v1 held a bare list of local ids, so a deploy never reads one back. `get_serviceable_store_ids` remains as the local-only view. |
+| `GET /search/products` | Two disjoint queries: ① `store_ids IN [local]`; ② per service, `(service_id = S AND store_ids IN [courier_S])`, minus anything a local store sells. `search/partition.stitched_search` counts each group exactly (`page=1, hits_per_page=0`), places the page window across ① then ②, and sums the facets. The user's sort applies within each group. Offers carry `fulfilment`, `is_serviceable` means orderable here (local or courier), and offers list local → courier → can't reach. A `store_id`-scoped search is unchanged. |
+| `GET /search/suggest` | Products: ① first, ② fills up to the limit. `store_count` and the best store count only stores that reach the point; the best store is in stock first, then local before courier, then cheapest, and carries `fulfilment`. Stores: local → courier → every other store, each with `fulfilment`. When nothing at all serves the point, suggest returns an empty response (no stores either); `/search/stores` still lists every store. |
+| `GET /search/stores` | The same three store groups, stitched across pages with an exact `total`. |
+| `GET /search/browse` | Each category carousel lists local products, then courier ones; subcategory chips count both groups. The courier group carries only this service's courier stores. With no local store and no courier store for the service it returns no categories straight away; otherwise categories with no matching products are dropped. |
+| `GET /search/products/{id}/stores` | Offers carry `fulfilment`, ordered local → courier → can't reach, cheapest first within each. Without a location: cheapest first, as before. |
+| `GET /favorites/` | A favourite a local store sells stays under that store only. One that only a courier store ships (for the product's own service) moves from "unavailable" into that store's group (`fulfilment: "courier"`), after the local groups. |
 
 ---
 
@@ -238,7 +263,7 @@ All courier copy exists in **en, hi, mr, gu and pa**. The two operator-only Engl
 
 | Area | Files | What it does |
 |---|---|---|
-| Shared helpers | `src/lib/courier.ts` | Zones (`classifyAddressZone`, `isOrderableZone`), `courierChargePending`, `customerActionNeeded`, `previewEtaWindow`, `latestQuote`, `trackingHost`, `straightLineKm` |
+| Shared helpers | `src/lib/courier.ts` | Zones (`classifyAddressZone`, `isOrderableZone`), `courierChargePending`, `customerActionNeeded`, `previewEtaWindow`, `latestQuote`, `trackingHost`, `straightLineKm`; discovery: `showsCourierBadge`, `storeServesService`, `localFirst`, `courierShippedServiceIds`, `deliverabilityCounts` |
 | API calls | `src/lib/orders.ts` | `sendCourierQuote`, `acceptCourierQuote`, `claimCourierPayment`, `confirmCourierPayment`, `rejectCourierPayment`, `updateCourierTracking`, `markCourierReceived`, `markRefundSent`, `cancelOrder(…{reason, paymentReceived})`, `refetchIfStale` (re-reads the order after a 403/409) |
 | Status display | `OrderStatusBadge` (customer sees "Quote ready", operators "Quote sent"), `OrderTimeline` (Requested → Quote → Paid → Packed → Shipped → Delivered), `PaymentStatusPill` / `PaymentStatusBadge` ("Refund due"), `OrderTotal` (`₹X + courier`), `OrderCard` ("Action needed") | The customer's **Active** filter includes `quoted`, `accepted` and `paid`, mirroring the server's `ACTIVE_ORDER_STATUSES`. |
 | Checkout | `checkout/[storeId]/[serviceId]/page.tsx`, `AddressPicker` (per-address zone badges and recheck), `PaymentMethodPicker` (courier branch), `courier/CourierExplainer`, `courier/RecipientFields` | Courier mode follows the picked address. It hides the route map, preferred window, ETA and price comparison, sends recipient details, and re-classifies addresses when the server says a zone changed (`zoneRecheck`, including a door order's `outside_delivery_area`). The unavailable group is headed "Outside delivery area" only when every address in it really is out of range. The recipient phone accepts pasted or autofilled `+91 98765 43210`, `919876543210` and `09876543210`. |
@@ -248,7 +273,8 @@ All courier copy exists in **en, hi, mr, gu and pa**. The two operator-only Engl
 | Operator lists | `seller/orders/page.tsx` | Chips for **Needs quote**, **Check payment** and **Refunds due**; a **Courier** tag beside the status; "Customer says paid" only while it is an open question (payment unconfirmed, and not a cancelled courier order, whose cancel already answered it) |
 | Settings | `seller/profile/page.tsx`, `ProfileChangeRequestModal`, `ChangeRequestDiffTable`, `admin/sellers/[id]/profile/page.tsx` | Courier radius (shown, edited via change request; the cap and its hint come from `/meta/public-config`), per-service courier switch, bank transfer, a no-payee warning; the admin's direct switch. "Edit and resubmit" applies the omit/clear rules against `cr.baseline_json` (the live values), and the diff table treats a radius of 0 and none as the same "Off". |
 | Dashboard | `seller/OrderStatusDonut` (courier segments listed only while non-zero), `seller/AttentionBanner` | The banner counts only orders waiting on the seller: pending, paid, packed, dispatched, plus claimed payments to confirm (`SellerMetricsRead.courier_payment_checks`). `quoted` and unclaimed `accepted` orders are the customer's turn. |
-| Discovery hints | `src/lib/useCourierZones.ts`, `stores/[id]/page.tsx` (courier banner listing services that don't ship), `cart/page.tsx` (courier hint instead of the fee nudge) | A preview for the navbar location, only when the customer actually chose one. The checkout address decides the real mode. Answers are cached for two minutes per location and store (failures never), since `/geo/serviceability` shares a 30-per-minute per-IP budget with checkout's address checks. |
+| Discovery (Phase B) | `src/lib/useDeliverability.ts`, `CourierOnlyBanner`, `CourierBadge`, Home (`[locale]/page.tsx`, `HomeStorePreview`), `stores/page.tsx`, `products/page.tsx`, `search/{SearchDropdown,SearchStoresRail,ProductOfferList}.tsx`, `search/product/[productId]/page.tsx`, `account/favorites/page.tsx` | `useDeliverability` adds `courier_only` (0 local stores, at least 1 courier store; `courierStoreCount`), where Home, Stores and Products show `CourierOnlyBanner` instead of the fallback; Products then opens on a service a courier store ships. `CourierBadge` (`Shared.courierBadge`) marks store cards, the home preview (titled `Home.previewTitleCourier`), search store rows, suggest's best store, compare offers and favourites groups, always through `showsCourierBadge(row, userSet)` so it never describes the Mumbai fallback. Preview candidates go local first (`localFirst`) and a courier store only for a service it ships (`storeServesService`). Lists keep the API's order (local first); no screen re-sorts. The compare page shows a result only for the location it was fetched for. |
+| Arrival hints (Phase A) | `src/lib/useCourierZones.ts`, `stores/[id]/page.tsx` (courier banner listing services that don't ship), `cart/page.tsx` (courier hint instead of the fee nudge) | A preview for the navbar location, only when the customer actually chose one. The checkout address decides the real mode. Answers are cached for two minutes per location and store (failures never), since `/geo/serviceability` shares a 30-per-minute per-IP budget with checkout's address checks. |
 | Shared UI | `UpiQrBlock` | QR, UPI ID and pay-with-app, extracted from `UpiPayPanel`, which now never renders for courier orders |
 
 ---
@@ -306,16 +332,20 @@ The frontend reads the limits from the server instead of hard-coding them: `Orde
 
 ## 14. Testing
 
-- **Backend:** `backend/app/tests/test_courier_*.py` (18 files, shared helpers in `tests/_courier_helpers.py`) cover models, config, zones, settings and change requests, checkout, quotes, accept, payment, shipping, cancel and refund, admin, list filters, notifications, reminders, two-session races and the dev seed. Run them like the rest of the suite (`uv run pytest -q`). A run that overlaps another needs its own database: set `KB_TEST_DB` (read in `backend/app/tests/conftest.py`), point `REDIS_URL` at a spare Redis db, and point `MEILI_TEST_URL` at its own Meilisearch.
+- **Backend:** `backend/app/tests/test_courier_*.py` (18 files, shared helpers in `tests/_courier_helpers.py`) cover models, config, zones, settings and change requests, checkout, quotes, accept, payment, shipping, cancel and refund, admin, list filters, notifications, reminders, two-session races and the dev seed. Discovery lives in `tests/test_discovery_*.py` (world in `tests/_discovery_helpers.py`: a store local to Mysuru beside the courier world, plus opt-in extras for per-service and multi-product cases): zone SQL and `Locality` (including a parity matrix against `zone_for_point`), the moved callers, store-list ordering and filters, the counts, search partition across page boundaries, suggest and store-name ordering, browse, compare and favourites. The v2 cache is pinned in `tests/test_search_locality.py`. Run them like the rest of the suite (`uv run pytest -q`). A run that overlaps another needs its own database: set `KB_TEST_DB` (read in `backend/app/tests/conftest.py`), point `REDIS_URL` at a spare Redis db, and point `MEILI_TEST_URL` at its own Meilisearch.
 - **Frontend:** there are no frontend tests in this repo. `npm run lint`, `npx tsc --noEmit`, `npm run check:i18n` and `npm run build` must pass, and the flows were walked in a browser against a private seeded database.
 
 ---
 
-## 15. Known limitations (Phase A)
+## 15. Known limitations
 
 - **Payment is off-platform.** The app records claims and confirmations; it never moves money. Refunds are recorded, not executed.
 - **Tracking is manual.** There's no carrier integration: the seller pastes the carrier, number and link.
-- **Courier stores are reached by link.** Store listings and search still show local stores only. Discovery is Phase B; the store-page banner and cart hint are Phase A's bridge.
+- **The India box is wider than India.** Discovery decides courier reach from the map point, and the box (6.5–36° N, 68–98° E) also takes in neighbouring countries (Pakistan, Afghanistan's east, Nepal, Bhutan, Bangladesh, Sri Lanka, Tibet and western China, most of Myanmar), so a point there can list courier stores. Checkout still refuses the address (country and PIN).
+- **Discovery ignores availability by design, and "sold locally" means two things.** Search groups a product by the stores in its index document, which include any active store with an inventory row — paused, fee-suspended, out of stock or unavailable — so such a product stays in the local group, showing only the offers that are left. Favourites count only in-stock, available rows, so the same product can appear there under a courier store. Neither looks at a store's pause.
+- **Up to two minutes of lag.** The locality cache and the suggest/browse caches each live 60 s, so a changed courier setting can take about two minutes to show in search.
+- **Store-name search now reads the locality.** With a location, `GET /search/stores` uses the Redis-cached locality (a PostGIS pass per new 500 m cell); unlike suggest and products it has no rate limit of its own.
+- **Per-row radii skip the spatial index.** Every store has its own radius, so the zone queries scan the active stores instead of using the GiST index. Fine at today's store count; revisit with thousands of stores.
 - **Notification copy is English-only,** like every message in the repo. The UI is translated.
 - **No returns.** If a parcel comes back, the seller restocks it by hand.
 - **No follow-up once the seller holds the money.** `paid` and `packed` orders get no reminder and never count as stalled; only shipping past the delivery date does.

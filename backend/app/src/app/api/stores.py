@@ -3,7 +3,7 @@
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import col, select
@@ -58,7 +58,14 @@ from app.services.seller_services import (
     list_profile_services,
     list_profile_services_for_many,
 )
-from app.services.serviceability import courier_payment_methods
+from app.services.serviceability import (
+    POINT_SQL,
+    Fulfilment,
+    courier_enabled_service_ids,
+    courier_payment_methods,
+    zone_case_sql,
+    zone_params,
+)
 from app.services.storefront import _translation_map, build_storefront
 
 _BULK_ROW_LIMIT = 200
@@ -85,6 +92,8 @@ async def _store_read(
     distance_km: Optional[float] = None,
     services: Optional[list[ServicePayload]] = None,
     premium: bool = False,
+    fulfilment: Optional[Fulfilment] = None,
+    courier_service_ids: Optional[list[int]] = None,
 ) -> StoreRead:
     assert store.id is not None
     if services is None:
@@ -119,6 +128,8 @@ async def _store_read(
             else None
         ),
         distance_km=distance_km,
+        fulfilment=fulfilment,
+        courier_service_ids=courier_service_ids or [],
         created_at=store.created_at.isoformat(),
         updated_at=store.updated_at.isoformat(),
     )
@@ -212,18 +223,16 @@ async def list_stores(
             for store in stores
         ]
 
-    point = "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography"
-    if radius_km is not None:
-        radius_clause = (
-            f"ST_DWithin(a.geo, {point}, "
-            "LEAST(s.delivery_radius_km, :user_cap) * 1000)"
-        )
-    else:
-        radius_clause = (
-            f"ST_DWithin(a.geo, {point}, s.delivery_radius_km * 1000)"
-        )
-    order_clause = (
-        f"ST_Distance(a.geo, {point}) ASC" if sort == "distance" else "s.id ASC"
+    # Local stores first, then courier stores (spec D3, §12); a `service`
+    # filter requires that service to ship for a courier row, and the user's
+    # radius cap applies to distance in both zones.
+    zone_sql = zone_case_sql(":service_id" if service_id is not None else None)
+    # The CAST matters: in a bare `:user_cap * 1000` Postgres infers an
+    # integer parameter and asyncpg then rejects a cap like 2.5.
+    cap_clause = (
+        f" AND ST_DWithin(a.geo, {POINT_SQL}, CAST(:user_cap AS double precision) * 1000)"
+        if radius_km is not None
+        else ""
     )
     service_clause = (
         " AND EXISTS (SELECT 1 FROM sellerprofile_service sps "
@@ -232,29 +241,38 @@ async def list_stores(
         if service_id is not None
         else ""
     )
+    # Filtered in SQL (not after OFFSET/LIMIT) so a page is never short.
+    suspended_clause = " AND s.id NOT IN :suspended" if suspended_store_ids else ""
+    # The id tiebreak keeps "Load more" pages stable for stores at one spot.
+    order_clause = "z.distance_km ASC, z.id ASC" if sort == "distance" else "z.id ASC"
     sql = text(
-        f"SELECT s.id, ST_Distance(a.geo, {point}) / 1000.0 AS distance_km "
-        "FROM store s JOIN address a ON a.id = s.address_id "
-        f"WHERE s.is_active AND a.geo IS NOT NULL AND {radius_clause}"
-        f"{service_clause} "
-        f"ORDER BY {order_clause} "
+        "SELECT z.id, z.distance_km, z.zone FROM ("
+        f"  SELECT s.id, ST_Distance(a.geo, {POINT_SQL}) / 1000.0 AS distance_km, "
+        f"    {zone_sql} AS zone "
+        "  FROM store s JOIN address a ON a.id = s.address_id "
+        "  JOIN sellerprofile sp ON sp.id = s.seller_profile_id "
+        "  WHERE s.is_active AND a.geo IS NOT NULL"
+        f"{cap_clause}{service_clause}{suspended_clause}"
+        # OFFSET 0 keeps Postgres from inlining the subquery, so the zone is
+        # computed once per store rather than again in WHERE and ORDER BY.
+        "  OFFSET 0"
+        ") z WHERE z.zone IS NOT NULL "
+        f"ORDER BY (z.zone = 'local') DESC, {order_clause} "
         "OFFSET :skip LIMIT :limit"
     )
-    bind_params: dict[str, Any] = {
-        "lat": lat, "lng": lng, "skip": skip, "limit": limit,
-    }
+    bind_params: dict[str, Any] = {**zone_params(lat, lng), "skip": skip, "limit": limit}
     if radius_km is not None:
         bind_params["user_cap"] = radius_km
     if service_id is not None:
         bind_params["service_id"] = service_id
+    if suspended_store_ids:
+        sql = sql.bindparams(bindparam("suspended", expanding=True))
+        bind_params["suspended"] = sorted(suspended_store_ids)
     rows = (
         await session.exec(sql.bindparams(**bind_params))  # type: ignore[call-overload]
     ).all()
     distance_by_id: dict[int, float] = {int(r[0]): float(r[1]) for r in rows}
-    if suspended_store_ids:
-        distance_by_id = {
-            i: d for i, d in distance_by_id.items() if i not in suspended_store_ids
-        }
+    zone_by_id: dict[int, Fulfilment] = {int(r[0]): r[2] for r in rows}
     if not distance_by_id:
         return []
     stmt = (
@@ -271,6 +289,9 @@ async def list_stores(
         language_code=lang,
     )
     premium_ids = await premium_store_ids(session, [s.id for s in ordered if s.id is not None])
+    shipping = await courier_enabled_service_ids(
+        session, [i for i in distance_by_id if zone_by_id[i] == "courier"]
+    )
     return [
         await _store_read(
             session,
@@ -279,6 +300,8 @@ async def list_stores(
             distance_km=distance_by_id[store.id],
             services=services_by_profile.get(store.seller_profile_id, []),
             premium=store.id in premium_ids,
+            fulfilment=zone_by_id[store.id],
+            courier_service_ids=list(shipping.get(store.id, ())),
         )
         for store in ordered
     ]

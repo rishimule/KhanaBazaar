@@ -515,7 +515,7 @@ Rules:
 | `GET /geo/autocomplete?q=&session_token=` | Server-side proxy for Google Places Autocomplete. Cached 60s. |
 | `GET /geo/place/{place_id}?session_token=` | Place Details (lat/lng + components). |
 | `GET /geo/reverse?lat=&lng=` | Reverse geocode. Cached 24h, keyed by lat/lng rounded to 4 decimals. |
-| `POST /geo/serviceability` | `{lat, lng, store_id?}` → boolean (per-store) or `{serviceable, store_count}` (global). PostGIS-backed via `ST_DWithin`. |
+| `POST /geo/serviceability` | `{lat, lng, store_id?, service_id?}`. With a store: `{serviceable, zone, courier_service_ids}`; without: `{serviceable, store_count, courier_store_count}`. `serviceable` stays local-only. PostGIS-backed (`services/serviceability.py`). |
 
 Server API key (`GOOGLE_MAPS_SERVER_API_KEY`) NEVER reaches the browser. The browser key (`GOOGLE_MAPS_BROWSER_API_KEY`, exposed to the frontend as `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`) is only used by the Maps JS render and must be HTTP-referrer-restricted in the GCP console.
 
@@ -527,7 +527,7 @@ Mock the Google client globally in any new geo test — see `tests/test_geo_endp
 
 ### Distance + radius
 
-Stores are filtered/sorted by lat/lng via `GET /api/v1/stores/?lat=&lng=&sort=distance` (PostGIS `ST_DWithin` for filter, `ST_Distance` for sort). Order creation re-asserts `ST_DWithin` against the customer address — defense in depth against direct API bypass. Stores or addresses missing `geo` are treated as not-serviceable.
+`GET /api/v1/stores/?lat=&lng=&sort=distance` lists the stores that reach a point — local stores by distance, then courier stores (each row tagged `fulfilment`) — using the zone SQL in `services/serviceability.py` (`zone_case_sql`, PostGIS `ST_DWithin`/`ST_Distance`). Order creation re-checks the customer address (`within_local_radius` for door delivery, `zone_for_address` for courier) — defense in depth against direct API bypass. Stores or addresses missing `geo` are treated as not-serviceable.
 
 ### Backfill
 
@@ -606,7 +606,7 @@ Run locally: `uv run celery -A app.core.celery_app beat --loglevel=info` (in a t
 
 ### Locality
 
-`app.search.locality.get_serviceable_store_ids(session, redis, lat, lng)` runs a PostGIS `ST_DWithin` query joining `store` × `address`, caches per ~500 m grid cell in Redis for 60 s, returns `list[int] | None`. `None` means "no locality filter" — all products visible.
+`app.search.locality.get_locality(session, redis, lat, lng)` returns the stores serving a point as a `Locality` (local store ids, plus courier store ids per service), computed by `services.serviceability.compute_locality` and cached per ~500 m grid cell in Redis for 60 s under `serviceable:v2:`. `None` means "no locality filter" (no location, or outside the India box) — all products visible. `get_serviceable_store_ids` is the local-only view. Search runs local and courier as disjoint queries stitched by `app.search.partition` (see `docs/courier_delivery.md` §1).
 
 ### Frontend
 

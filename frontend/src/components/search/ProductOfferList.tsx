@@ -8,6 +8,9 @@ import { useTranslations } from "next-intl";
 import { useCart } from "@/lib/CartContext";
 import type { CompareOffer, CompareResponse } from "@/lib/searchClient";
 import CrownBadge from "@/components/CrownBadge";
+import CourierBadge from "@/components/CourierBadge";
+import { showsCourierBadge } from "@/lib/courier";
+import { useDeliveryLocation } from "@/lib/DeliveryLocationContext";
 import styles from "./ProductOfferList.module.css";
 
 type Props = {
@@ -17,11 +20,12 @@ type Props = {
 export function ProductOfferList({ data }: Props) {
   const t = useTranslations("Search");
   const { carts, addItem, removeItem, updateQty } = useCart();
+  const { userSet } = useDeliveryLocation();
   const { product, offers } = data;
   const [showUnavailable, setShowUnavailable] = useState(false);
 
-  // Split offers: serviceable (in delivery radius) vs not. Within each group,
-  // backend already sorted by price asc.
+  // Split offers: orderable here (local or courier) vs not. The API already
+  // orders them local → courier → can't reach, cheapest first within each.
   const serviceable = offers.filter((o) => o.is_serviceable);
   const unavailable = offers.filter((o) => !o.is_serviceable);
 
@@ -63,6 +67,9 @@ export function ProductOfferList({ data }: Props) {
             {o.store.name}
             {o.store.is_premium && <CrownBadge />}
           </Link>
+          {showsCourierBadge(o, userSet) && (
+            <CourierBadge className={styles.courier} start wrap />
+          )}
           <div className={styles.subtext}>
             {o.store.distance_km !== null && (
               <span>{o.store.distance_km} km</span>

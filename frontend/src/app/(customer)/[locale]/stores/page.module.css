@@ -241,3 +241,7 @@
   line-height: 1.2;
 }
 .svcTileActive .svcTileLabel { color: var(--color-primary-1); }
+
+.courierBanner {
+  margin-bottom: var(--space-6);
+}

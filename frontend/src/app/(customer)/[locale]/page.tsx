@@ -20,6 +20,9 @@ import { NearbyLocationBanner } from "@/components/NearbyLocationBanner";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import DeliverabilityFallback from "@/components/DeliverabilityFallback";
 import CrownBadge from "@/components/CrownBadge";
+import CourierBadge from "@/components/CourierBadge";
+import CourierOnlyBanner from "@/components/CourierOnlyBanner";
+import { localFirst, showsCourierBadge, storeServesService } from "@/lib/courier";
 import { Service, Store } from "@/types";
 import styles from "./page.module.css";
 
@@ -27,7 +30,9 @@ export default function Home() {
   const t = useTranslations("Home");
   const { dbUser, loading } = useAuth();
   const router = useRouter();
-  const [stores, setStores] = useState<Store[]>([]);
+  // Keyed by the location they were fetched for, so a switch never shows
+  // the previous location's stores (or courier badges) under the new one.
+  const [storeResult, setStoreResult] = useState<{ key: string; rows: Store[] } | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const { location, userSet } = useDeliveryLocation();
   const { status: deliverability } = useDeliverability();
@@ -48,12 +53,28 @@ export default function Home() {
     // When unset, the store sections aren't rendered, so leaving stale state
     // is harmless and avoids a synchronous setState in the effect body.
     if (!userSet) return;
+    let cancelled = false;
+    const key = `${location.lat},${location.lng}`;
     get<Store[]>(
       `/api/v1/stores/?lat=${location.lat}&lng=${location.lng}&sort=distance`,
     )
-      .then(setStores)
-      .catch(() => setStores([]));
+      .then((rows) => {
+        if (!cancelled) setStoreResult({ key, rows });
+      })
+      .catch(() => {
+        if (!cancelled) setStoreResult({ key, rows: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [userSet, location.lat, location.lng]);
+
+  const storesKey = `${location.lat},${location.lng}`;
+  const storesReady = storeResult?.key === storesKey;
+  const stores = useMemo(
+    () => (storesReady && storeResult ? storeResult.rows : []),
+    [storesReady, storeResult],
+  );
 
   useEffect(() => {
     get<Service[]>("/api/v1/catalog/services")
@@ -70,12 +91,13 @@ export default function Home() {
   const candidates = useMemo<PreviewCandidate[]>(() => {
     const out: PreviewCandidate[] = [];
     for (const service of services) {
-      const store = stores.find((s) =>
-        s.services?.some((sv) => sv.id === service.id),
-      );
+      // Local stores come first in the list, so a service prefers one; a
+      // courier store qualifies only for a service it ships (spec §12).
+      const store = stores.find((s) => storeServesService(s, service.id));
       if (store) out.push({ store, service });
     }
-    return out;
+    // …and every local candidate is tried before any courier one.
+    return localFirst(out, (c) => c.store.fulfilment);
   }, [services, stores]);
 
   if (loading || (dbUser && dbUser.role !== "customer")) {
@@ -183,6 +205,7 @@ export default function Home() {
           </div>
         ) : (
           <>
+            {deliverability === "courier_only" && <CourierOnlyBanner />}
             {services.length > 0 && (
               <section className={styles.section}>
                 <div className={styles.sectionHead}>
@@ -212,7 +235,11 @@ export default function Home() {
                 <Link href="/stores" className={styles.sectionMore}>{t("viewAllStores")} ›</Link>
               </div>
 
-              {stores.length > 0 ? (
+              {!storesReady ? (
+                <div className={styles.emptyState}>
+                  <p className={styles.emptyBody}>Loading…</p>
+                </div>
+              ) : stores.length > 0 ? (
                 <div className={styles.storesGrid}>
                   {stores.slice(0, 8).map((store) => (
                     <Link
@@ -231,6 +258,7 @@ export default function Home() {
                       <div className={styles.storeCardBody}>
                         <h3 className={styles.storeName}>{store.name}{store.is_premium && <CrownBadge />}</h3>
                         <p className={styles.storeAddr}>{formatAddress(store.address)}</p>
+                        {showsCourierBadge(store, userSet) && <CourierBadge start />}
                         <span className={styles.storeCardAction}>{t("storeBrowse")} →</span>
                       </div>
                     </Link>

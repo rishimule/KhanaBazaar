@@ -5,7 +5,7 @@
  * Talks to /api/v1/search/* through the existing api.ts wrapper for headers.
  */
 import { get, post, ApiError } from "./api";
-import type { ProductImage } from "@/types";
+import type { Fulfilment, ProductImage } from "@/types";
 
 export type SuggestTerm = {
   text: string;
@@ -17,6 +17,7 @@ export type SuggestBestStore = {
   name: string;
   price: number;
   is_available: boolean;
+  fulfilment?: Fulfilment | null;
 };
 
 export type SuggestProduct = {
@@ -34,6 +35,7 @@ export type SuggestStoreRow = {
   service_ids: number[];
   distance_km: number | null;
   is_premium?: boolean;
+  fulfilment?: Fulfilment | null;
 };
 
 export type SuggestResponse = {
@@ -52,6 +54,7 @@ export type PerStoreOffer = {
   is_serviceable: boolean;
   store_paused?: boolean;
   distance_km: number | null;
+  fulfilment?: Fulfilment | null;
 };
 
 export type ProductCard = {
@@ -104,6 +107,7 @@ export type CompareOffer = {
   is_available: boolean;
   is_serviceable: boolean;
   store_paused?: boolean;
+  fulfilment?: Fulfilment | null;
 };
 
 export type CompareResponse = {
@@ -178,6 +182,7 @@ export type StoreHit = {
   service_ids: number[];
   distance_km: number | null;
   is_premium?: boolean;
+  fulfilment?: Fulfilment | null;
 };
 
 export type StoresResponse = {

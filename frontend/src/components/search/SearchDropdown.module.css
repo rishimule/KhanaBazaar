@@ -149,3 +149,7 @@
   color: var(--color-primary, #16a34a);
   font-weight: 500;
 }
+
+.courier {
+  margin-left: var(--space-2, 0.5rem);
+}

@@ -11,6 +11,8 @@ import { ScrollRail } from "@/components/ScrollRail";
 import ProductCard from "@/components/ProductCard";
 import { DeliveryLocationPicker } from "@/components/DeliveryLocationPicker";
 import CrownBadge from "@/components/CrownBadge";
+import CourierBadge from "@/components/CourierBadge";
+import { showsCourierBadge } from "@/lib/courier";
 import { InventoryWithProduct, Service, Store } from "@/types";
 import styles from "./HomeStorePreview.module.css";
 
@@ -116,18 +118,21 @@ export function HomeStorePreview({ candidates }: { candidates: PreviewCandidate[
     store.is_paused ||
     (store.services.find((s) => s.id === service.id)?.is_paused ?? false);
   const showDistance = hydrated && userSet && store.distance_km != null;
+  const byCourier = showsCourierBadge(store, hydrated && userSet);
+  const title = byCourier ? t("previewTitleCourier") : t("previewTitle");
 
   return (
     <section className={styles.section}>
       <div className={styles.head}>
         <div className={styles.headLeft}>
-          <h2 className={styles.title}>{t("previewTitle")}</h2>
+          <h2 className={styles.title}>{title}</h2>
           <div className={styles.meta}>
             <span className={styles.storeName}>{store.name}{store.is_premium && <CrownBadge />}</span>
             {!disabledByPause && (
               <span className={styles.openPill}>{t("previewOpenNow")}</span>
             )}
             <span className={styles.serviceTag}>{service.name}</span>
+            {byCourier && <CourierBadge />}
             {showDistance && (
               <span className={styles.distance}>
                 {t("previewKmAway", { km: store.distance_km!.toFixed(1) })}
@@ -150,7 +155,7 @@ export function HomeStorePreview({ candidates }: { candidates: PreviewCandidate[
         </button>
       )}
 
-      <ScrollRail ariaLabel={t("previewTitle")}>
+      <ScrollRail ariaLabel={title}>
         {items.map((item, idx) => (
           <div key={item.id} className={styles.railItem}>
             <ProductCard

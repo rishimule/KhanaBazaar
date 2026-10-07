@@ -112,7 +112,7 @@ UI lives at `frontend/src/app/checkout/[storeId]/page.tsx`, scoped to one `servi
 
 Steps 5 and 7 are deliberate **defense-in-depth against catalog drift**: between cart-load and checkout the seller may have revoked the service (→ 409 `service_unavailable`) or admin may have re-parented a subcategory to a different service (→ 409 `service_mismatch`). Both raise cleanly so a half-placed cross-service order is impossible. No automatic cart purge happens — the customer is informed and can prune the sub-basket themselves.
 
-The serviceability assertion (step 4) is **defense in depth** against direct API bypass — the frontend `<AddressPicker>` already disables out-of-radius rows by calling `POST /api/v1/geo/serviceability` per saved address, but the backend re-checks at order time so a customer cannot POST around the picker. Stores or addresses missing `geo` (null lat/lng) are treated as not-serviceable so couriers never end up with un-pinpointed deliveries.
+The serviceability assertion (step 4) is **defense in depth** against direct API bypass — the frontend `<AddressPicker>` already classifies each saved address into a zone (`classifyAddressZone` over `POST /api/v1/geo/serviceability` with the store), keeping local and courier-ring addresses orderable, but the backend re-checks at order time (`within_local_radius` for door delivery, `zone_for_address` for courier) so a customer cannot POST around the picker. Stores or addresses missing `geo` (null lat/lng) are treated as not-serviceable so couriers never end up with un-pinpointed deliveries.
 
 Pricing is hardcoded at MVP: `MVP_DELIVERY_FEE = 0`, `MVP_TAX = 0`. `subtotal = sum(unit_price × qty)`, `total = subtotal + fee + tax`. Edit constants in `services/checkout.py` when fees plug in.
 
@@ -243,7 +243,7 @@ Customer-facing reads:
 | `rl:geo:*` (Redis) | per-IP rate-limit bucket for /geo/* | 60s |
 | `kb_recent_searches` (localStorage) | last 10 user search terms | until logout or explicit clear |
 | `suggest:*` (Redis) | search suggest response by sha1(q\|grid\|store\|locale) | 60s |
-| `serviceable:*` (Redis) | serviceable store IDs per ~500m grid cell | 60s |
+| `serviceable:v2:*` (Redis) | the stores serving a ~500m grid cell: local ids plus courier ids per service (`Locality`) | 60s |
 | `ratelim:search:*` (Redis) | per-IP rate-limit bucket for /search/* | 60s |
 | `meili_sync:product:*` / `meili_sync:store:*` (Redis) | sync coalesce lock | 5s |
 | `search_query_log` (Postgres) | search analytics rows | 90 days (Celery beat prune) |
@@ -320,26 +320,28 @@ Browser                                    Backend
    |                                          |
    | <DeliveryLocationContext> has {lat, lng} |
    | GET /stores/?lat=&lng=&sort=distance     |
-   |                                          |--- WHERE store.geo IS NOT NULL
-   |                                          |    AND ST_DWithin(store.geo, point,
-   |                                          |        store.delivery_radius_km * 1000)
-   |                                          |--- ORDER BY ST_Distance ASC
-   |<-- [{...store, distance_km}, ...] ------ |
+   |                                          |--- zone per store (zone_case_sql):
+   |                                          |    local radius → 'local',
+   |                                          |    courier ring + shipping service
+   |                                          |    + live payee → 'courier'
+   |                                          |--- ORDER BY local first, then distance
+   |<-- [{...store, distance_km, fulfilment,  |
+   |      courier_service_ids}, ...] -------- |
 ```
 
-Stores without a `geo` (null lat/lng) are excluded — they cannot be courier-located. When zero results, frontend shows "No stores deliver here yet". Optional `&radius_km=` query param shrinks the per-store radius further (cap = `LEAST(store.delivery_radius_km, user_cap)`).
+Stores without a `geo` (null lat/lng) are excluded — they cannot be located. Courier rows come after every local row (courier delivery, §13). When zero results, the frontend shows "No stores deliver here yet". Optional `&radius_km=` caps the distance in both zones; a `&service=` filter needs that service to ship for a courier row.
 
 ### 10.4 Checkout serviceability gate
 
 ```
 <AddressPicker> (per saved address)        Backend
    POST /geo/serviceability {lat, lng, store_id}
-                                          |--- ST_DWithin(store.geo, point, radius)
+                                          |--- zone_for_point (services/serviceability.py)
                                           |
-   <select><option disabled> ←-- {serviceable: false}
+   classifyAddressZone ←-- {serviceable, zone, courier_service_ids}
 ```
 
-The address dropdown disables un-serviceable rows in the UI. On submit, `POST /orders` re-asserts the same `ST_DWithin` (defense in depth, see §4 step 4).
+`classifyAddressZone` (`lib/courier.ts`) turns each answer into a zone: `local` and `courier` rows stay orderable (courier also needs this service in `courier_service_ids` and an Indian 6-digit PIN), the rest are disabled. Checkout's mode follows the picked address (courier delivery, §13). On submit, `POST /orders` re-checks with `within_local_radius` (door) or `zone_for_address` (courier) — defense in depth, see §4 step 4.
 
 ### 10.5 Seller signup pin step
 
@@ -377,10 +379,10 @@ GET /api/v1/search/suggest?q=naan&lat=&lng=
    ▼
 [FastAPI search router]
    ├── Redis GET suggest:<sha1(q|grid|store|locale)>   ─ cache HIT → return
-   ├── locality.get_serviceable_store_ids(lat,lng)     ─ PostGIS + 60s Redis grid
+   ├── locality.get_locality(lat,lng)                  ─ PostGIS + 60s Redis grid
+   ├── Meilisearch products: ① local, ② courier fills the remainder
    ├── Meilisearch search_terms.search(q, filter=locale)
-   ├── Meilisearch products.search(q, filter="store_ids IN [...]")
-   ├── Meilisearch stores.search(q, filter="is_active")
+   ├── Meilisearch stores: local → courier → every other store
    ├── Best-effort INSERT search_query_log
    └── 200 OK { query_id, terms[], products[], stores[] }     X-Search-Query-ID header
        │  cached in Redis 60s
@@ -399,8 +401,8 @@ GET /api/v1/search/suggest?q=naan&lat=&lng=
         ▼
 GET /api/v1/search/products/{id}/stores?lat=&lng=
    ├── Postgres join StoreInventory × Store × Address
-   ├── Annotate per-offer is_serviceable + distance_km via locality cache
-   └── Sort offers by price ascending
+   ├── Annotate per-offer is_serviceable, fulfilment + distance_km via locality cache
+   └── Sort offers local → courier → can't reach, cheapest first within each
        ▼
 [Render: deliverable stores first; <details> "Other stores (N)" collapsed]
    ├── If item already in cart for (store, service) → render ± qty stepper
@@ -523,6 +525,8 @@ A store can ship beyond its local delivery radius, up to its courier radius, for
    - A claimed-but-unconfirmed payment must be answered with `payment_received` on cancel.
    - A cancel after money moved leaves the payment `Paid` (= refund due when the amount is above ₹0) until `POST /orders/{id}/payment/refund-sent` with `{reference?}` or the admin refund marker.
 9. **Reminders.** `courier.send_reminders` runs hourly (minute 17 UTC, :47 IST) outside the quiet hours (21:00–09:00 IST by default). It nudges whoever is holding things up — one reminder per stage — and never changes state.
+
+**Discovery.** Customers at a far location find courier stores where they find local ones: the store list, the home page, search, suggest, category browse, the compare page and favourites. Courier results always come after the local ones; store rows, offers and favourites groups carry a "Ships by courier" badge, but only for a location the customer chose. Count-mode `POST /geo/serviceability` reports `courier_store_count`, so Home, Stores and Products show a courier-only state instead of "no stores here".
 
 Courier orders are not returnable, the admin delivery-address override is refused for them, and admin rewinds never go back before the customer's acceptance.
 

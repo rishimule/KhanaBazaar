@@ -10,9 +10,11 @@ import type {
   Address,
   CourierQuote,
   DeliveryMode,
+  Fulfilment,
   Order,
   OrderStatus,
   PaymentMethod,
+  Store,
 } from "@/types";
 
 /** Why a saved address can or cannot take this sub-basket at checkout.
@@ -149,4 +151,58 @@ export function straightLineKm(
     Math.sin(rad(lat2 - lat1) / 2) ** 2 +
     Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2;
   return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+/** Show "Ships by courier" on a listing row (store card, offer, search store
+ *  row, favourites group): only when the row reaches the location by courier
+ *  AND the customer chose that location — never the Mumbai fallback. */
+export function showsCourierBadge(
+  row: { fulfilment?: Fulfilment | null },
+  locationChosen: boolean,
+): boolean {
+  return locationChosen && row.fulfilment === "courier";
+}
+
+/** Whether a row of the location-aware store list can serve `serviceId`
+ *  there: a local store just has to offer it; a courier store must ship it. */
+export function storeServesService(
+  store: Pick<Store, "services" | "fulfilment" | "courier_service_ids">,
+  serviceId: number,
+): boolean {
+  if (!store.services?.some((s) => s.id === serviceId)) return false;
+  return store.fulfilment !== "courier" || (store.courier_service_ids ?? []).includes(serviceId);
+}
+
+/** Stable reorder that puts courier rows after every other row — e.g. home
+ *  preview candidates, built in catalogue-service order, so a courier store
+ *  is previewed only when no local candidate has stock to show. */
+export function localFirst<T>(rows: T[], fulfilmentOf: (row: T) => Fulfilment | null | undefined): T[] {
+  return [
+    ...rows.filter((row) => fulfilmentOf(row) !== "courier"),
+    ...rows.filter((row) => fulfilmentOf(row) === "courier"),
+  ];
+}
+
+/** Services that at least one courier row of the store list ships. */
+export function courierShippedServiceIds(
+  stores: Pick<Store, "fulfilment" | "courier_service_ids">[],
+): Set<number> {
+  const ids = new Set<number>();
+  for (const store of stores) {
+    if (store.fulfilment !== "courier") continue;
+    for (const id of store.courier_service_ids ?? []) ids.add(id);
+  }
+  return ids;
+}
+
+/** Local and courier store counts from a count-mode serviceability check.
+ *  An older API without `store_count` falls back to the `serviceable` flag. */
+export function deliverabilityCounts(result: ServiceabilityResult): {
+  local: number;
+  courier: number;
+} {
+  return {
+    local: result.store_count ?? (result.serviceable ? 1 : 0),
+    courier: result.courier_store_count ?? 0,
+  };
 }

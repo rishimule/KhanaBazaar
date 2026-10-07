@@ -20,6 +20,8 @@ class SuggestStoreOfferBest(BaseModel):
     name: str
     price: float
     is_available: bool
+    # How this store reaches the searched location; None without one.
+    fulfilment: Optional[Literal["local", "courier"]] = None
 
 
 class SuggestProduct(BaseModel):
@@ -37,6 +39,9 @@ class SuggestStore(BaseModel):
     service_ids: list[int]
     distance_km: Optional[float] = None
     is_premium: bool = False
+    # How this store reaches the searched location; None without a location,
+    # or when it can't reach it (a name search still lists far stores).
+    fulfilment: Optional[Literal["local", "courier"]] = None
 
 
 class SuggestResponse(BaseModel):
@@ -56,6 +61,8 @@ class PerStoreOffer(BaseModel):
     is_serviceable: bool
     store_paused: bool = False
     distance_km: Optional[float] = None
+    # How this store reaches the searched location; None without one.
+    fulfilment: Optional[Literal["local", "courier"]] = None
 
 
 class ProductCard(BaseModel):
@@ -112,6 +119,8 @@ class CompareOffer(BaseModel):
     is_available: bool
     is_serviceable: bool
     store_paused: bool = False
+    # How this store reaches the given location; None without one.
+    fulfilment: Optional[Literal["local", "courier"]] = None
 
 
 class CompareResponse(BaseModel):
