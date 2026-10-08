@@ -8,8 +8,10 @@ import httpx
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.email_render import render_email
 from app.models.commerce import Payment, PaymentStatus
 from app.models.profile import SellerProfile, SellerProfileService
+from app.worker import _pay_block
 from tests._courier_helpers import (
     ADMIN,
     CUSTOMER,
@@ -286,3 +288,59 @@ async def test_a_cancelled_order_cannot_be_claimed(session: AsyncSession) -> Non
         assert (await ac.post(f"/api/v1/orders/{order['id']}/cancel", json={})).status_code == 200
     r = await _claim(order["id"])
     assert (r.status_code, r.json()["detail"]) == (409, "terminal_status")
+
+
+def _ctx(**fields: Any) -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "order_total": 300.0, "store_credit_applied": 50.0, "payment_method": "upi",
+        "delivery_mode": "door_delivery", "payee_upi_vpa": "ravi@okaxis",
+        "payee_bank_live": True,
+    }
+    base.update(fields)
+    return base
+
+
+def test_pay_block_bills_the_net_amount_to_the_saved_upi_id() -> None:
+    assert _pay_block(_ctx()) == {
+        "upi_vpa": "ravi@okaxis", "upi_payable": 250.0, "bank_payable": None,
+    }
+
+
+def test_pay_block_for_a_bank_transfer_names_no_account() -> None:
+    assert _pay_block(_ctx(payment_method="net_banking")) == {
+        "upi_vpa": None, "upi_payable": None, "bank_payable": 250.0,
+    }
+
+
+def test_pay_block_is_empty_for_courier_stopped_or_fully_credited_orders() -> None:
+    empty = {"upi_vpa": None, "upi_payable": None, "bank_payable": None}
+    assert _pay_block(_ctx(delivery_mode="courier")) == empty
+    assert _pay_block(_ctx(payment_method="net_banking", payee_bank_live=False)) == empty
+    assert _pay_block(_ctx(store_credit_applied=300.0))["upi_payable"] is None
+
+
+def _render(order: dict[str, Any]) -> Any:
+    base = {
+        "order_id": 7, "service_name": "Sweets", "store_name": "Ravi Sweets",
+        "line_items": [], "order_total": 300.0, "subtotal": 300.0, "delivery_fee": 0.0,
+        "delivery_eta": None, "preferred_delivery": None,
+        "upi_vpa": None, "upi_payable": None,
+    }
+    base.update(order)
+    return render_email(
+        "order_placed_customer",
+        {"orders": [base], "grand_total": 300.0, "customer_first_name": "Asha"},
+        lang="en",
+    )
+
+
+def test_order_email_shows_a_bank_transfer_block_without_account_details() -> None:
+    payload = _render({"bank_payable": 250.0})
+    assert "by bank transfer" in payload.html and "250.00" in payload.html
+    assert "by bank transfer" in payload.text
+    assert "123456789012" not in payload.html
+
+
+def test_order_email_renders_without_the_new_keys() -> None:
+    payload = _render({})
+    assert "by bank transfer" not in payload.html

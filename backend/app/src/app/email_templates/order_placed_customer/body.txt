@@ -18,6 +18,12 @@ Delivery fee: {{ o.delivery_fee|inr }}
 Courier charge: to be quoted. Nothing to pay yet.
 {% endif -%}
 Total: {{ o.order_total|inr }}
+{% if o.upi_vpa is defined and o.upi_vpa and o.upi_payable %}
+Pay {{ o.upi_payable|inr }} by UPI to {{ o.upi_vpa }}.
+{% endif %}
+{% if o.bank_payable is defined and o.bank_payable %}
+Pay {{ o.bank_payable|inr }} by bank transfer. The store's account details are on your order page.
+{% endif %}
 
 {% endfor -%}
 {% if orders|length == 1 -%}
