@@ -90,6 +90,16 @@ const COURIER_ERROR_CODES = new Set([
   "cancel_not_allowed",
 ]);
 
+// Payment-method codes (spec 2026-10-07): each maps 1:1 to `Errors.<code>`.
+const PAYMENT_ERROR_CODES = new Set([
+  "cash_unavailable",
+  "pay_at_store_unavailable",
+  "upi_payee_missing",
+  "last_payment_method",
+  "claim_not_applicable",
+  "upi_vpa_required",
+]);
+
 export function apiErrorKey(err: unknown): string | null {
   if (!(err instanceof ApiError)) {
     if (err instanceof TypeError) return "Errors.network";
@@ -119,7 +129,9 @@ export function apiErrorKey(err: unknown): string | null {
   if (lower === "not_dispatched") return "Errors.not_dispatched";
   // Door delivery: the store's local radius shrank under an open checkout.
   if (lower === "outside_delivery_area") return "Errors.outside_delivery_area";
-  if (COURIER_ERROR_CODES.has(lower)) return `Errors.${lower}`;
+  if (COURIER_ERROR_CODES.has(lower) || PAYMENT_ERROR_CODES.has(lower)) {
+    return `Errors.${lower}`;
+  }
 
   switch (err.status) {
     case 401:

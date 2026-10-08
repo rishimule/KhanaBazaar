@@ -460,7 +460,13 @@
     "cancel_not_allowed": "This order can no longer be cancelled from here.",
     "payment_method_not_allowed": "That payment method can't be used for this order.",
     "outside_delivery_area": "This address is now outside the store's delivery area. Choose another address.",
-    "not_a_courier_order": "This isn't a courier order."
+    "not_a_courier_order": "This isn't a courier order.",
+    "cash_unavailable": "This store isn't taking cash on delivery right now.",
+    "pay_at_store_unavailable": "This store isn't taking payment at the counter right now.",
+    "upi_payee_missing": "Add a UPI ID first. Our team checks it before customers see it.",
+    "last_payment_method": "Keep at least one way for customers to pay.",
+    "claim_not_applicable": "This order isn't paid by UPI or bank transfer.",
+    "upi_vpa_required": "Enter your UPI ID."
   },
   "Footer": {
     "tagline": "Empower local sellers with a digital presence. Together, we grow a stronger, connected ecosystem.",
@@ -559,7 +565,10 @@
     "courierPayLaterHint": "Pay after you accept the quote",
     "bankTransferLabel": "Bank transfer",
     "bankTransferHint": "NEFT or IMPS to the store's bank account",
-    "courierCreditNote": "Credit isn't available for courier orders."
+    "courierCreditNote": "Credit isn't available for courier orders.",
+    "bankPreview": "You'll transfer ₹{amount} to {name}. You'll see the account details after you place the order.",
+    "noMethodsDoor": "This store can't take payment for door delivery right now.",
+    "noMethodsPickup": "This store can't take payment for pickup orders right now."
   },
   "Order": {
     "delivery": {
@@ -656,7 +665,7 @@
         "upi": "UPI",
         "cash": "Cash on delivery",
         "credit": "Pay on credit",
-        "net_banking": "Net Banking",
+        "net_banking": "Bank transfer",
         "pay_at_store": "Pay at store"
       }
     },
@@ -1344,7 +1353,8 @@
       "credit": "Credit",
       "storeQr": "Store QR",
       "devices": "Devices",
-      "returns": "Returns"
+      "returns": "Returns",
+      "payments": "Payments"
     },
     "alerts": {
       "soundOn": "Order sound on",
@@ -1369,7 +1379,8 @@
       "credit": "Credit customers",
       "storeQr": "Store QR Code",
       "devices": "Devices & sessions",
-      "returns": "Returns"
+      "returns": "Returns",
+      "payments": "Payments"
     },
     "common": {
       "save": "Save",
@@ -1697,7 +1708,8 @@
       "courierRadiusValue": "Up to {km} km",
       "courierRadiusOff": "Off",
       "courierRadiusCaption": "Customers beyond your delivery radius but within this distance can order by courier. You set the courier charge per order. Change it with Edit.",
-      "courierNoPayee": "Courier orders are off until you can be paid: turn on UPI in Payments, or bank transfer in Banking."
+      "courierNoPayee": "Courier orders are off until you can be paid. Turn on UPI or bank transfer on the Payments page.",
+      "courierNoPayeeLink": "Open Payments"
     },
     "profile": {
       "heading": "Profile",
@@ -1757,7 +1769,9 @@
       "accountNameLabel": "Account holder",
       "bankTransferLabel": "Bank transfer for courier orders",
       "bankTransferOn": "On",
-      "bankTransferOff": "Off"
+      "bankTransferOff": "Off",
+      "paymentsMoved": "Your UPI ID, bank account and the ways customers can pay you are on the Payments page.",
+      "paymentsMovedLink": "Open Payments"
     },
     "signup": {
       "stepCounter": "Step {current} of {total}",
@@ -1806,7 +1820,12 @@
         "gstNumber": "GST number",
         "fssaiLicense": "FSSAI license",
         "bankAccount": "Bank account",
-        "ifscCode": "IFSC code"
+        "ifscCode": "IFSC code",
+        "accountName": "Account holder",
+        "upiId": "UPI ID",
+        "bankTransfer": "Bank transfer",
+        "on": "On",
+        "off": "Off"
       },
       "toast": {
         "codeResentInbox": "Code resent! Check your inbox.",
@@ -1839,13 +1858,17 @@
         "invalidGst": "Enter a valid 15-character GST number (e.g., 27AAPFU0939F1ZV)",
         "invalidBankAccount": "Enter a valid bank account number (9–18 digits)",
         "invalidIfsc": "Enter a valid 11-character IFSC code (e.g., HDFC0001234)",
-        "invalidUpiVpa": "Enter a valid UPI ID, like yourname@okhdfcbank"
+        "invalidUpiVpa": "Enter a valid UPI ID, like yourname@okhdfcbank",
+        "bankTransferIncomplete": "Bank transfer needs the account holder name, account number and IFSC."
       },
       "resendIn": "Resend code in {seconds}s",
       "consent": "I agree to the <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>",
       "keepSignedIn": "Keep me signed in on this device",
       "upiVpaLabel": "UPI ID (optional)",
-      "upiVpaHint": "Customers pay you directly at this UPI ID. You can add it later."
+      "upiVpaHint": "Customers pay you directly at this UPI ID. You can add it later.",
+      "bankAccountNameLabel": "Account holder name (optional)",
+      "bankTransferCheckbox": "Let customers pay me by bank transfer",
+      "bankTransferHint": "Customers see your account holder name, number and IFSC only after they place an order. You can change this later."
     },
     "pending": {
       "rejectedTitle": "Application not approved",
@@ -2008,6 +2031,38 @@
       "payBody": "Pay ₹{amount} to the customer directly. They confirm receipt in their app; if they don't, this return closes automatically on {date}.",
       "paymentLapsed": "Closed automatically — the customer didn't confirm receiving ₹{amount}.",
       "retryAction": "Try again"
+    },
+    "payments": {
+      "heading": "Payments",
+      "intro": "Choose how customers can pay you. Switches save straight away. A new UPI ID or bank account is checked by our team before customers see it.",
+      "allRequests": "All change requests",
+      "loadError": "Could not load your payment settings.",
+      "switchesTitle": "How customers can pay you",
+      "switchFailed": "Could not save that. Please try again.",
+      "upiOffConfirm": "Stop accepting UPI now? Unpaid UPI orders will stop showing your UPI ID.",
+      "bankNotice": "Bank transfer now works for door delivery and pickup orders too, not only courier. Turning it off stops it for every order type.",
+      "dismiss": "Got it",
+      "upiTitle": "UPI ID",
+      "notAdded": "Not added",
+      "add": "Add",
+      "change": "Change",
+      "cancel": "Cancel",
+      "upiInputLabel": "UPI ID",
+      "upiQrLabel": "Payment QR image (optional)",
+      "upiQrHint": "For our team to check against your UPI ID. Customers never see this image. They scan a QR we make from the ID itself.",
+      "submit": "Submit for review",
+      "upiSubmitted": "Sent for review. Your current UPI ID keeps working until the new one is approved.",
+      "upiInvalid": "Enter a valid UPI ID, like yourname@okhdfcbank",
+      "submitFailed": "Could not submit that. Please try again.",
+      "underReview": "Under review: {value}",
+      "underReviewNoValue": "A change is under review.",
+      "changesRequested": "Our team asked for changes to this request.",
+      "viewRequest": "View request",
+      "keepDetailsNote": "Unpaid orders keep the details they were placed with. If your old account no longer works, switch the method off and on again once the new one is approved, and they'll move to it.",
+      "bankTitle": "Bank account",
+      "accountHolder": "Account holder",
+      "accountNumber": "Account number",
+      "ifsc": "IFSC"
     }
   },
   "Admin": {
@@ -2184,7 +2239,10 @@
         "refundTitle": "Record the refund on order #{id}?",
         "refundDesc": "Records that the customer got ₹{amount} back. Use this only once the seller confirms it.",
         "quotedCharge": "₹{amount} quoted · waiting for the customer"
-      }
+      },
+      "payeeRecordTitle": "Payment details given to the customer",
+      "payeeUpi": "UPI",
+      "payeeBank": "Bank transfer"
     },
     "catalog": {
       "services": "Services",
@@ -2379,7 +2437,12 @@
         "email": "Email",
         "submitted": "Submitted",
         "accountNumber": "Account Number",
-        "ifsc": "IFSC"
+        "ifsc": "IFSC",
+        "upiId": "UPI ID",
+        "accountName": "Account Holder",
+        "bankTransfer": "Bank Transfer",
+        "bankTransferOn": "Requested",
+        "bankTransferOff": "Not requested"
       },
       "searchPlaceholder": "Search business, owner, email, or phone…",
       "prev": "‹ Prev",
@@ -2396,7 +2459,8 @@
         "fees": "Fees / Plans",
         "credits": "Credits",
         "qr": "QR",
-        "returns": "Returns"
+        "returns": "Returns",
+        "payments": "Payments"
       },
       "loadSellerError": "Failed to load seller",
       "loadingSeller": "Loading seller…",
@@ -2497,7 +2561,22 @@
         "loadError": "Could not load the store QR.",
         "noStore": "This seller has no store yet, so there is no QR to show."
       },
-      "openBadgeAria": "{count} open"
+      "openBadgeAria": "{count} open",
+      "payments": {
+        "title": "Payments",
+        "intro": "Turn a payment method on or off for this seller. Every change needs a reason and is logged.",
+        "loadError": "Could not load this seller's payment settings.",
+        "saveFailed": "Could not save that. Please try again.",
+        "reasonTitleOn": "Turn on {method}",
+        "reasonTitleOff": "Turn off {method}",
+        "reasonDescription": "The seller sees the change on their Payments page.",
+        "detailsTitle": "Payee details",
+        "upiId": "UPI ID",
+        "accountHolder": "Account holder",
+        "accountNumber": "Account number",
+        "ifsc": "IFSC",
+        "notAdded": "Not added"
+      }
     },
     "impersonation": {
       "acting": "<strong>Acting as</strong> {name} — changes are logged",
@@ -2946,7 +3025,30 @@
       "farewellCustomer": "Thank you for shopping with us 👋",
       "farewellStaff": "You've been signed out. See you soon!"
     },
-    "courierBadge": "Ships by courier · few days"
+    "courierBadge": "Ships by courier · few days",
+    "paymentSettings": {
+      "upiLabel": "UPI",
+      "upiHint": "Customers scan a QR code made from the store's UPI ID.",
+      "upiNeedsId": "Needs an approved UPI ID first.",
+      "bankLabel": "Bank transfer",
+      "bankHint": "Customers send money to the store's bank account by NEFT or IMPS.",
+      "bankNeedsDetails": "Needs an approved account holder, number and IFSC first.",
+      "cashLabel": "Cash on delivery",
+      "cashHint": "Customers pay when their door-delivery order arrives.",
+      "payAtStoreLabel": "Pay at store",
+      "payAtStoreHint": "Customers pay at the counter when they collect. Used for pickup orders only.",
+      "saving": "Saving…",
+      "summaryTitle": "What customers see at checkout",
+      "modeDoor": "Door delivery",
+      "modePickup": "Pickup",
+      "modeCourier": "Courier",
+      "noMethods": "No way to pay",
+      "warnDoor": "Customers can't pay for door delivery right now. Turn on a way to pay.",
+      "warnPickup": "Customers can't pay for pickup orders right now. Turn on a way to pay.",
+      "warnCourier": "Courier orders are off until the store can be paid. Turn on UPI or bank transfer.",
+      "lastMethodDoor": "Keep at least one way to pay for door delivery.",
+      "lastMethodPickup": "Keep at least one way to pay for pickup orders."
+    }
   },
   "Info": {
     "aboutTitle": "About {brand}",
@@ -3204,6 +3306,20 @@
     "ivePaid": "I've paid",
     "claimedAt": "You marked this paid on {when}",
     "claimFailed": "Couldn't record that — please try again.",
-    "disclaimer": "The store confirms payment when they receive it."
+    "disclaimer": "The store confirms payment when they receive it.",
+    "stopped": "This store has stopped taking UPI payments. Pay them another way, when your order arrives or at the counter. If you already paid, tap “I've paid” so the store can check."
+  },
+  "BankPay": {
+    "title": "Pay ₹{amount} by bank transfer",
+    "accountName": "Account name",
+    "accountNumber": "Account number",
+    "ifsc": "IFSC",
+    "amount": "Amount",
+    "remarks": "Add Order {id} in the payment remarks so the store can match it.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Couldn't copy. Select the text and copy it instead.",
+    "stopped": "This store has stopped taking bank transfers. Pay them another way, when your order arrives or at the counter. If you already paid, tap “I've paid” so the store can check.",
+    "disclaimer": "Payments go straight to the store. The store confirms payment when they receive it."
   }
 }
