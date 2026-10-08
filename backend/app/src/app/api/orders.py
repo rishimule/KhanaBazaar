@@ -1160,13 +1160,13 @@ async def reorder(
 
 
 @router.post("/{order_id}/payment/claim", response_model=OrderRead)
-async def claim_upi_payment(
+async def claim_payment(
     order_id: int,
     body: Optional[PaymentClaimRequest] = Body(default=None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> OrderRead:
-    """Record the customer's "I've paid" tap on a UPI order.
+    """Record the customer's "I've paid" tap on a UPI or bank-transfer order.
 
     Writes `Payment.customer_claimed_at` and nothing else — the claim is an
     assertion, not evidence. The seller verifies against their own bank app and
@@ -1203,8 +1203,10 @@ async def claim_upi_payment(
     ).first()
     if payment is None:
         raise HTTPException(status_code=404, detail="payment_not_found")
-    if payment.method is not PaymentMethod.Upi:
-        raise HTTPException(status_code=409, detail="not_upi_order")
+    if payment.method not in (PaymentMethod.Upi, PaymentMethod.NetBanking):
+        raise HTTPException(status_code=409, detail="claim_not_applicable")
+    if order.status is OrderStatus.Cancelled:
+        raise HTTPException(status_code=409, detail="terminal_status")
     if payment.status is not PaymentStatus.Pending:
         raise HTTPException(status_code=409, detail="payment_settled")
     if payment.customer_claimed_at is None:

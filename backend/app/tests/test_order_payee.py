@@ -254,3 +254,35 @@ async def test_a_courier_method_turned_on_after_placing_uses_current_details(
     await _accept(order["id"])
     body = await get_order(order["id"])
     assert body["payee"]["bank_transfer"]["account_number"] == "123456789012"
+
+
+async def _claim(order_id: int) -> httpx.Response:
+    async with client_as(CUSTOMER) as ac:
+        return await ac.post(f"/api/v1/orders/{order_id}/payment/claim")
+
+
+async def test_a_customer_can_claim_a_local_bank_transfer(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    order = (await _place_local(world, "net_banking")).json()
+    first = await _claim(order["id"])
+    again = await _claim(order["id"])
+    assert first.status_code == 200, first.text
+    claimed = first.json()["payment"]["customer_claimed_at"]
+    assert claimed and again.json()["payment"]["customer_claimed_at"] == claimed
+    assert first.json()["payment"]["status"] == "pending"
+
+
+async def test_cash_orders_cannot_be_claimed(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    order = (await _place_local(world, "cash")).json()
+    r = await _claim(order["id"])
+    assert (r.status_code, r.json()["detail"]) == (409, "claim_not_applicable")
+
+
+async def test_a_cancelled_order_cannot_be_claimed(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    order = (await _place_local(world, "upi")).json()
+    async with client_as(CUSTOMER) as ac:
+        assert (await ac.post(f"/api/v1/orders/{order['id']}/cancel", json={})).status_code == 200
+    r = await _claim(order["id"])
+    assert (r.status_code, r.json()["detail"]) == (409, "terminal_status")

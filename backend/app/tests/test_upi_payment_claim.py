@@ -317,7 +317,7 @@ async def test_claim_rejects_non_upi_order(
     finally:
         app.dependency_overrides.pop(get_current_user, None)
     assert r.status_code == 409
-    assert r.json()["detail"] == "not_upi_order"
+    assert r.json()["detail"] == "claim_not_applicable"
 
 
 @pytest.mark.asyncio
