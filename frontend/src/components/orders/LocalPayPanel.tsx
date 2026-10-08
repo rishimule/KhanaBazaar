@@ -118,6 +118,8 @@ export default function LocalPayPanel({ order, onChange }: Props) {
       {stopped && (
         <p className={styles.error} role="alert">
           {method === "upi" ? tUpi("stopped") : tBank("stopped")}
+          {/* They may have paid before the store switched it off. */}
+          {!claimed && ` ${tBank("alreadyPaidHint")}`}
         </p>
       )}
 

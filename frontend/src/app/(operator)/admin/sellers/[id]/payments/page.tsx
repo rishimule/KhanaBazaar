@@ -127,6 +127,7 @@ export default function SellerPaymentsTab({
         <AdminReasonModal
           title={pending.next ? t("reasonTitleOn", { method }) : t("reasonTitleOff", { method })}
           description={t("reasonDescription")}
+          placeholder={t("reasonPlaceholder")}
           destructive={!pending.next}
           onConfirm={confirm}
           onClose={() => {

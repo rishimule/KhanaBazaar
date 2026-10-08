@@ -2546,7 +2546,8 @@
         "accountHolder": "Account holder",
         "accountNumber": "Account number",
         "ifsc": "IFSC",
-        "notAdded": "Not added"
+        "notAdded": "Not added",
+        "reasonPlaceholder": "Minimum 10 characters — kept in the activity log. The seller is not emailed."
       }
     },
     "impersonation": {
@@ -2930,7 +2931,8 @@
       "after": "after",
       "loading": "Loading…",
       "loadMore": "Load more",
-      "crTarget": "{group} change request"
+      "crTarget": "{group} change request",
+      "actionPaymentsSetMethods": "Changed payment methods"
     },
     "servicePicker": {
       "servicesOffered": "Services offered",
@@ -3278,7 +3280,7 @@
     "claimedAt": "You marked this paid on {when}",
     "claimFailed": "Couldn't record that — please try again.",
     "disclaimer": "The store confirms payment when they receive it.",
-    "stopped": "This store has stopped taking UPI payments. Pay them another way, when your order arrives or at the counter. If you already paid, tap “I've paid” so the store can check."
+    "stopped": "This store has stopped taking UPI payments. Pay them another way, when your order arrives or at the counter."
   },
   "BankPay": {
     "title": "Pay ₹{amount} by bank transfer",
@@ -3290,7 +3292,8 @@
     "copy": "Copy",
     "copied": "Copied",
     "copyFailed": "Couldn't copy. Select the text and copy it instead.",
-    "stopped": "This store has stopped taking bank transfers. Pay them another way, when your order arrives or at the counter. If you already paid, tap “I've paid” so the store can check.",
-    "disclaimer": "Payments go straight to the store. The store confirms payment when they receive it."
+    "stopped": "This store has stopped taking bank transfers. Pay them another way, when your order arrives or at the counter.",
+    "disclaimer": "Payments go straight to the store. The store confirms payment when they receive it.",
+    "alreadyPaidHint": "If you already paid, tap “I've paid” so the store can check."
   }
 }
