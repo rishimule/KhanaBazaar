@@ -71,7 +71,7 @@ const FIELD_LABELS: Record<string, string> = {
   bank_account_number: "Account number",
   bank_ifsc: "IFSC code",
   bank_account_name: "Account holder name",
-  bank_transfer_enabled: "Bank transfer (courier orders)",
+  bank_transfer_enabled: "Bank transfer",
   // services
   services: "Services",
   // store_basics

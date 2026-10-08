@@ -37,22 +37,6 @@ export async function uploadUpiQr(
   return res.json() as Promise<SellerProfileChangeRequest>;
 }
 
-/**
- * Stop accepting UPI immediately — deliberately NOT a change request.
- *
- * A compromised UPI handle has to stop receiving money now, not after an admin
- * review. Disabling only ever removes a payment option, so it carries none of
- * the risk that makes *enabling* reviewable. The stored VPA is retained, so
- * re-enabling later needs no fresh review.
- */
-export async function disableUpi(token: string): Promise<{ upi_enabled: boolean }> {
-  return patch<{ upi_enabled: boolean }>(
-    "/api/v1/sellers/me/payments/disable",
-    {},
-    token,
-  );
-}
-
 /** Mirrors the backend `_UPI_VPA_RE`: the bank handle must start with a letter. */
 export const UPI_VPA_REGEX = /^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,64}$/;
 

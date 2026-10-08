@@ -68,9 +68,9 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
     { name: "bank_ifsc", label: "IFSC code" },
     {
       name: "bank_transfer_enabled",
-      label: "Accept bank transfers for courier orders",
+      label: "Turn on bank transfer once approved",
       type: "checkbox",
-      hint: "Courier customers see this account's name, number and IFSC only after they accept your quote.",
+      hint: "Customers see this account's name, number and IFSC on their order when it is time to pay — door delivery, pickup and courier alike.",
     },
   ],
   // Services group uses a different sub-form (see profile services card), not
