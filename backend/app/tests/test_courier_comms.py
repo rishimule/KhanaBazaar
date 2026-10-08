@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.base import AccountStatus, User
 from app.models.commerce import Order, OrderStatus
 from app.models.notification import Notification, NotificationType
-from app.models.profile import CustomerProfile
+from app.models.profile import CustomerProfile, SellerProfile, VerificationStatus
 from app.services import courier_comms
 from app.services.courier_copy import (
     CUSTOMER_EVENTS,
@@ -155,6 +155,24 @@ async def test_once_skips_a_repeat(session: AsyncSession) -> None:
     await courier_comms.notify_seller(session, order, "payee_missing", once=True)
     rows = (await session.exec(select(Notification).where(Notification.order_id == order_id))).all()
     assert len(rows) == 1
+
+
+async def test_a_rejected_seller_is_not_told_to_add_a_payee(session: AsyncSession) -> None:
+    """Rejection, not missing details, is why their customers can't pay, so
+    "add a UPI ID" would be advice they can't act on; other events still go."""
+    world = await seed_courier_world(session)
+    order_id = await insert_courier_order(session, world, status=OrderStatus.Quoted, quote_fee=120.0)
+    seller = await session.get(SellerProfile, world.seller_profile_id)
+    assert seller is not None
+    seller.verification_status = VerificationStatus.Rejected
+    session.add(seller)
+    await session.commit()
+    order = await session.get(Order, order_id)
+    assert order is not None
+    await courier_comms.notify_seller(session, order, "payee_missing", once=True)
+    await courier_comms.notify_seller(session, order, "customer_cancelled")
+    rows = (await session.exec(select(Notification).where(Notification.order_id == order_id))).all()
+    assert [r.status_value for r in rows] == ["courier_customer_cancelled"]
 
 
 async def test_courier_email_renders_template(session: AsyncSession) -> None:

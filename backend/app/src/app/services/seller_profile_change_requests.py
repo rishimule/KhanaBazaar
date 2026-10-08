@@ -661,6 +661,13 @@ async def resubmit(
     )
     await _check_courier_rules(session, seller_profile, cr.group, canonical)
     cr.proposed_json = canonical
+    generation = _SWITCH_GENERATION.get(cr.group)
+    if generation is not None:
+        # Sending it again asks again: a stop pulled before this point no
+        # longer blocks its "turn on once approved" (_apply_switch_intent).
+        cr.baseline_json = {
+            **cr.baseline_json, generation: getattr(seller_profile, generation),
+        }
     cr.submission_count += 1
     cr.status = SellerProfileChangeStatus.Submitted
     cr.updated_at = _now()
@@ -984,6 +991,14 @@ async def _apply_payments(
         await delete_blob(old_key)
 
 
+# The generation recorded with a payee request, so approval can tell whether
+# the seller switched that method off after sending it.
+_SWITCH_GENERATION: dict[SellerProfileChangeGroup, str] = {
+    SellerProfileChangeGroup.Payments: "upi_generation",
+    SellerProfileChangeGroup.Banking: "bank_transfer_generation",
+}
+
+
 def _no_stop_since_filing(
     baseline: dict[str, Any], profile: SellerProfile, *, switch: str, generation: str
 ) -> bool:
@@ -1048,12 +1063,15 @@ async def approve(
 ) -> CRMutationResult:
     if cr.status is not SellerProfileChangeStatus.Submitted:
         raise HTTPException(status_code=409, detail="cr_not_actionable")
-    # Lock the row to defeat double-approve races.
+    # Lock the row to defeat double-approve races, refreshing it from the
+    # locked row: `cr` is usually the caller's earlier read, and without
+    # populate_existing a concurrent approval's status would stay invisible.
     locked = (
         await session.exec(
             select(SellerProfileChangeRequest)
             .where(SellerProfileChangeRequest.id == cr.id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
     ).first()
     if locked is None or locked.status is not SellerProfileChangeStatus.Submitted:

@@ -70,7 +70,7 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
       name: "bank_transfer_enabled",
       label: "Turn on bank transfer once approved",
       type: "checkbox",
-      hint: "Customers see the account holder name at checkout, and the number and IFSC on their order when it is time to pay. Approval only ever turns bank transfer on, and not if you switched it off after filing. To stop it, use the switch on the Payments page.",
+      hint: "Customers see the account holder name at checkout, and the number and IFSC on their order when it is time to pay. Approval only ever turns bank transfer on, and not if you switched it off after sending this request. To stop it, use the switch on the Payments page.",
     },
   ],
   // Services group uses a different sub-form (see profile services card), not
@@ -85,7 +85,7 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
       name: "upi_enabled",
       label: "Turn on UPI once approved",
       type: "checkbox",
-      hint: "Approval only ever turns UPI on, and not if you switched it off after filing this request. To stop it, use the switch on the Payments page.",
+      hint: "Approval only ever turns UPI on, and not if you switched it off after sending this request. To stop it, use the switch on the Payments page.",
     },
   ],
   store_basics: [

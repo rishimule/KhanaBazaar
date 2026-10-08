@@ -1017,3 +1017,34 @@ async def test_approving_an_address_request_updates_the_address(
     assert address is not None
     await session.refresh(address)
     assert (address.address_line1, address.city) == ("12 New Road", "Pune")
+
+
+@pytest.mark.asyncio
+async def test_a_second_approval_of_the_same_request_is_refused(
+    approved_seller, session, admin_user
+):
+    """Two admins approve at once: the second must see the first's decision
+    under the row lock, not the "submitted" status it read earlier."""
+    from fastapi import HTTPException
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.models.seller_profile_change_request import SellerProfileChangeRequest
+    from app.services.seller_profile_change_requests import approve
+    from tests.conftest import test_engine
+
+    create = await create_change_request(
+        session=session, seller_profile=approved_seller["profile"],
+        group=SellerProfileChangeGroup.Legal,
+        proposed={"gst_number": "29ABCDE1234F1Z5", "fssai_license": None},
+        note=None, actor_user_id=approved_seller["user"].id,
+    )
+    await session.commit()
+    mine = create.cr  # this session's read: still "submitted"
+    async with AsyncSession(test_engine, expire_on_commit=False) as other:
+        theirs = await other.get(SellerProfileChangeRequest, mine.id)
+        assert theirs is not None
+        await approve(session=other, cr=theirs, admin_user_id=admin_user.id)
+        await other.commit()
+    with pytest.raises(HTTPException) as refused:
+        await approve(session=session, cr=mine, admin_user_id=admin_user.id)
+    assert (refused.value.status_code, refused.value.detail) == (409, "cr_not_actionable")

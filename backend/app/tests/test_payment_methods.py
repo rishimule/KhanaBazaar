@@ -643,3 +643,28 @@ async def test_a_banking_request_cannot_strand_live_bank_transfer(
     assert (await _switch({"bank_transfer_enabled": False})).status_code == 200
     cr = await _file(session, world, SellerProfileChangeGroup.Banking, stranding)
     assert cr.status.value == "submitted"
+
+
+async def test_a_resubmission_after_a_stop_asks_again(session: AsyncSession) -> None:
+    """A stop pulled after filing blocks the request's "turn on", but sending
+    the request again (after the admin asked for changes) asks again."""
+    world = await seed_courier_world(session)
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Payments,
+        {"upi_vpa": "ravi.new@okicici", "upi_enabled": True},
+    )
+    assert (await _switch({"upi_enabled": False})).status_code == 200
+    await request_changes(
+        session=session, cr=cr, admin_user_id=ADMIN.id or 0, note="Handle has a typo"
+    )
+    await session.commit()
+    async with client_as(SELLER) as ac:
+        r = await ac.patch(
+            f"/api/v1/sellers/me/change-requests/{cr.id}/resubmit",
+            json={"proposed": {"upi_vpa": "ravi.v2@okicici", "upi_enabled": True}},
+        )
+    assert r.status_code == 200, r.text
+    await session.refresh(cr)
+    await _approve(session, cr)
+    seller = await _seller(session, world)
+    assert (seller.upi_vpa, seller.upi_enabled) == ("ravi.v2@okicici", True)
