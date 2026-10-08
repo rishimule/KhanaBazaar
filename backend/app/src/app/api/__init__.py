@@ -25,6 +25,7 @@ from app.api import (
     search,
     seller_change_requests,
     seller_onboarding,
+    seller_payments,
     seller_phone_change,
     sellers,
     stores,
@@ -48,6 +49,11 @@ api_router.include_router(
     seller_phone_change.router,
     prefix="/sellers",
     tags=["sellers"],
+)
+api_router.include_router(
+    seller_payments.router,
+    prefix="/sellers",
+    tags=["sellers", "payments"],
 )
 api_router.include_router(customers.router, prefix="/customers", tags=["customers"])
 api_router.include_router(dev_inbox.router, prefix="/dev", tags=["dev"])

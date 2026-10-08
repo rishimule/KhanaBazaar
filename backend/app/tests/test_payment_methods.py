@@ -4,10 +4,13 @@
 settings endpoints (spec 2026-10-07 §4, §5, §8)."""
 from typing import Any
 
+import httpx
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.models.admin_audit import AdminActionLog
 from app.models.commerce import DeliveryMode, Payment, PaymentMethod
-from app.models.profile import SellerProfile
+from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.seller_profile_change_request import SellerProfileChangeGroup
 from app.services.courier_settings import apply_bank_fields
 from app.services.payment_methods import (
@@ -223,3 +226,144 @@ async def test_profile_reports_every_switch(session: AsyncSession) -> None:
     assert body["upi_enabled"] is True
     assert body["cod_enabled"] is True and body["pay_at_store_enabled"] is True
 
+
+async def _settings() -> dict[str, Any]:
+    async with client_as(SELLER) as ac:
+        r = await ac.get("/api/v1/sellers/me/payments")
+    assert r.status_code == 200, r.text
+    data: dict[str, Any] = r.json()
+    return data
+
+
+async def _switch(body: dict[str, Any]) -> httpx.Response:
+    async with client_as(SELLER) as ac:
+        return await ac.patch("/api/v1/sellers/me/payments/methods", json=body)
+
+
+async def _admin_switch(body: dict[str, Any]) -> httpx.Response:
+    async with client_as(ADMIN) as ac:
+        return await ac.patch(f"/api/v1/sellers/admin/{SELLER.id}/payments/methods", json=body)
+
+
+async def test_settings_report_switches_and_methods_by_mode(session: AsyncSession) -> None:
+    await seed_courier_world(session)
+    s = await _settings()
+    assert s["upi_live"] and s["bank_transfer_live"] and s["bank_details_complete"]
+    assert s["cod_enabled"] and s["pay_at_store_enabled"]
+    assert s["methods_by_mode"]["door_delivery"] == ["upi", "net_banking", "cash"]
+    assert "pickup" not in s["methods_by_mode"]  # no service offers pickup
+    assert s["methods_by_mode"]["courier"] == ["upi", "net_banking"]
+    assert s["pickup_offered"] is False and s["courier_offered"] is True
+
+
+async def test_turning_cash_off_updates_door_methods(session: AsyncSession) -> None:
+    await seed_courier_world(session)
+    r = await _switch({"cod_enabled": False})
+    assert r.status_code == 200, r.text
+    assert r.json()["methods_by_mode"]["door_delivery"] == ["upi", "net_banking"]
+
+
+async def test_the_last_way_to_pay_for_door_delivery_is_kept(session: AsyncSession) -> None:
+    await seed_courier_world(session)
+    assert (await _switch({"upi_enabled": False, "bank_transfer_enabled": False})).status_code == 200
+    r = await _switch({"cod_enabled": False})
+    assert r.status_code == 409
+    assert r.json()["detail"] == {"code": "last_payment_method", "mode": "door_delivery"}
+
+
+async def test_pay_at_store_guard_binds_only_while_pickup_is_offered(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    await _switch({"upi_enabled": False, "bank_transfer_enabled": False})
+    assert (await _switch({"pay_at_store_enabled": False})).status_code == 200
+    assert (await _switch({"pay_at_store_enabled": True})).status_code == 200
+    sps = await session.get(SellerProfileService, world.sps_id)
+    assert sps is not None
+    sps.pickup_enabled = True
+    session.add(sps)
+    await session.commit()
+    r = await _switch({"pay_at_store_enabled": False})
+    assert r.status_code == 409
+    assert r.json()["detail"] == {"code": "last_payment_method", "mode": "pickup"}
+
+
+async def test_payee_off_switches_are_never_refused(session: AsyncSession) -> None:
+    await seed_courier_world(session)
+    assert (await _switch({"cod_enabled": False, "bank_transfer_enabled": False})).status_code == 200
+    r = await _switch({"upi_enabled": False})
+    assert r.status_code == 200, r.text
+    assert r.json()["methods_by_mode"]["door_delivery"] == []
+
+
+async def test_switching_on_needs_approved_details(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    seller = await _seller(session, world)
+    seller.upi_vpa = None
+    seller.upi_enabled = False
+    seller.bank_account_name = None
+    seller.bank_transfer_enabled = False
+    session.add(seller)
+    await session.commit()
+    upi = await _switch({"upi_enabled": True})
+    bank = await _switch({"bank_transfer_enabled": True})
+    assert (upi.status_code, upi.json()["detail"]) == (409, "upi_payee_missing")
+    assert (bank.status_code, bank.json()["detail"]) == (409, "bank_transfer_incomplete")
+
+
+async def test_only_an_approved_seller_switches_on(session: AsyncSession) -> None:
+    await seed_courier_world(session, seller_status=VerificationStatus.Pending)
+    assert (await _switch({"upi_enabled": False})).status_code == 200
+    r = await _switch({"upi_enabled": True})
+    assert (r.status_code, r.json()["detail"]) == (409, "seller_not_active")
+
+
+async def test_an_empty_switch_request_changes_nothing(session: AsyncSession) -> None:
+    await seed_courier_world(session)
+    r = await _switch({})
+    assert r.status_code == 200 and r.json()["cod_enabled"] is True
+
+
+async def test_switching_upi_off_twice_bumps_the_generation_once(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    await _switch({"upi_enabled": False})
+    await _switch({"upi_enabled": False})
+    await _switch({"upi_enabled": True})
+    seller = await _seller(session, world)
+    assert seller.upi_enabled is True and seller.upi_generation == 1
+
+
+async def test_admin_switches_need_a_reason_and_are_audited(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    short = await _admin_switch({"upi_enabled": False, "reason": "too short"})
+    assert short.status_code == 422
+    r = await _admin_switch({"upi_enabled": False, "reason": "Seller reported the UPI ID stolen"})
+    assert r.status_code == 200, r.text
+    assert r.json()["upi_enabled"] is False
+    rows = (
+        await session.exec(
+            select(AdminActionLog).where(AdminActionLog.action == "payments.set_methods")
+        )
+    ).all()
+    assert len(rows) == 1
+    assert rows[0].target_seller_id == world.seller_profile_id
+    assert rows[0].before_json == {**rows[0].after_json, "upi_enabled": True}  # type: ignore[dict-item]
+    assert rows[0].reason == "Seller reported the UPI ID stolen"
+
+
+async def test_admin_can_stop_a_non_approved_sellers_upi_but_not_start_it(
+    session: AsyncSession,
+) -> None:
+    await seed_courier_world(session, seller_status=VerificationStatus.Rejected)
+    off = await _admin_switch({"upi_enabled": False, "reason": "Stopping payments for a review"})
+    assert off.status_code == 200, off.text
+    on = await _admin_switch({"upi_enabled": True, "reason": "Turning payments back on now"})
+    assert (on.status_code, on.json()["detail"]) == (409, "seller_not_active")
+
+
+async def test_admin_payment_routes_are_admin_only(session: AsyncSession) -> None:
+    await seed_courier_world(session)
+    async with client_as(SELLER) as ac:
+        r = await ac.get(f"/api/v1/sellers/admin/{SELLER.id}/payments")
+    assert r.status_code == 403
+    async with client_as(ADMIN) as ac:
+        ok = await ac.get(f"/api/v1/sellers/admin/{SELLER.id}/payments")
+    assert ok.status_code == 200 and ok.json()["bank_account_number"] == "123456789012"
