@@ -21,11 +21,15 @@ interface Props {
   credit?: CreditOption | null;
   /** Store-level methods from `Store.accepted_payment_methods`, intersected
    *  with the delivery-mode rules below. Undefined while the store payload is
-   *  still loading — every method is shown rather than flashing an empty list. */
+   *  still loading — every method is shown rather than flashing an empty list.
+   *  An empty list means the store takes nothing for local orders. */
   acceptedMethods?: PaymentMethod[];
   /** Shown under the UPI option once selected, so the customer knows who they
    *  are paying before the order exists. */
   upiPayee?: { vpa: string; display_name: string } | null;
+  /** Who a bank transfer reaches, shown under that option once selected. The
+   *  account number appears only on the placed order. */
+  bankPayee?: { account_name: string } | null;
   /** Net payable (total minus applied store credit), for the preview line. */
   previewAmount?: number;
   /** Live courier methods from `Store.courier_payment_methods`. */
@@ -39,7 +43,7 @@ const BASE_OPTIONS: {
   modes: DeliveryMode[];
 }[] = [
   { value: "upi", labelKey: "upiLabel", hintKey: "upiHint", modes: ["door_delivery", "pickup"] },
-  { value: "net_banking", labelKey: "netBankingLabel", hintKey: "netBankingHint", modes: ["door_delivery", "pickup"] },
+  { value: "net_banking", labelKey: "bankTransferLabel", hintKey: "bankTransferHint", modes: ["door_delivery", "pickup"] },
   { value: "cash", labelKey: "cashLabel", hintKey: "cashHint", modes: ["door_delivery"] },
   { value: "pay_at_store", labelKey: "payAtStoreLabel", hintKey: "payAtStoreHint", modes: ["pickup"] },
 ];
@@ -51,6 +55,7 @@ export default function PaymentMethodPicker({
   credit,
   acceptedMethods,
   upiPayee,
+  bankPayee,
   previewAmount,
   courierMethods,
 }: Props) {
@@ -92,10 +97,10 @@ export default function PaymentMethodPicker({
       </fieldset>
     );
   }
-  // An empty/absent list means "not loaded yet" — fall back to showing all
-  // methods rather than rendering a picker with nothing in it.
+  // Absent = the store payload hasn't loaded: show every method rather than
+  // flashing an empty picker. Present (even empty) = what the store takes.
   const storeAccepts = (m: PaymentMethod) =>
-    !acceptedMethods || acceptedMethods.length === 0 || acceptedMethods.includes(m);
+    !acceptedMethods || acceptedMethods.includes(m);
   const options = BASE_OPTIONS.filter(
     (opt) => opt.modes.includes(deliveryMode) && storeAccepts(opt.value),
   );
@@ -131,6 +136,17 @@ export default function PaymentMethodPicker({
                   })}
                 </p>
               )}
+            {opt.value === "net_banking" &&
+              value === "net_banking" &&
+              bankPayee &&
+              previewAmount != null && (
+                <p className={styles.payeePreview}>
+                  {t("bankPreview", {
+                    amount: previewAmount.toFixed(2),
+                    name: bankPayee.account_name,
+                  })}
+                </p>
+              )}
           </Fragment>
         ))}
         {credit != null && (
@@ -157,6 +173,11 @@ export default function PaymentMethodPicker({
           </label>
         )}
       </div>
+      {options.length === 0 && (
+        <p className={styles.note} role="status">
+          {t(deliveryMode === "pickup" ? "noMethodsPickup" : "noMethodsDoor")}
+        </p>
+      )}
       {credit != null && value === "credit" && (
         <p className={styles.note}>{t("creditSettleNote")}</p>
       )}
