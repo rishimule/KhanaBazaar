@@ -56,7 +56,8 @@
 }
 
 /* A native checkbox drawn as a switch: keyboard, focus and role="switch"
- * on/off announcements all come for free. */
+ * on/off announcements all come for free. The off track is a mid grey so
+ * both it (on the white card) and the white thumb (on it) clear 3:1. */
 .switch {
   appearance: none;
   position: relative;
@@ -64,7 +65,7 @@
   height: 24px;
   margin: 0;
   border-radius: var(--radius-pill);
-  background: var(--shade-cool-light-6);
+  background: var(--shade-cool-base-5);
   cursor: pointer;
   transition: background var(--duration-fast);
 }

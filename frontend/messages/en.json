@@ -1839,7 +1839,7 @@
       "upiVpaHint": "Customers pay you directly at this UPI ID. You can add it later.",
       "bankAccountNameLabel": "Account holder name (optional)",
       "bankTransferCheckbox": "Let customers pay me by bank transfer",
-      "bankTransferHint": "Customers see your account holder name, number and IFSC only after they place an order. You can change this later."
+      "bankTransferHint": "Customers see your account holder name at checkout, and the account number and IFSC only after they place an order. You can change this later."
     },
     "pending": {
       "rejectedTitle": "Application not approved",
@@ -2023,6 +2023,7 @@
       "upiQrHint": "For our team to check against your UPI ID. Customers never see this image. They scan a QR we make from the ID itself.",
       "submit": "Submit for review",
       "upiSubmitted": "Sent for review. Your current UPI ID keeps working until the new one is approved.",
+      "upiSubmittedTurnsOn": "Sent for review. UPI turns on once the new ID is approved.",
       "upiInvalid": "Enter a valid UPI ID, like yourname@okhdfcbank",
       "submitFailed": "Could not submit that. Please try again.",
       "underReview": "Under review: {value}",
@@ -3291,6 +3292,8 @@
     "remarks": "Add Order {id} in the payment remarks so the store can match it.",
     "copy": "Copy",
     "copied": "Copied",
+    "copyAccountNumber": "Copy account number",
+    "copyIfsc": "Copy IFSC",
     "copyFailed": "Couldn't copy. Select the text and copy it instead.",
     "stopped": "This store has stopped taking bank transfers. Pay them another way, when your order arrives or at the counter.",
     "disclaimer": "Payments go straight to the store. The store confirms payment when they receive it.",

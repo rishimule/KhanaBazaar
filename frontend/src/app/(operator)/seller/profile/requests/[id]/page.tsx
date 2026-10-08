@@ -209,6 +209,7 @@ export default function SellerRequestDetailPage() {
         <ChangeRequestDiffTable
           before={cr.baseline_json}
           after={cr.proposed_json}
+          beforeIsCurrent
           beforeLabel={tCR("diffCurrent")}
           afterLabel={tCR("diffProposed")}
           group={cr.group}

@@ -3,10 +3,11 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
+import { formatDateTime } from "@/lib/courier";
 import { errorsKey } from "@/lib/errors";
 import { claimLocalPayment, refetchIfStale } from "@/lib/orders";
 import { netPayable } from "@/lib/upi";
@@ -36,6 +37,7 @@ export default function LocalPayPanel({ order, onChange }: Props) {
   const tUpi = useTranslations("UpiPay");
   const tBank = useTranslations("BankPay");
   const tErr = useTranslations("Errors");
+  const locale = useLocale();
   const { token } = useAuth();
   const method = order.payment.method;
   // The NET figure: `order.total` and `payment.amount` are gross, so billing
@@ -48,7 +50,8 @@ export default function LocalPayPanel({ order, onChange }: Props) {
     order.status !== "cancelled" &&
     amount > 0;
   // An API from before payees were saved per order omits `payee`: fall back
-  // to the store's live UPI payee, as this panel used to.
+  // to the store's live UPI payee, as this panel used to — and, like it,
+  // stay hidden until that payee is known (a failed fetch is not "stopped").
   const legacy = order.payee === undefined;
   const [legacyPayee, setLegacyPayee] = useState<OrderPayee | null>(null);
   const [busy, setBusy] = useState(false);
@@ -62,7 +65,7 @@ export default function LocalPayPanel({ order, onChange }: Props) {
         if (!cancelled) setLegacyPayee({ upi: s.upi_payee ?? null, bank_transfer: null });
       })
       .catch(() => {
-        if (!cancelled) setLegacyPayee({ upi: null, bank_transfer: null });
+        // Unknown, not stopped: leave the panel hidden rather than alarm.
       });
     return () => {
       cancelled = true;
@@ -131,7 +134,7 @@ export default function LocalPayPanel({ order, onChange }: Props) {
 
       {claimed ? (
         <p className={styles.claimed} role="status">
-          {tUpi("claimedAt", { when: new Date(claimed).toLocaleString("en-IN") })}
+          {tUpi("claimedAt", { when: formatDateTime(claimed, locale) })}
         </p>
       ) : (
         <button type="button" className="btn btn-primary" disabled={busy} onClick={claim}>

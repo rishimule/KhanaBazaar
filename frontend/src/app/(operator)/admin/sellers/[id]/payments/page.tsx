@@ -1,7 +1,7 @@
 "use client";
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import AdminReasonModal from "@/components/admin/AdminReasonModal";
 import MethodsByMode, { PaymentWarnings } from "@/components/payments/MethodsByMode";
@@ -42,13 +42,20 @@ export default function SellerPaymentsTab({
   );
   const [busy, setBusy] = useState<PaymentSwitchField | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
+  // Load once per seller: a token refresh must not blank the tab on a blip or
+  // revert a switch that was saved meanwhile. A failed load retries on the
+  // next token refresh.
+  const loadedFor = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || loadedFor.current === sellerId) return;
     let cancelled = false;
     fetchSellerPayments(sellerId, token)
       .then((s) => {
-        if (!cancelled) setSettings(s);
+        if (cancelled) return;
+        loadedFor.current = sellerId;
+        setLoadError(false);
+        setSettings(s);
       })
       .catch(() => {
         if (!cancelled) setLoadError(true);
@@ -77,6 +84,12 @@ export default function SellerPaymentsTab({
             ? tErr(key)
             : t("saveFailed"),
       );
+      // The seller may have changed the switches meanwhile.
+      try {
+        setSettings(await fetchSellerPayments(sellerId, token));
+      } catch {
+        // Keep the last known switches; the modal already shows the error.
+      }
     } finally {
       setBusy(null);
     }
@@ -131,6 +144,9 @@ export default function SellerPaymentsTab({
           destructive={!pending.next}
           onConfirm={confirm}
           onClose={() => {
+            // Esc / ✕ / backdrop mid-request would leave its result nowhere
+            // to show; the modal closes itself once the save settles.
+            if (busy) return;
             setPending(null);
             setModalError(null);
           }}

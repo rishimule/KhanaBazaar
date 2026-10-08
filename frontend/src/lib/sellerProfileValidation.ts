@@ -9,6 +9,7 @@
  */
 import { ApiError } from "@/lib/api";
 import { phoneOtpErrorMessage } from "@/lib/sellerPhone";
+import { UPI_VPA_REGEX } from "@/lib/sellerPayments";
 
 // Regex copied from the backend schemas (keep in sync).
 const GST_RE = /^[0-9A-Z]{15}$/;
@@ -28,6 +29,8 @@ const MSG = {
   businessNameRequired: "Enter the business name.",
   etaOrder: "Maximum delivery time must be at least the minimum.",
   accountNameTooLong: "Keep the account holder name under 140 characters.",
+  upiVpa: "Enter a valid UPI ID, like yourname@okhdfcbank.",
+  upiRequired: "Enter your UPI ID.",
   checkEntries: "Please check your entries and try again.",
 } as const;
 
@@ -70,6 +73,10 @@ export function validateField(field: string, value: string): string | null {
       return v === "" || IFSC_RE.test(v) ? null : MSG.ifsc;
     case "bank_account_name":
       return v.length > 140 ? MSG.accountNameTooLong : null;
+    case "upi_vpa":
+      // Required: an empty payments request would wipe the live payee.
+      if (v === "") return MSG.upiRequired;
+      return UPI_VPA_REGEX.test(v) ? null : MSG.upiVpa;
     default:
       return null;
   }
@@ -128,6 +135,10 @@ export function profileEditErrorMessage(e: unknown, fallback?: string): string {
       return MSG.account;
     case "bank_ifsc format invalid":
       return MSG.ifsc;
+    case "upi_vpa format invalid":
+      return MSG.upiVpa;
+    case "upi_vpa_required":
+      return MSG.upiRequired;
     case "phone format invalid":
       return MSG.phone;
     case "pincode must be 6 digits with no leading zero for India":

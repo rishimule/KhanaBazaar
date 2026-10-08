@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/AuthContext";
@@ -28,6 +29,18 @@ import styles from "./page.module.css";
 
 // Per device: the note explains a one-off change in what the switch covers.
 const BANK_NOTICE_KEY = "kb_seller_bank_notice_dismissed";
+
+/** After a control that held focus disappears (a form closes, a banner is
+ *  dismissed), move focus to a stable heading so keyboard and screen-reader
+ *  users are not dropped onto <body>. Leaves focus alone when it survived.
+ *  Outside a click (after an await) the close must be committed first —
+ *  flushSync — or this frame can run while the old control still has focus. */
+function recoverFocus(id: string) {
+  window.requestAnimationFrame(() => {
+    const active = document.activeElement;
+    if (!active || active === document.body) document.getElementById(id)?.focus();
+  });
+}
 
 function readNoticeDismissed(): boolean {
   if (typeof window === "undefined") return true;
@@ -88,9 +101,13 @@ export default function SellerPaymentsPage() {
   // Rendered only after the settings load (client-side), so reading storage in
   // the initializer cannot cause a hydration mismatch.
   const [noticeDismissed, setNoticeDismissed] = useState(readNoticeDismissed);
+  // Load once per visit: the access token refreshes every few minutes, and a
+  // reload then could blank the page on a blip or revert a switch mid-save.
+  // A failed load retries on the next refresh.
+  const loadedRef = useRef(false);
 
   useEffect(() => {
-    if (authLoading || !token) return;
+    if (authLoading || !token || loadedRef.current) return;
     let cancelled = false;
     Promise.all([
       getPaymentSettings(token),
@@ -98,6 +115,8 @@ export default function SellerPaymentsPage() {
     ])
       .then(([s, crs]) => {
         if (cancelled) return;
+        loadedRef.current = true;
+        setLoadError(false);
         setSettings(s);
         setOpenCRs(crs);
       })
@@ -164,9 +183,16 @@ export default function SellerPaymentsPage() {
           proposed: { upi_vpa: vpa, upi_enabled: true },
         });
       }
-      setUpiFormOpen(false);
-      setUpiFile(null);
-      setUpiNotice(t("upiSubmitted"));
+      // Both routes ask for UPI to be switched on once approved.
+      const live = settings?.upi_enabled && settings.upi_vpa;
+      flushSync(() => {
+        setUpiFormOpen(false);
+        setUpiFile(null);
+        setUpiNotice(t(live ? "upiSubmitted" : "upiSubmittedTurnsOn"));
+      });
+      // Focus the outcome itself: a status line inserted next to a vanished
+      // form is easy for a screen reader to miss.
+      document.getElementById("payments-upi-notice")?.focus();
       await refreshRequests();
     } catch (e) {
       const key = errorsKey(e);
@@ -184,8 +210,14 @@ export default function SellerPaymentsPage() {
     setUpiFormOpen(true);
   }
 
+  function closeUpiForm() {
+    setUpiFormOpen(false);
+    recoverFocus("payments-upi");
+  }
+
   function dismissNotice() {
     setNoticeDismissed(true);
+    recoverFocus("payments-switches");
     try {
       window.localStorage.setItem(BANK_NOTICE_KEY, "1");
     } catch {
@@ -227,7 +259,7 @@ export default function SellerPaymentsPage() {
       <PaymentWarnings settings={settings} />
 
       <section className={styles.card} aria-labelledby="payments-switches">
-        <h2 id="payments-switches" className={styles.cardTitle}>
+        <h2 id="payments-switches" className={styles.cardTitle} tabIndex={-1}>
           {t("switchesTitle")}
         </h2>
         {switchError && (
@@ -249,7 +281,7 @@ export default function SellerPaymentsPage() {
 
       <section className={styles.card} aria-labelledby="payments-upi">
         <header className={styles.cardHeader}>
-          <h2 id="payments-upi" className={styles.cardTitle}>
+          <h2 id="payments-upi" className={styles.cardTitle} tabIndex={-1}>
             {t("upiTitle")}
           </h2>
           {!upiCR && !upiFormOpen && (
@@ -263,7 +295,7 @@ export default function SellerPaymentsPage() {
           <span className={styles.mono}>{settings.upi_vpa ?? t("notAdded")}</span>
         </p>
         {upiNotice && (
-          <p className={styles.notice} role="status">
+          <p id="payments-upi-notice" className={styles.notice} role="status" tabIndex={-1}>
             {upiNotice}
           </p>
         )}
@@ -280,6 +312,9 @@ export default function SellerPaymentsPage() {
               onChange={(e) => setUpiInput(e.target.value.trim())}
               placeholder="yourname@okhdfcbank"
               autoComplete="off"
+              // Focused in the commit of the tap that opened the form, so iOS
+              // still treats it as user-initiated and shows the keyboard.
+              autoFocus
             />
             {/* A plain file input, not AvatarUploader: its crop step can cut a
                 QR's quiet zone and leave an image that no longer scans. */}
@@ -312,7 +347,7 @@ export default function SellerPaymentsPage() {
                 type="button"
                 className="btn btn-outline"
                 disabled={upiBusy}
-                onClick={() => setUpiFormOpen(false)}
+                onClick={closeUpiForm}
               >
                 {t("cancel")}
               </button>
@@ -323,7 +358,7 @@ export default function SellerPaymentsPage() {
 
       <section className={styles.card} aria-labelledby="payments-bank">
         <header className={styles.cardHeader}>
-          <h2 id="payments-bank" className={styles.cardTitle}>
+          <h2 id="payments-bank" className={styles.cardTitle} tabIndex={-1}>
             {t("bankTitle")}
           </h2>
           {!bankCR && (
@@ -360,7 +395,12 @@ export default function SellerPaymentsPage() {
             bank_transfer_enabled: settings.bank_transfer_enabled,
           }}
           open
-          onClose={() => setBankModalOpen(false)}
+          onClose={() => {
+            // Also runs after an awaited submit, so commit the close first.
+            flushSync(() => setBankModalOpen(false));
+            // The bank "Change" button disappears once a request is open.
+            recoverFocus("payments-bank");
+          }}
           onSubmit={async (proposed, note) => {
             await createMyChangeRequest(token, { group: "banking", proposed, note });
             await refreshRequests();

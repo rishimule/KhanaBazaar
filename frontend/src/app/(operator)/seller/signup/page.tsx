@@ -11,6 +11,7 @@ import { usePhoneOtpEnabled } from "@/lib/publicConfig";
 import { ApiError, get, patch, post } from "@/lib/api";
 import { setTokens } from "@/lib/authTokens";
 import { formatAddress } from "@/lib/format-address";
+import { UPI_VPA_REGEX } from "@/lib/sellerPayments";
 import { AddressFields, emptyAddress } from "@/components/AddressFields";
 import ServicePicker from "@/components/ServicePicker";
 import { Address, SellerProfile, Service, User } from "@/types";
@@ -23,8 +24,6 @@ import styles from "./seller-signup.module.css";
 const GST_REGEX =
   /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-// Mirrors the backend `_UPI_VPA_RE`: the bank handle must start with a letter.
-const UPI_VPA_REGEX = /^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,64}$/;
 const PHONE_REGEX = /^[6-9]\d{9}$/;
 
 /** `/auth/seller/phone/otp/request`. `otp_required: false` means phone OTP
@@ -1112,7 +1111,10 @@ function SellerSignupPageInner() {
                       : styles.input
                   }
                   value={bankAccountNumber}
-                  onChange={(e) => setBankAccountNumber(e.target.value)}
+                  onChange={(e) => {
+                    setBankAccountNumber(e.target.value);
+                    clearError("bankTransfer");
+                  }}
                   onBlur={() => {
                     if (bankAccountNumber && !/^\d{9,18}$/.test(bankAccountNumber))
                       setFieldErrors((p) => ({
@@ -1142,9 +1144,10 @@ function SellerSignupPageInner() {
                       : styles.input
                   }
                   value={bankIfsc}
-                  onChange={(e) =>
-                    setBankIfsc(e.target.value.toUpperCase())
-                  }
+                  onChange={(e) => {
+                    setBankIfsc(e.target.value.toUpperCase());
+                    clearError("bankTransfer");
+                  }}
                   onBlur={() => {
                     if (bankIfsc && !IFSC_REGEX.test(bankIfsc))
                       setFieldErrors((p) => ({

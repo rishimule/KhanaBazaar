@@ -288,6 +288,7 @@ export default function AdminCRDetailPage() {
         <ChangeRequestDiffTable
           before={cr.baseline_json}
           after={cr.proposed_json}
+          beforeIsCurrent
           beforeLabel={t("current")}
           afterLabel={t("proposed")}
           group={cr.group}
