@@ -137,6 +137,8 @@ function SellerSignupPageInner() {
   const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [bankIfsc, setBankIfsc] = useState("");
   const [upiVpa, setUpiVpa] = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [bankTransferEnabled, setBankTransferEnabled] = useState(false);
 
   /* ---- UI state ---- */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -193,6 +195,8 @@ function SellerSignupPageInner() {
         setBankAccountNumber(profile.bank_account_number ?? "");
         setBankIfsc(profile.bank_ifsc ?? "");
         setUpiVpa(profile.upi_vpa ?? "");
+        setBankAccountName(profile.bank_account_name ?? "");
+        setBankTransferEnabled(profile.bank_transfer_enabled ?? false);
       })
       .catch(() => {
         // Benign: prefill is a convenience for resubmitting sellers. A failure
@@ -441,6 +445,9 @@ function SellerSignupPageInner() {
           fssai_license: fssaiLicense,
           bank_account_number: bankAccountNumber,
           bank_ifsc: bankIfsc,
+          // PATCH: "" clears the holder name; the switch is always sent.
+          bank_account_name: bankAccountName.trim(),
+          bank_transfer_enabled: bankTransferEnabled,
           upi_vpa: upiVpa || null,
         }, token);
       } else {
@@ -461,7 +468,9 @@ function SellerSignupPageInner() {
             fssai_license: fssaiLicense,
             bank_account_number: bankAccountNumber,
             bank_ifsc: bankIfsc,
-          upi_vpa: upiVpa || null,
+            bank_account_name: bankAccountName.trim() || null,
+            bank_transfer_enabled: bankTransferEnabled,
+            upi_vpa: upiVpa || null,
             accept_policies: agreed,
             remember,
             referral_invite_token: referralInviteToken,
@@ -1154,6 +1163,23 @@ function SellerSignupPageInner() {
                 )}
               </div>
               <div className={styles.inputGroup}>
+                <label className={styles.label} htmlFor="bank-account-name">
+                  {t("bankAccountNameLabel")}
+                </label>
+                <input
+                  id="bank-account-name"
+                  type="text"
+                  className={styles.input}
+                  value={bankAccountName}
+                  onChange={(e) => {
+                    setBankAccountName(e.target.value);
+                    clearError("bankTransfer");
+                  }}
+                  maxLength={140}
+                  autoComplete="name"
+                />
+              </div>
+              <div className={styles.inputGroup}>
                 <label className={styles.label} htmlFor="upi-vpa">
                   {t("upiVpaLabel")}
                 </label>
@@ -1184,6 +1210,25 @@ function SellerSignupPageInner() {
                   </span>
                 )}
               </div>
+              <div className={`${styles.inputGroup} ${styles.fullRow}`}>
+                <label className={styles.consentRow}>
+                  <input
+                    type="checkbox"
+                    checked={bankTransferEnabled}
+                    onChange={(e) => {
+                      setBankTransferEnabled(e.target.checked);
+                      clearError("bankTransfer");
+                    }}
+                  />
+                  <span>{t("bankTransferCheckbox")}</span>
+                </label>
+                <span className={styles.fieldHint}>{t("bankTransferHint")}</span>
+                {fieldErrors.bankTransfer && (
+                  <span className={styles.fieldError}>
+                    {fieldErrors.bankTransfer}
+                  </span>
+                )}
+              </div>
             </div>
             <div className={styles.btnRow}>
               <button
@@ -1204,6 +1249,13 @@ function SellerSignupPageInner() {
                     errs.bankAccountNumber = t("errors.invalidBankAccount");
                   if (bankIfsc && !IFSC_REGEX.test(bankIfsc))
                     errs.bankIfsc = t("errors.invalidIfsc");
+                  // Bank transfer goes live at approval, so it needs every
+                  // detail a customer must type into their bank app.
+                  if (
+                    bankTransferEnabled &&
+                    !(bankAccountName.trim() && bankAccountNumber && bankIfsc)
+                  )
+                    errs.bankTransfer = t("errors.bankTransferIncomplete");
                   if (Object.keys(errs).length) {
                     setFieldErrors((p) => ({ ...p, ...errs }));
                     return;
@@ -1311,6 +1363,20 @@ function SellerSignupPageInner() {
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}>{t("review.ifscCode")}</span>
                 <span className={styles.reviewValue}>{bankIfsc}</span>
+              </div>
+              <div className={styles.reviewRow}>
+                <span className={styles.reviewLabel}>{t("review.accountName")}</span>
+                <span className={styles.reviewValue}>{bankAccountName.trim()}</span>
+              </div>
+              <div className={styles.reviewRow}>
+                <span className={styles.reviewLabel}>{t("review.bankTransfer")}</span>
+                <span className={styles.reviewValue}>
+                  {bankTransferEnabled ? t("review.on") : t("review.off")}
+                </span>
+              </div>
+              <div className={styles.reviewRow}>
+                <span className={styles.reviewLabel}>{t("review.upiId")}</span>
+                <span className={styles.reviewValue}>{upiVpa}</span>
               </div>
             </div>
 
