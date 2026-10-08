@@ -16,6 +16,9 @@ interface Props {
   onClose: () => void;
   /** Shown inside the modal, so a failed action keeps the typed reason. */
   error?: string | null;
+  /** Overrides the default hint, which promises an email to the seller —
+   *  wrong for actions that send none. */
+  placeholder?: string;
 }
 
 export default function AdminReasonModal({
@@ -26,6 +29,7 @@ export default function AdminReasonModal({
   onConfirm,
   onClose,
   error,
+  placeholder,
 }: Props) {
   const t = useTranslations("Shared");
   const [reason, setReason] = useState("");
@@ -71,7 +75,7 @@ export default function AdminReasonModal({
           maxLength={500}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder={t("reasonModal.placeholder")}
+          placeholder={placeholder ?? t("reasonModal.placeholder")}
         />
       </label>
       <div className={styles.counter}>

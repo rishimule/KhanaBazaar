@@ -150,6 +150,17 @@ class Payment(BaseSchema, table=True):
     )
     refund_reference: Optional[str] = Field(default=None, max_length=60)
     refunded_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    # The payee this order was placed to pay, copied at placement (spec
+    # 2026-10-07 §7). Shown only while its generation still matches the
+    # seller's — services/payment_methods.effective_upi / effective_bank. Each
+    # column mirrors its source column's type, so the copy can never overflow.
+    payee_upi_vpa: Optional[str] = Field(default=None, max_length=120)
+    payee_upi_name: Optional[str] = Field(default=None)
+    payee_upi_generation: Optional[int] = Field(default=None)
+    payee_bank_account_name: Optional[str] = Field(default=None, max_length=140)
+    payee_bank_account_number: Optional[str] = Field(default=None)
+    payee_bank_ifsc: Optional[str] = Field(default=None)
+    payee_bank_generation: Optional[int] = Field(default=None)
 
 
 class Delivery(BaseSchema, table=True):

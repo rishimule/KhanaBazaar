@@ -1,0 +1,167 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.switchList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 12px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.switchRow:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.switchText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.switchLabel {
+  font-size: var(--body-base);
+  font-weight: var(--weight-medium);
+  color: var(--shade-cool-dark-7);
+  cursor: pointer;
+}
+
+.switchHint {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
+.switchControl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.saving {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-7);
+}
+
+/* A native checkbox drawn as a switch: keyboard, focus and role="switch"
+ * on/off announcements all come for free. The off track is a mid grey so
+ * both it (on the white card) and the white thumb (on it) clear 3:1. */
+.switch {
+  appearance: none;
+  position: relative;
+  width: 44px;
+  height: 24px;
+  margin: 0;
+  border-radius: var(--radius-pill);
+  background: var(--shade-cool-base-5);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--white);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform var(--duration-fast);
+}
+
+.switch:checked {
+  background: var(--color-primary-1);
+}
+
+.switch:checked::after {
+  transform: translateX(20px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--color-primary-1);
+  outline-offset: 2px;
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 12px;
+  background: var(--shade-cool-light-2);
+  border-radius: var(--radius-card);
+}
+
+.summaryTitle {
+  margin: 0;
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-dark-7);
+}
+
+.summaryList {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) 1fr;
+  gap: var(--space-3);
+  font-size: var(--body-sm);
+}
+
+.summaryRow dt {
+  color: var(--shade-cool-base-7);
+}
+
+.summaryRow dd {
+  margin: 0;
+  color: var(--shade-cool-dark-7);
+}
+
+.none {
+  color: var(--vermillion-red-dark-1, #7f1d1d);
+  font-weight: var(--weight-medium);
+}
+
+.warnings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.warning {
+  padding: 10px 14px;
+  border-radius: var(--radius-card);
+  font-size: var(--body-sm);
+  background: var(--vermillion-red-light-1, #fef2f2);
+  border: 1px solid var(--vermillion-red-base-3, #b91c1c);
+  color: var(--vermillion-red-dark-1, #7f1d1d);
+}
+
+@media (max-width: 480px) {
+  .summaryRow {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

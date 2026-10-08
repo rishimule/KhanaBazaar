@@ -434,6 +434,25 @@ def _resolve_email(
         )
 
 
+def _pay_block(ctx: dict[str, Any]) -> dict[str, Any]:
+    """The pay-now lines of the placement email, net of store credit: UPI
+    names the payee saved on the order; bank transfer points at the order page
+    and never puts an account number in an inbox. Courier orders have nothing
+    to pay at placement (spec 2026-10-07 §6)."""
+    empty: dict[str, Any] = {"upi_vpa": None, "upi_payable": None, "bank_payable": None}
+    if ctx.get("delivery_mode") == "courier":
+        return empty
+    net = round(float(ctx["order_total"]) - float(ctx.get("store_credit_applied") or 0.0), 2)
+    if net <= 0:
+        return empty
+    method = ctx.get("payment_method")
+    if method == "upi" and ctx.get("payee_upi_vpa"):
+        return {**empty, "upi_vpa": ctx["payee_upi_vpa"], "upi_payable": net}
+    if method == "net_banking" and ctx.get("payee_bank_live"):
+        return {**empty, "bank_payable": net}
+    return empty
+
+
 def _load_order_email_context(order_id: int) -> dict[str, Any]:
     """Load order/store/seller_user/customer_user scalars for email composition.
 
@@ -460,6 +479,7 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
 
     async def _load() -> dict[str, Any]:
         from app.models.commerce import OrderItem, Payment
+        from app.services.payment_methods import effective_bank, effective_upi
 
         engine = create_async_engine(settings.DATABASE_URL, echo=False)
         try:
@@ -523,6 +543,18 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                 from app.models.commerce import DeliveryMode
                 from app.models.courier import OrderCourier
 
+                # The payee saved on the order (spec 2026-10-07 §7), so the
+                # email and the order page always name the same account.
+                upi_payee = (
+                    effective_upi(payment_row, seller_profile)
+                    if seller_profile is not None
+                    else None
+                )
+                bank_payee = (
+                    effective_bank(payment_row, seller_profile)
+                    if seller_profile is not None
+                    else None
+                )
                 courier_row = None
                 if order.delivery_mode == DeliveryMode.Courier:
                     courier_row = (
@@ -539,11 +571,8 @@ def _load_order_email_context(order_id: int) -> dict[str, Any]:
                     "payment_method": (
                         payment_row.method.value if payment_row else None
                     ),
-                    "seller_upi_vpa": (
-                        seller_profile.upi_vpa
-                        if seller_profile is not None and seller_profile.upi_enabled
-                        else None
-                    ),
+                    "payee_upi_vpa": upi_payee.vpa if upi_payee is not None else None,
+                    "payee_bank_live": bank_payee is not None,
                     "order_status": order.status.value,
                     "service_name": order.service_name_snapshot,
                     "delivery_eta": format_delivery_eta(
@@ -680,28 +709,9 @@ def send_order_confirmed_customer_async(order_ids: list[int]) -> None:
                 "delivery_eta": ctx.get("delivery_eta"),
                 "preferred_delivery": ctx.get("preferred_delivery"),
                 "courier": ctx.get("delivery_mode") == "courier",
-                # Nothing is payable on a courier order until its quote is
-                # accepted, so no UPI block in the placement email.
-                "upi_vpa": (
-                    ctx.get("seller_upi_vpa")
-                    if ctx.get("payment_method") == "upi"
-                    and ctx.get("delivery_mode") != "courier"
-                    else None
-                ),
-                # NET payable. `order_total` is the GROSS goods cost; store
-                # credit is deducted from it. Emailing the gross would tell a
-                # customer with credit to overpay by exactly their balance.
-                "upi_payable": (
-                    round(
-                        float(ctx["order_total"])
-                        - float(ctx.get("store_credit_applied") or 0.0),
-                        2,
-                    )
-                    if ctx.get("payment_method") == "upi"
-                    and ctx.get("delivery_mode") != "courier"
-                    and ctx.get("seller_upi_vpa")
-                    else None
-                ),
+                # NET payable (gross `order_total` minus store credit), and
+                # nothing on a courier order until its quote is accepted.
+                **_pay_block(ctx),
             }
         )
         grand_total += float(ctx["order_total"])

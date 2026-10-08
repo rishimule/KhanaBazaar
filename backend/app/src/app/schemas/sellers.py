@@ -43,6 +43,10 @@ class SellerRegisterBody(BaseModel):
     # Optional: a seller without their UPI ID to hand must still be able to
     # finish signup. "Required" means required to ACCEPT UPI, not to register.
     upi_vpa: Optional[str] = None
+    # Bank transfer is live from approval when ticked; completeness (holder +
+    # number + IFSC) is checked in the route.
+    bank_account_name: Optional[str] = Field(default=None, max_length=140)
+    bank_transfer_enabled: bool = False
     accept_policies: bool = False
     # "Keep me signed in on this device" — trusted long-term session when true.
     remember: bool = False
@@ -115,6 +119,9 @@ class SellerProfilePayload(BaseModel):
     bank_account_name: Optional[str] = None
     bank_transfer_enabled: bool = False
     upi_vpa: Optional[str] = None
+    upi_enabled: bool = False
+    cod_enabled: bool = True
+    pay_at_store_enabled: bool = True
     verification_status: str
     rejection_reason: Optional[str] = None
     avatar_url: Optional[str] = None

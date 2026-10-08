@@ -68,18 +68,26 @@ const GROUP_FIELDS: Record<SellerProfileChangeGroup, FieldDef[]> = {
     { name: "bank_ifsc", label: "IFSC code" },
     {
       name: "bank_transfer_enabled",
-      label: "Accept bank transfers for courier orders",
+      label: "Turn on bank transfer once approved",
       type: "checkbox",
-      hint: "Courier customers see this account's name, number and IFSC only after they accept your quote.",
+      hint: "Customers see the account holder name at checkout, and the number and IFSC on their order when it is time to pay. Approval only ever turns bank transfer on, and not if you switched it off after sending this request. To stop it, use the switch on the Payments page.",
     },
   ],
   // Services group uses a different sub-form (see profile services card), not
   // handled by this generic modal.
   services: [],
-  // Payments group is edited from the profile's Payments card, which also
-  // handles the optional verification-QR upload and the immediate-disable
-  // action. Not reachable through this generic modal.
-  payments: [],
+  // New UPI IDs are filed from the Payments page (which also takes the
+  // optional verification QR). This list serves "Edit & resubmit" when the
+  // admin asked for changes; a resubmission carries no new QR image.
+  payments: [
+    { name: "upi_vpa", label: "UPI ID", required: true, hint: "Customers pay to this ID, e.g. yourname@okhdfcbank." },
+    {
+      name: "upi_enabled",
+      label: "Turn on UPI once approved",
+      type: "checkbox",
+      hint: "Approval only ever turns UPI on, and not if you switched it off after sending this request. To stop it, use the switch on the Payments page.",
+    },
+  ],
   store_basics: [
     {
       name: "delivery_radius_km",
@@ -335,7 +343,15 @@ export default function ProfileChangeRequestModal({
 
   if (!open) return null;
 
+  // Closing mid-request would hide its outcome (an error, or a request filed
+  // without the confirmation), so Escape, ✕ and the backdrop wait too.
+  const closeUnlessBusy = () => {
+    if (!busy) onClose();
+  };
+
   async function handleSubmit() {
+    // Enter submits the form implicitly, bypassing the disabled Submit button.
+    if (busy || !groupValid || !phoneVerified) return;
     setError(null);
     if (group === "services") {
       const badEta = services
@@ -373,12 +389,21 @@ export default function ProfileChangeRequestModal({
         }
       }
     }
-    if (group === "banking" && values["bank_transfer_enabled"] === "true") {
+    // Approval never switches bank transfer off, so while it is on the
+    // details must stay complete even with this box unticked (as the server
+    // checks at filing).
+    const bankLive =
+      String((baselineValues ?? currentValues)["bank_transfer_enabled"]) === "true";
+    if (group === "banking" && (values["bank_transfer_enabled"] === "true" || bankLive)) {
       const missing = ["bank_account_name", "bank_account_number", "bank_ifsc"].some(
         (k) => (values[k] ?? "").trim() === "",
       );
       if (missing) {
-        setError("Bank transfer needs the account holder name, account number and IFSC.");
+        setError(
+          values["bank_transfer_enabled"] === "true"
+            ? "Bank transfer needs the account holder name, account number and IFSC."
+            : "Bank transfer is on, so it needs the account holder name, account number and IFSC. To stop it, use the switch on the Payments page.",
+        );
         return;
       }
     }
@@ -466,7 +491,7 @@ export default function ProfileChangeRequestModal({
     return (
       <Modal
         title={`Edit ${GROUP_LABEL[group]}`}
-        onClose={onClose}
+        onClose={closeUnlessBusy}
         footer={
           <>
             <button
@@ -636,7 +661,7 @@ export default function ProfileChangeRequestModal({
   return (
     <Modal
       title={`Edit ${GROUP_LABEL[group]}`}
-      onClose={onClose}
+      onClose={closeUnlessBusy}
       footer={
         <>
           <button
@@ -708,6 +733,7 @@ export default function ProfileChangeRequestModal({
                     <input
                       type="checkbox"
                       checked={values[f.name] === "true"}
+                      aria-describedby={hintFor(f) ? `${f.name}-hint` : undefined}
                       onChange={(e) =>
                         setValues((vs) => ({
                           ...vs,
@@ -717,7 +743,11 @@ export default function ProfileChangeRequestModal({
                     />
                     <span>{f.label}</span>
                   </label>
-                  {hintFor(f) && <span className={styles.subtitle}>{hintFor(f)}</span>}
+                  {hintFor(f) && (
+                    <span id={`${f.name}-hint`} className={styles.subtitle}>
+                      {hintFor(f)}
+                    </span>
+                  )}
                 </div>
               );
             }

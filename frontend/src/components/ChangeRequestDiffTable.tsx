@@ -18,6 +18,9 @@ interface Props {
   group?: SellerProfileChangeGroup;
   /** Map of service_id -> human name. Required when group=services. */
   serviceNames?: Map<number, string>;
+  /** `before` holds the seller's values (not another proposal), so the payee
+   *  switch rows show what approval does to them. */
+  beforeIsCurrent?: boolean;
 }
 
 /** Per-group canonical key set. When `group` is provided, rows for keys
@@ -71,7 +74,7 @@ const FIELD_LABELS: Record<string, string> = {
   bank_account_number: "Account number",
   bank_ifsc: "IFSC code",
   bank_account_name: "Account holder name",
-  bank_transfer_enabled: "Bank transfer (courier orders)",
+  bank_transfer_enabled: "Bank transfer",
   // services
   services: "Services",
   // store_basics
@@ -94,6 +97,11 @@ const UNCHANGED_WHEN_NULL = new Set([
   "bank_account_name",
   "bank_transfer_enabled",
 ]);
+
+/** Approval only ever switches these on (spec 2026-10-07): a proposed "no"
+ *  asks for nothing, so against the seller's values it leaves the switch as
+ *  it is. The instant switches on the Payments page turn them off. */
+const SWITCH_ON_ONLY = new Set(["upi_enabled", "bank_transfer_enabled"]);
 
 /** A courier radius of 0 and none both mean "Off", so they are not a change. */
 function sameValue(key: string, a: unknown, b: unknown): boolean {
@@ -236,7 +244,14 @@ function formatValue(
   return String(value);
 }
 
-function fieldLabel(key: string): string {
+/** Two proposals side by side: the switch rows are requests, not states. */
+const SWITCH_REQUEST_LABELS: Record<string, string> = {
+  upi_enabled: "Turn on UPI once approved",
+  bank_transfer_enabled: "Turn on bank transfer once approved",
+};
+
+function fieldLabel(key: string, beforeIsCurrent: boolean): string {
+  if (!beforeIsCurrent && SWITCH_REQUEST_LABELS[key]) return SWITCH_REQUEST_LABELS[key];
   return FIELD_LABELS[key] ?? key.replace(/_/g, " ");
 }
 
@@ -253,6 +268,7 @@ export default function ChangeRequestDiffTable({
   afterLabel = "Proposed",
   group,
   serviceNames,
+  beforeIsCurrent = false,
 }: Props) {
   const [showUnchanged, setShowUnchanged] = useState(false);
   const allowed = group !== undefined ? ALLOWED_KEYS[group] : undefined;
@@ -260,7 +276,10 @@ export default function ChangeRequestDiffTable({
     new Set([...Object.keys(before), ...Object.keys(after)]),
   ).filter((k) => (allowed ? allowed.has(k) : true));
   const rows = keys.map((k) => {
-    const afterValue = UNCHANGED_WHEN_NULL.has(k) && after[k] == null ? before[k] : after[k];
+    const unchanged =
+      (UNCHANGED_WHEN_NULL.has(k) && after[k] == null) ||
+      (beforeIsCurrent && SWITCH_ON_ONLY.has(k) && after[k] === false);
+    const afterValue = unchanged ? before[k] : after[k];
     return {
       key: k,
       before: before[k],
@@ -294,7 +313,7 @@ export default function ChangeRequestDiffTable({
           {visible.map((r) => (
             <tr key={r.key} className={r.changed ? styles.changed : undefined}>
               <td className={styles.fieldName}>
-                {group !== undefined ? fieldLabel(r.key) : r.key}
+                {group !== undefined ? fieldLabel(r.key, beforeIsCurrent) : r.key}
               </td>
               <td>{renderCell(r.key, r.before)}</td>
               <td>{renderCell(r.key, r.after)}</td>

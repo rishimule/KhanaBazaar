@@ -19,6 +19,11 @@ from app.services.image_storage import get_user_media_storage
 logger = logging.getLogger(__name__)
 
 
+def key_prefix(subject: str, profile_id: int) -> str:
+    """The folder holding every avatar blob of one profile."""
+    return f"avatars/{subject}/{profile_id}/"
+
+
 async def process_and_store(
     raw: bytes, subject: str, profile_id: int
 ) -> tuple[str, str]:
@@ -30,7 +35,7 @@ async def process_and_store(
     data, digest = await anyio.to_thread.run_sync(
         process_image, raw, settings.AVATAR_MAX_DIMENSION_PX
     )
-    key = f"avatars/{subject}/{profile_id}/{digest}.webp"
+    key = f"{key_prefix(subject, profile_id)}{digest}.webp"
     url = await get_user_media_storage().save(key, data, "image/webp")
     return url, key
 

@@ -23,9 +23,13 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.address import Address
-from app.models.commerce import PaymentMethod
+from app.models.commerce import DeliveryMode, PaymentMethod
 from app.models.profile import SellerProfile, SellerProfileService
 from app.models.store import Store
+
+# Re-exported: courier, checkout and tests import it from here.
+from app.services.payment_methods import bank_transfer_live as bank_transfer_live
+from app.services.payment_methods import methods_for
 
 Zone = Literal["local", "courier", "none"]
 Fulfilment = Literal["local", "courier"]
@@ -51,24 +55,10 @@ class StoreZone:
     courier_service_ids: tuple[int, ...] = ()
 
 
-def bank_transfer_live(seller: SellerProfile) -> bool:
-    """Bank transfer counts only when switched on AND fully specified."""
-    return bool(
-        seller.bank_transfer_enabled
-        and seller.bank_account_name
-        and seller.bank_account_number
-        and seller.bank_ifsc
-    )
-
-
 def courier_payment_methods(seller: SellerProfile) -> list[PaymentMethod]:
-    """Prepaid methods a courier customer can pay this seller by, UPI first."""
-    methods: list[PaymentMethod] = []
-    if seller.upi_enabled and seller.upi_vpa:
-        methods.append(PaymentMethod.Upi)
-    if bank_transfer_live(seller):
-        methods.append(PaymentMethod.NetBanking)
-    return methods
+    """Prepaid methods a courier customer can pay this seller by, UPI first.
+    The rules live in services/payment_methods.py."""
+    return methods_for(seller, DeliveryMode.Courier)
 
 
 def is_courier_destination(address: Address) -> bool:
@@ -122,12 +112,15 @@ _COURIER_RING_SQL = (
     f"(s.courier_radius_km IS NOT NULL AND NOT {LOCAL_SQL} "
     f"AND ST_DWithin(a.geo, {POINT_SQL}, s.courier_radius_km * 1000))"
 )
-# SQL twin of courier_payment_methods(): UPI, or bank transfer fully specified.
+# SQL twin of courier_payment_methods() (payment_methods.upi_live /
+# bank_transfer_live): an approved seller with UPI, or with bank transfer fully
+# specified. The native enum stores member NAMES, hence 'Approved'.
 _PAYEE_LIVE_SQL = (
+    "(sp.verification_status = 'Approved' AND "
     "((sp.upi_enabled AND COALESCE(sp.upi_vpa, '') <> '') "
     "OR (sp.bank_transfer_enabled AND COALESCE(sp.bank_account_name, '') <> '' "
     "AND COALESCE(sp.bank_account_number, '') <> '' "
-    "AND COALESCE(sp.bank_ifsc, '') <> ''))"
+    "AND COALESCE(sp.bank_ifsc, '') <> '')))"
 )
 
 

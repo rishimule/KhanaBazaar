@@ -13,12 +13,32 @@ import type {
   AdminActivityPage,
   AdminInventoryRow,
   Order,
+  PaymentMethodSwitches,
+  PaymentSettings,
   SellerHubSummary,
   Service,
 } from "@/types";
 
 export function fetchSellerHub(sellerId: number, token: string) {
   return get<SellerHubSummary>(`/api/v1/admin/sellers/${sellerId}`, token);
+}
+
+export function fetchSellerPayments(sellerId: number, token: string) {
+  return get<PaymentSettings>(`/api/v1/sellers/admin/${sellerId}/payments`, token);
+}
+
+/** Every change is audited server-side; `reason` must be ≥ 10 characters. */
+export function adminSetPaymentMethods(
+  sellerId: number,
+  changes: PaymentMethodSwitches,
+  reason: string,
+  token: string,
+) {
+  return patch<PaymentSettings>(
+    `/api/v1/sellers/admin/${sellerId}/payments/methods`,
+    { ...changes, reason },
+    token,
+  );
 }
 
 export function adminSetServiceDeliverySettings(

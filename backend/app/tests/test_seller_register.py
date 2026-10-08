@@ -292,3 +292,42 @@ async def test_seller_register_normalizes_empty_strings_to_null(
         assert profile.fssai_license is None
         assert profile.bank_account_number is None
         assert profile.bank_ifsc is None
+
+
+@pytest.mark.asyncio
+async def test_seller_register_saves_the_bank_transfer_choice(
+    seeded_grocery_service_id: int, session: AsyncSession
+) -> None:
+    from sqlmodel import select
+
+    signup_token = create_seller_signup_token("bank@test.com", "+919876543211")
+    payload = _register_payload(
+        [seeded_grocery_service_id],
+        bank_account_name=" Priya Verma ",
+        bank_transfer_enabled=True,
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/auth/seller/register", json={"signup_token": signup_token, **payload}
+        )
+    assert resp.status_code == 200, resp.text
+    profile = (
+        await session.exec(select(SellerProfile).where(SellerProfile.phone == "+919876543211"))
+    ).first()
+    assert profile is not None
+    assert profile.bank_account_name == "Priya Verma"
+    assert profile.bank_transfer_enabled is True
+
+
+@pytest.mark.asyncio
+async def test_seller_register_refuses_bank_transfer_without_a_holder(
+    seeded_grocery_service_id: int,
+) -> None:
+    signup_token = create_seller_signup_token("nobank@test.com", "+919876543212")
+    payload = _register_payload([seeded_grocery_service_id], bank_transfer_enabled=True)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/auth/seller/register", json={"signup_token": signup_token, **payload}
+        )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "bank_transfer_incomplete"

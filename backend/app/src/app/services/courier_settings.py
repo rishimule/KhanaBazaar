@@ -11,6 +11,7 @@ from fastapi import HTTPException
 
 from app.core.config import settings
 from app.models.profile import SellerProfile
+from app.services.payment_methods import set_bank_transfer_enabled
 
 
 def resolve_courier_radius(current: float | None, proposed: float | None) -> float | None:
@@ -46,7 +47,7 @@ def apply_bank_fields(
     if name is not None:
         profile.bank_account_name = name.strip() or None
     if enabled is not None:
-        profile.bank_transfer_enabled = enabled
+        set_bank_transfer_enabled(profile, enabled)
 
 
 def assert_bank_transfer_complete(profile: SellerProfile) -> None:

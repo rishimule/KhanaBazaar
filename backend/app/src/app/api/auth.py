@@ -55,6 +55,7 @@ from app.services.consent import (
     has_accepted_current_policy,
     record_acceptance,
 )
+from app.services.courier_settings import assert_bank_transfer_complete
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_emails import dispatch_new_device_login
 
@@ -542,11 +543,15 @@ async def seller_register(
         fssai_license=body.fssai_license or None,
         bank_account_number=body.bank_account_number or None,
         bank_ifsc=body.bank_ifsc or None,
+        bank_account_name=(body.bank_account_name or "").strip() or None,
+        bank_transfer_enabled=body.bank_transfer_enabled,
         # upi_enabled stays False here — it flips at admin approval, where the
         # VPA is reviewed as part of onboarding (design spec §4.1).
         upi_vpa=body.upi_vpa or None,
         business_address_id=address.id,
     )
+    # A ticked "bank transfer" needs holder + number + IFSC (422 otherwise).
+    assert_bank_transfer_complete(profile)
     session.add(profile)
     await session.flush()
     await replace_profile_services(session, profile, valid_ids)

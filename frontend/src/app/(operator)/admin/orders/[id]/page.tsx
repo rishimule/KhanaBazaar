@@ -126,6 +126,27 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
         </p>
       </section>
 
+      {/* What the customer was told to pay, as saved at placement — for
+          disputes (spec 2026-10-07 §7). */}
+      {order.payee_record && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{t("payeeRecordTitle")}</h2>
+          {order.payee_record.upi && (
+            <p>
+              {t("payeeUpi")}: <code>{order.payee_record.upi.vpa}</code> (
+              {order.payee_record.upi.display_name})
+            </p>
+          )}
+          {order.payee_record.bank_transfer && (
+            <p>
+              {t("payeeBank")}: {order.payee_record.bank_transfer.account_name} ·{" "}
+              <code>{order.payee_record.bank_transfer.account_number}</code> ·{" "}
+              <code>{order.payee_record.bank_transfer.ifsc}</code>
+            </p>
+          )}
+        </section>
+      )}
+
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{isCourier ? tcs("shipTo") : t("deliveryTo")}</h2>
         <p>{order.delivery_address_snapshot}</p>

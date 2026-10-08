@@ -121,6 +121,7 @@ export default function SellerLayout({
   const sellerNav = [
     { href: "/seller", label: t("nav.dashboard"), icon: "📊" },
     { href: "/seller/profile", label: t("nav.profile"), icon: "🪪" },
+    { href: "/seller/payments", label: t("nav.payments"), icon: "💰" },
     {
       href: "/seller/orders",
       label: t("nav.orders"),
@@ -156,6 +157,8 @@ export default function SellerLayout({
               ? t("changeRequests.indexTitle")
               : pathname === "/seller/profile"
                 ? t("titles.profile")
+                : pathname.startsWith("/seller/payments")
+                  ? t("titles.payments")
                 : pathname.startsWith("/seller/plan")
                   ? t("titles.plan")
                   : pathname.startsWith("/seller/referrals")

@@ -25,12 +25,18 @@ from app.models.commerce import (
     PaymentStatus,
 )
 from app.models.courier import OrderCourier
-from app.models.profile import CustomerAddress, CustomerProfile
+from app.models.profile import CustomerAddress, CustomerProfile, SellerProfile
 from app.models.store import Store, StoreInventory
 from app.schemas.address import address_to_payload
 from app.services.inventory import decrement_stock, lock_inventory_rows
+from app.services.payment_methods import (
+    MODE_METHODS,
+    UNAVAILABLE_CODE,
+    methods_for,
+    seller_for_store,
+    snapshot_payee,
+)
 from app.services.serviceability import (
-    bank_transfer_live,
     is_courier_destination,
     within_local_radius,
     zone_for_address,
@@ -41,26 +47,13 @@ from app.utils.address import format_address
 # `_compute_delivery_fee`. Tax stays 0 until GST plugs in.
 MVP_TAX = 0.0
 
-# Which payment methods are valid for each delivery mode (Spec 3B). COD (cash)
-# is door-only; pay-at-store is pickup-only; UPI/Net Banking/Credit both.
+# Which payment methods are valid for each delivery mode — the store methods
+# of services/payment_methods.MODE_METHODS plus postpaid credit for door and
+# pickup (never courier, which is prepaid only, spec D5). A mismatch is a 422;
+# a method the store has switched off is a 409 (`_validate_method_for_store`).
 _ALLOWED_METHODS: dict[DeliveryMode, set[PaymentMethod]] = {
-    DeliveryMode.DoorDelivery: {
-        PaymentMethod.Upi,
-        PaymentMethod.NetBanking,
-        PaymentMethod.Cash,
-        PaymentMethod.Credit,
-    },
-    DeliveryMode.Pickup: {
-        PaymentMethod.Upi,
-        PaymentMethod.NetBanking,
-        PaymentMethod.PayAtStore,
-        PaymentMethod.Credit,
-    },
-    # Prepaid only (spec D5): no COD, pay-at-store or postpaid credit.
-    DeliveryMode.Courier: {
-        PaymentMethod.Upi,
-        PaymentMethod.NetBanking,
-    },
+    mode: set(methods) | ({PaymentMethod.Credit} if mode is not DeliveryMode.Courier else set())
+    for mode, methods in MODE_METHODS.items()
 }
 
 
@@ -257,29 +250,20 @@ async def _validate_service_active_for_store(
 
 
 
-async def _validate_upi_payee_for_store(
-    session: AsyncSession, store_id: int
-) -> None:
-    """Raise 409 upi_unavailable when the store's seller has no live UPI payee.
-
-    The checkout UI hides UPI for these stores, but hiding a radio button is
-    not enforcement — a crafted request must not be able to create an order
-    the customer has no way to pay.
-    """
-    from app.models.profile import SellerProfile
-
-    row = (
-        await session.exec(
-            select(SellerProfile.upi_vpa, SellerProfile.upi_enabled)
-            .join(
-                Store,
-                Store.seller_profile_id == SellerProfile.id,  # type: ignore[arg-type]
-            )
-            .where(Store.id == store_id)
-        )
-    ).first()
-    if row is None or not (row[1] and row[0]):
-        raise HTTPException(status_code=409, detail="upi_unavailable")
+async def _validate_method_for_store(
+    session: AsyncSession, store_id: int, method: PaymentMethod, mode: DeliveryMode
+) -> SellerProfile | None:
+    """409 `<method>_unavailable` unless the store's seller takes `method` for
+    `mode` right now. The checkout UI hides switched-off methods, but hiding a
+    radio button is not enforcement — a crafted request must not create an
+    order the customer has no way to pay. Returns the seller for the payee
+    snapshot; credit has its own checks and skips this one."""
+    seller = await seller_for_store(session, store_id)
+    if method is PaymentMethod.Credit:
+        return seller
+    if seller is None or method not in methods_for(seller, mode):
+        raise HTTPException(status_code=409, detail=UNAVAILABLE_CODE[method])
+    return seller
 
 
 async def _assert_courier_enabled(
@@ -305,22 +289,6 @@ async def _assert_courier_enabled(
             status_code=409,
             detail={"detail": "courier_unavailable", "store_id": store_id, "service_id": service_id},
         )
-
-
-async def _validate_bank_transfer_for_store(session: AsyncSession, store_id: int) -> None:
-    """409 bank_transfer_unavailable unless the seller's bank transfer is on
-    and fully specified — a courier customer must know where to send money."""
-    from app.models.profile import SellerProfile
-
-    seller = (
-        await session.exec(
-            select(SellerProfile)
-            .join(Store, Store.seller_profile_id == SellerProfile.id)  # type: ignore[arg-type]
-            .where(Store.id == store_id)
-        )
-    ).first()
-    if seller is None or not bank_transfer_live(seller):
-        raise HTTPException(status_code=409, detail="bank_transfer_unavailable")
 
 
 async def _assert_courier_destination(
@@ -644,10 +612,9 @@ async def place_order_for_sub_basket(
     await _validate_service_active_for_store(session, store_id, service_id)
     if is_courier:
         await _assert_courier_enabled(session, store_id, service_id)
-        if payment_method is PaymentMethod.NetBanking:
-            await _validate_bank_transfer_for_store(session, store_id)
-    if payment_method is PaymentMethod.Upi:
-        await _validate_upi_payee_for_store(session, store_id)
+    payee_seller = await _validate_method_for_store(
+        session, store_id, payment_method, delivery_mode
+    )
 
     # Resolve the delivery/pickup location. Pickup reuses the delivery_address
     # slot with the STORE address (the collect-here location) and skips the
@@ -750,6 +717,10 @@ async def place_order_for_sub_basket(
         preferred_delivery_date=preferred_delivery_date,
         preferred_delivery_window=preferred_delivery_window,
     )
+    # Who this order pays, frozen now (spec 2026-10-07 §7): a later approved
+    # change never redirects it; only an off-switch drops it.
+    if payee_seller is not None:
+        snapshot_payee(payment, payee_seller, mode=delivery_mode, method=payment_method)
     session.add(order)
     await session.flush()
     assert order.id is not None

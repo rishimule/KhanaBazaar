@@ -71,6 +71,7 @@ async def seed(session: AsyncSession) -> AsyncGenerator[dict[str, int], None]:
     seller = SellerProfile(upi_vpa="seed@okaxis", upi_enabled=True,
         user_id=mock_seller.id, first_name="S", phone="+919811000742",
         business_name="Shop", bank_account_number="2", bank_ifsc="HDFC0000002",
+        bank_account_name="Shop", bank_transfer_enabled=True,
         verification_status=VerificationStatus.Approved,
         business_address_id=seller_addr.id,
     )

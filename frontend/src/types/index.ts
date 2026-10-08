@@ -159,6 +159,10 @@ export interface Store extends BaseSchema {
    *  generated from `vpa` client-side; the seller's uploaded image is
    *  admin-only and never reaches this payload. */
   upi_payee?: { vpa: string; display_name: string } | null;
+  /** Who a bank transfer reaches — the account holder only, or null when the
+   *  store takes no bank transfers. Number + IFSC appear only on the
+   *  customer's own placed order (`Order.payee`). */
+  bank_transfer_payee?: { account_name: string } | null;
   /** Set when the store list was queried with the user's lat/lng. */
   distance_km?: number | null;
   /** Set by the location-aware store list: local delivery or courier. */
@@ -301,12 +305,14 @@ export interface SellerProfile extends BaseSchema {
   bank_account_number: string | null;
   bank_ifsc: string | null;
   bank_account_name?: string | null;
-  /** Customer-facing bank transfer for courier orders. */
+  /** Customers may pay by bank transfer (door delivery, pickup, courier). */
   bank_transfer_enabled?: boolean;
   /** Customer-visible UPI payee. The uploaded verification QR is admin-only
    *  and deliberately absent from these reads. */
   upi_vpa?: string | null;
   upi_enabled?: boolean;
+  cod_enabled?: boolean;
+  pay_at_store_enabled?: boolean;
   verification_status: VerificationStatus;
   rejection_reason?: string;
   avatar_url: string | null;
@@ -325,6 +331,9 @@ export interface SellerApplication {
   fssai_license: string | null;
   bank_account_number: string | null;
   bank_ifsc: string | null;
+  bank_account_name?: string | null;
+  /** The applicant asked to take bank transfers (live from approval). */
+  bank_transfer_enabled?: boolean;
   /** Customer-visible UPI payee. The uploaded verification QR is admin-only
    *  and deliberately absent from these reads. */
   upi_vpa?: string | null;
@@ -406,12 +415,18 @@ export interface CourierQuote {
   created_at: string;
 }
 
-/** The seller's bank details — only on an accepted courier order, only for
- *  its customer. */
+/** The seller's bank details — shown only to the customer who owes the money. */
 export interface BankTransferDetails {
   account_name: string;
   account_number: string;
   ifsc: string;
+}
+
+/** Who the customer pays for an order (spec 2026-10-07 §7). A method is null
+ *  when the order doesn't use it or the store has stopped taking it. */
+export interface OrderPayee {
+  upi: { vpa: string; display_name: string } | null;
+  bank_transfer: BankTransferDetails | null;
 }
 
 export interface CourierInfo {
@@ -475,6 +490,38 @@ export interface Order {
   store_credit_applied?: number;
   /** Courier orders only (spec 2026-10-02 §13); null for door/pickup. */
   courier?: CourierInfo | null;
+  /** Owning customer, single-order reads, while there is something to pay.
+   *  Absent (undefined) from APIs older than per-order payees. */
+  payee?: OrderPayee | null;
+  /** Admins only: the payee as saved when the order was placed. */
+  payee_record?: OrderPayee | null;
+}
+
+export type PaymentSwitchField =
+  | "upi_enabled"
+  | "bank_transfer_enabled"
+  | "cod_enabled"
+  | "pay_at_store_enabled";
+
+export type PaymentMethodSwitches = Partial<Record<PaymentSwitchField, boolean>>;
+
+/** GET /sellers/me/payments and its admin twin (spec 2026-10-07 §4). */
+export interface PaymentSettings {
+  upi_enabled: boolean;
+  upi_vpa: string | null;
+  upi_live: boolean;
+  bank_transfer_enabled: boolean;
+  bank_account_name: string | null;
+  bank_account_number: string | null;
+  bank_ifsc: string | null;
+  bank_details_complete: boolean;
+  bank_transfer_live: boolean;
+  cod_enabled: boolean;
+  pay_at_store_enabled: boolean;
+  pickup_offered: boolean;
+  courier_offered: boolean;
+  /** Door delivery always; pickup / courier only while offered. [] = no way to pay. */
+  methods_by_mode: Partial<Record<DeliveryMode, PaymentMethod[]>>;
 }
 
 export interface OrderListResponse {

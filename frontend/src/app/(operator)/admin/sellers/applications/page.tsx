@@ -562,6 +562,23 @@ export default function AdminSellersPage() {
                 <span className={styles.detailsLabel}>{t("field.ifsc")}</span>
                 <span className={styles.detailsValue}>{reviewing.bank_ifsc || "—"}</span>
               </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>{t("field.accountName")}</span>
+                <span className={styles.detailsValue}>{reviewing.bank_account_name || "—"}</span>
+              </div>
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>{t("field.bankTransfer")}</span>
+                <span className={styles.detailsValue}>
+                  {reviewing.bank_transfer_enabled
+                    ? t("field.bankTransferOn")
+                    : t("field.bankTransferOff")}
+                </span>
+              </div>
+              {/* Approving turns UPI on for this ID, so the reviewer must see it. */}
+              <div className={styles.detailsRow}>
+                <span className={styles.detailsLabel}>{t("field.upiId")}</span>
+                <span className={styles.detailsValue}>{reviewing.upi_vpa || "—"}</span>
+              </div>
             </div>
           </div>
             </>

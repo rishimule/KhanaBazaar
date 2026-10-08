@@ -14,6 +14,7 @@ import styles from "./layout.module.css";
 
 const TABS: { slug: string; labelKey: string }[] = [
   { slug: "profile", labelKey: "tab.profile" },
+  { slug: "payments", labelKey: "tab.payments" },
   { slug: "products", labelKey: "tab.products" },
   { slug: "orders", labelKey: "tab.orders" },
   { slug: "returns", labelKey: "tab.returns" },

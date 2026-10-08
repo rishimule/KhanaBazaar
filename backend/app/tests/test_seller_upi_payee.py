@@ -214,6 +214,9 @@ async def test_payments_cr_removal_clears_payee(
     session: AsyncSession,
     admin_user: Any,
 ) -> None:
+    """Removing the payee is a deliberate admin edit: an untouched empty
+    request is refused (spec 2026-10-07 §4), so the admin clears the ID while
+    approving a seller's request."""
     bundle = approved_seller_with_store
     bundle.profile.upi_vpa = "old@okaxis"
     bundle.profile.upi_enabled = True
@@ -224,12 +227,17 @@ async def test_payments_cr_removal_clears_payee(
         session=session,
         seller_profile=bundle.profile,
         group=SellerProfileChangeGroup.Payments,
-        proposed={"upi_vpa": "", "upi_enabled": False},
+        proposed={"upi_vpa": "new@okaxis", "upi_enabled": True},
         note=None,
         actor_user_id=bundle.user.id,
     )
     await session.commit()
-    await approve(session=session, cr=res.cr, admin_user_id=admin_user.id)
+    await approve(
+        session=session,
+        cr=res.cr,
+        admin_user_id=admin_user.id,
+        applied={"upi_vpa": "", "upi_enabled": False},
+    )
     await session.commit()
     await session.refresh(bundle.profile)
     assert bundle.profile.upi_vpa is None
@@ -388,11 +396,14 @@ async def test_approval_enables_upi_when_vpa_present(
     admin_user: Any,
 ) -> None:
     """Approving a seller who supplied a VPA at signup turns UPI on, so there
-    is no second gate after onboarding."""
+    is no second gate after onboarding. Only the first approval does: a
+    re-approval (the store exists) leaves the switch as the seller left it."""
     from app.models.profile import VerificationStatus
 
     bundle = approved_seller_with_store
-    # Rewind to pending with a VPA on file, then approve through the route.
+    # Rewind to a never-approved seller (pending, no store yet) with a VPA on
+    # file, then approve through the route.
+    await session.delete(bundle.store)
     bundle.profile.verification_status = VerificationStatus.Pending
     bundle.profile.upi_vpa = "ganesh@okhdfcbank"
     bundle.profile.upi_enabled = False

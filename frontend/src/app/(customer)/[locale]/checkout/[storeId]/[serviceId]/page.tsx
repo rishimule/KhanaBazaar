@@ -18,6 +18,7 @@ import AddressPicker, { type PickerState } from "@/components/orders/AddressPick
 import { DeliveryRouteMap } from "@/components/orders/DeliveryRouteMap";
 import DeliveryModeSelector from "@/components/orders/DeliveryModeSelector";
 import PaymentMethodPicker from "@/components/orders/PaymentMethodPicker";
+import { FALLBACK_ORDER, localMethodsFor } from "@/lib/paymentMethods";
 import PriceComparison from "@/components/orders/PriceComparison";
 import { formatAddress } from "@/lib/format-address";
 import ReplaceAdjustmentsBanner from "@/components/orders/ReplaceAdjustmentsBanner";
@@ -127,20 +128,14 @@ export default function CheckoutPage() {
     // `credit` is a per-customer entitlement and is deliberately absent from
     // the store's method list; never auto-correct away from it.
     if (paymentMethod === "credit") return;
-    const accepted = storeDetails?.accepted_payment_methods;
-    // Absent/empty means the store payload has not loaded — leave the
-    // selection alone rather than bouncing it around during load.
-    const storeAccepts = (m: PaymentMethod) =>
-      !accepted || accepted.length === 0 || accepted.includes(m);
-    const modeOk =
-      !(deliveryMode === "pickup" && paymentMethod === "cash") &&
-      !(deliveryMode === "door_delivery" && paymentMethod === "pay_at_store");
-    if (modeOk && storeAccepts(paymentMethod)) return;
-    const preference: PaymentMethod[] =
-      deliveryMode === "pickup"
-        ? ["upi", "pay_at_store", "net_banking"]
-        : ["upi", "cash", "net_banking"];
-    const next = preference.find(storeAccepts);
+    const mode = deliveryMode === "pickup" ? "pickup" : "door_delivery";
+    // undefined = the store payload hasn't loaded: leave the selection alone
+    // rather than bouncing it around during load.
+    const live = localMethodsFor(storeDetails?.accepted_payment_methods, mode);
+    if (live === undefined || live.includes(paymentMethod)) return;
+    const next = FALLBACK_ORDER[mode].find((m) => live.includes(m));
+    // Nothing live: keep the selection; Place order stays disabled and the
+    // picker says why.
     if (next && next !== paymentMethod) setPaymentMethod(next);
   }, [
     courierModeActive,
@@ -243,6 +238,14 @@ export default function CheckoutPage() {
     (!isRecipientValid(recipient) || courierMethods === null || courierMethods.length === 0);
   const pickupAvailable = !!storeDetails?.services.find((s) => s.id === serviceId)
     ?.pickup_enabled;
+  // A local mode the store can't take payment for: the picker explains and the
+  // button waits. Credit still works for customers who have it.
+  const localMethods = isCourier
+    ? undefined
+    : localMethodsFor(
+        storeDetails?.accepted_payment_methods,
+        isPickup ? "pickup" : "door_delivery",
+      );
   const subtotal = getTotal(cart);
   const freeDeliveryThreshold = cart.free_delivery_threshold ?? 0;
   const baseFee = cart.delivery_fee ?? 0;
@@ -262,6 +265,9 @@ export default function CheckoutPage() {
   const hasCredit = creditStanding != null && creditStanding.credit_limit > 0;
   const creditEligible = hasCredit && total <= creditStanding!.available;
   const creditSelectedButBlocked = paymentMethod === "credit" && !creditEligible;
+  const localMethodBlocked =
+    localMethods !== undefined &&
+    (paymentMethod === "credit" ? !creditEligible : !localMethods.includes(paymentMethod));
   const etaLabel =
     cart.delivery_eta_min_minutes != null && cart.delivery_eta_max_minutes != null
       ? formatDeliveryEta(cart.delivery_eta_min_minutes, cart.delivery_eta_max_minutes)
@@ -338,7 +344,9 @@ export default function CheckoutPage() {
         zoneCode === "courier_unavailable" ||
         zoneCode === "courier_destination_unsupported" ||
         zoneCode === "upi_unavailable" ||
-        zoneCode === "bank_transfer_unavailable"
+        zoneCode === "bank_transfer_unavailable" ||
+        zoneCode === "cash_unavailable" ||
+        zoneCode === "pay_at_store_unavailable"
       ) {
         // The zone or the store's payees changed under the page: re-classify
         // the addresses and re-read the live payees, so the page switches
@@ -467,6 +475,7 @@ export default function CheckoutPage() {
             courierMethods={courierMethods ?? undefined}
             acceptedMethods={storeDetails?.accepted_payment_methods}
             upiPayee={storeDetails?.upi_payee ?? null}
+            bankPayee={storeDetails?.bank_transfer_payee ?? null}
             previewAmount={total}
             credit={
               hasCredit
@@ -572,6 +581,7 @@ export default function CheckoutPage() {
           disabled={
             submitting ||
             creditSelectedButBlocked ||
+            localMethodBlocked ||
             courierBlocked ||
             (!isPickup &&
               (pickerState.selectedId === null ||

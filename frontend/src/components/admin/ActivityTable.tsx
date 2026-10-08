@@ -27,6 +27,7 @@ const ACTION_KEYS: Record<string, string> = {
   "order.rewind": "actionOrderRewind",
   "order.refund": "actionOrderRefund",
   "order.address_override": "actionOrderAddressOverride",
+  "payments.set_methods": "actionPaymentsSetMethods",
   profile_cr_approve: "actionProfileCRApprove",
   profile_cr_approve_with_edits: "actionProfileCRApproveWithEdits",
   profile_cr_request_changes: "actionProfileCRRequestChanges",

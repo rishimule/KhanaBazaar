@@ -16,6 +16,7 @@ from typing import Any, Callable, Optional
 
 from fastapi import HTTPException
 from pydantic import ValidationError
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -50,6 +51,11 @@ from app.services.courier_settings import (
 )
 from app.services.fee_lifecycle import sync_store_arrangements
 from app.services.image_processing import ImageValidationError
+from app.services.payment_methods import (
+    bank_details_complete,
+    set_bank_transfer_enabled,
+    set_upi_enabled,
+)
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_services import (
     list_profile_services,
@@ -134,6 +140,9 @@ async def _baseline_for_group(
             "bank_ifsc": profile.bank_ifsc,
             "bank_account_name": profile.bank_account_name,
             "bank_transfer_enabled": profile.bank_transfer_enabled,
+            # Not shown in the diff: lets approval tell whether bank transfer
+            # was switched off after this request was filed (_apply_switch_intent).
+            "bank_transfer_generation": profile.bank_transfer_generation,
         }
     if group is SellerProfileChangeGroup.Payments:
         return {
@@ -141,6 +150,8 @@ async def _baseline_for_group(
             "upi_enabled": profile.upi_enabled,
             "upi_qr_url": profile.upi_qr_url or "",
             "storage_key": profile.upi_qr_storage_key,
+            # Not shown in the diff: see the banking baseline.
+            "upi_generation": profile.upi_generation,
         }
     if group is SellerProfileChangeGroup.Services:
         rows = await list_profile_services(session, profile.id or 0)
@@ -296,7 +307,10 @@ async def _check_courier_rules(
         name = canonical.get("bank_account_name")
         enabled = canonical.get("bank_transfer_enabled")
         merged_name = profile.bank_account_name if name is None else (name.strip() or None)
-        merged_enabled = profile.bank_transfer_enabled if enabled is None else bool(enabled)
+        # Approval only ever switches bank transfer on (_apply_switch_intent),
+        # so the details must stay complete while it is on, not just when the
+        # request asks to turn it on — else the request could never be approved.
+        merged_enabled = profile.bank_transfer_enabled or bool(enabled)
         if merged_enabled and not (
             merged_name and canonical.get("bank_account_number") and canonical.get("bank_ifsc")
         ):
@@ -514,6 +528,21 @@ async def create_payments_qr_change_request(
     )
 
 
+def _owns_pending_key(cr: SellerProfileChangeRequest, key: str, prefix: str) -> bool:
+    """Whether a request's pending blob lies in its own seller's folder. Only
+    the upload routes set `storage_key`, always inside that folder; anything
+    else was planted (the generic routes once let a caller choose the key), and
+    deleting it on withdraw or reject would remove another user's image."""
+    from app.services.image_storage import key_in_scope
+
+    if key_in_scope(key, prefix):
+        return True
+    logger.warning(
+        "change request %s carries a storage_key outside %s; not deleting it", cr.id, prefix
+    )
+    return False
+
+
 async def _cleanup_pending_avatar_blob(
     session: AsyncSession, cr: SellerProfileChangeRequest
 ) -> None:
@@ -527,11 +556,13 @@ async def _cleanup_pending_avatar_blob(
     pending_key = (cr.proposed_json or {}).get("storage_key")
     if not pending_key:
         return
+    from app.services.profile_avatars import delete_blob, key_prefix
+
+    if not _owns_pending_key(cr, pending_key, key_prefix("seller", cr.seller_profile_id)):
+        return
     profile = await session.get(SellerProfile, cr.seller_profile_id)
     live_key = profile.avatar_storage_key if profile else None
     if pending_key != live_key:
-        from app.services.profile_avatars import delete_blob
-
         await delete_blob(pending_key)
 
 
@@ -553,10 +584,13 @@ async def _cleanup_pending_store_logo_blob(
             select(Store).where(Store.seller_profile_id == cr.seller_profile_id)
         )
     ).first()
-    live_key = store.logo_storage_key if store else None
-    if pending_key != live_key:
-        from app.services.store_logos import delete_blob
+    from app.services.store_logos import delete_blob, key_prefix
 
+    if store is None or store.id is None or not _owns_pending_key(
+        cr, pending_key, key_prefix(store.id)
+    ):
+        return
+    if pending_key != store.logo_storage_key:
         await delete_blob(pending_key)
 
 
@@ -574,11 +608,13 @@ async def _cleanup_pending_payments_blob(
     pending_key = (cr.proposed_json or {}).get("storage_key")
     if not pending_key:
         return
+    from app.services.seller_upi_qr import delete_blob, key_prefix
+
+    if not _owns_pending_key(cr, pending_key, key_prefix(cr.seller_profile_id)):
+        return
     profile = await session.get(SellerProfile, cr.seller_profile_id)
     live_key = profile.upi_qr_storage_key if profile else None
     if pending_key != live_key:
-        from app.services.seller_upi_qr import delete_blob
-
         await delete_blob(pending_key)
 
 
@@ -625,6 +661,13 @@ async def resubmit(
     )
     await _check_courier_rules(session, seller_profile, cr.group, canonical)
     cr.proposed_json = canonical
+    generation = _SWITCH_GENERATION.get(cr.group)
+    if generation is not None:
+        # Sending it again asks again: a stop pulled before this point no
+        # longer blocks its "turn on once approved" (_apply_switch_intent).
+        cr.baseline_json = {
+            **cr.baseline_json, generation: getattr(seller_profile, generation),
+        }
     cr.submission_count += 1
     cr.status = SellerProfileChangeStatus.Submitted
     cr.updated_at = _now()
@@ -797,13 +840,13 @@ async def _apply_legal(
 async def _apply_banking(
     session: AsyncSession, profile: SellerProfile, payload: dict[str, Any]
 ) -> None:
+    """The reviewed details only. `bank_transfer_enabled` in the payload is a
+    "turn on once approved" request, honoured by `_apply_switch_intent`; a
+    change request never switches bank transfer off (spec 2026-10-07 D2/D5)."""
     profile.bank_account_number = payload.get("bank_account_number") or None
     profile.bank_ifsc = payload.get("bank_ifsc") or None
-    apply_bank_fields(
-        profile,
-        name=payload.get("bank_account_name"),
-        enabled=payload.get("bank_transfer_enabled"),
-    )
+    apply_bank_fields(profile, name=payload.get("bank_account_name"), enabled=None)
+    # A live switch can't be left pointing at incomplete details.
     assert_bank_transfer_complete(profile)
     session.add(profile)
 
@@ -925,9 +968,11 @@ async def _apply_payments(
     mirrors `_apply_banking`.
     """
     profile.upi_vpa = payload.get("upi_vpa") or None
-    # Defensive: the payload validator already rejects enabled-without-payee,
-    # but re-assert here since this also runs on approve-with-edits.
-    profile.upi_enabled = bool(payload.get("upi_enabled")) and bool(profile.upi_vpa)
+    if not profile.upi_vpa:
+        # Nothing left to pay to. Otherwise the switch is left alone here:
+        # `upi_enabled` is a "turn on once approved" request, honoured by
+        # `_apply_switch_intent` (spec 2026-10-07 D2/D5).
+        set_upi_enabled(profile, False)
 
     new_url = str(payload.get("upi_qr_url") or "")
     new_key = payload.get("storage_key") or None
@@ -944,6 +989,55 @@ async def _apply_payments(
         from app.services.seller_upi_qr import delete_blob
 
         await delete_blob(old_key)
+
+
+# The generation recorded with a payee request, so approval can tell whether
+# the seller switched that method off after sending it.
+_SWITCH_GENERATION: dict[SellerProfileChangeGroup, str] = {
+    SellerProfileChangeGroup.Payments: "upi_generation",
+    SellerProfileChangeGroup.Banking: "bank_transfer_generation",
+}
+
+
+def _no_stop_since_filing(
+    baseline: dict[str, Any], profile: SellerProfile, *, switch: str, generation: str
+) -> bool:
+    """Whether the method has not been switched off since the request was
+    filed: the generation recorded at filing still matches. Requests filed
+    before generations were recorded fall back to "it was on then and is off
+    now"."""
+    if generation in baseline:
+        return bool(baseline[generation] == getattr(profile, generation))
+    return not (baseline.get(switch) and not getattr(profile, switch))
+
+
+def _apply_switch_intent(
+    profile: SellerProfile, cr: SellerProfileChangeRequest, applied: dict[str, Any]
+) -> None:
+    """A payee request may ask for its method to be switched on once approved.
+    Approval honours that only when the details are complete and no off-switch
+    has happened since the request was filed — an emergency stop always beats
+    an older request. It never switches a method off: that is the instant
+    switch's job (spec 2026-10-07 D2/D5)."""
+    if cr.group is SellerProfileChangeGroup.Payments:
+        if (
+            applied.get("upi_enabled")
+            and profile.upi_vpa
+            and _no_stop_since_filing(
+                cr.baseline_json, profile, switch="upi_enabled", generation="upi_generation"
+            )
+        ):
+            set_upi_enabled(profile, True)
+    elif cr.group is SellerProfileChangeGroup.Banking and applied.get("bank_transfer_enabled"):
+        if not bank_details_complete(profile):
+            raise HTTPException(status_code=422, detail="bank_transfer_incomplete")
+        if _no_stop_since_filing(
+            cr.baseline_json,
+            profile,
+            switch="bank_transfer_enabled",
+            generation="bank_transfer_generation",
+        ):
+            set_bank_transfer_enabled(profile, True)
 
 
 GROUP_APPLIERS = {
@@ -969,12 +1063,15 @@ async def approve(
 ) -> CRMutationResult:
     if cr.status is not SellerProfileChangeStatus.Submitted:
         raise HTTPException(status_code=409, detail="cr_not_actionable")
-    # Lock the row to defeat double-approve races.
+    # Lock the row to defeat double-approve races, refreshing it from the
+    # locked row: `cr` is usually the caller's earlier read, and without
+    # populate_existing a concurrent approval's status would stay invisible.
     locked = (
         await session.exec(
             select(SellerProfileChangeRequest)
             .where(SellerProfileChangeRequest.id == cr.id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
     ).first()
     if locked is None or locked.status is not SellerProfileChangeStatus.Submitted:
@@ -985,12 +1082,30 @@ async def approve(
         canonical_applied = validate_group_payload(cr.group, raw_applied)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    has_edits = canonical_applied != normalize_group_payload(cr.group, cr.proposed_json)
+    if (
+        cr.group is SellerProfileChangeGroup.Payments
+        and not has_edits
+        and not str(canonical_applied.get("upi_vpa") or "").strip()
+    ):
+        # A seller's request with no UPI ID is the old Profile Edit-button
+        # bug's empty submission; approved as-is it would wipe the live payee.
+        # Reject it, or clear the ID deliberately with approve-with-edits.
+        raise HTTPException(status_code=422, detail="upi_vpa_required")
 
+    # Row-locked, and refreshed from the locked row (the route may already
+    # have loaded this profile): the appliers may flip the payment switches,
+    # whose generation counters must never be written from a stale read.
+    # populate_existing also resets lazy relationships, so the address the
+    # address applier edits is loaded here (a lazy load would raise
+    # MissingGreenlet in async code).
     profile = (
         await session.exec(
-            select(SellerProfile).where(
-                SellerProfile.id == cr.seller_profile_id
-            )
+            select(SellerProfile)
+            .where(SellerProfile.id == cr.seller_profile_id)
+            .options(selectinload(SellerProfile.business_address))  # type: ignore[arg-type]
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
     ).first()
     if profile is None:
@@ -998,8 +1113,7 @@ async def approve(
 
     applier = GROUP_APPLIERS[cr.group]
     await applier(session, profile, canonical_applied)
-
-    has_edits = canonical_applied != normalize_group_payload(cr.group, cr.proposed_json)
+    _apply_switch_intent(profile, cr, canonical_applied)
     cr.status = SellerProfileChangeStatus.Approved
     cr.applied_json = canonical_applied
     cr.admin_note = note

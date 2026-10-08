@@ -85,6 +85,10 @@ async def notify_seller(
         v = await load_courier_vars(session, order_id)
         if v is None or v.seller_profile_id is None or not v.seller_active:
             return
+        if event == "payee_missing" and not v.seller_approved:
+            # The seller's approval was withdrawn, which is why customers
+            # can't pay; "add a UPI ID" would be advice they can't act on.
+            return
         status_value = f"courier_{event}"
         if once:
             seen = (

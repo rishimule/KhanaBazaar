@@ -24,6 +24,11 @@ from app.services.image_storage import get_user_media_storage
 logger = logging.getLogger(__name__)
 
 
+def key_prefix(seller_profile_id: int) -> str:
+    """The folder holding every verification-QR blob of one seller."""
+    return f"seller-upi-qr/{seller_profile_id}/"
+
+
 async def process_and_store(raw: bytes, seller_profile_id: int) -> tuple[str, str]:
     """Validate + downscale + WebP-encode `raw`, upload to the user-media bucket.
 
@@ -33,7 +38,7 @@ async def process_and_store(raw: bytes, seller_profile_id: int) -> tuple[str, st
     data, digest = await anyio.to_thread.run_sync(
         process_image, raw, settings.IMAGE_MAX_DIMENSION_PX
     )
-    key = f"seller-upi-qr/{seller_profile_id}/{digest}.webp"
+    key = f"{key_prefix(seller_profile_id)}{digest}.webp"
     url = await get_user_media_storage().save(key, data, "image/webp")
     return url, key
 

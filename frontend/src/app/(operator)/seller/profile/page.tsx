@@ -21,7 +21,6 @@ import Avatar from "@/components/Avatar";
 import AvatarUploader from "@/components/AvatarUploader";
 import StoreAvatar from "@/components/StoreAvatar";
 import { uploadSellerAvatar, uploadStoreLogo } from "@/lib/avatars";
-import { disableUpi, uploadUpiQr } from "@/lib/sellerPayments";
 import ProfileChangeRequestModal from "@/components/ProfileChangeRequestModal";
 import VerificationBadge, {
   type VerificationBadgeStatus,
@@ -31,9 +30,6 @@ import {
   listMyChangeRequests,
 } from "@/lib/changeRequests";
 import styles from "./page.module.css";
-
-// Mirrors the backend `_UPI_VPA_RE`: the bank handle must start with a letter.
-const UPI_VPA_REGEX = /^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,64}$/;
 
 const RESUBMIT_HREF = "/seller/signup?resubmit=true";
 
@@ -69,18 +65,6 @@ function buildCurrentValues(
         gst_number: profile.gst_number ?? "",
         fssai_license: profile.fssai_license ?? "",
       };
-    case "banking":
-      return {
-        bank_account_number: profile.bank_account_number ?? "",
-        bank_ifsc: profile.bank_ifsc ?? "",
-        bank_account_name: profile.bank_account_name ?? "",
-        bank_transfer_enabled: profile.bank_transfer_enabled ?? false,
-      };
-    case "payments":
-      return {
-        upi_vpa: profile.upi_vpa ?? "",
-        upi_enabled: profile.upi_enabled ?? false,
-      };
     case "store_basics":
       if (!store) return null;
       return {
@@ -114,13 +98,6 @@ function clamp(km: number): number {
   return Math.max(MIN_KM, Math.min(MAX_KM, rounded));
 }
 
-function maskAccountNumber(n: string | null | undefined): string | null {
-  if (!n) return null;
-  const last4 = n.slice(-4);
-  if (last4.length < 4) return null;
-  return `•••• •••• ${last4}`;
-}
-
 function toBadgeStatus(s: string): VerificationBadgeStatus {
   if (s === "approved") return "approved";
   if (s === "rejected") return "rejected";
@@ -142,10 +119,6 @@ export default function SellerProfilePage() {
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarNotice, setAvatarNotice] = useState<string | null>(null);
   const [logoBusy, setLogoBusy] = useState(false);
-  const [upiInput, setUpiInput] = useState("");
-  const [upiFile, setUpiFile] = useState<File | null>(null);
-  const [upiBusy, setUpiBusy] = useState(false);
-  const [upiNotice, setUpiNotice] = useState<string | null>(null);
   const [logoNotice, setLogoNotice] = useState<string | null>(null);
   const [editingGroup, setEditingGroup] =
     useState<SellerProfileChangeGroup | null>(null);
@@ -172,7 +145,6 @@ export default function SellerProfilePage() {
       .then(([p, stores, crs]) => {
         if (cancelled) return;
         setProfile(p);
-        setUpiInput(p.upi_vpa ?? "");
         setStore(stores[0] ?? null);
         setOpenCRs(crs);
       })
@@ -251,56 +223,6 @@ export default function SellerProfilePage() {
       setSaveError(e instanceof Error ? e.message : t("storeLogoUploadFailed"));
     } finally {
       setLogoBusy(false);
-    }
-  };
-
-  const onSubmitUpi = async () => {
-    if (!token) return;
-    const vpa = upiInput.trim();
-    if (!UPI_VPA_REGEX.test(vpa)) {
-      setUpiNotice(t("upiInvalid"));
-      return;
-    }
-    setUpiBusy(true);
-    setUpiNotice(null);
-    setSaveError(null);
-    try {
-      // With an image we must use the dedicated multipart route, which
-      // produces a trusted owner-scoped storage key; the generic JSON path
-      // rejects a caller-supplied upi_qr_url outright.
-      if (upiFile) {
-        await uploadUpiQr(vpa, upiFile, token);
-      } else {
-        await createMyChangeRequest(token, {
-          group: "payments",
-          proposed: { upi_vpa: vpa, upi_enabled: true },
-        });
-      }
-      setUpiFile(null);
-      setUpiNotice(t("upiSubmitted"));
-      await refreshOpenCRs();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : t("upiSubmitFailed"));
-    } finally {
-      setUpiBusy(false);
-    }
-  };
-
-  const onDisableUpi = async () => {
-    if (!token) return;
-    if (!window.confirm(t("upiDisableConfirm"))) return;
-    setUpiBusy(true);
-    setUpiNotice(null);
-    setSaveError(null);
-    try {
-      await disableUpi(token);
-      // Takes effect immediately — no change request, so reflect it at once.
-      setProfile((prev) => (prev ? { ...prev, upi_enabled: false } : prev));
-      setUpiNotice(t("upiDisabled"));
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : t("upiSubmitFailed"));
-    } finally {
-      setUpiBusy(false);
     }
   };
 
@@ -501,11 +423,6 @@ export default function SellerProfilePage() {
     );
     schedulePersist(serviceId);
   };
-
-  const maskedAccount = useMemo(
-    () => maskAccountNumber(profile?.bank_account_number),
-    [profile?.bank_account_number],
-  );
 
   if (authLoading || fetching) {
     return <div className={styles.loader}>{tc("loading")}</div>;
@@ -745,112 +662,14 @@ export default function SellerProfilePage() {
         );
       })()}
 
-      {(() => {
-        const chrome = cardCRChrome("banking");
-        return (
-          <ProfileSectionCard
-            title={t("sectionBanking")}
-            editHref={isApproved ? undefined : RESUBMIT_HREF}
-            editLabel={t("editProfile")}
-            action={chrome.action ?? undefined}
-          >
-            {chrome.banner}
-            <div className={styles.kvRow}>
-              <span className={styles.kvLabel}>{t("accountLabel")}:</span>
-              <span className={styles.mono}>
-                {maskedAccount ?? t("notAdded")}
-              </span>
-            </div>
-            <div className={styles.kvRow}>
-              <span className={styles.kvLabel}>{t("ifscLabel")}:</span>
-              <span className={styles.mono}>
-                {profile.bank_ifsc ?? t("notAdded")}
-              </span>
-            </div>
-            <div className={styles.kvRow}>
-              <span className={styles.kvLabel}>{t("accountNameLabel")}:</span>
-              <span>{profile.bank_account_name ?? t("notAdded")}</span>
-            </div>
-            <div className={styles.kvRow}>
-              <span className={styles.kvLabel}>{t("bankTransferLabel")}:</span>
-              <span>{profile.bank_transfer_enabled ? t("bankTransferOn") : t("bankTransferOff")}</span>
-            </div>
-          </ProfileSectionCard>
-        );
-      })()}
-
-      {(() => {
-        const chrome = cardCRChrome("payments");
-        const live = Boolean(profile.upi_enabled && profile.upi_vpa);
-        return (
-          <ProfileSectionCard
-            title={t("sectionPayments")}
-            action={chrome.action ?? undefined}
-          >
-            {chrome.banner}
-            <div className={styles.kvRow}>
-              <span className={styles.kvLabel}>{t("upiIdLabel")}:</span>
-              <span className={styles.mono}>
-                {profile.upi_vpa ?? t("notAdded")}
-              </span>
-            </div>
-            <div className={styles.kvRow}>
-              <span className={styles.kvLabel}>{t("upiStatusLabel")}:</span>
-              <span>{live ? t("upiOn") : t("upiOff")}</span>
-            </div>
-
-            {isApproved && !openCRsByGroup["payments"] && (
-              <div className={styles.upiForm}>
-                <input
-                  type="text"
-                  className={styles.vpaInput}
-                  value={upiInput}
-                  onChange={(e) => setUpiInput(e.target.value.trim())}
-                  placeholder="yourname@okhdfcbank"
-                  aria-label={t("upiIdLabel")}
-                />
-                {/*
-                  A plain file input, deliberately NOT the AvatarUploader: that
-                  component forces a crop editor, and cropping a QR can remove
-                  the quiet zone or a finder pattern and leave an image that no
-                  longer scans — which defeats the verification purpose.
-                */}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => setUpiFile(e.target.files?.[0] ?? null)}
-                  aria-label={t("upiQrLabel")}
-                />
-                <p className={styles.avatarHint}>{t("upiQrHint")}</p>
-                <div className={styles.upiActions}>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={upiBusy}
-                    onClick={onSubmitUpi}
-                  >
-                    {t("upiSubmit")}
-                  </button>
-                  {live && (
-                    <button
-                      type="button"
-                      className={styles.removeAvatar}
-                      disabled={upiBusy}
-                      onClick={onDisableUpi}
-                    >
-                      {t("upiDisable")}
-                    </button>
-                  )}
-                </div>
-                {upiNotice && (
-                  <p className={styles.avatarNotice}>{upiNotice}</p>
-                )}
-                <p className={styles.avatarHint}>{t("upiReviewHint")}</p>
-              </div>
-            )}
-          </ProfileSectionCard>
-        );
-      })()}
+      {/* UPI, bank details and the payment switches live on the Payments
+          page (spec 2026-10-07 §4). */}
+      <ProfileSectionCard title={t("sectionPayments")}>
+        <p className={styles.cardCaption}>{t("paymentsMoved")}</p>
+        <Link href="/seller/payments" className={styles.requestsLink}>
+          {t("paymentsMovedLink")}
+        </Link>
+      </ProfileSectionCard>
 
       {(() => {
         const chrome = cardCRChrome("services");
@@ -1048,6 +867,9 @@ export default function SellerProfilePage() {
                 store.courier_payment_methods.length === 0 && (
                   <div className={`${styles.crBanner} ${styles.crBannerWarn}`} role="status">
                     <span>{tSettings("courierNoPayee")}</span>
+                    <Link href="/seller/payments" className={styles.crBannerLink}>
+                      {tSettings("courierNoPayeeLink")}
+                    </Link>
                   </div>
                 )}
             </ProfileSectionCard>

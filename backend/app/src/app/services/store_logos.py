@@ -20,6 +20,11 @@ from app.services.image_storage import get_user_media_storage
 logger = logging.getLogger(__name__)
 
 
+def key_prefix(store_id: int) -> str:
+    """The folder holding every logo blob of one store."""
+    return f"store-logos/{store_id}/"
+
+
 async def process_and_store(raw: bytes, store_id: int) -> tuple[str, str]:
     """Validate + downscale + WebP-encode `raw`, upload to the user-media bucket.
 
@@ -29,7 +34,7 @@ async def process_and_store(raw: bytes, store_id: int) -> tuple[str, str]:
     data, digest = await anyio.to_thread.run_sync(
         process_image, raw, settings.STORE_LOGO_MAX_DIMENSION_PX
     )
-    key = f"store-logos/{store_id}/{digest}.webp"
+    key = f"{key_prefix(store_id)}{digest}.webp"
     url = await get_user_media_storage().save(key, data, "image/webp")
     return url, key
 

@@ -41,6 +41,13 @@ class UpiPayeeRead(BaseModel):
     display_name: str
 
 
+class BankTransferPayeeRead(BaseModel):
+    """Who a bank transfer reaches — the account holder only. The number and
+    IFSC appear only on the customer's own placed order (spec 2026-10-07 §6)."""
+
+    account_name: str
+
+
 class StoreRead(BaseModel):
     id: int
     name: str
@@ -63,6 +70,7 @@ class StoreRead(BaseModel):
     # per-customer entitlement, resolved by the separate credit-standing call.
     accepted_payment_methods: list[PaymentMethod] = []
     upi_payee: Optional[UpiPayeeRead] = None
+    bank_transfer_payee: Optional[BankTransferPayeeRead] = None
     distance_km: Optional[float] = None
     # Set by the store list when a location is given (spec §12): how this
     # store reaches it, and — on courier rows — the services that ship.

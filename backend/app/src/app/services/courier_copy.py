@@ -17,7 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.base import AccountStatus, User
 from app.models.commerce import Order, Payment
 from app.models.courier import CourierQuote, OrderCourier
-from app.models.profile import CustomerProfile, SellerProfile
+from app.models.profile import CustomerProfile, SellerProfile, VerificationStatus
 from app.models.store import Store
 
 
@@ -82,6 +82,8 @@ class CourierVars:
     claim_note: str | None
     cancel_reason: str | None
     refund_reference: str | None
+    # Payees are live only for an approved seller (services/payment_methods).
+    seller_approved: bool = True
 
 
 @dataclass(frozen=True)
@@ -127,6 +129,7 @@ async def load_courier_vars(session: AsyncSession, order_id: int) -> CourierVars
         customer_phone_verified=bool(customer and customer.phone_verified_at),
         seller_profile_id=seller.id if seller else None,
         seller_active=bool(seller_user and seller_user.account_status == AccountStatus.active),
+        seller_approved=bool(seller and seller.verification_status is VerificationStatus.Approved),
         seller_email=seller_user.email if seller_user else None,
         total=order.total,
         payable=payment.amount if payment else order.total,

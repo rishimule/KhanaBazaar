@@ -24,19 +24,36 @@ class ImageStorage(Protocol):
     async def delete(self, key: str) -> None: ...
 
 
+def key_in_scope(key: str, prefix: str) -> bool:
+    """Whether `key` names a blob under `prefix` (an owner's folder, ending in
+    "/") without `..` segments. Delete paths check this before removing a key
+    that came from stored data rather than from the code that built it."""
+    return key.startswith(prefix) and ".." not in key.split("/")
+
+
 class LocalImageStorage:
     def __init__(self, base_dir: str, url_prefix: str) -> None:
         self._base = Path(base_dir)
         self._prefix = url_prefix.rstrip("/")
 
+    def _path(self, key: str) -> Path:
+        """The file for `key`, refusing a key that resolves outside the media
+        directory (a `..` segment or an absolute path would otherwise let a
+        crafted key write or delete any file the process can reach)."""
+        base = self._base.resolve()
+        path = (base / key).resolve()
+        if path == base or not path.is_relative_to(base):
+            raise ValueError(f"storage key outside the media directory: {key!r}")
+        return path
+
     async def save(self, key: str, data: bytes, content_type: str) -> str:
-        path = self._base / key
+        path = self._path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
         await anyio.to_thread.run_sync(path.write_bytes, data)
         return f"{self._prefix}/{key}"
 
     async def delete(self, key: str) -> None:
-        path = self._base / key
+        path = self._path(key)
         try:
             await anyio.to_thread.run_sync(path.unlink)
         except FileNotFoundError:

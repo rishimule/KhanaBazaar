@@ -305,6 +305,11 @@
   gap: var(--space-4);
 }
 
+/* A form-grid child that spans both columns (e.g. a checkbox row). */
+.fullRow {
+  grid-column: 1 / -1;
+}
+
 @media (min-width: 480px) {
   .formGrid {
     grid-template-columns: 1fr 1fr;

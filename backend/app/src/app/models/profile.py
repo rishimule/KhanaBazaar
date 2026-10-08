@@ -104,6 +104,15 @@ class SellerProfile(BaseSchema, table=True):
     # with name + number + IFSC all present (enforced at write paths).
     bank_account_name: Optional[str] = Field(default=None, max_length=140)
     bank_transfer_enabled: bool = Field(default=False, nullable=False)
+    # Store-wide switches beside upi_enabled / bank_transfer_enabled (spec
+    # 2026-10-07 §5). Both start on, so existing stores keep offering them.
+    cod_enabled: bool = Field(default=True, nullable=False)
+    pay_at_store_enabled: bool = Field(default=True, nullable=False)
+    # Bumped on every on→off of the matching switch (services/payment_methods
+    # is the only writer); a payee saved under an older generation is never
+    # shown again.
+    upi_generation: int = Field(default=0, nullable=False)
+    bank_transfer_generation: int = Field(default=0, nullable=False)
 
     user: User = Relationship()
     business_address: Address = Relationship()

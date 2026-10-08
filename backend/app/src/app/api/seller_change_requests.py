@@ -11,6 +11,7 @@ post-commit email dispatch.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlmodel import select
@@ -31,6 +32,7 @@ from app.schemas.seller_profile_change_request import (
     ChangeRequestRead,
     ChangeRequestResubmitBody,
 )
+from app.services.payment_methods import set_upi_enabled
 from app.services.seller_profile_change_requests import (
     OPEN_STATUSES,
     create_avatar_change_request,
@@ -79,24 +81,43 @@ async def _cr_owned_by(
     return cr
 
 
+# Upload-backed groups: the image url field, and the 422 code naming the
+# multipart route that must carry the image.
+_IMAGE_FIELDS: dict[SellerProfileChangeGroup, tuple[str, str]] = {
+    SellerProfileChangeGroup.Avatar: ("avatar_url", "avatar_upload_required"),
+    SellerProfileChangeGroup.StoreLogo: ("logo_url", "store_logo_upload_required"),
+    SellerProfileChangeGroup.Payments: ("upi_qr_url", "upi_qr_upload_required"),
+}
+
+
 def _reject_forged_image(group: SellerProfileChangeGroup, proposed: dict) -> None:
     """Guard the generic JSON CR path: avatar / store-logo / payments-QR
     *uploads* must go through their dedicated multipart routes
     (`POST /me/avatar`, `POST /me/store/logo`, `POST /me/payments/qr`), which
     produce a trusted, owner-scoped storage_key.
 
-    The generic endpoint only permits *removal* (empty url). This blocks a
-    seller from forging an image CR with an arbitrary url or a storage_key
-    pointing at another owner's blob.
+    The generic endpoint only permits *removal* (empty url) and never takes a
+    storage_key: a caller-chosen key could name another owner's blob, which
+    withdrawing or rejecting the request would then delete.
     """
-    if group is SellerProfileChangeGroup.Avatar and (proposed.get("avatar_url") or ""):
-        raise HTTPException(status_code=422, detail="avatar_upload_required")
-    if group is SellerProfileChangeGroup.StoreLogo and (proposed.get("logo_url") or ""):
-        raise HTTPException(status_code=422, detail="store_logo_upload_required")
-    if group is SellerProfileChangeGroup.Payments and (
-        proposed.get("upi_qr_url") or ""
-    ):
-        raise HTTPException(status_code=422, detail="upi_qr_upload_required")
+    image = _IMAGE_FIELDS.get(group)
+    if image is None:
+        return
+    url_field, code = image
+    if (proposed.get(url_field) or "") or (proposed.get("storage_key") or ""):
+        raise HTTPException(status_code=422, detail=code)
+
+
+def _require_upi_vpa(group: SellerProfileChangeGroup, proposed: dict[str, Any]) -> None:
+    """A seller's payments request must name a UPI ID. An empty one validates
+    as "no UPI ID, UPI off" and would wipe the live payee on approval (the old
+    Edit-button trap, spec 2026-10-07 §4). Turning UPI off is the instant
+    switch, not a request; an admin can still clear an ID deliberately through
+    approve-with-edits."""
+    if group is SellerProfileChangeGroup.Payments and not str(
+        proposed.get("upi_vpa") or ""
+    ).strip():
+        raise HTTPException(status_code=422, detail="upi_vpa_required")
 
 
 async def _attach_events(
@@ -161,6 +182,7 @@ async def create_my_change_request(
     session: AsyncSession = Depends(get_db_session),
 ) -> ChangeRequestRead:
     _reject_forged_image(body.group, body.proposed)
+    _require_upi_vpa(body.group, body.proposed)
     profile = await _seller_profile_or_404(session, seller)
     res = await create_change_request(
         session=session,
@@ -191,11 +213,21 @@ async def resubmit_my_change_request(
     profile = await _seller_profile_or_404(session, seller)
     cr = await _cr_owned_by(session, cr_id, profile)
     _reject_forged_image(cr.group, body.proposed)
+    _require_upi_vpa(cr.group, body.proposed)
+    proposed = dict(body.proposed)
+    if cr.group in _IMAGE_FIELDS:
+        # A resubmission can't carry an image, so the blob stays the one filed
+        # with this request (server-stored, so not forgeable) and its cleanup
+        # still finds it. The generic edit form can't re-upload the payments
+        # verification QR either, so that request keeps its QR too.
+        proposed["storage_key"] = cr.proposed_json.get("storage_key")
+        if cr.group is SellerProfileChangeGroup.Payments:
+            proposed["upi_qr_url"] = cr.proposed_json.get("upi_qr_url") or ""
     res = await resubmit(
         session=session,
         cr=cr,
         seller_profile=profile,
-        proposed=body.proposed,
+        proposed=proposed,
         note=body.note,
         actor_user_id=seller.id,
         phone_change_token=body.phone_change_token,
@@ -309,12 +341,23 @@ async def disable_my_upi(
     A compromised UPI handle has to stop receiving money now, not after an
     admin review. Disabling only removes a payment option, so it carries none
     of the risk that makes *enabling* reviewable. Modelled on the direct pause
-    routes. `upi_vpa` is retained so re-enabling needs no fresh review.
+    routes. `upi_vpa` is retained, so switching UPI back on from the Payments
+    page needs no fresh review. Goes through `set_upi_enabled`, so unpaid
+    orders drop the payee they saved under the old generation.
 
-    Idempotent: disabling an already-disabled payee is a 200 no-op.
+    Idempotent: disabling an already-disabled payee is a 200 no-op. Kept for
+    dashboard tabs opened before `PATCH /me/payments/methods` existed.
     """
-    profile = await _seller_profile_or_404(session, seller)
-    profile.upi_enabled = False
+    # Row-locked like every switch writer, so the UPI generation can't be
+    # overwritten with a stale value (services/payment_methods.py).
+    profile = (
+        await session.exec(
+            select(SellerProfile).where(SellerProfile.user_id == seller.id).with_for_update()
+        )
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="seller_profile_not_found")
+    set_upi_enabled(profile, False)
     session.add(profile)
     await session.commit()
     return {"upi_enabled": False}

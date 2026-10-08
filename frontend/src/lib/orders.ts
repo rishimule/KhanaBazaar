@@ -154,9 +154,10 @@ export async function cancelOrder(
 }
 
 
-/** Record the customer's "I've paid" tap on a UPI order. Idempotent server-side:
- *  re-tapping does not move the recorded timestamp. */
-export async function claimUpiPayment(
+/** Record "I've paid" on a local UPI or bank-transfer order. An assertion,
+ *  never a settlement: delivery still marks the payment paid. Idempotent
+ *  server-side: re-tapping does not move the recorded timestamp. */
+export async function claimLocalPayment(
   token: string,
   orderId: number
 ): Promise<Order> {
