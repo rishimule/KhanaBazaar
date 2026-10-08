@@ -140,20 +140,6 @@
   font-weight: var(--weight-semibold);
 }
 
-.bank {
-  composes: rows;
-  padding: var(--space-3);
-  background: var(--shade-cool-light-2);
-  border-radius: var(--radius-card);
-}
-
-/* Value and its Copy button on one line, read left to right even inside the
- * centred pay card; long account numbers still wrap instead of overflowing. */
-.bank { text-align: left; align-items: center; }
-.bank dd { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-
-.bank code { word-break: break-all; }
-
 .error,
 .warning,
 .refund {

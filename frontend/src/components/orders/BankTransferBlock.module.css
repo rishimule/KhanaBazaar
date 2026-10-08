@@ -1,0 +1,53 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.bank {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) 1fr;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  max-width: 100%;
+  margin: 0;
+  padding: var(--space-3);
+  font-size: var(--body-sm);
+  text-align: left;
+  background: var(--shade-cool-light-2);
+  border-radius: var(--radius-card);
+}
+
+.bank dt {
+  color: var(--shade-cool-base-5);
+}
+
+/* Value and its Copy button on one line, read left to right even inside a
+ * centred pay card; long account numbers still wrap instead of overflowing. */
+.bank dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--shade-cool-dark-7);
+}
+
+.bank code {
+  word-break: break-all;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-5);
+}
+
+@media (max-width: 420px) {
+  .bank {
+    grid-template-columns: 1fr;
+    gap: var(--space-1) var(--space-4);
+  }
+
+  .bank dd {
+    margin-bottom: var(--space-2);
+  }
+}

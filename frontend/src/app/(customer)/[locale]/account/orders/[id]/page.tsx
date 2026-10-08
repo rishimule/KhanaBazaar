@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { apiErrorCode, apiErrorKey } from "@/lib/errors";
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import DeliveryOtpPanel from "@/components/orders/DeliveryOtpPanel";
-import UpiPayPanel from "@/components/orders/UpiPayPanel";
+import LocalPayPanel from "@/components/orders/LocalPayPanel";
 import ReturnEntryPoint from "@/components/returns/ReturnEntryPoint";
 import OrderItemList from "@/components/orders/OrderItemList";
 import OrderActionButtons from "@/components/orders/OrderActionButtons";
@@ -104,7 +104,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
         </>
       )}
 
-      <UpiPayPanel order={order} onChange={setOrder} />
+      <LocalPayPanel order={order} onChange={setOrder} />
 
       <DeliveryOtpPanel order={order} onChange={setOrder} />
 

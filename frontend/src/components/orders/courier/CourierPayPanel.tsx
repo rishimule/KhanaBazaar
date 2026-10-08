@@ -3,6 +3,7 @@
 // This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import BankTransferBlock from "@/components/orders/BankTransferBlock";
 import UpiQrBlock from "@/components/orders/UpiQrBlock";
 import { get } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
@@ -17,7 +18,7 @@ type Method = "upi" | "net_banking";
 
 /** Pay for an accepted courier order: a tab per live method, then "I've paid"
  *  naming the method used (spec D7). Bills `netPayable(order)` — the gross
- *  total minus store credit, the same figure UpiPayPanel bills. */
+ *  total minus store credit, the same figure LocalPayPanel bills. */
 export default function CourierPayPanel({
   order,
   onChange,
@@ -43,31 +44,38 @@ export default function CourierPayPanel({
   // A payee the seller switched off since the page loaded drops out of
   // `payable_methods`; never leave the customer on a tab that can't be paid.
   const tab: Method = methods.includes(picked) ? picked : (methods[0] ?? picked);
-  const [payee, setPayee] = useState<NonNullable<Store["upi_payee"]> | null>(null);
-  const [payeeFailed, setPayeeFailed] = useState(false);
+  // The payee saved on the order (spec 2026-10-07 §7). An API older than
+  // per-order payees omits `payee`: fall back to the store's live UPI payee
+  // and the courier block's bank details, as this panel used to.
+  const legacy = order.payee === undefined;
+  const [legacyUpi, setLegacyUpi] = useState<NonNullable<Store["upi_payee"]> | null>(null);
+  const [legacyUpiFailed, setLegacyUpiFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
   const upiLive = methods.includes("upi");
 
   useEffect(() => {
-    if (!visible || !upiLive) return;
+    if (!visible || !upiLive || !legacy) return;
     let cancelled = false;
     get<Store>(`/api/v1/stores/${order.store_id}`)
       .then((s) => {
         if (cancelled) return;
         // UPI listed as payable but no payee on the store (switched off since
         // the order loaded): say so instead of "loading" forever.
-        if (s.upi_payee) setPayee(s.upi_payee);
-        else setPayeeFailed(true);
+        if (s.upi_payee) setLegacyUpi(s.upi_payee);
+        else setLegacyUpiFailed(true);
       })
       .catch(() => {
-        if (!cancelled) setPayeeFailed(true);
+        if (!cancelled) setLegacyUpiFailed(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [visible, upiLive, order.store_id]);
+  }, [visible, upiLive, legacy, order.store_id]);
+
+  const payee = legacy ? legacyUpi : (order.payee?.upi ?? null);
+  // A per-order payee arrives with the order, so a missing one is final.
+  const payeeFailed = legacy ? legacyUpiFailed : payee === null;
 
   if (!visible || !courier) return null;
   const claimed = order.payment.customer_claimed_at;
@@ -114,17 +122,7 @@ export default function CourierPayPanel({
     }
   }
 
-  async function copy(field: string, text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(field);
-      window.setTimeout(() => setCopied(null), 2000);
-    } catch {
-      setError(tUpi("copyFailed"));
-    }
-  }
-
-  const bank = courier.bank_transfer;
+  const bank = legacy ? courier.bank_transfer : (order.payee?.bank_transfer ?? null);
   return (
     <section className={`${styles.card} ${styles.center}`} aria-labelledby="courier-pay-title">
       <h2 id="courier-pay-title" className={styles.title} tabIndex={-1}>
@@ -175,33 +173,7 @@ export default function CourierPayPanel({
         ))}
       {tab === "net_banking" &&
         (bank ? (
-          <>
-            <dl className={styles.bank}>
-              <dt>{t("bankAccountName")}</dt>
-              <dd>{bank.account_name}</dd>
-              <dt>{t("bankAccountNumber")}</dt>
-              <dd>
-                <code>{bank.account_number}</code>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => copy("number", bank.account_number)}
-                >
-                  {copied === "number" ? tUpi("copied") : t("copy")}
-                </button>
-              </dd>
-              <dt>{t("bankIfsc")}</dt>
-              <dd>
-                <code>{bank.ifsc}</code>
-                <button type="button" className="btn" onClick={() => copy("ifsc", bank.ifsc)}>
-                  {copied === "ifsc" ? tUpi("copied") : t("copy")}
-                </button>
-              </dd>
-              <dt>{t("bankAmount")}</dt>
-              <dd>₹{amount.toFixed(2)}</dd>
-            </dl>
-            <p className={styles.hint}>{t("bankRemarks", { id: order.id })}</p>
-          </>
+          <BankTransferBlock bank={bank} amount={amount} orderId={order.id} onError={setError} />
         ) : (
           <p className={styles.error} role="alert">
             {t("payeeUnavailable")}
