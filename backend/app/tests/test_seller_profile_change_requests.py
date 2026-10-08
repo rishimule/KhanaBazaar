@@ -970,3 +970,50 @@ async def test_admin_cr_queue_search_business_name(
     assert miss.status_code == 200
     assert miss.json()["total"] == 0
     assert miss.json()["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_approving_an_address_request_updates_the_address(
+    approved_seller, session, admin_user
+):
+    """approve() re-reads the profile under its lock with populate_existing,
+    which resets lazy relationships; the address applier still needs the
+    business address loaded. A fresh session, like the admin route's: the
+    fixture's own reference would otherwise keep the address in the identity
+    map and hide a lazy load."""
+    from sqlalchemy.orm import selectinload
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.models.address import Address
+    from app.models.profile import SellerProfile
+    from app.services.seller_profile_change_requests import approve
+    from tests.conftest import test_engine
+
+    async with AsyncSession(test_engine, expire_on_commit=False) as s:
+        profile = (
+            await s.exec(
+                select(SellerProfile)
+                .where(SellerProfile.id == approved_seller["profile"].id)
+                .options(selectinload(SellerProfile.business_address))  # type: ignore[arg-type]
+            )
+        ).one()
+        create = await create_change_request(
+            session=s, seller_profile=profile,
+            group=SellerProfileChangeGroup.Address,
+            proposed={
+                "address_line1": "12 New Road", "city": "Pune", "state": "Maharashtra",
+                "pincode": "411001", "country": "India",
+            },
+            note=None, actor_user_id=approved_seller["user"].id,
+        )
+        await s.commit()
+        await approve(
+            session=s, cr=create.cr, admin_user_id=admin_user.id, applied=None, note=None,
+        )
+        await s.commit()
+        assert create.cr.status is SellerProfileChangeStatus.Approved
+        address_id = profile.business_address_id
+    address = await session.get(Address, address_id)
+    assert address is not None
+    await session.refresh(address)
+    assert (address.address_line1, address.city) == ("12 New Road", "Pune")

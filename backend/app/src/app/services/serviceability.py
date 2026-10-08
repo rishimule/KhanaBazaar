@@ -113,12 +113,14 @@ _COURIER_RING_SQL = (
     f"AND ST_DWithin(a.geo, {POINT_SQL}, s.courier_radius_km * 1000))"
 )
 # SQL twin of courier_payment_methods() (payment_methods.upi_live /
-# bank_transfer_live): UPI, or bank transfer fully specified.
+# bank_transfer_live): an approved seller with UPI, or with bank transfer fully
+# specified. The native enum stores member NAMES, hence 'Approved'.
 _PAYEE_LIVE_SQL = (
+    "(sp.verification_status = 'Approved' AND "
     "((sp.upi_enabled AND COALESCE(sp.upi_vpa, '') <> '') "
     "OR (sp.bank_transfer_enabled AND COALESCE(sp.bank_account_name, '') <> '' "
     "AND COALESCE(sp.bank_account_number, '') <> '' "
-    "AND COALESCE(sp.bank_ifsc, '') <> ''))"
+    "AND COALESCE(sp.bank_ifsc, '') <> '')))"
 )
 
 

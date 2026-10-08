@@ -15,6 +15,13 @@ different generation later means the seller switched the method off since, so
 the saved details may belong to a stolen or closed account and are never shown
 again — the order falls back to the store's current details. A counter, not a
 timestamp: no clock skew or commit-order race can make an old copy look new.
+Every writer holds the seller row lock (`SELECT … FOR UPDATE`), so the counter
+can only ever go up.
+
+UPI and bank transfer count only for an Approved seller. A seller whose
+approval was revoked, or who is resubmitting, may write payee details directly
+(`PATCH /sellers/me/profile`), so nothing they enter may reach a customer until
+an admin approves them again.
 """
 from __future__ import annotations
 
@@ -26,7 +33,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.commerce import DeliveryMode, Payment, PaymentMethod
-from app.models.profile import SellerProfile, SellerProfileService
+from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.store import Store
 
 # Store methods each delivery mode can offer, in display order. Credit is a
@@ -50,9 +57,13 @@ _ACCEPTED_ORDER = (
 )
 
 
+def _approved(seller: SellerProfile) -> bool:
+    return seller.verification_status is VerificationStatus.Approved
+
+
 def upi_live(seller: SellerProfile) -> bool:
-    """UPI counts only when switched on with a payee to pay."""
-    return bool(seller.upi_enabled and seller.upi_vpa)
+    """UPI counts only for an approved seller, switched on, with a payee."""
+    return _approved(seller) and bool(seller.upi_enabled and seller.upi_vpa)
 
 
 def bank_details_complete(seller: SellerProfile) -> bool:
@@ -60,8 +71,13 @@ def bank_details_complete(seller: SellerProfile) -> bool:
 
 
 def bank_transfer_live(seller: SellerProfile) -> bool:
-    """Bank transfer counts only when switched on AND fully specified."""
-    return bool(seller.bank_transfer_enabled) and bank_details_complete(seller)
+    """Bank transfer counts only for an approved seller, switched on AND fully
+    specified."""
+    return (
+        _approved(seller)
+        and bool(seller.bank_transfer_enabled)
+        and bank_details_complete(seller)
+    )
 
 
 def method_live(seller: SellerProfile, method: PaymentMethod) -> bool:
@@ -91,14 +107,16 @@ def store_accepted_methods(seller: SellerProfile) -> list[PaymentMethod]:
 
 
 def set_upi_enabled(seller: SellerProfile, enabled: bool) -> None:
-    """The only writer of `upi_enabled`: an on→off move bumps the generation."""
+    """The only writer of `upi_enabled`: an on→off move bumps the generation.
+    Callers hold the seller row lock, so the counter never goes backwards."""
     if seller.upi_enabled and not enabled:
         seller.upi_generation = (seller.upi_generation or 0) + 1
     seller.upi_enabled = enabled
 
 
 def set_bank_transfer_enabled(seller: SellerProfile, enabled: bool) -> None:
-    """The only writer of `bank_transfer_enabled`; same generation rule."""
+    """The only writer of `bank_transfer_enabled`; same generation and
+    locking rules."""
     if seller.bank_transfer_enabled and not enabled:
         seller.bank_transfer_generation = (seller.bank_transfer_generation or 0) + 1
     seller.bank_transfer_enabled = enabled
@@ -193,14 +211,16 @@ async def apply_method_switches(
     if switches.bank_transfer_enabled is True and not bank_details_complete(seller):
         raise HTTPException(status_code=409, detail="bank_transfer_incomplete")
 
-    # The guard looks at the state the request would leave behind.
+    # The guard looks at the state the request would leave behind, judged
+    # like upi_live / bank_transfer_live (a payee needs an approved seller).
+    approved = _approved(seller)
     upi_after = (
         upi_live(seller) if switches.upi_enabled is None
-        else switches.upi_enabled and bool(seller.upi_vpa)
+        else approved and switches.upi_enabled and bool(seller.upi_vpa)
     )
     bank_after = (
         bank_transfer_live(seller) if switches.bank_transfer_enabled is None
-        else switches.bank_transfer_enabled and bank_details_complete(seller)
+        else approved and switches.bank_transfer_enabled and bank_details_complete(seller)
     )
     if (
         switches.cod_enabled is False

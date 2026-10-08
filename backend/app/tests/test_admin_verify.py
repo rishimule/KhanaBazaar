@@ -197,3 +197,56 @@ async def test_re_approval_is_idempotent(
             select(Store).where(Store.seller_profile_id == profile.id)
         )).all()
         assert len(stores) == 1
+
+
+async def _set_upi_enabled_raw(value: bool) -> None:
+    """Write the switch directly, as signup and the old disable route did."""
+    async with AsyncSession(test_engine) as s:
+        profile = (await s.exec(
+            select(SellerProfile).where(SellerProfile.user_id == mock_seller.id)
+        )).first()
+        assert profile is not None
+        profile.upi_enabled = value
+        s.add(profile)
+        await s.commit()
+
+
+async def _upi_state() -> tuple[bool, int]:
+    async with AsyncSession(test_engine) as s:
+        profile = (await s.exec(
+            select(SellerProfile).where(SellerProfile.user_id == mock_seller.id)
+        )).first()
+        assert profile is not None
+        return profile.upi_enabled, profile.upi_generation
+
+
+@pytest.mark.asyncio
+async def test_first_approval_turns_the_signup_upi_id_on(override_as_admin: Any) -> None:
+    await _set_upi_enabled_raw(False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r = await ac.patch(
+            f"/api/v1/sellers/admin/{mock_seller.id}/verify", json={"action": "approve"}
+        )
+    assert r.status_code == 200, r.text
+    assert await _upi_state() == (True, 0)
+
+
+@pytest.mark.asyncio
+async def test_re_approval_keeps_a_stop_made_before_generations(
+    override_as_admin: Any,
+) -> None:
+    """The old disable route switched UPI off without bumping a generation; a
+    re-approval must not mistake that for a signup ID waiting to go live."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        first = await ac.patch(
+            f"/api/v1/sellers/admin/{mock_seller.id}/verify", json={"action": "approve"}
+        )
+        assert first.status_code == 200, first.text
+        await _set_upi_enabled_raw(False)
+        for body in (
+            {"action": "reject", "rejection_reason": "Documents expired"},
+            {"action": "approve"},
+        ):
+            r = await ac.patch(f"/api/v1/sellers/admin/{mock_seller.id}/verify", json=body)
+            assert r.status_code == 200, r.text
+    assert await _upi_state() == (False, 0)

@@ -89,13 +89,15 @@ router = APIRouter()
 
 
 async def _seller_profile_with_address(
-    session: AsyncSession, user_id: int
+    session: AsyncSession, user_id: int, *, lock: bool = False
 ) -> SellerProfile | None:
     stmt = (
         select(SellerProfile)
         .where(SellerProfile.user_id == user_id)
         .options(selectinload(SellerProfile.business_address))  # type: ignore[arg-type]
     )
+    if lock:
+        stmt = stmt.with_for_update()
     result = await session.exec(stmt)
     return result.first()
 
@@ -521,7 +523,9 @@ async def update_seller_profile(
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:  # type: ignore[type-arg]
     assert current_user.id is not None
-    profile = await _seller_profile_with_address(session, current_user.id)
+    # Row-locked: this may flip bank transfer, whose generation counter must
+    # never be written from a stale read (services/payment_methods.py).
+    profile = await _seller_profile_with_address(session, current_user.id, lock=True)
     if not profile:
         raise HTTPException(status_code=404, detail="Seller profile not found")
     if profile.verification_status is VerificationStatus.Approved:
@@ -559,6 +563,10 @@ async def update_seller_profile(
     # Pending/Rejected sellers reach here and their payee is reviewed at
     # approval anyway. Approved sellers must use the payments change request.
     profile.upi_vpa = body.upi_vpa or None
+    if not profile.upi_vpa:
+        # Nothing left to pay to. Switching off also retires copies of the
+        # removed ID saved on unpaid orders (as _apply_payments does).
+        set_upi_enabled(profile, False)
 
     address = profile.business_address
     for key, value in address_from_payload(body.address).items():
@@ -758,8 +766,9 @@ async def admin_verify_seller(
     _current_user: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:  # type: ignore[type-arg]
+    # Row-locked: approval may switch UPI on (services/payment_methods.py).
     result = await session.exec(
-        select(SellerProfile).where(SellerProfile.user_id == seller_id)
+        select(SellerProfile).where(SellerProfile.user_id == seller_id).with_for_update()
     )
     profile = result.first()
     if not profile:
@@ -779,16 +788,19 @@ async def admin_verify_seller(
 
         profile.verification_status = VerificationStatus.Approved
         profile.rejection_reason = None
-        # A VPA supplied during signup was reviewed as part of onboarding, so
-        # UPI can go live at approval with no second gate (design spec §4.1).
-        if profile.upi_vpa:
-            set_upi_enabled(profile, True)
 
         assert profile.id is not None
         # Idempotent store provisioning
         existing_store = (await session.exec(
             select(Store).where(Store.seller_profile_id == profile.id)
         )).first()
+        # A VPA supplied during signup was reviewed as part of onboarding, so
+        # UPI can go live at the FIRST approval with no second gate (design
+        # spec §4.1). A re-approval leaves the switch alone: rejection never
+        # touched it, and a stop made before payment generations existed
+        # (generation 0) must not be undone (spec 2026-10-07 D5).
+        if existing_store is None and profile.upi_vpa and profile.upi_generation == 0:
+            set_upi_enabled(profile, True)
         # Note: Store.address is captured at first approval. Subsequent
         # business-address edits do not propagate to an existing Store —
         # sellers update store address via a dedicated store-settings flow.

@@ -207,11 +207,17 @@ async def resubmit_my_change_request(
     cr = await _cr_owned_by(session, cr_id, profile)
     _reject_forged_image(cr.group, body.proposed)
     _require_upi_vpa(cr.group, body.proposed)
+    proposed = dict(body.proposed)
+    if cr.group is SellerProfileChangeGroup.Payments and not proposed.get("upi_qr_url"):
+        # The generic edit form can't re-upload the verification QR, so keep
+        # the one filed with this request (server-stored, so not forgeable).
+        proposed["upi_qr_url"] = cr.proposed_json.get("upi_qr_url") or ""
+        proposed["storage_key"] = cr.proposed_json.get("storage_key")
     res = await resubmit(
         session=session,
         cr=cr,
         seller_profile=profile,
-        proposed=body.proposed,
+        proposed=proposed,
         note=body.note,
         actor_user_id=seller.id,
         phone_change_token=body.phone_change_token,
@@ -332,7 +338,15 @@ async def disable_my_upi(
     Idempotent: disabling an already-disabled payee is a 200 no-op. Kept for
     dashboard tabs opened before `PATCH /me/payments/methods` existed.
     """
-    profile = await _seller_profile_or_404(session, seller)
+    # Row-locked like every switch writer, so the UPI generation can't be
+    # overwritten with a stale value (services/payment_methods.py).
+    profile = (
+        await session.exec(
+            select(SellerProfile).where(SellerProfile.user_id == seller.id).with_for_update()
+        )
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="seller_profile_not_found")
     set_upi_enabled(profile, False)
     session.add(profile)
     await session.commit()

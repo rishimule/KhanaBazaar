@@ -5,6 +5,7 @@ settings endpoints (spec 2026-10-07 §4, §5, §8)."""
 from typing import Any
 
 import httpx
+from fastapi import HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -31,6 +32,7 @@ from app.services.payment_methods import (
 from app.services.seller_profile_change_requests import (
     approve,
     create_change_request,
+    request_changes,
 )
 from tests._courier_helpers import (
     ADMIN,
@@ -49,6 +51,7 @@ def _profile(**fields: Any) -> SellerProfile:
         "upi_vpa": "ravi@okaxis", "upi_enabled": True,
         "bank_account_name": "Ravi Sweets", "bank_account_number": "123456789012",
         "bank_ifsc": "HDFC0001234", "bank_transfer_enabled": True,
+        "verification_status": VerificationStatus.Approved,
     }
     base.update(fields)
     return SellerProfile(**base)
@@ -199,18 +202,146 @@ async def test_a_sellers_payments_request_must_name_a_upi_id(session: AsyncSessi
     assert r.json()["detail"] == "upi_vpa_required"
 
 
-async def test_an_approved_upi_removal_bumps_the_generation(session: AsyncSession) -> None:
-    world = await seed_courier_world(session)
+async def _file(
+    session: AsyncSession, world: CourierWorld, group: SellerProfileChangeGroup,
+    proposed: dict[str, Any],
+) -> Any:
     seller = await _seller(session, world)
     res = await create_change_request(
-        session=session, seller_profile=seller, group=SellerProfileChangeGroup.Payments,
-        proposed={"upi_vpa": "", "upi_enabled": False}, note=None, actor_user_id=SELLER.id or 0,
+        session=session, seller_profile=seller, group=group,
+        proposed=proposed, note=None, actor_user_id=SELLER.id or 0,
     )
     await session.commit()
-    await approve(session=session, cr=res.cr, admin_user_id=ADMIN.id or 0)
+    return res.cr
+
+
+async def _approve(
+    session: AsyncSession, cr: Any, applied: dict[str, Any] | None = None
+) -> None:
+    await approve(session=session, cr=cr, admin_user_id=ADMIN.id or 0, applied=applied)
     await session.commit()
+
+
+async def test_an_admin_clearing_the_upi_id_bumps_the_generation(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Payments,
+        {"upi_vpa": "ravi.new@okicici", "upi_enabled": True},
+    )
+    # A deliberate approve-with-edits removal (not an untouched empty request).
+    await _approve(session, cr, applied={"upi_vpa": "", "upi_enabled": False})
     seller = await _seller(session, world)
     assert (seller.upi_vpa, seller.upi_enabled, seller.upi_generation) == (None, False, 1)
+
+
+async def test_an_untouched_empty_payments_request_cannot_be_approved(
+    session: AsyncSession,
+) -> None:
+    """The old Edit-button bug filed `{}`; approved as-is it would wipe UPI."""
+    world = await seed_courier_world(session)
+    cr = await _file(session, world, SellerProfileChangeGroup.Payments, {})
+    try:
+        await _approve(session, cr)
+    except HTTPException as exc:
+        assert (exc.status_code, exc.detail) == (422, "upi_vpa_required")
+    else:
+        raise AssertionError("approval should have been refused")
+    await session.rollback()
+    seller = await _seller(session, world)
+    assert seller.upi_vpa == "ravi@okaxis" and seller.upi_enabled is True
+
+
+async def test_approval_never_undoes_a_later_stop(session: AsyncSession) -> None:
+    """A holder-name fix filed while bank transfer was on, then an emergency
+    stop: approving the fix must not switch bank transfer back on."""
+    world = await seed_courier_world(session)
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Banking,
+        {"bank_account_number": "123456789012", "bank_ifsc": "HDFC0001234",
+         "bank_account_name": "Ravi Sweets Pvt", "bank_transfer_enabled": True},
+    )
+    assert (await _switch({"bank_transfer_enabled": False})).status_code == 200
+    await _approve(session, cr)
+    seller = await _seller(session, world)
+    assert seller.bank_account_name == "Ravi Sweets Pvt"
+    assert seller.bank_transfer_enabled is False and seller.bank_transfer_generation == 1
+
+
+async def test_approval_never_switches_a_method_off(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    await _switch({"bank_transfer_enabled": False})
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Banking,
+        {"bank_account_number": "123456789012", "bank_ifsc": "HDFC0002222",
+         "bank_account_name": "Ravi Sweets", "bank_transfer_enabled": False},
+    )
+    assert (await _switch({"bank_transfer_enabled": True})).status_code == 200
+    await _approve(session, cr)
+    seller = await _seller(session, world)
+    assert seller.bank_ifsc == "HDFC0002222"
+    assert seller.bank_transfer_enabled is True and seller.bank_transfer_generation == 1
+
+
+async def test_approval_switches_on_when_asked_and_nothing_stopped_since(
+    session: AsyncSession,
+) -> None:
+    world = await seed_courier_world(session)
+    await _switch({"bank_transfer_enabled": False})
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Banking,
+        {"bank_account_number": "123456789012", "bank_ifsc": "HDFC0003333",
+         "bank_account_name": "Ravi Sweets", "bank_transfer_enabled": True},
+    )
+    await _approve(session, cr)
+    seller = await _seller(session, world)
+    assert seller.bank_transfer_enabled is True and seller.bank_ifsc == "HDFC0003333"
+
+
+async def test_a_new_upi_id_stays_off_after_a_stop_filed_later(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Payments,
+        {"upi_vpa": "ravi.new@okicici", "upi_enabled": True},
+    )
+    assert (await _switch({"upi_enabled": False})).status_code == 200
+    await _approve(session, cr)
+    seller = await _seller(session, world)
+    assert seller.upi_vpa == "ravi.new@okicici" and seller.upi_enabled is False
+    # The seller switches it back on themselves, instantly.
+    assert (await _switch({"upi_enabled": True})).json()["upi_live"] is True
+
+
+async def test_resubmitting_a_payments_request_needs_a_upi_id(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Payments,
+        {"upi_vpa": "ravi.new@okicici", "upi_enabled": True},
+    )
+    await request_changes(
+        session=session, cr=cr, admin_user_id=ADMIN.id or 0, note="Please check the handle"
+    )
+    await session.commit()
+    async with client_as(SELLER) as ac:
+        r = await ac.patch(
+            f"/api/v1/sellers/me/change-requests/{cr.id}/resubmit", json={"proposed": {}}
+        )
+    assert (r.status_code, r.json()["detail"]) == (422, "upi_vpa_required")
+
+
+async def test_re_approval_does_not_undo_a_upi_stop(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    assert (await _switch({"upi_enabled": False})).status_code == 200
+    async with client_as(ADMIN) as ac:
+        rejected = await ac.patch(
+            f"/api/v1/sellers/admin/{SELLER.id}/verify",
+            json={"action": "reject", "rejection_reason": "Documents expired"},
+        )
+        approved = await ac.patch(
+            f"/api/v1/sellers/admin/{SELLER.id}/verify", json={"action": "approve"}
+        )
+    assert rejected.status_code == 200 and approved.status_code == 200, approved.text
+    seller = await _seller(session, world)
+    assert seller.upi_enabled is False
 
 
 def test_apply_bank_fields_turning_off_bumps_the_generation() -> None:
@@ -367,3 +498,148 @@ async def test_admin_payment_routes_are_admin_only(session: AsyncSession) -> Non
     async with client_as(ADMIN) as ac:
         ok = await ac.get(f"/api/v1/sellers/admin/{SELLER.id}/payments")
     assert ok.status_code == 200 and ok.json()["bank_account_number"] == "123456789012"
+
+
+def test_payees_count_only_for_an_approved_seller() -> None:
+    """A revoked or resubmitting seller can write payee details directly, so
+    none of it may reach a customer before an admin approves it again."""
+    for status in (VerificationStatus.Pending, VerificationStatus.Rejected):
+        seller = _profile(verification_status=status)
+        assert not upi_live(seller) and not bank_transfer_live(seller)
+        assert methods_for(seller, DeliveryMode.DoorDelivery) == [PaymentMethod.Cash]
+        assert methods_for(seller, DeliveryMode.Courier) == []
+
+
+async def test_a_combined_request_cannot_strand_door_delivery(session: AsyncSession) -> None:
+    """The guard judges the state the whole request leaves behind."""
+    await seed_courier_world(session)
+    assert (await _switch({"bank_transfer_enabled": False})).status_code == 200
+    r = await _switch({"cod_enabled": False, "upi_enabled": False})
+    assert r.status_code == 409
+    assert r.json()["detail"] == {"code": "last_payment_method", "mode": "door_delivery"}
+    assert (await _settings())["upi_enabled"] is True  # nothing was written
+
+
+async def test_admin_switch_off_bumps_the_generation(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    r = await _admin_switch({"bank_transfer_enabled": False, "reason": "Account reported frozen"})
+    assert r.status_code == 200, r.text
+    seller = await _seller(session, world)
+    assert seller.bank_transfer_enabled is False and seller.bank_transfer_generation == 1
+
+
+async def test_resubmitting_keeps_the_verification_qr_filed_with_the_request(
+    session: AsyncSession,
+) -> None:
+    world = await seed_courier_world(session)
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Payments,
+        {"upi_vpa": "ravi.new@okicici", "upi_enabled": True,
+         "upi_qr_url": "/media/payments/1/qr.webp", "storage_key": "payments/1/qr.webp"},
+    )
+    await request_changes(
+        session=session, cr=cr, admin_user_id=ADMIN.id or 0, note="Handle has a typo"
+    )
+    await session.commit()
+    async with client_as(SELLER) as ac:
+        r = await ac.patch(
+            f"/api/v1/sellers/me/change-requests/{cr.id}/resubmit",
+            json={"proposed": {"upi_vpa": "ravi.v2@okicici", "upi_enabled": True}},
+        )
+    assert r.status_code == 200, r.text
+    proposed = r.json()["proposed_json"]
+    assert proposed["upi_vpa"] == "ravi.v2@okicici"
+    assert proposed["upi_qr_url"] == "/media/payments/1/qr.webp"
+    assert proposed["storage_key"] == "payments/1/qr.webp"
+
+
+async def test_approval_reads_the_switches_it_locked(session: AsyncSession) -> None:
+    """The test session still holds the seller at UPI generation 0 while two
+    requests stop and restart UPI (generation 1). Approval must act on the
+    locked row, not that stale copy: clearing the ID bumps 1 → 2, so copies
+    saved at generation 1 can never come back."""
+    world = await seed_courier_world(session)
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Payments,
+        {"upi_vpa": "ravi.new@okicici", "upi_enabled": True},
+    )
+    # Hold this session's copy, as the admin route does after loading the
+    # seller: the identity map keeps objects only while something does.
+    stale = await _seller(session, world)
+    assert stale.upi_generation == 0
+    assert (await _switch({"upi_enabled": False})).status_code == 200
+    assert (await _switch({"upi_enabled": True})).status_code == 200
+    await _approve(session, cr, applied={"upi_vpa": "", "upi_enabled": False})
+    seller = await _seller(session, world)
+    assert (seller.upi_vpa, seller.upi_enabled, seller.upi_generation) == (None, False, 2)
+
+
+async def test_a_request_filed_before_generations_still_respects_a_stop(
+    session: AsyncSession,
+) -> None:
+    """The old API filed baselines without generations; approval then falls
+    back to "it was on at filing and is off now"."""
+    world = await seed_courier_world(session)
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Banking,
+        {"bank_account_number": "123456789012", "bank_ifsc": "HDFC0001234",
+         "bank_account_name": "Ravi Sweets Pvt", "bank_transfer_enabled": True},
+    )
+    cr.baseline_json = {
+        k: v for k, v in cr.baseline_json.items() if k != "bank_transfer_generation"
+    }
+    session.add(cr)
+    await session.commit()
+    assert (await _switch({"bank_transfer_enabled": False})).status_code == 200
+    await _approve(session, cr)
+    seller = await _seller(session, world)
+    assert seller.bank_account_name == "Ravi Sweets Pvt"
+    assert seller.bank_transfer_enabled is False
+
+
+async def test_approval_will_not_turn_bank_transfer_on_without_every_detail(
+    session: AsyncSession,
+) -> None:
+    world = await seed_courier_world(session)
+    assert (await _switch({"bank_transfer_enabled": False})).status_code == 200
+    cr = await _file(
+        session, world, SellerProfileChangeGroup.Banking,
+        {"bank_account_number": "123456789012", "bank_ifsc": "HDFC0001234",
+         "bank_account_name": "Ravi Sweets", "bank_transfer_enabled": True},
+    )
+    try:
+        await _approve(session, cr, applied={
+            "bank_account_number": "123456789012", "bank_ifsc": "HDFC0001234",
+            "bank_account_name": "", "bank_transfer_enabled": True,
+        })
+    except HTTPException as exc:
+        assert (exc.status_code, exc.detail) == (422, "bank_transfer_incomplete")
+    else:
+        raise AssertionError("approval should have been refused")
+    await session.rollback()
+    seller = await _seller(session, world)
+    assert seller.bank_account_name == "Ravi Sweets" and seller.bank_transfer_enabled is False
+
+
+async def test_a_banking_request_cannot_strand_live_bank_transfer(
+    session: AsyncSession,
+) -> None:
+    """Approval never switches bank transfer off, so while it is on even a
+    request that doesn't ask to turn it on must keep every detail — else no
+    admin could approve it as filed."""
+    world = await seed_courier_world(session)
+    stranding = {
+        "bank_account_number": "123456789012", "bank_ifsc": "HDFC0001234",
+        "bank_account_name": "", "bank_transfer_enabled": False,
+    }
+    try:
+        await _file(session, world, SellerProfileChangeGroup.Banking, stranding)
+    except HTTPException as exc:
+        assert (exc.status_code, exc.detail) == (422, "bank_transfer_incomplete")
+    else:
+        raise AssertionError("filing should have been refused")
+    await session.rollback()
+    # Switched off first, the same request is fine.
+    assert (await _switch({"bank_transfer_enabled": False})).status_code == 200
+    cr = await _file(session, world, SellerProfileChangeGroup.Banking, stranding)
+    assert cr.status.value == "submitted"
