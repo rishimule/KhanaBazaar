@@ -94,7 +94,8 @@ async def test_validate_upi_payee_rejects_payeeless_store(
 ) -> None:
     from fastapi import HTTPException
 
-    from app.services.checkout import _validate_upi_payee_for_store
+    from app.models.commerce import DeliveryMode, PaymentMethod
+    from app.services.checkout import _validate_method_for_store
 
     bundle = approved_seller_with_store
     # Explicitly clear the fixture's default payee: this test is *about* the
@@ -104,7 +105,9 @@ async def test_validate_upi_payee_rejects_payeeless_store(
     session.add(bundle.profile)
     await session.commit()
     with pytest.raises(HTTPException) as exc:
-        await _validate_upi_payee_for_store(session, bundle.store.id)
+        await _validate_method_for_store(
+            session, bundle.store.id, PaymentMethod.Upi, DeliveryMode.DoorDelivery
+        )
     assert exc.value.status_code == 409
     assert exc.value.detail == "upi_unavailable"
 
@@ -114,14 +117,17 @@ async def test_validate_upi_payee_passes_with_live_payee(
     approved_seller_with_store: Any,
     session: AsyncSession,
 ) -> None:
-    from app.services.checkout import _validate_upi_payee_for_store
+    from app.models.commerce import DeliveryMode, PaymentMethod
+    from app.services.checkout import _validate_method_for_store
 
     bundle = approved_seller_with_store
     bundle.profile.upi_vpa = "ganesh@okhdfcbank"
     bundle.profile.upi_enabled = True
     session.add(bundle.profile)
     await session.commit()
-    await _validate_upi_payee_for_store(session, bundle.store.id)
+    await _validate_method_for_store(
+        session, bundle.store.id, PaymentMethod.Upi, DeliveryMode.DoorDelivery
+    )
 
 
 @pytest.mark.asyncio
@@ -132,7 +138,8 @@ async def test_validate_upi_payee_rejects_disabled_payee(
     """Disabled-but-stored VPA must not allow a UPI order through."""
     from fastapi import HTTPException
 
-    from app.services.checkout import _validate_upi_payee_for_store
+    from app.models.commerce import DeliveryMode, PaymentMethod
+    from app.services.checkout import _validate_method_for_store
 
     bundle = approved_seller_with_store
     bundle.profile.upi_vpa = "ganesh@okhdfcbank"
@@ -140,7 +147,9 @@ async def test_validate_upi_payee_rejects_disabled_payee(
     session.add(bundle.profile)
     await session.commit()
     with pytest.raises(HTTPException) as exc:
-        await _validate_upi_payee_for_store(session, bundle.store.id)
+        await _validate_method_for_store(
+            session, bundle.store.id, PaymentMethod.Upi, DeliveryMode.DoorDelivery
+        )
     assert exc.value.detail == "upi_unavailable"
 
 

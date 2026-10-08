@@ -25,7 +25,6 @@ from app.models.catalog import (
     Subcategory,
     SubcategoryTranslation,
 )
-from app.models.commerce import PaymentMethod
 from app.models.platform_fee import ArrangementStatus, FeeArrangement
 from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
 from app.models.store import Store, StoreInventory
@@ -46,13 +45,24 @@ from app.schemas.store_product_detail import (
     StoreSummary,
 )
 from app.schemas.storefront import StorefrontResponse
-from app.schemas.stores import StoreCreate, StoreRead, StoreUpdate, UpiPayeeRead
+from app.schemas.stores import (
+    BankTransferPayeeRead,
+    StoreCreate,
+    StoreRead,
+    StoreUpdate,
+    UpiPayeeRead,
+)
 from app.services import inventory as services_inventory
 from app.services.courier_settings import assert_courier_radius, resolve_courier_radius
 from app.services.fee_gating import is_store_premium, premium_store_ids
 from app.services.inventory import (
     assert_products_in_seller_services,
     bulk_upsert_inventory,
+)
+from app.services.payment_methods import (
+    bank_transfer_live,
+    store_accepted_methods,
+    upi_live,
 )
 from app.services.seller_services import (
     list_profile_services,
@@ -101,10 +111,6 @@ async def _store_read(
             session, store.seller_profile_id, language_code=lang
         )
     seller = store.seller_profile
-    upi_live = bool(seller.upi_enabled and seller.upi_vpa)
-    accepted = [PaymentMethod.NetBanking, PaymentMethod.Cash, PaymentMethod.PayAtStore]
-    if upi_live:
-        accepted.insert(0, PaymentMethod.Upi)
     return StoreRead(
         id=store.id,
         name=store.name,
@@ -121,10 +127,15 @@ async def _store_read(
         pause_reason=store.pause_reason,
         paused_until=store.paused_until.isoformat() if store.paused_until else None,
         logo_url=store.logo_url,
-        accepted_payment_methods=accepted,
+        accepted_payment_methods=store_accepted_methods(seller),
         upi_payee=(
             UpiPayeeRead(vpa=seller.upi_vpa or "", display_name=seller.business_name)
-            if upi_live
+            if upi_live(seller)
+            else None
+        ),
+        bank_transfer_payee=(
+            BankTransferPayeeRead(account_name=seller.bank_account_name or "")
+            if bank_transfer_live(seller)
             else None
         ),
         distance_km=distance_km,
