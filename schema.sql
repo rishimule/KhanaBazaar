@@ -2,7 +2,7 @@
 -- This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 -- KhanaBazaar database schema (Postgres)
 -- Source of truth: SQLModel models in backend/app/src/app/models/ + Alembic
--- migration head `4675f7be7055`. Regenerate this file when the head changes.
+-- migration head `378bcb4c2c06`. Regenerate this file when the head changes.
 --
 -- Enums (created via Alembic migrations):
 --   userrole                     : 'Customer', 'Seller', 'Admin'
@@ -162,10 +162,17 @@ CREATE TABLE "sellerprofile" (
   "upi_qr_url" VARCHAR(2048),
   "upi_qr_storage_key" VARCHAR(512),
   "upi_enabled" BOOLEAN NOT NULL DEFAULT false,
-  -- Courier bank transfer (spec 2026-10-02): shown only to the owning
-  -- customer of an accepted courier order; on only with name + number + IFSC.
+  -- Bank transfer (spec 2026-10-02, all order types since 2026-10-07): shown
+  -- only to the customer who owes the money; on only with name + number + IFSC.
   "bank_account_name" VARCHAR(140),
-  "bank_transfer_enabled" BOOLEAN NOT NULL DEFAULT false
+  "bank_transfer_enabled" BOOLEAN NOT NULL DEFAULT false,
+  -- Store-wide payment switches (spec 2026-10-07); both start on.
+  "cod_enabled" BOOLEAN NOT NULL DEFAULT true,
+  "pay_at_store_enabled" BOOLEAN NOT NULL DEFAULT true,
+  -- Bumped on every on→off of the matching switch; a payee an order saved
+  -- under an older generation is never shown again.
+  "upi_generation" INTEGER NOT NULL DEFAULT 0,
+  "bank_transfer_generation" INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE "customeraddress" (
@@ -402,7 +409,16 @@ CREATE TABLE "payment" (
   -- Courier refunds: stamped by the seller's "Refund sent" or the admin marker.
   "refunded_at" TIMESTAMPTZ,
   "refund_reference" VARCHAR(60),
-  "refunded_by_user_id" INTEGER REFERENCES "user"(id)
+  "refunded_by_user_id" INTEGER REFERENCES "user"(id),
+  -- The payee copied at placement (spec 2026-10-07 §7); each column mirrors
+  -- its sellerprofile source type. Shown only while its generation matches.
+  "payee_upi_vpa" VARCHAR(120),
+  "payee_upi_name" VARCHAR,
+  "payee_upi_generation" INTEGER,
+  "payee_bank_account_name" VARCHAR(140),
+  "payee_bank_account_number" VARCHAR,
+  "payee_bank_ifsc" VARCHAR,
+  "payee_bank_generation" INTEGER
 );
 
 CREATE TABLE "delivery" (
