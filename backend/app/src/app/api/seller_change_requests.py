@@ -11,6 +11,7 @@ post-commit email dispatch.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlmodel import select
@@ -31,6 +32,7 @@ from app.schemas.seller_profile_change_request import (
     ChangeRequestRead,
     ChangeRequestResubmitBody,
 )
+from app.services.payment_methods import set_upi_enabled
 from app.services.seller_profile_change_requests import (
     OPEN_STATUSES,
     create_avatar_change_request,
@@ -99,6 +101,18 @@ def _reject_forged_image(group: SellerProfileChangeGroup, proposed: dict) -> Non
         raise HTTPException(status_code=422, detail="upi_qr_upload_required")
 
 
+def _require_upi_vpa(group: SellerProfileChangeGroup, proposed: dict[str, Any]) -> None:
+    """A seller's payments request must name a UPI ID. An empty one validates
+    as "no UPI ID, UPI off" and would wipe the live payee on approval (the old
+    Edit-button trap, spec 2026-10-07 §4). Turning UPI off is the instant
+    switch, not a request; an admin can still clear an ID deliberately through
+    approve-with-edits."""
+    if group is SellerProfileChangeGroup.Payments and not str(
+        proposed.get("upi_vpa") or ""
+    ).strip():
+        raise HTTPException(status_code=422, detail="upi_vpa_required")
+
+
 async def _attach_events(
     session: AsyncSession, cr: SellerProfileChangeRequest
 ) -> ChangeRequestRead:
@@ -161,6 +175,7 @@ async def create_my_change_request(
     session: AsyncSession = Depends(get_db_session),
 ) -> ChangeRequestRead:
     _reject_forged_image(body.group, body.proposed)
+    _require_upi_vpa(body.group, body.proposed)
     profile = await _seller_profile_or_404(session, seller)
     res = await create_change_request(
         session=session,
@@ -191,6 +206,7 @@ async def resubmit_my_change_request(
     profile = await _seller_profile_or_404(session, seller)
     cr = await _cr_owned_by(session, cr_id, profile)
     _reject_forged_image(cr.group, body.proposed)
+    _require_upi_vpa(cr.group, body.proposed)
     res = await resubmit(
         session=session,
         cr=cr,
@@ -309,12 +325,15 @@ async def disable_my_upi(
     A compromised UPI handle has to stop receiving money now, not after an
     admin review. Disabling only removes a payment option, so it carries none
     of the risk that makes *enabling* reviewable. Modelled on the direct pause
-    routes. `upi_vpa` is retained so re-enabling needs no fresh review.
+    routes. `upi_vpa` is retained, so switching UPI back on from the Payments
+    page needs no fresh review. Goes through `set_upi_enabled`, so unpaid
+    orders drop the payee they saved under the old generation.
 
-    Idempotent: disabling an already-disabled payee is a 200 no-op.
+    Idempotent: disabling an already-disabled payee is a 200 no-op. Kept for
+    dashboard tabs opened before `PATCH /me/payments/methods` existed.
     """
     profile = await _seller_profile_or_404(session, seller)
-    profile.upi_enabled = False
+    set_upi_enabled(profile, False)
     session.add(profile)
     await session.commit()
     return {"upi_enabled": False}

@@ -66,6 +66,7 @@ from app.services.courier_settings import (
 from app.services.eligible_products import list_eligible_products
 from app.services.fee_gating import is_store_premium, should_gate_reports
 from app.services.fee_lifecycle import sync_store_arrangements
+from app.services.payment_methods import set_upi_enabled
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_emails import (
     dispatch_seller_application_submitted,
@@ -504,6 +505,9 @@ async def get_seller_profile(
         bank_account_name=profile.bank_account_name,
         bank_transfer_enabled=profile.bank_transfer_enabled,
         upi_vpa=profile.upi_vpa,
+        upi_enabled=profile.upi_enabled,
+        cod_enabled=profile.cod_enabled,
+        pay_at_store_enabled=profile.pay_at_store_enabled,
         verification_status=profile.verification_status.value,
         rejection_reason=profile.rejection_reason,
         avatar_url=profile.avatar_url,
@@ -778,7 +782,7 @@ async def admin_verify_seller(
         # A VPA supplied during signup was reviewed as part of onboarding, so
         # UPI can go live at approval with no second gate (design spec §4.1).
         if profile.upi_vpa:
-            profile.upi_enabled = True
+            set_upi_enabled(profile, True)
 
         assert profile.id is not None
         # Idempotent store provisioning

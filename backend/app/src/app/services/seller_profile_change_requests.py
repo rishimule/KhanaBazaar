@@ -50,6 +50,7 @@ from app.services.courier_settings import (
 )
 from app.services.fee_lifecycle import sync_store_arrangements
 from app.services.image_processing import ImageValidationError
+from app.services.payment_methods import set_upi_enabled
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_services import (
     list_profile_services,
@@ -927,7 +928,7 @@ async def _apply_payments(
     profile.upi_vpa = payload.get("upi_vpa") or None
     # Defensive: the payload validator already rejects enabled-without-payee,
     # but re-assert here since this also runs on approve-with-edits.
-    profile.upi_enabled = bool(payload.get("upi_enabled")) and bool(profile.upi_vpa)
+    set_upi_enabled(profile, bool(payload.get("upi_enabled")) and bool(profile.upi_vpa))
 
     new_url = str(payload.get("upi_qr_url") or "")
     new_key = payload.get("storage_key") or None

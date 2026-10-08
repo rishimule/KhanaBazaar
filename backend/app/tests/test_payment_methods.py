@@ -6,9 +6,36 @@ from typing import Any
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.commerce import Payment
+from app.models.commerce import DeliveryMode, Payment, PaymentMethod
 from app.models.profile import SellerProfile
-from tests._courier_helpers import CourierWorld
+from app.models.seller_profile_change_request import SellerProfileChangeGroup
+from app.services.courier_settings import apply_bank_fields
+from app.services.payment_methods import (
+    BankPayee,
+    UpiPayee,
+    bank_transfer_live,
+    effective_bank,
+    effective_upi,
+    methods_for,
+    saved_bank,
+    saved_upi,
+    set_bank_transfer_enabled,
+    set_upi_enabled,
+    snapshot_payee,
+    store_accepted_methods,
+    upi_live,
+)
+from app.services.seller_profile_change_requests import (
+    approve,
+    create_change_request,
+)
+from tests._courier_helpers import (
+    ADMIN,
+    SELLER,
+    CourierWorld,
+    client_as,
+    seed_courier_world,
+)
 
 
 def _profile(**fields: Any) -> SellerProfile:
@@ -43,24 +70,6 @@ def test_payment_carries_a_saved_payee() -> None:
         "payee_bank_account_name", "payee_bank_account_number",
         "payee_bank_ifsc", "payee_bank_generation",
     } <= set(Payment.model_fields)
-
-
-from app.models.commerce import DeliveryMode, PaymentMethod  # noqa: E402
-from app.services.payment_methods import (  # noqa: E402
-    BankPayee,
-    UpiPayee,
-    bank_transfer_live,
-    effective_bank,
-    effective_upi,
-    methods_for,
-    saved_bank,
-    saved_upi,
-    set_bank_transfer_enabled,
-    set_upi_enabled,
-    snapshot_payee,
-    store_accepted_methods,
-    upi_live,
-)
 
 
 def test_mode_methods_follow_the_switches() -> None:
@@ -165,3 +174,52 @@ def test_saved_payee_is_the_raw_record() -> None:
     payment = Payment(order_id=1, amount=1.0, payee_upi_vpa="a1@ybl", payee_upi_name="A")
     assert saved_upi(payment) == UpiPayee("a1@ybl", "A")
     assert saved_bank(payment) is None
+
+
+async def test_disable_route_bumps_the_upi_generation(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    async with client_as(SELLER) as ac:
+        r = await ac.patch("/api/v1/sellers/me/payments/disable")
+    assert r.status_code == 200, r.text
+    seller = await _seller(session, world)
+    assert seller.upi_enabled is False and seller.upi_generation == 1
+
+
+async def test_a_sellers_payments_request_must_name_a_upi_id(session: AsyncSession) -> None:
+    await seed_courier_world(session)
+    async with client_as(SELLER) as ac:
+        r = await ac.post(
+            "/api/v1/sellers/me/change-requests",
+            json={"group": "payments", "proposed": {}},
+        )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "upi_vpa_required"
+
+
+async def test_an_approved_upi_removal_bumps_the_generation(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    seller = await _seller(session, world)
+    res = await create_change_request(
+        session=session, seller_profile=seller, group=SellerProfileChangeGroup.Payments,
+        proposed={"upi_vpa": "", "upi_enabled": False}, note=None, actor_user_id=SELLER.id or 0,
+    )
+    await session.commit()
+    await approve(session=session, cr=res.cr, admin_user_id=ADMIN.id or 0)
+    await session.commit()
+    seller = await _seller(session, world)
+    assert (seller.upi_vpa, seller.upi_enabled, seller.upi_generation) == (None, False, 1)
+
+
+def test_apply_bank_fields_turning_off_bumps_the_generation() -> None:
+    seller = _profile()
+    apply_bank_fields(seller, name=None, enabled=False)
+    assert seller.bank_transfer_generation == 1
+
+
+async def test_profile_reports_every_switch(session: AsyncSession) -> None:
+    await seed_courier_world(session)
+    async with client_as(SELLER) as ac:
+        body = (await ac.get("/api/v1/sellers/me/profile")).json()
+    assert body["upi_enabled"] is True
+    assert body["cod_enabled"] is True and body["pay_at_store_enabled"] is True
+
