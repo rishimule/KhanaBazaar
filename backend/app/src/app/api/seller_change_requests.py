@@ -81,24 +81,31 @@ async def _cr_owned_by(
     return cr
 
 
+# Upload-backed groups: the image url field, and the 422 code naming the
+# multipart route that must carry the image.
+_IMAGE_FIELDS: dict[SellerProfileChangeGroup, tuple[str, str]] = {
+    SellerProfileChangeGroup.Avatar: ("avatar_url", "avatar_upload_required"),
+    SellerProfileChangeGroup.StoreLogo: ("logo_url", "store_logo_upload_required"),
+    SellerProfileChangeGroup.Payments: ("upi_qr_url", "upi_qr_upload_required"),
+}
+
+
 def _reject_forged_image(group: SellerProfileChangeGroup, proposed: dict) -> None:
     """Guard the generic JSON CR path: avatar / store-logo / payments-QR
     *uploads* must go through their dedicated multipart routes
     (`POST /me/avatar`, `POST /me/store/logo`, `POST /me/payments/qr`), which
     produce a trusted, owner-scoped storage_key.
 
-    The generic endpoint only permits *removal* (empty url). This blocks a
-    seller from forging an image CR with an arbitrary url or a storage_key
-    pointing at another owner's blob.
+    The generic endpoint only permits *removal* (empty url) and never takes a
+    storage_key: a caller-chosen key could name another owner's blob, which
+    withdrawing or rejecting the request would then delete.
     """
-    if group is SellerProfileChangeGroup.Avatar and (proposed.get("avatar_url") or ""):
-        raise HTTPException(status_code=422, detail="avatar_upload_required")
-    if group is SellerProfileChangeGroup.StoreLogo and (proposed.get("logo_url") or ""):
-        raise HTTPException(status_code=422, detail="store_logo_upload_required")
-    if group is SellerProfileChangeGroup.Payments and (
-        proposed.get("upi_qr_url") or ""
-    ):
-        raise HTTPException(status_code=422, detail="upi_qr_upload_required")
+    image = _IMAGE_FIELDS.get(group)
+    if image is None:
+        return
+    url_field, code = image
+    if (proposed.get(url_field) or "") or (proposed.get("storage_key") or ""):
+        raise HTTPException(status_code=422, detail=code)
 
 
 def _require_upi_vpa(group: SellerProfileChangeGroup, proposed: dict[str, Any]) -> None:
@@ -208,11 +215,14 @@ async def resubmit_my_change_request(
     _reject_forged_image(cr.group, body.proposed)
     _require_upi_vpa(cr.group, body.proposed)
     proposed = dict(body.proposed)
-    if cr.group is SellerProfileChangeGroup.Payments and not proposed.get("upi_qr_url"):
-        # The generic edit form can't re-upload the verification QR, so keep
-        # the one filed with this request (server-stored, so not forgeable).
-        proposed["upi_qr_url"] = cr.proposed_json.get("upi_qr_url") or ""
+    if cr.group in _IMAGE_FIELDS:
+        # A resubmission can't carry an image, so the blob stays the one filed
+        # with this request (server-stored, so not forgeable) and its cleanup
+        # still finds it. The generic edit form can't re-upload the payments
+        # verification QR either, so that request keeps its QR too.
         proposed["storage_key"] = cr.proposed_json.get("storage_key")
+        if cr.group is SellerProfileChangeGroup.Payments:
+            proposed["upi_qr_url"] = cr.proposed_json.get("upi_qr_url") or ""
     res = await resubmit(
         session=session,
         cr=cr,

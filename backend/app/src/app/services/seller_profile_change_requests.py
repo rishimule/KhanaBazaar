@@ -528,6 +528,21 @@ async def create_payments_qr_change_request(
     )
 
 
+def _owns_pending_key(cr: SellerProfileChangeRequest, key: str, prefix: str) -> bool:
+    """Whether a request's pending blob lies in its own seller's folder. Only
+    the upload routes set `storage_key`, always inside that folder; anything
+    else was planted (the generic routes once let a caller choose the key), and
+    deleting it on withdraw or reject would remove another user's image."""
+    from app.services.image_storage import key_in_scope
+
+    if key_in_scope(key, prefix):
+        return True
+    logger.warning(
+        "change request %s carries a storage_key outside %s; not deleting it", cr.id, prefix
+    )
+    return False
+
+
 async def _cleanup_pending_avatar_blob(
     session: AsyncSession, cr: SellerProfileChangeRequest
 ) -> None:
@@ -541,11 +556,13 @@ async def _cleanup_pending_avatar_blob(
     pending_key = (cr.proposed_json or {}).get("storage_key")
     if not pending_key:
         return
+    from app.services.profile_avatars import delete_blob, key_prefix
+
+    if not _owns_pending_key(cr, pending_key, key_prefix("seller", cr.seller_profile_id)):
+        return
     profile = await session.get(SellerProfile, cr.seller_profile_id)
     live_key = profile.avatar_storage_key if profile else None
     if pending_key != live_key:
-        from app.services.profile_avatars import delete_blob
-
         await delete_blob(pending_key)
 
 
@@ -567,10 +584,13 @@ async def _cleanup_pending_store_logo_blob(
             select(Store).where(Store.seller_profile_id == cr.seller_profile_id)
         )
     ).first()
-    live_key = store.logo_storage_key if store else None
-    if pending_key != live_key:
-        from app.services.store_logos import delete_blob
+    from app.services.store_logos import delete_blob, key_prefix
 
+    if store is None or store.id is None or not _owns_pending_key(
+        cr, pending_key, key_prefix(store.id)
+    ):
+        return
+    if pending_key != store.logo_storage_key:
         await delete_blob(pending_key)
 
 
@@ -588,11 +608,13 @@ async def _cleanup_pending_payments_blob(
     pending_key = (cr.proposed_json or {}).get("storage_key")
     if not pending_key:
         return
+    from app.services.seller_upi_qr import delete_blob, key_prefix
+
+    if not _owns_pending_key(cr, pending_key, key_prefix(cr.seller_profile_id)):
+        return
     profile = await session.get(SellerProfile, cr.seller_profile_id)
     live_key = profile.upi_qr_storage_key if profile else None
     if pending_key != live_key:
-        from app.services.seller_upi_qr import delete_blob
-
         await delete_blob(pending_key)
 
 
