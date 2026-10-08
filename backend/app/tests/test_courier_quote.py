@@ -16,6 +16,7 @@ from tests._courier_helpers import (
     CUSTOMER,
     OTHER_SELLER,
     SELLER,
+    CourierWorld,
     client_as,
     get_order,
     order_at_paid,
@@ -201,3 +202,77 @@ async def test_a_failed_status_notification_does_not_fail_a_saved_transition_or_
     assert packed.json()["status"] == "packed"
     assert cancelled.status_code == 200, cancelled.text
     assert cancelled.json()["status"] == "cancelled"
+
+
+def _break_courier_comms(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Both courier notify helpers roll the request session back on failure,
+    expiring the request's user; a route reading `user.role` after that 500s."""
+    from app.services import courier_comms
+
+    monkeypatch.setattr(courier_comms, "record_order_status_notification", _boom)
+    monkeypatch.setattr(courier_comms, "record_seller_notification", _boom)
+
+
+async def _accepted_order(world: CourierWorld) -> int:
+    order = await place_courier_order(world)
+    quote = (await send_quote(order["id"])).json()["courier"]["quotes"][0]
+    async with client_as(CUSTOMER) as ac:
+        resp = await ac.post(
+            f"/api/v1/orders/{order['id']}/courier/accept", json={"quote_id": quote["id"]}
+        )
+    assert resp.status_code == 200, resp.text
+    return int(order["id"])
+
+
+async def test_a_failed_notification_does_not_fail_payment_shipping_or_receipt(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    world = await seed_courier_world(session)
+    order_id = await _accepted_order(world)
+    _break_courier_comms(monkeypatch)
+    async with _session_bound_client(int(SELLER.id or 0)) as ac:
+        paid = await ac.post(f"/api/v1/orders/{order_id}/payment/confirm")
+        assert paid.status_code == 200, paid.text
+        for to in ("packed", "dispatched"):
+            moved = await ac.post(f"/api/v1/orders/{order_id}/transition", json={"to": to})
+            assert moved.status_code == 200, moved.text
+        tracked = await ac.patch(
+            f"/api/v1/orders/{order_id}/courier/tracking", json={"tracking_number": "AB123"}
+        )
+    assert tracked.status_code == 200, tracked.text
+    async with _session_bound_client(int(CUSTOMER.id or 0)) as ac:
+        received = await ac.post(f"/api/v1/orders/{order_id}/courier/received")
+    assert received.status_code == 200, received.text
+    assert received.json()["status"] == "delivered"
+
+
+async def test_a_failed_notification_does_not_fail_a_missing_payment_report(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    world = await seed_courier_world(session)
+    order_id = await _accepted_order(world)
+    async with client_as(CUSTOMER) as ac:
+        claimed = await ac.post(f"/api/v1/orders/{order_id}/payment/claim", json={"method": "upi"})
+    assert claimed.status_code == 200, claimed.text
+    _break_courier_comms(monkeypatch)
+    async with _session_bound_client(int(SELLER.id or 0)) as ac:
+        resp = await ac.post(f"/api/v1/orders/{order_id}/payment/not-received")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["payment"]["customer_claimed_at"] is None
+
+
+async def test_a_failed_notification_does_not_fail_a_refund_record(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    world = await seed_courier_world(session)
+    paid = await order_at_paid(world)
+    async with client_as(SELLER) as ac:
+        cancelled = await ac.post(
+            f"/api/v1/orders/{paid['id']}/cancel", json={"reason": "Item damaged while packing"}
+        )
+    assert cancelled.status_code == 200, cancelled.text
+    _break_courier_comms(monkeypatch)
+    async with _session_bound_client(int(SELLER.id or 0)) as ac:
+        sent = await ac.post(f"/api/v1/orders/{paid['id']}/payment/refund-sent")
+    assert sent.status_code == 200, sent.text
+    assert sent.json()["payment"]["status"] == "refunded"

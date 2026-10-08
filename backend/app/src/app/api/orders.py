@@ -274,14 +274,21 @@ async def _customer_payee(
     seller = await seller_for_store(session, order.store_id)
     if seller is None:
         return OrderPayeeRead()
-    return OrderPayeeRead(
-        upi=_upi_read(effective_upi(payment, seller)) if PaymentMethod.Upi in wanted else None,
-        bank_transfer=(
-            _bank_read(effective_bank(payment, seller))
-            if PaymentMethod.NetBanking in wanted
-            else None
-        ),
-    )
+    upi = effective_upi(payment, seller) if PaymentMethod.Upi in wanted else None
+    bank = effective_bank(payment, seller) if PaymentMethod.NetBanking in wanted else None
+    if (
+        order.delivery_mode is not DeliveryMode.Courier
+        and payment.method is PaymentMethod.NetBanking
+        and bank is None
+        and saved_bank(payment) is None
+    ):
+        # Placed before payees were saved, at a store that doesn't take bank
+        # transfers now — "Net Banking" used to be offered everywhere. Show no
+        # panel rather than a "stopped taking it" alarm. UPI always needed a
+        # live payee at checkout, so for an old UPI order "stopped" is true
+        # and the customer may already have paid ("I've paid" stays).
+        return None
+    return OrderPayeeRead(upi=_upi_read(upi), bank_transfer=_bank_read(bank))
 
 
 def _payee_record(payment: Payment) -> Optional[OrderPayeeRead]:
@@ -871,6 +878,7 @@ async def courier_update_tracking(
     user: User = Depends(get_current_user),
 ) -> OrderRead:
     """The store's seller edits tracking on a shipped courier order."""
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order, changed = await courier_svc.update_tracking(
         session,
@@ -884,7 +892,12 @@ async def courier_update_tracking(
     )
     if changed:
         await courier_comms.notify_customer(session, order, "tracking_updated")
-    return await _serialize_order(session, order, include_customer_name=include_customer)
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=is_admin,
+    )
 
 
 @router.post("/{order_id}/courier/received", response_model=OrderRead)
@@ -894,12 +907,18 @@ async def courier_mark_received(
     user: User = Depends(get_current_user),
 ) -> OrderRead:
     """The owning customer confirms the parcel arrived."""
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await courier_svc.mark_received(session, order, user)
     if order.id is not None:
         dispatch_order_review_request(order.id)
     await courier_comms.notify_seller(session, order, "customer_received")
-    return await _serialize_order(session, order, include_customer_name=include_customer)
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=is_admin,
+    )
 
 
 @router.post("/{order_id}/payment/refund-sent", response_model=OrderRead)
@@ -910,12 +929,18 @@ async def courier_refund_sent(
     user: User = Depends(get_current_user),
 ) -> OrderRead:
     """The store's seller records that they refunded a cancelled courier order."""
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await courier_svc.mark_refund_sent(
         session, order, user, reference=body.reference if body is not None else None
     )
     await courier_comms.notify_customer(session, order, "refund_sent")
-    return await _serialize_order(session, order, include_customer_name=include_customer)
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=is_admin,
+    )
 
 
 @router.post("/{order_id}/delivery-otp/resend", response_model=OrderRead)
@@ -991,7 +1016,12 @@ async def cancel(
         await record_and_dispatch_notification(session, order, "cancelled")
         if courier_customer_cancel:
             await courier_comms.notify_seller(session, order, "customer_cancelled")
-    return await _serialize_order(session, order, include_customer_name=include_customer)
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=is_admin,
+    )
 
 
 @router.post("/{order_id}/review", response_model=OrderReviewRead)
@@ -1196,7 +1226,7 @@ async def claim_payment(
         if newly_claimed:
             await courier_comms.notify_seller(session, order, "payment_claimed")
         return await _serialize_order(
-            session, order, include_customer_name=include_customer_name
+            session, order, include_customer_name=include_customer_name,
         )
     payment = (
         await session.exec(select(Payment).where(Payment.order_id == order.id))
@@ -1217,8 +1247,9 @@ async def claim_payment(
         # `order` attributes, and a lazy reload in async context raises
         # MissingGreenlet. Refresh explicitly before serializing.
         await session.refresh(order)
+    # Customer-only route (guarded above), so never an admin view.
     return await _serialize_order(
-        session, order, include_customer_name=include_customer_name
+        session, order, include_customer_name=include_customer_name,
     )
 
 
@@ -1229,10 +1260,16 @@ async def courier_confirm_payment(
     user: User = Depends(get_current_user),
 ) -> OrderRead:
     """The store's seller confirms the money reached them (courier only)."""
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await courier_svc.confirm_payment(session, order, user)
     await courier_comms.notify_customer(session, order, "payment_confirmed")
-    return await _serialize_order(session, order, include_customer_name=include_customer)
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=is_admin,
+    )
 
 
 @router.post("/{order_id}/payment/not-received", response_model=OrderRead)
@@ -1243,9 +1280,15 @@ async def courier_payment_not_received(
     user: User = Depends(get_current_user),
 ) -> OrderRead:
     """The store's seller reports the claimed payment never arrived."""
+    is_admin = user.role == UserRole.Admin  # before a notify rollback expires `user`
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await courier_svc.reject_payment_claim(
         session, order, user, note=body.note if body is not None else None
     )
     await courier_comms.notify_customer(session, order, "payment_not_received")
-    return await _serialize_order(session, order, include_customer_name=include_customer)
+    return await _serialize_order(
+        session,
+        order,
+        include_customer_name=include_customer,
+        viewer_is_admin=is_admin,
+    )

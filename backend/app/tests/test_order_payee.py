@@ -10,10 +10,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.email_render import render_email
 from app.models.commerce import Payment, PaymentStatus
-from app.models.profile import SellerProfile, SellerProfileService
+from app.models.profile import SellerProfile, SellerProfileService, VerificationStatus
+from app.services.serviceability import compute_locality, zone_for_point
 from app.worker import _pay_block
 from tests._courier_helpers import (
     ADMIN,
+    COURIER_POINT,
     CUSTOMER,
     SELLER,
     CourierWorld,
@@ -344,3 +346,103 @@ def test_order_email_shows_a_bank_transfer_block_without_account_details() -> No
 def test_order_email_renders_without_the_new_keys() -> None:
     payload = _render({})
     assert "by bank transfer" not in payload.html
+
+
+async def test_a_revoked_sellers_payees_go_dark_everywhere(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    order = (await _place_local(world, "net_banking")).json()
+    lat, lng = COURIER_POINT
+    before = await compute_locality(session, lat=lat, lng=lng)
+    assert any(world.store_id in ids for ids in before.courier.values())
+    # The store stays active: only the seller's approval goes.
+    await _set(session, world, verification_status=VerificationStatus.Rejected)
+    async with client_as(CUSTOMER) as ac:
+        store = (await ac.get(f"/api/v1/stores/{world.store_id}")).json()
+    assert store["upi_payee"] is None and store["bank_transfer_payee"] is None
+    assert store["accepted_payment_methods"] == ["cash", "pay_at_store"]
+    assert store["courier_payment_methods"] == []
+    # The order placed before the revocation stops showing the account.
+    assert (await get_order(order["id"]))["payee"] == {"upi": None, "bank_transfer": None}
+    # Courier listings use the SQL twin of the same rule (_PAYEE_LIVE_SQL);
+    # single-store checks use the Python one.
+    after = await compute_locality(session, lat=lat, lng=lng)
+    assert not any(world.store_id in ids for ids in after.courier.values())
+    zone = await zone_for_point(session, store_id=world.store_id, lat=lat, lng=lng)
+    assert zone.zone == "none"
+
+
+async def test_admins_keep_the_payee_record_after_an_admin_action(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    order = (await _place_local(world, "net_banking")).json()
+    async with client_as(ADMIN) as ac:
+        r = await ac.post(
+            f"/api/v1/orders/{order['id']}/cancel", json={"reason": "Customer asked support"}
+        )
+    assert r.status_code == 200, r.text
+    assert r.json()["payee_record"]["bank_transfer"]["account_number"] == "123456789012"
+
+
+async def test_an_old_order_at_a_store_without_its_method_shows_no_panel(
+    session: AsyncSession,
+) -> None:
+    """Placed before payees were saved ("Net Banking" was offered everywhere)
+    at a store that doesn't take bank transfers: no "stopped" alarm."""
+    world = await seed_courier_world(session)
+    order = (await _place_local(world, "net_banking")).json()
+    p = await _payment(session, order["id"])
+    p.payee_bank_account_name = None
+    p.payee_bank_account_number = None
+    p.payee_bank_ifsc = None
+    p.payee_bank_generation = None
+    session.add(p)
+    await session.commit()
+    await _set(session, world, bank_transfer_enabled=False)
+    assert (await get_order(order["id"]))["payee"] is None
+
+
+async def test_an_old_upi_order_still_says_the_store_stopped(session: AsyncSession) -> None:
+    """UPI always needed a live payee at checkout, so an old UPI order whose
+    store stops UPI shows the "stopped" notice (and "I've paid"), not nothing."""
+    world = await seed_courier_world(session)
+    order = (await _place_local(world, "upi")).json()
+    p = await _payment(session, order["id"])
+    p.payee_upi_vpa = None
+    p.payee_upi_name = None
+    p.payee_upi_generation = None
+    session.add(p)
+    await session.commit()
+    await _set(session, world, upi_enabled=False)
+    assert (await get_order(order["id"]))["payee"] == {"upi": None, "bank_transfer": None}
+
+
+async def test_pickup_orders_save_their_payee_too(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    await _enable_pickup(session, world)
+    r = await _place_local(world, "upi", "pickup")
+    assert r.status_code == 201, r.text
+    assert (await _payment(session, r.json()["id"])).payee_upi_vpa == "ravi@okaxis"
+    assert r.json()["payee"]["upi"]["vpa"] == "ravi@okaxis"
+
+
+async def test_courier_payee_follows_an_off_switch_and_ends_once_paid(
+    session: AsyncSession,
+) -> None:
+    world = await seed_courier_world(session)
+    order = await place_courier_order(world)
+    await _accept(order["id"])
+    await _seller_switch({"bank_transfer_enabled": False})
+    body = await get_order(order["id"])
+    assert body["payee"]["bank_transfer"] is None
+    assert body["courier"]["bank_transfer"] is None
+    assert body["payee"]["upi"]["vpa"] == "ravi@okaxis"
+    async with client_as(SELLER) as ac:
+        assert (await ac.post(f"/api/v1/orders/{order['id']}/payment/confirm")).status_code == 200
+    assert (await get_order(order["id"]))["payee"] is None
+
+
+async def test_pay_at_store_orders_cannot_be_claimed(session: AsyncSession) -> None:
+    world = await seed_courier_world(session)
+    await _enable_pickup(session, world)
+    order = (await _place_local(world, "pay_at_store", "pickup")).json()
+    r = await _claim(order["id"])
+    assert (r.status_code, r.json()["detail"]) == (409, "claim_not_applicable")
