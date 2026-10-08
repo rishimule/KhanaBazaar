@@ -12,6 +12,7 @@ from app.models.commerce import (
     PaymentMethod,
     PaymentStatus,
 )
+from app.schemas.stores import UpiPayeeRead
 from app.utils.delivery_window import ist_today, validate_preferred_window
 
 
@@ -63,8 +64,8 @@ class CourierQuoteRead(BaseModel):
 
 
 class BankTransferRead(BaseModel):
-    """The seller's bank details — only on an accepted courier order, only to
-    its customer (spec D6)."""
+    """The seller's bank details — shown only to the customer who owes the
+    money (spec D6; local orders since spec 2026-10-07 §6)."""
 
     account_name: str
     account_number: str
@@ -97,6 +98,14 @@ class CourierRead(BaseModel):
     refund_due: bool = False
     # Prepaid methods the seller can be paid by right now (pay-panel tabs).
     payable_methods: List[PaymentMethod] = []
+    bank_transfer: Optional[BankTransferRead] = None
+
+
+class OrderPayeeRead(BaseModel):
+    """Who the customer pays for this order (spec 2026-10-07 §7). A method is
+    None when the order doesn't use it or the store has stopped taking it."""
+
+    upi: Optional[UpiPayeeRead] = None
     bank_transfer: Optional[BankTransferRead] = None
 
 
@@ -165,6 +174,12 @@ class OrderRead(BaseModel):
     review: Optional[OrderReviewInOrder] = None
     # Courier orders only (spec §13); None for door delivery and pickup.
     courier: Optional[CourierRead] = None
+    # The owning customer only, on single-order reads, while there is something
+    # to pay (spec 2026-10-07 §7). Never in list responses.
+    payee: Optional[OrderPayeeRead] = None
+    # Admins only, single-order reads: the payee as saved at placement, kept
+    # as a dispute record whatever happened to the store's switches since.
+    payee_record: Optional[OrderPayeeRead] = None
 
 
 class OrderListResponse(BaseModel):

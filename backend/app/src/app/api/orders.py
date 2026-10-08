@@ -43,12 +43,14 @@ from app.models.commerce import (
 from app.models.profile import CustomerProfile, SellerProfile, SellerProfileService
 from app.models.store import Store, StoreInventory
 from app.schemas.orders import (
+    BankTransferRead,
     CourierAcceptRequest,
     CourierQuoteRequest,
     CourierTrackingRequest,
     DeliveryRead,
     OrderItemRead,
     OrderListResponse,
+    OrderPayeeRead,
     OrderRead,
     OrderReviewInOrder,
     PaymentClaimRequest,
@@ -62,6 +64,7 @@ from app.schemas.orders import (
 from app.schemas.price_comparison import ReplaceAdjustment
 from app.schemas.reorder import ReorderResolveResponse, ResolvedReorderItem
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
+from app.schemas.stores import UpiPayeeRead
 from app.services import courier as courier_svc
 from app.services import courier_comms
 from app.services.checkout import place_order_for_sub_basket
@@ -84,6 +87,15 @@ from app.services.orders import (
     cancel_order,
     resend_delivery_otp,
     transition_order_status,
+)
+from app.services.payment_methods import (
+    BankPayee,
+    UpiPayee,
+    effective_bank,
+    effective_upi,
+    saved_bank,
+    saved_upi,
+    seller_for_store,
 )
 from app.services.seller_order_notifications import (
     record_seller_new_order_notification,
@@ -231,12 +243,62 @@ ACTIVE_STATUSES = ACTIVE_ORDER_STATUSES
 HISTORY_STATUSES = (OrderStatus.Delivered, OrderStatus.Cancelled)
 
 
+def _upi_read(payee: UpiPayee | None) -> UpiPayeeRead | None:
+    return UpiPayeeRead(vpa=payee.vpa, display_name=payee.display_name) if payee else None
+
+
+def _bank_read(payee: BankPayee | None) -> BankTransferRead | None:
+    if payee is None:
+        return None
+    return BankTransferRead(
+        account_name=payee.account_name, account_number=payee.account_number, ifsc=payee.ifsc
+    )
+
+
+async def _customer_payee(
+    session: AsyncSession, order: Order, payment: Payment
+) -> Optional[OrderPayeeRead]:
+    """What the owning customer pays to, while there is something to pay:
+    local UPI / bank orders show the chosen method; an accepted courier order
+    shows both prepaid methods (the customer may switch)."""
+    if payment.status is not PaymentStatus.Pending or order.status is OrderStatus.Cancelled:
+        return None
+    if order.delivery_mode is DeliveryMode.Courier:
+        if order.status is not OrderStatus.Accepted:
+            return None
+        wanted: tuple[PaymentMethod, ...] = (PaymentMethod.Upi, PaymentMethod.NetBanking)
+    elif payment.method in (PaymentMethod.Upi, PaymentMethod.NetBanking):
+        wanted = (payment.method,)
+    else:
+        return None
+    seller = await seller_for_store(session, order.store_id)
+    if seller is None:
+        return OrderPayeeRead()
+    return OrderPayeeRead(
+        upi=_upi_read(effective_upi(payment, seller)) if PaymentMethod.Upi in wanted else None,
+        bank_transfer=(
+            _bank_read(effective_bank(payment, seller))
+            if PaymentMethod.NetBanking in wanted
+            else None
+        ),
+    )
+
+
+def _payee_record(payment: Payment) -> Optional[OrderPayeeRead]:
+    """The payee as saved at placement, for admins settling a dispute."""
+    upi, bank = saved_upi(payment), saved_bank(payment)
+    if upi is None and bank is None:
+        return None
+    return OrderPayeeRead(upi=_upi_read(upi), bank_transfer=_bank_read(bank))
+
+
 async def _serialize_order(
     session: AsyncSession,
     order: Order,
     *,
     include_customer_name: bool,
     viewer_is_admin: bool = False,
+    include_payee: bool = True,
 ) -> OrderRead:
     # TODO(perf): when list_orders calls this in a loop the round-trips compound
     # (4-5 SELECTs per order × 50). Batch-load items/payments/deliveries/stores
@@ -288,6 +350,13 @@ async def _serialize_order(
         order,
         viewer="admin" if viewer_is_admin else ("seller" if include_customer_name else "customer"),
     )
+    payee: Optional[OrderPayeeRead] = None
+    payee_record: Optional[OrderPayeeRead] = None
+    if include_payee:
+        if viewer_is_admin:
+            payee_record = _payee_record(payment)
+        elif not include_customer_name:  # the owning customer
+            payee = await _customer_payee(session, order, payment)
     return OrderRead(
         id=order.id,
         store_id=order.store_id,
@@ -352,6 +421,8 @@ async def _serialize_order(
         if review is not None
         else None,
         courier=courier_read,
+        payee=payee,
+        payee_record=payee_record,
     )
 
 
@@ -557,6 +628,8 @@ async def list_orders(
                 o,
                 include_customer_name=include_customer,
                 viewer_is_admin=user.role == UserRole.Admin,
+                # Payee details only on single-order reads (spec 2026-10-07 §7).
+                include_payee=False,
             )
             for o in orders
         ],

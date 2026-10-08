@@ -46,7 +46,8 @@ from app.services.courier_rules import (
     validate_tracking_url,
 )
 from app.services.orders import _seller_owns_store
-from app.services.serviceability import bank_transfer_live, courier_payment_methods
+from app.services.payment_methods import effective_bank
+from app.services.serviceability import courier_payment_methods
 from app.utils.delivery_window import ist_today
 
 Viewer = Literal["customer", "seller", "admin"]
@@ -214,17 +215,16 @@ async def build_courier_read(
         )
     ).first()
     bank: BankTransferRead | None = None
-    if (
-        viewer == "customer"
-        and order.status == OrderStatus.Accepted
-        and seller is not None
-        and bank_transfer_live(seller)
-    ):
-        bank = BankTransferRead(
-            account_name=seller.bank_account_name or "",
-            account_number=seller.bank_account_number or "",
-            ifsc=seller.bank_ifsc or "",
-        )
+    if viewer == "customer" and order.status == OrderStatus.Accepted and seller is not None:
+        # Same rule as OrderRead.payee: the saved copy unless switched off since
+        # (spec 2026-10-07 §7). Kept here for clients older than `payee`.
+        payee = effective_bank(payment, seller)
+        if payee is not None:
+            bank = BankTransferRead(
+                account_name=payee.account_name,
+                account_number=payee.account_number,
+                ifsc=payee.ifsc,
+            )
     return CourierRead(
         recipient_name=row.recipient_name,
         recipient_phone=row.recipient_phone,
