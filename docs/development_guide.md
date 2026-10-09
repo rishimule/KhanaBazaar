@@ -48,7 +48,7 @@ Lives at `backend/app/.env`. Template is `backend/app/.env.example`. Loader is t
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | `""` | Required when `SMS_PROVIDER=twilio`. `TWILIO_FROM_NUMBER` is E.164 (e.g. `+15005550006`). |
 | `WHATSAPP_PROVIDER` | `none` | `none` disables WhatsApp (`get_whatsapp_sender()` → `None`). `console` mocks → captures to `dev_whatsapp` → `/dev-whatsapp`. `twilio` uses the Content API. Set `console` in dev to see captures. |
 | `TWILIO_WHATSAPP_FROM` | `""` | The `whatsapp:+...` sender (sandbox or approved number). Required when `WHATSAPP_PROVIDER=twilio`; reuses `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`. |
-| `PHONE_OTP_ENABLED` | `true` | `false` bypasses all three phone-ownership OTP chains (seller signup, customer profile phone, seller phone change): the `.../otp/request` call validates as usual, then returns the token its `verify` twin would have minted plus `"otp_required": false`, and no code is sent. Set `false` only while there is no working SMS/WhatsApp transport — it removes proof of phone ownership. Does NOT affect email OTP, the delivery-handover OTP, or return OTPs. **Prod runs `false`** (no SMS plan yet). |
+| `PHONE_OTP_ENABLED` | `true` | `false` bypasses all four phone-ownership OTP chains (seller signup, customer signup, customer profile phone, seller phone change): the `.../otp/request` call validates as usual, then returns the token its `verify` twin would have minted plus `"otp_required": false`, and no code is sent. The customer-signup `verify` never short-circuits (no pre-flag client exists for it), and with the flag off the WhatsApp login-code mirror is off too. Set `false` only while there is no working SMS/WhatsApp transport — it removes proof of phone ownership. Does NOT affect email OTP, the delivery-handover OTP, or return OTPs. **Prod runs `false`** (no SMS plan yet). |
 | `JWT_EXPIRES_HOURS` | `24` | Retired for the access token — no longer read for that TTL. Its 24h value now lives in `SESSION_UNTRUSTED_TTL_HOURS` (see below). |
 | `ACCESS_TOKEN_TTL_MINUTES` | `15` | Access-token TTL. The access token is short-lived by design; long-term sign-in is handled by the rotating refresh-session system (see `docs/superpowers/specs/2026-07-17-trusted-device-long-term-signin-design.md`). |
 | `SESSION_UNTRUSTED_TTL_HOURS` | `24` | Absolute cap for an untrusted (no "remember me") refresh session. |
@@ -162,6 +162,11 @@ POST /api/v1/auth/otp/request  { email }
 POST /api/v1/auth/otp/verify   { email, code, full_name? }
   → constant-time compare against stored hash
   → on first-login without name: { needs_name: true } (frontend prompts, retries)
+POST /api/v1/auth/customer/phone/otp/request  { email, email_code, phone }   (new accounts)
+  → PHONE_OTP_ENABLED=false: { otp_required: false, phone_token }
+  → else: code via WhatsApp/SMS; POST …/phone/otp/verify { email, phone, code } → { phone_token }
+POST /api/v1/auth/otp/verify   { email, code, full_name, phone_token }
+  → creates the customer with phone + phone_verified_at
   → on success: create_access_token(user) → { access_token, user }
 ```
 
