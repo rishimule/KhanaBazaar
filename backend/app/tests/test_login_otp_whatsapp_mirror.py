@@ -91,7 +91,7 @@ async def test_login_otp_no_mirror_while_phone_otp_is_disabled(
     so mirroring the login code could hand it to a stranger (spec §4.9)."""
     from app.core.config import settings
 
-    monkeypatch.setattr(whatsapp_mod.settings, "WHATSAPP_PROVIDER", "console")
+    monkeypatch.setattr(settings, "WHATSAPP_PROVIDER", "console")
     monkeypatch.setattr(settings, "PHONE_OTP_ENABLED", False)
     whatsapp_mod.get_whatsapp_sender.cache_clear()
     user = User(email="trusted@example.com", role=UserRole.Customer)

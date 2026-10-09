@@ -1,7 +1,9 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import pytest
+from httpx import AsyncClient
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.base import User, UserRole
 from app.models.notification import Notification, NotificationType
@@ -186,13 +188,14 @@ async def test_accept_expired_invite_conflict(client, session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_accept_verified_number_taken_is_phone_already_in_use(
-    client, session, monkeypatch
-):
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The proven number is what lands on the profile, so it is what must be
     free (customer scope) — a clean 409, not a 500 from the unique index."""
     owner = User(email="owner@example.com", role=UserRole.Customer)
     session.add(owner)
     await session.flush()
+    assert owner.id is not None
     session.add(
         CustomerProfile(user_id=owner.id, first_name="Owner", phone="+919812345678")
     )
@@ -201,6 +204,7 @@ async def test_accept_verified_number_taken_is_phone_already_in_use(
     session.add(r)
     await session.commit()
     await session.refresh(r)
+    assert r.id is not None
     tok = create_referral_invite_token(
         referral_id=r.id, target_role="customer", email="joiner@example.com",
         phone=None, expires_days=14,
@@ -220,11 +224,12 @@ async def test_accept_verified_number_taken_is_phone_already_in_use(
 
 @pytest.mark.asyncio
 async def test_accept_referrer_typed_number_taken_but_invitee_proves_another(
-    client, session, monkeypatch
-):
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
     owner = User(email="owner2@example.com", role=UserRole.Customer)
     session.add(owner)
     await session.flush()
+    assert owner.id is not None
     session.add(
         CustomerProfile(user_id=owner.id, first_name="Owner", phone="+919812345670")
     )
@@ -235,6 +240,7 @@ async def test_accept_referrer_typed_number_taken_but_invitee_proves_another(
     session.add(r)
     await session.commit()
     await session.refresh(r)
+    assert r.id is not None
     tok = create_referral_invite_token(
         referral_id=r.id, target_role="customer", email="switch@example.com",
         phone="+919812345670", expires_days=14,
@@ -261,13 +267,16 @@ async def test_accept_referrer_typed_number_taken_but_invitee_proves_another(
 
 
 @pytest.mark.asyncio
-async def test_accept_requires_a_phone_token(client, session, monkeypatch):
+async def test_accept_requires_a_phone_token(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
     r = _approved_referral(invitee_email="nophone@example.com")
     r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
     session.add(r)
     await session.commit()
     await session.refresh(r)
     rid = r.id
+    assert rid is not None
     tok = create_referral_invite_token(
         referral_id=rid, target_role="customer", email="nophone@example.com",
         phone=None, expires_days=14,
@@ -281,17 +290,21 @@ async def test_accept_requires_a_phone_token(client, session, monkeypatch):
     assert res.status_code == 400
     assert res.json()["detail"]["error"] == "phone_required"
     fresh = await session.get(Referral, rid)
+    assert fresh is not None
     await session.refresh(fresh)
     assert fresh.status == ReferralStatus.approved
 
 
 @pytest.mark.asyncio
-async def test_accept_rejects_a_token_for_another_email(client, session, monkeypatch):
+async def test_accept_rejects_a_token_for_another_email(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
     r = _approved_referral(invitee_email="mine@example.com")
     r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
     session.add(r)
     await session.commit()
     await session.refresh(r)
+    assert r.id is not None
     tok = create_referral_invite_token(
         referral_id=r.id, target_role="customer", email="mine@example.com",
         phone=None, expires_days=14,
@@ -311,13 +324,14 @@ async def test_accept_rejects_a_token_for_another_email(client, session, monkeyp
 
 @pytest.mark.asyncio
 async def test_accept_phone_only_invite_binds_the_typed_email(
-    client, session, monkeypatch
-):
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
     r = _approved_referral(invitee_email=None, invitee_phone="+919812300000")
     r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
     session.add(r)
     await session.commit()
     await session.refresh(r)
+    assert r.id is not None
     tok = create_referral_invite_token(
         referral_id=r.id, target_role="customer", email=None,
         phone="+919812300000", expires_days=14,
@@ -336,13 +350,16 @@ async def test_accept_phone_only_invite_binds_the_typed_email(
 
 
 @pytest.mark.asyncio
-async def test_accept_phone_unique_race_is_named(client, session, monkeypatch):
-    async def _never_taken(_session, _phone):
+async def test_accept_phone_unique_race_is_named(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def _never_taken(_session: AsyncSession, _phone: str) -> bool:
         return False
 
     owner = User(email="owner3@example.com", role=UserRole.Customer)
     session.add(owner)
     await session.flush()
+    assert owner.id is not None
     session.add(
         CustomerProfile(user_id=owner.id, first_name="Owner", phone="+919812345672")
     )
@@ -351,6 +368,7 @@ async def test_accept_phone_unique_race_is_named(client, session, monkeypatch):
     session.add(r)
     await session.commit()
     await session.refresh(r)
+    assert r.id is not None
     tok = create_referral_invite_token(
         referral_id=r.id, target_role="customer", email="racer@example.com",
         phone=None, expires_days=14,

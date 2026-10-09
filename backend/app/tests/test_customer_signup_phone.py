@@ -607,9 +607,8 @@ async def test_phone_unique_race_is_a_409_not_a_500(
     session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The pre-check can pass and still lose to a concurrent insert. With a
-    policy published, record_acceptance's savepoint would swallow the
-    violation if the profile were not flushed first (spec §4.4)."""
+    """The pre-check can pass and still lose to a concurrent insert: a clean
+    409, not a 500. Policies are published so record_acceptance runs too."""
     from app.models.consent import PolicyDocument, PolicyKind
 
     session.add(PolicyDocument(kind=PolicyKind.terms, version=1, body="t"))

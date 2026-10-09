@@ -111,7 +111,8 @@ def test_seller_signup_token_rejected_as_customer_signup_phone_token() -> None:
     with pytest.raises(HTTPException) as exc:
         decode_customer_signup_phone_token(tok)
     assert exc.value.status_code == 400
-    assert exc.value.detail == {"error": "invalid_phone_token"}
+    detail: object = exc.value.detail
+    assert detail == {"error": "invalid_phone_token"}
 
 
 def test_expired_customer_signup_phone_token_is_410() -> None:
@@ -130,7 +131,8 @@ def test_expired_customer_signup_phone_token_is_410() -> None:
     with pytest.raises(HTTPException) as exc:
         decode_customer_signup_phone_token(tok)
     assert exc.value.status_code == 410
-    assert exc.value.detail == {"error": "phone_token_expired"}
+    detail: object = exc.value.detail
+    assert detail == {"error": "phone_token_expired"}
 
 
 @pytest.mark.parametrize(
