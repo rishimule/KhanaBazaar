@@ -288,7 +288,18 @@
     "creatingAccount": "Creating account…",
     "continue": "Continue",
     "consent": "I agree to the <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>",
-    "keepSignedIn": "Keep me signed in on this device"
+    "keepSignedIn": "Keep me signed in on this device",
+    "subtitleProfile": "One last step — your name and mobile number",
+    "subtitlePhoneCode": "Enter the 6-digit code sent to {phone}",
+    "createAccount": "Create account",
+    "verifyAndCreate": "Verify & create account",
+    "errInvalidCode": "Incorrect code. Please try again.",
+    "errCodeExpired": "Code expired. Please request a new one.",
+    "errTooManyAttempts": "Too many attempts. Please request a new code.",
+    "errEmailCodeStale": "Your email code has expired or changed. Request a new code to continue.",
+    "errPolicyRequired": "Please accept the Terms of Service and Privacy Policy to continue.",
+    "errAccountSuspended": "This account is suspended. Contact support for help.",
+    "errAccountDeleted": "This account has been deleted. Contact support if you think this is a mistake."
   },
   "Sell": {
     "metaTitle": "Become a Seller",
@@ -3168,7 +3179,12 @@
     "codeExpired": "That code has expired. Request a new one.",
     "policyRequired": "Please accept the Terms & Privacy to continue.",
     "expiredError": "This invite has expired.",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "verifyAndActivate": "Verify & activate",
+    "resendEmailCode": "Send a new email code",
+    "resendEmailIn": "Send a new code in {seconds}s",
+    "tooManyAttempts": "Too many wrong attempts. Request a new code.",
+    "signIn": "Sign in"
   },
   "Credit": {
     "loading": "Loading…",
@@ -3298,5 +3314,24 @@
     "stopped": "This store has stopped taking bank transfers. Pay them another way, when your order arrives or at the counter.",
     "disclaimer": "Payments go straight to the store. The store confirms payment when they receive it.",
     "alreadyPaidHint": "If you already paid, tap “I've paid” so the store can check."
+  },
+  "Signup": {
+    "label": "Mobile number",
+    "hint": "10-digit Indian mobile number.",
+    "hintOtp": "10-digit Indian mobile number. We'll send a code to verify it.",
+    "confirmNumber": "Check your number: {phone}",
+    "codeLabel": "Code sent to your phone",
+    "codeSent": "We sent a 6-digit code to {phone}.",
+    "changeNumber": "Change number",
+    "resendCode": "Resend code",
+    "resendIn": "Resend code in {seconds}s",
+    "errInvalidPhone": "Enter a valid 10-digit Indian mobile number.",
+    "errPhoneInUse": "This number is already linked to another account. Sign in with that account's email, use a different number, or contact support.",
+    "errRateLimited": "Too many requests. Try again in {seconds}s.",
+    "errRateLimitedMinutes": "Too many requests. Try again in {minutes} min.",
+    "errRateLimitedLater": "Too many requests. Please try again later.",
+    "errConfirmAgain": "Please confirm your mobile number again.",
+    "errEmailRegistered": "This email already has an account. Sign in to continue.",
+    "errSendFailed": "Couldn't send the code. Please try again."
   }
 }

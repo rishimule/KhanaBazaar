@@ -32,6 +32,12 @@ export function useResendCountdown(initialSeconds = 60) {
     };
   }, [secondsLeft]);
 
-  const start = useCallback(() => setSecondsLeft(initialSeconds), [initialSeconds]);
+  /** Start (or restart) the countdown. `seconds` seeds it from a server's
+   * `retry_after`; omitted, it uses the hook's default. */
+  const start = useCallback(
+    (seconds?: number) =>
+      setSecondsLeft(seconds !== undefined && seconds > 0 ? Math.ceil(seconds) : initialSeconds),
+    [initialSeconds],
+  );
   return { secondsLeft, start, active: secondsLeft > 0 };
 }
