@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 from fakeredis.aioredis import FakeRedis
 from httpx import AsyncClient
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import app
@@ -20,6 +21,7 @@ from app.core.config import settings
 from app.core.otp import RateLimited, enforce_distinct_hourly_budget, hash_code
 from app.core.redis import get_redis
 from app.core.security import (
+    create_customer_signup_phone_token,
     decode_customer_signup_phone_token,
 )
 from app.core.sms import get_sms_sender
@@ -472,3 +474,210 @@ async def test_verify_rejects_an_invalid_phone(client: AsyncClient) -> None:
     resp = await _verify(client, code="123456", phone="12345")
     assert resp.status_code == 400
     assert resp.json()["detail"]["error"] == "invalid_phone"
+
+
+# ── account creation: /auth/otp/verify ──────────────────────────────────
+
+
+async def _new_account(
+    client: AsyncClient, *, phone_token: str | None = None, email: str = EMAIL
+) -> Any:
+    body: dict[str, object] = {
+        "email": email,
+        "code": EMAIL_CODE,
+        "full_name": "Asha Rao",
+        "accept_policies": True,
+    }
+    if phone_token is not None:
+        body["phone_token"] = phone_token
+    return await client.post("/api/v1/auth/otp/verify", json=body)
+
+
+async def test_signup_end_to_end_with_phone_otp_off(
+    client: AsyncClient,
+    fake_redis: FakeRedis,
+    session: AsyncSession,
+    sms: _RecordingSMS,
+    otp_disabled: None,
+) -> None:
+    await _seed_email_code(fake_redis)
+    first = await client.post(
+        "/api/v1/auth/otp/verify", json={"email": EMAIL, "code": EMAIL_CODE}
+    )
+    assert first.json()["needs_name"] is True
+    token = (await _request(client)).json()["phone_token"]
+    resp = await _new_account(client, phone_token=token)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["user"]["role"] == "customer"
+    profile = (await session.exec(select(CustomerProfile))).one()
+    assert profile.phone == PHONE
+    assert profile.phone_verified_at is not None
+    assert sms.sent == []
+
+
+async def test_signup_end_to_end_with_phone_otp_on(
+    client: AsyncClient, fake_redis: FakeRedis, session: AsyncSession, sms: _RecordingSMS
+) -> None:
+    await _seed_email_code(fake_redis)
+    assert (await _request(client)).json()["otp_required"] is True
+    verified = await _verify(client, code=_sent_code(sms))
+    resp = await _new_account(client, phone_token=verified.json()["phone_token"])
+    assert resp.status_code == 200, resp.text
+    profile = (await session.exec(select(CustomerProfile))).one()
+    assert profile.phone == PHONE
+    assert profile.phone_verified_at is not None
+
+
+async def test_signup_without_a_phone_token_is_refused(
+    client: AsyncClient, fake_redis: FakeRedis, session: AsyncSession
+) -> None:
+    await _seed_email_code(fake_redis)
+    resp = await _new_account(client)
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["error"] == "phone_required"
+    assert (await session.exec(select(User))).first() is None
+
+
+async def test_signup_rejects_a_token_minted_for_another_email(
+    client: AsyncClient, fake_redis: FakeRedis
+) -> None:
+    await _seed_email_code(fake_redis)
+    token = create_customer_signup_phone_token("other@example.com", PHONE)
+    resp = await _new_account(client, phone_token=token)
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["error"] == "invalid_phone_token"
+
+
+async def test_signup_rejects_garbage_and_wrong_type_tokens(
+    client: AsyncClient, fake_redis: FakeRedis
+) -> None:
+    from app.core.security import create_seller_signup_token
+
+    await _seed_email_code(fake_redis)
+    for token in ("garbage", create_seller_signup_token(EMAIL, PHONE)):
+        resp = await _new_account(client, phone_token=token)
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["error"] == "invalid_phone_token"
+
+
+async def test_signup_with_an_expired_token_is_410(
+    client: AsyncClient, fake_redis: FakeRedis
+) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    import jwt
+
+    await _seed_email_code(fake_redis)
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {
+            "email": EMAIL,
+            "phone": PHONE,
+            "type": "customer_signup_phone",
+            "iat": now - timedelta(minutes=20),
+            "exp": now - timedelta(minutes=10),
+        },
+        settings.JWT_SECRET,
+        algorithm="HS256",
+    )
+    resp = await _new_account(client, phone_token=token)
+    assert resp.status_code == 410
+    assert resp.json()["detail"]["error"] == "phone_token_expired"
+
+
+async def test_number_claimed_after_the_token_is_a_409_and_retry_works(
+    client: AsyncClient, fake_redis: FakeRedis, session: AsyncSession
+) -> None:
+    await _seed_email_code(fake_redis)
+    token = create_customer_signup_phone_token(EMAIL, PHONE)
+    await _add_customer(session, email="fast@example.com", phone=PHONE)
+    resp = await _new_account(client, phone_token=token)
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["error"] == "phone_already_in_use"
+    # The email code survives the 409: another number goes straight through.
+    retry = await _new_account(
+        client, phone_token=create_customer_signup_phone_token(EMAIL, "+919876509876")
+    )
+    assert retry.status_code == 200, retry.text
+
+
+async def test_phone_unique_race_is_a_409_not_a_500(
+    client: AsyncClient,
+    fake_redis: FakeRedis,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The pre-check can pass and still lose to a concurrent insert. With a
+    policy published, record_acceptance's savepoint would swallow the
+    violation if the profile were not flushed first (spec §4.4)."""
+    from app.models.consent import PolicyDocument, PolicyKind
+
+    session.add(PolicyDocument(kind=PolicyKind.terms, version=1, body="t"))
+    session.add(PolicyDocument(kind=PolicyKind.privacy, version=1, body="p"))
+    await session.commit()
+
+    from app.services import customer_signup
+
+    calls = 0
+
+    async def _free_then_real(s: AsyncSession, p: str) -> bool:
+        # The pre-check runs before the racing insert lands; the check that
+        # names the loser after the rollback sees the committed winner.
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return False
+        return await customer_signup.customer_phone_taken(s, p)
+
+    monkeypatch.setattr("app.api.auth.customer_phone_taken", _free_then_real)
+    await _add_customer(session, email="fast@example.com", phone=PHONE)
+    await _seed_email_code(fake_redis)
+    resp = await _new_account(
+        client, phone_token=create_customer_signup_phone_token(EMAIL, PHONE)
+    )
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["detail"]["error"] == "phone_already_in_use"
+    assert (
+        await session.exec(select(User).where(User.email == EMAIL))
+    ).first() is None
+
+
+async def test_same_email_race_is_email_already_registered(
+    client: AsyncClient,
+    fake_redis: FakeRedis,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two tabs, one email: the loser gets a clean 409 instead of a 500."""
+
+    async def _other_tab_wins(_session: AsyncSession, _phone: str) -> bool:
+        session.add(User(email=EMAIL, role=UserRole.Customer))
+        await session.commit()
+        return False
+
+    monkeypatch.setattr("app.api.auth.customer_phone_taken", _other_tab_wins)
+    await _seed_email_code(fake_redis)
+    resp = await _new_account(
+        client, phone_token=create_customer_signup_phone_token(EMAIL, PHONE)
+    )
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["detail"]["error"] == "email_already_registered"
+
+
+async def test_existing_customer_login_ignores_a_phone_token(
+    client: AsyncClient, fake_redis: FakeRedis, session: AsyncSession
+) -> None:
+    await _add_customer(session, email=EMAIL, phone=None)
+    await _seed_email_code(fake_redis)
+    resp = await client.post(
+        "/api/v1/auth/otp/verify",
+        json={
+            "email": EMAIL,
+            "code": EMAIL_CODE,
+            "phone_token": create_customer_signup_phone_token(EMAIL, PHONE),
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    profile = (await session.exec(select(CustomerProfile))).one()
+    await session.refresh(profile)
+    assert profile.phone is None

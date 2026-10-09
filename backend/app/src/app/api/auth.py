@@ -7,6 +7,7 @@ import httpx
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -56,6 +57,11 @@ from app.services.consent import (
     record_acceptance,
 )
 from app.services.courier_settings import assert_bank_transfer_complete
+from app.services.customer_signup import (
+    customer_phone_taken,
+    email_registered,
+    require_signup_phone,
+)
 from app.services.profiles import compose_full_name, split_full_name
 from app.services.seller_emails import dispatch_new_device_login
 
@@ -76,6 +82,10 @@ class OTPVerifyBody(BaseModel):
     accept_policies: bool = False
     # "Keep me signed in on this device" — trusted long-term session when true.
     remember: bool = False
+    # New accounts only: the token POST /auth/customer/phone/otp/{request,
+    # verify} minted for this email. Ignored when the email already has an
+    # account (existing customers are never asked for a phone here).
+    phone_token: str | None = Field(default=None, max_length=2048)
 
 
 class UpdateLanguageBody(BaseModel):
@@ -189,7 +199,9 @@ async def otp_request(
         send_otp_email_async.delay(email, code)
     # Best-effort WhatsApp mirror: an existing customer with a verified phone
     # gets the same code over WhatsApp too. Email stays the primary channel.
-    if get_whatsapp_sender() is not None:
+    # Only while phone OTP is on: with it off every "verified" number was
+    # taken on trust and may belong to someone else.
+    if settings.PHONE_OTP_ENABLED and get_whatsapp_sender() is not None:
         user = (await session.exec(select(User).where(User.email == email))).first()
         if user is not None:
             profile = (
@@ -244,15 +256,45 @@ async def otp_verify(
             raise HTTPException(
                 status_code=400, detail={"error": "policy_acceptance_required"}
             )
+        phone = require_signup_phone(body.phone_token, email)
+        if await customer_phone_taken(session, phone):
+            raise HTTPException(
+                status_code=409, detail={"error": "phone_already_in_use"}
+            )
         first_name, last_name = split_full_name(body.full_name)
-        user = User(email=email, role=UserRole.Customer)
-        session.add(user)
-        await session.flush()
-        assert user.id is not None
-        profile = CustomerProfile(user_id=user.id, first_name=first_name, last_name=last_name)
-        session.add(profile)
-        await record_acceptance(session, user.id)
-        await session.commit()
+        try:
+            user = User(email=email, role=UserRole.Customer)
+            session.add(user)
+            await session.flush()
+            assert user.id is not None
+            profile = CustomerProfile(
+                user_id=user.id,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone,
+                phone_verified_at=datetime.now(timezone.utc),
+            )
+            session.add(profile)
+            # Flush before record_acceptance: its savepoint flushes pending
+            # rows inside its own `except IntegrityError: pass`, which would
+            # swallow a lost phone race and fail the commit with a 500.
+            await session.flush()
+            await record_acceptance(session, user.id)
+            await session.commit()
+        except IntegrityError:
+            # Lost a unique-index race after the pre-checks passed. The winner
+            # is committed, so it is visible once we roll back (locals only —
+            # the rollback expired every loaded row).
+            await session.rollback()
+            if await email_registered(session, email):
+                raise HTTPException(
+                    status_code=409, detail={"error": "email_already_registered"}
+                ) from None
+            if await customer_phone_taken(session, phone):
+                raise HTTPException(
+                    status_code=409, detail={"error": "phone_already_in_use"}
+                ) from None
+            raise
         await session.refresh(user)
         full_name = compose_full_name(first_name, last_name)
         from app.services.seller_emails import dispatch_customer_welcome

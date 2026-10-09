@@ -13,6 +13,7 @@ from app import app
 from app.core.email import get_email_sender
 from app.core.redis import get_redis
 from app.models.auth_session import AuthSession
+from tests._helpers import signup_phone_token
 
 
 class _FakeSender:
@@ -58,6 +59,7 @@ async def test_verify_new_user_remember_creates_trusted_session(
             "code": code,
             "full_name": "Trust Me",
             "remember": True,
+            "phone_token": signup_phone_token("trust@example.com"),
         },
     )
     assert resp.status_code == 200
@@ -86,7 +88,12 @@ async def test_verify_without_remember_is_untrusted_24h(
     code = _code(sender.sent[-1]["text"])
     resp = await c.post(
         "/api/v1/auth/otp/verify",
-        json={"email": "guest@example.com", "code": code, "full_name": "Guest U"},
+        json={
+            "email": "guest@example.com",
+            "code": code,
+            "full_name": "Guest U",
+            "phone_token": signup_phone_token("guest@example.com"),
+        },
     )
     assert resp.status_code == 200
     row = (await session.exec(select(AuthSession))).one()
