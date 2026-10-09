@@ -11,6 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from app import app
 from app.core.email import get_email_sender
 from app.core.redis import get_redis
+from tests._helpers import signup_phone_token
 
 
 class _FakeSender:
@@ -50,7 +51,8 @@ async def test_trusted_login_dispatches_new_device_email(
         resp = await c.post(
             "/api/v1/auth/otp/verify",
             json={"email": "nd@example.com", "code": code,
-                  "full_name": "N D", "remember": True},
+                  "full_name": "N D", "remember": True,
+                  "phone_token": signup_phone_token("nd@example.com")},
         )
         assert resp.status_code == 200
         assert m.called
@@ -65,7 +67,8 @@ async def test_untrusted_login_does_not_dispatch(
         code = _code(sender.sent[-1]["text"])
         resp = await c.post(
             "/api/v1/auth/otp/verify",
-            json={"email": "nd2@example.com", "code": code, "full_name": "N D2"},
+            json={"email": "nd2@example.com", "code": code, "full_name": "N D2",
+                  "phone_token": signup_phone_token("nd2@example.com")},
         )
         assert resp.status_code == 200
         assert not m.called

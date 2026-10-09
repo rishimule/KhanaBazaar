@@ -75,3 +75,46 @@
 .muted {
   color: var(--color-neutral-500);
 }
+/* AA contrast: the hint carries "Check your number" while phone OTP is off. */
+.fieldHint {
+  font-size: var(--font-xs);
+  color: var(--shade-cool-base-7);
+}
+.fieldError {
+  font-size: var(--font-xs);
+  color: var(--tomato-red-dark-1);
+}
+/* Match this page's inputs. Two-class selectors so they beat the shared
+   field's own rules whatever order the stylesheets load in. */
+.field .phoneField {
+  border-radius: var(--radius-md);
+  background: var(--color-page);
+  min-height: 44px;
+}
+.field .phoneFieldInput {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-base);
+  color: var(--color-neutral-900);
+}
+.linkRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.linkBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary-1);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.linkBtn:disabled {
+  color: var(--color-neutral-500);
+  cursor: not-allowed;
+  text-decoration: none;
+}

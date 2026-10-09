@@ -286,6 +286,13 @@ re-run the command.
 gcloud run services update-traffic khanabazaar-api --region=$REGION --to-revisions=PREV=100
 ```
 
+Roll back `khanabazaar-web` too whenever the API and web changed together. The
+customer-signup-phone release is one such pair: the old web can't send the
+`phone_token` the new API requires, and the new web calls
+`/auth/customer/phone/otp/*`, which the old API doesn't have. Rolling back
+either one alone leaves new-customer signup broken (existing logins still
+work).
+
 ## Budget alert (alert-only, $250)
 
 ```bash

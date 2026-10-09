@@ -13,6 +13,7 @@ from app import app
 from app.core.email import get_email_sender
 from app.core.otp import hash_code
 from app.core.redis import get_redis
+from tests._helpers import signup_phone_token
 
 
 class _NoopSender:
@@ -64,7 +65,12 @@ async def test_first_otp_verify_enqueues_welcome(auth_env):
     ):
         resp = await auth_env["client"].post(
             "/api/v1/auth/otp/verify",
-            json={"email": "newuser@example.com", "code": code, "full_name": "Ravi Kumar"},
+            json={
+                "email": "newuser@example.com",
+                "code": code,
+                "full_name": "Ravi Kumar",
+                "phone_token": signup_phone_token("newuser@example.com"),
+            },
         )
 
     assert resp.status_code == 200, resp.text
@@ -88,7 +94,12 @@ async def test_returning_user_otp_verify_does_not_enqueue_welcome(auth_env):
     with patch.object(send_customer_welcome_async, "delay", lambda *a, **k: None):
         resp1 = await auth_env["client"].post(
             "/api/v1/auth/otp/verify",
-            json={"email": email, "code": code, "full_name": "Existing User"},
+            json={
+                "email": email,
+                "code": code,
+                "full_name": "Existing User",
+                "phone_token": signup_phone_token(email),
+            },
         )
     assert resp1.status_code == 200, resp1.text
 

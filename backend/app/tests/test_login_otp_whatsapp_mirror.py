@@ -81,3 +81,35 @@ async def test_login_otp_no_mirror_when_phone_unverified(
     assert resp.status_code == 200
     mock_delay.assert_not_called()
     whatsapp_mod.get_whatsapp_sender.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_login_otp_no_mirror_while_phone_otp_is_disabled(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With PHONE_OTP_ENABLED off every "verified" number was taken on trust,
+    so mirroring the login code could hand it to a stranger (spec §4.9)."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "WHATSAPP_PROVIDER", "console")
+    monkeypatch.setattr(settings, "PHONE_OTP_ENABLED", False)
+    whatsapp_mod.get_whatsapp_sender.cache_clear()
+    user = User(email="trusted@example.com", role=UserRole.Customer)
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    session.add(
+        CustomerProfile(
+            user_id=user.id, first_name="T", phone="+917777777777",
+            phone_verified_at=datetime.now(timezone.utc),
+        )
+    )
+    await session.commit()
+
+    with patch("app.worker.send_login_otp_whatsapp_async.delay") as mock_delay:
+        resp = await client.post(
+            "/api/v1/auth/otp/request", json={"email": "trusted@example.com"}
+        )
+    assert resp.status_code == 200
+    mock_delay.assert_not_called()
+    whatsapp_mod.get_whatsapp_sender.cache_clear()

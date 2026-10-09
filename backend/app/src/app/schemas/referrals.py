@@ -74,6 +74,9 @@ class ReferralAcceptBody(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = Field(default=None, max_length=120)
     accept_policies: bool = False
+    # Required to activate: the token POST /auth/customer/phone/otp/{request,
+    # verify} minted for the invitee email (spec 2026-10-08).
+    phone_token: Optional[str] = Field(default=None, max_length=2048)
 
 
 class AdminReferralReject(BaseModel):

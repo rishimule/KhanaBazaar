@@ -15,7 +15,7 @@ from app.models.base import User, UserRole
 from app.models.catalog import Service, ServiceTranslation
 from app.models.consent import PolicyAcceptance, PolicyDocument, PolicyKind
 from app.services import consent as consent_svc
-from tests._helpers import make_address
+from tests._helpers import make_address, signup_phone_token
 
 
 class _FakeEmailSender:
@@ -235,6 +235,7 @@ async def test_customer_signup_records_acceptance(otp_client, session: AsyncSess
                 "code": code,
                 "full_name": "Ok User",
                 "accept_policies": True,
+                "phone_token": signup_phone_token("ok@example.com"),
             },
         )
         assert r.status_code == 200, r.text

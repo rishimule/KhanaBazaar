@@ -9,6 +9,11 @@ tests pin the bypass AND the guards that must survive it — uniqueness and
 rate limiting.
 
 The default is True, so the existing suites cover the enabled path.
+
+The fourth chain, customer signup (`/auth/customer/phone/otp/*`), is covered
+in test_customer_signup_phone.py. Its verify step deliberately never
+short-circuits: no client predates it, and a code-free mint would skip the
+request path's uniqueness check and budgets.
 """
 from collections.abc import AsyncIterator, Generator
 from typing import Any

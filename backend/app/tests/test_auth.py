@@ -12,6 +12,7 @@ from httpx import ASGITransport, AsyncClient
 from app import app
 from app.core.email import get_email_sender
 from app.core.redis import get_redis
+from tests._helpers import signup_phone_token
 
 
 class _FailingEmailSender:
@@ -197,7 +198,12 @@ async def test_new_user_needs_name_then_gets_token(
 
     resp2 = await c.post(
         "/api/v1/auth/otp/verify",
-        json={"email": "new@example.com", "code": code, "full_name": "New User"},
+        json={
+            "email": "new@example.com",
+            "code": code,
+            "full_name": "New User",
+            "phone_token": signup_phone_token("new@example.com"),
+        },
     )
     assert resp2.status_code == 200
     data = resp2.json()
@@ -214,6 +220,8 @@ async def test_new_user_needs_name_then_gets_token(
     profile = result.one()
     assert profile.first_name == "New"
     assert profile.last_name == "User"
+    assert profile.phone == "+919800000001"
+    assert profile.phone_verified_at is not None
 
 
 async def test_wrong_code_returns_400(auth_client: dict[str, Any]) -> None:
@@ -268,7 +276,12 @@ async def test_me_endpoint_returns_authenticated_user(auth_client: dict[str, Any
     code = _extract_code(sender.sent[-1]["text"])
     verify = await c.post(
         "/api/v1/auth/otp/verify",
-        json={"email": "me@example.com", "code": code, "full_name": "Test Me"},
+        json={
+            "email": "me@example.com",
+            "code": code,
+            "full_name": "Test Me",
+            "phone_token": signup_phone_token("me@example.com"),
+        },
     )
     token = verify.json()["access_token"]
     resp = await c.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})

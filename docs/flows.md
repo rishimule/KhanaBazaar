@@ -44,7 +44,19 @@ Removing the last item from a cart deletes the cart entry from `kb_carts` so emp
 [FastAPI]
    │ HMAC-compare hash; track attempts (max 5)
    │ if new email + no full_name → 200 { needs_name: true }
-   │ else upsert User + CustomerProfile
+   ▼
+[name + mobile number]            (new accounts only — spec 2026-10-08)
+   │  POST /auth/customer/phone/otp/request { email, email_code, phone }
+   │    email code re-checked (not consumed); 409 email_already_registered /
+   │    phone_already_in_use; ≤5 distinct numbers/email/h, 5/h per phone
+   │    PHONE_OTP_ENABLED=false → { otp_required:false, phone_token }
+   │    else code via WhatsApp/SMS → POST …/phone/otp/verify { email, phone, code }
+   │                                 → { phone_token }   (10-min JWT, no sub)
+   │  POST /auth/otp/verify { email, code, full_name, phone_token, … }
+   ▼
+[FastAPI]
+   │ new email: create User + CustomerProfile(phone, phone_verified_at)
+   │ existing email: log in (phone_token ignored)
    │ delete all otp:* keys (consume_otp_key)
    │ create_access_token: HS256, sub=user.id, role=user.role, exp=24h
    ▼
@@ -55,10 +67,12 @@ Removing the last item from a cart deletes the cart entry from `kb_carts` so emp
 
 **Endpoints** (`backend/app/src/app/api/auth.py`):
 - `POST /auth/otp/request` — 200 `{ ok, expires_in }`; 429 `rate_limited` with `retry_after`
-- `POST /auth/otp/verify` — 200 `{ access_token, token_type, user, needs_name }`; 400 `invalid_code`, 410 `code_expired_or_used`, 429 `too_many_attempts`
+- `POST /auth/otp/verify` — 200 `{ access_token, token_type, user, needs_name }`; 400 `invalid_code`, 410 `code_expired_or_used`, 429 `too_many_attempts`; new accounts also 400 `phone_required` / `invalid_phone_token`, 410 `phone_token_expired`, 409 `phone_already_in_use` / `email_already_registered`
+- `POST /auth/customer/phone/otp/request` — 200 `{ ok, otp_required, phone_token?, expires_in? }`; email-code errors as above; 409 `email_already_registered` / `phone_already_in_use`; 400 `invalid_phone`; 429 `rate_limited` (+`retry_after`, and `code_sent: true` inside the resend cooldown)
+- `POST /auth/customer/phone/otp/verify` — 200 `{ phone_token }`; 400 `invalid_phone` / `invalid_code`, 410 `code_expired_or_used`, 429 `too_many_attempts`; never short-circuits on `PHONE_OTP_ENABLED`
 - `GET /auth/me` — bearer-token round-trip on app boot to rehydrate `dbUser`
 
-**Tables written on first sign-in:** `user`, `customerprofile`. Token (transient on server, since stateless) is persisted only in `kb_token`. Logout clears `kb_token` and resets `AuthContext` state.
+**Tables written on first sign-in:** `user`, `customerprofile` (with `phone` + `phone_verified_at`). Token (transient on server, since stateless) is persisted only in `kb_token`. Logout clears `kb_token` and resets `AuthContext` state.
 
 ## 3. Cart Merge on Login
 

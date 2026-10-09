@@ -1,13 +1,16 @@
 # Copyright (c) 2026 Rishi Mule. All Rights Reserved.
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 import pytest
+from httpx import AsyncClient
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.base import User, UserRole
 from app.models.notification import Notification, NotificationType
 from app.models.profile import CustomerProfile
 from app.models.referral import Referral, ReferralStatus, ReferralTargetRole
 from app.services import referrals as svc
+from tests._helpers import signup_phone_token
 
 
 def _approved_referral(**over) -> Referral:
@@ -105,7 +108,11 @@ async def test_accept_creates_customer(client, session, monkeypatch):
     monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
     res = await client.post(
         "/api/v1/referrals/accept",
-        json={"token": tok, "code": "123456", "full_name": "Asha Rao", "accept_policies": True},
+        json={
+            "token": tok, "code": "123456", "full_name": "Asha Rao",
+            "accept_policies": True,
+            "phone_token": signup_phone_token("join@example.com", "+919811100001"),
+        },
     )
     assert res.status_code == 200, res.text
     assert res.json()["access_token"]
@@ -135,7 +142,13 @@ async def test_accept_issues_auth_session(client, session, monkeypatch):
     monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
     res = await client.post(
         "/api/v1/referrals/accept",
-        json={"token": tok, "code": "123456", "full_name": "Session Joiner", "accept_policies": True},
+        json={
+            "token": tok, "code": "123456", "full_name": "Session Joiner",
+            "accept_policies": True,
+            "phone_token": signup_phone_token(
+                "sessionjoin@example.com", "+919811100002"
+            ),
+        },
     )
     assert res.status_code == 200, res.text
     body = res.json()
@@ -154,6 +167,8 @@ async def test_accept_issues_auth_session(client, session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_accept_expired_invite_conflict(client, session, monkeypatch):
+    # Sends no phone_token on purpose: invite state must be reported before
+    # any phone problem (spec §4.5) — don't "fix" this by adding a token.
     r = _approved_referral(invitee_email="stale@example.com")
     r.invite_expires_at = datetime.now(timezone.utc) - timedelta(days=1)
     session.add(r)
@@ -174,32 +189,262 @@ async def test_accept_expired_invite_conflict(client, session, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_accept_phone_collision_conflict(client, session, monkeypatch):
-    """A phone claimed between approve and accept must yield a clean 409
-    (already_registered), not a 500 from the CustomerProfile.phone unique
-    constraint tripping at flush."""
+async def test_accept_verified_number_taken_is_phone_already_in_use(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The proven number is what lands on the profile, so it is what must be
+    free (customer scope) — a clean 409, not a 500 from the unique index."""
     owner = User(email="owner@example.com", role=UserRole.Customer)
     session.add(owner)
     await session.flush()
+    assert owner.id is not None
     session.add(
         CustomerProfile(user_id=owner.id, first_name="Owner", phone="+919812345678")
     )
+    r = _approved_referral(invitee_email="joiner@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    assert r.id is not None
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="joiner@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "accept_policies": True,
+            "phone_token": signup_phone_token("joiner@example.com", "+919812345678"),
+        },
+    )
+    assert res.status_code == 409, res.text
+    assert res.json()["detail"]["error"] == "phone_already_in_use"
+
+
+@pytest.mark.asyncio
+async def test_accept_referrer_typed_number_taken_but_invitee_proves_another(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner = User(email="owner2@example.com", role=UserRole.Customer)
+    session.add(owner)
+    await session.flush()
+    assert owner.id is not None
+    session.add(
+        CustomerProfile(user_id=owner.id, first_name="Owner", phone="+919812345670")
+    )
     r = _approved_referral(
-        invitee_email="joiner@example.com", invitee_phone="+919812345678"
+        invitee_email="switch@example.com", invitee_phone="+919812345670"
     )
     r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
     session.add(r)
     await session.commit()
     await session.refresh(r)
+    assert r.id is not None
     tok = create_referral_invite_token(
-        referral_id=r.id, target_role="customer", email="joiner@example.com",
-        phone="+919812345678", expires_days=14,
+        referral_id=r.id, target_role="customer", email="switch@example.com",
+        phone="+919812345670", expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "accept_policies": True,
+            "phone_token": signup_phone_token("switch@example.com", "+919812345671"),
+        },
+    )
+    assert res.status_code == 200, res.text
+    profile = (
+        await session.exec(
+            select(CustomerProfile).where(
+                CustomerProfile.user_id == res.json()["user"]["id"]
+            )
+        )
+    ).one()
+    assert profile.phone == "+919812345671"
+    assert profile.phone_verified_at is not None
+
+
+@pytest.mark.asyncio
+async def test_accept_requires_a_phone_token(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    r = _approved_referral(invitee_email="nophone@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    rid = r.id
+    assert rid is not None
+    tok = create_referral_invite_token(
+        referral_id=rid, target_role="customer", email="nophone@example.com",
+        phone=None, expires_days=14,
     )
     monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
     monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
     res = await client.post(
         "/api/v1/referrals/accept",
         json={"token": tok, "code": "123456", "accept_policies": True},
+    )
+    assert res.status_code == 400
+    assert res.json()["detail"]["error"] == "phone_required"
+    fresh = await session.get(Referral, rid)
+    assert fresh is not None
+    await session.refresh(fresh)
+    assert fresh.status == ReferralStatus.approved
+
+
+@pytest.mark.asyncio
+async def test_accept_rejects_a_token_for_another_email(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    r = _approved_referral(invitee_email="mine@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    assert r.id is not None
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="mine@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "accept_policies": True,
+            "phone_token": signup_phone_token("someone-else@example.com"),
+        },
+    )
+    assert res.status_code == 400
+    assert res.json()["detail"]["error"] == "invalid_phone_token"
+
+
+@pytest.mark.asyncio
+async def test_accept_phone_only_invite_binds_the_typed_email(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    r = _approved_referral(invitee_email=None, invitee_phone="+919812300000")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    assert r.id is not None
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email=None,
+        phone="+919812300000", expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "email": "Typed@Example.com",
+            "accept_policies": True,
+            "phone_token": signup_phone_token("typed@example.com", "+919812300000"),
+        },
+    )
+    assert res.status_code == 200, res.text
+
+
+@pytest.mark.asyncio
+async def test_accept_phone_unique_race_is_named(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def _never_taken(_session: AsyncSession, _phone: str) -> bool:
+        return False
+
+    owner = User(email="owner3@example.com", role=UserRole.Customer)
+    session.add(owner)
+    await session.flush()
+    assert owner.id is not None
+    session.add(
+        CustomerProfile(user_id=owner.id, first_name="Owner", phone="+919812345672")
+    )
+    r = _approved_referral(invitee_email="racer@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    assert r.id is not None
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="racer@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.services.referrals.customer_phone_taken", _never_taken)
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "accept_policies": True,
+            "phone_token": signup_phone_token("racer@example.com", "+919812345672"),
+        },
+    )
+    assert res.status_code == 409, res.text
+    assert res.json()["detail"]["error"] == "phone_already_in_use"
+
+
+@pytest.mark.asyncio
+async def test_accept_registered_email_is_reported_before_the_phone(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session.add(User(email="taken@example.com", role=UserRole.Customer))
+    r = _approved_referral(invitee_email="taken@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    assert r.id is not None
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="taken@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={"token": tok, "code": "123456", "accept_policies": True},
+    )
+    assert res.status_code == 409, res.text
+    assert res.json()["detail"]["error"] == "already_registered"
+
+
+@pytest.mark.asyncio
+async def test_accept_email_unique_race_is_named(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Another tab registers the invite email between the pre-check and the
+    insert: a clean 409 already_registered, not a 500."""
+
+    async def _other_tab_wins(_s: AsyncSession, _phone: str) -> bool:
+        session.add(User(email="racer2@example.com", role=UserRole.Customer))
+        await session.commit()
+        return False
+
+    r = _approved_referral(invitee_email="racer2@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    assert r.id is not None
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="racer2@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.services.referrals.customer_phone_taken", _other_tab_wins)
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "accept_policies": True,
+            "phone_token": signup_phone_token("racer2@example.com", "+919812345673"),
+        },
     )
     assert res.status_code == 409, res.text
     assert res.json()["detail"]["error"] == "already_registered"

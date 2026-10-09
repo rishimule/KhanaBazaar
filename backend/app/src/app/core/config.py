@@ -46,14 +46,17 @@ class Settings(BaseSettings):
     OTP_RESEND_COOLDOWN: int = 60
     OTP_MAX_PER_HOUR: int = 5
 
-    # Phone-ownership verification (seller signup, customer profile phone,
-    # seller phone change). `False` short-circuits those three OTP chains:
-    # the number is accepted as verified and the token the verify step would
-    # have minted is returned by the *request* call instead. Set false only
-    # while there is no working SMS/WhatsApp transport to deliver a code with
-    # — it removes proof of phone ownership. Default True: secure unless
-    # explicitly opted out. Does NOT affect email OTP, the delivery-handover
-    # OTP, or return OTPs.
+    # Phone-ownership verification (seller signup, customer signup, customer
+    # profile phone, seller phone change). `False` short-circuits those OTP
+    # chains: the number is accepted as verified and the token the verify
+    # step would have minted is returned by the *request* call instead. The
+    # customer-signup *verify* step is the one exception — it never
+    # short-circuits (api/customer_signup_phone.py). With it off the WhatsApp
+    # login-code mirror is also off (api/auth.otp_request), because no stored
+    # number is proven. Set false only while there is no working SMS/WhatsApp
+    # transport to deliver a code with — it removes proof of phone ownership.
+    # Default True: secure unless explicitly opted out. Does NOT affect email
+    # OTP, the delivery-handover OTP, or return OTPs.
     PHONE_OTP_ENABLED: bool = True
 
     # Delivery-handover OTP (separate from auth OTP; no TTL — valid until delivered)

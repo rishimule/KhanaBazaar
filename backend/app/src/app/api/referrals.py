@@ -41,6 +41,11 @@ from app.schemas.referrals import (
 )
 from app.services import referrals as svc
 from app.services.consent import get_effective_policy_version, record_acceptance
+from app.services.customer_signup import (
+    customer_phone_taken,
+    email_registered,
+    require_signup_phone,
+)
 
 router = APIRouter()
 # Admin queue/approve/reject/settings routes are attached in this same module
@@ -157,6 +162,7 @@ async def accept_customer_referral(
             referral_id=int(claims["referral_id"]),  # type: ignore[call-overload]
             invitee_email=email,
             full_name=body.full_name,
+            phone_token=body.phone_token,
         )
         assert user.id is not None
         await record_acceptance(session, user.id)
@@ -166,12 +172,20 @@ async def accept_customer_referral(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail={"error": str(exc)}) from exc
     except IntegrityError:
-        # TOCTOU backstop: the email/phone was claimed between the pre-check and
-        # the insert (unique constraint tripped) → clean 409, not a 500.
+        # TOCTOU backstop: the email or the phone was claimed between the
+        # pre-check and the insert. The winner is committed, so it is visible
+        # after the rollback — name the right one, else let it surface.
         await session.rollback()
-        raise HTTPException(
-            status_code=409, detail={"error": "already_registered"}
-        ) from None
+        if await email_registered(session, email):
+            raise HTTPException(
+                status_code=409, detail={"error": "already_registered"}
+            ) from None
+        phone = require_signup_phone(body.phone_token, email)
+        if await customer_phone_taken(session, phone):
+            raise HTTPException(
+                status_code=409, detail={"error": "phone_already_in_use"}
+            ) from None
+        raise
 
     await consume_otp_key(email, redis)
     await session.refresh(user)
