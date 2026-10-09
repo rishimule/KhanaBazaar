@@ -153,7 +153,9 @@ def send_delivery_otp_email_async(order_id: int, code: str) -> None:
 )
 def send_delivery_otp_sms_async(order_id: int, code: str) -> None:
     """Deliver the handover code to the customer: WhatsApp-preferred, SMS
-    fallback. No-op when the customer has no phone on file."""
+    fallback. No-op unless the customer has a *verified* phone — like return
+    codes and order updates — since a number taken on trust may belong to
+    someone else. The code always goes by email as well."""
     import asyncio
     import concurrent.futures
 
@@ -163,7 +165,7 @@ def send_delivery_otp_sms_async(order_id: int, code: str) -> None:
 
     ctx = _load_order_email_context(order_id)
     phone = ctx.get("customer_phone")
-    if not phone:
+    if not phone or not ctx.get("customer_phone_verified"):
         return
     sms_text = (
         f"{settings.COMPANY_NAME}: your delivery code for order #{order_id} is {code}. "
