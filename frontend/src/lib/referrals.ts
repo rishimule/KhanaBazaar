@@ -86,6 +86,8 @@ export const acceptCustomerReferral = (input: {
   email?: string;
   full_name?: string;
   accept_policies: boolean;
+  /** From /auth/customer/phone/otp/* — required to activate (spec 2026-10-08). */
+  phone_token: string;
 }) => post<AcceptResult>("/api/v1/referrals/accept", input);
 
 // ── Admin ──────────────────────────────────────────────────────────────

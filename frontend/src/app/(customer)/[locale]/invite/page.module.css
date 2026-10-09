@@ -75,3 +75,33 @@
 .muted {
   color: var(--color-neutral-500);
 }
+.fieldHint {
+  font-size: var(--font-xs);
+  color: var(--color-neutral-500);
+}
+.fieldError {
+  font-size: var(--font-xs);
+  color: var(--color-error);
+}
+.linkRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.linkBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary-1);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.linkBtn:disabled {
+  color: var(--color-neutral-500);
+  cursor: not-allowed;
+  text-decoration: none;
+}
