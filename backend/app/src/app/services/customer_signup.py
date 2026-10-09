@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.core.security import decode_customer_signup_phone_token
 from app.models.base import User
 from app.models.profile import CustomerProfile
@@ -41,12 +42,16 @@ def require_signup_phone(phone_token: str | None, email: str) -> str:
     """The phone a new customer account must carry, read from its token.
 
     `email` must already be normalized. Raises 400 phone_required (no
-    token), 410 phone_token_expired, or 400 invalid_phone_token (bad token,
-    or one minted for a different email)."""
+    token), 410 phone_token_expired, or 400 invalid_phone_token: a bad token,
+    one minted for a different email, or one that took the number on trust
+    while PHONE_OTP_ENABLED is now on. The clients answer that last case like
+    any unusable token — "confirm your number again" — and the re-request
+    then sends a real code, so nothing created after the cutover carries an
+    unproven "verified" number."""
     if not phone_token:
         raise HTTPException(status_code=400, detail={"error": "phone_required"})
-    token_email, phone = decode_customer_signup_phone_token(phone_token)
-    if token_email != email:
+    token_email, phone, proven = decode_customer_signup_phone_token(phone_token)
+    if token_email != email or (settings.PHONE_OTP_ENABLED and not proven):
         raise HTTPException(status_code=400, detail={"error": "invalid_phone_token"})
     return phone
 

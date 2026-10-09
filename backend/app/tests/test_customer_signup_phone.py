@@ -6,13 +6,16 @@ Covers the pre-account endpoints `/auth/customer/phone/otp/{request,verify}`,
 their budgets, and the account-creation rules in `/auth/otp/verify`. Referral
 activation is covered in test_referral_activation.py.
 """
+import asyncio
 import re
 from collections.abc import Generator
 from typing import Any
 
 import pytest
+import redis.asyncio as aioredis
 from fakeredis.aioredis import FakeRedis
 from httpx import AsyncClient
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -28,7 +31,7 @@ from app.core.sms import get_sms_sender
 from app.core.whatsapp import get_whatsapp_sender
 from app.core.whatsapp_templates import TEMPLATES, WhatsAppTemplate
 from app.models.address import Address
-from app.models.base import User, UserRole
+from app.models.base import AccountStatus, User, UserRole
 from app.models.profile import CustomerProfile, SellerProfile
 from app.services.customer_signup import budget_identity
 from tests._helpers import make_address
@@ -153,6 +156,45 @@ async def test_distinct_budget_counts_members_not_calls(fake_redis: FakeRedis) -
     assert 0 < await fake_redis.ttl("otp:t:distinct:who") <= 3600
 
 
+async def test_distinct_budget_holds_under_a_concurrent_burst() -> None:
+    """Concurrent first-time members must not overshoot the cap. This uses the
+    real Redis server: its round trips yield to the event loop and interleave,
+    where FakeRedis never does — a check-then-add would pass on FakeRedis and
+    let a whole burst through in production."""
+    real = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    key = "otp:test_burst:distinct:burst@example.com"
+    try:
+        await real.delete(key)
+
+        async def one(i: int) -> bool:
+            try:
+                await enforce_distinct_hourly_budget(
+                    "burst@example.com", f"+91980000{i:04d}", real, namespace="test_burst"
+                )
+                return True
+            except RateLimited:
+                return False
+
+        results = await asyncio.gather(*(one(i) for i in range(20)))
+        assert sum(results) == settings.OTP_MAX_PER_HOUR
+        assert await real.scard(key) == settings.OTP_MAX_PER_HOUR  # type: ignore[misc]
+        assert 0 < await real.ttl(key) <= 3600
+        # A member already counted stays free once the set is full.
+        assert await one(next(i for i, ok in enumerate(results) if ok))
+    finally:
+        await real.delete(key)
+        await real.aclose()
+
+
+async def test_distinct_budget_window_is_fixed_not_sliding(
+    fake_redis: FakeRedis,
+) -> None:
+    await enforce_distinct_hourly_budget("who", "m0", fake_redis, namespace="t")
+    await fake_redis.expire("otp:t:distinct:who", 100)
+    await enforce_distinct_hourly_budget("who", "m1", fake_redis, namespace="t")
+    assert await fake_redis.ttl("otp:t:distinct:who") <= 100
+
+
 # ── request ─────────────────────────────────────────────────────────────
 
 
@@ -165,7 +207,11 @@ async def test_request_flag_off_returns_token_and_sends_nothing(
     body = resp.json()
     assert body["otp_required"] is False
     assert sms.sent == []
-    assert decode_customer_signup_phone_token(body["phone_token"]) == (EMAIL, PHONE)
+    assert decode_customer_signup_phone_token(body["phone_token"]) == (
+        EMAIL,
+        PHONE,
+        False,
+    )
 
 
 async def test_request_flag_on_sends_a_code_and_no_token(
@@ -284,8 +330,8 @@ async def test_invalid_phones_are_not_charged_to_the_breadth_cap(
     client: AsyncClient, fake_redis: FakeRedis, otp_disabled: None
 ) -> None:
     await _seed_email_code(fake_redis)
-    for _ in range(settings.OTP_MAX_PER_HOUR + 2):
-        assert (await _request(client, phone="12345")).status_code == 400
+    for i in range(settings.OTP_MAX_PER_HOUR + 2):
+        assert (await _request(client, phone=f"1234{i}")).status_code == 400
     assert (await _request(client)).status_code == 200
 
 
@@ -372,9 +418,17 @@ async def test_plus_tag_and_gmail_dot_variants_share_the_breadth_cap(
     assert resp.status_code == 429
 
 
+@pytest.mark.parametrize("otp_on", [True, False])
 async def test_per_phone_budget_holds_across_emails(
-    client: AsyncClient, fake_redis: FakeRedis, otp_disabled: None
+    client: AsyncClient,
+    fake_redis: FakeRedis,
+    sms: _RecordingSMS,
+    monkeypatch: pytest.MonkeyPatch,
+    otp_on: bool,
 ) -> None:
+    """Nobody texts (or, with OTP off, probes) one number more than the
+    hourly allowance, however many inboxes they use."""
+    monkeypatch.setattr(settings, "PHONE_OTP_ENABLED", otp_on)
     for i in range(settings.OTP_MAX_PER_HOUR):
         email = f"buyer{i}@example.com"
         await _seed_email_code(fake_redis, email=email)
@@ -383,6 +437,26 @@ async def test_per_phone_budget_holds_across_emails(
     resp = await _request(client, email="one-more@example.com")
     assert resp.status_code == 429
     assert resp.json()["detail"]["error"] == "rate_limited"
+    assert len(sms.sent) == (settings.OTP_MAX_PER_HOUR if otp_on else 0)
+
+
+async def test_cooldown_taps_do_not_spend_the_per_phone_budget(
+    client: AsyncClient, fake_redis: FakeRedis, sms: _RecordingSMS
+) -> None:
+    """Only real sends spend a number's hourly allowance: a flaky network
+    that makes the customer tap again must not lock the number for an hour."""
+    await _seed_email_code(fake_redis)
+    assert (await _request(client)).status_code == 200
+    for _ in range(settings.OTP_MAX_PER_HOUR + 1):
+        resp = await _request(client)
+        assert resp.status_code == 429
+        detail = resp.json()["detail"]
+        assert detail["error"] == "rate_limited"
+        assert 0 < detail["retry_after"] <= settings.OTP_RESEND_COOLDOWN
+        # Lets a client that lost the first response go to the code step.
+        assert detail["code_sent"] is True
+    assert await fake_redis.get(f"otp:customer_signup_phone:hourly:{PHONE}") == "1"
+    assert len(sms.sent) == 1
 
 
 async def test_flag_on_resend_inside_the_cooldown_is_rate_limited(
@@ -414,7 +488,11 @@ async def test_verify_trades_the_code_for_a_token_once(
     code = _sent_code(sms)
     resp = await _verify(client, code=code)
     assert resp.status_code == 200, resp.text
-    assert decode_customer_signup_phone_token(resp.json()["phone_token"]) == (EMAIL, PHONE)
+    assert decode_customer_signup_phone_token(resp.json()["phone_token"]) == (
+        EMAIL,
+        PHONE,
+        True,
+    )
     again = await _verify(client, code=code)
     assert again.status_code == 410
     assert again.json()["detail"]["error"] == "code_expired_or_used"
@@ -528,6 +606,25 @@ async def test_signup_end_to_end_with_phone_otp_on(
     assert profile.phone_verified_at is not None
 
 
+async def test_trust_token_is_refused_once_phone_otp_is_on(
+    client: AsyncClient,
+    fake_redis: FakeRedis,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A number taken on trust before the flag flipped on must be proven like
+    any other: otherwise an account stamped after the cutover would carry an
+    unproven "verified" number (spec §4.1)."""
+    monkeypatch.setattr(settings, "PHONE_OTP_ENABLED", False)
+    await _seed_email_code(fake_redis)
+    token = (await _request(client)).json()["phone_token"]
+    monkeypatch.setattr(settings, "PHONE_OTP_ENABLED", True)
+    resp = await _new_account(client, phone_token=token)
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["error"] == "invalid_phone_token"
+    assert (await session.exec(select(User))).first() is None
+
+
 async def test_signup_without_a_phone_token_is_refused(
     client: AsyncClient, fake_redis: FakeRedis, session: AsyncSession
 ) -> None:
@@ -542,7 +639,7 @@ async def test_signup_rejects_a_token_minted_for_another_email(
     client: AsyncClient, fake_redis: FakeRedis
 ) -> None:
     await _seed_email_code(fake_redis)
-    token = create_customer_signup_phone_token("other@example.com", PHONE)
+    token = create_customer_signup_phone_token("other@example.com", PHONE, proven=True)
     resp = await _new_account(client, phone_token=token)
     assert resp.status_code == 400
     assert resp.json()["detail"]["error"] == "invalid_phone_token"
@@ -589,14 +686,14 @@ async def test_number_claimed_after_the_token_is_a_409_and_retry_works(
     client: AsyncClient, fake_redis: FakeRedis, session: AsyncSession
 ) -> None:
     await _seed_email_code(fake_redis)
-    token = create_customer_signup_phone_token(EMAIL, PHONE)
+    token = create_customer_signup_phone_token(EMAIL, PHONE, proven=True)
     await _add_customer(session, email="fast@example.com", phone=PHONE)
     resp = await _new_account(client, phone_token=token)
     assert resp.status_code == 409
     assert resp.json()["detail"]["error"] == "phone_already_in_use"
     # The email code survives the 409: another number goes straight through.
     retry = await _new_account(
-        client, phone_token=create_customer_signup_phone_token(EMAIL, "+919876509876")
+        client, phone_token=create_customer_signup_phone_token(EMAIL, "+919876509876", proven=True)
     )
     assert retry.status_code == 200, retry.text
 
@@ -632,7 +729,7 @@ async def test_phone_unique_race_is_a_409_not_a_500(
     await _add_customer(session, email="fast@example.com", phone=PHONE)
     await _seed_email_code(fake_redis)
     resp = await _new_account(
-        client, phone_token=create_customer_signup_phone_token(EMAIL, PHONE)
+        client, phone_token=create_customer_signup_phone_token(EMAIL, PHONE, proven=True)
     )
     assert resp.status_code == 409, resp.text
     assert resp.json()["detail"]["error"] == "phone_already_in_use"
@@ -657,7 +754,7 @@ async def test_same_email_race_is_email_already_registered(
     monkeypatch.setattr("app.api.auth.customer_phone_taken", _other_tab_wins)
     await _seed_email_code(fake_redis)
     resp = await _new_account(
-        client, phone_token=create_customer_signup_phone_token(EMAIL, PHONE)
+        client, phone_token=create_customer_signup_phone_token(EMAIL, PHONE, proven=True)
     )
     assert resp.status_code == 409, resp.text
     assert resp.json()["detail"]["error"] == "email_already_registered"
@@ -673,10 +770,68 @@ async def test_existing_customer_login_ignores_a_phone_token(
         json={
             "email": EMAIL,
             "code": EMAIL_CODE,
-            "phone_token": create_customer_signup_phone_token(EMAIL, PHONE),
+            "phone_token": create_customer_signup_phone_token(EMAIL, PHONE, proven=True),
         },
     )
     assert resp.status_code == 200, resp.text
     profile = (await session.exec(select(CustomerProfile))).one()
     await session.refresh(profile)
     assert profile.phone is None
+
+
+async def test_gate_runs_before_the_registered_email_check(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """Without a live code a caller can't tell registered emails apart."""
+    await _add_customer(session, email=EMAIL, phone=None)
+    resp = await _request(client)
+    assert resp.status_code == 410
+    assert resp.json()["detail"]["error"] == "code_expired_or_used"
+
+
+async def test_tokens_bind_the_normalized_email(
+    client: AsyncClient, fake_redis: FakeRedis, sms: _RecordingSMS
+) -> None:
+    await _seed_email_code(fake_redis)
+    assert (await _request(client, email="NewBuyer@Example.COM")).status_code == 200
+    resp = await _verify(client, code=_sent_code(sms), email="NewBuyer@Example.COM")
+    assert resp.status_code == 200, resp.text
+    assert decode_customer_signup_phone_token(resp.json()["phone_token"])[0] == EMAIL
+
+
+async def test_a_deleted_account_still_holds_its_number(
+    client: AsyncClient, fake_redis: FakeRedis, session: AsyncSession
+) -> None:
+    """Accounts are never scrubbed, so a deleted customer's number stays
+    taken (spec §9)."""
+    user = User(
+        email="gone@example.com",
+        role=UserRole.Customer,
+        account_status=AccountStatus.deleted,
+        is_active=False,
+    )
+    session.add(user)
+    await session.flush()
+    assert user.id is not None
+    session.add(CustomerProfile(user_id=user.id, first_name="Gone", phone=PHONE))
+    await session.commit()
+    await _seed_email_code(fake_redis)
+    resp = await _request(client)
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["error"] == "phone_already_in_use"
+
+
+async def test_an_unrelated_integrity_error_is_not_relabelled(
+    client: AsyncClient, fake_redis: FakeRedis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The backstop names an email or phone race; anything else surfaces."""
+
+    async def _boom(_s: AsyncSession, _uid: int) -> None:
+        raise IntegrityError("INSERT", {}, Exception("uq_something_else"))
+
+    monkeypatch.setattr("app.api.auth.record_acceptance", _boom)
+    await _seed_email_code(fake_redis)
+    with pytest.raises(IntegrityError):
+        await _new_account(
+            client, phone_token=create_customer_signup_phone_token(EMAIL, PHONE, proven=True)
+        )

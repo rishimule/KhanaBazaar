@@ -167,6 +167,8 @@ async def test_accept_issues_auth_session(client, session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_accept_expired_invite_conflict(client, session, monkeypatch):
+    # Sends no phone_token on purpose: invite state must be reported before
+    # any phone problem (spec §4.5) — don't "fix" this by adding a token.
     r = _approved_referral(invitee_email="stale@example.com")
     r.invite_expires_at = datetime.now(timezone.utc) - timedelta(days=1)
     session.add(r)
@@ -385,6 +387,67 @@ async def test_accept_phone_unique_race_is_named(
     )
     assert res.status_code == 409, res.text
     assert res.json()["detail"]["error"] == "phone_already_in_use"
+
+
+@pytest.mark.asyncio
+async def test_accept_registered_email_is_reported_before_the_phone(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session.add(User(email="taken@example.com", role=UserRole.Customer))
+    r = _approved_referral(invitee_email="taken@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    assert r.id is not None
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="taken@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={"token": tok, "code": "123456", "accept_policies": True},
+    )
+    assert res.status_code == 409, res.text
+    assert res.json()["detail"]["error"] == "already_registered"
+
+
+@pytest.mark.asyncio
+async def test_accept_email_unique_race_is_named(
+    client: AsyncClient, session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Another tab registers the invite email between the pre-check and the
+    insert: a clean 409 already_registered, not a 500."""
+
+    async def _other_tab_wins(_s: AsyncSession, _phone: str) -> bool:
+        session.add(User(email="racer2@example.com", role=UserRole.Customer))
+        await session.commit()
+        return False
+
+    r = _approved_referral(invitee_email="racer2@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    assert r.id is not None
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="racer2@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.services.referrals.customer_phone_taken", _other_tab_wins)
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "accept_policies": True,
+            "phone_token": signup_phone_token("racer2@example.com", "+919812345673"),
+        },
+    )
+    assert res.status_code == 409, res.text
+    assert res.json()["detail"]["error"] == "already_registered"
 
 
 # ─── Seller activation binding ───────────────────────────────────────────

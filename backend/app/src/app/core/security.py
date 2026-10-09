@@ -224,16 +224,19 @@ def decode_seller_signup_token(token: str) -> tuple[str, str]:
     return str(payload["sub"]), str(payload["phone"])
 
 
-def create_customer_signup_phone_token(email: str, phone: str) -> str:
+def create_customer_signup_phone_token(
+    email: str, phone: str, *, proven: bool
+) -> str:
     """Mint a 10-minute JWT: the server accepted `phone` for a customer signup
-    by `email`. The number was proven by a phone code, or taken on trust while
-    PHONE_OTP_ENABLED is off. Not a login credential: creating the account
-    still needs the live email code. The email rides in its own claim, never
-    `sub`, which get_current_user would read as a user id."""
+    by `email` — `proven` by a phone code, or (`proven=False`) taken on trust
+    while PHONE_OTP_ENABLED is off. Not a login credential: creating the
+    account still needs the live email code. The email rides in its own
+    claim, never `sub`, which get_current_user would read as a user id."""
     now = datetime.now(timezone.utc)
     payload = {
         "email": email,
         "phone": phone,
+        "proven": proven,
         "type": "customer_signup_phone",
         "iat": now,
         "exp": now + timedelta(minutes=10),
@@ -241,8 +244,8 @@ def create_customer_signup_phone_token(email: str, phone: str) -> str:
     return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
 
 
-def decode_customer_signup_phone_token(token: str) -> tuple[str, str]:
-    """Validate a customer signup phone token. Returns (email, phone).
+def decode_customer_signup_phone_token(token: str) -> tuple[str, str, bool]:
+    """Validate a customer signup phone token. Returns (email, phone, proven).
 
     `leeway` absorbs clock skew between instances, as for access tokens."""
     try:
@@ -261,16 +264,18 @@ def decode_customer_signup_phone_token(token: str) -> tuple[str, str]:
         ) from None
     email = payload.get("email")
     phone = payload.get("phone")
+    proven = payload.get("proven")
     if (
         payload.get("type") != "customer_signup_phone"
         or not isinstance(email, str)
         or not isinstance(phone, str)
+        or not isinstance(proven, bool)
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": "invalid_phone_token"},
         )
-    return email, phone
+    return email, phone, proven
 
 
 def create_referral_invite_token(

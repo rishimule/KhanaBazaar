@@ -6,6 +6,7 @@ import re
 import secrets
 
 import redis.asyncio as aioredis
+from redis.exceptions import WatchError
 
 from app.core.config import settings
 from app.core.rate_limit import incr_with_ttl, seconds_until
@@ -96,23 +97,50 @@ def _key_distinct(identifier: str, namespace: str) -> str:
     return f"otp:{namespace}:distinct:{identifier}"
 
 
+# Optimistic-lock retries before a contended breadth check gives up (fails
+# closed, as if over budget). Contention only comes from a burst on one key.
+_DISTINCT_WATCH_RETRIES = 10
+
+
 async def enforce_distinct_hourly_budget(
     identifier: str, member: str, redis: aioredis.Redis, *, namespace: str
 ) -> None:
     """Cap how many *distinct* members (e.g. phone numbers) one identifier
     may touch per hour. It limits breadth, unlike `enforce_hourly_budget`,
     which counts calls. A member already counted is free, so resends never
-    eat the budget. The window opens with the first member. Raises
-    RateLimited past OTP_MAX_PER_HOUR members. Two concurrent first-time
-    members can overshoot by one; the cap is a brake, not a ledger."""
+    eat the budget. The window opens with the first member and does not
+    slide. Raises RateLimited past OTP_MAX_PER_HOUR members.
+
+    Check and add run as one WATCH/MULTI transaction: a plain read-then-write
+    lets a concurrent burst all read the count before any add lands, and the
+    whole burst through. SADD and the window's EXPIRE land together, so a
+    crash can't leave a full set that never expires."""
     key = _key_distinct(identifier, namespace)
-    if await redis.sismember(key, member):  # type: ignore[misc]
-        return
-    if await redis.scard(key) >= settings.OTP_MAX_PER_HOUR:  # type: ignore[misc]
-        raise RateLimited(retry_after=max(await seconds_until(redis, key), 1))
-    await redis.sadd(key, member)  # type: ignore[misc]
-    if await redis.ttl(key) < 0:
-        await redis.expire(key, 3600)
+    async with redis.pipeline(transaction=True) as pipe:
+        for _ in range(_DISTINCT_WATCH_RETRIES):
+            try:
+                await pipe.watch(key)
+                if await pipe.sismember(key, member):  # type: ignore[misc]
+                    return
+                if await pipe.scard(key) >= settings.OTP_MAX_PER_HOUR:  # type: ignore[misc]
+                    raise RateLimited(retry_after=max(await pipe.ttl(key), 1))
+                window_open = await pipe.ttl(key) >= 0
+                pipe.multi()  # type: ignore[no-untyped-call]
+                pipe.sadd(key, member)
+                if not window_open:
+                    pipe.expire(key, 3600)
+                await pipe.execute()
+                return
+            except WatchError:
+                continue
+    raise RateLimited(retry_after=1)
+
+
+async def cooldown_remaining(
+    identifier: str, redis: aioredis.Redis, *, namespace: str = "email"
+) -> int:
+    """Seconds left on `identifier`'s resend cooldown (0 when none)."""
+    return max(await seconds_until(redis, _key_cooldown(identifier, namespace)), 0)
 
 
 async def request_otp(

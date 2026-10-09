@@ -69,17 +69,22 @@ def test_invalid_signup_token_rejected() -> None:
 
 
 def test_customer_signup_phone_token_round_trip() -> None:
-    tok = create_customer_signup_phone_token("buyer@test.com", "+919876543210")
+    tok = create_customer_signup_phone_token(
+        "buyer@test.com", "+919876543210", proven=True
+    )
     assert decode_customer_signup_phone_token(tok) == (
         "buyer@test.com",
         "+919876543210",
+        True,
     )
 
 
 def test_customer_signup_phone_token_has_no_sub_claim() -> None:
     """get_current_user loads a user by `sub`; without one this token can
     never pass for a login."""
-    tok = create_customer_signup_phone_token("buyer@test.com", "+919876543210")
+    tok = create_customer_signup_phone_token(
+        "buyer@test.com", "+919876543210", proven=True
+    )
     claims = jwt.decode(tok, settings.JWT_SECRET, algorithms=["HS256"])
     assert "sub" not in claims
     assert claims["type"] == "customer_signup_phone"
@@ -94,6 +99,7 @@ def test_customer_signup_phone_token_tolerates_small_clock_skew() -> None:
             "email": "buyer@test.com",
             "phone": "+919876543210",
             "type": "customer_signup_phone",
+            "proven": True,
             "iat": now + timedelta(seconds=10),
             "exp": now + timedelta(minutes=10),
         },
@@ -103,7 +109,35 @@ def test_customer_signup_phone_token_tolerates_small_clock_skew() -> None:
     assert decode_customer_signup_phone_token(tok) == (
         "buyer@test.com",
         "+919876543210",
+        True,
     )
+
+
+def test_trust_token_records_that_the_number_was_not_proven() -> None:
+    tok = create_customer_signup_phone_token(
+        "buyer@test.com", "+919876543210", proven=False
+    )
+    assert decode_customer_signup_phone_token(tok)[2] is False
+
+
+def test_referral_invite_token_rejected_as_customer_signup_phone_token() -> None:
+    """An invite token carries `email` and `phone` claims too — only the type
+    check keeps an invitee from passing their invite link off as proof of
+    the referrer-typed number."""
+    from app.core.security import create_referral_invite_token
+
+    tok = create_referral_invite_token(
+        referral_id=1,
+        target_role="customer",
+        email="buyer@test.com",
+        phone="+919876543210",
+        expires_days=14,
+    )
+    with pytest.raises(HTTPException) as exc:
+        decode_customer_signup_phone_token(tok)
+    detail: object = exc.value.detail
+    assert exc.value.status_code == 400
+    assert detail == {"error": "invalid_phone_token"}
 
 
 def test_seller_signup_token_rejected_as_customer_signup_phone_token() -> None:
@@ -141,6 +175,13 @@ def test_expired_customer_signup_phone_token_is_410() -> None:
         {"type": "customer_signup_phone", "phone": "+919876543210"},
         {"type": "customer_signup_phone", "email": "buyer@test.com"},
         {"type": "customer_signup_phone", "email": 5, "phone": "+919876543210"},
+        {"type": "customer_signup_phone", "email": "b@t.com", "phone": "+919876543210"},
+        {
+            "type": "customer_signup_phone",
+            "email": "b@t.com",
+            "phone": "+919876543210",
+            "proven": "yes",
+        },
     ],
 )
 def test_customer_signup_phone_token_missing_claims_rejected(

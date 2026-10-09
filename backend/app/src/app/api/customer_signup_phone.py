@@ -28,6 +28,7 @@ from app.core.otp import (
     RateLimited,
     TooManyAttempts,
     consume_otp_key,
+    cooldown_remaining,
     enforce_distinct_hourly_budget,
     enforce_hourly_budget,
     normalize_email,
@@ -130,6 +131,22 @@ async def customer_signup_phone_otp_request(
         raise _rate_limited(exc) from exc
     if await customer_phone_taken(session, phone):
         raise HTTPException(status_code=409, detail={"error": "phone_already_in_use"})
+    # Nothing below needs the database: hand the connection back before a
+    # provider call that can take seconds.
+    await session.close()
+
+    if settings.PHONE_OTP_ENABLED:
+        # Inside the resend cooldown nothing is sent, so nothing is charged:
+        # only real sends spend the per-phone allowance. `code_sent` tells a
+        # client whose first response got lost that the code is on its way.
+        wait = await cooldown_remaining(
+            _pair(phone, email), redis, namespace=_PHONE_NAMESPACE
+        )
+        if wait > 0:
+            raise HTTPException(
+                status_code=429,
+                detail={"error": "rate_limited", "retry_after": wait, "code_sent": True},
+            )
 
     try:
         # Per phone, across every email: nobody texts one number more than
@@ -144,7 +161,9 @@ async def customer_signup_phone_otp_request(
         return {
             "ok": True,
             "otp_required": False,
-            "phone_token": create_customer_signup_phone_token(email, phone),
+            "phone_token": create_customer_signup_phone_token(
+                email, phone, proven=False
+            ),
         }
 
     try:
@@ -187,4 +206,6 @@ async def customer_signup_phone_otp_verify(
     except (CodeExpired, InvalidCode, TooManyAttempts) as exc:
         raise _code_error(exc) from None
     await consume_otp_key(_pair(phone, email), redis, namespace=_PHONE_NAMESPACE)
-    return {"phone_token": create_customer_signup_phone_token(email, phone)}
+    return {
+        "phone_token": create_customer_signup_phone_token(email, phone, proven=True)
+    }

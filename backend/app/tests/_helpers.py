@@ -26,4 +26,6 @@ def signup_phone_token(email: str, phone: str = "+919800000001") -> str:
     customer phone column is unique."""
     from app.core.security import create_customer_signup_phone_token
 
-    return create_customer_signup_phone_token(email.strip().lower(), phone)
+    return create_customer_signup_phone_token(
+        email.strip().lower(), phone, proven=True
+    )
