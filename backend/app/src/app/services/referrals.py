@@ -24,6 +24,7 @@ from app.models.referral import (
     ReferralTargetRole,
 )
 from app.schemas.referrals import ReferralCreate
+from app.services.customer_signup import customer_phone_taken, require_signup_phone
 
 _OPEN = (ReferralStatus.pending_review, ReferralStatus.approved)
 
@@ -220,11 +221,14 @@ async def activate_customer_referral(
     referral_id: int,
     invitee_email: str,
     full_name: Optional[str],
+    phone_token: Optional[str],
 ) -> tuple[User, Referral]:
     """Create the customer account + bind the referral to `active`. The caller
     verifies OTP + handles policy acceptance + commits. Raises LookupError
     (not found) / ValueError('expired'|'not_approved'|'already_active'|
-    'already_registered')."""
+    'already_registered'|'phone_already_in_use'). A missing or unusable
+    `phone_token` raises HTTPException (customer_signup.require_signup_phone)
+    — after the invite-state checks, so a dead invite is reported first."""
     from app.services.profiles import split_full_name
 
     row = await session.get(Referral, referral_id)
@@ -239,19 +243,16 @@ async def activate_customer_referral(
         session.add(row)
         await session.flush()
         raise ValueError("expired")
-    # Guard the window between approve and accept — both email AND phone, since
-    # CustomerProfile.phone is unique. Without the phone check a phone claimed
-    # after approval surfaces as a 500 IntegrityError at flush instead of a 409.
+    # Guard the window between approve and accept. The email check keeps
+    # existing users out of the referral program. The phone is the number the
+    # invitee proved at signup (not the referrer-typed `invitee_phone`), under
+    # the customer-scope rule every signup uses; without the check the unique
+    # index would surface as an IntegrityError at flush instead of a 409.
     if (await session.exec(select(User).where(User.email == invitee_email))).first():
         raise ValueError("already_registered")
-    if row.invitee_phone:
-        for model in (CustomerProfile, SellerProfile, AdminProfile):
-            if (
-                await session.exec(
-                    select(model).where(model.phone == row.invitee_phone)
-                )
-            ).first():
-                raise ValueError("already_registered")
+    phone = require_signup_phone(phone_token, invitee_email)
+    if await customer_phone_taken(session, phone):
+        raise ValueError("phone_already_in_use")
 
     first_name, last_name = split_full_name(full_name or row.invitee_name)
     user = User(email=invitee_email, role=UserRole.Customer)
@@ -262,7 +263,8 @@ async def activate_customer_referral(
         user_id=user.id,
         first_name=first_name,
         last_name=last_name,
-        phone=row.invitee_phone,
+        phone=phone,
+        phone_verified_at=datetime.now(timezone.utc),
     )
     session.add(profile)
     row.status = ReferralStatus.active

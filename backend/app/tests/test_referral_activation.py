@@ -8,6 +8,7 @@ from app.models.notification import Notification, NotificationType
 from app.models.profile import CustomerProfile
 from app.models.referral import Referral, ReferralStatus, ReferralTargetRole
 from app.services import referrals as svc
+from tests._helpers import signup_phone_token
 
 
 def _approved_referral(**over) -> Referral:
@@ -105,7 +106,11 @@ async def test_accept_creates_customer(client, session, monkeypatch):
     monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
     res = await client.post(
         "/api/v1/referrals/accept",
-        json={"token": tok, "code": "123456", "full_name": "Asha Rao", "accept_policies": True},
+        json={
+            "token": tok, "code": "123456", "full_name": "Asha Rao",
+            "accept_policies": True,
+            "phone_token": signup_phone_token("join@example.com", "+919811100001"),
+        },
     )
     assert res.status_code == 200, res.text
     assert res.json()["access_token"]
@@ -135,7 +140,13 @@ async def test_accept_issues_auth_session(client, session, monkeypatch):
     monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
     res = await client.post(
         "/api/v1/referrals/accept",
-        json={"token": tok, "code": "123456", "full_name": "Session Joiner", "accept_policies": True},
+        json={
+            "token": tok, "code": "123456", "full_name": "Session Joiner",
+            "accept_policies": True,
+            "phone_token": signup_phone_token(
+                "sessionjoin@example.com", "+919811100002"
+            ),
+        },
     )
     assert res.status_code == 200, res.text
     body = res.json()
@@ -174,26 +185,92 @@ async def test_accept_expired_invite_conflict(client, session, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_accept_phone_collision_conflict(client, session, monkeypatch):
-    """A phone claimed between approve and accept must yield a clean 409
-    (already_registered), not a 500 from the CustomerProfile.phone unique
-    constraint tripping at flush."""
+async def test_accept_verified_number_taken_is_phone_already_in_use(
+    client, session, monkeypatch
+):
+    """The proven number is what lands on the profile, so it is what must be
+    free (customer scope) — a clean 409, not a 500 from the unique index."""
     owner = User(email="owner@example.com", role=UserRole.Customer)
     session.add(owner)
     await session.flush()
     session.add(
         CustomerProfile(user_id=owner.id, first_name="Owner", phone="+919812345678")
     )
-    r = _approved_referral(
-        invitee_email="joiner@example.com", invitee_phone="+919812345678"
-    )
+    r = _approved_referral(invitee_email="joiner@example.com")
     r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
     session.add(r)
     await session.commit()
     await session.refresh(r)
     tok = create_referral_invite_token(
         referral_id=r.id, target_role="customer", email="joiner@example.com",
-        phone="+919812345678", expires_days=14,
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "accept_policies": True,
+            "phone_token": signup_phone_token("joiner@example.com", "+919812345678"),
+        },
+    )
+    assert res.status_code == 409, res.text
+    assert res.json()["detail"]["error"] == "phone_already_in_use"
+
+
+@pytest.mark.asyncio
+async def test_accept_referrer_typed_number_taken_but_invitee_proves_another(
+    client, session, monkeypatch
+):
+    owner = User(email="owner2@example.com", role=UserRole.Customer)
+    session.add(owner)
+    await session.flush()
+    session.add(
+        CustomerProfile(user_id=owner.id, first_name="Owner", phone="+919812345670")
+    )
+    r = _approved_referral(
+        invitee_email="switch@example.com", invitee_phone="+919812345670"
+    )
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="switch@example.com",
+        phone="+919812345670", expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "accept_policies": True,
+            "phone_token": signup_phone_token("switch@example.com", "+919812345671"),
+        },
+    )
+    assert res.status_code == 200, res.text
+    profile = (
+        await session.exec(
+            select(CustomerProfile).where(
+                CustomerProfile.user_id == res.json()["user"]["id"]
+            )
+        )
+    ).one()
+    assert profile.phone == "+919812345671"
+    assert profile.phone_verified_at is not None
+
+
+@pytest.mark.asyncio
+async def test_accept_requires_a_phone_token(client, session, monkeypatch):
+    r = _approved_referral(invitee_email="nophone@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    rid = r.id
+    tok = create_referral_invite_token(
+        referral_id=rid, target_role="customer", email="nophone@example.com",
+        phone=None, expires_days=14,
     )
     monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
     monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
@@ -201,8 +278,95 @@ async def test_accept_phone_collision_conflict(client, session, monkeypatch):
         "/api/v1/referrals/accept",
         json={"token": tok, "code": "123456", "accept_policies": True},
     )
+    assert res.status_code == 400
+    assert res.json()["detail"]["error"] == "phone_required"
+    fresh = await session.get(Referral, rid)
+    await session.refresh(fresh)
+    assert fresh.status == ReferralStatus.approved
+
+
+@pytest.mark.asyncio
+async def test_accept_rejects_a_token_for_another_email(client, session, monkeypatch):
+    r = _approved_referral(invitee_email="mine@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="mine@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "accept_policies": True,
+            "phone_token": signup_phone_token("someone-else@example.com"),
+        },
+    )
+    assert res.status_code == 400
+    assert res.json()["detail"]["error"] == "invalid_phone_token"
+
+
+@pytest.mark.asyncio
+async def test_accept_phone_only_invite_binds_the_typed_email(
+    client, session, monkeypatch
+):
+    r = _approved_referral(invitee_email=None, invitee_phone="+919812300000")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email=None,
+        phone="+919812300000", expires_days=14,
+    )
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "email": "Typed@Example.com",
+            "accept_policies": True,
+            "phone_token": signup_phone_token("typed@example.com", "+919812300000"),
+        },
+    )
+    assert res.status_code == 200, res.text
+
+
+@pytest.mark.asyncio
+async def test_accept_phone_unique_race_is_named(client, session, monkeypatch):
+    async def _never_taken(_session, _phone):
+        return False
+
+    owner = User(email="owner3@example.com", role=UserRole.Customer)
+    session.add(owner)
+    await session.flush()
+    session.add(
+        CustomerProfile(user_id=owner.id, first_name="Owner", phone="+919812345672")
+    )
+    r = _approved_referral(invitee_email="racer@example.com")
+    r.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+    session.add(r)
+    await session.commit()
+    await session.refresh(r)
+    tok = create_referral_invite_token(
+        referral_id=r.id, target_role="customer", email="racer@example.com",
+        phone=None, expires_days=14,
+    )
+    monkeypatch.setattr("app.services.referrals.customer_phone_taken", _never_taken)
+    monkeypatch.setattr("app.api.referrals.verify_otp", _noop_verify)
+    monkeypatch.setattr("app.api.referrals.consume_otp_key", _noop_verify)
+    res = await client.post(
+        "/api/v1/referrals/accept",
+        json={
+            "token": tok, "code": "123456", "accept_policies": True,
+            "phone_token": signup_phone_token("racer@example.com", "+919812345672"),
+        },
+    )
     assert res.status_code == 409, res.text
-    assert res.json()["detail"]["error"] == "already_registered"
+    assert res.json()["detail"]["error"] == "phone_already_in_use"
 
 
 # ─── Seller activation binding ───────────────────────────────────────────
