@@ -11,6 +11,7 @@ from app.api import (
     catalog_admin,
     catalog_bulk,
     credit,
+    customer_signup_phone,
     customers,
     dev_inbox,
     favorites,
@@ -34,6 +35,9 @@ from app.api import (
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(
+    customer_signup_phone.router, prefix="/auth", tags=["auth"]
+)
 api_router.include_router(catalog.router, prefix="/catalog", tags=["catalog"])
 api_router.include_router(catalog_admin.router, prefix="/catalog")
 api_router.include_router(catalog_bulk.router, prefix="/catalog")

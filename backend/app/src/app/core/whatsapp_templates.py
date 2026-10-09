@@ -44,6 +44,15 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
             "It expires in 10 minutes."
         ),
     ),
+    "otp_customer_signup": WhatsAppTemplate(
+        name="otp_customer_signup",
+        category="AUTHENTICATION",
+        variables=("code",),
+        render=lambda v: (
+            f"Your {settings.COMPANY_NAME} verification code is {v['code']}. "
+            "It expires in 10 minutes. Do not share it with anyone."
+        ),
+    ),
     "otp_delivery": WhatsAppTemplate(
         name="otp_delivery",
         category="AUTHENTICATION",

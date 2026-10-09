@@ -92,6 +92,29 @@ async def enforce_hourly_budget(
         raise RateLimited(retry_after=await seconds_until(redis, key))
 
 
+def _key_distinct(identifier: str, namespace: str) -> str:
+    return f"otp:{namespace}:distinct:{identifier}"
+
+
+async def enforce_distinct_hourly_budget(
+    identifier: str, member: str, redis: aioredis.Redis, *, namespace: str
+) -> None:
+    """Cap how many *distinct* members (e.g. phone numbers) one identifier
+    may touch per hour. It limits breadth, unlike `enforce_hourly_budget`,
+    which counts calls. A member already counted is free, so resends never
+    eat the budget. The window opens with the first member. Raises
+    RateLimited past OTP_MAX_PER_HOUR members. Two concurrent first-time
+    members can overshoot by one; the cap is a brake, not a ledger."""
+    key = _key_distinct(identifier, namespace)
+    if await redis.sismember(key, member):  # type: ignore[misc]
+        return
+    if await redis.scard(key) >= settings.OTP_MAX_PER_HOUR:  # type: ignore[misc]
+        raise RateLimited(retry_after=max(await seconds_until(redis, key), 1))
+    await redis.sadd(key, member)  # type: ignore[misc]
+    if await redis.ttl(key) < 0:
+        await redis.expire(key, 3600)
+
+
 async def request_otp(
     identifier: str, redis: aioredis.Redis, *, namespace: str = "email"
 ) -> str:
