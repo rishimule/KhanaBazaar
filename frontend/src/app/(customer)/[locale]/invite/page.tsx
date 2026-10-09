@@ -71,7 +71,8 @@ function InviteAcceptInner() {
   const [phoneDigits, setPhoneDigits] = useState("");
   const [phoneCode, setPhoneCode] = useState("");
   const [signupPhone, setSignupPhone] = useState<SignupPhoneCache>(null);
-  const [codeSentFor, setCodeSentFor] = useState<{ email: string; phone: string } | null>(null);
+  // `email|phone` pairs a phone code went to in this visit (see login page).
+  const [codesSent, setCodesSent] = useState<ReadonlySet<string>>(() => new Set());
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +114,7 @@ function InviteAcceptInner() {
   const normalizedEmail = effectiveEmail.toLowerCase();
   const emailLocked = Boolean(detail?.invitee_email);
   const phone = toE164(phoneDigits);
+  const pairKey = `${normalizedEmail}|${phone}`;
   const phoneValid = isValidIndianMobile(phoneDigits);
   const cachedToken =
     signupPhone && signupPhone.email === normalizedEmail && signupPhone.phone === phone
@@ -208,6 +210,7 @@ function InviteAcceptInner() {
     if (busy || emailResend.active) return;
     setBusy(true);
     setError(null);
+    setEmailTaken(false);
     try {
       await post("/api/v1/auth/otp/request", { email: effectiveEmail });
       setCode("");
@@ -215,7 +218,8 @@ function InviteAcceptInner() {
       emailResend.start();
     } catch (err) {
       if (apiErrorCode(err) === "rate_limited") {
-        emailResend.start(seedableWait(err));
+        const wait = seedableWait(err);
+        if (wait) emailResend.start(wait);
         setError(rateLimitMessage(err));
       } else {
         setError(t("genericError"));
@@ -257,7 +261,7 @@ function InviteAcceptInner() {
         await accept(cachedToken);
         return;
       }
-      if (codeSentFor && codeSentFor.email === normalizedEmail && codeSentFor.phone === phone) {
+      if (codesSent.has(pairKey)) {
         setPhoneCode("");
         setStep(3);
         setBusy(false);
@@ -275,7 +279,7 @@ function InviteAcceptInner() {
         await accept(res.phone_token);
         return;
       }
-      setCodeSentFor({ email: normalizedEmail, phone });
+      setCodesSent((prev) => new Set(prev).add(pairKey));
       setPhoneCode("");
       setStep(3);
       phoneResend.start();
@@ -301,7 +305,11 @@ function InviteAcceptInner() {
         });
         phoneToken = res.phone_token;
         setSignupPhone({ email: normalizedEmail, phone, token: phoneToken });
-        setCodeSentFor(null);
+        setCodesSent((prev) => {
+          const next = new Set(prev);
+          next.delete(pairKey);
+          return next;
+        });
       }
       stage = "accept";
       await accept(phoneToken);
@@ -330,12 +338,13 @@ function InviteAcceptInner() {
         await accept(res.phone_token);
         return;
       }
-      setCodeSentFor({ email: normalizedEmail, phone });
+      setCodesSent((prev) => new Set(prev).add(pairKey));
       setPhoneCode("");
       phoneResend.start();
       setBusy(false);
     } catch (err) {
-      if (apiErrorCode(err) === "rate_limited") phoneResend.start(seedableWait(err));
+      const wait = apiErrorCode(err) === "rate_limited" ? seedableWait(err) : undefined;
+      if (wait) phoneResend.start(wait);
       handleError(err, stage);
       setBusy(false);
     }

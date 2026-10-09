@@ -69,9 +69,9 @@ function LoginPageInner() {
   const [phoneDigits, setPhoneDigits] = useState("");
   const [phoneCode, setPhoneCode] = useState("");
   const [signupPhone, setSignupPhone] = useState<SignupPhoneCache>(null);
-  // The email + number the last phone code went to: "Change number" and back
-  // reuses that code instead of tripping the 60 s cooldown.
-  const [codeSentFor, setCodeSentFor] = useState<{ email: string; phone: string } | null>(null);
+  // `email|phone` pairs a phone code went to in this visit: "Change number"
+  // and back reuses that code instead of tripping the 60 s cooldown.
+  const [codesSent, setCodesSent] = useState<ReadonlySet<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -112,6 +112,7 @@ function LoginPageInner() {
     signupPhone && signupPhone.email === normalizedEmail && signupPhone.phone === phone
       ? signupPhone.token
       : null;
+  const pairKey = `${normalizedEmail}|${phone}`;
   const willSendCode = phoneOtpEnabled && !cachedToken;
   const phoneValid = isValidIndianMobile(phoneDigits);
   const shownPhoneError =
@@ -195,7 +196,7 @@ function LoginPageInner() {
         return;
       case "email_already_registered":
         setSignupPhone(null);
-        setCodeSentFor(null);
+        setCodesSent(new Set());
         setCode("");
         setStep("email");
         setError(tS("errEmailRegistered"));
@@ -260,7 +261,8 @@ function LoginPageInner() {
       setCode("");
       startResend();
     } catch (err) {
-      if (apiErrorCode(err) === "rate_limited") startResend(seedableWait(err));
+      const wait = apiErrorCode(err) === "rate_limited" ? seedableWait(err) : undefined;
+      if (wait) startResend(wait);
       setError(emailStepMessage(err, t("errSendCode")));
     } finally {
       setResending(false);
@@ -302,7 +304,7 @@ function LoginPageInner() {
         await finishSignup(cachedToken);
         return;
       }
-      if (codeSentFor && codeSentFor.email === normalizedEmail && codeSentFor.phone === phone) {
+      if (codesSent.has(pairKey)) {
         // The code sent before "Change number" is still the one to type.
         setPhoneCode("");
         setStep("phoneCode");
@@ -316,7 +318,7 @@ function LoginPageInner() {
         await finishSignup(res.phone_token);
         return;
       }
-      setCodeSentFor({ email: normalizedEmail, phone });
+      setCodesSent((prev) => new Set(prev).add(pairKey));
       setPhoneCode("");
       setStep("phoneCode");
       phoneResend.start();
@@ -341,7 +343,11 @@ function LoginPageInner() {
         const res = await verifySignupPhoneOtp({ email, phone, code: phoneCode });
         token = res.phone_token;
         setSignupPhone({ email: normalizedEmail, phone, token });
-        setCodeSentFor(null);
+        setCodesSent((prev) => {
+          const next = new Set(prev);
+          next.delete(pairKey);
+          return next;
+        });
       }
       stage = "create";
       await finishSignup(token);
@@ -367,11 +373,12 @@ function LoginPageInner() {
         await finishSignup(res.phone_token);
         return;
       }
-      setCodeSentFor({ email: normalizedEmail, phone });
+      setCodesSent((prev) => new Set(prev).add(pairKey));
       setPhoneCode("");
       phoneResend.start();
     } catch (err) {
-      if (apiErrorCode(err) === "rate_limited") phoneResend.start(seedableWait(err));
+      const wait = apiErrorCode(err) === "rate_limited" ? seedableWait(err) : undefined;
+      if (wait) phoneResend.start(wait);
       handleSignupError(err, stage);
     } finally {
       setResending(false);
@@ -382,7 +389,7 @@ function LoginPageInner() {
     setStep("email");
     setCode("");
     setSignupPhone(null);
-    setCodeSentFor(null);
+    setCodesSent(new Set());
     setError(null);
     setPhoneError(null);
   };
