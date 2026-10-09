@@ -31,12 +31,17 @@ def test_registry_has_all_templates():
         # Courier orders (spec 2026-10-02): the quote, shipped-by-courier, and
         # the seller's new-order alert.
         "courier_quote_ready", "courier_shipped", "seller_new_courier_order",
+        # Customer signup phone code (spec 2026-10-08).
+        "otp_customer_signup",
     }
     assert set(TEMPLATES) == expected
 
 
 def test_auth_templates_are_authentication_category():
-    for name in ("otp_login", "otp_seller_phone", "otp_delivery", "otp_return"):
+    for name in (
+        "otp_login", "otp_seller_phone", "otp_customer_signup", "otp_delivery",
+        "otp_return",
+    ):
         assert TEMPLATES[name].category == "AUTHENTICATION"
 
 
