@@ -12,6 +12,7 @@ import React, {
 } from "react";
 import { useRouter } from "next/navigation";
 import { User, UserRole } from "@/types";
+import { ApiError } from "@/lib/api";
 import { clearLocaleCookies, setOperatorLocaleCookie } from "@/lib/operatorLocale";
 import { OPERATOR_PATH_RE } from "@/lib/localeCookies";
 import { routing } from "@/i18n/routing";
@@ -53,7 +54,9 @@ interface AuthContextValue {
     code: string,
     fullName?: string,
     acceptPolicies?: boolean,
-    remember?: boolean
+    remember?: boolean,
+    /** New accounts only: the token from /auth/customer/phone/otp/*. */
+    phoneToken?: string
   ) => Promise<{ user: User; needsName: boolean }>;
   logout: () => void;
   /** Record acceptance of the current policy version for the logged-in user,
@@ -186,13 +189,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      const detail = body?.detail;
-      if (detail?.error === "rate_limited") {
-        throw new Error(
-          `Please wait ${detail.retry_after} seconds before requesting a new code.`
-        );
-      }
-      throw new Error("Failed to send code. Please try again.");
+      // Structured: the page routes and translates on `detail.error`.
+      throw new ApiError(body?.detail ?? res.statusText, res.status);
     }
   }, []);
 
@@ -202,7 +200,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       code: string,
       fullName?: string,
       acceptPolicies?: boolean,
-      remember?: boolean
+      remember?: boolean,
+      phoneToken?: string
     ): Promise<{ user: User; needsName: boolean }> => {
       const res = await fetch(`${API_BASE}/api/v1/auth/otp/verify`, {
         method: "POST",
@@ -213,18 +212,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           full_name: fullName ?? null,
           accept_policies: acceptPolicies ?? false,
           remember: remember ?? false,
+          phone_token: phoneToken ?? null,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const error = data?.detail?.error;
-        if (error === "invalid_code")
-          throw new Error("Incorrect code. Please try again.");
-        if (error === "too_many_attempts")
-          throw new Error("Too many attempts. Please request a new code.");
-        if (error === "code_expired_or_used")
-          throw new Error("Code expired. Please request a new one.");
-        throw new Error("Verification failed.");
+        // Structured, so the login page can route on `detail.error` and
+        // translate it instead of matching English text.
+        throw new ApiError(data?.detail ?? res.statusText, res.status);
       }
       if (data.needs_name) {
         return { user: null as unknown as User, needsName: true };

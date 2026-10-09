@@ -250,3 +250,13 @@
   color: var(--color-primary-1);
   text-decoration: underline;
 }
+
+.fieldHint {
+  font-size: var(--body-xs);
+  color: var(--shade-cool-base-5);
+}
+
+.fieldError {
+  font-size: var(--body-xs);
+  color: var(--tomato-red-dark-1);
+}
