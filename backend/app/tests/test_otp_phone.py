@@ -37,6 +37,18 @@ def test_normalize_phone_rejects_other_formats() -> None:
             normalize_phone(bad)
 
 
+def test_normalize_phone_rejects_non_ascii_digits() -> None:
+    """`\\d` matches these on a str pattern. Stored, each would be a second
+    spelling of a number already on file and slip past every phone unique
+    index."""
+    for bad in (
+        "+919" + "८७६५४३२१०",  # Devanagari
+        "+919" + "８７６５４３２１０",  # full-width
+    ):
+        with pytest.raises(InvalidPhoneNumber):
+            normalize_phone(bad)
+
+
 @pytest.fixture
 async def redis_client() -> AsyncGenerator[aioredis.Redis, None]:
     client: aioredis.Redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)

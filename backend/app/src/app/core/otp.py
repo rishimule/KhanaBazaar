@@ -10,7 +10,10 @@ import redis.asyncio as aioredis
 from app.core.config import settings
 from app.core.rate_limit import incr_with_ttl, seconds_until
 
-_PHONE_RE = re.compile(r"^\+91[6-9]\d{9}$")
+# `[0-9]`, not `\d`: on a str pattern `\d` also matches non-ASCII digits
+# (Devanagari, full-width, …), which would store a second spelling of a number
+# already on file and slip past every phone unique index.
+_PHONE_RE = re.compile(r"^\+91[6-9][0-9]{9}$")
 
 
 def normalize_email(email: str) -> str:
