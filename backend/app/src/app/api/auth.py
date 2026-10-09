@@ -275,9 +275,11 @@ async def otp_verify(
                 phone_verified_at=datetime.now(timezone.utc),
             )
             session.add(profile)
-            # Flush before record_acceptance: its savepoint flushes pending
-            # rows inside its own `except IntegrityError: pass`, which would
-            # swallow a lost phone race and fail the commit with a 500.
+            # Flush before record_acceptance so a lost phone race surfaces in
+            # this try, never inside its savepoint, whose `except
+            # IntegrityError: pass` would swallow it and leave the commit to
+            # fail with a 500. (Its first query autoflushes and raises first
+            # today; the explicit flush keeps that true if it ever changes.)
             await session.flush()
             await record_acceptance(session, user.id)
             await session.commit()
