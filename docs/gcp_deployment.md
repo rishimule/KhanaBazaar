@@ -125,18 +125,27 @@ alerts at 20000 INR (≈ $240). Firebase Hosting is free (Spark/Blaze free tier)
   each OTP response's `otp_required` field.
   - Numbers accepted during the window are indistinguishable from genuinely
     verified ones except by `customerprofile.phone_verified_at` falling inside
-    it — deliberately no extra column. **Null out `phone_verified_at` for that
-    date range at cutover, before `WHATSAPP_PROVIDER` goes live** — every
-    customer created since the signup-phone release carries a trust-stamped
-    number, and the login-code mirror plus order updates go to verified
-    numbers, so an unproven one may hand a stranger the login code.
+    it — deliberately no extra column. Every customer created since the
+    signup-phone release carries such a trust-stamped number, and the
+    login-code mirror, order updates, return codes and delivery codes all go
+    to *verified* numbers — an unproven one may hand a stranger a login code.
+    Cut over in this order:
+    1. Flip `PHONE_OTP_ENABLED` in `deploy.yml` (it re-pins the value on
+       every deploy, so a console-only flip reverts on the next merge), with
+       `WHATSAPP_PROVIDER` still `none` on the api **and** the VM worker.
+       From the flip on, signup refuses phone tokens minted on trust, so no
+       new trust stamps appear.
+    2. Null `phone_verified_at` for every customer stamped while the flag was
+       off (from the date it was first set false up to the flip).
+    3. Only then turn on WhatsApp. Never run WhatsApp while the flag is
+       false.
   - Add per-IP and global send caps to every phone chain first (the client IP
     needs a trusted `X-Forwarded-For` hop — the first entry is client-set).
   - Register DLT templates for the SMS copy and the WhatsApp ContentSids.
   - `deliver_phone_otp` falls back to SMS only when the WhatsApp send raises
     at once; a number not on WhatsApp may never receive its code — fix the
     fallback or offer SMS before relying on WhatsApp for OTP.
-- **Before deploying the signup-phone release** (spec
+- **Before merging the signup-phone release** (CI deploys on merge; spec
   `2026-10-08-customer-signup-phone-design.md` §8), list profile phones that
   are not canonical `+91[6-9]XXXXXXXXX` — exact-match uniqueness can't see a
   legacy `98765 43210`, so fix or clear them:
