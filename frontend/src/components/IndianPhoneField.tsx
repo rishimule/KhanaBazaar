@@ -17,6 +17,9 @@ interface Props {
   invalid?: boolean;
   /** id of the hint/error line under the field. */
   describedBy?: string;
+  /** Page-specific look for the frame and the input (sizes, radius). */
+  className?: string;
+  inputClassName?: string;
 }
 
 /** `+91` prefix + national-number input for the signup screens. No
@@ -32,9 +35,14 @@ export default function IndianPhoneField({
   autoFocus,
   invalid,
   describedBy,
+  className,
+  inputClassName,
 }: Props) {
+  const frame = [styles.wrap, invalid ? styles.wrapInvalid : "", className ?? ""]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <div className={invalid ? `${styles.wrap} ${styles.wrapInvalid}` : styles.wrap}>
+    <div className={frame}>
       <span className={styles.prefix} aria-hidden="true">
         {INDIAN_PHONE_PREFIX}
       </span>
@@ -42,7 +50,7 @@ export default function IndianPhoneField({
         id={id}
         ref={inputRef}
         name={name}
-        className={styles.input}
+        className={inputClassName ? `${styles.input} ${inputClassName}` : styles.input}
         type="tel"
         inputMode="numeric"
         autoComplete="tel-national"

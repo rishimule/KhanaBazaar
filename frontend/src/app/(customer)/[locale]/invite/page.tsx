@@ -11,6 +11,7 @@ import { post } from "@/lib/api";
 import { setTokens } from "@/lib/authTokens";
 import { apiErrorCode } from "@/lib/errors";
 import {
+  asciiDigits,
   formatIndianMobile,
   isValidIndianMobile,
   nationalDigits,
@@ -19,6 +20,7 @@ import {
 import { usePhoneOtpEnabled } from "@/lib/publicConfig";
 import { acceptCustomerReferral, getInvite, type ReferralInviteDetail } from "@/lib/referrals";
 import {
+  codeAlreadySent,
   requestSignupPhoneOtp,
   retryAfterSeconds,
   verifySignupPhoneOtp,
@@ -30,6 +32,8 @@ import styles from "./page.module.css";
 /** Which call failed: code errors from `verify` are about the phone code,
  * everywhere else about the email code typed on step 2. */
 type Stage = "request" | "verify" | "accept";
+
+type FocusTarget = "phone" | "code";
 
 /** Codes meaning this invite can no longer be used at all. */
 const DEAD_INVITE_CODES = new Set([
@@ -43,6 +47,8 @@ const DEAD_INVITE_CODES = new Set([
 ]);
 
 const MAX_SEEDED_COUNTDOWN = 120;
+/** See the login page: default OTP lifetime minus a lost response's cooldown. */
+const FALLBACK_CODE_LIFETIME_MS = 9 * 60 * 1000;
 
 export default function InviteAcceptPage() {
   return (
@@ -55,6 +61,7 @@ export default function InviteAcceptPage() {
 function InviteAcceptInner() {
   const t = useTranslations("Invite");
   const tS = useTranslations("Signup");
+  const tL = useTranslations("Login");
   const params = useParams();
   const searchParams = useSearchParams();
   const locale = (params?.locale as string) || "en";
@@ -71,10 +78,16 @@ function InviteAcceptInner() {
   const [phoneDigits, setPhoneDigits] = useState("");
   const [phoneCode, setPhoneCode] = useState("");
   const [signupPhone, setSignupPhone] = useState<SignupPhoneCache>(null);
-  // `email|phone` pairs a phone code went to in this visit (see login page).
-  const [codesSent, setCodesSent] = useState<ReadonlySet<string>>(() => new Set());
+  // `email|phone` → when the phone code sent to it expires (see login page).
+  const [codesSent, setCodesSent] = useState<ReadonlyMap<string, number>>(
+    () => new Map(),
+  );
   const [agree, setAgree] = useState(false);
+  // Activation (phone request / verify / accept) vs the two resend links, so
+  // a resend never relabels the main button "Activating…".
   const [busy, setBusy] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [resendingPhone, setResendingPhone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [emailTaken, setEmailTaken] = useState(false);
@@ -83,6 +96,8 @@ function InviteAcceptInner() {
   // Labels only — each request's `otp_required` decides whether step 3 shows.
   const phoneOtpEnabled = usePhoneOtpEnabled();
   const phoneInputRef = useRef<HTMLInputElement>(null);
+  const codeInputRef = useRef<HTMLInputElement>(null);
+  const pendingFocus = useRef<FocusTarget | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -106,9 +121,14 @@ function InviteAcceptInner() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  // After an error moved the invitee back to step 2, put the cursor on the
+  // field to fix — the button they pressed may have just been disabled.
   useEffect(() => {
-    if (step === 2 && phoneError) phoneInputRef.current?.focus();
-  }, [step, phoneError]);
+    const target = pendingFocus.current;
+    if (!target) return;
+    pendingFocus.current = null;
+    (target === "phone" ? phoneInputRef : codeInputRef).current?.focus();
+  });
 
   const effectiveEmail = detail?.invitee_email || emailInput.trim();
   const normalizedEmail = effectiveEmail.toLowerCase();
@@ -120,6 +140,8 @@ function InviteAcceptInner() {
     signupPhone && signupPhone.email === normalizedEmail && signupPhone.phone === phone
       ? signupPhone.token
       : null;
+  const willSendCode = phoneOtpEnabled && !cachedToken;
+  const inFlight = busy || sendingEmail || resendingPhone;
   const shownPhoneError =
     phoneError ?? (phoneDigits.length > 10 ? tS("errInvalidPhone") : null);
   const phoneHint =
@@ -141,6 +163,23 @@ function InviteAcceptInner() {
   const seedableWait = (err: unknown): number | undefined => {
     const seconds = retryAfterSeconds(err);
     return seconds && seconds <= MAX_SEEDED_COUNTDOWN ? seconds : undefined;
+  };
+
+  const rememberCode = (expiresInSeconds?: number) => {
+    const key = pairKey;
+    const expiresAt =
+      Date.now() + (expiresInSeconds ? expiresInSeconds * 1000 : FALLBACK_CODE_LIFETIME_MS);
+    setCodesSent((prev) => new Map(prev).set(key, expiresAt));
+  };
+
+  const forgetCode = () => {
+    const key = pairKey;
+    setCodesSent((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Map(prev);
+      next.delete(key);
+      return next;
+    });
   };
 
   const codeMessage = (errorCode: string | null): string =>
@@ -165,6 +204,7 @@ function InviteAcceptInner() {
         setPhoneError(
           errorCode === "invalid_phone" ? tS("errInvalidPhone") : tS("errPhoneInUse"),
         );
+        pendingFocus.current = "phone";
         return;
       case "rate_limited":
         setError(rateLimitMessage(err));
@@ -172,10 +212,14 @@ function InviteAcceptInner() {
       case "invalid_code":
       case "code_expired_or_used":
       case "too_many_attempts":
-        if (stage !== "verify") {
+        if (stage === "verify") {
+          // The phone code: an expired or locked one is gone server-side.
+          if (errorCode !== "invalid_code") forgetCode();
+        } else {
           // The email code on step 2 is wrong or no longer live.
           setStep(2);
           setCode("");
+          pendingFocus.current = "code";
         }
         setError(codeMessage(errorCode));
         return;
@@ -192,13 +236,17 @@ function InviteAcceptInner() {
         setSignupPhone(null);
         setStep(2);
         setPhoneError(tS("errConfirmAgain"));
+        pendingFocus.current = "phone";
         return;
       case "policy_acceptance_required":
         setStep(2);
         setError(t("policyRequired"));
         return;
       default:
-        setError(stage === "request" ? tS("errSendFailed") : t("genericError"));
+        // With phone OTP off no code was ever going to be sent.
+        setError(
+          stage === "request" && phoneOtpEnabled ? tS("errSendFailed") : t("genericError"),
+        );
     }
   };
 
@@ -207,8 +255,8 @@ function InviteAcceptInner() {
       setError(t("emailRequired"));
       return;
     }
-    if (busy || emailResend.active) return;
-    setBusy(true);
+    if (inFlight || emailResend.active) return;
+    setSendingEmail(true);
     setError(null);
     setEmailTaken(false);
     try {
@@ -225,7 +273,7 @@ function InviteAcceptInner() {
         setError(t("genericError"));
       }
     } finally {
-      setBusy(false);
+      setSendingEmail(false);
     }
   };
 
@@ -245,12 +293,13 @@ function InviteAcceptInner() {
   };
 
   const activate = async () => {
-    if (busy) return;
+    if (inFlight) return;
     setError(null);
     setPhoneError(null);
     setEmailTaken(false);
     if (!phoneValid) {
       setPhoneError(tS("errInvalidPhone"));
+      pendingFocus.current = "phone";
       return;
     }
     setBusy(true);
@@ -261,7 +310,7 @@ function InviteAcceptInner() {
         await accept(cachedToken);
         return;
       }
-      if (codesSent.has(pairKey)) {
+      if ((codesSent.get(pairKey) ?? 0) > Date.now()) {
         setPhoneCode("");
         setStep(3);
         setBusy(false);
@@ -279,19 +328,29 @@ function InviteAcceptInner() {
         await accept(res.phone_token);
         return;
       }
-      setCodesSent((prev) => new Set(prev).add(pairKey));
+      rememberCode(res.expires_in);
       setPhoneCode("");
       setStep(3);
       phoneResend.start();
       setBusy(false);
     } catch (err) {
-      handleError(err, stage);
+      if (stage === "request" && codeAlreadySent(err)) {
+        // An earlier tap reached the server but its response never reached
+        // us: the code is already on its way.
+        rememberCode();
+        setPhoneCode("");
+        setStep(3);
+        const wait = seedableWait(err);
+        if (wait) phoneResend.start(wait);
+      } else {
+        handleError(err, stage);
+      }
       setBusy(false);
     }
   };
 
   const verifyPhone = async () => {
-    if (busy) return;
+    if (inFlight) return;
     setError(null);
     setBusy(true);
     let stage: Stage = "verify";
@@ -305,11 +364,7 @@ function InviteAcceptInner() {
         });
         phoneToken = res.phone_token;
         setSignupPhone({ email: normalizedEmail, phone, token: phoneToken });
-        setCodesSent((prev) => {
-          const next = new Set(prev);
-          next.delete(pairKey);
-          return next;
-        });
+        forgetCode();
       }
       stage = "accept";
       await accept(phoneToken);
@@ -320,9 +375,9 @@ function InviteAcceptInner() {
   };
 
   const resendPhoneCode = async () => {
-    if (busy || phoneResend.active) return;
+    if (inFlight || phoneResend.active) return;
     setError(null);
-    setBusy(true);
+    setResendingPhone(true);
     let stage: Stage = "request";
     try {
       const res = await requestSignupPhoneOtp({
@@ -335,18 +390,20 @@ function InviteAcceptInner() {
         if (!res.phone_token) throw new Error("phone_token missing");
         setSignupPhone({ email: normalizedEmail, phone, token: res.phone_token });
         stage = "accept";
+        setBusy(true);
         await accept(res.phone_token);
         return;
       }
-      setCodesSent((prev) => new Set(prev).add(pairKey));
+      rememberCode(res.expires_in);
       setPhoneCode("");
       phoneResend.start();
-      setBusy(false);
     } catch (err) {
       const wait = apiErrorCode(err) === "rate_limited" ? seedableWait(err) : undefined;
       if (wait) phoneResend.start(wait);
       handleError(err, stage);
       setBusy(false);
+    } finally {
+      setResendingPhone(false);
     }
   };
 
@@ -387,8 +444,17 @@ function InviteAcceptInner() {
                 placeholder={t("emailPlaceholder")}
               />
             </div>
-            <button className="btn btn-primary" type="button" onClick={sendCode} disabled={busy}>
-              {busy ? t("sending") : t("sendCode")}
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={sendCode}
+              disabled={inFlight || emailResend.active}
+            >
+              {sendingEmail
+                ? t("sending")
+                : emailResend.active
+                  ? t("resendEmailIn", { seconds: emailResend.secondsLeft })
+                  : t("sendCode")}
             </button>
           </>
         )}
@@ -400,12 +466,14 @@ function InviteAcceptInner() {
               <label className={styles.label} htmlFor="inv-code">{t("codeLabel")}</label>
               <input
                 id="inv-code"
+                ref={codeInputRef}
                 className={styles.input}
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => setCode(asciiDigits(e.target.value).slice(0, 6))}
                 inputMode="numeric"
-                maxLength={8}
+                autoComplete="one-time-code"
                 placeholder="••••••"
+                disabled={inFlight}
               />
             </div>
             <div className={styles.linkRow}>
@@ -414,8 +482,13 @@ function InviteAcceptInner() {
                   {t("resendEmailIn", { seconds: emailResend.secondsLeft })}
                 </span>
               ) : (
-                <button type="button" className={styles.linkBtn} onClick={sendCode} disabled={busy}>
-                  {t("resendEmailCode")}
+                <button
+                  type="button"
+                  className={styles.linkBtn}
+                  onClick={sendCode}
+                  disabled={inFlight}
+                >
+                  {sendingEmail ? t("sending") : t("resendEmailCode")}
                 </button>
               )}
             </div>
@@ -427,6 +500,7 @@ function InviteAcceptInner() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 maxLength={120}
+                disabled={inFlight}
               />
             </div>
             <div className={styles.field}>
@@ -439,8 +513,11 @@ function InviteAcceptInner() {
                   setPhoneDigits(digits);
                   setPhoneError(null);
                 }}
+                disabled={inFlight}
                 invalid={Boolean(shownPhoneError)}
                 describedBy="inv-phone-hint"
+                className={styles.phoneField}
+                inputClassName={styles.phoneFieldInput}
               />
               {shownPhoneError ? (
                 <span id="inv-phone-hint" className={styles.fieldError} role="alert">
@@ -457,6 +534,7 @@ function InviteAcceptInner() {
                 type="checkbox"
                 checked={agree}
                 onChange={(e) => setAgree(e.target.checked)}
+                disabled={inFlight}
               />
               <span>{t("agree")}</span>
             </label>
@@ -464,9 +542,15 @@ function InviteAcceptInner() {
               className="btn btn-primary"
               type="button"
               onClick={activate}
-              disabled={busy || !code.trim() || phoneDigits.length !== 10 || !agree}
+              disabled={inFlight || !code.trim() || phoneDigits.length !== 10 || !agree}
             >
-              {busy ? t("activating") : t("activate")}
+              {busy
+                ? willSendCode
+                  ? tL("sending")
+                  : t("activating")
+                : willSendCode
+                  ? tL("continue")
+                  : t("activate")}
             </button>
           </>
         )}
@@ -482,7 +566,7 @@ function InviteAcceptInner() {
                 id="inv-phone-code"
                 className={styles.input}
                 value={phoneCode}
-                onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onChange={(e) => setPhoneCode(asciiDigits(e.target.value).slice(0, 6))}
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 placeholder="••••••"
@@ -493,7 +577,7 @@ function InviteAcceptInner() {
               className="btn btn-primary"
               type="button"
               onClick={verifyPhone}
-              disabled={busy || (phoneCode.length !== 6 && !cachedToken)}
+              disabled={inFlight || (phoneCode.length !== 6 && !cachedToken)}
             >
               {busy ? t("activating") : t("verifyAndActivate")}
             </button>
@@ -507,9 +591,9 @@ function InviteAcceptInner() {
                   type="button"
                   className={styles.linkBtn}
                   onClick={resendPhoneCode}
-                  disabled={busy}
+                  disabled={inFlight}
                 >
-                  {tS("resendCode")}
+                  {resendingPhone ? t("sending") : tS("resendCode")}
                 </button>
               )}
               <button
@@ -519,8 +603,9 @@ function InviteAcceptInner() {
                   setStep(2);
                   setPhoneCode("");
                   setError(null);
+                  pendingFocus.current = "phone";
                 }}
-                disabled={busy}
+                disabled={inFlight}
               >
                 {tS("changeNumber")}
               </button>

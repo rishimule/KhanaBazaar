@@ -251,9 +251,11 @@
   text-decoration: underline;
 }
 
+/* base-7, not base-5: the hint carries "Check your number" while phone OTP
+   is off, so it must meet WCAG AA (5.9:1 on white; base-5 is 3.9:1). */
 .fieldHint {
   font-size: var(--body-xs);
-  color: var(--shade-cool-base-5);
+  color: var(--shade-cool-base-7);
 }
 
 .fieldError {

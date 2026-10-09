@@ -11,8 +11,14 @@ import { apiErrorCode, apiErrorKey } from "@/lib/errors";
 import { useResendCountdown } from "@/lib/useResendCountdown";
 import { usePhoneOtpEnabled } from "@/lib/publicConfig";
 import { COMPANY_NAME } from "@/lib/brand";
-import { formatIndianMobile, isValidIndianMobile, toE164 } from "@/lib/indianPhone";
 import {
+  asciiDigits,
+  formatIndianMobile,
+  isValidIndianMobile,
+  toE164,
+} from "@/lib/indianPhone";
+import {
+  codeAlreadySent,
   requestSignupPhoneOtp,
   retryAfterSeconds,
   verifySignupPhoneOtp,
@@ -31,9 +37,16 @@ type Step = "email" | "code" | "profile" | "phoneCode";
  * the email code the call re-checked. */
 type SignupStage = "request" | "verify" | "create";
 
+type FocusTarget = "phone" | "consent";
+
 const RESEND_COOLDOWN_SECONDS = 60;
 /** Longest `retry_after` that seeds a countdown; past it the copy says minutes. */
 const MAX_SEEDED_COUNTDOWN = 120;
+/** How long a phone code is treated as usable when the server didn't say:
+ * the default OTP lifetime minus the cooldown a lost response may have used. */
+const FALLBACK_CODE_LIFETIME_MS = 9 * 60 * 1000;
+/** `full_name` is capped at 120 characters by the API. */
+const MAX_NAME_LENGTH = 120;
 
 function getRedirect(user: User): string {
   if (user.role === "admin") return "/admin";
@@ -69,9 +82,11 @@ function LoginPageInner() {
   const [phoneDigits, setPhoneDigits] = useState("");
   const [phoneCode, setPhoneCode] = useState("");
   const [signupPhone, setSignupPhone] = useState<SignupPhoneCache>(null);
-  // `email|phone` pairs a phone code went to in this visit: "Change number"
-  // and back reuses that code instead of tripping the 60 s cooldown.
-  const [codesSent, setCodesSent] = useState<ReadonlySet<string>>(() => new Set());
+  // `email|phone` → when the phone code sent to it expires. "Change number"
+  // and back reuses a live code instead of tripping the 60 s cooldown.
+  const [codesSent, setCodesSent] = useState<ReadonlyMap<string, number>>(
+    () => new Map(),
+  );
   const [error, setError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +99,11 @@ function LoginPageInner() {
   // Labels only — each request's `otp_required` decides whether a code step shows.
   const phoneOtpEnabled = usePhoneOtpEnabled();
   const phoneInputRef = useRef<HTMLInputElement>(null);
+  const consentRef = useRef<HTMLInputElement>(null);
+  // Where the cursor goes after the next render: an error sent the customer
+  // back to the profile step (the name field would otherwise autofocus), or
+  // they pressed "Change number".
+  const pendingFocus = useRef<FocusTarget | null>(null);
 
   useEffect(() => {
     if (!dbUser) return;
@@ -96,11 +116,12 @@ function LoginPageInner() {
       .catch(() => setConsentRequired(false));
   }, []);
 
-  // A phone problem sends the customer back to the profile step: put the
-  // cursor where the fix goes (the name field would otherwise autofocus).
   useEffect(() => {
-    if (step === "profile" && phoneError) phoneInputRef.current?.focus();
-  }, [step, phoneError]);
+    const target = pendingFocus.current;
+    if (!target) return;
+    pendingFocus.current = null;
+    (target === "phone" ? phoneInputRef : consentRef).current?.focus();
+  });
 
   if (dbUser) {
     return null;
@@ -108,13 +129,16 @@ function LoginPageInner() {
 
   const normalizedEmail = email.trim().toLowerCase();
   const phone = toE164(phoneDigits);
+  const pairKey = `${normalizedEmail}|${phone}`;
   const cachedToken =
     signupPhone && signupPhone.email === normalizedEmail && signupPhone.phone === phone
       ? signupPhone.token
       : null;
-  const pairKey = `${normalizedEmail}|${phone}`;
   const willSendCode = phoneOtpEnabled && !cachedToken;
   const phoneValid = isValidIndianMobile(phoneDigits);
+  // Any call in flight: every field and step-changing button waits for it,
+  // so the number sent is always the number on screen.
+  const busy = submitting || resending;
   const shownPhoneError =
     phoneError ?? (phoneDigits.length > 10 ? tS("errInvalidPhone") : null);
   const phoneHint =
@@ -137,6 +161,25 @@ function LoginPageInner() {
   const seedableWait = (err: unknown): number | undefined => {
     const seconds = retryAfterSeconds(err);
     return seconds && seconds <= MAX_SEEDED_COUNTDOWN ? seconds : undefined;
+  };
+
+  /** Mark the current email + number as having a live code. */
+  const rememberCode = (expiresInSeconds?: number) => {
+    const key = pairKey;
+    const expiresAt =
+      Date.now() + (expiresInSeconds ? expiresInSeconds * 1000 : FALLBACK_CODE_LIFETIME_MS);
+    setCodesSent((prev) => new Map(prev).set(key, expiresAt));
+  };
+
+  /** The code for the current email + number is used up or dead. */
+  const forgetCode = () => {
+    const key = pairKey;
+    setCodesSent((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Map(prev);
+      next.delete(key);
+      return next;
+    });
   };
 
   /** Copy for a failed email-code request or check: known codes first; the
@@ -177,6 +220,7 @@ function LoginPageInner() {
         setPhoneError(
           errorCode === "invalid_phone" ? tS("errInvalidPhone") : tS("errPhoneInUse"),
         );
+        pendingFocus.current = "phone";
         return;
       case "rate_limited":
         setError(rateLimitMessage(err));
@@ -185,6 +229,9 @@ function LoginPageInner() {
       case "code_expired_or_used":
       case "too_many_attempts":
         if (stage === "verify") {
+          // An expired or locked phone code is gone server-side: the next
+          // Continue for this number must send a fresh one.
+          if (errorCode !== "invalid_code") forgetCode();
           setError(emailStepMessage(err, t("errVerify")));
           return;
         }
@@ -196,7 +243,7 @@ function LoginPageInner() {
         return;
       case "email_already_registered":
         setSignupPhone(null);
-        setCodesSent(new Set());
+        setCodesSent(new Map());
         setCode("");
         setStep("email");
         setError(tS("errEmailRegistered"));
@@ -208,12 +255,14 @@ function LoginPageInner() {
         setSignupPhone(null);
         setStep("profile");
         setPhoneError(tS("errConfirmAgain"));
+        pendingFocus.current = "phone";
         return;
       case "policy_acceptance_required":
         // The policies fetch may have failed and hidden the checkbox.
         setConsentRequired(true);
         setStep("profile");
         setError(t("errPolicyRequired"));
+        pendingFocus.current = "consent";
         return;
       default: {
         const key = apiErrorKey(err);
@@ -221,12 +270,15 @@ function LoginPageInner() {
           setError(tErr("network"));
           return;
         }
+        // With phone OTP off no code was ever going to be sent.
         setError(
           stage === "create"
             ? t("errCreateAccount")
             : stage === "verify"
               ? t("errVerify")
-              : tS("errSendFailed"),
+              : phoneOtpEnabled
+                ? tS("errSendFailed")
+                : t("errCreateAccount"),
         );
       }
     }
@@ -253,7 +305,7 @@ function LoginPageInner() {
   };
 
   const handleResendCode = async () => {
-    if (resendIn > 0 || resending) return;
+    if (resendIn > 0 || busy) return;
     setError(null);
     setResending(true);
     try {
@@ -289,11 +341,12 @@ function LoginPageInner() {
 
   const handleSubmitProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting) return;
+    if (busy) return;
     setError(null);
     setPhoneError(null);
     if (!phoneValid) {
       setPhoneError(tS("errInvalidPhone"));
+      pendingFocus.current = "phone";
       return;
     }
     setSubmitting(true);
@@ -304,7 +357,7 @@ function LoginPageInner() {
         await finishSignup(cachedToken);
         return;
       }
-      if (codesSent.has(pairKey)) {
+      if ((codesSent.get(pairKey) ?? 0) > Date.now()) {
         // The code sent before "Change number" is still the one to type.
         setPhoneCode("");
         setStep("phoneCode");
@@ -318,11 +371,21 @@ function LoginPageInner() {
         await finishSignup(res.phone_token);
         return;
       }
-      setCodesSent((prev) => new Set(prev).add(pairKey));
+      rememberCode(res.expires_in);
       setPhoneCode("");
       setStep("phoneCode");
       phoneResend.start();
     } catch (err) {
+      if (stage === "request" && codeAlreadySent(err)) {
+        // An earlier tap reached the server but its response never reached
+        // us: the code is already on its way, so go and wait for it.
+        rememberCode();
+        setPhoneCode("");
+        setStep("phoneCode");
+        const wait = seedableWait(err);
+        if (wait) phoneResend.start(wait);
+        return;
+      }
       handleSignupError(err, stage);
     } finally {
       setSubmitting(false);
@@ -331,7 +394,7 @@ function LoginPageInner() {
 
   const handleVerifyPhoneCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting) return;
+    if (busy) return;
     setError(null);
     setSubmitting(true);
     let stage: SignupStage = "verify";
@@ -343,11 +406,7 @@ function LoginPageInner() {
         const res = await verifySignupPhoneOtp({ email, phone, code: phoneCode });
         token = res.phone_token;
         setSignupPhone({ email: normalizedEmail, phone, token });
-        setCodesSent((prev) => {
-          const next = new Set(prev);
-          next.delete(pairKey);
-          return next;
-        });
+        forgetCode();
       }
       stage = "create";
       await finishSignup(token);
@@ -359,7 +418,7 @@ function LoginPageInner() {
   };
 
   const handleResendPhoneCode = async () => {
-    if (phoneResend.active || resending || submitting) return;
+    if (phoneResend.active || busy) return;
     setError(null);
     setResending(true);
     let stage: SignupStage = "request";
@@ -373,7 +432,7 @@ function LoginPageInner() {
         await finishSignup(res.phone_token);
         return;
       }
-      setCodesSent((prev) => new Set(prev).add(pairKey));
+      rememberCode(res.expires_in);
       setPhoneCode("");
       phoneResend.start();
     } catch (err) {
@@ -389,7 +448,7 @@ function LoginPageInner() {
     setStep("email");
     setCode("");
     setSignupPhone(null);
-    setCodesSent(new Set());
+    setCodesSent(new Map());
     setError(null);
     setPhoneError(null);
   };
@@ -456,10 +515,9 @@ function LoginPageInner() {
                 type="text"
                 inputMode="numeric"
                 pattern="\d{6}"
-                maxLength={6}
                 placeholder="123456"
                 value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                onChange={(e) => setCode(asciiDigits(e.target.value).slice(0, 6))}
                 required
                 autoComplete="one-time-code"
                 autoFocus
@@ -476,7 +534,7 @@ function LoginPageInner() {
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={submitting}
+              disabled={busy}
             >
               {submitting ? t("verifying") : t("verifyCode")}
             </button>
@@ -490,13 +548,18 @@ function LoginPageInner() {
                   type="button"
                   className={styles.resendBtn}
                   onClick={handleResendCode}
-                  disabled={resending}
+                  disabled={busy}
                 >
                   {resending ? t("sending") : t("resendCode")}
                 </button>
               )}
             </div>
-            <button type="button" className={styles.testBtn} onClick={backToEmail}>
+            <button
+              type="button"
+              className={styles.testBtn}
+              onClick={backToEmail}
+              disabled={busy}
+            >
               {t("useDifferentEmail")}
             </button>
           </form>
@@ -516,6 +579,8 @@ function LoginPageInner() {
                 placeholder={t("namePlaceholder")}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
+                maxLength={MAX_NAME_LENGTH}
+                disabled={busy}
                 required
                 autoComplete="name"
                 autoFocus
@@ -533,6 +598,7 @@ function LoginPageInner() {
                   setPhoneDigits(digits);
                   setPhoneError(null);
                 }}
+                disabled={busy}
                 invalid={Boolean(shownPhoneError)}
                 describedBy="login-phone-hint"
               />
@@ -549,9 +615,11 @@ function LoginPageInner() {
             {consentRequired && (
               <label className={styles.consentRow}>
                 <input
+                  ref={consentRef}
                   type="checkbox"
                   checked={agreed}
                   onChange={(e) => setAgreed(e.target.checked)}
+                  disabled={busy}
                   required
                 />
                 <span>
@@ -570,7 +638,7 @@ function LoginPageInner() {
               type="submit"
               className={styles.submitBtn}
               disabled={
-                submitting ||
+                busy ||
                 !fullName.trim() ||
                 phoneDigits.length !== 10 ||
                 (consentRequired && !agreed)
@@ -584,7 +652,12 @@ function LoginPageInner() {
                   ? t("continue")
                   : t("createAccount")}
             </button>
-            <button type="button" className={styles.testBtn} onClick={backToEmail}>
+            <button
+              type="button"
+              className={styles.testBtn}
+              onClick={backToEmail}
+              disabled={busy}
+            >
               {t("useDifferentEmail")}
             </button>
           </form>
@@ -604,7 +677,7 @@ function LoginPageInner() {
                 inputMode="numeric"
                 placeholder="123456"
                 value={phoneCode}
-                onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onChange={(e) => setPhoneCode(asciiDigits(e.target.value).slice(0, 6))}
                 required
                 autoComplete="one-time-code"
                 autoFocus
@@ -613,7 +686,7 @@ function LoginPageInner() {
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={submitting || (phoneCode.length !== 6 && !cachedToken)}
+              disabled={busy || (phoneCode.length !== 6 && !cachedToken)}
             >
               {submitting ? t("verifying") : t("verifyAndCreate")}
             </button>
@@ -627,7 +700,7 @@ function LoginPageInner() {
                   type="button"
                   className={styles.resendBtn}
                   onClick={handleResendPhoneCode}
-                  disabled={resending || submitting}
+                  disabled={busy}
                 >
                   {resending ? t("sending") : tS("resendCode")}
                 </button>
@@ -640,7 +713,9 @@ function LoginPageInner() {
                 setStep("profile");
                 setPhoneCode("");
                 setError(null);
+                pendingFocus.current = "phone";
               }}
+              disabled={busy}
             >
               {tS("changeNumber")}
             </button>

@@ -14,8 +14,12 @@
   border-color: var(--color-primary-1);
   box-shadow: 0 0 0 2px rgba(15, 107, 6, 0.12);
 }
-.wrapInvalid {
+/* After :focus-within so the error frame survives focus — the page focuses
+   the field exactly when it shows the error. */
+.wrapInvalid,
+.wrapInvalid:focus-within {
   border-color: var(--tomato-red-dark-1);
+  box-shadow: 0 0 0 2px rgba(184, 6, 23, 0.12);
 }
 .prefix {
   display: inline-flex;

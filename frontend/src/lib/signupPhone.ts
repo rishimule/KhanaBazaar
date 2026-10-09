@@ -44,6 +44,17 @@ export function verifySignupPhoneOtp(input: {
   );
 }
 
+/** A cooldown 429 from `request` that says the code is already on its way:
+ * our first request reached the server but its response never reached us
+ * (spec §4.2). The caller can go straight to the code step. */
+export function codeAlreadySent(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false;
+  const d = err.detail;
+  return Boolean(
+    d && typeof d === "object" && (d as { code_sent?: unknown }).code_sent === true,
+  );
+}
+
 /** `retry_after` (seconds) from a 429 body, when the server sent one. */
 export function retryAfterSeconds(err: unknown): number | null {
   if (!(err instanceof ApiError)) return null;

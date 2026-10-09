@@ -5,8 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 /**
  * Shared OTP-resend cooldown. Call `start()` after sending/resending a code;
  * the button stays disabled (`active`) and `secondsLeft` ticks down to 0.
- * Used by login, the seller-signup wizard, and PhoneVerifyModal so all three
- * surfaces behave identically.
+ * Shared by every code-resend surface (login, invite, the seller-signup
+ * wizard, PhoneVerifyModal, account deletion) so they behave identically.
  */
 export function useResendCountdown(initialSeconds = 60) {
   const [secondsLeft, setSecondsLeft] = useState(0);

@@ -30,14 +30,22 @@ function toAsciiDigits(raw: string): string {
   return out;
 }
 
+/** Only the digits of `raw`, as ASCII — for one-time-code inputs, so a
+ * customer typing on an Indic keypad isn't left with an empty field. */
+export function asciiDigits(raw: string): string {
+  return toAsciiDigits(raw).replace(/[^0-9]/g, "");
+}
+
 /** Typed or pasted text → its digits, with a country or trunk prefix
  * dropped only when exactly 10 national digits remain (11 digits starting
  * 0, 12 starting 91, 13 starting 091 or 910, 14 starting 0091). Anything
- * else is kept as typed (up to 14 digits) and simply fails validation —
- * never silently truncated, which would turn a key-by-key `+919876543210`
- * into the valid-looking `9198765432`. */
+ * else is kept as typed and simply fails validation — never silently
+ * truncated, which would turn a key-by-key `+919876543210` into the
+ * valid-looking `9198765432`. Past 14 digits the value is capped at 15, so
+ * it stays visibly too long instead of becoming some other number. */
 export function nationalDigits(raw: string): string {
-  const d = toAsciiDigits(raw).replace(/[^0-9]/g, "").slice(0, MAX_TYPED_DIGITS);
+  const d = asciiDigits(raw);
+  if (d.length > MAX_TYPED_DIGITS) return d.slice(0, MAX_TYPED_DIGITS + 1);
   if (d.length === 11 && d.startsWith("0")) return d.slice(1);
   if (d.length === 12 && d.startsWith("91")) return d.slice(2);
   if (d.length === 13 && (d.startsWith("091") || d.startsWith("910"))) return d.slice(3);
