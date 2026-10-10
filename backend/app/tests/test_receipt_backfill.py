@@ -177,3 +177,49 @@ async def test_backfill_script_fails_the_deploy_on_errors(
     with patch("app.services.receipts.build_snapshot", side_effect=RuntimeError("boom")):
         assert await script._main() == 1
     assert await script._main() == 0
+
+
+async def test_overlapping_run_is_a_skip_not_a_failure(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    from app.db.session import async_session_factory
+
+    oid = await _delivered_order(session, seed, delivered_at=datetime(2026, 10, 1, tzinfo=UTC))
+    real_issue = receipts_svc.issue_for_order
+
+    async def racing(sess: Any, order: Any, **kwargs: Any) -> Any:
+        # Another run (its own session) issues this order's receipt first.
+        async with async_session_factory() as other:
+            other_order = await other.get(Order, order.id)
+            assert other_order is not None
+            await real_issue(other, other_order, **kwargs)
+            await other.commit()
+        return await real_issue(sess, order, **kwargs)
+
+    with patch("app.services.receipts.issue_for_order", side_effect=racing):
+        assert await issue_missing(session) == (0, 0)
+    assert set(await _numbers(session)) == {oid}
+
+
+async def test_counter_out_of_step_counts_as_a_failure(
+    as_customer: Any, seed: dict[str, int], session: AsyncSession
+) -> None:
+    taken = await _delivered_order(session, seed, delivered_at=datetime(2026, 10, 1, tzinfo=UTC))
+    oid = await _delivered_order(session, seed, delivered_at=datetime(2026, 10, 2, tzinfo=UTC))
+    # A receipt already holds seq 1 but the counter row is missing, so the
+    # next number collides on (store, year, seq): a real bug, not an overlap.
+    session.add(
+        OrderReceipt(
+            order_id=taken,
+            store_id=seed["store_a"],
+            fiscal_year=2026,
+            seq=1,
+            number="RC-2627-000001",
+            issued_at=datetime(2026, 10, 1, tzinfo=UTC),
+            issued_via="backfill",
+            snapshot={"version": 1},
+        )
+    )
+    await session.commit()
+    assert await issue_missing(session) == (0, 1)
+    assert oid not in await _numbers(session)

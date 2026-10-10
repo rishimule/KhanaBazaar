@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from celery.exceptions import Retry
 from httpx import ASGITransport, AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -143,6 +144,8 @@ def test_store_name_printed_once_when_it_is_the_business_name() -> None:
     ).text.splitlines()
     assert "Sold by: Store A" in lines
     assert "1 Market St, Bengaluru" in lines
+    html = render_email("order_receipt", {**email_context(receipt), "recipient": "customer"}).html
+    assert html.count("Store A") == 2  # the "Sold by" name + the subject in <title>
 
 
 async def _deliver(seed: dict[str, int]) -> int:
@@ -223,6 +226,45 @@ async def test_broken_receipt_falls_back_to_the_plain_email(
     # plain "delivered" email, so a broken receipt sends them nothing.
     assert [c.args[0] for c in sent.call_args_list] == ["customer@example.com"]
     assert "is now delivered" in sent.call_args.args[1]
+
+
+async def test_failed_send_retries_instead_of_falling_back(
+    as_customer: Any, seed: dict[str, int]
+) -> None:
+    from app import worker
+
+    target = await _deliver(seed)
+    sent = MagicMock(side_effect=ConnectionError("smtp down"))
+    plain = MagicMock()
+    with (
+        patch("app.worker._resolve_email", sent),
+        patch("app.worker._load_order_email_context", plain),
+        pytest.raises((ConnectionError, Retry)),
+    ):
+        worker.send_order_status_changed_async(target, "delivered", "customer")
+    # The receipt send was attempted and raised into Celery's retry; the
+    # plain email was never built, so a retry can't double up.
+    assert sent.call_count >= 1
+    assert all("Your receipt for order" in c.args[1] for c in sent.call_args_list)
+    plain.assert_not_called()
+
+
+def test_database_blip_retries_instead_of_falling_back() -> None:
+    from sqlalchemy.exc import OperationalError
+
+    from app import worker
+
+    plain = MagicMock()
+    with (
+        patch(
+            "app.services.receipts.load_receipt_mail",
+            side_effect=OperationalError("SELECT 1", {}, Exception("connection reset")),
+        ),
+        patch("app.worker._load_order_email_context", plain),
+        pytest.raises((OperationalError, Retry)),
+    ):
+        worker.send_order_status_changed_async(7, "delivered", "customer")
+    plain.assert_not_called()
 
 
 def test_no_receipt_falls_back_to_the_status_email() -> None:

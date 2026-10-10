@@ -19,10 +19,11 @@ FSSAI licence: {{ seller.fssai }}
 {% endif %}
 
 Billed to: {{ customer.name }}{{ (" · " ~ customer.phone) if customer.phone else "" }}
-
 {% if is_pickup %}
+
 Collected at: {{ seller.store_name }}
 {% elif has_deliver_to %}
+
 Delivered to: {{ ", ".join([recipient_line, deliver_to.address or ""]|select|list) }}
 {% endif %}
 

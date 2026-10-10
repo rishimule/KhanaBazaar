@@ -765,8 +765,11 @@ async def receipt_email(order_id: int, recipient: str) -> bool:
     2026-10-10 §6.2). False when there is no receipt to send (none issued
     yet, or loading/rendering it failed), so the caller falls back to the
     plain "delivered" email; True once handled (sent, or skipped for an
-    inactive recipient). Only a failed *send* raises, into Celery's retry.
+    inactive recipient). A failed send or a database error raises, into
+    Celery's retry.
     Reads via async_session_factory so tests hit the test DB, not the dev one."""
+    from sqlalchemy.exc import SQLAlchemyError
+
     from app.core.config import settings
     from app.core.email_render import render_email
     from app.db.session import async_session_factory
@@ -786,8 +789,13 @@ async def receipt_email(order_id: int, recipient: str) -> bool:
             if to
             else None
         )
+    except (SQLAlchemyError, OSError, TimeoutError):
+        # A database blip is transient: let Celery retry the receipt rather
+        # than settle for the plain email (or, for a seller, nothing).
+        raise
     except Exception:
-        # A receipt bug must not cost the customer their completion email.
+        # A receipt bug (bad snapshot, template error) must not cost the
+        # customer their completion email.
         logging.getLogger(__name__).exception(
             "receipt_email_failed order_id=%s recipient=%s", order_id, recipient
         )

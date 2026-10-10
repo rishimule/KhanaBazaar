@@ -288,15 +288,22 @@ async def issue_in_savepoint(
     Rolling the savepoint back also returns the number; the hourly sweep
     issues the missing receipt later."""
     order_id = order.id
-    # Flush the delivery's own changes first, outside the try: begin_nested()
-    # would otherwise flush them inside it, and a failure there is the
-    # delivery's, not the receipt's — it must surface, not be swallowed.
+    # Flush the delivery's own changes before the try: begin_nested() flushes
+    # first too, and a failure there belongs to the delivery, so it must
+    # surface rather than be logged and swallowed as receipt_issue_failed.
     await session.flush()
     try:
         async with session.begin_nested():
             await issue_for_order(session, order, delivered_at=delivered_at, via="delivery")
     except Exception:
         logger.exception("receipt_issue_failed order_id=%s", order_id)
+
+
+async def _has_receipt(session: AsyncSession, order_id: Optional[int]) -> bool:
+    found = await session.exec(
+        select(OrderReceipt.id).where(OrderReceipt.order_id == order_id)
+    )
+    return found.first() is not None
 
 
 class BackfillResult(NamedTuple):
@@ -333,9 +340,14 @@ async def issue_missing(
             await session.commit()
             issued += 1
         except IntegrityError:
-            # An overlapping run (sweep vs deploy backfill) got there first.
             await session.rollback()
-            logger.info("receipt_backfill_skipped order_id=%s already issued", order_id)
+            # Only "an overlapping run (sweep vs deploy backfill) got there
+            # first" is benign; any other constraint failure is a real bug.
+            if await _has_receipt(session, order_id):
+                logger.info("receipt_backfill_skipped order_id=%s already issued", order_id)
+            else:
+                failed += 1
+                logger.exception("receipt_backfill_failed order_id=%s", order_id)
         except Exception:
             await session.rollback()
             failed += 1
