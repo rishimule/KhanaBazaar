@@ -14,7 +14,7 @@
       <td valign="top" width="50%" style="padding:0 8px 0 0;font-size:14px;color:#1f2937;">
         <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Sold by</div>
         <div><strong>{{ seller.business_name }}</strong></div>
-        <div>{{ seller.store_name }}</div>
+        {% if seller.store_name != seller.business_name %}<div>{{ seller.store_name }}</div>{% endif %}
         {% if seller.store_address %}<div>{{ seller.store_address }}</div>{% endif %}
         {% if seller.gstin %}<div>GSTIN: {{ seller.gstin }}</div>{% endif %}
         {% if seller.fssai %}<div>FSSAI licence: {{ seller.fssai }}</div>{% endif %}
@@ -23,12 +23,14 @@
         <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Billed to</div>
         <div><strong>{{ customer.name }}</strong></div>
         {% if customer.phone %}<div>{{ customer.phone }}</div>{% endif %}
+        {% if has_deliver_to %}
         <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;margin:12px 0 4px;">{{ 'Collected at' if is_pickup else 'Delivered to' }}</div>
-        {% if is_pickup %}
+          {% if is_pickup %}
         <div>{{ seller.store_name }}</div>
-        {% elif deliver_to %}
-          {% if deliver_to.name %}<div>{{ deliver_to.name }}{% if deliver_to.phone %} · {{ deliver_to.phone }}{% endif %}</div>{% endif %}
-          {% if deliver_to.address %}<div>{{ deliver_to.address }}</div>{% endif %}
+          {% else %}
+            {% if recipient_line %}<div>{{ recipient_line }}</div>{% endif %}
+            {% if deliver_to.address %}<div>{{ deliver_to.address }}</div>{% endif %}
+          {% endif %}
         {% endif %}
       </td>
     </tr>

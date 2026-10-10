@@ -394,6 +394,8 @@ def email_context(receipt: OrderReceipt) -> dict[str, object]:
     StrictUndefined."""
     snap = ReceiptSnapshotV1.model_validate(receipt.snapshot)
     is_pickup = snap.order.delivery_mode == DeliveryMode.Pickup.value
+    to = snap.deliver_to
+    recipient_line = " · ".join(p for p in (to.name, to.phone) if p) if to is not None else ""
     return {
         "order_id": snap.order.id,
         "number": receipt.number,
@@ -407,7 +409,10 @@ def email_context(receipt: OrderReceipt) -> dict[str, object]:
         "store_name": snap.seller.store_name,
         "seller": snap.seller.model_dump(),
         "customer": snap.customer.model_dump(),
-        "deliver_to": snap.deliver_to.model_dump() if snap.deliver_to is not None else None,
+        "deliver_to": to.model_dump() if to is not None else None,
+        # Spec §3.2: a door/courier block with nothing recorded is skipped.
+        "has_deliver_to": is_pickup or bool(to and (to.name or to.phone or to.address)),
+        "recipient_line": recipient_line,
         "items": [item.model_dump() for item in snap.items],
         "amounts": snap.amounts.model_dump(),
         "payment_line": payment_line(snap),

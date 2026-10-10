@@ -60,7 +60,7 @@ export default function ReceiptDocument({
         <div>
           <h3 className={styles.label}>{t("soldBy")}</h3>
           <p className={styles.strong}>{s.seller.business_name}</p>
-          <p>{s.seller.store_name}</p>
+          {s.seller.store_name !== s.seller.business_name && <p>{s.seller.store_name}</p>}
           {s.seller.store_address && <p>{s.seller.store_address}</p>}
           {s.seller.gstin && <p>{t("gstin", { value: s.seller.gstin })}</p>}
           {s.seller.fssai && <p>{t("fssai", { value: s.seller.fssai })}</p>}

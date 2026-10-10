@@ -7,7 +7,7 @@ Receipt {{ number }} · {{ issued_label }}
 Issued from order records on {{ reissued_label }}
 {% endif %}
 
-Sold by: {{ seller.business_name }}, {{ seller.store_name }}
+Sold by: {{ seller.business_name }}{{ (", " ~ seller.store_name) if seller.store_name != seller.business_name else "" }}
 {% if seller.store_address %}
 {{ seller.store_address }}
 {% endif %}
@@ -18,12 +18,12 @@ GSTIN: {{ seller.gstin }}
 FSSAI licence: {{ seller.fssai }}
 {% endif %}
 
-Billed to: {{ customer.name }}{% if customer.phone %} · {{ customer.phone }}{% endif %}
+Billed to: {{ customer.name }}{{ (" · " ~ customer.phone) if customer.phone else "" }}
 
 {% if is_pickup %}
 Collected at: {{ seller.store_name }}
-{% elif deliver_to %}
-Delivered to: {% if deliver_to.name %}{{ deliver_to.name }}{% if deliver_to.phone %} · {{ deliver_to.phone }}{% endif %}, {% endif %}{{ deliver_to.address or '' }}
+{% elif has_deliver_to %}
+Delivered to: {{ ", ".join([recipient_line, deliver_to.address or ""]|select|list) }}
 {% endif %}
 
 {% for item in items %}

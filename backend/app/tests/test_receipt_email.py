@@ -121,6 +121,30 @@ def test_pickup_text_reads_cleanly() -> None:
     assert "Collected — order #7 · Grocery" in lines
 
 
+def test_empty_deliver_to_block_is_skipped() -> None:
+    receipt = _receipt()
+    receipt.snapshot["deliver_to"] = {"name": None, "phone": None, "address": None}
+    payload = render_email("order_receipt", {**email_context(receipt), "recipient": "customer"})
+    assert "Delivered to" not in payload.html and "Delivered to" not in payload.text
+
+
+def test_phone_without_a_name_still_shows() -> None:
+    receipt = _receipt()
+    receipt.snapshot["deliver_to"] = {"name": None, "phone": "+919811111111", "address": None}
+    text = render_email("order_receipt", {**email_context(receipt), "recipient": "customer"}).text
+    assert "Delivered to: +919811111111" in text.splitlines()
+
+
+def test_store_name_printed_once_when_it_is_the_business_name() -> None:
+    receipt = _receipt()
+    receipt.snapshot["seller"]["business_name"] = "Store A"
+    lines = render_email(
+        "order_receipt", {**email_context(receipt), "recipient": "customer"}
+    ).text.splitlines()
+    assert "Sold by: Store A" in lines
+    assert "1 Market St, Bengaluru" in lines
+
+
 async def _deliver(seed: dict[str, int]) -> int:
     order_ids = await _place_orders(seed)
     target = await _order_id_for_store(order_ids, seed["store_a"])
