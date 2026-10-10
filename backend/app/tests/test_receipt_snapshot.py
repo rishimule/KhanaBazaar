@@ -195,6 +195,20 @@ def test_store_credit_covering_everything() -> None:
     assert payment_line(snap) == "Paid with store credit"
 
 
+def test_store_credit_covering_a_credit_order() -> None:
+    snap = build_snapshot(
+        _inputs(
+            method=PaymentMethod.Credit,
+            status=PaymentStatus.Pending,
+            amount=0.0,
+            store_credit=110.0,
+        ),
+        delivered_at=DELIVERED,
+    )
+    assert snap.payment.settled == "on_credit"
+    assert payment_line(snap) == "Paid with store credit"
+
+
 def test_missing_payment_row_is_unpaid() -> None:
     snap = build_snapshot(_inputs(with_payment=False), delivered_at=DELIVERED)
     assert snap.payment.settled == "unpaid" and snap.payment.method is None

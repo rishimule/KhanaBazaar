@@ -1,0 +1,1 @@
+{% if recipient == 'seller' %}[{{ brand_name }}] Seller copy: receipt {{ number }} · order #{{ order_id }}{% else %}[{{ brand_name }}] Your receipt for order #{{ order_id }} from {{ store_name }}{% endif %}

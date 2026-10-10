@@ -119,13 +119,14 @@ async def test_seller_marks_delivered_without_otp(session: AsyncSession) -> None
 async def test_customer_marks_received(session: AsyncSession) -> None:
     world = await seed_courier_world(session)
     order = await order_at_dispatched(world)
-    review = MagicMock()
-    with patch("app.api.orders.dispatch_order_review_request", review):
+    status_changed = MagicMock()
+    with patch("app.api.orders.dispatch_order_status_changed", status_changed):
         async with client_as(CUSTOMER) as ac:
             resp = await ac.post(f"/api/v1/orders/{order['id']}/courier/received")
     assert resp.status_code == 200, resp.text
     assert resp.json()["courier"]["delivered_by"] == "customer"
-    review.assert_called_once_with(order["id"])
+    # Receipt to both parties; the dispatcher also schedules the review request.
+    status_changed.assert_called_once_with(order["id"], "delivered")
     assert "courier_customer_received" in await _statuses(session, order["id"])
 
 

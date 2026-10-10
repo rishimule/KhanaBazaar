@@ -760,6 +760,45 @@ def _courier_status_extras(ctx: dict[str, Any], new_status: str) -> dict[str, An
     }
 
 
+async def receipt_email(order_id: int, recipient: str) -> bool:
+    """The receipt branch of `send_order_status_changed_async` (spec
+    2026-10-10 §6.2). False when there is no receipt to send (none issued
+    yet, or loading/rendering it failed), so the caller falls back to the
+    plain "delivered" email; True once handled (sent, or skipped for an
+    inactive recipient). Only a failed *send* raises, into Celery's retry.
+    Reads via async_session_factory so tests hit the test DB, not the dev one."""
+    from app.core.config import settings
+    from app.core.email_render import render_email
+    from app.db.session import async_session_factory
+    from app.services.receipts import load_receipt_mail
+
+    try:
+        async with async_session_factory() as session:
+            mail = await load_receipt_mail(session, order_id)
+        if mail is None:
+            return False
+        if recipient == "seller":
+            to = mail.seller_email if mail.seller_active else None
+        else:
+            to = mail.customer_email if mail.customer_active else None
+        payload = (
+            render_email("order_receipt", {**mail.context, "recipient": recipient})
+            if to
+            else None
+        )
+    except Exception:
+        # A receipt bug must not cost the customer their completion email.
+        logging.getLogger(__name__).exception(
+            "receipt_email_failed order_id=%s recipient=%s", order_id, recipient
+        )
+        return False
+    if to and payload is not None:
+        _resolve_email(
+            to, payload.subject, payload.text, html=payload.html, reply_to=settings.EMAIL_REPLY_TO
+        )
+    return True
+
+
 @celery_app.task(  # type: ignore[untyped-decorator]
     name="send_order_status_changed_async",
     autoretry_for=(Exception,),
@@ -772,9 +811,25 @@ def send_order_status_changed_async(
     recipient: Literal["customer", "seller"] = "customer",
     reason: str | None = None,
 ) -> None:
-    """Notify the customer or seller that an order status changed."""
+    """Notify the customer or seller that an order status changed (delivered → the receipt)."""
     from app.core.config import settings
     from app.core.email_render import render_email
+
+    # Delivered → the receipt replaces this email (spec 2026-10-10 §6.2). It
+    # rides this task name so a not-yet-restarted worker mid-deploy still
+    # sends the plain email instead of dropping an unknown task.
+    if new_status == "delivered":
+        import asyncio
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            handled = executor.submit(
+                lambda: asyncio.run(receipt_email(order_id, recipient))
+            ).result()
+        # The plain fallback is for the customer only: sellers never got a
+        # "delivered" email before receipts.
+        if handled or recipient == "seller":
+            return
 
     ctx = _load_order_email_context(order_id)
     if not ctx:
@@ -2561,6 +2616,25 @@ def send_courier_reminders() -> int:
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         return executor.submit(lambda: asyncio.run(run_courier_reminder_sweep())).result()
+
+
+@celery_app.task(name="receipts.issue_missing")  # type: ignore[untyped-decorator]
+def issue_missing_receipts() -> int:
+    """Hourly repair (spec 2026-10-10 §7): receipts for delivered orders that
+    have none — one the old API delivered during a deploy, or a live issue
+    that failed in its savepoint. Never emails; returns how many it issued."""
+    import asyncio
+    import concurrent.futures
+
+    from app.db.session import async_session_factory
+    from app.services.receipts import issue_missing
+
+    async def _run() -> int:
+        async with async_session_factory() as session:
+            return (await issue_missing(session, limit=500)).issued
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(_run())).result()
 
 
 def _load_return_email_context(return_id: int) -> dict[str, Any]:

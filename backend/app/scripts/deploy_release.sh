@@ -32,6 +32,9 @@ PY
 echo "==> alembic upgrade head"
 alembic upgrade head
 
+echo "==> backfill order receipts (idempotent; no emails)"
+python scripts/backfill_order_receipts.py
+
 echo "==> backfill freebie fee arrangements (idempotent)"
 python scripts/backfill_freebie_arrangements.py
 

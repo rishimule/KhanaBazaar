@@ -88,7 +88,8 @@ def dispatch_order_status_changed(
     notify_seller: bool = False,
     reason: str | None = None,
 ) -> None:
-    """Notify the customer (always) and optionally the seller of a status change.
+    """Notify the customer (always) and optionally the seller of a status change;
+    `delivered` always includes the seller, whose email is their receipt copy.
 
     When ``new_status == "delivered"``, also schedule the post-delivery
     review-request email for 24h later.
@@ -96,7 +97,8 @@ def dispatch_order_status_changed(
     _safe_delay(
         send_order_status_changed_async, order_id, new_status, "customer", reason
     )
-    if notify_seller:
+    # Both parties get the receipt on delivery (spec 2026-10-10 §6.2).
+    if notify_seller or new_status == "delivered":
         _safe_delay(
             send_order_status_changed_async, order_id, new_status, "seller", reason
         )

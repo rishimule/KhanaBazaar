@@ -62,6 +62,7 @@ from app.schemas.orders import (
     TransitionRequest,
 )
 from app.schemas.price_comparison import ReplaceAdjustment
+from app.schemas.receipts import ReceiptRead
 from app.schemas.reorder import ReorderResolveResponse, ResolvedReorderItem
 from app.schemas.reviews import OrderReviewCreate, OrderReviewRead
 from app.schemas.stores import UpiPayeeRead
@@ -79,7 +80,6 @@ from app.services.order_emails import (
     dispatch_admin_order_action,
     dispatch_delivery_otp,
     dispatch_order_placed,
-    dispatch_order_review_request,
     dispatch_order_status_changed,
 )
 from app.services.order_whatsapp import dispatch_order_status_whatsapp
@@ -97,6 +97,7 @@ from app.services.payment_methods import (
     saved_upi,
     seller_for_store,
 )
+from app.services.receipts import read_receipt
 from app.services.seller_order_notifications import (
     record_seller_new_order_notification,
 )
@@ -911,7 +912,8 @@ async def courier_mark_received(
     order, include_customer = await _load_order_for_user(session, order_id, user)
     order = await courier_svc.mark_received(session, order, user)
     if order.id is not None:
-        dispatch_order_review_request(order.id)
+        # Receipt to both parties, plus the review request (spec 2026-10-10 §6.2).
+        dispatch_order_status_changed(order.id, "delivered")
     await courier_comms.notify_seller(session, order, "customer_received")
     return await _serialize_order(
         session,
@@ -919,6 +921,23 @@ async def courier_mark_received(
         include_customer_name=include_customer,
         viewer_is_admin=is_admin,
     )
+
+
+@router.get("/{order_id}/receipt", response_model=ReceiptRead)
+async def get_order_receipt(
+    order_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> ReceiptRead:
+    """The order's receipt (spec 2026-10-10 §5.1): the owning customer, the
+    store's seller, or any admin — the same access as the order itself."""
+    order, _ = await _load_order_for_user(session, order_id, user)
+    if order.status != OrderStatus.Delivered:
+        raise HTTPException(status_code=409, detail={"code": "order_not_delivered"})
+    receipt = await read_receipt(session, order_id)
+    if receipt is None:
+        raise HTTPException(status_code=404, detail={"code": "receipt_not_issued"})
+    return receipt
 
 
 @router.post("/{order_id}/payment/refund-sent", response_model=OrderRead)
