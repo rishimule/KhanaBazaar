@@ -149,6 +149,7 @@ pending ──► packed ──► dispatched ──► delivered   (terminal)
 
 - Forward transitions via `POST /orders/{id}/transition { to: "packed" | "dispatched" | "delivered" }`. Authorized for the seller who owns the store, or any admin.
 - `delivered` writes `Delivery.delivered_at` and flips `Payment.status` to `paid` + sets `paid_at`.
+- `delivered` also issues the order's receipt in the same transaction (`services/receipts.issue_in_savepoint`; numbered per store per financial year). See `docs/superpowers/specs/2026-10-10-order-receipts-design.md`.
 - Cancellation via `POST /orders/{id}/cancel`. Customer can cancel only while `pending`; seller/admin can cancel any non-terminal order. Cancel re-locks every line's `StoreInventory` row and `restock`s the quantities.
 
 **Email side-effects** (`backend/app/src/app/services/order_emails.py`, dispatched as Celery tasks):
@@ -156,7 +157,8 @@ pending ──► packed ──► dispatched ──► delivered   (terminal)
 | Event | Customer | Seller |
 |-------|----------|--------|
 | Order placed | one summary email per checkout (all orders) | one per order at their store |
-| Status transition (packed/dispatched/delivered) | always | not by default |
+| Status transition (packed/dispatched) | always | not by default |
+| Delivered | the receipt (replaces the status email) | the receipt, "Seller copy" |
 | Cancellation | yes | yes (`notify_seller=True`) |
 
 Broker errors (Kombu/Redis outage) get caught and logged in `_safe_delay`; the request path never fails because of email infra.
