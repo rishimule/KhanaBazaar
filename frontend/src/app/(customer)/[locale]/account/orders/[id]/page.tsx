@@ -25,6 +25,7 @@ import CourierPayPanel from "@/components/orders/courier/CourierPayPanel";
 import CourierQuoteCard from "@/components/orders/courier/CourierQuoteCard";
 import CourierSummary from "@/components/orders/courier/CourierSummary";
 import { courierChargePending, latestQuote } from "@/lib/courier";
+import { Link } from "@/i18n/navigation";
 import type { Order } from "@/types";
 import styles from "./page.module.css";
 
@@ -35,6 +36,7 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
   const tErr = useTranslations("Errors");
   const tpm = useTranslations("Order.payment.method");
   const tco = useTranslations("Order.courier");
+  const tReceipt = useTranslations("Receipt");
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -187,6 +189,11 @@ export default function CustomerOrderDetailPage({ params }: { params: Promise<{ 
       <section className={styles.section}>
         <div className={styles.actionRow}>
           <ReorderButton orderId={order.id} className={styles.reorderBtn} />
+          {order.status === "delivered" && (
+            <Link href={`/account/orders/${order.id}/receipt`} className="btn">
+              {tReceipt("viewReceipt")}
+            </Link>
+          )}
           {isCourier ? (
             <CourierCustomerActions order={order} onChange={setOrder} />
           ) : (

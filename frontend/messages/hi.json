@@ -3332,5 +3332,59 @@
     "errConfirmAgain": "कृपया अपने मोबाइल नंबर की फिर से पुष्टि करें।",
     "errEmailRegistered": "इस ईमेल से पहले से एक खाता है। जारी रखने के लिए साइन इन करें।",
     "errSendFailed": "कोड नहीं भेजा जा सका। कृपया फिर प्रयास करें।"
+  },
+  "Receipt": {
+    "title": "रसीद",
+    "sellerCopy": "विक्रेता प्रति",
+    "number": "रसीद संख्या {number}",
+    "headline": {
+      "delivered": "डिलीवर किया गया: {date}",
+      "collected": "स्टोर से लिया गया: {date}"
+    },
+    "reissued": "{date} को ऑर्डर रिकॉर्ड से जारी की गई",
+    "orderRef": "ऑर्डर #{id} · {service}",
+    "placedOn": "ऑर्डर किया गया: {date}",
+    "soldBy": "विक्रेता",
+    "gstin": "GSTIN: {value}",
+    "fssai": "FSSAI लाइसेंस: {value}",
+    "billedTo": "ग्राहक",
+    "deliveredTo": "डिलीवरी पता",
+    "collectedAtLabel": "पिकअप स्थान",
+    "item": "सामान",
+    "qty": "मात्रा",
+    "unitPrice": "मूल्य",
+    "lineTotal": "कुल",
+    "subtotal": "उप-योग",
+    "deliveryFee": "डिलीवरी",
+    "courierCharge": "कूरियर शुल्क",
+    "free": "मुफ़्त",
+    "total": "कुल",
+    "storeCreditUsed": "उपयोग किया गया स्टोर क्रेडिट",
+    "amount": "₹{amount}",
+    "minusAmount": "−₹{amount}",
+    "payment": {
+      "paid": "₹{amount} का भुगतान · {method}",
+      "paidWithStoreCredit": "स्टोर क्रेडिट से भुगतान किया गया",
+      "onCredit": "₹{amount} {store} के क्रेडिट खाते में दर्ज",
+      "unpaid": "भुगतान दर्ज नहीं है"
+    },
+    "method": {
+      "upi": "UPI",
+      "cash": "कैश ऑन डिलीवरी",
+      "credit": "क्रेडिट",
+      "net_banking": "बैंक ट्रांसफ़र",
+      "pay_at_store": "स्टोर पर भुगतान किया"
+    },
+    "notTaxInvoice": "यह ऑर्डर की रसीद है, टैक्स इनवॉइस नहीं।",
+    "print": "प्रिंट करें / PDF सहेजें",
+    "backToOrder": "ऑर्डर पर वापस जाएँ",
+    "viewReceipt": "रसीद देखें",
+    "loading": "रसीद लोड हो रही है…",
+    "loadError": "रसीद लोड नहीं हो सकी।",
+    "notIssued": "आपकी रसीद तैयार की जा रही है। एक घंटे बाद फिर देखें।",
+    "notDelivered": "ऑर्डर डिलीवर होने पर रसीद जारी की जाती है।",
+    "laterTitle": "इस रसीद के बाद के बदलाव",
+    "laterRefunded": "{date} को भुगतान वापस किया गया",
+    "laterReturn": "वापसी #{id} — {status}"
   }
 }

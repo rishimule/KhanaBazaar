@@ -1,0 +1,185 @@
+/*
+ * Copyright (c) 2026 Rishi Mule. All Rights Reserved.
+ * This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
+ */
+.screen {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--font-family-sans);
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status {
+  color: var(--shade-cool-base-5);
+  font-size: var(--body-sm);
+}
+
+.receipt,
+.later {
+  padding: 24px;
+  background: var(--white);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  color: var(--shade-cool-dark-7);
+}
+
+.receipt p,
+.later p {
+  margin: 0;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.copyLabel,
+.label {
+  font-size: var(--body-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--shade-cool-base-5);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 4px;
+}
+
+.labelGap {
+  margin-top: 12px;
+}
+
+.title {
+  font-size: var(--display-lg);
+  font-weight: var(--weight-medium);
+  margin: 0 0 4px;
+}
+
+.meta,
+.note {
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-5);
+}
+
+.orderRef {
+  text-align: right;
+}
+
+.parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.strong {
+  font-weight: var(--weight-semibold);
+}
+
+.items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--body-sm);
+}
+
+.items th,
+.items td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hairline);
+  text-align: left;
+}
+
+.items th {
+  font-weight: var(--weight-medium);
+  color: var(--shade-cool-base-5);
+}
+
+.itemName {
+  overflow-wrap: anywhere;
+}
+
+.items .num {
+  text-align: right;
+  white-space: nowrap;
+  padding-left: 12px;
+}
+
+.totals {
+  margin: 12px 0 0 auto;
+  max-width: 320px;
+  display: grid;
+  gap: 4px;
+  break-inside: avoid;
+}
+
+.totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.totals dt,
+.totals dd {
+  margin: 0;
+}
+
+.grand {
+  font-weight: var(--weight-semibold);
+  border-top: 1px solid var(--hairline);
+  padding-top: 6px;
+}
+
+.receipt .payment {
+  margin-top: 16px;
+  font-weight: var(--weight-semibold);
+}
+
+.receipt .footer {
+  margin-top: 12px;
+  font-size: var(--body-sm);
+  color: var(--shade-cool-base-5);
+}
+
+.later ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+@media (max-width: 640px) {
+  .parties {
+    grid-template-columns: 1fr;
+  }
+  .orderRef {
+    text-align: left;
+  }
+  .receipt,
+  .later {
+    padding: 16px;
+  }
+}
+
+@media print {
+  .receipt,
+  .later {
+    border: 0;
+    padding: 0;
+  }
+  /* Visibly separate from the receipt itself (spec §5.3). */
+  .later {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--hairline);
+  }
+}

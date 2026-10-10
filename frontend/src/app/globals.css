@@ -420,3 +420,35 @@ ul, ol {
     scroll-behavior: auto !important;
   }
 }
+
+/* Order receipt printing (spec 2026-10-10 §5.2). Only on pages that hold a
+   receipt: drop every element that neither is a .kb-receipt-print block,
+   holds one, nor sits inside one, and flatten the wrappers around it, so the
+   page chrome (navbar, sidebars, footers) prints as nothing, not as blank
+   pages. Lives here because CSS Modules reject a bare `body` selector. */
+@media print {
+  body:has(.kb-receipt-print)
+    *:not(.kb-receipt-print):not(.kb-receipt-print *):not(:has(.kb-receipt-print)) {
+    display: none !important;
+  }
+  body:has(.kb-receipt-print) *:has(.kb-receipt-print) {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: none !important;
+    max-width: none !important;
+    width: auto !important;
+    min-height: 0 !important;
+    position: static !important;
+    overflow: visible !important;
+  }
+  /* body keeps padding-top: var(--nav-height) for the hidden navbar. */
+  body:has(.kb-receipt-print) {
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
+  body:has(.kb-receipt-print) .kb-no-print {
+    display: none !important;
+  }
+}

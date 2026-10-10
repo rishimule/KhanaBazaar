@@ -3332,5 +3332,59 @@
     "errConfirmAgain": "ਕਿਰਪਾ ਕਰਕੇ ਆਪਣੇ ਮੋਬਾਈਲ ਨੰਬਰ ਦੀ ਦੁਬਾਰਾ ਪੁਸ਼ਟੀ ਕਰੋ।",
     "errEmailRegistered": "ਇਸ ਈਮੇਲ ਦਾ ਪਹਿਲਾਂ ਹੀ ਖਾਤਾ ਹੈ। ਜਾਰੀ ਰੱਖਣ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ।",
     "errSendFailed": "ਕੋਡ ਨਹੀਂ ਭੇਜਿਆ ਜਾ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।"
+  },
+  "Receipt": {
+    "title": "ਰਸੀਦ",
+    "sellerCopy": "ਵਿਕਰੇਤਾ ਦੀ ਕਾਪੀ",
+    "number": "ਰਸੀਦ ਨੰਬਰ {number}",
+    "headline": {
+      "delivered": "ਡਿਲਿਵਰ ਕੀਤਾ: {date}",
+      "collected": "ਸਟੋਰ ਤੋਂ ਲਿਆ: {date}"
+    },
+    "reissued": "{date} ਨੂੰ ਆਰਡਰ ਰਿਕਾਰਡ ਤੋਂ ਜਾਰੀ ਕੀਤੀ",
+    "orderRef": "ਆਰਡਰ #{id} · {service}",
+    "placedOn": "ਆਰਡਰ ਕੀਤਾ: {date}",
+    "soldBy": "ਵਿਕਰੇਤਾ",
+    "gstin": "GSTIN: {value}",
+    "fssai": "FSSAI ਲਾਇਸੈਂਸ: {value}",
+    "billedTo": "ਗਾਹਕ",
+    "deliveredTo": "ਡਿਲਿਵਰੀ ਪਤਾ",
+    "collectedAtLabel": "ਪਿਕਅੱਪ ਟਿਕਾਣਾ",
+    "item": "ਸਾਮਾਨ",
+    "qty": "ਮਾਤਰਾ",
+    "unitPrice": "ਕੀਮਤ",
+    "lineTotal": "ਕੁੱਲ",
+    "subtotal": "ਉਪ-ਜੋੜ",
+    "deliveryFee": "ਡਿਲਿਵਰੀ",
+    "courierCharge": "ਕੋਰੀਅਰ ਖਰਚਾ",
+    "free": "ਮੁਫ਼ਤ",
+    "total": "ਕੁੱਲ",
+    "storeCreditUsed": "ਵਰਤਿਆ ਸਟੋਰ ਕ੍ਰੈਡਿਟ",
+    "amount": "₹{amount}",
+    "minusAmount": "−₹{amount}",
+    "payment": {
+      "paid": "₹{amount} ਦਾ ਭੁਗਤਾਨ · {method}",
+      "paidWithStoreCredit": "ਸਟੋਰ ਕ੍ਰੈਡਿਟ ਨਾਲ ਭੁਗਤਾਨ ਕੀਤਾ",
+      "onCredit": "₹{amount} {store} ਦੇ ਕ੍ਰੈਡਿਟ ਖਾਤੇ ਵਿੱਚ ਦਰਜ",
+      "unpaid": "ਭੁਗਤਾਨ ਦਰਜ ਨਹੀਂ ਹੈ"
+    },
+    "method": {
+      "upi": "UPI",
+      "cash": "ਡਿਲੀਵਰੀ ਉੱਤੇ ਨਕਦ",
+      "credit": "ਕ੍ਰੈਡਿਟ",
+      "net_banking": "ਬੈਂਕ ਟ੍ਰਾਂਸਫਰ",
+      "pay_at_store": "ਸਟੋਰ ਉੱਤੇ ਭੁਗਤਾਨ ਕੀਤਾ"
+    },
+    "notTaxInvoice": "ਇਹ ਆਰਡਰ ਦੀ ਰਸੀਦ ਹੈ, ਟੈਕਸ ਇਨਵੌਇਸ ਨਹੀਂ।",
+    "print": "ਪ੍ਰਿੰਟ ਕਰੋ / PDF ਸੰਭਾਲੋ",
+    "backToOrder": "ਆਰਡਰ ਉੱਤੇ ਵਾਪਸ ਜਾਓ",
+    "viewReceipt": "ਰਸੀਦ ਵੇਖੋ",
+    "loading": "ਰਸੀਦ ਲੋਡ ਹੋ ਰਹੀ ਹੈ…",
+    "loadError": "ਰਸੀਦ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ।",
+    "notIssued": "ਤੁਹਾਡੀ ਰਸੀਦ ਤਿਆਰ ਹੋ ਰਹੀ ਹੈ। ਇੱਕ ਘੰਟੇ ਬਾਅਦ ਮੁੜ ਵੇਖੋ।",
+    "notDelivered": "ਆਰਡਰ ਡਿਲਿਵਰ ਹੋਣ ਤੋਂ ਬਾਅਦ ਰਸੀਦ ਜਾਰੀ ਹੁੰਦੀ ਹੈ।",
+    "laterTitle": "ਇਸ ਰਸੀਦ ਤੋਂ ਬਾਅਦ ਦੀਆਂ ਤਬਦੀਲੀਆਂ",
+    "laterRefunded": "{date} ਨੂੰ ਭੁਗਤਾਨ ਵਾਪਸ ਕੀਤਾ",
+    "laterReturn": "ਵਾਪਸੀ #{id} — {status}"
   }
 }

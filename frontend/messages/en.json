@@ -3331,5 +3331,59 @@
     "errConfirmAgain": "Please confirm your mobile number again.",
     "errEmailRegistered": "This email already has an account. Sign in to continue.",
     "errSendFailed": "Couldn't send the code. Please try again."
+  },
+  "Receipt": {
+    "title": "Receipt",
+    "sellerCopy": "Seller copy",
+    "number": "Receipt no. {number}",
+    "headline": {
+      "delivered": "Delivered {date}",
+      "collected": "Collected {date}"
+    },
+    "reissued": "Issued from order records on {date}",
+    "orderRef": "Order #{id} · {service}",
+    "placedOn": "Placed {date}",
+    "soldBy": "Sold by",
+    "gstin": "GSTIN: {value}",
+    "fssai": "FSSAI licence: {value}",
+    "billedTo": "Billed to",
+    "deliveredTo": "Delivered to",
+    "collectedAtLabel": "Collected at",
+    "item": "Item",
+    "qty": "Qty",
+    "unitPrice": "Price",
+    "lineTotal": "Total",
+    "subtotal": "Subtotal",
+    "deliveryFee": "Delivery",
+    "courierCharge": "Courier charge",
+    "free": "Free",
+    "total": "Total",
+    "storeCreditUsed": "Store credit used",
+    "amount": "₹{amount}",
+    "minusAmount": "−₹{amount}",
+    "payment": {
+      "paid": "Paid ₹{amount} · {method}",
+      "paidWithStoreCredit": "Paid with store credit",
+      "onCredit": "₹{amount} charged to the credit account with {store}",
+      "unpaid": "Payment not recorded"
+    },
+    "method": {
+      "upi": "UPI",
+      "cash": "Cash on delivery",
+      "credit": "Credit",
+      "net_banking": "Bank transfer",
+      "pay_at_store": "Paid at store"
+    },
+    "notTaxInvoice": "This is an order receipt, not a tax invoice.",
+    "print": "Print / Save as PDF",
+    "backToOrder": "Back to order",
+    "viewReceipt": "View receipt",
+    "loading": "Loading receipt…",
+    "loadError": "Could not load the receipt.",
+    "notIssued": "Your receipt is being prepared. Check back in an hour.",
+    "notDelivered": "A receipt is issued once the order is delivered.",
+    "laterTitle": "Changes after this receipt",
+    "laterRefunded": "Payment refunded on {date}",
+    "laterReturn": "Return #{id} — {status}"
   }
 }
