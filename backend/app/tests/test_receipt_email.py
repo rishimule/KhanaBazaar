@@ -145,7 +145,9 @@ def test_store_name_printed_once_when_it_is_the_business_name() -> None:
     assert "Sold by: Store A" in lines
     assert "1 Market St, Bengaluru" in lines
     html = render_email("order_receipt", {**email_context(receipt), "recipient": "customer"}).html
-    assert html.count("Store A") == 2  # the "Sold by" name + the subject in <title>
+    # The bold business name stays; the separate store-name line is dropped.
+    assert html.count("<strong>Store A</strong>") == 1
+    assert "<div>Store A</div>" not in html
 
 
 async def _deliver(seed: dict[str, int]) -> int:
