@@ -2,10 +2,31 @@
 # This code and its associated documentation cannot be copied, modified, or distributed without explicit permission from the author.
 """Pretty single-line formatter for structured addresses."""
 
-from app.schemas.address import AddressPayload
+from typing import Optional, Protocol
 
 
-def format_address(addr: AddressPayload) -> str:
+class AddressLike(Protocol):
+    """Anything with the address fields: an AddressPayload or an Address row.
+    Taking a row directly skips AddressPayload's country validators, so a
+    legacy address that predates them still formats (receipts must not fail)."""
+
+    @property
+    def address_line1(self) -> str: ...
+    @property
+    def address_line2(self) -> Optional[str]: ...
+    @property
+    def landmark(self) -> Optional[str]: ...
+    @property
+    def city(self) -> str: ...
+    @property
+    def state(self) -> str: ...
+    @property
+    def pincode(self) -> str: ...
+    @property
+    def country(self) -> str: ...
+
+
+def format_address(addr: AddressLike) -> str:
     parts: list[str] = [addr.address_line1]
     for optional in (addr.address_line2, addr.landmark):
         if optional and optional.strip():
