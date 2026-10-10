@@ -74,6 +74,7 @@ ignore = [
 # Reusing pytest fixtures imported from another test module reads as a
 # redefinition when the fixture name is taken as a test parameter.
 "tests/test_delivery_otp.py" = ["F811"]
+"tests/test_receipt_*.py" = ["F811"]
 
 [tool.mypy]
 python_version = "3.12"

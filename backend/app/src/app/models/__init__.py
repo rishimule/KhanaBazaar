@@ -76,6 +76,7 @@ from .profile import (
     SellerProfileService,
     VerificationStatus,
 )
+from .receipt import OrderReceipt, OrderReceiptCounter
 from .referral import (
     Referral,
     ReferralSettings,
@@ -162,6 +163,8 @@ __all__ = [
     "Order",
     "OrderCourier",
     "OrderItem",
+    "OrderReceipt",
+    "OrderReceiptCounter",
     "OrderStatus",
     "Payment",
     "PaymentMethod",
