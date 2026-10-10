@@ -3332,5 +3332,59 @@
     "errConfirmAgain": "कृपया तुमच्या मोबाइल नंबरची पुन्हा पुष्टी करा.",
     "errEmailRegistered": "या ईमेलचे आधीच खाते आहे. पुढे जाण्यासाठी साइन इन करा.",
     "errSendFailed": "कोड पाठवता आला नाही. कृपया पुन्हा प्रयत्न करा."
+  },
+  "Receipt": {
+    "title": "पावती",
+    "sellerCopy": "विक्रेत्याची प्रत",
+    "number": "पावती क्रमांक {number}",
+    "headline": {
+      "delivered": "डिलिव्हर केले: {date}",
+      "collected": "दुकानातून घेतले: {date}"
+    },
+    "reissued": "{date} रोजी ऑर्डरच्या नोंदींवरून जारी केली",
+    "orderRef": "ऑर्डर #{id} · {service}",
+    "placedOn": "ऑर्डर दिली: {date}",
+    "soldBy": "विक्रेता",
+    "gstin": "GSTIN: {value}",
+    "fssai": "FSSAI परवाना: {value}",
+    "billedTo": "ग्राहक",
+    "deliveredTo": "डिलिव्हरी पत्ता",
+    "collectedAtLabel": "पिकअप ठिकाण",
+    "item": "वस्तू",
+    "qty": "संख्या",
+    "unitPrice": "किंमत",
+    "lineTotal": "एकूण",
+    "subtotal": "उप-एकूण",
+    "deliveryFee": "डिलिव्हरी",
+    "courierCharge": "कुरिअर शुल्क",
+    "free": "मोफत",
+    "total": "एकूण",
+    "storeCreditUsed": "वापरलेले स्टोअर क्रेडिट",
+    "amount": "₹{amount}",
+    "minusAmount": "−₹{amount}",
+    "payment": {
+      "paid": "₹{amount} भरले · {method}",
+      "paidWithStoreCredit": "स्टोअर क्रेडिटने भरले",
+      "onCredit": "₹{amount} {store} च्या क्रेडिट खात्यावर नोंदवले",
+      "unpaid": "पेमेंटची नोंद नाही"
+    },
+    "method": {
+      "upi": "UPI",
+      "cash": "डिलिव्हरीवर रोख",
+      "credit": "क्रेडिट",
+      "net_banking": "बँक ट्रान्सफर",
+      "pay_at_store": "दुकानात पैसे भरले"
+    },
+    "notTaxInvoice": "ही ऑर्डरची पावती आहे, टॅक्स इनव्हॉइस नाही.",
+    "print": "प्रिंट करा / PDF जतन करा",
+    "backToOrder": "ऑर्डरवर परत जा",
+    "viewReceipt": "पावती पहा",
+    "loading": "पावती लोड होत आहे…",
+    "loadError": "पावती लोड करता आली नाही.",
+    "notIssued": "तुमची पावती तयार होत आहे. एका तासाने पुन्हा पहा.",
+    "notDelivered": "ऑर्डर डिलिव्हर झाल्यावर पावती जारी होते.",
+    "laterTitle": "या पावतीनंतरचे बदल",
+    "laterRefunded": "{date} रोजी पैसे परत केले",
+    "laterReturn": "वापसी #{id} — {status}"
   }
 }

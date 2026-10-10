@@ -1316,3 +1316,54 @@ export interface StoreCreditEntry {
   note: string | null;
   created_at: string;
 }
+
+// ─── Order receipts (spec 2026-10-10; mirrors backend schemas/receipts.py) ──
+
+export interface ReceiptSnapshot {
+  version: 1;
+  order: {
+    id: number;
+    placed_at: string;
+    delivered_at: string;
+    delivery_mode: DeliveryMode;
+    service_name: string;
+  };
+  seller: {
+    business_name: string;
+    store_name: string;
+    store_address: string | null;
+    gstin: string | null;
+    fssai: string | null;
+  };
+  customer: { name: string; phone: string | null };
+  /** Null for pickup orders. */
+  deliver_to: { name: string | null; phone: string | null; address: string | null } | null;
+  items: { name: string; quantity: number; unit_price: number; line_total: number }[];
+  amounts: {
+    subtotal: number;
+    delivery_fee: number;
+    delivery_fee_kind: "delivery" | "courier";
+    total: number;
+    store_credit_applied: number;
+    amount_paid: number;
+  };
+  payment: {
+    method: PaymentMethod | null;
+    settled: "paid" | "on_credit" | "unpaid";
+    paid_at: string | null;
+  };
+}
+
+export interface Receipt {
+  number: string;
+  issued_at: string;
+  issued_via: "delivery" | "backfill";
+  created_at: string;
+  order_id: number;
+  snapshot: ReceiptSnapshot;
+  /** Live, not part of the receipt: what happened after it was issued. */
+  later_changes: {
+    refunded_at: string | null;
+    returns: { id: number; status: ReturnStatus }[];
+  };
+}

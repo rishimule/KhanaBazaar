@@ -47,6 +47,7 @@ from app.services.courier_rules import (
 )
 from app.services.orders import _seller_owns_store
 from app.services.payment_methods import effective_bank
+from app.services.receipts import issue_in_savepoint as issue_receipt_in_savepoint
 from app.services.serviceability import courier_payment_methods
 from app.utils.delivery_window import ist_today
 
@@ -493,6 +494,7 @@ async def mark_received(session: AsyncSession, order: Order, actor: User) -> Ord
     delivery.delivered_at = now
     row.delivered_by = "customer"
     session.add_all([order, delivery, row])
+    await issue_receipt_in_savepoint(session, order, delivered_at=now)
     await session.commit()
     await session.refresh(order)
     return order

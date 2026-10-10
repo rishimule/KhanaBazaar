@@ -1,0 +1,45 @@
+{% if recipient == 'seller' %}
+SELLER COPY
+{% endif %}
+{{ headline }} — order #{{ order_id }} · {{ service_name }}
+Receipt {{ number }} · {{ issued_label }}
+{% if reissued_label %}
+Issued from order records on {{ reissued_label }}
+{% endif %}
+
+Sold by: {{ seller.business_name }}{{ (", " ~ seller.store_name) if seller.store_name != seller.business_name else "" }}
+{% if seller.store_address %}
+{{ seller.store_address }}
+{% endif %}
+{% if seller.gstin %}
+GSTIN: {{ seller.gstin }}
+{% endif %}
+{% if seller.fssai %}
+FSSAI licence: {{ seller.fssai }}
+{% endif %}
+
+Billed to: {{ customer.name }}{{ (" · " ~ customer.phone) if customer.phone else "" }}
+{% if is_pickup %}
+
+Collected at: {{ seller.store_name }}
+{% elif has_deliver_to %}
+
+Delivered to: {{ ", ".join([recipient_line, deliver_to.address or ""]|select|list) }}
+{% endif %}
+
+{% for item in items %}
+{{ item.name }} × {{ item.quantity }} @ {{ item.unit_price|inr }} = {{ item.line_total|inr }}
+{% endfor %}
+
+Subtotal: {{ amounts.subtotal|inr }}
+{% if not is_pickup %}
+{{ 'Courier charge' if amounts.delivery_fee_kind == 'courier' else 'Delivery' }}: {{ amounts.delivery_fee|inr if amounts.delivery_fee > 0 else 'Free' }}
+{% endif %}
+Total: {{ amounts.total|inr }}
+{% if amounts.store_credit_applied > 0 %}
+Store credit used: −{{ amounts.store_credit_applied|inr }}
+{% endif %}
+{{ payment_line }}
+
+This is an order receipt, not a tax invoice.
+View receipt: {{ frontend_base_url }}{{ '/seller/orders/' if recipient == 'seller' else '/account/orders/' }}{{ order_id }}/receipt

@@ -41,6 +41,7 @@ from app.services.courier_rules import (
     validate_tracking_url,
 )
 from app.services.inventory import lock_inventory_rows, restock
+from app.services.receipts import issue_in_savepoint as issue_receipt_in_savepoint
 from app.services.serviceability import within_local_radius
 from app.utils.address import format_address
 
@@ -275,6 +276,12 @@ async def transition_order_status(
             after_json=_order_snapshot(order, payment),
             reason=reason.strip() if reason else None,
         )
+
+    if target == OrderStatus.Delivered:
+        # Same transaction as the status change (spec 2026-10-10 §4): the
+        # payment row above is already marked paid, and a rollback takes the
+        # receipt number with it. Never raises.
+        await issue_receipt_in_savepoint(session, order, delivered_at=now)
 
     await session.commit()
     await session.refresh(order)

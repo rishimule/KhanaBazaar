@@ -70,6 +70,12 @@ celery_app.conf.beat_schedule = {
         "task": "courier.send_reminders",
         "schedule": crontab(minute=17),
     },
+    # Minute 27 keeps clear of the search reconcilers (7, 22), the returns
+    # sweep (12) and the courier reminders (17).
+    "receipts-issue-missing-hourly": {
+        "task": "receipts.issue_missing",
+        "schedule": crontab(minute=27),
+    },
     "fees-daily-sweep": {
         "task": "fees.run_daily_sweep",
         "schedule": crontab(hour=2, minute=0),

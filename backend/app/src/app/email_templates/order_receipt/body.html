@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block body %}
+  {% if recipient == 'seller' %}
+  <p style="font-size:12px;color:#6b7280;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin:0 0 8px;">Seller copy</p>
+  {% endif %}
+  <p style="font-size:16px;margin:0 0 4px;"><strong>{{ headline }}</strong> — order #{{ order_id }} · {{ service_name }}</p>
+  <p style="font-size:14px;color:#374151;margin:0;">Receipt <strong>{{ number }}</strong> · {{ issued_label }}</p>
+  {% if reissued_label %}
+  <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Issued from order records on {{ reissued_label }}</p>
+  {% endif %}
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:16px 0 0;">
+    <tr>
+      <td valign="top" width="50%" style="padding:0 8px 0 0;font-size:14px;color:#1f2937;">
+        <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Sold by</div>
+        <div><strong>{{ seller.business_name }}</strong></div>
+        {% if seller.store_name != seller.business_name %}<div>{{ seller.store_name }}</div>{% endif %}
+        {% if seller.store_address %}<div>{{ seller.store_address }}</div>{% endif %}
+        {% if seller.gstin %}<div>GSTIN: {{ seller.gstin }}</div>{% endif %}
+        {% if seller.fssai %}<div>FSSAI licence: {{ seller.fssai }}</div>{% endif %}
+      </td>
+      <td valign="top" width="50%" style="padding:0 0 0 8px;font-size:14px;color:#1f2937;">
+        <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Billed to</div>
+        <div><strong>{{ customer.name }}</strong></div>
+        {% if customer.phone %}<div>{{ customer.phone }}</div>{% endif %}
+        {% if has_deliver_to %}
+        <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;margin:12px 0 4px;">{{ 'Collected at' if is_pickup else 'Delivered to' }}</div>
+          {% if is_pickup %}
+        <div>{{ seller.store_name }}</div>
+          {% else %}
+            {% if recipient_line %}<div>{{ recipient_line }}</div>{% endif %}
+            {% if deliver_to.address %}<div>{{ deliver_to.address }}</div>{% endif %}
+          {% endif %}
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:16px 0;">
+    <thead>
+      <tr style="border-bottom:1px solid #e5e7eb;">
+        <th align="left" style="padding:8px 0;font-size:13px;color:#6b7280;font-weight:500;">Item</th>
+        <th align="center" style="padding:8px 0;font-size:13px;color:#6b7280;font-weight:500;">Qty</th>
+        <th align="right" style="padding:8px 0;font-size:13px;color:#6b7280;font-weight:500;">Price</th>
+        <th align="right" style="padding:8px 0;font-size:13px;color:#6b7280;font-weight:500;">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr style="border-bottom:1px solid #f3f4f6;">
+        <td style="padding:8px 0;font-size:15px;">{{ item.name }}</td>
+        <td align="center" style="padding:8px 0;font-size:15px;">{{ item.quantity }}</td>
+        <td align="right" style="padding:8px 0;font-size:15px;">{{ item.unit_price|inr }}</td>
+        <td align="right" style="padding:8px 0;font-size:15px;">{{ item.line_total|inr }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td colspan="3" align="right" style="padding:12px 8px 0;font-size:14px;color:#374151;">Subtotal</td>
+        <td align="right" style="padding:12px 0 0;font-size:14px;">{{ amounts.subtotal|inr }}</td>
+      </tr>
+      {% if not is_pickup %}
+      <tr>
+        <td colspan="3" align="right" style="padding:4px 8px 0;font-size:14px;color:#374151;">{{ 'Courier charge' if amounts.delivery_fee_kind == 'courier' else 'Delivery' }}</td>
+        <td align="right" style="padding:4px 0 0;font-size:14px;">{{ amounts.delivery_fee|inr if amounts.delivery_fee > 0 else 'Free' }}</td>
+      </tr>
+      {% endif %}
+      <tr>
+        <td colspan="3" align="right" style="padding:12px 8px 0;font-size:15px;font-weight:600;">Total</td>
+        <td align="right" style="padding:12px 0 0;font-size:15px;font-weight:700;">{{ amounts.total|inr }}</td>
+      </tr>
+      {% if amounts.store_credit_applied > 0 %}
+      <tr>
+        <td colspan="3" align="right" style="padding:4px 8px 0;font-size:14px;color:#374151;">Store credit used</td>
+        <td align="right" style="padding:4px 0 0;font-size:14px;">−{{ amounts.store_credit_applied|inr }}</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  <p style="font-size:15px;margin:0 0 8px;"><strong>{{ payment_line }}</strong></p>
+  <p style="font-size:12px;color:#6b7280;margin:0;">This is an order receipt, not a tax invoice.</p>
+  {% set cta_url = frontend_base_url ~ ("/seller/orders/" if recipient == 'seller' else "/account/orders/") ~ order_id|string ~ "/receipt" %}
+  {% set cta_label = "View receipt" %}
+  {% include "_partials/button.html" %}
+{% endblock %}

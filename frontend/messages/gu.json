@@ -3332,5 +3332,59 @@
     "errConfirmAgain": "કૃપા કરીને તમારા મોબાઇલ નંબરની ફરીથી પુષ્ટિ કરો.",
     "errEmailRegistered": "આ ઈમેલનું ખાતું પહેલેથી છે. ચાલુ રાખવા માટે સાઇન ઇન કરો.",
     "errSendFailed": "કોડ મોકલી શકાયો નહીં. કૃપા કરીને ફરી પ્રયાસ કરો."
+  },
+  "Receipt": {
+    "title": "રસીદ",
+    "sellerCopy": "વિક્રેતાની નકલ",
+    "number": "રસીદ નંબર {number}",
+    "headline": {
+      "delivered": "ડિલિવર થયું: {date}",
+      "collected": "સ્ટોરમાંથી લીધું: {date}"
+    },
+    "reissued": "{date}ના રોજ ઓર્ડરના રેકોર્ડ પરથી જારી કરી",
+    "orderRef": "ઓર્ડર #{id} · {service}",
+    "placedOn": "ઓર્ડર કર્યો: {date}",
+    "soldBy": "વિક્રેતા",
+    "gstin": "GSTIN: {value}",
+    "fssai": "FSSAI લાઇસન્સ: {value}",
+    "billedTo": "ગ્રાહક",
+    "deliveredTo": "ડિલિવરી સરનામું",
+    "collectedAtLabel": "પિકઅપ સ્થાન",
+    "item": "વસ્તુ",
+    "qty": "જથ્થો",
+    "unitPrice": "કિંમત",
+    "lineTotal": "કુલ",
+    "subtotal": "ઉપ-કુલ",
+    "deliveryFee": "ડિલિવરી",
+    "courierCharge": "કુરિયર ચાર્જ",
+    "free": "મફત",
+    "total": "કુલ",
+    "storeCreditUsed": "વપરાયેલ સ્ટોર ક્રેડિટ",
+    "amount": "₹{amount}",
+    "minusAmount": "−₹{amount}",
+    "payment": {
+      "paid": "₹{amount} ચૂકવ્યા · {method}",
+      "paidWithStoreCredit": "સ્ટોર ક્રેડિટથી ચૂકવ્યું",
+      "onCredit": "₹{amount} {store}ના ક્રેડિટ ખાતામાં નોંધાયા",
+      "unpaid": "ચૂકવણીની નોંધ નથી"
+    },
+    "method": {
+      "upi": "UPI",
+      "cash": "ડિલિવરી પર રોકડ",
+      "credit": "ક્રેડિટ",
+      "net_banking": "બેંક ટ્રાન્સફર",
+      "pay_at_store": "સ્ટોર પર ચૂકવ્યા"
+    },
+    "notTaxInvoice": "આ ઓર્ડરની રસીદ છે, ટેક્સ ઇન્વૉઇસ નહીં.",
+    "print": "પ્રિન્ટ કરો / PDF સાચવો",
+    "backToOrder": "ઓર્ડર પર પાછા જાઓ",
+    "viewReceipt": "રસીદ જુઓ",
+    "loading": "રસીદ લોડ થઈ રહી છે…",
+    "loadError": "રસીદ લોડ થઈ શકી નહીં.",
+    "notIssued": "તમારી રસીદ તૈયાર થઈ રહી છે. એક કલાક પછી ફરી જુઓ.",
+    "notDelivered": "ઓર્ડર ડિલિવર થયા પછી રસીદ જારી થાય છે.",
+    "laterTitle": "આ રસીદ પછીના ફેરફારો",
+    "laterRefunded": "{date}ના રોજ ચૂકવણી પરત કરી",
+    "laterReturn": "રિટર્ન #{id} — {status}"
   }
 }

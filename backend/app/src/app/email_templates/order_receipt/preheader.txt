@@ -1,0 +1,1 @@
+{{ headline }} · {{ service_name }} at {{ store_name }} · {{ amounts.total|inr }}

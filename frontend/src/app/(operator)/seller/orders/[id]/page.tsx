@@ -28,6 +28,7 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
   const tpm = useTranslations("Order.payment.method");
   const tcs = useTranslations("Seller.orderDetail.courier");
   const tco = useTranslations("Order.courier");
+  const tReceipt = useTranslations("Receipt");
   const { token } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -88,11 +89,16 @@ export default function SellerOrderDetailPage({ params }: { params: Promise<{ id
       {/* Returns can only start from a delivered order; the backend enforces
           the window, so this is an entry point, not the eligibility check.
           Courier orders are never returnable (not_returnable_courier). */}
-      {!isCourier && order.status === "delivered" && (
+      {order.status === "delivered" && (
         <section className={styles.section}>
-          <Link className="btn" href={`/seller/orders/${order.id}/return`}>
-            {t("startReturn")}
-          </Link>
+          <Link className="btn" href={`/seller/orders/${order.id}/receipt`}>
+            {tReceipt("viewReceipt")}
+          </Link>{" "}
+          {!isCourier && (
+            <Link className="btn" href={`/seller/orders/${order.id}/return`}>
+              {t("startReturn")}
+            </Link>
+          )}
         </section>
       )}
 

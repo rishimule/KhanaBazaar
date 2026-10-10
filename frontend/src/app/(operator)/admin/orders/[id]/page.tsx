@@ -4,6 +4,7 @@
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { getOrder } from "@/lib/orders";
 import { useAuth } from "@/lib/AuthContext";
 import OrderTimeline from "@/components/orders/OrderTimeline";
@@ -27,6 +28,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const tpm = useTranslations("Order.payment.method");
   const tcs = useTranslations("Admin.orderDetail.courier");
   const tco = useTranslations("Order.courier");
+  const tReceipt = useTranslations("Receipt");
   const { id } = use(params);
   const { token } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
@@ -82,6 +84,14 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
       </section>
 
       {isCourier && <CourierSummary order={order} viewer="admin" />}
+
+      {order.status === "delivered" && (
+        <section className={styles.section}>
+          <Link className="btn" href={`/admin/orders/${order.id}/receipt`}>
+            {tReceipt("viewReceipt")}
+          </Link>
+        </section>
+      )}
 
       <DeliveryOtpPanel
         order={order}

@@ -97,6 +97,11 @@ async def main() -> None:
             if not args.verify_only:
                 await seed_demo_data(session)
                 await session.commit()
+                # Seeded delivered orders get their receipts now, not at the
+                # next hourly sweep (no emails, same as the deploy backfill).
+                from app.services.receipts import issue_missing
+
+                print(f"Order receipts issued: {(await issue_missing(session)).issued}")
                 # Seed v1 Privacy + Terms so consent is active for dev/manual
                 # testing (idempotent; prod also runs this as a standalone step
                 # in deploy_release.sh for the --skip-if-seeded path).
