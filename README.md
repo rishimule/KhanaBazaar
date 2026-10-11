@@ -6,6 +6,8 @@ This code and its associated documentation cannot be copied, modified, or distri
 
 Multi-vendor hyperlocal e-commerce platform for the Indian market — Instacart-style, with admin-curated catalogs, seller-managed local inventory, and UPI checkout.
 
+> **Taking over the project?** Start with [HANDOVER.md](HANDOVER.md).
+
 - **Admins** maintain a master product catalog (services, categories, subcategories, master products) — multi-lingual (en, hi, mr, gu, pa).
 - **Sellers** register, get admin-approved, run **one store** with **multiple services** (Grocery, Food, Pharmacy, …), and manage per-store inventory + pricing.
 - **Customers** shop one store at a time, pay via UPI, and check out per-store.
@@ -177,7 +179,7 @@ Login is email-OTP. With `EMAIL_PROVIDER=console` the OTP is printed to the back
 | Seller (Balaji Store) | `seller3@khanabazaar.dev` |
 | Customer | `customer@khanabazaar.dev` |
 
-Sellers `seller4@…` through `seller9@…` also exist. The login page exposes quick-login buttons for these dev accounts.
+Sellers `seller4@…` through `seller9@…` also exist.
 
 ## Common Commands
 

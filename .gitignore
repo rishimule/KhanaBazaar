@@ -19,6 +19,10 @@ encrypted.data
 
 # Firebase / Secrets
 secrets/
+# Handover material (kept under secrets/; these catch copies moved elsewhere)
+HANDOVER_SECRETS*
+handover-secrets*
+design-docs-*.tar.gz
 *firebase*.json
 # Hosting config (no secrets) — must be tracked:
 !firebase.json
